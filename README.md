@@ -1,12 +1,11 @@
-# boeltech-transport-api
+# boeltech-transport-web
 
 ## Descripción
-Proyecto API (Backend) para el cliente Sistema ERP de Transporte.
+Proyecto Web (Frontend) para el cliente Sistema ERP de Transporte.
 
 ## Stack
-- Node.js
-- Express
-- PostgreSQL
+-  React
+-  Bootstrap
 
 ## Scripts
 
