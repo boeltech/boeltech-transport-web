@@ -1,7 +1,7 @@
 // src/app/router/AppRouter.jsx
 
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '@/app/providers/AuthProvider';
+import { useAuthContext } from '@/app/providers/AuthProvider';
 
 // Layout
 import { MainLayout } from '@/shared/ui/layouts/MainLayout';
@@ -81,7 +81,7 @@ import { NotFound } from '@/shared/ui/pages/NotFound';
  * Maneja todas las rutas públicas y protegidas
  */
 export const AppRouter = () => {
-  const { isLoading } = useAuth();
+  const { isLoading } = useAuthContext();
 
   // Mostrar loading mientras verifica autenticación
   if (isLoading) {

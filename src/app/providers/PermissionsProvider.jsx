@@ -1,21 +1,10 @@
 // src/app/providers/PermissionsProvider.jsx
 
-import { createContext, useContext } from 'react';
-import { useAuth } from './AuthProvider'; // ✅ CORRECTO: Import desde AuthProvider
-import { ROLES } from '@shared/constants/roles';
+import { createContext, useContext } from "react";
+import { useAuthContext } from "./AuthProvider"; // ✅ CORRECTO: Import desde AuthProvider
+import { ROLES } from "@shared/constants/roles";
 
 const PermissionsContext = createContext(null);
-
-/**
- * Definición de roles del sistema (según ERS)
- */
-// export const ROLES = {
-//   ADMINISTRADOR: 'administrador',
-//   GERENTE: 'gerente',
-//   CONTADOR: 'contador',
-//   OPERADOR: 'operador',
-//   CLIENTE: 'cliente',
-// };
 
 /**
  * Matriz de permisos por rol
@@ -23,122 +12,118 @@ const PermissionsContext = createContext(null);
  */
 export const PERMISSIONS = {
   // Administrador tiene acceso total
-  administrador: ['*'],
+  administrador: ["*"],
 
   // Gerente de Operaciones
   gerente: [
     // Vehículos
-    'vehicles.read',
-    'vehicles.create',
-    'vehicles.update',
-    'vehicles.delete',
-    
+    "vehicles.read",
+    "vehicles.create",
+    "vehicles.update",
+    "vehicles.delete",
+
     // Viajes
-    'trips.read',
-    'trips.create',
-    'trips.update',
-    'trips.delete',
-    
+    "trips.read",
+    "trips.create",
+    "trips.update",
+    "trips.delete",
+
     // Conductores
-    'drivers.read',
-    'drivers.create',
-    'drivers.update',
-    'drivers.delete',
-    
+    "drivers.read",
+    "drivers.create",
+    "drivers.update",
+    "drivers.delete",
+
     // Mantenimiento
-    'maintenance.read',
-    'maintenance.create',
-    'maintenance.update',
-    'maintenance.delete',
-    
+    "maintenance.read",
+    "maintenance.create",
+    "maintenance.update",
+    "maintenance.delete",
+
     // Refacciones
-    'parts.read',
-    'parts.create',
-    'parts.update',
-    
+    "parts.read",
+    "parts.create",
+    "parts.update",
+
     // Combustible
-    'fuel.read',
-    'fuel.create',
-    'fuel.update',
-    
+    "fuel.read",
+    "fuel.create",
+    "fuel.update",
+
     // Clientes
-    'customers.read',
-    'customers.create',
-    'customers.update',
-    
+    "customers.read",
+    "customers.create",
+    "customers.update",
+
     // Reportes
-    'reports.fleet',
-    'reports.trips',
-    'reports.fuel',
-    'reports.maintenance',
-    
+    "reports.fleet",
+    "reports.trips",
+    "reports.fuel",
+    "reports.maintenance",
+
     // Dashboard
-    'dashboard.read',
+    "dashboard.read",
   ],
 
   // Contador
   contador: [
     // Facturas
-    'invoices.read',
-    'invoices.create',
-    'invoices.update',
-    'invoices.delete',
-    'invoices.pdf',
-    
+    "invoices.read",
+    "invoices.create",
+    "invoices.update",
+    "invoices.delete",
+    "invoices.pdf",
+
     // Gastos
-    'expenses.read',
-    'expenses.create',
-    'expenses.update',
-    'expenses.delete',
-    
+    "expenses.read",
+    "expenses.create",
+    "expenses.update",
+    "expenses.delete",
+
     // Reportes financieros
-    'reports.financial',
-    'reports.expenses',
-    'reports.profitability',
-    
+    "reports.financial",
+    "reports.expenses",
+    "reports.profitability",
+
     // Solo lectura de otros módulos
-    'customers.read',
-    'vehicles.read',
-    'trips.read',
-    'drivers.read',
-    
+    "customers.read",
+    "vehicles.read",
+    "trips.read",
+    "drivers.read",
+
     // Dashboard
-    'dashboard.read',
+    "dashboard.read",
   ],
 
   // Operador
   operador: [
     // Viajes
-    'trips.create',
-    'trips.update',
-    'trips.read',
-    
+    "trips.create",
+    "trips.update",
+    "trips.read",
+
     // Gastos
-    'expenses.create',
-    'expenses.read',
-    
+    "expenses.create",
+    "expenses.read",
+
     // Mantenimiento
-    'maintenance.create',
-    'maintenance.read',
-    
+    "maintenance.create",
+    "maintenance.read",
+
     // Combustible
-    'fuel.create',
-    'fuel.read',
-    
+    "fuel.create",
+    "fuel.read",
+
     // Solo lectura
-    'vehicles.read',
-    'drivers.read',
-    
+    "vehicles.read",
+    "drivers.read",
+
     // Dashboard básico
-    'dashboard.read',
+    "dashboard.read",
   ],
 
   // Cliente
-  cliente: [
-    'trips.read',
-    'invoices.read',
-    'invoices.pdf',
-  ],
+  cliente: ["trips.read", "invoices.read", "invoices.pdf"],
 };
 
 /**
@@ -147,7 +132,7 @@ export const PERMISSIONS = {
  */
 export const PermissionsProvider = ({ children }) => {
   // ✅ CORRECTO: Obtener user desde AuthProvider
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   /**
    * Obtener permisos del usuario actual
@@ -164,10 +149,10 @@ export const PermissionsProvider = ({ children }) => {
    */
   const can = (permission) => {
     const userPermissions = getUserPermissions();
-    
+
     // Administrador tiene acceso total
-    if (userPermissions.includes('*')) return true;
-    
+    if (userPermissions.includes("*")) return true;
+
     // Verificar permiso específico
     return userPermissions.includes(permission);
   };
@@ -259,7 +244,7 @@ export const PermissionsProvider = ({ children }) => {
     // Verificación de roles
     hasRole,
     hasAnyRole,
-    
+
     // Helpers de roles
     isAdmin,
     isManager,
@@ -284,11 +269,13 @@ export const PermissionsProvider = ({ children }) => {
  */
 export const usePermissions = () => {
   const context = useContext(PermissionsContext);
-  
+
   if (!context) {
-    throw new Error('usePermissions debe ser usado dentro de un PermissionsProvider');
+    throw new Error(
+      "usePermissions debe ser usado dentro de un PermissionsProvider"
+    );
   }
-  
+
   return context;
 };
 

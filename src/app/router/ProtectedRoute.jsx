@@ -1,7 +1,7 @@
 // src/app/router/ProtectedRoute.jsx
 
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/app/providers/AuthProvider';
+import { useAuthContext } from '@/app/providers/AuthProvider';
 
 /**
  * ProtectedRoute - Componente para proteger rutas que requieren autenticación
@@ -12,7 +12,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
  * @param {string} props.redirectTo - Ruta a la que redirigir si no está autenticado (default: /login)
  */
 export const ProtectedRoute = ({ children, redirectTo = '/login' }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthContext();
 
   // Mostrar loading mientras verifica autenticación
   if (isLoading) {

@@ -3,7 +3,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 // import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
-import { useAuth } from "@/app/providers/AuthProvider";
+import { useAuthContext } from "@/app/providers/AuthProvider";
 
 /**
  * Unauthorized - Página 403
@@ -11,7 +11,7 @@ import { useAuth } from "@/app/providers/AuthProvider";
  */
 export const Unauthorized = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
