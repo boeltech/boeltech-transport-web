@@ -1,42 +1,300 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Colores base */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    
+    /* Colores de card */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    
+    /* Colores de popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    
+    /* Color primario (azul corporativo) */
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    
+    /* Color secundario (gris) */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Color muted (para textos secundarios) */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    /* Color de acento */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
+    /* Color destructivo (para acciones de eliminación) */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Bordes e inputs */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    
+    /* Radio de bordes */
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+  
+  /* Modo oscuro */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Estilos para scrollbar personalizado */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
 }
 
-@keyframes logo-spin {
+@layer components {
+  /* Clases de utilidad personalizadas para el ERP */
+  
+  /* Tarjeta con hover effect */
+  .card-interactive {
+    @apply transition-all duration-200 hover:shadow-card-hover hover:scale-[1.02] cursor-pointer;
+  }
+  
+  /* Badge de estado para vehículos */
+  .badge-vehiculo-activo {
+    @apply bg-vehiculo-activo text-white;
+  }
+  
+  .badge-vehiculo-mantenimiento {
+    @apply bg-vehiculo-mantenimiento text-white;
+  }
+  
+  .badge-vehiculo-inactivo {
+    @apply bg-vehiculo-inactivo text-white;
+  }
+  
+  /* Badge de estado para viajes */
+  .badge-viaje-pendiente {
+    @apply bg-viaje-pendiente text-white;
+  }
+  
+  .badge-viaje-en-curso {
+    @apply bg-viaje-enCurso text-white;
+  }
+  
+  .badge-viaje-completado {
+    @apply bg-viaje-completado text-white;
+  }
+  
+  .badge-viaje-cancelado {
+    @apply bg-viaje-cancelado text-white;
+  }
+  
+  /* Layout para páginas del ERP */
+  .page-container {
+    @apply container mx-auto px-4 py-6 md:px-6 lg:px-8;
+  }
+  
+  .page-header {
+    @apply flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between;
+  }
+  
+  .page-title {
+    @apply text-2xl font-bold tracking-tight md:text-3xl;
+  }
+  
+  /* Grid responsive para tarjetas */
+  .grid-cards {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  /* Tabla responsive */
+  .table-container {
+    @apply relative overflow-x-auto rounded-lg border;
+  }
+  
+  /* Formulario con espaciado consistente */
+  .form-section {
+    @apply space-y-4 rounded-lg border p-4 md:p-6;
+  }
+  
+  .form-section-title {
+    @apply text-lg font-semibold mb-4;
+  }
+  
+  /* Stats cards para dashboard */
+  .stat-card {
+    @apply rounded-lg border bg-card p-6 shadow-card;
+  }
+  
+  .stat-value {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  
+  .stat-label {
+    @apply text-sm text-muted-foreground;
+  }
+  
+  .stat-change-positive {
+    @apply text-success text-sm font-medium;
+  }
+  
+  .stat-change-negative {
+    @apply text-destructive text-sm font-medium;
+  }
+  
+  /* Loading state */
+  .loading-spinner {
+    @apply animate-spin-slow h-8 w-8 border-4 border-primary border-t-transparent rounded-full;
+  }
+  
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 text-center;
+  }
+  
+  .empty-state-icon {
+    @apply h-12 w-12 text-muted-foreground mb-4;
+  }
+  
+  .empty-state-title {
+    @apply text-lg font-semibold mb-2;
+  }
+  
+  .empty-state-description {
+    @apply text-sm text-muted-foreground mb-4;
+  }
+}
+
+@layer utilities {
+  /* Utilidades adicionales para texto */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Truncate con tooltip */
+  .truncate-tooltip {
+    @apply truncate cursor-help;
+  }
+  
+  /* Hide scrollbar pero mantener funcionalidad */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Gradient backgrounds para headers */
+  .gradient-header {
+    @apply bg-gradient-to-r from-primary to-primary/80;
+  }
+  
+  /* Glass effect para modales */
+  .glass-effect {
+    @apply bg-background/80 backdrop-blur-sm;
+  }
+}
+
+/* Animaciones personalizadas para el ERP */
+@keyframes slide-in-from-right {
   from {
-    transform: rotate(0deg);
+    transform: translateX(100%);
   }
   to {
-    transform: rotate(360deg);
+    transform: translateX(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@keyframes slide-out-to-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+/* Estilos para impresión */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .page-container {
+    @apply px-0;
+  }
+  
+  body {
+    @apply bg-white text-black;
+  }
+  
+  .card, .stat-card {
+    @apply border-black;
+  }
 }

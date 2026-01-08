@@ -1,13 +1,13 @@
 // src/app/router/RoleRoute.jsx
 
-import { Navigate } from "react-router-dom";
-import { useAuthContext } from "@/app/providers/AuthProvider";
-import { usePermissions } from "@/app/providers/PermissionsProvider";
+import { Navigate } from 'react-router-dom';
+import { useAuthContext } from '@/app/providers/AuthProvider';
+import { usePermissions } from '@/app/providers/PermissionsProvider';
 
 /**
  * RoleRoute - Componente para proteger rutas según permisos y roles
  * Verifica autenticación + permisos antes de renderizar
- *
+ * 
  * @param {Object} props
  * @param {ReactNode} props.children - Componentes a renderizar si tiene permisos
  * @param {string} props.requiredPermission - Permiso requerido (ej: 'vehicles.read')
@@ -24,7 +24,7 @@ export const RoleRoute = ({
   requireAll = false,
   requiredRole,
   requiredRoles,
-  fallbackPath = "/unauthorized",
+  fallbackPath = '/unauthorized',
 }) => {
   const { user, isLoading, isAuthenticated } = useAuthContext();
   const { can, canAny, canAll, hasRole, hasAnyRole } = usePermissions();
@@ -57,7 +57,7 @@ export const RoleRoute = ({
 
     if (!hasPermission) {
       console.warn(
-        `Access denied: Missing ${requireAll ? "all" : "any"} of permissions:`,
+        `Access denied: Missing ${requireAll ? 'all' : 'any'} of permissions:`,
         requiredPermissions
       );
       return <Navigate to={fallbackPath} replace />;
@@ -66,9 +66,7 @@ export const RoleRoute = ({
 
   // Verificar rol único
   if (requiredRole && !hasRole(requiredRole)) {
-    console.warn(
-      `Access denied: Required role '${requiredRole}', user has '${user.role}'`
-    );
+    console.warn(`Access denied: Required role '${requiredRole}', user has '${user.role}'`);
     return <Navigate to={fallbackPath} replace />;
   }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axiosInstance from '@/shared/api/axiosConfig';
 import { useAuthContext } from '@/app/providers/AuthProvider';
+import { sub } from 'date-fns';
 
 export const useLogin = () => {
   const { setAuthUser } = useAuthContext();
@@ -15,6 +16,7 @@ export const useLogin = () => {
       const { data } = await axiosInstance.post('/auth/login', {
         email,
         password,
+        subdomain: 'demo'
       });
 
       setAuthUser(data.user, data.token);

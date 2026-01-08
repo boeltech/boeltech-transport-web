@@ -1,8 +1,8 @@
 // src/shared/ui/pages/NotFound.jsx
 
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/shared/ui/button";
-// import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/shared/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
 
 /**
  * NotFound - Página 404
@@ -13,10 +13,7 @@ export const NotFound = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
-        
-      <Button onClick={() => navigate("/")}>Ir al Inicio</Button>
-
-      {/* <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex flex-col items-center space-y-2">
             <div className="text-6xl font-bold text-primary">404</div>
@@ -38,7 +35,7 @@ export const NotFound = () => {
             </Button>
           </div>
         </CardContent>
-      </Card> */}
+      </Card>
     </div>
   );
 };

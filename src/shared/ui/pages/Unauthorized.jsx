@@ -1,9 +1,9 @@
 // src/shared/ui/pages/Unauthorized.jsx
 
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/shared/ui/button";
-// import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
-import { useAuthContext } from "@/app/providers/AuthProvider";
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/shared/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
+import { useAuthContext } from '@/app/providers/AuthProvider';
 
 /**
  * Unauthorized - Página 403
@@ -15,10 +15,7 @@ export const Unauthorized = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
-
-      <Button onClick={() => navigate("/")}>Ir al Inicio</Button>
-      
-      {/* <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex flex-col items-center space-y-2">
             <div className="rounded-full bg-destructive/10 p-3">
@@ -69,7 +66,7 @@ export const Unauthorized = () => {
             Si crees que esto es un error, contacta al administrador.
           </p>
         </CardContent>
-      </Card> */}
+      </Card>
     </div>
   );
 };

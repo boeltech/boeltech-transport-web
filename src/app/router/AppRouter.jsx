@@ -13,7 +13,7 @@ import { RoleRoute } from './RoleRoute';
 
 // // Páginas públicas
 import { Landing } from '@/features/landing/view/Landing';
-// import { Login } from '@/features/auth/view/Login/Login';
+import { Login } from '@/features/auth/view/Login/Login';
 // import { Register } from '@/features/auth/view/Register/Register';
 // import { ForgotPassword } from '@/features/auth/view/ForgotPassword/ForgotPassword';
 import { Unauthorized } from '@/shared/ui/pages/Unauthorized';
@@ -100,11 +100,11 @@ export const AppRouter = () => {
       <Route path="/" element={<Landing />} />
 
       {/* Autenticación */}
-      {/* <Route element={<AuthLayout />}>
+      <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-      </Route> */}
+        {/* <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> */}
+      </Route>
 
       {/* Páginas de error */}
       <Route path="/unauthorized" element={<Unauthorized />} />
