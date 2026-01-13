@@ -4,12 +4,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import type { AuthState, LoginCredentials } from "@features/auth/model/types";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+
+import type { AuthState, User } from "@features/auth/model/types";
 import { tokenStorage } from "@features/auth/lib/tokenStorage";
 import { authApi } from "@features/auth/api/authApi";
 import { apiClient } from "@shared/api";
@@ -17,8 +19,15 @@ import { apiClient } from "@shared/api";
 // ============================================
 // Tipos del Contexto
 // ============================================
+
+interface LoginParams {
+  email: string;
+  password: string;
+  subdomain: string;
+}
+
 interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (params: LoginParams) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -30,6 +39,38 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 // ============================================
+// Refs globales para los callbacks de interceptores
+// Esto permite configurar interceptores antes del render
+// ============================================
+const authCallbacks = {
+  onUnauthorized: () => {
+    console.log("[Auth] Unauthorized callback not set yet");
+  },
+  onForbidden: () => {
+    console.log("[Auth] Forbidden callback not set yet");
+  },
+};
+
+// ============================================
+// Configurar interceptores INMEDIATAMENTE (fuera de React)
+// Esto se ejecuta cuando el módulo se importa
+// ============================================
+apiClient.configureInterceptors({
+  getToken: () => tokenStorage.getToken(),
+  getRefreshToken: () => tokenStorage.getRefreshToken(),
+  setToken: (token: string) => {
+    console.log("[Auth] Token refreshed successfully");
+    tokenStorage.setToken(token);
+  },
+  removeToken: () => tokenStorage.removeToken(),
+  clear: () => tokenStorage.clear(),
+  onUnauthorized: () => authCallbacks.onUnauthorized(),
+  onForbidden: () => authCallbacks.onForbidden(),
+});
+
+console.log("[Auth] Interceptors configured at module load");
+
+// ============================================
 // Provider
 // ============================================
 interface AuthProviderProps {
@@ -37,13 +78,12 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  // Aquí iría la lógica de autenticación (estado, funciones, efectos, etc.)
-
   const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
 
-  // Estado inicial desde localStorage (persistencia)
+  // ============================================
+  // Estado inicial desde localStorage
+  // ============================================
   const [state, setState] = useState<AuthState>(() => {
     const token = tokenStorage.getToken();
     const user = tokenStorage.getUser();
@@ -51,65 +91,51 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return {
       token,
       user,
-      isAuthenticated: !!token && !!user /** (Mejora ChatGpt) false */,
-      isLoading: !!token, // Si hay token, verificamos validez
+      isAuthenticated: !!token && !!user,
+      isLoading: !!token, // Si hay token, verificar validez
     };
   });
 
   // ============================================
-  // Configurar interceptor de Axios
+  // Logout
   // ============================================
-  //   useEffect(() => {
-  //     // Request interceptor: agregar token a cada request
-  //     const requestInterceptor = apiClient.interceptors.request.use(
-  //       (config) => {
-  //         const token = tokenStorage.getToken();
-  //         if (token) {
-  //           config.headers.Authorization = `Bearer ${token}`;
-  //         }
-  //         return config;
-  //       },
-  //       (error) => Promise.reject(error)
-  //     );
+  const logout = useCallback(async () => {
+    try {
+      const refreshToken = tokenStorage.getRefreshToken();
+      if (refreshToken) {
+        await authApi.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      tokenStorage.clear();
+      queryClient.clear();
 
-  //     // Response interceptor: manejar errores de auth
-  //     const responseInterceptor = apiClient.interceptors.response.use(
-  //       (response) => response,
-  //       async (error) => {
-  //         if (error.response?.status === 401) {
-  //           // Token expirado o inválido
-  //           tokenStorage.clear();
-  //           setState({
-  //             user: null,
-  //             token: null,
-  //             isAuthenticated: false,
-  //             isLoading: false,
-  //           });
-  //           navigate('/login', {
-  //             state: { from: location.pathname },
-  //             replace: true
-  //           });
-  //         }
-  //         return Promise.reject(error);
-  //       }
-  //     );
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
 
-  //     // Cleanup
-  //     return () => {
-  //       apiClient.interceptors.request.eject(requestInterceptor);
-  //       apiClient.interceptors.response.eject(responseInterceptor);
-  //     };
-  //   }, [navigate, location.pathname]);
+      navigate("/login", { replace: true });
+    }
+  }, [navigate, queryClient]);
+
+  // ============================================
+  // Actualizar callbacks globales cuando cambien las dependencias
+  // ============================================
   useEffect(() => {
-    apiClient.configureInterceptors({
-      getToken: () => tokenStorage.getToken(),
-      removeToken: () => tokenStorage.removeToken(),
-      onUnauthorized: () => {
-        void logout();
-      },
-      onForbidden: () => navigate("/forbidden"),
-    });
-  }, [navigate]);
+    authCallbacks.onUnauthorized = () => {
+      console.log("[Auth] Executing unauthorized callback");
+      logout();
+    };
+
+    authCallbacks.onForbidden = () => {
+      console.log("[Auth] Executing forbidden callback");
+      navigate("/forbidden");
+    };
+  }, [logout, navigate]);
 
   // ============================================
   // Verificar token al cargar la app
@@ -124,26 +150,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       try {
-        // Verificar que el token sigue siendo válido
-        const user = await authApi.me();
+        console.log("[Auth] Verifying token...");
+        const user = await authApi.getProfile();
+        console.log("[Auth] Token valid, user:", user.email);
 
         tokenStorage.setUser(user);
+
         setState({
           token,
           user,
           isAuthenticated: true,
           isLoading: false,
         });
-      } catch (error) {
-        // Token inválido
-        tokenStorage.clear();
+      } catch (error: any) {
+        console.error("[Auth] Token verification failed:", error?.message);
+
+        // Si llegamos aquí, el interceptor no pudo hacer refresh
+        // o el refresh también falló
+        if (tokenStorage.getToken()) {
+          tokenStorage.clear();
+        }
+
         setState({
           user: null,
           token: null,
           isAuthenticated: false,
           isLoading: false,
         });
-        throw error;
       }
     };
 
@@ -155,60 +188,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // ============================================
   // Login
   // ============================================
-  const login = useCallback(
-    async (credentials: LoginCredentials) => {
-      setState((prev) => ({ ...prev, isLoading: true }));
+  const login = useCallback(async (params: LoginParams) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
 
-      try {
-        const { token, user } = await authApi.login(credentials);
-
-        // Persistir
-        tokenStorage.setToken(token);
-        tokenStorage.setUser(user);
-
-        // Actualizar estado
-        setState({
-          token,
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        // Redirigir a la página original o dashboard
-        const from = location.state?.from || "/dashboard";
-        navigate(from, { replace: true });
-      } catch (error) {
-        setState((prev) => ({ ...prev, isLoading: false }));
-        throw error; // Re-throw para que el form lo maneje
-      }
-    },
-    [navigate, location.state]
-  );
-
-  // ============================================
-  // Logout
-  // ============================================
-  const logout = useCallback(async () => {
     try {
-      await authApi.logout();
-    } catch (error) {
-      // Continuar con logout local aunque falle el servidor
-      console.error("Logout error:", error);
-    } finally {
-      // Limpiar todo
-      tokenStorage.clear();
-      queryClient.clear(); // Limpiar cache de React Query
-
-      setState({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        isLoading: false,
+      const response = await authApi.login({
+        email: params.email,
+        password: params.password,
+        subdomain: params.subdomain,
       });
 
-      navigate("/login", { replace: true });
+      tokenStorage.setToken(response.accessToken);
+      tokenStorage.setRefreshToken(response.refreshToken);
+      tokenStorage.setUser(response.user);
+      tokenStorage.setSubdomain(params.subdomain);
+
+      setState({
+        token: response.accessToken,
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
     }
-  }, [navigate, queryClient]);
+  }, []);
 
   // ============================================
   // Verificación de Permisos
@@ -216,11 +221,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const hasPermission = useCallback(
     (permission: string): boolean => {
       if (!state.user) return false;
+      if (state.user.role === "admin") return true;
 
-      // Admin tiene todos los permisos
-      if (state.user.rol === "admin") return true;
+      const userPermissions = (state.user as User & { permissions?: string[] })
+        .permissions;
 
-      return state.user.permisos.includes(permission);
+      if (!userPermissions || !Array.isArray(userPermissions)) {
+        return false;
+      }
+
+      return userPermissions.some((p) => {
+        if (p === permission) return true;
+        if (p.endsWith(":*")) {
+          const prefix = p.slice(0, -1);
+          return permission.startsWith(prefix);
+        }
+        return false;
+      });
     },
     [state.user]
   );
@@ -231,9 +248,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const hasRole = useCallback(
     (roles: string | string[]): boolean => {
       if (!state.user) return false;
-
       const roleArray = Array.isArray(roles) ? roles : [roles];
-      return roleArray.includes(state.user.rol);
+      return roleArray.includes(state.user.role);
     },
     [state.user]
   );
@@ -255,11 +271,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // ============================================
   // Render
   // ============================================
-  // Mostrar loading mientras verificamos auth inicial
   if (state.isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Verificando sesión...</p>
+        </div>
       </div>
     );
   }
@@ -279,3 +297,5 @@ export const useAuth = (): AuthContextType => {
 
   return context;
 };
+
+export { AuthContext };

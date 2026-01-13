@@ -1,33 +1,65 @@
 import { apiClient } from "@shared/api";
-import type {
-  AuthResponse,
-  LoginCredentials,
-  User,
-} from "@features/auth/model/types";
+import type { LoginCredentials, AuthResponse, User } from "../model/types";
 
+/**
+ * API de Autenticación
+ *
+ * Endpoints:
+ * - POST /api/auth/login    - Iniciar sesión
+ * - POST /api/auth/refresh  - Renovar token
+ * - POST /api/auth/logout   - Cerrar sesión
+ * - GET  /api/auth/profile  - Obtener perfil del usuario
+ */
 export const authApi = {
+  /**
+   * Iniciar sesión
+   *
+   * @param credentials - Email, password y subdomain
+   * @returns Token de acceso, refresh token y datos del usuario
+   */
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>(
-      "/auth/login",
-      credentials
-    );
-    // return response.data;
-    return response;
+    // apiClient.post ya retorna response.data
+    return apiClient.post<AuthResponse>("/api/auth/login", {
+      email: credentials.email,
+      password: credentials.password,
+      subdomain: credentials.subdomain,
+    });
   },
 
-  logout: async (): Promise<void> => {
-    await apiClient.post("/auth/logout");
+  /**
+   * Renovar token de acceso
+   *
+   * @param refreshToken - Token de refresco
+   * @returns Nuevo token de acceso
+   */
+  refresh: async (refreshToken: string): Promise<{ accessToken: string }> => {
+    return apiClient.post<{ accessToken: string }>("/api/auth/refresh", {
+      refreshToken,
+    });
   },
 
+  /**
+   * Cerrar sesión
+   *
+   * @param refreshToken - Token de refresco a invalidar
+   */
+  logout: async (refreshToken?: string): Promise<void> => {
+    await apiClient.post("/api/auth/logout", { refreshToken });
+  },
+
+  /**
+   * Obtener perfil del usuario autenticado
+   *
+   * @returns Datos del usuario
+   */
+  getProfile: async (): Promise<User> => {
+    return apiClient.get<User>("/api/auth/profile");
+  },
+
+  /**
+   * Alias para getProfile (compatibilidad con el nombre "me")
+   */
   me: async (): Promise<User> => {
-    const response = await apiClient.get<User>("/auth/me");
-    // return response.data;
-    return response;
-  },
-
-  refreshToken: async (): Promise<{ token: string }> => {
-    const response = await apiClient.post<{ token: string }>("/auth/refresh");
-    // return response.data;
-    return response;
+    return authApi.getProfile();
   },
 };

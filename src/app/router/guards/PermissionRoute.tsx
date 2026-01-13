@@ -1,56 +1,35 @@
-import type { Permission } from "@features/permissions";
-import { useAuth, usePermissions } from "@app/providers";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@app/providers/AuthProvider";
 
-// ============================================
-// PermissionRoute - Protege rutas por permiso
-// ============================================
 interface PermissionRouteProps {
-  /** Permiso requerido */
-  permission?: Permission;
+  /** Permiso requerido (ej: "fleet:vehicles:write") */
+  permission: string;
 
-  /** Múltiples permisos (requiere TODOS) */
-  permissions?: Permission[];
-
-  /** Múltiples permisos (requiere AL MENOS UNO) */
-  anyPermission?: Permission[];
-
-  /** Ruta de redirección si no tiene permiso */
+  /** Ruta a la que redirigir si no tiene permiso (default: /forbidden) */
   redirectTo?: string;
 }
 
+/**
+ * PermissionRoute
+ *
+ * Guard que verifica si el usuario tiene un permiso específico.
+ *
+ * @example
+ * <PermissionRoute permission="fleet:vehicles:write">
+ *   <VehicleCreatePage />
+ * </PermissionRoute>
+ */
 export const PermissionRoute = ({
   permission,
-  permissions,
-  anyPermission,
   redirectTo = "/forbidden",
 }: PermissionRouteProps) => {
-  const { isAuthenticated } = useAuth();
-  const { hasPermission, hasAllPermissions, hasAnyPermission } =
-    usePermissions();
-  const location = useLocation();
+  const { user, hasPermission } = useAuth();
 
-  // Si no está autenticado, redirigir a login
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
-  // Evaluar permisos
-  let isAllowed = true;
-
-  if (permission) {
-    isAllowed = hasPermission(permission);
-  }
-
-  if (isAllowed && permissions && permissions.length > 0) {
-    isAllowed = hasAllPermissions(permissions);
-  }
-
-  if (isAllowed && anyPermission && anyPermission.length > 0) {
-    isAllowed = hasAnyPermission(anyPermission);
-  }
-
-  if (!isAllowed) {
+  if (!hasPermission(permission)) {
     return <Navigate to={redirectTo} replace />;
   }
 

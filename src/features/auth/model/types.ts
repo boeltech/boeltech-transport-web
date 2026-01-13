@@ -1,51 +1,74 @@
-import type { UserRole } from "@features/permissions/model/types";
+import type { UserRole } from "@features/permissions";
 
 /**
  * Roles de usuario del sistema
+ * Deben coincidir con los roles definidos en el backend
  */
 // export type UserRole =
 //   | "admin"
 //   | "gerente"
 //   | "contador"
 //   | "operador"
-//   | "cliente";
+//   | "cliente"
+//   | "user";
+
+/**
+ * Información del tenant (empresa)
+ * Sistema multi-tenant: cada empresa tiene su propio subdomain
+ */
+export interface Tenant {
+  id: string;
+  name: string;
+  subdomain: string;
+}
 
 /**
  * Usuario autenticado
+ *
+ * Estructura que devuelve el backend en:
+ * - POST /api/auth/login (dentro de response.user)
+ * - GET /api/auth/profile
+ *
+ * IMPORTANTE: Los campos deben coincidir con el backend:
+ * - Backend usa: firstName, lastName, role
+ * - NO usar: nombre, apellido, rol
  */
 export interface User {
   id: string;
   email: string;
-  nombre: string;
-  apellido: string;
-  rol: UserRole;
-  avatar?: string;
-  permisos?: string[];
-  activo: boolean;
-  ultimoAcceso?: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  lastLogin?: string;
+  tenant: Tenant;
+  permissions?: string[]; // Permisos específicos del usuario (opcional)
 }
 
 /**
  * Credenciales para login
+ *
+ * El backend requiere `subdomain` para identificar el tenant
  */
 export interface LoginCredentials {
   email: string;
   password: string;
-  rememberMe?: boolean;
+  subdomain: string;
+  rememberMe?: boolean; // Solo usado en frontend
 }
 
 /**
- * Respuesta del endpoint de login
+ * Respuesta del endpoint POST /api/auth/login
+ *
+ * IMPORTANTE: El backend devuelve `accessToken`, NO `token`
  */
 export interface AuthResponse {
-  token: string;
-  refreshToken?: string;
+  accessToken: string;
+  refreshToken: string;
   user: User;
-  expiresIn?: number;
 }
 
 /**
- * Estado de autenticación
+ * Estado de autenticación en el contexto
  */
 export interface AuthState {
   user: User | null;
@@ -55,13 +78,40 @@ export interface AuthState {
 }
 
 /**
- * Errores de autenticación
+ * Códigos de error de autenticación
+ */
+export type AuthErrorCode =
+  | "INVALID_CREDENTIALS"
+  | "USER_INACTIVE"
+  | "ACCOUNT_LOCKED"
+  | "TENANT_NOT_FOUND"
+  | "TENANT_SUSPENDED"
+  | "TOKEN_EXPIRED"
+  | "TOKEN_INVALID"
+  | "SERVER_ERROR";
+
+/**
+ * Error de autenticación
  */
 export interface AuthError {
-  code:
-    | "INVALID_CREDENTIALS"
-    | "USER_INACTIVE"
-    | "ACCOUNT_LOCKED"
-    | "SERVER_ERROR";
+  code: AuthErrorCode;
   message: string;
 }
+
+/**
+ * Helper para obtener nombre completo del usuario
+ */
+export const getUserFullName = (user: User | null): string => {
+  if (!user) return "";
+  return `${user.firstName} ${user.lastName}`.trim();
+};
+
+/**
+ * Helper para obtener iniciales del usuario
+ */
+export const getUserInitials = (user: User | null): string => {
+  if (!user) return "??";
+  const first = user.firstName?.[0] || "";
+  const last = user.lastName?.[0] || "";
+  return `${first}${last}`.toUpperCase() || "??";
+};

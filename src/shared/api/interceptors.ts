@@ -1,143 +1,193 @@
-import type { AxiosError } from "axios";
-import type { AxiosResponse } from "axios";
-import type { InternalAxiosRequestConfig } from "axios";
-import type { AxiosInstance } from "axios";
-import { handleAxiosError, logApiError } from "./errorHandler";
-import { ApiErrorCode } from "./types";
-
-/**
- * Tipo para el storage del token (inyectado para evitar dependencia circular)
- */
-interface TokenStorage {
-  getToken: () => string | null;
-  removeToken: () => void;
-}
-
-/**
- * Tipo para el callback de logout
- */
-type LogoutCallback = () => void;
+import type {
+  AxiosInstance,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
+import axios from "axios";
 
 /**
  * Configuración de los interceptores
  */
-interface InterceptorsConfig {
-  tokenStorage: TokenStorage;
-  onUnauthorized?: LogoutCallback;
+interface InterceptorConfig {
+  tokenStorage: {
+    getToken: () => string | null;
+    getRefreshToken?: () => string | null;
+    setToken?: (token: string) => void;
+    removeToken: () => void;
+    clear?: () => void;
+  };
+  onUnauthorized?: () => void;
   onForbidden?: () => void;
+  refreshEndpoint?: string;
 }
 
 /**
- * Configura los interceptores de request
+ * Estado del refresh token
  */
-const setupRequestInterceptors = (
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+/**
+ * Notifica a todos los subscribers que el token fue refrescado
+ */
+const onTokenRefreshed = (newToken: string): void => {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+};
+
+/**
+ * Agrega un subscriber para cuando el token sea refrescado
+ */
+const addRefreshSubscriber = (callback: (token: string) => void): void => {
+  refreshSubscribers.push(callback);
+};
+
+/**
+ * Configura los interceptores de request y response
+ *
+ * @param instance - Instancia de Axios
+ * @param config - Configuración de interceptores
+ * @returns Función para limpiar los interceptores
+ */
+export const setupInterceptors = (
   instance: AxiosInstance,
-  config: InterceptorsConfig
-): number => {
-  return instance.interceptors.request.use(
+  config: InterceptorConfig
+): (() => void) => {
+  const {
+    tokenStorage,
+    onUnauthorized,
+    onForbidden,
+    refreshEndpoint = "/api/auth/refresh",
+  } = config;
+
+  // ============================================
+  // Request Interceptor
+  // ============================================
+  const requestInterceptorId = instance.interceptors.request.use(
     (requestConfig: InternalAxiosRequestConfig) => {
-      // Agregar token de autenticación
-      const token = config.tokenStorage.getToken();
+      const token = tokenStorage.getToken();
+
       if (token && requestConfig.headers) {
         requestConfig.headers.Authorization = `Bearer ${token}`;
-      }
-
-      // Agregar timestamp para debugging
-      if (import.meta.env.DEV) {
-        requestConfig.metadata = { startTime: Date.now() };
-      }
-
-      // Log en desarrollo
-      if (import.meta.env.DEV) {
-        console.log(
-          `[API Request] ${requestConfig.method?.toUpperCase()} ${
-            requestConfig.url
-          }`,
-          requestConfig.params || requestConfig.data || ""
-        );
       }
 
       return requestConfig;
     },
     (error: AxiosError) => {
-      return Promise.reject(handleAxiosError(error));
+      return Promise.reject(error);
     }
   );
-};
 
-/**
- * Configura los interceptores de response
- */
-const setupResponseInterceptors = (
-  instance: AxiosInstance,
-  config: InterceptorsConfig
-): number => {
-  return instance.interceptors.response.use(
-    (response: AxiosResponse) => {
-      // Log de tiempo de respuesta en desarrollo
-      if (import.meta.env.DEV) {
-        const startTime = (response.config as any).metadata?.startTime;
-        if (startTime) {
-          const duration = Date.now() - startTime;
-          console.log(
-            `[API Response] ${response.config.method?.toUpperCase()} ${
-              response.config.url
-            } - ${response.status} (${duration}ms)`
-          );
-        }
-      }
-
-      return response;
-    },
+  // ============================================
+  // Response Interceptor
+  // ============================================
+  const responseInterceptorId = instance.interceptors.response.use(
+    (response) => response,
     async (error: AxiosError) => {
-      const apiError = handleAxiosError(error);
+      const originalRequest = error.config as InternalAxiosRequestConfig & {
+        _retry?: boolean;
+        _retryCount?: number;
+      };
 
-      // Log del error
-      logApiError(
-        apiError,
-        `${error.config?.method?.toUpperCase()} ${error.config?.url}`
-      );
-
-      // Manejar errores de autenticación
-      if (
-        apiError.code === ApiErrorCode.UNAUTHORIZED ||
-        apiError.code === ApiErrorCode.TOKEN_EXPIRED ||
-        apiError.code === ApiErrorCode.INVALID_TOKEN
-      ) {
-        config.tokenStorage.removeToken();
-
-        if (config.onUnauthorized) {
-          config.onUnauthorized();
-        }
+      // Si no hay config, rechazar
+      if (!originalRequest) {
+        return Promise.reject(error);
       }
 
-      // Manejar errores de permisos
-      if (
-        apiError.code === ApiErrorCode.FORBIDDEN ||
-        apiError.code === ApiErrorCode.INSUFFICIENT_PERMISSIONS
-      ) {
-        if (config.onForbidden) {
-          config.onForbidden();
+      const status = error.response?.status;
+      const errorData = error.response?.data as
+        | { code?: string; error?: string }
+        | undefined;
+
+      // ----------------------------------------
+      // 401 Unauthorized
+      // ----------------------------------------
+      if (status === 401) {
+        // Si es token expirado y tenemos refresh token, intentar refresh
+        if (
+          errorData?.code === "TOKEN_EXPIRED" &&
+          tokenStorage.getRefreshToken &&
+          tokenStorage.setToken &&
+          !originalRequest._retry
+        ) {
+          // Si ya estamos refrescando, agregar a la cola
+          if (isRefreshing) {
+            return new Promise((resolve) => {
+              addRefreshSubscriber((newToken: string) => {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                resolve(instance(originalRequest));
+              });
+            });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            const refreshToken = tokenStorage.getRefreshToken();
+
+            if (!refreshToken) {
+              throw new Error("No refresh token available");
+            }
+
+            // Llamar al endpoint de refresh (sin usar la instancia con interceptores)
+            const response = await axios.post(
+              `${instance.defaults.baseURL}${refreshEndpoint}`,
+              { refreshToken }
+            );
+
+            const newToken = response.data.accessToken;
+
+            // Guardar nuevo token
+            tokenStorage.setToken(newToken);
+
+            // Notificar a los subscribers
+            onTokenRefreshed(newToken);
+
+            // Reintentar la petición original
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return instance(originalRequest);
+          } catch (refreshError) {
+            // Si falla el refresh, limpiar todo
+            if (tokenStorage.clear) {
+              tokenStorage.clear();
+            } else {
+              tokenStorage.removeToken();
+            }
+
+            // Llamar callback de unauthorized
+            onUnauthorized?.();
+
+            return Promise.reject(refreshError);
+          } finally {
+            isRefreshing = false;
+          }
         }
+
+        // Si no es token expirado o no hay refresh, limpiar y notificar
+        if (tokenStorage.clear) {
+          tokenStorage.clear();
+        } else {
+          tokenStorage.removeToken();
+        }
+
+        onUnauthorized?.();
       }
 
-      return Promise.reject(apiError);
+      // ----------------------------------------
+      // 403 Forbidden
+      // ----------------------------------------
+      if (status === 403) {
+        onForbidden?.();
+      }
+
+      return Promise.reject(error);
     }
   );
-};
 
-/**
- * Configura todos los interceptores en la instancia de Axios
- * Retorna una función para remover los interceptores (cleanup)
- */
-export const setupInterceptors = (
-  instance: AxiosInstance,
-  config: InterceptorsConfig
-): (() => void) => {
-  const requestInterceptorId = setupRequestInterceptors(instance, config);
-  const responseInterceptorId = setupResponseInterceptors(instance, config);
-
-  // Retorna función de cleanup
+  // ============================================
+  // Cleanup function
+  // ============================================
   return () => {
     instance.interceptors.request.eject(requestInterceptorId);
     instance.interceptors.response.eject(responseInterceptorId);
@@ -145,58 +195,49 @@ export const setupInterceptors = (
 };
 
 /**
- * Interceptor para retry automático (opcional)
- * Útil para errores de red temporales
+ * Configura retry automático para errores de red
+ *
+ * @param instance - Instancia de Axios
+ * @param maxRetries - Número máximo de reintentos (default: 3)
+ * @param retryDelay - Delay entre reintentos en ms (default: 1000)
  */
 export const setupRetryInterceptor = (
   instance: AxiosInstance,
   maxRetries = 3,
   retryDelay = 1000
-): number => {
-  return instance.interceptors.response.use(
+): (() => void) => {
+  const interceptorId = instance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
       const config = error.config as InternalAxiosRequestConfig & {
         _retryCount?: number;
       };
 
-      // Solo reintentar errores de red o 5xx
+      // Solo reintentar en errores de red o timeout
       const shouldRetry =
-        !error.response ||
-        (error.response.status >= 500 && error.response.status < 600);
+        !error.response && // Error de red (no hay response)
+        config &&
+        (config._retryCount ?? 0) < maxRetries;
 
-      if (!shouldRetry || !config) {
-        return Promise.reject(error);
-      }
+      if (shouldRetry) {
+        config._retryCount = (config._retryCount ?? 0) + 1;
 
-      config._retryCount = config._retryCount || 0;
+        // Esperar antes de reintentar (exponential backoff)
+        const delay = retryDelay * Math.pow(2, config._retryCount - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
 
-      if (config._retryCount >= maxRetries) {
-        return Promise.reject(error);
-      }
-
-      config._retryCount++;
-
-      // Esperar antes de reintentar (backoff exponencial)
-      const delay = retryDelay * Math.pow(2, config._retryCount - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-
-      if (import.meta.env.DEV) {
         console.log(
-          `[API Retry] Attempt ${config._retryCount}/${maxRetries} for ${config.url}`
+          `[ApiClient] Retry attempt ${config._retryCount}/${maxRetries} for ${config.url}`
         );
+
+        return instance(config);
       }
 
-      return instance(config);
+      return Promise.reject(error);
     }
   );
-};
 
-// Extender tipos de Axios para incluir metadata
-declare module "axios" {
-  interface InternalAxiosRequestConfig {
-    metadata?: {
-      startTime: number;
-    };
-  }
-}
+  return () => {
+    instance.interceptors.response.eject(interceptorId);
+  };
+};

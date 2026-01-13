@@ -15,7 +15,7 @@ interface ApiClientConfig {
  * Configuración por defecto
  */
 const defaultConfig: ApiClientConfig = {
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
   timeout: 30000, // 30 segundos
   headers: {
     "Content-Type": "application/json",
@@ -44,6 +44,7 @@ class ApiClient {
   private static instance: ApiClient | null = null;
   private axiosInstance: AxiosInstance;
   private cleanupInterceptors: (() => void) | null = null;
+  private cleanupRetry: (() => void) | null = null;
 
   /**
    * Constructor privado - Solo se puede instanciar desde getInstance()
@@ -91,7 +92,10 @@ class ApiClient {
    */
   public configureInterceptors(config: {
     getToken: () => string | null;
+    getRefreshToken?: () => string | null;
+    setToken?: (token: string) => void;
     removeToken: () => void;
+    clear?: () => void;
     onUnauthorized?: () => void;
     onForbidden?: () => void;
   }): void {
@@ -104,7 +108,10 @@ class ApiClient {
     this.cleanupInterceptors = setupInterceptors(this.axiosInstance, {
       tokenStorage: {
         getToken: config.getToken,
+        getRefreshToken: config.getRefreshToken,
+        setToken: config.setToken,
         removeToken: config.removeToken,
+        clear: config.clear,
       },
       onUnauthorized: config.onUnauthorized,
       onForbidden: config.onForbidden,
@@ -112,7 +119,7 @@ class ApiClient {
 
     // Configurar retry para errores de red (opcional)
     if (import.meta.env.VITE_ENABLE_RETRY === "true") {
-      setupRetryInterceptor(this.axiosInstance);
+      this.cleanupRetry = setupRetryInterceptor(this.axiosInstance);
     }
   }
 
@@ -123,6 +130,10 @@ class ApiClient {
     if (this.cleanupInterceptors) {
       this.cleanupInterceptors();
       this.cleanupInterceptors = null;
+    }
+    if (this.cleanupRetry) {
+      this.cleanupRetry();
+      this.cleanupRetry = null;
     }
   }
 
@@ -188,6 +199,15 @@ class ApiClient {
 
   /**
    * Sube un archivo
+   *
+   * @example
+   * const result = await apiClient.uploadFile(
+   *   '/api/vehicles/1/photo',
+   *   file,
+   *   'photo',
+   *   { vehicleId: '1' },
+   *   (progress) => console.log(`${progress}%`)
+   * );
    */
   public async uploadFile<T>(
     url: string,
@@ -223,7 +243,49 @@ class ApiClient {
   }
 
   /**
+   * Sube múltiples archivos
+   */
+  public async uploadFiles<T>(
+    url: string,
+    files: File[],
+    fieldName = "files",
+    additionalData?: Record<string, string>,
+    onProgress?: (progress: number) => void
+  ): Promise<T> {
+    const formData = new FormData();
+
+    files.forEach((file) => {
+      formData.append(fieldName, file);
+    });
+
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+
+    const response = await this.axiosInstance.post<T>(url, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onProgress(progress);
+        }
+      },
+    });
+
+    return response.data;
+  }
+
+  /**
    * Descarga un archivo
+   *
+   * @example
+   * await apiClient.downloadFile('/api/reports/monthly', 'reporte-enero.pdf');
    */
   public async downloadFile(
     url: string,
@@ -248,7 +310,16 @@ class ApiClient {
   }
 
   /**
-   * Request con cancelación
+   * Crea un token de cancelación para abortar requests
+   *
+   * @example
+   * const { token, cancel } = apiClient.createCancelToken();
+   *
+   * // Iniciar request
+   * apiClient.get('/api/search', { signal: token.signal });
+   *
+   * // Cancelar si es necesario
+   * cancel();
    */
   public createCancelToken(): {
     token: AbortController;

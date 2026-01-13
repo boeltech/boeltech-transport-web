@@ -6,7 +6,8 @@ export type UserRole =
   | "gerente"
   | "contador"
   | "operador"
-  | "cliente";
+  | "cliente"
+  | "user";
 
 /**
  * Módulos del ERP

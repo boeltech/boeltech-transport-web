@@ -1,25 +1,32 @@
-import type { UserRole } from "@features/permissions";
-import { useAuth, usePermissions } from "@app/providers";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@app/providers/AuthProvider";
 
-// ============================================
-// RoleRoute - Protege rutas por rol
-// ============================================
 interface RoleRouteProps {
-  roles: UserRole | UserRole[];
+  /** Rol o roles permitidos */
+  roles: string | string[];
+
+  /** Ruta a la que redirigir si no tiene el rol (default: /forbidden) */
   redirectTo?: string;
 }
 
+/**
+ * RoleRoute
+ *
+ * Guard que verifica si el usuario tiene uno de los roles especificados.
+ *
+ * @example
+ * <RoleRoute roles={['admin', 'gerente']}>
+ *   <ManagementPage />
+ * </RoleRoute>
+ */
 export const RoleRoute = ({
   roles,
   redirectTo = "/forbidden",
 }: RoleRouteProps) => {
-  const { isAuthenticated } = useAuth();
-  const { hasRole } = usePermissions();
-  const location = useLocation();
+  const { user, hasRole } = useAuth();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   if (!hasRole(roles)) {

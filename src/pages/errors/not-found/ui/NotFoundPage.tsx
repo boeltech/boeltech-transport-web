@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FileQuestion, Home, ArrowLeft } from "lucide-react";
+import { FileQuestion, Home, ArrowLeft, Search } from "lucide-react";
 import { Button } from "@shared/ui/button";
 
 /**
@@ -11,7 +11,6 @@ const NotFoundPage = () => {
   const navigate = useNavigate();
 
   const handleGoBack = () => {
-    // Si hay historial, ir atrás; si no, ir a dashboard
     if (window.history.length > 2) {
       navigate(-1);
     } else {
@@ -26,7 +25,6 @@ const NotFoundPage = () => {
         <div className="flex h-32 w-32 items-center justify-center rounded-full bg-muted">
           <FileQuestion className="h-16 w-16 text-muted-foreground" />
         </div>
-        {/* Badge 404 */}
         <div className="absolute -bottom-2 -right-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
           404
         </div>
@@ -45,21 +43,25 @@ const NotFoundPage = () => {
 
       {/* Acciones */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button
-          variant="outline"
-          onClick={handleGoBack}
-          leftIcon={<ArrowLeft />}
-        >
+        <Button variant="outline" onClick={handleGoBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Regresar
         </Button>
-        <Button onClick={() => navigate("/dashboard")} leftIcon={<Home />}>
+        <Button onClick={() => navigate("/dashboard")}>
+          <Home className="mr-2 h-4 w-4" />
           Ir al Dashboard
         </Button>
       </div>
 
       {/* Información adicional */}
       <p className="mt-12 text-xs text-muted-foreground">
-        Si crees que esto es un error, contacta al administrador del sistema.
+        Si crees que esto es un error,{" "}
+        <a
+          href="mailto:soporte@boeltech.com"
+          className="text-primary hover:underline"
+        >
+          contacta al administrador
+        </a>
       </p>
     </div>
   );

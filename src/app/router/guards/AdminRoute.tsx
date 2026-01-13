@@ -1,27 +1,30 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { RoleRoute } from "./RoleRoute";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@app/providers";
 
 // ============================================
-// AdminRoute - Solo administradores
+// AdminRoute.tsx
 // ============================================
-interface AdminRouteProps {
-  redirectTo?: string;
-}
 
-export const AdminRoute = ({ redirectTo = "/forbidden" }: AdminRouteProps) => {
-  return <RoleRoute roles="admin" redirectTo={redirectTo} />;
-};
+/**
+ * AdminRoute
+ *
+ * Guard que permite acceso solo a administradores.
+ * Es un shortcut para RoleRoute con role="admin".
+ *
+ * @example
+ * <AdminRoute>
+ *   <AdminSettingsPage />
+ * </AdminRoute>
+ */
+export const AdminRoute = () => {
+  const { user } = useAuth();
 
-// ============================================
-// PrivateRoute - Solo autenticados (sin permisos específicos)
-// ============================================
-export const PrivateRoute = () => {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (user.role !== "admin") {
+    return <Navigate to="/forbidden" replace />;
   }
 
   return <Outlet />;

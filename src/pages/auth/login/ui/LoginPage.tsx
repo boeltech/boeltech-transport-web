@@ -1,10 +1,8 @@
-// src/pages/auth/login/ui/LoginPage.tsx
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Truck, LogIn } from "lucide-react";
+import { Eye, EyeOff, Truck, LogIn, Building2 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -26,12 +24,8 @@ import { tokenStorage } from "@features/auth/lib/tokenStorage";
 /**
  * LoginPage
  *
- * Página de inicio de sesión.
- *
- * NOTA: Esta página NO usa useAuth() porque está fuera del AuthProvider.
- * En su lugar, llama directamente a authApi y guarda el token.
- * Cuando el usuario navegue al dashboard, el AuthProvider
- * detectará el token y cargará la sesión.
+ * Página de inicio de sesión para sistema multi-tenant.
+ * Requiere: email, password y subdomain (empresa).
  */
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -47,6 +41,9 @@ const LoginPage = () => {
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
     "/dashboard";
 
+  // Recuperar subdomain guardado (si existe)
+  const savedSubdomain = tokenStorage.getSubdomain() || "";
+
   // Configurar React Hook Form con Zod
   const {
     register,
@@ -59,6 +56,7 @@ const LoginPage = () => {
     defaultValues: {
       email: "",
       password: "",
+      subdomain: savedSubdomain,
       rememberMe: false,
     },
   });
@@ -71,35 +69,36 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Llamar directamente a la API de login
+      // Llamar a la API de login
       const response = await authApi.login({
         email: data.email,
         password: data.password,
+        subdomain: data.subdomain.toLowerCase(),
       });
 
-      // Guardar token y datos del usuario
-      tokenStorage.setToken(response.token);
+      // Guardar tokens
+      tokenStorage.setToken(response.accessToken);
+      tokenStorage.setRefreshToken(response.refreshToken);
       tokenStorage.setUser(response.user);
 
-      // Si "recordarme" está activo, podríamos guardar el refresh token
-      // o marcar una flag para sesión persistente
-      if (data.rememberMe && response.refreshToken) {
-        tokenStorage.setRefreshToken(response.refreshToken);
-      }
+      // Guardar subdomain para recordar la empresa
+      tokenStorage.setSubdomain(data.subdomain.toLowerCase());
 
-      // Navegar al dashboard (o a la página que intentaba acceder)
-      // El AuthProvider en AppLayout detectará el token y cargará la sesión
+      // Navegar al dashboard
       navigate(from, { replace: true });
     } catch (err: any) {
-      // Manejar diferentes tipos de errores
       const status = err?.response?.status;
+      const errorMessage = err?.response?.data?.error;
 
       if (status === 401) {
         setError("Credenciales incorrectas. Verifica tu correo y contraseña.");
       } else if (status === 403) {
-        setError("Tu cuenta está inactiva. Contacta al administrador.");
-      } else if (status === 423) {
-        setError("Tu cuenta está bloqueada. Contacta al administrador.");
+        setError(
+          errorMessage ||
+            "Tu cuenta o empresa está inactiva. Contacta al administrador."
+        );
+      } else if (status === 404) {
+        setError("Empresa no encontrada. Verifica el identificador.");
       } else if (status === 429) {
         setError(
           "Demasiados intentos. Espera unos minutos e intenta de nuevo."
@@ -107,7 +106,9 @@ const LoginPage = () => {
       } else if (err?.code === "ERR_NETWORK" || !navigator.onLine) {
         setError("Error de conexión. Verifica tu conexión a internet.");
       } else {
-        setError("Ocurrió un error inesperado. Intenta de nuevo.");
+        setError(
+          errorMessage || "Ocurrió un error inesperado. Intenta de nuevo."
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -146,6 +147,32 @@ const LoginPage = () => {
 
           {/* Formulario */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Campo Subdomain (Empresa) */}
+            <div className="space-y-2">
+              <Label htmlFor="subdomain">Empresa</Label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="subdomain"
+                  type="text"
+                  placeholder="mi-empresa"
+                  autoComplete="organization"
+                  error={!!errors.subdomain}
+                  className="pl-10"
+                  {...register("subdomain")}
+                />
+              </div>
+              {errors.subdomain ? (
+                <p className="text-sm text-destructive">
+                  {errors.subdomain.message}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Identificador de tu empresa (ej: demo, mi-empresa)
+                </p>
+              )}
+            </div>
+
             {/* Campo Email */}
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
@@ -234,6 +261,26 @@ const LoginPage = () => {
               {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
+
+          {/* Credenciales de prueba (solo desarrollo) */}
+          {import.meta.env.DEV && (
+            <div className="mt-6 rounded-lg border border-dashed p-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Credenciales de prueba:
+              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  <strong>Empresa:</strong> demo
+                </p>
+                <p>
+                  <strong>Email:</strong> admin@boeltech.com
+                </p>
+                <p>
+                  <strong>Password:</strong> Admin123!
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ShieldX, Home, ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import { useAuth } from "@app/providers/AuthProvider";
 
 /**
  * ForbiddenPage (403)
@@ -11,7 +10,6 @@ import { useAuth } from "@app/providers/AuthProvider";
  */
 const ForbiddenPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const handleGoBack = () => {
     if (window.history.length > 2) {
@@ -28,7 +26,6 @@ const ForbiddenPage = () => {
         <div className="flex h-32 w-32 items-center justify-center rounded-full bg-destructive/10">
           <ShieldX className="h-16 w-16 text-destructive" />
         </div>
-        {/* Badge 403 */}
         <div className="absolute -bottom-2 -right-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive text-sm font-bold text-destructive-foreground">
           403
         </div>
@@ -41,25 +38,17 @@ const ForbiddenPage = () => {
         </h1>
         <p className="max-w-md text-muted-foreground">
           No tienes los permisos necesarios para acceder a esta sección.
-          {user && (
-            <span className="mt-1 block">
-              Tu rol actual es:{" "}
-              <strong className="capitalize">{user.rol}</strong>
-            </span>
-          )}
         </p>
       </div>
 
       {/* Acciones */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button
-          variant="outline"
-          onClick={handleGoBack}
-          leftIcon={<ArrowLeft />}
-        >
+        <Button variant="outline" onClick={handleGoBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Regresar
         </Button>
-        <Button onClick={() => navigate("/dashboard")} leftIcon={<Home />}>
+        <Button onClick={() => navigate("/dashboard")}>
+          <Home className="mr-2 h-4 w-4" />
           Ir al Dashboard
         </Button>
       </div>
@@ -73,12 +62,12 @@ const ForbiddenPage = () => {
           variant="link"
           size="sm"
           className="mt-1"
-          leftIcon={<Mail className="h-3 w-3" />}
           onClick={() =>
             (window.location.href =
               "mailto:admin@boeltech.com?subject=Solicitud de permisos")
           }
         >
+          <Mail className="mr-2 h-3 w-3" />
           Contactar al administrador
         </Button>
       </div>

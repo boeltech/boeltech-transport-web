@@ -2,6 +2,11 @@ import { createBrowserRouter } from "react-router-dom";
 import { lazy, Suspense } from "react";
 
 // ============================================
+// Error Boundary para rutas
+// ============================================
+import { RouteErrorBoundary } from "@pages/errors/components/ErrorBoundary";
+
+// ============================================
 // Guards
 // ============================================
 import {
@@ -26,8 +31,11 @@ import { AuthLayout } from "@widgets/layout/ui/AuthLayout";
 // Loading Fallback
 // ============================================
 const PageLoader = () => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  <div className="flex h-screen items-center justify-center bg-background">
+    <div className="flex flex-col items-center gap-4">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <p className="text-sm text-muted-foreground">Cargando...</p>
+    </div>
   </div>
 );
 
@@ -55,7 +63,7 @@ const LoginPage = lazy(() => import("@pages/auth/login"));
 // const ResetPasswordPage = lazy(() => import("@pages/auth/reset-password"));
 
 // Dashboard
-// const DashboardPage = lazy(() => import("@pages/dashboard"));
+const DashboardPage = lazy(() => import("@pages/dashboard"));
 
 // Fleet
 // const VehicleListPage = lazy(() => import("@pages/fleet/vehicles"));
@@ -94,7 +102,7 @@ const LoginPage = lazy(() => import("@pages/auth/login"));
 const NotFoundPage = lazy(() => import("@pages/errors/not-found"));
 const ForbiddenPage = lazy(() => import("@pages/errors/forbidden"));
 const ServerErrorPage = lazy(() => import("@pages/errors/server-error"));
-// const MaintenancePage = lazy(() => import('@pages/errors/maintenance'));
+const MaintenancePage = lazy(() => import("@pages/errors/maintenance"));
 
 // ============================================
 // Definición de Rutas
@@ -106,6 +114,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: withSuspense(RootRedirect),
+    errorElement: <RouteErrorBoundary />,
   },
 
   // ==========================================
@@ -114,6 +123,7 @@ export const router = createBrowserRouter([
   {
     path: "/welcome",
     element: withSuspense(LandingPage),
+    errorElement: <RouteErrorBoundary />,
   },
 
   // ==========================================
@@ -121,37 +131,41 @@ export const router = createBrowserRouter([
   // ==========================================
   {
     element: <AuthLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: "/login",
         element: withSuspense(LoginPage),
       },
+      // {
+      //   path: "/forgot-password",
+      //   element: withSuspense(ForgotPasswordPage),
+      // },
+      // {
+      //   path: "/reset-password",
+      //   element: withSuspense(ResetPasswordPage),
+      // },
     ],
-    // children: [
-    //   {
-    //     path: "/login",
-    //     element: withSuspense(LoginPage),
-    //   },
-    //   {
-    //     path: "/forgot-password",
-    //     element: withSuspense(ForgotPasswordPage),
-    //   },
-    //   {
-    //     path: "/reset-password",
-    //     element: withSuspense(ResetPasswordPage),
-    //   },
-    // ],
   },
 
   // ==========================================
   // Rutas Privadas (requieren autenticación)
   // ==========================================
   {
-    element: <PrivateRoute />, // Guard: verifica autenticación
+    element: <PrivateRoute />, // Guard para verificar autenticación
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         element: <AppLayout />, // Layout con sidebar, header, etc.
-        children: [],
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          // Dashboard
+          {
+            path: "/dashboard",
+            element: withSuspense(DashboardPage),
+            errorElement: <RouteErrorBoundary />,
+          },
+        ],
         // children: [
         //   // Redirect raíz a dashboard
         //   {
@@ -341,12 +355,24 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Páginas de Error
+  // Páginas de Error (acceso directo)
   // ==========================================
   {
     path: "/forbidden",
     element: withSuspense(ForbiddenPage),
   },
+  {
+    path: "/error",
+    element: withSuspense(ServerErrorPage),
+  },
+  {
+    path: "/maintenance",
+    element: withSuspense(MaintenancePage),
+  },
+
+  // ==========================================
+  // 404 - Catch all
+  // ==========================================
   {
     path: "*",
     element: withSuspense(NotFoundPage),
