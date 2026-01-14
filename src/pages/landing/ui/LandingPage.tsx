@@ -12,23 +12,36 @@ import {
   Wrench,
   DollarSign,
   Clock,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { cn } from "@shared/lib/cn";
 
 /**
  * LandingPage
  *
  * Página de inicio pública del ERP de Transporte.
- * Presenta las características del sistema y dirige al login.
+ * Presenta las características del sistema y dirige al login/registro.
  */
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
       <Header />
+
+      {/* Hero Section */}
       <HeroSection />
+
+      {/* Features Section */}
       <FeaturesSection />
+
+      {/* Modules Section */}
       <ModulesSection />
+
+      {/* CTA Section */}
       <CTASection />
+
+      {/* Footer */}
       <Footer />
     </div>
   );
@@ -71,9 +84,9 @@ const Header = () => {
             <Link to="/login">Iniciar Sesión</Link>
           </Button>
           <Button asChild className="hidden sm:inline-flex">
-            <Link to="/login" className="inline-flex items-center gap-1">
-              Acceder al Sistema
-              <ChevronRight className="h-4 w-4" />
+            <Link to="/register">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Registrar Empresa
             </Link>
           </Button>
         </div>
@@ -117,13 +130,13 @@ const HeroSection = () => {
         {/* CTA Buttons */}
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" asChild>
-            <Link to="/login" className="inline-flex items-center gap-2">
-              Acceder al Sistema
-              <ChevronRight className="h-5 w-5" />
+            <Link to="/register">
+              Comenzar Gratis
+              <ChevronRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <a href="#features">Conocer más</a>
+            <Link to="/login">Ya tengo cuenta</Link>
           </Button>
         </div>
 
@@ -189,8 +202,19 @@ const FeaturesSection = () => {
 
         {/* Features Grid */}
         <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
+          {features.map((feature, index) => (
+            <div
+              key={index}
+              className="group rounded-xl border bg-background p-6 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <feature.icon className="h-6 w-6" />
+              </div>
+              <h3 className="mb-2 font-semibold">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {feature.description}
+              </p>
+            </div>
           ))}
         </div>
       </div>
@@ -198,82 +222,64 @@ const FeaturesSection = () => {
   );
 };
 
-const FeatureCard = ({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}) => (
-  <div className="group rounded-xl border bg-card p-6 transition-all hover:shadow-lg hover:border-primary/50">
-    <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-      <Icon className="h-6 w-6" />
-    </div>
-    <h3 className="mb-2 text-lg font-semibold">{title}</h3>
-    <p className="text-sm text-muted-foreground">{description}</p>
-  </div>
-);
-
 // ============================================
 // Modules Section
 // ============================================
 const modules = [
   {
     icon: Truck,
-    title: "Gestión de Flota",
-    description: "Administra vehículos, documentos, seguros y verificaciones.",
+    title: "Flota",
+    description: "Gestión completa de vehículos, mantenimientos y documentos.",
     features: [
       "Inventario de vehículos",
+      "Mantenimiento preventivo",
       "Control de documentos",
-      "Alertas de vencimientos",
-    ],
-  },
-  {
-    icon: Users,
-    title: "Conductores",
-    description: "Gestiona conductores, licencias y asignaciones.",
-    features: [
-      "Perfiles completos",
-      "Historial de viajes",
-      "Control de licencias",
     ],
   },
   {
     icon: Route,
-    title: "Operaciones",
-    description: "Planifica y monitorea viajes de principio a fin.",
-    features: ["Programación de viajes", "Seguimiento GPS", "Bitácora digital"],
-  },
-  {
-    icon: Wrench,
-    title: "Mantenimiento",
-    description: "Programa mantenimientos preventivos y correctivos.",
+    title: "Viajes",
+    description: "Programación y seguimiento de viajes y rutas.",
     features: [
-      "Órdenes de trabajo",
-      "Historial de servicio",
-      "Control de costos",
+      "Programación de viajes",
+      "Seguimiento GPS",
+      "Evidencias digitales",
     ],
   },
   {
-    icon: Fuel,
-    title: "Combustible",
-    description: "Registra y analiza el consumo de combustible.",
+    icon: Users,
+    title: "Personal",
+    description: "Administración de conductores y personal operativo.",
     features: [
-      "Registro de cargas",
-      "Rendimiento por vehículo",
-      "Detección de anomalías",
+      "Expedientes digitales",
+      "Licencias y certificaciones",
+      "Disponibilidad",
     ],
   },
   {
     icon: FileText,
     title: "Facturación",
-    description: "Genera facturas con timbrado CFDI y carta porte.",
+    description: "Facturación electrónica y control de pagos.",
+    features: ["CFDI 4.0", "Complementos de pago", "Reportes fiscales"],
+  },
+  {
+    icon: Fuel,
+    title: "Combustible",
+    description: "Control de cargas de combustible y rendimientos.",
     features: [
-      "Timbrado automático",
-      "Complementos de pago",
-      "Portal de clientes",
+      "Registro de cargas",
+      "Rendimiento por unidad",
+      "Análisis de costos",
+    ],
+  },
+  {
+    icon: Wrench,
+    title: "Mantenimiento",
+    description: "Programa de mantenimiento preventivo y correctivo.",
+    features: [
+      "Órdenes de servicio",
+      "Historial de reparaciones",
+      "Alertas automáticas",
     ],
   },
 ];
@@ -285,54 +291,43 @@ const ModulesSection = () => {
         {/* Header */}
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Módulos del Sistema
+            Módulos integrados
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Un ecosistema completo para gestionar todos los aspectos de tu
-            negocio.
+            Un ecosistema completo para gestionar toda tu operación de
+            transporte.
           </p>
         </div>
 
         {/* Modules Grid */}
         <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {modules.map((module) => (
-            <ModuleCard key={module.title} {...module} />
+          {modules.map((module, index) => (
+            <div
+              key={index}
+              className="group rounded-xl border bg-background p-6 transition-all hover:border-primary/50 hover:shadow-lg"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <module.icon className="h-6 w-6" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold">{module.title}</h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {module.description}
+              </p>
+              <ul className="space-y-2">
+                {module.features.map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
       </div>
     </section>
   );
 };
-
-const ModuleCard = ({
-  icon: Icon,
-  title,
-  description,
-  features,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  features: string[];
-}) => (
-  <div className="rounded-xl border bg-card p-6 transition-all hover:shadow-md">
-    <div className="mb-4 flex items-center gap-3">
-      <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
-        <Icon className="h-5 w-5" />
-      </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-    </div>
-    <p className="mb-4 text-sm text-muted-foreground">{description}</p>
-    <ul className="space-y-2">
-      {features.map((feature) => (
-        <li key={feature} className="flex items-center gap-2 text-sm">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-          {feature}
-        </li>
-      ))}
-    </ul>
-  </div>
-);
 
 // ============================================
 // CTA Section
@@ -344,16 +339,24 @@ const CTASection = () => {
         <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
           ¿Listo para optimizar tu operación?
         </h2>
-        <p className="mx-auto mt-4 max-w-xl opacity-90">
-          Accede al sistema y comienza a gestionar tu flota de manera más
-          eficiente.
+        <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
+          Únete a las empresas de transporte que ya confían en Boeltech ERP para
+          gestionar su flota de manera eficiente.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" variant="secondary" asChild>
-            <Link to="/login" className="inline-flex items-center gap-2">
-              Iniciar Sesión
-              <ChevronRight className="h-5 w-5" />
+            <Link to="/register">
+              Registrar mi Empresa
+              <ChevronRight className="ml-2 h-5 w-5" />
             </Link>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+            asChild
+          >
+            <a href="mailto:ventas@boeltech.com">Contactar Ventas</a>
           </Button>
         </div>
       </div>
@@ -365,44 +368,45 @@ const CTASection = () => {
 // Footer
 // ============================================
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="border-t py-8">
-      <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:flex-row">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Truck className="h-4 w-4 text-primary-foreground" />
+    <footer className="border-t py-12">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <Truck className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold">Boeltech ERP</span>
           </div>
-          <span className="font-semibold">Boeltech ERP</span>
-        </div>
 
-        {/* Copyright */}
-        <p className="text-sm text-muted-foreground">
-          © {currentYear} Boeltech. Todos los derechos reservados.
-        </p>
+          {/* Links */}
+          <nav className="flex flex-wrap justify-center gap-6">
+            <a
+              href="#"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Términos de Servicio
+            </a>
+            <a
+              href="#"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Política de Privacidad
+            </a>
+            <a
+              href="mailto:soporte@boeltech.com"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Soporte
+            </a>
+          </nav>
 
-        {/* Links */}
-        <div className="flex gap-4">
-          <a
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Privacidad
-          </a>
-          <a
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Términos
-          </a>
-          <a
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Soporte
-          </a>
+          {/* Copyright */}
+          <p className="text-sm text-muted-foreground">
+            © {new Date().getFullYear()} Boeltech. Todos los derechos
+            reservados.
+          </p>
         </div>
       </div>
     </footer>

@@ -25,7 +25,8 @@ import { tokenStorage } from "@features/auth/lib/tokenStorage";
  * LoginPage
  *
  * Página de inicio de sesión para sistema multi-tenant.
- * Requiere: email, password y subdomain (empresa).
+ * NO usa useAuth() porque está fuera del AuthProvider.
+ * Llama directamente a authApi y guarda tokens.
  */
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const LoginPage = () => {
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
     "/dashboard";
 
-  // Recuperar subdomain guardado (si existe)
+  // Recuperar subdomain guardado
   const savedSubdomain = tokenStorage.getSubdomain() || "";
 
   // Configurar React Hook Form con Zod
@@ -76,12 +77,10 @@ const LoginPage = () => {
         subdomain: data.subdomain.toLowerCase(),
       });
 
-      // Guardar tokens
+      // Guardar tokens y datos
       tokenStorage.setToken(response.accessToken);
       tokenStorage.setRefreshToken(response.refreshToken);
       tokenStorage.setUser(response.user);
-
-      // Guardar subdomain para recordar la empresa
       tokenStorage.setSubdomain(data.subdomain.toLowerCase());
 
       // Navegar al dashboard
@@ -93,22 +92,15 @@ const LoginPage = () => {
       if (status === 401) {
         setError("Credenciales incorrectas. Verifica tu correo y contraseña.");
       } else if (status === 403) {
-        setError(
-          errorMessage ||
-            "Tu cuenta o empresa está inactiva. Contacta al administrador."
-        );
+        setError(errorMessage || "Tu cuenta o empresa está inactiva.");
       } else if (status === 404) {
         setError("Empresa no encontrada. Verifica el identificador.");
       } else if (status === 429) {
-        setError(
-          "Demasiados intentos. Espera unos minutos e intenta de nuevo."
-        );
+        setError("Demasiados intentos. Espera unos minutos.");
       } else if (err?.code === "ERR_NETWORK" || !navigator.onLine) {
-        setError("Error de conexión. Verifica tu conexión a internet.");
+        setError("Error de conexión. Verifica tu internet.");
       } else {
-        setError(
-          errorMessage || "Ocurrió un error inesperado. Intenta de nuevo."
-        );
+        setError(errorMessage || "Error inesperado. Intenta de nuevo.");
       }
     } finally {
       setIsSubmitting(false);
@@ -117,7 +109,7 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      {/* Logo y título */}
+      {/* Logo */}
       <div className="mb-8 flex flex-col items-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
           <Truck className="h-8 w-8 text-primary-foreground" />
@@ -133,7 +125,7 @@ const LoginPage = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Iniciar Sesión</CardTitle>
           <CardDescription>
-            Ingresa tus credenciales para acceder al sistema
+            Ingresa tus credenciales para acceder
           </CardDescription>
         </CardHeader>
 
@@ -147,7 +139,7 @@ const LoginPage = () => {
 
           {/* Formulario */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Campo Subdomain (Empresa) */}
+            {/* Campo Subdomain */}
             <div className="space-y-2">
               <Label htmlFor="subdomain">Empresa</Label>
               <div className="relative">
@@ -168,7 +160,7 @@ const LoginPage = () => {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Identificador de tu empresa (ej: demo, mi-empresa)
+                  Identificador de tu empresa
                 </p>
               )}
             </div>
@@ -262,13 +254,26 @@ const LoginPage = () => {
             </Button>
           </form>
 
+          {/* Link a registro */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              ¿No tienes cuenta?{" "}
+              <Link
+                to="/register"
+                className="text-primary hover:underline font-medium"
+              >
+                Registra tu empresa
+              </Link>
+            </p>
+          </div>
+
           {/* Credenciales de prueba (solo desarrollo) */}
           {import.meta.env.DEV && (
             <div className="mt-6 rounded-lg border border-dashed p-3">
               <p className="text-xs font-medium text-muted-foreground mb-2">
-                Credenciales de prueba:
+                🧪 Credenciales de prueba:
               </p>
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="text-xs text-muted-foreground space-y-1 font-mono">
                 <p>
                   <strong>Empresa:</strong> demo
                 </p>
@@ -295,7 +300,6 @@ const LoginPage = () => {
         </a>
       </p>
 
-      {/* Link para volver a landing */}
       <Link
         to="/welcome"
         className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"

@@ -59,8 +59,9 @@ const LandingPage = lazy(() => import("@pages/landing"));
 
 // Auth
 const LoginPage = lazy(() => import("@pages/auth/login"));
-// const ForgotPasswordPage = lazy(() => import("@pages/auth/forgot-password"));
-// const ResetPasswordPage = lazy(() => import("@pages/auth/reset-password"));
+const ForgotPasswordPage = lazy(() => import("@pages/auth/forgot-password"));
+const ResetPasswordPage = lazy(() => import("@pages/auth/reset-password"));
+const RegisterPage = lazy(() => import("@pages/auth/register"));
 
 // Dashboard
 const DashboardPage = lazy(() => import("@pages/dashboard"));
@@ -137,14 +138,18 @@ export const router = createBrowserRouter([
         path: "/login",
         element: withSuspense(LoginPage),
       },
-      // {
-      //   path: "/forgot-password",
-      //   element: withSuspense(ForgotPasswordPage),
-      // },
-      // {
-      //   path: "/reset-password",
-      //   element: withSuspense(ResetPasswordPage),
-      // },
+      {
+        path: "/forgot-password",
+        element: withSuspense(ForgotPasswordPage),
+      },
+      {
+        path: "/reset-password",
+        element: withSuspense(ResetPasswordPage),
+      },
+      {
+        path: "/register",
+        element: withSuspense(RegisterPage),
+      },
     ],
   },
 
