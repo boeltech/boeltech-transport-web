@@ -1,16 +1,121 @@
+# Configuración de Dependabot para Boeltech ERP Frontend
+# Ubicación: .github/dependabot.yml
+
 version: 2
 
 updates:
+  # Dependencias de npm (frontend React)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+
+    # Limitar PRs abiertos simultáneamente
+    open-pull-requests-limit: 5
+
+    # Agrupar actualizaciones para reducir ruido
+    groups:
+      # React y relacionados
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router*"
+          - "@types/react*"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # TanStack (React Query)
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # UI Components (shadcn/ui y relacionados)
+      ui-components:
+        patterns:
+          - "@radix-ui/*"
+          - "class-variance-authority"
+          - "clsx"
+          - "tailwind-merge"
+          - "lucide-react"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Formularios y validación
+      forms:
+        patterns:
+          - "react-hook-form"
+          - "@hookform/*"
+          - "zod"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Tooling y build (Vite, TypeScript, etc.)
+      tooling:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "typescript"
+          - "eslint*"
+          - "@eslint/*"
+          - "prettier*"
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # TailwindCSS
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "autoprefixer"
+          - "postcss"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Types de desarrollo
+      types:
+        patterns:
+          - "@types/*"
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+    # Etiquetas para los PRs
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
+      - "npm"
+      - "frontend"
 
+    # Mensaje de commit personalizado
+    commit-message:
+      prefix: "deps(frontend)"
+      include: "scope"
+
+    # Ignorar versiones específicas problemáticas
+    ignore:
+      # Mantener Tailwind en v3 (v4 aún en beta)
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "frontend"
