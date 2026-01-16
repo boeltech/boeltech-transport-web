@@ -1,232 +1,263 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight, X, Truck } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Truck, LogOut } from "lucide-react";
+
 import { cn } from "@shared/lib/cn";
 import { Button } from "@shared/ui/button";
-import { useNavigation } from "../model/useNavigation";
-import { useSidebar } from "@widgets/layout";
-import type { NavGroup, NavItem } from "../model/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 
-// ============================================
-// Sidebar Principal
-// ============================================
+import { useAuth } from "@app/providers/AuthProvider";
+import { usePermissions } from "@app/providers/PermissionProvider";
+import { useSidebar } from "@app/providers/SidebarProvider";
+import {
+  navigationConfig,
+  filterNavigation,
+  type NavGroup,
+  type NavItem,
+} from "@shared/config/navigation";
+
+/**
+ * Sidebar
+ *
+ * Menú lateral de navegación con soporte para:
+ * - Colapsar/expandir (consume SidebarProvider)
+ * - Filtrado por permisos (consume PermissionProvider)
+ * - Indicador de ruta activa
+ * - Tooltips cuando está colapsado
+ */
 export const Sidebar = () => {
-  const { navigation } = useNavigation();
-  const { isCollapsed, isMobileOpen, isMobile, toggleCollapsed, closeMobile } =
-    useSidebar();
+  const location = useLocation();
+  const { user, logout } = useAuth();
+  const { hasPermission, role } = usePermissions();
+  const { collapsed, toggle } = useSidebar();
+
+  // Filtrar navegación según permisos
+  const filteredNavigation = filterNavigation(
+    navigationConfig,
+    role || "",
+    hasPermission
+  );
 
   return (
-    <>
-      {/* Overlay para móvil */}
-      {isMobile && isMobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={closeMobile}
-        />
-      )}
+    <TooltipProvider delayDuration={0}>
+      <div className="flex h-full flex-col">
+        {/* ==========================================
+            Header con Logo
+            ========================================== */}
+        <div className="flex h-16 items-center justify-between border-b px-4">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 overflow-hidden"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
+              <Truck className="h-5 w-5 text-primary-foreground" />
+            </div>
+            {!collapsed && (
+              <span className="text-lg font-bold whitespace-nowrap">
+                Boeltech
+              </span>
+            )}
+          </Link>
+        </div>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-card transition-all duration-300",
-          // Desktop
-          "lg:relative lg:z-0",
-          isCollapsed ? "lg:w-16" : "lg:w-64",
-          // Mobile
-          "w-64",
-          isMobile && !isMobileOpen && "-translate-x-full",
-          isMobile && isMobileOpen && "translate-x-0"
-        )}
-      >
-        {/* Header del Sidebar */}
-        <SidebarHeader
-          isCollapsed={isCollapsed}
-          isMobile={isMobile}
-          onClose={closeMobile}
-        />
-
-        {/* Navegación */}
-        <nav className="flex-1 overflow-y-auto p-3">
-          {navigation.map((group) => (
-            <SidebarGroup
+        {/* ==========================================
+            Navegación
+            ========================================== */}
+        <nav className="flex-1 overflow-y-auto p-2">
+          {filteredNavigation.map((group) => (
+            <NavGroupComponent
               key={group.id}
               group={group}
-              isCollapsed={isCollapsed && !isMobile}
-              onItemClick={isMobile ? closeMobile : undefined}
+              collapsed={collapsed}
+              currentPath={location.pathname}
             />
           ))}
         </nav>
 
-        {/* Footer del Sidebar (botón colapsar) */}
-        {!isMobile && (
-          <SidebarFooter isCollapsed={isCollapsed} onToggle={toggleCollapsed} />
-        )}
-      </aside>
-    </>
-  );
-};
+        {/* ==========================================
+            Footer con acciones
+            ========================================== */}
+        <div className="border-t p-2">
+          {/* Info del usuario (solo cuando está expandido) */}
+          {!collapsed && user && (
+            <div className="mb-2 rounded-lg bg-muted/50 p-3">
+              <p className="text-sm font-medium truncate">
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+          )}
 
-// ============================================
-// Header del Sidebar
-// ============================================
-interface SidebarHeaderProps {
-  isCollapsed: boolean;
-  isMobile: boolean;
-  onClose: () => void;
-}
+          {/* Botón de Logout */}
+          <NavItemButton
+            icon={LogOut}
+            label="Cerrar Sesión"
+            collapsed={collapsed}
+            onClick={logout}
+          />
 
-const SidebarHeader = ({
-  isCollapsed,
-  isMobile,
-  onClose,
-}: SidebarHeaderProps) => {
-  return (
-    <div
-      className={cn(
-        "flex h-16 items-center border-b px-4",
-        isCollapsed && !isMobile ? "justify-center" : "justify-between"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Truck className="h-5 w-5 text-primary-foreground" />
+          {/* Botón de colapsar */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn("mt-2 w-full justify-center", collapsed && "px-0")}
+            onClick={toggle}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                <span>Colapsar</span>
+              </>
+            )}
+          </Button>
         </div>
-        {(!isCollapsed || isMobile) && (
-          <span className="text-lg font-semibold">ERP Transporte</span>
-        )}
       </div>
-
-      {/* Botón cerrar (solo móvil) */}
-      {isMobile && (
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-5 w-5" />
-        </Button>
-      )}
-    </div>
+    </TooltipProvider>
   );
 };
 
 // ============================================
-// Grupo de Navegación
+// Componentes internos
 // ============================================
-interface SidebarGroupProps {
+
+interface NavGroupComponentProps {
   group: NavGroup;
-  isCollapsed: boolean;
-  onItemClick?: () => void;
+  collapsed: boolean;
+  currentPath: string;
 }
 
-const SidebarGroup = ({
+const NavGroupComponent = ({
   group,
-  isCollapsed,
-  onItemClick,
-}: SidebarGroupProps) => {
+  collapsed,
+  currentPath,
+}: NavGroupComponentProps) => {
   return (
     <div className="mb-4">
-      {/* Título del grupo (oculto si está colapsado) */}
-      {group.title && !isCollapsed && (
+      {/* Label del grupo (solo cuando está expandido) */}
+      {!collapsed && (
         <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {group.title}
+          {group.label}
         </h3>
       )}
 
+      {/* Separador cuando está colapsado */}
+      {collapsed && <div className="mx-2 mb-2 border-t" />}
+
       {/* Items */}
-      <ul className="space-y-1">
+      <div className="space-y-1">
         {group.items.map((item) => (
-          <SidebarItem
+          <NavItemLink
             key={item.id}
             item={item}
-            isCollapsed={isCollapsed}
-            onClick={onItemClick}
+            collapsed={collapsed}
+            isActive={
+              currentPath === item.href ||
+              currentPath.startsWith(item.href + "/")
+            }
           />
         ))}
-      </ul>
+      </div>
     </div>
   );
 };
 
-// ============================================
-// Item de Navegación
-// ============================================
-interface SidebarItemProps {
+interface NavItemLinkProps {
   item: NavItem;
-  isCollapsed: boolean;
+  collapsed: boolean;
+  isActive: boolean;
+}
+
+const NavItemLink = ({ item, collapsed, isActive }: NavItemLinkProps) => {
+  const Icon = item.icon;
+
+  const content = (
+    <Link
+      to={item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "hover:bg-accent hover:text-accent-foreground",
+        isActive &&
+          "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+        collapsed && "justify-center px-2"
+      )}
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      {!collapsed && (
+        <>
+          <span className="flex-1 truncate">{item.label}</span>
+          {item.badge !== undefined && item.badge > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+              {item.badge > 99 ? "99+" : item.badge}
+            </span>
+          )}
+        </>
+      )}
+    </Link>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right" className="flex items-center gap-2">
+          {item.label}
+          {item.badge !== undefined && item.badge > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+              {item.badge}
+            </span>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
+};
+
+interface NavItemButtonProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  collapsed: boolean;
   onClick?: () => void;
 }
 
-const SidebarItem = ({ item, isCollapsed, onClick }: SidebarItemProps) => {
-  const location = useLocation();
-  const Icon = item.icon;
-
-  // Determinar si está activo (ruta actual o subruta)
-  const isActive =
-    location.pathname === item.path ||
-    location.pathname.startsWith(`${item.path}/`);
-
-  return (
-    <li>
-      <NavLink
-        to={item.path}
-        onClick={onClick}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-          "hover:bg-accent hover:text-accent-foreground",
-          isActive
-            ? "bg-accent text-accent-foreground font-medium"
-            : "text-muted-foreground",
-          isCollapsed && "justify-center px-2"
-        )}
-        title={isCollapsed ? item.label : undefined}
-      >
-        <Icon className="h-5 w-5 shrink-0" />
-
-        {!isCollapsed && (
-          <>
-            <span className="flex-1">{item.label}</span>
-
-            {/* Badge opcional */}
-            {item.badge && (
-              <span
-                className={cn(
-                  "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium",
-                  "bg-primary text-primary-foreground"
-                )}
-              >
-                {item.badge}
-              </span>
-            )}
-          </>
-        )}
-      </NavLink>
-    </li>
+const NavItemButton = ({
+  icon: Icon,
+  label,
+  collapsed,
+  onClick,
+}: NavItemButtonProps) => {
+  const content = (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "hover:bg-accent hover:text-accent-foreground",
+        "text-muted-foreground",
+        collapsed && "justify-center px-2"
+      )}
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      {!collapsed && <span>{label}</span>}
+    </button>
   );
-};
 
-// ============================================
-// Footer del Sidebar
-// ============================================
-interface SidebarFooterProps {
-  isCollapsed: boolean;
-  onToggle: () => void;
-}
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
 
-const SidebarFooter = ({ isCollapsed, onToggle }: SidebarFooterProps) => {
-  return (
-    <div className="border-t p-3">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        className={cn("w-full", isCollapsed ? "px-2" : "justify-start")}
-      >
-        {isCollapsed ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <>
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-2">Colapsar</span>
-          </>
-        )}
-      </Button>
-    </div>
-  );
+  return content;
 };

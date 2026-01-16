@@ -35,6 +35,11 @@
       "@shared/*": ["./src/shared/*"],
       "@pages/*": ["./src/pages/*"]
     }
+
+    // SOLO PARA CONFIG DE SHADCN/UI
+    // "paths": {
+    //   "@/*": ["./src/*"]
+    // }
   },
   "include": ["src"]
 }

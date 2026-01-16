@@ -1,233 +1,125 @@
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useMemo,
-  useReducer,
-  type ReactNode,
-} from "react";
-import type {
-  Toast,
-  ToastProps,
-  ToastContextType,
-  ToastProviderConfig,
-} from "@shared/ui/toast/types";
+import { type ReactNode } from "react";
+import { Toaster, toast } from "sonner";
+import { useTheme } from "./ThemeProvider";
 
 // ============================================
-// Constantes
+// Tipos
 // ============================================
-const DEFAULT_DURATION = 5000; // 5 segundos
-const MAX_TOASTS = 5;
 
-// ============================================
-// Generador de IDs únicos
-// ============================================
-let toastCount = 0;
-const generateId = (): string => {
-  toastCount += 1;
-  return `toast-${toastCount}-${Date.now()}`;
-};
-
-// ============================================
-// Reducer
-// ============================================
-type ToastAction =
-  | { type: "ADD"; toast: Toast }
-  | { type: "DISMISS"; id: string }
-  | { type: "DISMISS_ALL" };
-
-interface ToastStateInternal {
-  toasts: Toast[];
+interface ToastProviderProps {
+  children: ReactNode;
 }
-
-const toastReducer = (
-  state: ToastStateInternal,
-  action: ToastAction
-): ToastStateInternal => {
-  switch (action.type) {
-    case "ADD":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, MAX_TOASTS),
-      };
-    case "DISMISS":
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.id),
-      };
-    case "DISMISS_ALL":
-      return {
-        ...state,
-        toasts: [],
-      };
-    default:
-      return state;
-  }
-};
-
-// ============================================
-// Contexto
-// ============================================
-const ToastContext = createContext<ToastContextType | null>(null);
 
 // ============================================
 // Provider
 // ============================================
-interface ToastProviderProps extends ToastProviderConfig {
-  children: ReactNode;
-}
 
-export const ToastProvider = ({
-  children,
-  maxToasts = MAX_TOASTS,
-  defaultDuration = DEFAULT_DURATION,
-}: ToastProviderProps) => {
-  const [state, dispatch] = useReducer(toastReducer, { toasts: [] });
-
-  // Map para almacenar los timeouts de auto-dismiss
-  const timeoutsRef = useMemo(() => new Map<string, NodeJS.Timeout>(), []);
-
-  // ============================================
-  // Dismiss
-  // ============================================
-  const dismiss = useCallback(
-    (id: string) => {
-      // Limpiar timeout si existe
-      const timeout = timeoutsRef.get(id);
-      if (timeout) {
-        clearTimeout(timeout);
-        /**
-         * Check error!
-         */
-        // timeoutsRef.delete(id);
-      }
-
-      // Encontrar el toast para ejecutar onClose
-      const toast = state.toasts.find((t) => t.id === id);
-      if (toast?.onClose) {
-        toast.onClose();
-      }
-
-      dispatch({ type: "DISMISS", id });
-    },
-    [state.toasts, timeoutsRef]
+/**
+ * ToastProvider
+ *
+ * Provee el sistema de notificaciones toast usando Sonner.
+ * El Toaster se renderiza aquí, los hijos pueden usar toast() directamente.
+ */
+export const ToastProvider = ({ children }: ToastProviderProps) => {
+  return (
+    <>
+      {children}
+      <ToasterComponent />
+    </>
   );
+};
 
-  // ============================================
-  // Dismiss All
-  // ============================================
-  const dismissAll = useCallback(() => {
-    // Limpiar todos los timeouts
-    timeoutsRef.forEach((timeout) => clearTimeout(timeout));
-    /**
-     * Check error!
-     */
-    // timeoutsRef.clear();
-
-    // Ejecutar onClose de todos
-    state.toasts.forEach((toast) => {
-      if (toast.onClose) {
-        toast.onClose();
-      }
-    });
-
-    dispatch({ type: "DISMISS_ALL" });
-  }, [state.toasts, timeoutsRef]);
-
-  // ============================================
-  // Toast (crear nuevo)
-  // ============================================
-  const toast = useCallback(
-    (props: ToastProps): string => {
-      const id = generateId();
-      const duration = props.duration ?? defaultDuration;
-
-      const newToast: Toast = {
-        ...props,
-        id,
-        dismissible: props.dismissible ?? true,
-      };
-
-      dispatch({ type: "ADD", toast: newToast });
-
-      // Auto-dismiss si tiene duración
-      if (duration > 0) {
-        const timeout = setTimeout(() => {
-          dismiss(id);
-        }, duration);
-        /**
-         * Check error!
-         */
-        timeoutsRef.set(id, timeout);
-      }
-
-      return id;
-    },
-    [defaultDuration, dismiss, timeoutsRef]
-  );
-
-  // ============================================
-  // Helpers con variantes
-  // ============================================
-  const success = useCallback(
-    (title: string, description?: string): string => {
-      return toast({ title, description, variant: "success" });
-    },
-    [toast]
-  );
-
-  const error = useCallback(
-    (title: string, description?: string): string => {
-      return toast({ title, description, variant: "destructive" });
-    },
-    [toast]
-  );
-
-  const warning = useCallback(
-    (title: string, description?: string): string => {
-      return toast({ title, description, variant: "warning" });
-    },
-    [toast]
-  );
-
-  const info = useCallback(
-    (title: string, description?: string): string => {
-      return toast({ title, description, variant: "info" });
-    },
-    [toast]
-  );
-
-  // ============================================
-  // Valor del contexto
-  // ============================================
-  const value = useMemo<ToastContextType>(
-    () => ({
-      toasts: state.toasts,
-      toast,
-      dismiss,
-      dismissAll,
-      success,
-      error,
-      warning,
-      info,
-    }),
-    [state.toasts, toast, dismiss, dismissAll, success, error, warning, info]
-  );
+/**
+ * Componente Toaster interno
+ * Separado para poder usar useTheme
+ */
+const ToasterComponent = () => {
+  const { resolvedTheme } = useTheme();
 
   return (
-    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+    <Toaster
+      theme={resolvedTheme}
+      position="top-right"
+      expand={false}
+      richColors
+      closeButton
+      duration={4000}
+      toastOptions={{
+        style: {
+          background: "hsl(var(--background))",
+          color: "hsl(var(--foreground))",
+          border: "1px solid hsl(var(--border))",
+        },
+        className: "shadow-lg",
+      }}
+    />
   );
 };
 
 // ============================================
-// Hook para consumir el contexto
+// Utilidades de toast
 // ============================================
-export const useToast = (): ToastContextType => {
-  const context = useContext(ToastContext);
 
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
-  }
+/**
+ * Helpers para mostrar toasts con estilos predefinidos
+ */
+export const showToast = {
+  /**
+   * Toast de éxito
+   */
+  success: (message: string, description?: string) => {
+    toast.success(message, { description });
+  },
 
-  return context;
+  /**
+   * Toast de error
+   */
+  error: (message: string, description?: string) => {
+    toast.error(message, { description });
+  },
+
+  /**
+   * Toast de información
+   */
+  info: (message: string, description?: string) => {
+    toast.info(message, { description });
+  },
+
+  /**
+   * Toast de advertencia
+   */
+  warning: (message: string, description?: string) => {
+    toast.warning(message, { description });
+  },
+
+  /**
+   * Toast de carga (con promise)
+   */
+  promise: <T,>(
+    promise: Promise<T>,
+    messages: {
+      loading: string;
+      success: string | ((data: T) => string);
+      error: string | ((error: any) => string);
+    }
+  ) => {
+    return toast.promise(promise, messages);
+  },
+
+  /**
+   * Toast personalizado
+   */
+  custom: (message: string, options?: Parameters<typeof toast>[1]) => {
+    toast(message, options);
+  },
+
+  /**
+   * Cerrar todos los toasts
+   */
+  dismiss: (toastId?: string | number) => {
+    toast.dismiss(toastId);
+  },
 };
+
+// Re-exportar toast original para casos avanzados
+export { toast };

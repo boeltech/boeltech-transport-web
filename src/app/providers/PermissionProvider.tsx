@@ -1,50 +1,127 @@
 import {
   createContext,
   useContext,
-  useMemo,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
-import type {
-  PermissionState,
-  Permission,
-  Module,
-  UserRole,
-} from "@features/permissions/model/types";
 import { useAuth } from "./AuthProvider";
-import { ROLE_CONFIGS } from "@features/permissions/model/constants";
 
 // ============================================
-// Tipos del Contexto
+// Tipos
 // ============================================
-interface PermissionContextType extends PermissionState {
-  /** Verifica si tiene un permiso específico */
-  hasPermission: (permission: Permission) => boolean;
 
-  /** Verifica si tiene TODOS los permisos especificados */
-  hasAllPermissions: (permissions: Permission[]) => boolean;
-
-  /** Verifica si tiene AL MENOS UNO de los permisos */
-  hasAnyPermission: (permissions: Permission[]) => boolean;
-
-  /** Verifica si tiene acceso a un módulo */
-  hasModuleAccess: (module: Module) => boolean;
-
-  /** Verifica si tiene uno de los roles especificados */
-  hasRole: (roles: UserRole | UserRole[]) => boolean;
-
-  /** Verifica si es administrador */
+interface PermissionContextType {
+  /** Verifica si el usuario tiene un permiso específico */
+  hasPermission: (permission: string) => boolean;
+  /** Verifica si el usuario tiene TODOS los permisos especificados */
+  hasAllPermissions: (permissions: string[]) => boolean;
+  /** Verifica si el usuario tiene AL MENOS UNO de los permisos */
+  hasAnyPermission: (permissions: string[]) => boolean;
+  /** Verifica si el usuario tiene un rol específico */
+  hasRole: (role: string | string[]) => boolean;
+  /** Verifica si el usuario es admin */
   isAdmin: boolean;
+  /** Lista de permisos del usuario */
+  permissions: string[];
+  /** Rol del usuario */
+  role: string | null;
 }
 
 // ============================================
 // Contexto
 // ============================================
+
 const PermissionContext = createContext<PermissionContextType | null>(null);
+
+// ============================================
+// Permisos por rol (fallback si no vienen del backend)
+// ============================================
+
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  admin: ["*"], // Admin tiene todos los permisos
+  gerente: [
+    // Operaciones
+    "operations:trips:read",
+    "operations:trips:write",
+    "operations:tracking:read",
+    // Flota
+    "fleet:vehicles:read",
+    "fleet:vehicles:write",
+    "fleet:drivers:read",
+    "fleet:drivers:write",
+    "fleet:maintenance:read",
+    "fleet:maintenance:write",
+    "fleet:fuel:read",
+    "fleet:fuel:write",
+    // Clientes
+    "clients:read",
+    "clients:write",
+    "quotes:read",
+    "quotes:write",
+    // Finanzas
+    "finance:invoices:read",
+    "finance:invoices:write",
+    "finance:expenses:read",
+    "finance:expenses:write",
+    "finance:expenses:approve",
+    "finance:payments:read",
+    "finance:payments:write",
+    // RRHH
+    "hr:employees:read",
+    "hr:employees:write",
+    "hr:payroll:read",
+    // Reportes
+    "reports:read",
+    "reports:export",
+  ],
+  contador: [
+    // Finanzas
+    "finance:invoices:read",
+    "finance:invoices:write",
+    "finance:expenses:read",
+    "finance:expenses:write",
+    "finance:payments:read",
+    "finance:payments:write",
+    // RRHH
+    "hr:payroll:read",
+    "hr:payroll:write",
+    // Reportes financieros
+    "reports:read",
+    "reports:export",
+    // Clientes (solo lectura para facturación)
+    "clients:read",
+  ],
+  operador: [
+    // Operaciones
+    "operations:trips:read",
+    "operations:trips:write",
+    "operations:tracking:read",
+    // Flota (solo lectura)
+    "fleet:vehicles:read",
+    "fleet:drivers:read",
+    "fleet:maintenance:read",
+    "fleet:fuel:read",
+    "fleet:fuel:write",
+    // Gastos propios
+    "finance:expenses:read",
+    "finance:expenses:write",
+  ],
+  cliente: [
+    // Solo ver sus propios viajes y facturas
+    "operations:trips:read",
+    "finance:invoices:read",
+    "quotes:read",
+  ],
+  user: [
+    // Usuario básico - solo dashboard
+  ],
+};
 
 // ============================================
 // Provider
 // ============================================
+
 interface PermissionProviderProps {
   children: ReactNode;
 }
@@ -52,143 +129,91 @@ interface PermissionProviderProps {
 export const PermissionProvider = ({ children }: PermissionProviderProps) => {
   const { user, isAuthenticated } = useAuth();
 
-  // ============================================
-  // Derivar permisos del usuario
-  // ============================================
-  const state = useMemo<PermissionState>(() => {
-    if (!isAuthenticated || !user) {
-      return {
-        permissions: [],
-        moduleAccess: [],
-        role: null,
-        isLoaded: true,
-      };
+  // Obtener permisos del usuario
+  const permissions = useMemo(() => {
+    if (!isAuthenticated || !user) return [];
+
+    // Si el usuario trae permisos del backend, usarlos
+    if (user.permissions && user.permissions.length > 0) {
+      return user.permissions;
     }
 
-    const role = user.rol as UserRole;
-    const roleConfig = ROLE_CONFIGS[role];
-
-    // Si el usuario tiene permisos personalizados, usarlos
-    // Si no, usar los permisos del rol
-    const permissions =
-      user.permisos?.length > 0
-        ? (user.permisos as Permission[])
-        : roleConfig?.permissions || [];
-
-    const moduleAccess = roleConfig?.moduleAccess || [];
-
-    return {
-      permissions,
-      moduleAccess,
-      role,
-      isLoaded: true,
-    };
+    // Fallback: usar permisos por rol
+    const role = user.role || "user";
+    return ROLE_PERMISSIONS[role] || [];
   }, [user, isAuthenticated]);
 
-  // ============================================
-  // Verificar si es admin
-  // ============================================
-  const isAdmin = useMemo(() => state.role === "admin", [state.role]);
+  const role = user?.role || null;
+  const isAdmin = role === "admin";
 
-  // ============================================
-  // Verificar permiso individual
-  // ============================================
+  // Verificar un permiso específico
   const hasPermission = useCallback(
-    (permission: Permission): boolean => {
-      // Admin tiene todos los permisos
-      if (isAdmin) return true;
-
-      // Sin permisos cargados
-      if (!state.isLoaded || state.permissions.length === 0) return false;
+    (permission: string): boolean => {
+      if (!isAuthenticated) return false;
+      if (isAdmin) return true; // Admin tiene todos los permisos
+      if (permissions.includes("*")) return true; // Wildcard
 
       // Verificar permiso exacto
-      if (state.permissions.includes(permission)) return true;
+      if (permissions.includes(permission)) return true;
 
-      // Verificar wildcards (ej: "fleet:*:read" o "*:*:read")
-      const [module, resource, action] = permission.split(":");
+      // Verificar permisos con wildcard parcial (ej: 'fleet:*' cubre 'fleet:vehicles:read')
+      const parts = permission.split(":");
+      for (let i = parts.length - 1; i > 0; i--) {
+        const wildcardPermission = [...parts.slice(0, i), "*"].join(":");
+        if (permissions.includes(wildcardPermission)) return true;
+      }
 
-      const wildcardPatterns = [
-        `${module}:${resource}:*`, // fleet:vehicles:*
-        `${module}:*:${action}`, // fleet:*:read
-        `${module}:*:*`, // fleet:*:*
-        `*:${resource}:${action}`, // *:vehicles:read
-        `*:*:${action}`, // *:*:read
-        `*:*:*`, // *:*:*
-      ];
-
-      return wildcardPatterns.some((pattern) =>
-        state.permissions.includes(pattern as Permission)
-      );
+      return false;
     },
-    [state.permissions, state.isLoaded, isAdmin]
+    [isAuthenticated, isAdmin, permissions]
   );
 
-  // ============================================
-  // Verificar múltiples permisos (AND)
-  // ============================================
+  // Verificar TODOS los permisos
   const hasAllPermissions = useCallback(
-    (permissions: Permission[]): boolean => {
-      if (isAdmin) return true;
-      return permissions.every((p) => hasPermission(p));
+    (requiredPermissions: string[]): boolean => {
+      return requiredPermissions.every((p) => hasPermission(p));
     },
-    [hasPermission, isAdmin]
+    [hasPermission]
   );
 
-  // ============================================
-  // Verificar múltiples permisos (OR)
-  // ============================================
+  // Verificar AL MENOS UN permiso
   const hasAnyPermission = useCallback(
-    (permissions: Permission[]): boolean => {
-      if (isAdmin) return true;
-      return permissions.some((p) => hasPermission(p));
+    (requiredPermissions: string[]): boolean => {
+      return requiredPermissions.some((p) => hasPermission(p));
     },
-    [hasPermission, isAdmin]
+    [hasPermission]
   );
 
-  // ============================================
-  // Verificar acceso a módulo
-  // ============================================
-  const hasModuleAccess = useCallback(
-    (module: Module): boolean => {
-      if (isAdmin) return true;
-      return state.moduleAccess.includes(module);
-    },
-    [state.moduleAccess, isAdmin]
-  );
-
-  // ============================================
   // Verificar rol
-  // ============================================
   const hasRole = useCallback(
-    (roles: UserRole | UserRole[]): boolean => {
-      if (!state.role) return false;
-      const roleArray = Array.isArray(roles) ? roles : [roles];
-      return roleArray.includes(state.role);
+    (requiredRole: string | string[]): boolean => {
+      if (!isAuthenticated || !role) return false;
+
+      const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      return roles.includes(role);
     },
-    [state.role]
+    [isAuthenticated, role]
   );
 
-  // ============================================
   // Memoizar valor del contexto
-  // ============================================
   const value = useMemo<PermissionContextType>(
     () => ({
-      ...state,
       hasPermission,
       hasAllPermissions,
       hasAnyPermission,
-      hasModuleAccess,
       hasRole,
       isAdmin,
+      permissions,
+      role,
     }),
     [
-      state,
       hasPermission,
       hasAllPermissions,
       hasAnyPermission,
-      hasModuleAccess,
       hasRole,
       isAdmin,
+      permissions,
+      role,
     ]
   );
 
@@ -200,8 +225,9 @@ export const PermissionProvider = ({ children }: PermissionProviderProps) => {
 };
 
 // ============================================
-// Hook para consumir el contexto
+// Hook
 // ============================================
+
 export const usePermissions = (): PermissionContextType => {
   const context = useContext(PermissionContext);
 
@@ -210,4 +236,55 @@ export const usePermissions = (): PermissionContextType => {
   }
 
   return context;
+};
+
+// ============================================
+// Componente helper para renderizado condicional
+// ============================================
+
+interface CanProps {
+  /** Permiso requerido */
+  permission?: string;
+  /** Permisos requeridos (todos) */
+  permissions?: string[];
+  /** Permisos requeridos (al menos uno) */
+  anyPermissions?: string[];
+  /** Roles permitidos */
+  roles?: string[];
+  /** Contenido a renderizar si tiene permiso */
+  children: ReactNode;
+  /** Contenido alternativo si no tiene permiso */
+  fallback?: ReactNode;
+}
+
+export const Can = ({
+  permission,
+  permissions,
+  anyPermissions,
+  roles,
+  children,
+  fallback = null,
+}: CanProps) => {
+  const { hasPermission, hasAllPermissions, hasAnyPermission, hasRole } =
+    usePermissions();
+
+  let allowed = true;
+
+  if (permission) {
+    allowed = allowed && hasPermission(permission);
+  }
+
+  if (permissions && permissions.length > 0) {
+    allowed = allowed && hasAllPermissions(permissions);
+  }
+
+  if (anyPermissions && anyPermissions.length > 0) {
+    allowed = allowed && hasAnyPermission(anyPermissions);
+  }
+
+  if (roles && roles.length > 0) {
+    allowed = allowed && hasRole(roles);
+  }
+
+  return <>{allowed ? children : fallback}</>;
 };
