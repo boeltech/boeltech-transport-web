@@ -120,7 +120,7 @@ const RegisterPage = () => {
         available: boolean;
         subdomain: string;
         suggestion?: string;
-      }>(`/api/onboarding/check-subdomain?subdomain=${subdomain}`);
+      }>(`/onboarding/check-subdomain?subdomain=${subdomain}`);
 
       setSubdomainAvailable(response.available);
       setSubdomainSuggestion(response.suggestion || null);
@@ -173,7 +173,7 @@ const RegisterPage = () => {
         accessToken: string;
         refreshToken: string;
         user: any;
-      }>("/api/onboarding/register", {
+      }>("/onboarding/register", {
         company: {
           name: data.companyName,
           subdomain: data.subdomain,

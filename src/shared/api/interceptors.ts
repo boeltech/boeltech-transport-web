@@ -57,7 +57,7 @@ export const setupInterceptors = (
     tokenStorage,
     onUnauthorized,
     onForbidden,
-    refreshEndpoint = "/api/auth/refresh",
+    refreshEndpoint = "/auth/refresh",
   } = config;
 
   // ============================================

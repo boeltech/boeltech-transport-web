@@ -5,10 +5,10 @@ import type { LoginCredentials, AuthResponse, User } from "../model/types";
  * API de Autenticación
  *
  * Endpoints:
- * - POST /api/auth/login    - Iniciar sesión
- * - POST /api/auth/refresh  - Renovar token
- * - POST /api/auth/logout   - Cerrar sesión
- * - GET  /api/auth/profile  - Obtener perfil del usuario
+ * - POST /api/v1/auth/login    - Iniciar sesión
+ * - POST /api/v1/auth/refresh  - Renovar token
+ * - POST /api/v1/auth/logout   - Cerrar sesión
+ * - GET  /api/v1/auth/profile  - Obtener perfil del usuario
  */
 export const authApi = {
   /**
@@ -19,7 +19,7 @@ export const authApi = {
    */
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     // apiClient.post ya retorna response.data
-    return apiClient.post<AuthResponse>("/api/auth/login", {
+    return apiClient.post<AuthResponse>("/auth/login", {
       email: credentials.email,
       password: credentials.password,
       subdomain: credentials.subdomain,
@@ -33,7 +33,7 @@ export const authApi = {
    * @returns Nuevo token de acceso
    */
   refresh: async (refreshToken: string): Promise<{ accessToken: string }> => {
-    return apiClient.post<{ accessToken: string }>("/api/auth/refresh", {
+    return apiClient.post<{ accessToken: string }>("/auth/refresh", {
       refreshToken,
     });
   },
@@ -44,7 +44,7 @@ export const authApi = {
    * @param refreshToken - Token de refresco a invalidar
    */
   logout: async (refreshToken?: string): Promise<void> => {
-    await apiClient.post("/api/auth/logout", { refreshToken });
+    await apiClient.post("/auth/logout", { refreshToken });
   },
 
   /**
@@ -53,7 +53,7 @@ export const authApi = {
    * @returns Datos del usuario
    */
   getProfile: async (): Promise<User> => {
-    return apiClient.get<User>("/api/auth/profile");
+    return apiClient.get<User>("/auth/profile");
   },
 
   /**

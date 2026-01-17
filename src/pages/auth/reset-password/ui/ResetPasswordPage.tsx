@@ -80,7 +80,7 @@ const ResetPasswordPage = () => {
         const response = await apiClient.get<{
           valid: boolean;
           error?: string;
-        }>(`/api/auth/verify-reset-token/${token}`);
+        }>(`/auth/verify-reset-token/${token}`);
 
         if (response.valid) {
           setPageState("valid");
@@ -104,7 +104,7 @@ const ResetPasswordPage = () => {
     setIsSubmitting(true);
 
     try {
-      await apiClient.post("/api/auth/reset-password", {
+      await apiClient.post("/auth/reset-password", {
         token,
         password: data.password,
         confirmPassword: data.confirmPassword,

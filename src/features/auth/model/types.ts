@@ -26,8 +26,8 @@ export interface Tenant {
  * Usuario autenticado
  *
  * Estructura que devuelve el backend en:
- * - POST /api/auth/login (dentro de response.user)
- * - GET /api/auth/profile
+ * - POST /api/v1/auth/login (dentro de response.user)
+ * - GET /api/v1/auth/profile
  *
  * IMPORTANTE: Los campos deben coincidir con el backend:
  * - Backend usa: firstName, lastName, role
@@ -57,7 +57,7 @@ export interface LoginCredentials {
 }
 
 /**
- * Respuesta del endpoint POST /api/auth/login
+ * Respuesta del endpoint POST /api/v1/auth/login
  *
  * IMPORTANTE: El backend devuelve `accessToken`, NO `token`
  */
