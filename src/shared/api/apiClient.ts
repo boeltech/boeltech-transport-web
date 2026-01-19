@@ -1,27 +1,7 @@
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import axios from "axios";
 import { setupInterceptors, setupRetryInterceptor } from "./interceptors";
-
-/**
- * Configuración del API Client
- */
-interface ApiClientConfig {
-  baseURL: string;
-  timeout?: number;
-  headers?: Record<string, string>;
-}
-
-/**
- * Configuración por defecto
- */
-const defaultConfig: ApiClientConfig = {
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1",
-  timeout: 30000, // 30 segundos
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-};
+import { config } from "@shared/config/index";
 
 /**
  * Clase Singleton para el cliente API
@@ -49,11 +29,11 @@ class ApiClient {
   /**
    * Constructor privado - Solo se puede instanciar desde getInstance()
    */
-  private constructor(config: ApiClientConfig = defaultConfig) {
+  private constructor() {
     this.axiosInstance = axios.create({
-      baseURL: config.baseURL,
-      timeout: config.timeout,
-      headers: config.headers,
+      baseURL: config.api.baseUrl,
+      timeout: config.api.timeout,
+      headers: config.api.headers,
       // Validar status codes
       validateStatus: (status) => status >= 200 && status < 300,
     });
@@ -62,9 +42,9 @@ class ApiClient {
   /**
    * Obtiene la instancia única del ApiClient (Singleton)
    */
-  public static getInstance(config?: ApiClientConfig): ApiClient {
+  public static getInstance(): ApiClient {
     if (!ApiClient.instance) {
-      ApiClient.instance = new ApiClient(config);
+      ApiClient.instance = new ApiClient();
     }
     return ApiClient.instance;
   }
@@ -155,7 +135,7 @@ class ApiClient {
   public async post<T>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     const response = await this.axiosInstance.post<T>(url, data, config);
     return response.data;
@@ -167,7 +147,7 @@ class ApiClient {
   public async put<T>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     const response = await this.axiosInstance.put<T>(url, data, config);
     return response.data;
@@ -179,7 +159,7 @@ class ApiClient {
   public async patch<T>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     const response = await this.axiosInstance.patch<T>(url, data, config);
     return response.data;
@@ -214,7 +194,7 @@ class ApiClient {
     file: File,
     fieldName = "file",
     additionalData?: Record<string, string>,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
   ): Promise<T> {
     const formData = new FormData();
     formData.append(fieldName, file);
@@ -232,7 +212,7 @@ class ApiClient {
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
+            (progressEvent.loaded * 100) / progressEvent.total,
           );
           onProgress(progress);
         }
@@ -250,7 +230,7 @@ class ApiClient {
     files: File[],
     fieldName = "files",
     additionalData?: Record<string, string>,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
   ): Promise<T> {
     const formData = new FormData();
 
@@ -271,7 +251,7 @@ class ApiClient {
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
+            (progressEvent.loaded * 100) / progressEvent.total,
           );
           onProgress(progress);
         }
@@ -290,7 +270,7 @@ class ApiClient {
   public async downloadFile(
     url: string,
     filename: string,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<void> {
     const response = await this.axiosInstance.get(url, {
       ...config,
