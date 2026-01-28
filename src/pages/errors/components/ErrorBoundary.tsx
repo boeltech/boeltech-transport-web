@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import {
-  useNavigate,
+  // useNavigate,
   useRouteError,
   isRouteErrorResponse,
 } from "react-router-dom";
@@ -389,7 +389,7 @@ const HttpErrorPage = ({ status, statusText }: HttpErrorPageProps) => {
  */
 export const withErrorBoundary = <P extends object>(
   WrappedComponent: React.ComponentType<P>,
-  fallback?: ReactNode
+  fallback?: ReactNode,
 ): React.FC<P> => {
   const WithErrorBoundary: React.FC<P> = (props) => (
     <ErrorBoundary fallback={fallback}>

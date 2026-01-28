@@ -1,73 +1,70 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@app/providers/AuthProvider";
-
-/**
- * Módulos disponibles en el sistema
- */
-export type Module =
-  | "dashboard"
-  | "fleet"
-  | "operations"
-  | "clients"
-  | "finance"
-  | "hr"
-  | "inventory"
-  | "reports"
-  | "admin";
-
-/**
- * Configuración de acceso por rol a módulos
- */
-const MODULE_ACCESS: Record<string, Module[]> = {
-  admin: [
-    "dashboard",
-    "fleet",
-    "operations",
-    "clients",
-    "finance",
-    "hr",
-    "inventory",
-    "reports",
-    "admin",
-  ],
-  gerente: ["dashboard", "fleet", "operations", "clients", "reports"],
-  contador: ["dashboard", "finance", "hr", "reports"],
-  operador: ["dashboard", "operations", "fleet"],
-  cliente: ["dashboard"],
-  user: ["dashboard"],
-};
-
-interface ModuleRouteProps {
-  module: Module;
-}
-
 /**
  * ModuleRoute
  *
  * Guard que verifica si el usuario tiene acceso a un módulo específico.
+ * Verifica el permiso de lectura (read) por defecto.
  *
- * NOTA: Este componente SÍ puede usar useAuth() porque se renderiza
- * DENTRO de AppLayout, donde AuthProvider ya está disponible.
+ * Integrado con el sistema de permisos de @/shared/auth.
+ *
+ * Ubicación: src/app/router/guards/ModuleRoute.tsx
+ *
+ * @example
+ * <ModuleRoute module="trips">
+ *   <TripsListPage />
+ * </ModuleRoute>
+ *
+ * // Con acción específica
+ * <ModuleRoute module="trips" action="create">
+ *   <TripCreatePage />
+ * </ModuleRoute>
  */
-export const ModuleRoute = ({ module }: ModuleRouteProps) => {
-  const { user } = useAuth();
 
-  if (!user) {
+import { Navigate, Outlet } from "react-router-dom";
+import { usePermissions, type Module, type Action } from "@/shared/permissions";
+
+// ============================================
+// Types
+// ============================================
+
+interface ModuleRouteProps {
+  /** Módulo requerido */
+  module: Module;
+  /** Acción requerida (default: 'read') */
+  action?: Action;
+  /** Ruta a la que redirigir si no tiene acceso */
+  redirectTo?: string;
+  /** Componente a mostrar mientras carga */
+  fallback?: React.ReactNode;
+}
+
+// ============================================
+// Component
+// ============================================
+
+export function ModuleRoute({
+  module,
+  action = "read",
+  redirectTo = "/forbidden",
+  fallback = null,
+}: ModuleRouteProps) {
+  const { hasPermission, isLoading, isAuthenticated } = usePermissions();
+
+  // Mientras carga, mostrar fallback
+  if (isLoading) {
+    return <>{fallback}</>;
+  }
+
+  // Si no está autenticado, redirigir a login
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Admin tiene acceso a todo
-  if (user.role === "admin") {
-    return <Outlet />;
-  }
-
-  // Verificar si el rol tiene acceso al módulo
-  const allowedModules = MODULE_ACCESS[user.role] || [];
-  const hasAccess = allowedModules.includes(module);
+  // Verificar acceso al módulo
+  const hasAccess = hasPermission(module, action);
 
   if (!hasAccess) {
-    return <Navigate to="/forbidden" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   return <Outlet />;
-};
+}

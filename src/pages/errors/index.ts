@@ -1,5 +1,5 @@
 // Componente base reutilizable
-export { ErrorPage } from "./ui/ErrorPage";
+export { ErrorPage } from "./ErrorPage";
 
 // Páginas de error específicas (lazy loaded en routes.tsx)
 // Los exports default se importan con lazy() en routes.tsx:

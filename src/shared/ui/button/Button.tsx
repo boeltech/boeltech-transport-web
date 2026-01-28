@@ -2,7 +2,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
-import { cn } from "@shared/lib/cn";
+import { cn } from "@shared/lib/utils/cn";
 
 /**
  * Variantes del botón usando class-variance-authority (CVA)
@@ -46,14 +46,15 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 /**
  * Props del componente Button
  */
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   /**
    * Si es true, el botón se renderiza como un Slot (para composición con Link, etc.)
@@ -119,7 +120,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Si asChild es true, usar Slot y NO agregar contenido extra
     if (asChild) {
@@ -155,7 +156,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {rightIcon}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";

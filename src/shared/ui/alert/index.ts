@@ -1,1 +1,1 @@
-export { Alert, AlertWithIcon } from "./Alert";
+export * from "./Alert";

@@ -1,37 +1,67 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@app/providers/AuthProvider";
-
-interface RoleRouteProps {
-  /** Rol o roles permitidos */
-  roles: string | string[];
-
-  /** Ruta a la que redirigir si no tiene el rol (default: /forbidden) */
-  redirectTo?: string;
-}
-
 /**
  * RoleRoute
  *
  * Guard que verifica si el usuario tiene uno de los roles especificados.
+ * Integrado con el sistema de permisos de @/shared/auth.
+ *
+ * Ubicación: src/app/router/guards/RoleRoute.tsx
  *
  * @example
- * <RoleRoute roles={['admin', 'gerente']}>
+ * <RoleRoute roles={['admin', 'manager']}>
  *   <ManagementPage />
  * </RoleRoute>
+ *
+ * // Un solo rol
+ * <RoleRoute roles="admin">
+ *   <AdminPage />
+ * </RoleRoute>
  */
-export const RoleRoute = ({
+
+import { Navigate, Outlet } from "react-router-dom";
+import { usePermissions, type Role } from "@/shared/permissions";
+
+// ============================================
+// Types
+// ============================================
+
+interface RoleRouteProps {
+  /** Rol o roles permitidos */
+  roles: Role | Role[];
+  /** Ruta a la que redirigir si no tiene el rol */
+  redirectTo?: string;
+  /** Componente a mostrar mientras carga */
+  fallback?: React.ReactNode;
+}
+
+// ============================================
+// Component
+// ============================================
+
+export function RoleRoute({
   roles,
   redirectTo = "/forbidden",
-}: RoleRouteProps) => {
-  const { user, hasRole } = useAuth();
+  fallback = null,
+}: RoleRouteProps) {
+  const { hasRole, hasAnyRole, isLoading, isAuthenticated } = usePermissions();
 
-  if (!user) {
+  // Mientras carga, mostrar fallback
+  if (isLoading) {
+    return <>{fallback}</>;
+  }
+
+  // Si no está autenticado, redirigir a login
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!hasRole(roles)) {
+  // Verificar rol(es)
+  const rolesArray = Array.isArray(roles) ? roles : [roles];
+  const hasAccess =
+    rolesArray.length === 1 ? hasRole(rolesArray[0]) : hasAnyRole(rolesArray);
+
+  if (!hasAccess) {
     return <Navigate to={redirectTo} replace />;
   }
 
   return <Outlet />;
-};
+}

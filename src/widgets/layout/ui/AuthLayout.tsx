@@ -19,10 +19,10 @@ import { Toaster } from "@shared/ui/toast";
  * 2. LoginPage maneja la autenticación directamente con authApi
  * 3. Una sola instancia de AuthProvider (en AppLayout) = Single Source of Truth
  */
-export const AuthLayout = () => {
+const AuthLayout = () => {
   return (
     <QueryProvider>
-      <ThemeProvider>
+      <ThemeProvider defaultMode="system">
         <ToastProvider>
           <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
             <div className="w-full max-w-md p-6">
@@ -35,3 +35,5 @@ export const AuthLayout = () => {
     </QueryProvider>
   );
 };
+
+export default AuthLayout;

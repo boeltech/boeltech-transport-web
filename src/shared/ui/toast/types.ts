@@ -1,4 +1,11 @@
-import { type ReactNode } from "react";
+/**
+ * Toast Types
+ *
+ * Tipos compartidos para el sistema de notificaciones.
+ * Ubicación: src/shared/ui/toast/types.ts
+ */
+
+// import type { ReactNode } from 'react';
 
 /**
  * Variantes visuales del toast
@@ -6,9 +13,10 @@ import { type ReactNode } from "react";
 export type ToastVariant =
   | "default"
   | "success"
-  | "destructive"
+  | "error"
   | "warning"
-  | "info";
+  | "info"
+  | "destructive";
 
 /**
  * Posición del toast en la pantalla
@@ -22,84 +30,69 @@ export type ToastPosition =
   | "bottom-right";
 
 /**
- * Datos de un toast individual
+ * Opciones para mostrar un toast
  */
-export interface Toast {
-  /** ID único del toast */
-  id: string;
-
-  /** Título principal */
-  title?: ReactNode;
-
-  /** Descripción o mensaje secundario */
-  description?: ReactNode;
-
+export interface ToastOptions {
+  /** Título principal del toast */
+  title: string;
+  /** Descripción opcional */
+  description?: string;
   /** Variante visual */
   variant?: ToastVariant;
-
-  /** Duración en ms (0 = no auto-dismiss) */
+  /** Duración en ms (default: 4000, 0 = sin auto-dismiss) */
   duration?: number;
-
   /** Acción opcional (botón) */
   action?: {
     label: string;
     onClick: () => void;
   };
-
   /** Callback cuando se cierra */
   onClose?: () => void;
-
   /** Si se puede cerrar manualmente */
   dismissible?: boolean;
 }
 
 /**
- * Props para crear un nuevo toast
+ * Mensajes para toast con promise
  */
-export type ToastProps = Omit<Toast, "id">;
-
-/**
- * Estado del contexto
- */
-export interface ToastState {
-  toasts: Toast[];
+export interface ToastPromiseMessages<T> {
+  loading: string;
+  success: string | ((data: T) => string);
+  error: string | ((error: unknown) => string);
 }
 
 /**
- * Acciones del contexto
+ * Retorno del hook useToast
  */
-export interface ToastActions {
-  /** Muestra un nuevo toast */
-  toast: (props: ToastProps) => string;
-
-  /** Cierra un toast específico */
-  dismiss: (id: string) => void;
-
-  /** Cierra todos los toasts */
-  dismissAll: () => void;
-
-  // Helpers con variantes predefinidas
-  success: (title: string, description?: string) => string;
-  error: (title: string, description?: string) => string;
-  warning: (title: string, description?: string) => string;
-  info: (title: string, description?: string) => string;
+export interface UseToastReturn {
+  /** Muestra un toast genérico */
+  toast: (options: ToastOptions) => string | number;
+  /** Cierra un toast específico o todos */
+  dismiss: (toastId?: string | number) => void;
+  /** Toast con promise (loading → success/error) */
+  promise: <T>(
+    promise: Promise<T>,
+    messages: ToastPromiseMessages<T>,
+  ) => Promise<T>;
+  /** Helpers con variantes predefinidas */
+  success: (title: string, description?: string) => string | number;
+  error: (title: string, description?: string) => string | number;
+  warning: (title: string, description?: string) => string | number;
+  info: (title: string, description?: string) => string | number;
 }
 
 /**
- * Contexto completo
+ * Configuración del Toaster
  */
-export interface ToastContextType extends ToastState, ToastActions {}
-
-/**
- * Configuración del provider
- */
-export interface ToastProviderConfig {
-  /** Máximo de toasts visibles */
-  maxToasts?: number;
-
-  /** Duración por defecto en ms */
-  defaultDuration?: number;
-
+export interface ToasterConfig {
   /** Posición de los toasts */
   position?: ToastPosition;
+  /** Duración por defecto en ms */
+  duration?: number;
+  /** Expandir toasts */
+  expand?: boolean;
+  /** Mostrar botón de cerrar */
+  closeButton?: boolean;
+  /** Colores enriquecidos (verde éxito, rojo error, etc.) */
+  richColors?: boolean;
 }

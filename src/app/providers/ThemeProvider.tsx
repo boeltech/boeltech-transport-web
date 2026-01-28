@@ -1,102 +1,194 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-
-type Theme = "dark" | "light" | "system";
-
-interface ThemeContextType {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  resolvedTheme: "dark" | "light";
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-const THEME_KEY = "theme";
-
-interface ThemeProviderProps {
-  children: ReactNode;
-  defaultTheme?: Theme;
-}
-
 /**
  * ThemeProvider
  *
- * Proveedor de tema (dark/light mode) para la aplicación.
- * Persiste la preferencia en localStorage.
+ * Provider que gestiona el tema (dark/light mode) de la aplicación.
+ * Persiste la preferencia en localStorage y escucha cambios del sistema.
+ *
+ * Ubicación: src/app/providers/ThemeProvider.tsx
+ *
+ * @example
+ * <ThemeProvider defaultMode="system">
+ *   <App />
+ * </ThemeProvider>
  */
-export const ThemeProvider = ({
+
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type {
+  ThemeMode,
+  ResolvedTheme,
+  ThemeContextValue,
+  ThemeProviderConfig,
+} from "@/shared/ui/theme/types";
+
+// ============================================
+// Context
+// ============================================
+
+export const ThemeContext = createContext<ThemeContextValue | undefined>(
+  undefined,
+);
+
+// ============================================
+// Constants
+// ============================================
+
+const DEFAULT_STORAGE_KEY = "boeltech-theme";
+const DEFAULT_MODE: ThemeMode = "system";
+
+// ============================================
+// Helpers
+// ============================================
+
+/**
+ * Obtiene el tema guardado en localStorage
+ */
+function getStoredTheme(storageKey: string): ThemeMode | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored === "light" || stored === "dark" || stored === "system") {
+      return stored;
+    }
+  } catch {
+    // localStorage no disponible
+  }
+
+  return null;
+}
+
+/**
+ * Guarda el tema en localStorage
+ */
+function setStoredTheme(storageKey: string, mode: ThemeMode): void {
+  try {
+    localStorage.setItem(storageKey, mode);
+  } catch {
+    // localStorage no disponible
+  }
+}
+
+/**
+ * Obtiene la preferencia del sistema
+ */
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+/**
+ * Resuelve el tema según el modo seleccionado
+ */
+function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  if (mode === "system") {
+    return getSystemTheme();
+  }
+  return mode;
+}
+
+/**
+ * Aplica el tema al documento
+ */
+function applyTheme(
+  theme: ResolvedTheme,
+  attribute: "class" | "data-theme",
+): void {
+  const root = window.document.documentElement;
+
+  if (attribute === "class") {
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+  } else {
+    root.setAttribute("data-theme", theme);
+  }
+}
+
+// ============================================
+// Provider
+// ============================================
+
+interface ThemeProviderProps extends ThemeProviderConfig {
+  children: ReactNode;
+}
+
+export function ThemeProvider({
   children,
-  defaultTheme = "system",
-}: ThemeProviderProps) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return defaultTheme;
-    return (localStorage.getItem(THEME_KEY) as Theme) || defaultTheme;
+  defaultMode = DEFAULT_MODE,
+  storageKey = DEFAULT_STORAGE_KEY,
+  attribute = "class",
+}: ThemeProviderProps) {
+  // Estado del modo seleccionado
+  const [mode, setModeState] = useState<ThemeMode>(() => {
+    return getStoredTheme(storageKey) ?? defaultMode;
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("light");
+  // Estado del tema resuelto
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
+    return resolveTheme(mode);
+  });
 
-  // Resolver tema según preferencia del sistema
+  // Efecto para aplicar el tema y escuchar cambios del sistema
   useEffect(() => {
-    const root = window.document.documentElement;
-
     const updateTheme = () => {
-      let resolved: "dark" | "light";
-
-      if (theme === "system") {
-        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-      } else {
-        resolved = theme;
-      }
-
+      const resolved = resolveTheme(mode);
       setResolvedTheme(resolved);
-
-      // Aplicar clase al HTML
-      root.classList.remove("light", "dark");
-      root.classList.add(resolved);
+      applyTheme(resolved, attribute);
     };
 
+    // Aplicar tema inicial
     updateTheme();
 
     // Escuchar cambios en preferencia del sistema
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      if (theme === "system") {
+
+    const handleSystemChange = () => {
+      if (mode === "system") {
         updateTheme();
       }
     };
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+    mediaQuery.addEventListener("change", handleSystemChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemChange);
+  }, [mode, attribute]);
 
-  const setTheme = (newTheme: Theme) => {
-    localStorage.setItem(THEME_KEY, newTheme);
-    setThemeState(newTheme);
-  };
+  // Función para cambiar el modo
+  const setMode = useCallback(
+    (newMode: ThemeMode) => {
+      setStoredTheme(storageKey, newMode);
+      setModeState(newMode);
+    },
+    [storageKey],
+  );
+
+  // Función para alternar entre light/dark
+  const toggleTheme = useCallback(() => {
+    const newMode = resolvedTheme === "dark" ? "light" : "dark";
+    setMode(newMode);
+  }, [resolvedTheme, setMode]);
+
+  // Valor del contexto memoizado
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      mode,
+      resolvedTheme,
+      isDark: resolvedTheme === "dark",
+      isLight: resolvedTheme === "light",
+      setMode,
+      toggleTheme,
+    }),
+    [mode, resolvedTheme, setMode, toggleTheme],
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
-};
-
-/**
- * Hook para acceder al tema
- */
-export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext);
-
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-
-  return context;
-};
+}

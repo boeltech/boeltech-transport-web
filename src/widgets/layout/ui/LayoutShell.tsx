@@ -1,17 +1,3 @@
-import { Outlet } from "react-router-dom";
-
-import { cn } from "@shared/lib/cn";
-import { useSidebar } from "@app/providers/SidebarProvider";
-import { Sidebar, MobileSidebar } from "@widgets/sidebar";
-import { Header } from "@widgets/header";
-
-// ============================================
-// Constantes
-// ============================================
-
-const SIDEBAR_WIDTH = 256; // 16rem = 256px
-const SIDEBAR_COLLAPSED_WIDTH = 64; // 4rem = 64px
-
 /**
  * LayoutShell
  *
@@ -21,10 +7,32 @@ const SIDEBAR_COLLAPSED_WIDTH = 64; // 4rem = 64px
  * - Área de contenido principal
  *
  * Consume el SidebarProvider para manejar el estado.
+ *
+ * Ubicación: src/app/layouts/LayoutShell.tsx
  */
-export const LayoutShell = () => {
-  const { collapsed, mobileOpen, toggle, openMobile, closeMobile } =
-    useSidebar();
+
+import { Outlet } from "react-router-dom";
+
+import { cn } from "@shared/lib/utils";
+import { useSidebar } from "@/app/providers/SidebarProvider";
+import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
+import { Header } from "@/widgets/header";
+
+// ============================================
+// Constantes
+// ============================================
+
+const SIDEBAR_WIDTH = 260; // px
+const SIDEBAR_COLLAPSED_WIDTH = 70; // px
+
+/**
+ * LayoutShell
+ *
+ * Layout principal de la aplicación autenticada.
+ * Integra Sidebar, Header y área de contenido.
+ */
+export function LayoutShell() {
+  const { isCollapsed } = useSidebar();
 
   return (
     <div className="min-h-screen bg-background">
@@ -33,10 +41,12 @@ export const LayoutShell = () => {
           ========================================== */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen border-r bg-card transition-all duration-300 ease-in-out",
+          "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
           "hidden lg:block",
-          collapsed ? "w-16" : "w-64"
         )}
+        style={{
+          width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        }}
       >
         <Sidebar />
       </aside>
@@ -44,30 +54,38 @@ export const LayoutShell = () => {
       {/* ==========================================
           Sidebar Mobile (Drawer)
           ========================================== */}
-      <MobileSidebar open={mobileOpen} onClose={closeMobile} />
+      <MobileSidebar />
 
       {/* ==========================================
           Header
           ========================================== */}
-      <Header onMenuClick={openMobile} />
+      <Header />
 
       {/* ==========================================
           Main Content
           ========================================== */}
       <main
-        className={cn(
-          "min-h-screen transition-all duration-300 ease-in-out",
-          // Margen izquierdo para el sidebar en desktop
-          collapsed ? "lg:ml-16" : "lg:ml-64"
-        )}
+        className={cn("min-h-screen transition-all duration-300 ease-in-out")}
+        style={{
+          marginLeft: 0,
+          // Solo aplicar margin en desktop (lg+)
+        }}
       >
-        {/* Content wrapper con padding */}
-        <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
-          <div className="mx-auto max-w-7xl">
-            <Outlet />
+        {/* Wrapper con margin responsive */}
+        <div
+          className={cn(
+            "min-h-screen transition-all duration-300 ease-in-out",
+            isCollapsed ? "lg:ml-[70px]" : "lg:ml-[260px]",
+          )}
+        >
+          {/* Content wrapper con padding */}
+          <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
+            <div className="mx-auto max-w-7xl">
+              <Outlet />
+            </div>
           </div>
         </div>
       </main>
     </div>
   );
-};
+}

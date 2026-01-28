@@ -1,25 +1,29 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { tokenStorage } from "@features/auth/lib/tokenStorage";
-
 /**
  * PrivateRoute
  *
  * Guard que protege rutas que requieren autenticación.
  *
  * IMPORTANTE: Este componente NO usa useAuth() porque se ejecuta
- * ANTES de que AppLayout (y por ende AuthProvider) se monte.
+ * ANTES de que los providers se monten completamente.
  *
  * En su lugar, verifica directamente si existe un token en storage.
  * La validación real del token la hace AuthProvider cuando se monte.
  *
- * Flujo:
- * 1. PrivateRoute verifica si hay token
- * 2. Si hay token → renderiza Outlet (que incluye AppLayout)
- * 3. AppLayout monta AuthProvider
- * 4. AuthProvider valida el token con el backend
- * 5. Si el token es inválido, AuthProvider hace logout
+ * Ubicación: src/app/router/guards/PrivateRoute.tsx
  */
-export const PrivateRoute = () => {
+
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { tokenStorage } from "@/features/auth";
+
+/**
+ * PrivateRoute
+ *
+ * Flujo:
+ * 1. Verifica si hay token en storage
+ * 2. Si hay token → renderiza Outlet (children)
+ * 3. Si no hay token → redirige a login guardando ubicación actual
+ */
+export function PrivateRoute() {
   const location = useLocation();
 
   // Verificar si hay token (no validamos, solo existencia)
@@ -33,4 +37,4 @@ export const PrivateRoute = () => {
   // Si hay token, permitir acceso
   // AuthProvider validará el token cuando se monte
   return <Outlet />;
-};
+}

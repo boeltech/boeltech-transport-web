@@ -1,31 +1,49 @@
+/**
+ * Toaster Component
+ *
+ * Renderiza el contenedor de toasts usando Sonner.
+ * Se usa dentro del ToastProvider.
+ *
+ * Ubicación: src/shared/ui/toast/Toaster.tsx
+ */
+
 import { Toaster as SonnerToaster } from "sonner";
-import { useTheme } from "@app/providers/ThemeProvider";
+import { useTheme } from "@shared/hooks";
+import type { ToasterConfig } from "./types";
+
+interface ToasterProps extends ToasterConfig {}
 
 /**
  * Toaster
  *
- * Componente para mostrar notificaciones toast.
- * Usa la librería 'sonner' para las notificaciones.
+ * Componente que renderiza los toasts.
+ * Debe estar dentro de ThemeProvider para acceder al tema.
  */
-export const Toaster = () => {
+export function Toaster({
+  position = "top-right",
+  duration = 4000,
+  expand = false,
+  closeButton = true,
+  richColors = true,
+}: ToasterProps) {
   const { resolvedTheme } = useTheme();
 
   return (
     <SonnerToaster
       theme={resolvedTheme}
-      position="top-right"
+      position={position}
+      duration={duration}
+      expand={expand}
+      closeButton={closeButton}
+      richColors={richColors}
       toastOptions={{
         style: {
           background: "hsl(var(--background))",
           color: "hsl(var(--foreground))",
           border: "1px solid hsl(var(--border))",
         },
+        className: "shadow-lg",
       }}
-      richColors
-      closeButton
     />
   );
-};
-
-// Re-exportar toast para uso fácil
-export { toast } from "sonner";
+}

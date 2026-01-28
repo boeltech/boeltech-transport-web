@@ -1,202 +1,156 @@
+/**
+ * Navigation Configuration
+ *
+ * Configuración completa de la navegación del sidebar.
+ * Los módulos corresponden a los definidos en el sistema de permisos.
+ *
+ * Ubicación: src/widgets/sidebar/model/navigation.ts
+ */
+
 import {
   LayoutDashboard,
   Truck,
-  Users as UsersIcon,
+  Users,
   Route,
-  DollarSign,
   FileText,
-  Receipt,
-  CreditCard,
+  // Receipt,
+  // CreditCard,
   UserCog,
-  ClipboardList,
-  Package,
+  // ClipboardList,
+  // Package,
   BarChart3,
   Settings,
-  Shield,
-  History,
+  // Shield,
+  // History,
   Wrench,
   Fuel,
+  Building2,
 } from "lucide-react";
-import { NavGroup } from "./types";
+import type { NavGroup } from "./types";
 
 /**
  * Configuración completa de la navegación
- * Organizada por grupos según los módulos del ERP
+ *
+ * IMPORTANTE: Los valores de `module` deben coincidir con los
+ * definidos en src/shared/auth/domain/entities.ts
+ *
+ * Módulos disponibles:
+ * - dashboard, trips, vehicles, drivers, clients
+ * - maintenance, fuel, invoices, reports, users, settings
  */
 export const navigationConfig: NavGroup[] = [
   // ============================================
-  // Dashboard (sin grupo, item suelto)
+  // PRINCIPAL
   // ============================================
   {
     id: "main",
-    title: "",
+    title: "", // Sin título = sin header
     items: [
       {
         id: "dashboard",
         label: "Dashboard",
         path: "/dashboard",
         icon: LayoutDashboard,
+        module: "dashboard",
       },
     ],
   },
 
   // ============================================
-  // Flota
-  // ============================================
-  {
-    id: "fleet",
-    title: "Flota",
-    module: "fleet",
-    items: [
-      {
-        id: "vehicles",
-        label: "Vehículos",
-        path: "/fleet/vehicles",
-        icon: Truck,
-        module: "fleet",
-      },
-      {
-        id: "drivers",
-        label: "Conductores",
-        path: "/fleet/drivers",
-        icon: UsersIcon,
-        module: "fleet",
-      },
-      {
-        id: "maintenance",
-        label: "Mantenimiento",
-        path: "/fleet/maintenance",
-        icon: Wrench,
-        module: "fleet",
-      },
-      {
-        id: "fuel",
-        label: "Combustible",
-        path: "/fleet/fuel",
-        icon: Fuel,
-        module: "fleet",
-      },
-    ],
-  },
-
-  // ============================================
-  // Operaciones
+  // OPERACIONES
   // ============================================
   {
     id: "operations",
     title: "Operaciones",
-    module: "operations",
     items: [
       {
         id: "trips",
         label: "Viajes",
-        path: "/operations/trips",
+        path: "/trips",
         icon: Route,
-        module: "operations",
+        module: "trips",
       },
     ],
   },
 
   // ============================================
-  // Clientes
+  // FLOTA
+  // ============================================
+  {
+    id: "fleet",
+    title: "Flota",
+    items: [
+      {
+        id: "vehicles",
+        label: "Vehículos",
+        path: "/vehicles",
+        icon: Truck,
+        module: "vehicles",
+      },
+      {
+        id: "drivers",
+        label: "Conductores",
+        path: "/drivers",
+        icon: Users,
+        module: "drivers",
+      },
+      {
+        id: "maintenance",
+        label: "Mantenimiento",
+        path: "/maintenance",
+        icon: Wrench,
+        module: "maintenance",
+      },
+      {
+        id: "fuel",
+        label: "Combustible",
+        path: "/fuel",
+        icon: Fuel,
+        module: "fuel",
+      },
+    ],
+  },
+
+  // ============================================
+  // CLIENTES
   // ============================================
   {
     id: "clients",
     title: "Clientes",
-    module: "clients",
     items: [
       {
         id: "clients-list",
         label: "Clientes",
         path: "/clients",
-        icon: UsersIcon,
+        icon: Building2,
         module: "clients",
       },
     ],
   },
 
   // ============================================
-  // Finanzas
+  // FINANZAS
   // ============================================
   {
     id: "finance",
     title: "Finanzas",
-    module: "finance",
     items: [
       {
         id: "invoices",
         label: "Facturación",
-        path: "/finance/invoices",
+        path: "/invoices",
         icon: FileText,
-        module: "finance",
-      },
-      {
-        id: "expenses",
-        label: "Gastos",
-        path: "/finance/expenses",
-        icon: Receipt,
-        module: "finance",
-      },
-      {
-        id: "payments",
-        label: "Pagos",
-        path: "/finance/payments",
-        icon: CreditCard,
-        module: "finance",
+        module: "invoices",
       },
     ],
   },
 
   // ============================================
-  // Recursos Humanos
-  // ============================================
-  {
-    id: "hr",
-    title: "Recursos Humanos",
-    module: "hr",
-    items: [
-      {
-        id: "employees",
-        label: "Empleados",
-        path: "/hr/employees",
-        icon: UserCog,
-        module: "hr",
-      },
-      {
-        id: "payroll",
-        label: "Nómina",
-        path: "/hr/payroll",
-        icon: ClipboardList,
-        module: "hr",
-      },
-    ],
-  },
-
-  // ============================================
-  // Inventario
-  // ============================================
-  {
-    id: "inventory",
-    title: "Inventario",
-    module: "inventory",
-    items: [
-      {
-        id: "parts",
-        label: "Refacciones",
-        path: "/inventory/parts",
-        icon: Package,
-        module: "inventory",
-      },
-    ],
-  },
-
-  // ============================================
-  // Reportes
+  // REPORTES
   // ============================================
   {
     id: "reports",
     title: "Reportes",
-    module: "reports",
     items: [
       {
         id: "reports-list",
@@ -209,41 +163,46 @@ export const navigationConfig: NavGroup[] = [
   },
 
   // ============================================
-  // Administración
+  // ADMINISTRACIÓN
   // ============================================
   {
     id: "admin",
     title: "Administración",
-    module: "admin",
     items: [
       {
         id: "users",
         label: "Usuarios",
-        path: "/admin/users",
-        icon: UsersIcon,
-        module: "admin",
-      },
-      {
-        id: "roles",
-        label: "Roles y Permisos",
-        path: "/admin/roles",
-        icon: Shield,
-        module: "admin",
-      },
-      {
-        id: "audit",
-        label: "Auditoría",
-        path: "/admin/audit",
-        icon: History,
-        module: "admin",
+        path: "/users",
+        icon: UserCog,
+        module: "users",
       },
       {
         id: "settings",
         label: "Configuración",
-        path: "/admin/settings",
+        path: "/settings",
         icon: Settings,
-        module: "admin",
+        module: "settings",
       },
     ],
   },
 ];
+
+/**
+ * Rutas que no requieren autenticación
+ */
+export const publicRoutes = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+];
+
+/**
+ * Ruta por defecto después del login
+ */
+export const defaultAuthenticatedRoute = "/dashboard";
+
+/**
+ * Ruta de login
+ */
+export const loginRoute = "/login";

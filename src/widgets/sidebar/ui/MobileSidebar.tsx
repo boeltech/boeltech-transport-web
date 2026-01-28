@@ -1,47 +1,66 @@
-import { Link, useLocation } from "react-router-dom";
-import { Truck, X, LogOut } from "lucide-react";
-
-import { cn } from "@shared/lib/cn";
-import { Button } from "@shared/ui/button";
-
-import { useAuth } from "@app/providers/AuthProvider";
-import { usePermissions } from "@app/providers/PermissionProvider";
-import {
-  navigationConfig,
-  filterNavigation,
-  type NavItem,
-} from "@shared/config";
-
-interface MobileSidebarProps {
-  open: boolean;
-  onClose: () => void;
-}
-
 /**
- * MobileSidebar
+ * MobileSidebar Component
  *
  * Menú lateral para dispositivos móviles.
  * Se muestra como drawer con overlay.
+ *
+ * Ubicación: src/widgets/sidebar/ui/MobileSidebar.tsx
  */
-export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
-  const location = useLocation();
-  const { user, logout } = useAuth();
-  const { hasPermission, role } = usePermissions();
 
-  // Filtrar navegación según permisos
-  const filteredNavigation = filterNavigation(
-    navigationConfig,
-    role || "",
-    hasPermission
-  );
+import { memo, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Truck, X, LogOut } from "lucide-react";
+
+import { cn } from "@shared/lib/utils";
+import { Button } from "@/shared/ui/button";
+
+// import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuth } from "@features/auth";
+import { useSidebar } from "@/app/providers/SidebarProvider";
+import { useNavigation } from "../model/useNavigation";
+import type { NavItem } from "../model/types";
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
+export const MobileSidebar = memo(function MobileSidebar() {
+  const { user, logout } = useAuth();
+  const { isMobileOpen, closeMobile } = useSidebar();
+  const { navigation, isItemActive } = useNavigation();
+
+  // Cerrar al presionar Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMobileOpen) {
+        closeMobile();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isMobileOpen, closeMobile]);
+
+  // Prevenir scroll del body cuando está abierto
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileOpen]);
 
   const handleLogout = () => {
-    onClose();
+    closeMobile();
     logout();
   };
 
   const handleNavClick = () => {
-    onClose();
+    closeMobile();
   };
 
   return (
@@ -52,9 +71,9 @@ export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
       <div
         className={cn(
           "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity lg:hidden",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
+          isMobileOpen ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
-        onClick={onClose}
+        onClick={closeMobile}
         aria-hidden="true"
       />
 
@@ -64,8 +83,11 @@ export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
       <aside
         className={cn(
           "fixed left-0 top-0 z-50 h-screen w-72 bg-card shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
-          open ? "translate-x-0" : "-translate-x-full"
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menú de navegación"
       >
         {/* Header */}
         <div className="flex h-16 items-center justify-between border-b px-4">
@@ -79,7 +101,7 @@ export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
             </div>
             <span className="text-lg font-bold">Boeltech</span>
           </Link>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={closeMobile}>
             <X className="h-5 w-5" />
             <span className="sr-only">Cerrar menú</span>
           </Button>
@@ -106,20 +128,19 @@ export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
 
         {/* Navegación */}
         <nav className="flex-1 overflow-y-auto p-4">
-          {filteredNavigation.map((group) => (
+          {navigation.map((group) => (
             <div key={group.id} className="mb-6">
-              <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {group.label}
-              </h3>
+              {group.title && (
+                <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.title}
+                </h3>
+              )}
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <MobileNavItem
                     key={item.id}
                     item={item}
-                    isActive={
-                      location.pathname === item.href ||
-                      location.pathname.startsWith(item.href + "/")
-                    }
+                    isActive={isItemActive(item)}
                     onClick={handleNavClick}
                   />
                 ))}
@@ -141,10 +162,10 @@ export const MobileSidebar = ({ open, onClose }: MobileSidebarProps) => {
       </aside>
     </>
   );
-};
+});
 
 // ============================================
-// Componente NavItem para mobile
+// MOBILE NAV ITEM
 // ============================================
 
 interface MobileNavItemProps {
@@ -153,27 +174,34 @@ interface MobileNavItemProps {
   onClick: () => void;
 }
 
-const MobileNavItem = ({ item, isActive, onClick }: MobileNavItemProps) => {
+const MobileNavItem = memo(function MobileNavItem({
+  item,
+  isActive,
+  onClick,
+}: MobileNavItemProps) {
   const Icon = item.icon;
 
   return (
     <Link
-      to={item.href}
+      to={item.path}
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         "hover:bg-accent hover:text-accent-foreground",
         isActive &&
-          "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+          "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+        item.disabled && "opacity-50 pointer-events-none",
       )}
     >
       <Icon className="h-5 w-5 shrink-0" />
       <span className="flex-1">{item.label}</span>
-      {item.badge !== undefined && item.badge > 0 && (
+      {item.badge !== undefined && item.badge !== 0 && item.badge !== "" && (
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
-          {item.badge > 99 ? "99+" : item.badge}
+          {typeof item.badge === "number" && item.badge > 99
+            ? "99+"
+            : item.badge}
         </span>
       )}
     </Link>
   );
-};
+});

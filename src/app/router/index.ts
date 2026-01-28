@@ -1,6 +1,17 @@
-export { PrivateRoute } from "./guards/PrivateRoute";
-export { ModuleRoute } from "./guards/ModuleRoute";
-export type { Module } from "./guards/ModuleRoute";
-export { PermissionRoute } from "./guards/PermissionRoute";
-export { RoleRoute } from "./guards/RoleRoute";
-export { AdminRoute } from "./guards/AdminRoute";
+/**
+ * App Router - Public API
+ *
+ * Ubicación: src/app/router/index.ts
+ */
+
+// Router
+export { router } from "./routes";
+
+// Guards
+export {
+  PrivateRoute,
+  PermissionRoute,
+  RoleRoute,
+  AdminRoute,
+  ModuleRoute,
+} from "./guards";

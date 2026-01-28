@@ -1,7 +1,7 @@
 // src/widgets/layout/ui/AppLayout.tsx
 
 import { QueryProvider } from "@app/providers/QueryProvider";
-import { AuthProvider } from "@app/providers/AuthProvider";
+import { AuthProvider } from "@features/auth";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
 import { ThemeProvider } from "@app/providers/ThemeProvider";
 import { ToastProvider } from "@app/providers/ToastProvider";
@@ -43,7 +43,7 @@ export const AppLayout = () => {
     <QueryProvider>
       <AuthProvider>
         <PermissionProvider>
-          <ThemeProvider>
+          <ThemeProvider defaultMode="system">
             <ToastProvider>
               <SidebarProvider>
                 <LayoutShell />

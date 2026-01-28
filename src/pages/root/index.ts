@@ -1,1 +1,1 @@
-export { default } from "./ui/RootRedirect";
+export { default } from "./RootRedirect";

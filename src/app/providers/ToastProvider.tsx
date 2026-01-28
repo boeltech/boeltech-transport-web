@@ -1,125 +1,48 @@
-import { type ReactNode } from "react";
-import { Toaster, toast } from "sonner";
-import { useTheme } from "./ThemeProvider";
-
-// ============================================
-// Tipos
-// ============================================
-
-interface ToastProviderProps {
-  children: ReactNode;
-}
-
-// ============================================
-// Provider
-// ============================================
-
 /**
  * ToastProvider
  *
- * Provee el sistema de notificaciones toast usando Sonner.
- * El Toaster se renderiza aquí, los hijos pueden usar toast() directamente.
+ * Provider que configura el sistema de notificaciones toast.
+ * Solo renderiza el Toaster con la configuración apropiada.
+ *
+ * La lógica de mostrar toasts está en el hook useToast.
+ *
+ * Ubicación: src/app/providers/ToastProvider.tsx
+ *
+ * @example
+ * // En App.tsx o providers
+ * <ThemeProvider>
+ *   <ToastProvider position="top-right">
+ *     {children}
+ *   </ToastProvider>
+ * </ThemeProvider>
  */
-export const ToastProvider = ({ children }: ToastProviderProps) => {
+
+import type { ReactNode } from "react";
+import { Toaster } from "@/shared/ui/toast";
+import type { ToasterConfig } from "@/shared/ui/toast";
+
+interface ToastProviderProps extends ToasterConfig {
+  children: ReactNode;
+}
+
+export function ToastProvider({
+  children,
+  position = "top-right",
+  duration = 4000,
+  expand = false,
+  closeButton = true,
+  richColors = true,
+}: ToastProviderProps) {
   return (
     <>
       {children}
-      <ToasterComponent />
+      <Toaster
+        position={position}
+        duration={duration}
+        expand={expand}
+        closeButton={closeButton}
+        richColors={richColors}
+      />
     </>
   );
-};
-
-/**
- * Componente Toaster interno
- * Separado para poder usar useTheme
- */
-const ToasterComponent = () => {
-  const { resolvedTheme } = useTheme();
-
-  return (
-    <Toaster
-      theme={resolvedTheme}
-      position="top-right"
-      expand={false}
-      richColors
-      closeButton
-      duration={4000}
-      toastOptions={{
-        style: {
-          background: "hsl(var(--background))",
-          color: "hsl(var(--foreground))",
-          border: "1px solid hsl(var(--border))",
-        },
-        className: "shadow-lg",
-      }}
-    />
-  );
-};
-
-// ============================================
-// Utilidades de toast
-// ============================================
-
-/**
- * Helpers para mostrar toasts con estilos predefinidos
- */
-export const showToast = {
-  /**
-   * Toast de éxito
-   */
-  success: (message: string, description?: string) => {
-    toast.success(message, { description });
-  },
-
-  /**
-   * Toast de error
-   */
-  error: (message: string, description?: string) => {
-    toast.error(message, { description });
-  },
-
-  /**
-   * Toast de información
-   */
-  info: (message: string, description?: string) => {
-    toast.info(message, { description });
-  },
-
-  /**
-   * Toast de advertencia
-   */
-  warning: (message: string, description?: string) => {
-    toast.warning(message, { description });
-  },
-
-  /**
-   * Toast de carga (con promise)
-   */
-  promise: <T,>(
-    promise: Promise<T>,
-    messages: {
-      loading: string;
-      success: string | ((data: T) => string);
-      error: string | ((error: any) => string);
-    }
-  ) => {
-    return toast.promise(promise, messages);
-  },
-
-  /**
-   * Toast personalizado
-   */
-  custom: (message: string, options?: Parameters<typeof toast>[1]) => {
-    toast(message, options);
-  },
-
-  /**
-   * Cerrar todos los toasts
-   */
-  dismiss: (toastId?: string | number) => {
-    toast.dismiss(toastId);
-  },
-};
-
-// Re-exportar toast original para casos avanzados
-export { toast };
+}

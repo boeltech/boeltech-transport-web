@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from "lucide-react";
-import { cn } from "@shared/lib/cn";
+import { cn } from "@shared/lib/utils/cn";
 
 const alertVariants = cva(
   "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
@@ -21,7 +21,7 @@ const alertVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 );
 
 const Alert = React.forwardRef<
@@ -72,7 +72,8 @@ const alertIcons = {
 
 // Componente Alert con icono integrado
 interface AlertWithIconProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof alertVariants> {
   title?: string;
   showIcon?: boolean;
@@ -88,7 +89,7 @@ const AlertWithIcon = React.forwardRef<HTMLDivElement, AlertWithIconProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     const Icon = alertIcons[variant || "default"];
 
@@ -101,7 +102,7 @@ const AlertWithIcon = React.forwardRef<HTMLDivElement, AlertWithIconProps>(
         </div>
       </Alert>
     );
-  }
+  },
 );
 AlertWithIcon.displayName = "AlertWithIcon";
 

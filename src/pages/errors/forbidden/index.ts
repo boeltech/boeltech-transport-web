@@ -1,1 +1,1 @@
-export { default } from "./ui/ForbiddenPage";
+export { default } from "./ForbiddenPage";
