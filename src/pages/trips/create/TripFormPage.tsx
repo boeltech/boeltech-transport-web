@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { iso, z } from "zod";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Textarea } from "@shared/ui/text-area";
@@ -52,6 +52,10 @@ import {
   MapPin,
   Loader2,
 } from "lucide-react";
+import {
+  isoToLocalDateTime,
+  localDateTimeToISO,
+} from "@shared/utils/dateHelpers";
 
 // ============================================================================
 // FORM SCHEMA
@@ -136,34 +140,6 @@ const defaultFormValues: TripFormValues = {
 };
 
 // ============================================================================
-// HELPERS
-// ============================================================================
-
-/**
- * Convierte datetime-local a ISO 8601 para el backend
- * Input: "2026-01-26T09:00"
- * Output: "2026-01-26T09:00:00Z"
- */
-function toISODateTime(dateTimeLocal: string): string {
-  if (!dateTimeLocal) return "";
-  if (dateTimeLocal.length === 16) {
-    return `${dateTimeLocal}:00Z`;
-  }
-  if (!dateTimeLocal.endsWith("Z")) {
-    return `${dateTimeLocal}Z`;
-  }
-  return dateTimeLocal;
-}
-
-/**
- * Formatea una fecha para input datetime-local
- */
-function formatDateTimeLocal(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toISOString().slice(0, 16);
-}
-
-// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -210,11 +186,9 @@ function TripFormPage() {
         vehicleId: existingTrip.vehicleId,
         driverId: existingTrip.driverId,
         clientId: existingTrip.clientId || "",
-        scheduledDeparture: formatDateTimeLocal(
-          existingTrip.scheduledDeparture,
-        ),
+        scheduledDeparture: isoToLocalDateTime(existingTrip.scheduledDeparture),
         scheduledArrival: existingTrip.scheduledArrival
-          ? formatDateTimeLocal(existingTrip.scheduledArrival)
+          ? isoToLocalDateTime(existingTrip.scheduledArrival)
           : "",
         startMileage: existingTrip.mileage.start ?? undefined,
         originAddress: existingTrip.originAddress,
@@ -283,9 +257,9 @@ function TripFormPage() {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
       clientId: data.clientId || undefined,
-      scheduledDeparture: toISODateTime(data.scheduledDeparture),
+      scheduledDeparture: localDateTimeToISO(data.scheduledDeparture),
       scheduledArrival: data.scheduledArrival
-        ? toISODateTime(data.scheduledArrival)
+        ? localDateTimeToISO(data.scheduledArrival)
         : undefined,
       startMileage: data.startMileage,
       originAddress: data.originAddress,
