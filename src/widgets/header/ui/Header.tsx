@@ -73,7 +73,7 @@ interface UserWithTenant {
 
 export const Header = memo(function Header({ className }: HeaderProps) {
   const { user, logout } = useAuth();
-  const { mode, resolvedTheme, setMode, toggleTheme, isDark } = useTheme();
+  const { mode, setMode, toggleTheme, isDark } = useTheme();
   const { isCollapsed, openMobile } = useSidebar();
 
   return (

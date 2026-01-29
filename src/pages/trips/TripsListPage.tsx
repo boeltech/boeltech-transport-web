@@ -2,7 +2,8 @@
  * TripsListPage
  * FSD: Pages Layer - Composition
  *
- * ACTUALIZADO: Alineado con el Backend
+ * ACTUALIZADO:
+ * - Filtros de rango de fechas (dateFrom, dateTo)
  * - Status config alineado con valores del backend
  * - Rutas corregidas
  *
@@ -15,6 +16,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 
 // Import from feature
 import {
@@ -39,7 +42,16 @@ import { type TripStatusType } from "@features/trips/domain";
 
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
-import { Plus, LayoutGrid, LayoutList, Search, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  LayoutGrid,
+  LayoutList,
+  Search,
+  RefreshCw,
+  Calendar,
+  X,
+  Filter,
+} from "lucide-react";
 import { generatePageNumbers } from "@features/trips/presentation";
 
 // ============================================================================
@@ -47,6 +59,35 @@ import { generatePageNumbers } from "@features/trips/presentation";
 // ============================================================================
 
 type ViewMode = "table" | "cards";
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Convierte fecha de input date para el backend
+ * Solo envía la fecha en formato YYYY-MM-DD
+ * El backend hace cast a DATE en la consulta SQL
+ *
+ * Input: "2026-01-28" (date input)
+ * Output: "2026-01-28" (solo fecha, sin hora)
+ */
+function formatDateForAPI(dateStr: string): string {
+  return dateStr || "";
+}
+
+/**
+ * Formatea fecha para mostrar en el botón
+ */
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr + "T00:00:00");
+  return date.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 // ============================================================================
 // COMPONENT
@@ -59,11 +100,14 @@ function TripsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
   // Parse URL params
   const page = parseInt(searchParams.get("page") || "1", 10);
   const status = searchParams.get("status") as TripStatusType | null;
   const search = searchParams.get("search") || "";
+  const dateFrom = searchParams.get("dateFrom") || "";
+  const dateTo = searchParams.get("dateTo") || "";
 
   // Fetch trips - Usa TripListItem (no Trip completo)
   const { data, isLoading, refetch } = useTrips({
@@ -72,6 +116,8 @@ function TripsListPage() {
     filters: {
       status: status || undefined,
       search: search || undefined,
+      dateFrom: formatDateForAPI(dateFrom) || undefined,
+      dateTo: formatDateForAPI(dateTo) || undefined,
     },
     sort: { field: "scheduled_departure", direction: "desc" },
   });
@@ -168,7 +214,7 @@ function TripsListPage() {
         const params = new URLSearchParams(prev);
         if (value) params.set("search", value);
         else params.delete("search");
-        params.set("page", "1"); // Reset to first page on search
+        params.set("page", "1");
         return params;
       });
     },
@@ -181,12 +227,49 @@ function TripsListPage() {
         const params = new URLSearchParams(prev);
         if (value && value !== "all") params.set("status", value);
         else params.delete("status");
-        params.set("page", "1"); // Reset to first page on filter
+        params.set("page", "1");
         return params;
       });
     },
     [setSearchParams],
   );
+
+  const handleDateFromChange = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (value) params.set("dateFrom", value);
+        else params.delete("dateFrom");
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const handleDateToChange = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (value) params.set("dateTo", value);
+        else params.delete("dateTo");
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const handleClearDateFilter = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("dateFrom");
+      params.delete("dateTo");
+      params.set("page", "1");
+      return params;
+    });
+    setIsDateFilterOpen(false);
+  }, [setSearchParams]);
 
   const handlePageChange = useCallback(
     (newPage: number) => {
@@ -195,7 +278,6 @@ function TripsListPage() {
         params.set("page", String(newPage));
         return params;
       });
-      // Scroll to top on page change
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [setSearchParams],
@@ -208,12 +290,22 @@ function TripsListPage() {
   // Data
   const trips = data?.items ?? [];
   const pagination = data?.pagination;
-  const hasFilters = !!status || !!search;
+  const hasFilters = !!status || !!search || !!dateFrom || !!dateTo;
+  const hasDateFilter = !!dateFrom || !!dateTo;
 
   // Permissions
   const canCreate = hasPermission("trips", "create");
   const canEdit = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
+
+  // Date filter display text
+  const dateFilterText = hasDateFilter
+    ? dateFrom && dateTo
+      ? `${formatDateDisplay(dateFrom)} - ${formatDateDisplay(dateTo)}`
+      : dateFrom
+        ? `Desde ${formatDateDisplay(dateFrom)}`
+        : `Hasta ${formatDateDisplay(dateTo)}`
+    : "Filtrar por fecha";
 
   return (
     <div className="space-y-6">
@@ -233,79 +325,262 @@ function TripsListPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por código, origen, destino..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+      <div className="flex flex-col gap-3">
+        {/* Row 1: Search and main filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por código, origen, destino..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
-        {/* Status Filter */}
-        <Select value={status || "all"} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los estados" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            {Object.entries(TRIP_STATUS_CONFIG).map(([value, config]) => (
-              <SelectItem key={value} value={value}>
-                <span className="flex items-center gap-2">
+          {/* Status Filter */}
+          <Select value={status || "all"} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Todos los estados" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              {Object.entries(TRIP_STATUS_CONFIG).map(([value, config]) => (
+                <SelectItem key={value} value={value}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        config.bgColor
+                          .replace("bg-", "bg-")
+                          .replace("100", "500"),
+                      )}
+                    />
+                    {config.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range Filter */}
+          <Popover open={isDateFilterOpen} onOpenChange={setIsDateFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={hasDateFilter ? "secondary" : "outline"}
+                className={cn(
+                  "w-auto justify-start text-left font-normal",
+                  hasDateFilter && "pr-2",
+                )}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                <span className="truncate max-w-[200px]">{dateFilterText}</span>
+                {hasDateFilter && (
                   <span
-                    className={cn(
-                      "w-2 h-2 rounded-full",
-                      config.bgColor
-                        .replace("bg-", "bg-")
-                        .replace("100", "500"),
-                    )}
-                  />
-                  {config.label}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                    role="button"
+                    tabIndex={0}
+                    className="ml-2 p-1 hover:bg-muted rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClearDateFilter();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        handleClearDateFilter();
+                      }
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="space-y-4">
+                <div className="font-medium flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtrar por fecha de salida
+                </div>
 
-        {/* Clear Filters */}
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-            Limpiar filtros
-          </Button>
-        )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="dateFrom">Desde</Label>
+                    <Input
+                      id="dateFrom"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      max={dateTo || undefined}
+                    />
+                  </div>
 
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-        </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="dateTo">Hasta</Label>
+                    <Input
+                      id="dateTo"
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      min={dateFrom || undefined}
+                    />
+                  </div>
+                </div>
 
-        {/* View Toggle */}
-        <div className="flex border rounded-md">
+                {/* Quick filters */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date().toISOString().split("T")[0];
+                      handleDateFromChange(today);
+                      handleDateToChange(today);
+                    }}
+                  >
+                    Hoy
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const weekAgo = new Date(today);
+                      weekAgo.setDate(today.getDate() - 7);
+                      handleDateFromChange(weekAgo.toISOString().split("T")[0]);
+                      handleDateToChange(today.toISOString().split("T")[0]);
+                    }}
+                  >
+                    Última semana
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const monthAgo = new Date(today);
+                      monthAgo.setMonth(today.getMonth() - 1);
+                      handleDateFromChange(
+                        monthAgo.toISOString().split("T")[0],
+                      );
+                      handleDateToChange(today.toISOString().split("T")[0]);
+                    }}
+                  >
+                    Último mes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const firstDay = new Date(
+                        today.getFullYear(),
+                        today.getMonth(),
+                        1,
+                      );
+                      handleDateFromChange(
+                        firstDay.toISOString().split("T")[0],
+                      );
+                      handleDateToChange(today.toISOString().split("T")[0]);
+                    }}
+                  >
+                    Este mes
+                  </Button>
+                </div>
+
+                {hasDateFilter && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleClearDateFilter}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Limpiar fechas
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear Filters */}
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          )}
+
+          {/* Refresh */}
           <Button
-            variant={viewMode === "table" ? "secondary" : "ghost"}
+            variant="outline"
             size="icon"
-            onClick={() => setViewMode("table")}
-            title="Vista de tabla"
+            onClick={() => refetch()}
+            disabled={isLoading}
           >
-            <LayoutList className="h-4 w-4" />
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
-          <Button
-            variant={viewMode === "cards" ? "secondary" : "ghost"}
-            size="icon"
-            onClick={() => setViewMode("cards")}
-            title="Vista de tarjetas"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
+
+          {/* View Toggle */}
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setViewMode("table")}
+              title="Vista de tabla"
+            >
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "cards" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setViewMode("cards")}
+              title="Vista de tarjetas"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
+        {/* Active filters summary */}
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Filtros activos:</span>
+            {search && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
+                Búsqueda: "{search}"
+                <button
+                  onClick={() => handleSearchChange("")}
+                  className="hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {status && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
+                Estado: {TRIP_STATUS_CONFIG[status]?.label || status}
+                <button
+                  onClick={() => handleStatusChange("all")}
+                  className="hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {hasDateFilter && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
+                Fecha: {dateFilterText}
+                <button
+                  onClick={handleClearDateFilter}
+                  className="hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Results Summary */}

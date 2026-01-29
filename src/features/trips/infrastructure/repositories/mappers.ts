@@ -54,6 +54,7 @@ export interface ApiTripListItemResponse {
   status: string;
   cargo_description: string | null;
   total_cost: string | number;
+  created_at: string;
 }
 
 /**
@@ -439,6 +440,7 @@ export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
     status: api.status as TripStatusType,
     cargoDescription: api.cargo_description,
     totalCost: toNumberOrDefault(api.total_cost),
+    createdAt: toDateRequired(api.created_at),
   };
 }
 

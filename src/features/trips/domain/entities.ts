@@ -179,6 +179,7 @@ export interface TripListItem {
   readonly status: TripStatusType;
   readonly cargoDescription: string | null;
   readonly totalCost: number;
+  readonly createdAt: Date;
 }
 
 /**

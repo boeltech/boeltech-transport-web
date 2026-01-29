@@ -26,9 +26,9 @@ import {
 import { Skeleton } from "@shared/ui/skeleton";
 import { TripStatusBadge } from "./TripStatusBadge";
 import {
-  type Trip,
   type SortOptions,
   TripStatus,
+  type TripListItem,
 } from "@features/trips/domain";
 import { canDeleteTrip, canEditTrip } from "../../domain/rules";
 import { formatDisplayDate } from "../uiHelpers";
@@ -46,7 +46,8 @@ import {
 } from "lucide-react";
 
 interface TripTableProps {
-  trips: Trip[];
+  // trips: Trip[];
+  trips: TripListItem[];
   isLoading?: boolean;
   sort?: SortOptions;
   onSort?: (field: SortOptions["field"]) => void;
@@ -180,7 +181,7 @@ export const TripTable = memo(function TripTable({
 });
 
 interface TripTableRowProps {
-  trip: Trip;
+  trip: TripListItem;
   isSelected: boolean;
   onSelect?: (id: string) => void;
   showCheckbox: boolean;
