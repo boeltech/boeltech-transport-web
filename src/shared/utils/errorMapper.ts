@@ -54,8 +54,14 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   INVALID_TRIP_REFERENCES: "El viaje tiene referencias inválidas",
   TRIP_NOT_IN_PROGRESS: "El viaje no está en curso",
   TRIP_NOT_DELETABLE: "Solo se pueden eliminar viajes en estado borrador",
+  TRIP_NOT_EDITABLE:
+    "Solo se pueden editar viajes en estado borrador o programado",
   INVALID_END_MILEAGE: "El kilometraje final no puede ser menor al inicial",
   INVALID_STATUS_TRANSITION: "No se puede cambiar a este estado",
+  VEHICLE_ALREADY_ASSIGNED:
+    "El vehículo ya está asignado a otro viaje en esa fecha",
+  DRIVER_ALREADY_ASSIGNED:
+    "El conductor ya está asignado a otro viaje en esa fecha",
 
   // ===== VALIDACIÓN GENERAL =====
   VALIDATION_ERROR: "Error de validación en los datos enviados",
