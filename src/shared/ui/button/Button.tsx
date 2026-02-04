@@ -10,6 +10,7 @@ import { cn } from "@shared/lib/utils/cn";
 const buttonVariants = cva(
   // Clases base (siempre se aplican)
   [
+    "cursor-pointer",
     "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md",
     "text-sm font-medium transition-colors",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

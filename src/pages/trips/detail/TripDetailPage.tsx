@@ -17,24 +17,10 @@ import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
 import { Separator } from "@shared/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@shared/ui/alert-dialog";
 
 import {
   useTrip,
   useTripStops,
-  useStartTrip,
-  useCancelTrip,
-  useDeleteTrip,
   useMarkStopVisited,
   calculateDistance,
   formatDisplayDate,
@@ -48,24 +34,14 @@ import {
   type TripStatusType,
   TripStatus,
   TRIP_STATUS_LABELS,
-  canEditTrip,
-  canDeleteTrip,
-  canStartTrip,
-  canCancelTrip,
-  canFinishTrip,
   calculateTripDuration,
   calculateStopsProgress,
 } from "@features/trips/domain";
 
-import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
   ArrowLeft,
-  Pencil,
-  Trash2,
   Play,
-  CheckCircle,
-  XCircle,
   Building2,
   Truck,
   User,
@@ -78,7 +54,10 @@ import {
   Package,
   Navigation,
 } from "lucide-react";
-import { TRIP_STATUS_BADGE_COLORS } from "@features/trips/presentation";
+import {
+  TRIP_STATUS_BADGE_COLORS,
+  TripActions,
+} from "@features/trips/presentation";
 
 // ============================================================================
 // COMPONENTS
@@ -122,34 +101,12 @@ function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
 
   // Queries
-  const { data: trip, isLoading } = useTrip(id || "");
+  const { data: trip, isLoading, refetch } = useTrip(id || "");
   const { data: stops = [] } = useTripStops(id || "");
 
   // Mutations
-  const startMutation = useStartTrip({
-    onSuccess: () => toast({ title: "Viaje iniciado", variant: "success" }),
-    onError: (e) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const cancelMutation = useCancelTrip({
-    onSuccess: () => toast({ title: "Viaje cancelado", variant: "success" }),
-    onError: (e) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useDeleteTrip({
-    onSuccess: () => {
-      toast({ title: "Viaje eliminado", variant: "success" });
-      navigate("/trips");
-    },
-    onError: (e) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
   const markVisitedMutation = useMarkStopVisited({
     onSuccess: () =>
       toast({ title: "Parada marcada como visitada", variant: "success" }),
@@ -174,15 +131,6 @@ function TripDetailPage() {
       </div>
     );
   }
-
-  // Permissions & capabilities
-  const userCanEdit =
-    hasPermission("trips", "update") && canEditTrip(trip.status);
-  const userCanDelete =
-    hasPermission("trips", "delete") && canDeleteTrip(trip.status);
-  const tripCanStart = canStartTrip(trip.status);
-  const tripCanFinish = canFinishTrip(trip.status);
-  const tripCanCancel = canCancelTrip(trip.status);
 
   // Calculated values
   const distance = calculateDistance(trip.mileage);
@@ -217,87 +165,14 @@ function TripDetailPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 pl-12 sm:pl-0">
-          {tripCanStart && (
-            <Button
-              onClick={() => startMutation.mutate(trip.id)}
-              disabled={startMutation.isPending}
-            >
-              <Play className="mr-2 h-4 w-4" /> Iniciar Viaje
-            </Button>
-          )}
-
-          {tripCanFinish && (
-            <Button onClick={() => navigate(`/trips/${trip.id}/finish`)}>
-              <CheckCircle className="mr-2 h-4 w-4" /> Finalizar
-            </Button>
-          )}
-
-          {tripCanCancel && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <XCircle className="mr-2 h-4 w-4" /> Cancelar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Cancelar viaje?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción no se puede deshacer. El viaje será marcado como
-                    cancelado.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>No, volver</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => cancelMutation.mutate({ id: trip.id })}
-                  >
-                    Sí, cancelar viaje
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-
-          {userCanEdit && (
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/trips/${trip.id}/edit`)}
-            >
-              <Pencil className="mr-2 h-4 w-4" /> Editar
-            </Button>
-          )}
-
-          {userCanDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="text-destructive">
-                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción eliminará permanentemente el viaje{" "}
-                    {trip.tripCode} y todos sus datos asociados.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => deleteMutation.mutate(trip.id)}
-                  >
-                    Eliminar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+        {/* Componente de acciones */}
+        <TripActions
+          tripId={trip.id}
+          tripCode={trip.tripCode}
+          status={trip.status}
+          variant="buttons" // o "dropdown" o "both"
+          onActionComplete={refetch} // Refresca después de una acción
+        />
       </div>
 
       {/* Tabs */}

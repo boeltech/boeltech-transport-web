@@ -1,38 +1,22 @@
 /**
- * TripFormPage
+ * TripFormPage - Wizard para crear viajes
  * FSD: Pages Layer - Composition
  *
- * Formulario para crear y editar viajes.
- * Utiliza hooks de features para cargar vehículos, conductores y clientes.
+ * Formulario tipo wizard para crear y editar viajes.
+ * Incluye pasos para: información básica, ruta, cargas, costos y resumen.
  *
  * Ubicación: src/pages/trips/create/TripFormPage.tsx
  */
 
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
-import { Textarea } from "@shared/ui/text-area";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { Card, CardContent } from "@shared/ui/card";
+import { Form } from "@shared/ui/form";
 import { Skeleton } from "@shared/ui/skeleton";
+import { AlertWithIcon } from "@shared/ui/alert";
 
 // Feature hooks
 import { useTrip, useCreateTrip, useUpdateTrip } from "@/features/trips";
@@ -41,103 +25,25 @@ import { useAvailableDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
-import {
-  ArrowLeft,
-  Save,
-  RefreshCw,
-  Truck,
-  User,
-  Building2,
-  Package,
-  MapPin,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, RefreshCw, CheckCircle } from "lucide-react";
 import {
   isoToLocalDateTime,
   localDateTimeToISO,
 } from "@shared/utils/dateHelpers";
 
-// ============================================================================
-// FORM SCHEMA
-// ============================================================================
-
-const tripFormSchema = z
-  .object({
-    // Asignaciones
-    vehicleId: z.string().min(1, "Seleccione un vehículo"),
-    driverId: z.string().min(1, "Seleccione un conductor"),
-    clientId: z.string().optional(),
-
-    // Programación
-    scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
-    scheduledArrival: z.string().optional(),
-    startMileage: z.coerce.number().min(0).optional(),
-
-    // Origen (requerido)
-    originAddress: z.string().min(1, "Dirección de origen requerida"),
-    originCity: z.string().min(1, "Ciudad de origen requerida"),
-    originState: z.string().optional(),
-
-    // Destino (requerido)
-    destinationAddress: z.string().min(1, "Dirección de destino requerida"),
-    destinationCity: z.string().min(1, "Ciudad de destino requerida"),
-    destinationState: z.string().optional(),
-
-    // Carga
-    cargoDescription: z.string().max(500).optional(),
-    cargoWeight: z.coerce.number().min(0).optional(),
-    cargoVolume: z.coerce.number().min(0).optional(),
-    cargoUnits: z.coerce.number().min(0).optional(),
-    cargoValue: z.coerce.number().min(0).optional(),
-
-    // Costos
-    baseRate: z.coerce.number().min(0).optional(),
-
-    // Notas
-    notes: z.string().max(1000).optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.scheduledArrival && data.scheduledDeparture) {
-        return (
-          new Date(data.scheduledArrival) > new Date(data.scheduledDeparture)
-        );
-      }
-      return true;
-    },
-    {
-      message: "La fecha de llegada debe ser posterior a la de salida",
-      path: ["scheduledArrival"],
-    },
-  );
-
-type TripFormValues = z.infer<typeof tripFormSchema>;
-
-// ============================================================================
-// DEFAULT VALUES
-// ============================================================================
-
-const defaultFormValues: TripFormValues = {
-  vehicleId: "",
-  driverId: "",
-  clientId: "",
-  scheduledDeparture: "",
-  scheduledArrival: "",
-  startMileage: undefined,
-  originAddress: "",
-  originCity: "",
-  originState: "",
-  destinationAddress: "",
-  destinationCity: "",
-  destinationState: "",
-  cargoDescription: "",
-  cargoWeight: undefined,
-  cargoVolume: undefined,
-  cargoUnits: undefined,
-  cargoValue: undefined,
-  baseRate: undefined,
-  notes: "",
-};
+// Wizard components
+import {
+  WizardSteps,
+  tripWizardFormSchema,
+  WIZARD_STEPS,
+  defaultWizardFormValues,
+  BasicInfoStep,
+  RouteStep,
+  CargoStep,
+  CostsStep,
+  SummaryStep,
+} from "./components";
+import type { TripWizardFormValues } from "./components";
 
 // ============================================================================
 // COMPONENT
@@ -148,6 +54,10 @@ function TripFormPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isEditMode = !!id;
+
+  // Estado del wizard
+  const [currentStep, setCurrentStep] = useState(0);
+  const [stepErrors, setStepErrors] = useState<Record<number, boolean>>({});
 
   // ============================================
   // Queries para cargar datos de los selects
@@ -174,14 +84,100 @@ function TripFormPage() {
   // Form setup
   // ============================================
 
-  const form = useForm<TripFormValues>({
-    resolver: zodResolver(tripFormSchema),
-    defaultValues: defaultFormValues,
+  const form = useForm<TripWizardFormValues>({
+    resolver: zodResolver(tripWizardFormSchema) as never,
+    defaultValues: defaultWizardFormValues,
+    mode: "onChange",
+  });
+
+  // Field arrays para stops, cargos y expenses
+  const stopsFieldArray = useFieldArray({
+    control: form.control,
+    name: "stops",
+  });
+
+  const cargosFieldArray = useFieldArray({
+    control: form.control,
+    name: "cargos",
+  });
+
+  const expensesFieldArray = useFieldArray({
+    control: form.control,
+    name: "expenses",
   });
 
   // Actualizar form cuando se carga un viaje existente
   useEffect(() => {
     if (existingTrip && isEditMode) {
+      // Mapear stops del backend al formato del formulario
+      const mappedStops = (existingTrip.stops || []).map((stop) => ({
+        id: stop.id,
+        sequenceOrder: stop.sequenceOrder,
+        stopType: stop.stopType as
+          | "origin"
+          | "pickup"
+          | "delivery"
+          | "waypoint"
+          | "destination",
+        address: stop.address,
+        city: stop.city,
+        state: stop.state || undefined,
+        postalCode: stop.postalCode || undefined,
+        latitude: stop.latitude || undefined,
+        longitude: stop.longitude || undefined,
+        locationName: stop.locationName || undefined,
+        contactName: stop.contactName || undefined,
+        contactPhone: stop.contactPhone || undefined,
+        estimatedArrival: stop.estimatedArrival
+          ? isoToLocalDateTime(stop.estimatedArrival)
+          : undefined,
+        notes: stop.notes || undefined,
+      }));
+
+      // Mapear cargos del backend al formato del formulario
+      const mappedCargos = (existingTrip.cargos || []).map((cargo) => ({
+        id: cargo.id,
+        clientId: cargo.clientId,
+        description: cargo.description,
+        productType: cargo.productType || undefined,
+        weight: cargo.weight || undefined,
+        volume: cargo.volume || undefined,
+        units: cargo.units || undefined,
+        declaredValue: cargo.declaredValue || undefined,
+        rate: cargo.rate,
+        currency: cargo.currency,
+        pickupStopIndex: undefined,
+        deliveryStopIndex: undefined,
+        notes: cargo.notes || undefined,
+        specialInstructions: cargo.specialInstructions || undefined,
+      }));
+
+      // Mapear expenses del backend al formato del formulario
+      const mappedExpenses = (existingTrip.expenses || []).map((expense) => ({
+        id: expense.id,
+        category: expense.category as
+          | "fuel"
+          | "tolls"
+          | "driver_allowance"
+          | "lodging"
+          | "loading_unloading"
+          | "parking"
+          | "maintenance"
+          | "insurance"
+          | "permits"
+          | "other",
+        description: expense.description,
+        amount: expense.amount,
+        currency: expense.currency,
+        expenseDate: expense.expenseDate
+          ? isoToLocalDateTime(expense.expenseDate)
+          : undefined,
+        location: expense.location || undefined,
+        vendorName: expense.vendorName || undefined,
+        notes: expense.notes || undefined,
+        isEstimated: true,
+      }));
+
       form.reset({
         vehicleId: existingTrip.vehicleId,
         driverId: existingTrip.driverId,
@@ -197,11 +193,9 @@ function TripFormPage() {
         destinationAddress: existingTrip.destinationAddress,
         destinationCity: existingTrip.destinationCity,
         destinationState: existingTrip.destinationState || "",
-        cargoDescription: existingTrip.cargo.description || "",
-        cargoWeight: existingTrip.cargo.weight ?? undefined,
-        cargoVolume: existingTrip.cargo.volume ?? undefined,
-        cargoUnits: existingTrip.cargo.units ?? undefined,
-        cargoValue: existingTrip.cargo.value ?? undefined,
+        stops: mappedStops,
+        cargos: mappedCargos,
+        expenses: mappedExpenses,
         baseRate: existingTrip.costs.baseRate ?? undefined,
         notes: existingTrip.notes || "",
       });
@@ -215,7 +209,7 @@ function TripFormPage() {
   const createMutation = useCreateTrip({
     onSuccess: (response) => {
       toast({
-        title: "Viaje creado",
+        title: "Viaje creado exitosamente",
         description: `Código: ${response.tripCode}`,
         variant: "success",
       });
@@ -245,10 +239,61 @@ function TripFormPage() {
   });
 
   // ============================================
+  // Validación por paso
+  // ============================================
+
+  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
+    const currentStepConfig = WIZARD_STEPS[currentStep];
+    const fieldsToValidate = currentStepConfig.fields;
+
+    // Trigger validation solo para los campos del paso actual
+    const result = await form.trigger(
+      fieldsToValidate as (keyof TripWizardFormValues)[],
+    );
+
+    setStepErrors((prev) => ({
+      ...prev,
+      [currentStep]: !result,
+    }));
+
+    return result;
+  }, [currentStep, form]);
+
+  // ============================================
+  // Navegación del wizard
+  // ============================================
+
+  const handleNext = async () => {
+    const isValid = await validateCurrentStep();
+    if (isValid && currentStep < WIZARD_STEPS.length - 1) {
+      setCurrentStep((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  };
+
+  const handleStepClick = async (stepIndex: number) => {
+    // Solo permitir ir a pasos anteriores o al actual
+    if (stepIndex <= currentStep) {
+      setCurrentStep(stepIndex);
+    } else {
+      // Para ir adelante, validar el paso actual primero
+      const isValid = await validateCurrentStep();
+      if (isValid) {
+        setCurrentStep(stepIndex);
+      }
+    }
+  };
+
+  // ============================================
   // Submit handler
   // ============================================
 
-  const onSubmit = (data: TripFormValues) => {
+  const onSubmit = async (data: TripWizardFormValues) => {
     if (createMutation.isPending || updateMutation.isPending) {
       return;
     }
@@ -268,13 +313,21 @@ function TripFormPage() {
       destinationAddress: data.destinationAddress,
       destinationCity: data.destinationCity,
       destinationState: data.destinationState || undefined,
-      cargoDescription: data.cargoDescription || undefined,
-      cargoWeight: data.cargoWeight,
-      cargoVolume: data.cargoVolume,
-      cargoUnits: data.cargoUnits,
-      cargoValue: data.cargoValue,
+      // Información legacy de carga (para compatibilidad)
+      cargoDescription: data.cargos?.[0]?.description,
+      cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
+      cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
+      cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
+      cargoValue: data.cargos?.reduce(
+        (sum, c) => sum + (c.declaredValue || 0),
+        0,
+      ),
       baseRate: data.baseRate,
       notes: data.notes || undefined,
+      // Nuevos campos
+      stops: data.stops,
+      cargos: data.cargos,
+      expenses: data.expenses,
     };
 
     if (isEditMode && id) {
@@ -284,14 +337,75 @@ function TripFormPage() {
     }
   };
 
+  const handleSubmit = async () => {
+    const isValid = await form.trigger();
+    if (isValid) {
+      const data = form.getValues();
+      await onSubmit(data);
+    } else {
+      toast({
+        title: "Formulario incompleto",
+        description: "Por favor complete todos los campos requeridos",
+        variant: "error",
+      });
+    }
+  };
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isLastStep = currentStep === WIZARD_STEPS.length - 1;
 
   if (isEditMode && isLoadingTrip) {
     return <TripFormSkeleton />;
   }
 
+  // ============================================
+  // Render step content
+  // ============================================
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <BasicInfoStep
+            form={form}
+            vehicles={vehicles}
+            drivers={drivers}
+            clients={clients}
+            isLoadingVehicles={isLoadingVehicles}
+            isLoadingDrivers={isLoadingDrivers}
+            isLoadingClients={isLoadingClients}
+          />
+        );
+      case 1:
+        return <RouteStep form={form} stopsFieldArray={stopsFieldArray} />;
+      case 2:
+        return (
+          <CargoStep
+            cargosFieldArray={cargosFieldArray}
+            clients={clients}
+            isLoadingClients={isLoadingClients}
+          />
+        );
+      case 3:
+        return (
+          <CostsStep form={form} expensesFieldArray={expensesFieldArray} />
+        );
+      case 4:
+        return (
+          <SummaryStep
+            form={form}
+            vehicles={vehicles}
+            drivers={drivers}
+            clients={clients}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto pb-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -304,475 +418,81 @@ function TripFormPage() {
           <p className="text-muted-foreground">
             {isEditMode
               ? `Editando ${existingTrip?.tripCode}`
-              : "Complete los datos del viaje"}
+              : "Complete los pasos para crear un viaje"}
           </p>
         </div>
       </div>
 
+      {/* Wizard Steps Indicator */}
+      <Card>
+        <CardContent className="pt-6">
+          <WizardSteps
+            steps={WIZARD_STEPS.map((step) => ({
+              id: step.id,
+              title: step.title,
+              description: step.description,
+            }))}
+            currentStep={currentStep}
+            onStepClick={handleStepClick}
+            allowNavigation={true}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Asignaciones */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Asignaciones</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                {/* Vehículo */}
-                <FormField
-                  control={form.control}
-                  name="vehicleId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unidad *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isLoadingVehicles}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            {isLoadingVehicles ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
-                            )}
-                            <SelectValue placeholder="Seleccionar vehículo" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {vehicles.length === 0 && !isLoadingVehicles ? (
-                            <SelectItem value="no-vehicles" disabled>
-                              No hay vehículos disponibles
-                            </SelectItem>
-                          ) : (
-                            vehicles.map((vehicle) => (
-                              <SelectItem key={vehicle.id} value={vehicle.id}>
-                                {vehicle.unitNumber} - {vehicle.licensePlate}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <form onSubmit={(e) => e.preventDefault()}>
+          {/* Step Content */}
+          <div className="min-h-[400px]">{renderStepContent()}</div>
 
-                {/* Conductor */}
-                <FormField
-                  control={form.control}
-                  name="driverId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Conductor *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isLoadingDrivers}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            {isLoadingDrivers ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                            )}
-                            <SelectValue placeholder="Seleccionar conductor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {drivers.length === 0 && !isLoadingDrivers ? (
-                            <SelectItem value="no-drivers" disabled>
-                              No hay conductores disponibles
-                            </SelectItem>
-                          ) : (
-                            drivers.map((driver) => (
-                              <SelectItem key={driver.id} value={driver.id}>
-                                {driver.fullName}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Error Alert */}
+          {stepErrors[currentStep] && (
+            <AlertWithIcon variant="destructive" className="mt-4">
+              Por favor complete todos los campos requeridos antes de continuar.
+            </AlertWithIcon>
+          )}
 
-                {/* Cliente */}
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cliente</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isLoadingClients}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            {isLoadingClients ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
-                            )}
-                            <SelectValue placeholder="Seleccionar cliente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="no-client">Sin cliente</SelectItem>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.legalName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Programación */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Programación</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <FormField
-                  control={form.control}
-                  name="scheduledDeparture"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Salida Programada *</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="scheduledArrival"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Llegada Estimada</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="startMileage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kilometraje Inicial</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Origen */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-green-600" /> Origen
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="originAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dirección *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Calle, número, colonia..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="originCity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ciudad *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ciudad" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="originState"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estado</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Estado" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Destino */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-red-600" /> Destino
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="destinationAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dirección *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Calle, número, colonia..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="destinationCity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ciudad *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ciudad" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="destinationState"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estado</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Estado" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Información de Carga */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="h-5 w-5" /> Información de Carga
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="cargoDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descripción</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Describa la carga..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <FormField
-                  control={form.control}
-                  name="cargoWeight"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Peso (kg)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="cargoVolume"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Volumen (m³)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="cargoUnits"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unidades</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="cargoValue"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valor ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Costos y Notas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Costos y Notas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="baseRate"
-                render={({ field }) => (
-                  <FormItem className="sm:w-1/3">
-                    <FormLabel>Tarifa Base ($)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notas</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Observaciones adicionales..."
-                        className="min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-4 border-t">
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between pt-6 mt-6 border-t">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(-1)}
+              onClick={handlePrevious}
+              disabled={currentStep === 0}
             >
-              Cancelar
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Anterior
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(-1)}
+              >
+                Cancelar
+              </Button>
+
+              {isLastStep ? (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {isEditMode ? "Guardar Cambios" : "Crear Viaje"}
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleNext}>
+                  Siguiente
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               )}
-              <Save className="mr-2 h-4 w-4" />
-              {isEditMode ? "Guardar Cambios" : "Crear Viaje"}
-            </Button>
+            </div>
           </div>
         </form>
       </Form>
@@ -795,12 +515,23 @@ function TripFormSkeleton() {
         </div>
       </div>
 
-      {[1, 2, 3, 4].map((i) => (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-between">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex flex-col items-center">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-16 mt-2" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {[1, 2].map((i) => (
         <Card key={i}>
-          <CardHeader>
+          <CardContent className="pt-6 space-y-4">
             <Skeleton className="h-6 w-40" />
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />

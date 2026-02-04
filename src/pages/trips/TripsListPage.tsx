@@ -187,7 +187,7 @@ function TripsListPage() {
   const handleStart = useCallback(
     (id: string) => {
       if (window.confirm("¿Iniciar este viaje?")) {
-        startMutation.mutate(id);
+        startMutation.mutate({ id });
       }
     },
     [startMutation],

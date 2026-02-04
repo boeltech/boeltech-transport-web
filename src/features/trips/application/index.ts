@@ -59,3 +59,4 @@ export { useCancelTrip } from "../application/hooks/useCancelTrip";
 export { useDeleteTrip } from "../application/hooks/useDeleteTrip";
 export { useAddStop } from "../application/hooks/useAddStop";
 export { useMarkStopVisited } from "../application/hooks/useMarkStopVisited";
+export { useScheduleTrip } from "./hooks/useScheduleTrip";

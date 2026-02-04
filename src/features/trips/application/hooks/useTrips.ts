@@ -39,7 +39,9 @@ export function useTrips(
       }
       return result.data;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 0, // Sin staleTime para que siempre refetch cuando se invalida
+    refetchOnMount: true, // Refetch al montar el componente
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
     ...options,
   });
 }
