@@ -15,8 +15,11 @@
 import {
   type CreateTripDTO,
   type CreateTripStopDTO,
+  type CreateTripCargoDTO,
+  type CreateTripExpenseDTO,
   type ITripRepository,
   type StopTypeValue,
+  type ExpenseCategoryValue,
 } from "@features/trips/domain";
 
 import { mapBackendError, type MappedError } from "@shared/utils/errorMapper";
@@ -62,6 +65,8 @@ export interface CreateTripInput {
   notes?: string;
 
   stops?: CreateTripStopInput[];
+  cargos?: CreateTripCargoInput[];
+  expenses?: CreateTripExpenseInput[];
 }
 
 /**
@@ -84,6 +89,40 @@ export interface CreateTripStopInput {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+}
+
+/**
+ * Input para crear una carga
+ */
+export interface CreateTripCargoInput {
+  clientId: string;
+  description: string;
+  productType?: string;
+  weight?: number;
+  volume?: number;
+  units?: number;
+  declaredValue?: number;
+  rate: number;
+  currency?: string;
+  pickupStopIndex?: number;
+  deliveryStopIndex?: number;
+  notes?: string;
+  specialInstructions?: string;
+}
+
+/**
+ * Input para crear un gasto
+ */
+export interface CreateTripExpenseInput {
+  category: ExpenseCategoryValue;
+  description: string;
+  amount: number;
+  currency?: string;
+  expenseDate?: Date | string;
+  location?: string;
+  vendorName?: string;
+  notes?: string;
+  isEstimated?: boolean;
 }
 
 /**
@@ -275,6 +314,8 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       baseRate: input.baseRate,
       notes: input.notes,
       stops: input.stops?.map(this.mapStopInputToDTO),
+      cargos: input.cargos?.map(this.mapCargoInputToDTO),
+      expenses: input.expenses?.map(this.mapExpenseInputToDTO),
     };
   }
 
@@ -303,6 +344,50 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       cargoWeight: stop.cargoWeight,
       cargoUnits: stop.cargoUnits,
       notes: stop.notes,
+    };
+  }
+
+  /**
+   * Mapea el input de carga al DTO
+   */
+  private mapCargoInputToDTO(cargo: CreateTripCargoInput): CreateTripCargoDTO {
+    return {
+      clientId: cargo.clientId,
+      description: cargo.description,
+      productType: cargo.productType,
+      weight: cargo.weight,
+      volume: cargo.volume,
+      units: cargo.units,
+      declaredValue: cargo.declaredValue,
+      rate: cargo.rate,
+      currency: cargo.currency,
+      pickupStopIndex: cargo.pickupStopIndex,
+      deliveryStopIndex: cargo.deliveryStopIndex,
+      notes: cargo.notes,
+      specialInstructions: cargo.specialInstructions,
+    };
+  }
+
+  /**
+   * Mapea el input de gasto al DTO
+   */
+  private mapExpenseInputToDTO(
+    expense: CreateTripExpenseInput,
+  ): CreateTripExpenseDTO {
+    return {
+      category: expense.category,
+      description: expense.description,
+      amount: expense.amount,
+      currency: expense.currency,
+      expenseDate: expense.expenseDate
+        ? typeof expense.expenseDate === "string"
+          ? expense.expenseDate
+          : expense.expenseDate.toISOString()
+        : undefined,
+      location: expense.location,
+      vendorName: expense.vendorName,
+      notes: expense.notes,
+      isEstimated: expense.isEstimated,
     };
   }
 }

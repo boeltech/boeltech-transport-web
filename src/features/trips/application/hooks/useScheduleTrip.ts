@@ -4,23 +4,19 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-import { mapBackendError } from "@shared/utils/errorMapper";
+import { tripQueryKeys, type Trip } from "@features/trips/domain/entities";
+import { createScheduleTripUseCase } from "@features/trips/application/useCases/trips";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface ScheduleTripResponse {
-  id: string;
-  status: string;
-}
-
 // ============================================================================
-// REPOSITORY
+// USE CASE
 // ============================================================================
 
 const tripRepository = createTripRepository();
+const scheduleTripUseCase = createScheduleTripUseCase(tripRepository);
 
 // ============================================================================
 // CUSTOM ERROR
@@ -44,27 +40,26 @@ export class TripActionError extends Error {
 
 /**
  * Hook para programar un viaje (cambiar de draft → scheduled)
+ * Utiliza Clean Architecture a través del caso de uso ScheduleTripUseCase
  */
 export function useScheduleTrip(
-  options?: UseMutationOptions<ScheduleTripResponse, TripActionError, string>,
+  options?: UseMutationOptions<Trip, TripActionError, string>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (tripId: string) => {
-      try {
-        const result = await tripRepository.updateStatus(tripId, {
-          status: "scheduled",
-        });
-        return result;
-      } catch (error) {
-        const mapped = mapBackendError(error);
+      const result = await scheduleTripUseCase.execute(tripId);
+
+      if (!result.success) {
         throw new TripActionError(
-          mapped.code,
-          mapped.message,
-          mapped.originalMessage,
+          result.error.code,
+          result.error.message,
+          result.error.message,
         );
       }
+
+      return result.data;
     },
     onSuccess: (data, tripId) => {
       // Invalidar queries relacionadas

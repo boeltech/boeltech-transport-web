@@ -298,6 +298,10 @@ function TripFormPage() {
       return;
     }
 
+    // Extraer origen y destino desde las paradas
+    const originStop = data.stops?.[0];
+    const destinationStop = data.stops?.[data.stops.length - 1];
+
     const preparedData = {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
@@ -307,12 +311,14 @@ function TripFormPage() {
         ? localDateTimeToISO(data.scheduledArrival)
         : undefined,
       startMileage: data.startMileage,
-      originAddress: data.originAddress,
-      originCity: data.originCity,
-      originState: data.originState || undefined,
-      destinationAddress: data.destinationAddress,
-      destinationCity: data.destinationCity,
-      destinationState: data.destinationState || undefined,
+      // Origen desde la primera parada
+      originAddress: originStop?.address || "",
+      originCity: originStop?.city || "",
+      originState: originStop?.state || undefined,
+      // Destino desde la última parada
+      destinationAddress: destinationStop?.address || "",
+      destinationCity: destinationStop?.city || "",
+      destinationState: destinationStop?.state || undefined,
       // Información legacy de carga (para compatibilidad)
       cargoDescription: data.cargos?.[0]?.description,
       cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
@@ -324,10 +330,57 @@ function TripFormPage() {
       ),
       baseRate: data.baseRate,
       notes: data.notes || undefined,
-      // Nuevos campos
-      stops: data.stops,
-      cargos: data.cargos,
-      expenses: data.expenses,
+      // Mapear stops al formato esperado por el backend
+      stops: data.stops?.map((stop) => ({
+        sequenceOrder: stop.sequenceOrder,
+        stopType: stop.stopType,
+        address: stop.address,
+        city: stop.city,
+        state: stop.state,
+        postalCode: stop.postalCode,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        locationName: stop.locationName,
+        contactName: stop.contactName,
+        contactPhone: stop.contactPhone,
+        estimatedArrival: stop.estimatedArrival
+          ? localDateTimeToISO(stop.estimatedArrival)
+          : undefined,
+        cargoActionDescription: undefined,
+        cargoWeight: undefined,
+        cargoUnits: undefined,
+        notes: stop.notes,
+      })),
+      // Mapear cargos al formato esperado por el backend
+      cargos: data.cargos?.map((cargo) => ({
+        clientId: cargo.clientId,
+        description: cargo.description,
+        productType: cargo.productType,
+        weight: cargo.weight,
+        volume: cargo.volume,
+        units: cargo.units,
+        declaredValue: cargo.declaredValue,
+        rate: cargo.rate,
+        currency: cargo.currency,
+        pickupStopIndex: cargo.pickupStopIndex,
+        deliveryStopIndex: cargo.deliveryStopIndex,
+        notes: cargo.notes,
+        specialInstructions: cargo.specialInstructions,
+      })),
+      // Mapear expenses al formato esperado por el backend
+      expenses: data.expenses?.map((expense) => ({
+        category: expense.category,
+        description: expense.description,
+        amount: expense.amount,
+        currency: expense.currency,
+        expenseDate: expense.expenseDate
+          ? localDateTimeToISO(expense.expenseDate)
+          : undefined,
+        location: expense.location,
+        vendorName: expense.vendorName,
+        notes: expense.notes,
+        isEstimated: expense.isEstimated,
+      })),
     };
 
     if (isEditMode && id) {

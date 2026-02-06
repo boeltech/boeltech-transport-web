@@ -3,6 +3,7 @@
  * Información básica: Asignaciones y Programación
  */
 
+import { useEffect } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
@@ -11,6 +12,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@shared/ui/form";
 import {
   Select,
@@ -26,7 +28,12 @@ import type { TripWizardFormValues } from "../types";
 interface BasicInfoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
-  vehicles: Array<{ id: string; unitNumber: string; licensePlate: string }>;
+  vehicles: Array<{
+    id: string;
+    unitNumber: string;
+    licensePlate: string;
+    currentMileage: number;
+  }>;
   drivers: Array<{ id: string; fullName: string }>;
   clients: Array<{ id: string; legalName: string }>;
   isLoadingVehicles: boolean;
@@ -43,6 +50,25 @@ export function BasicInfoStep({
   isLoadingDrivers,
   isLoadingClients,
 }: BasicInfoStepProps) {
+  const selectedVehicleId = form.watch("vehicleId");
+
+  // Efecto para precargar el kilometraje cuando se selecciona un vehículo
+  useEffect(() => {
+    if (selectedVehicleId && vehicles.length > 0) {
+      const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+      if (selectedVehicle) {
+        // Guardar el kilometraje actual del vehículo para validación
+        form.setValue("vehicleCurrentMileage", selectedVehicle.currentMileage);
+
+        // Precargar el kilometraje inicial solo si no tiene valor
+        // const currentStartMileage = form.getValues("startMileage");
+        // if (currentStartMileage === undefined || currentStartMileage === null) {
+        form.setValue("startMileage", selectedVehicle.currentMileage);
+        // }
+      }
+    }
+  }, [selectedVehicleId, vehicles, form]);
+
   return (
     <div className="space-y-6">
       {/* Asignaciones */}
@@ -213,25 +239,36 @@ export function BasicInfoStep({
             <FormField
               control={form.control}
               name="startMileage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Kilometraje Inicial</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const vehicleCurrentMileage = form.watch(
+                  "vehicleCurrentMileage",
+                );
+                return (
+                  <FormItem>
+                    <FormLabel>Kilometraje Inicial</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                      />
+                    </FormControl>
+                    {vehicleCurrentMileage !== undefined && (
+                      <FormDescription>
+                        Kilometraje actual del vehículo:{" "}
+                        {vehicleCurrentMileage.toLocaleString()} km
+                      </FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
           </div>
         </CardContent>

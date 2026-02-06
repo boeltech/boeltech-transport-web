@@ -11,11 +11,19 @@ import { z } from "zod";
 
 /**
  * Schema para una parada del viaje
+ * ACTUALIZADO: stopType ahora es un array
  */
 export const tripStopSchema = z.object({
   id: z.string().optional(), // Para edición
   sequenceOrder: z.number().min(0),
-  stopType: z.enum(["origin", "pickup", "delivery", "waypoint", "destination"]),
+  stopType: z
+    .array(z.enum(["origin", "pickup", "delivery", "waypoint", "destination"]))
+    .min(1, "Debe seleccionar al menos un tipo de parada"),
+
+  // Asociación con cliente y dirección
+  clientId: z.string().optional(), // Cliente asociado a esta parada
+  clientAddressId: z.string().optional(), // Dirección del cliente
+
   address: z.string().min(1, "Dirección requerida"),
   city: z.string().min(1, "Ciudad requerida"),
   state: z.string().optional(),
@@ -87,16 +95,14 @@ export const tripWizardFormSchema = z
     clientId: z.string().optional(),
     scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
     scheduledArrival: z.string().optional(),
-    startMileage: z.coerce.number().min(0).optional(),
+    startMileage: z.coerce.number("Kilometraje inicial requerido"),
+    vehicleCurrentMileage: z.number().optional(), // Kilometraje actual del vehículo (para validación)
 
-    // Paso 2: Ruta (origen, destino y paradas intermedias)
-    originAddress: z.string().min(1, "Dirección de origen requerida"),
-    originCity: z.string().min(1, "Ciudad de origen requerida"),
-    originState: z.string().optional(),
-    destinationAddress: z.string().min(1, "Dirección de destino requerida"),
-    destinationCity: z.string().min(1, "Ciudad de destino requerida"),
-    destinationState: z.string().optional(),
-    stops: z.array(tripStopSchema).default([]),
+    // Paso 2: Ruta (paradas: primera = origen, última = destino)
+    stops: z
+      .array(tripStopSchema)
+      .min(2, "Debe agregar al menos origen y destino")
+      .default([]),
 
     // Paso 3: Cargas
     cargos: z.array(tripCargoSchema).default([]),
@@ -107,6 +113,14 @@ export const tripWizardFormSchema = z
 
     // Notas generales
     notes: z.string().max(1000).optional(),
+
+    // Campos legacy (se calculan desde stops)
+    originAddress: z.string().optional(),
+    originCity: z.string().optional(),
+    originState: z.string().optional(),
+    destinationAddress: z.string().optional(),
+    destinationCity: z.string().optional(),
+    destinationState: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -120,6 +134,84 @@ export const tripWizardFormSchema = z
     {
       message: "La fecha de llegada debe ser posterior a la de salida",
       path: ["scheduledArrival"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validar que el kilometraje inicial no sea menor al kilometraje actual del vehículo
+      if (
+        data.startMileage !== undefined &&
+        data.vehicleCurrentMileage !== undefined
+      ) {
+        return data.startMileage >= data.vehicleCurrentMileage;
+      }
+      return true;
+    },
+    {
+      message:
+        "El kilometraje inicial no puede ser menor al kilometraje actual del vehículo",
+      path: ["startMileage"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validar que la primera parada incluya "origin" o "pickup"
+      if (data.stops.length > 0) {
+        const firstStopTypes = data.stops[0].stopType;
+        const hasValidType = firstStopTypes.some(
+          (type) => type === "origin" || type === "pickup",
+        );
+        if (!hasValidType) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "La primera parada debe incluir 'Origen' o 'Carga'",
+      path: ["stops"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validar que la última parada incluya "destination" o "delivery"
+      if (data.stops.length > 0) {
+        const lastStopTypes = data.stops[data.stops.length - 1].stopType;
+        const hasValidType = lastStopTypes.some(
+          (type) => type === "destination" || type === "delivery",
+        );
+        if (!hasValidType) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "La última parada debe incluir 'Destino' o 'Descarga'",
+      path: ["stops"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validar que las paradas intermedias solo incluyan "pickup", "delivery" o "waypoint"
+      if (data.stops.length > 2) {
+        const middleStops = data.stops.slice(1, -1);
+        const invalidMiddleStop = middleStops.find((stop) => {
+          return stop.stopType.some(
+            (type) =>
+              type !== "pickup" && type !== "delivery" && type !== "waypoint",
+          );
+        });
+        if (invalidMiddleStop) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message:
+        "Las paradas intermedias solo pueden incluir 'Carga', 'Descarga' o 'Escala'",
+      path: ["stops"],
     },
   );
 
@@ -162,16 +254,8 @@ export const WIZARD_STEPS: WizardStepDefinition[] = [
   {
     id: "route",
     title: "Ruta",
-    description: "Origen, destino y paradas",
-    fields: [
-      "originAddress",
-      "originCity",
-      "originState",
-      "destinationAddress",
-      "destinationCity",
-      "destinationState",
-      "stops",
-    ],
+    description: "Paradas del viaje",
+    fields: ["stops"],
   },
   {
     id: "cargo",
@@ -197,19 +281,14 @@ export const WIZARD_STEPS: WizardStepDefinition[] = [
 // DEFAULT VALUES
 // ============================================================================
 
-export const defaultWizardFormValues: TripWizardFormValues = {
+export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   vehicleId: "",
   driverId: "",
   clientId: "",
   scheduledDeparture: "",
   scheduledArrival: "",
   startMileage: undefined,
-  originAddress: "",
-  originCity: "",
-  originState: "",
-  destinationAddress: "",
-  destinationCity: "",
-  destinationState: "",
+  vehicleCurrentMileage: undefined,
   stops: [],
   cargos: [],
   expenses: [],

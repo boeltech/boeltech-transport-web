@@ -109,6 +109,9 @@ export {
   type UpdateTripStatusDTO,
   type FinishTripDTO,
   type CreateTripStopDTO,
+  type CreateTripCargoDTO,
+  type CreateTripExpenseDTO,
+  type ExpenseCategoryValue,
   type AddStopData,
   type UpdateStopDTO,
   // Repository Interfaces

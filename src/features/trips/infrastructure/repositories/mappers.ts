@@ -26,6 +26,8 @@ import {
   type StopStatusValue,
   type CreateTripDTO,
   type CreateTripStopDTO,
+  type CreateTripCargoDTO,
+  type CreateTripExpenseDTO,
   type UpdateTripStatusDTO,
   type FinishTripDTO,
 } from "@features/trips/domain";
@@ -218,6 +220,8 @@ export interface ApiCreateTripRequest {
   baseRate?: number;
   notes?: string;
   stops?: ApiCreateStopRequest[];
+  cargos?: ApiCreateCargoRequest[];
+  expenses?: ApiCreateExpenseRequest[];
 }
 
 /**
@@ -240,6 +244,40 @@ export interface ApiCreateStopRequest {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+}
+
+/**
+ * Request para crear una carga
+ */
+export interface ApiCreateCargoRequest {
+  clientId: string;
+  description: string;
+  productType?: string;
+  weight?: number;
+  volume?: number;
+  units?: number;
+  declaredValue?: number;
+  rate: number;
+  currency?: string;
+  pickupStopIndex?: number;
+  deliveryStopIndex?: number;
+  notes?: string;
+  specialInstructions?: string;
+}
+
+/**
+ * Request para crear un gasto
+ */
+export interface ApiCreateExpenseRequest {
+  category: string;
+  description: string;
+  amount: number;
+  currency?: string;
+  expenseDate?: string;
+  location?: string;
+  vendorName?: string;
+  notes?: string;
+  isEstimated?: boolean;
 }
 
 /**
@@ -415,6 +453,11 @@ export function mapStatusHistory(
  * Mapea respuesta de item de lista a entidad de dominio
  */
 export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
+  const totalCost = toNumberOrDefault(api.total_cost);
+  // Valores por defecto para campos nuevos (el backend puede no enviarlos aún)
+  const totalRevenue = 0; // TODO: Agregar cuando el backend lo soporte
+  const estimatedProfit = totalRevenue - totalCost;
+
   return {
     id: api.id,
     tripCode: api.trip_code,
@@ -439,7 +482,11 @@ export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
     scheduledArrival: toDate(api.scheduled_arrival),
     status: api.status as TripStatusType,
     cargoDescription: api.cargo_description,
-    totalCost: toNumberOrDefault(api.total_cost),
+    totalCost,
+    totalRevenue,
+    estimatedProfit,
+    cargoCount: 0, // TODO: Agregar cuando el backend lo soporte
+    clientCount: api.client_id ? 1 : 0,
     createdAt: toDateRequired(api.created_at),
   };
 }
@@ -489,6 +536,8 @@ export function mapTrip(api: ApiTripResponse): Trip {
     destinationState: api.destination_state,
     cargo,
     costs,
+    detailedCosts: null, // TODO: Agregar cuando el backend lo soporte
+    profitability: null, // TODO: Agregar cuando el backend lo soporte
     status: api.status as TripStatusType,
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
@@ -576,6 +625,8 @@ export function toApiCreateTrip(data: CreateTripDTO): ApiCreateTripRequest {
     baseRate: data.baseRate,
     notes: data.notes,
     stops: data.stops?.map(toApiCreateStop),
+    cargos: data.cargos?.map(toApiCreateCargo),
+    expenses: data.expenses?.map(toApiCreateExpense),
   };
 }
 
@@ -615,6 +666,48 @@ export function toApiUpdateStatus(
     latitude: data.latitude,
     longitude: data.longitude,
     reason: data.reason,
+  };
+}
+
+/**
+ * Prepara datos de creación de carga para API
+ */
+export function toApiCreateCargo(
+  data: CreateTripCargoDTO,
+): ApiCreateCargoRequest {
+  return {
+    clientId: data.clientId,
+    description: data.description,
+    productType: data.productType,
+    weight: data.weight,
+    volume: data.volume,
+    units: data.units,
+    declaredValue: data.declaredValue,
+    rate: data.rate,
+    currency: data.currency,
+    pickupStopIndex: data.pickupStopIndex,
+    deliveryStopIndex: data.deliveryStopIndex,
+    notes: data.notes,
+    specialInstructions: data.specialInstructions,
+  };
+}
+
+/**
+ * Prepara datos de creación de gasto para API
+ */
+export function toApiCreateExpense(
+  data: CreateTripExpenseDTO,
+): ApiCreateExpenseRequest {
+  return {
+    category: data.category,
+    description: data.description,
+    amount: data.amount,
+    currency: data.currency,
+    expenseDate: toISOStringOptional(data.expenseDate),
+    location: data.location,
+    vendorName: data.vendorName,
+    notes: data.notes,
+    isEstimated: data.isEstimated,
   };
 }
 

@@ -47,6 +47,57 @@ export interface CreateTripDTO {
   baseRate?: number;
   notes?: string;
   stops?: CreateTripStopDTO[];
+  cargos?: CreateTripCargoDTO[];
+  expenses?: CreateTripExpenseDTO[];
+}
+
+/**
+ * DTO para crear una carga
+ */
+export interface CreateTripCargoDTO {
+  clientId: string;
+  description: string;
+  productType?: string;
+  weight?: number;
+  volume?: number;
+  units?: number;
+  declaredValue?: number;
+  rate: number;
+  currency?: string;
+  pickupStopIndex?: number;
+  deliveryStopIndex?: number;
+  notes?: string;
+  specialInstructions?: string;
+}
+
+/**
+ * Categoría de gasto
+ */
+export type ExpenseCategoryValue =
+  | "fuel"
+  | "tolls"
+  | "driver_allowance"
+  | "lodging"
+  | "loading_unloading"
+  | "parking"
+  | "maintenance"
+  | "insurance"
+  | "permits"
+  | "other";
+
+/**
+ * DTO para crear un gasto
+ */
+export interface CreateTripExpenseDTO {
+  category: ExpenseCategoryValue;
+  description: string;
+  amount: number;
+  currency?: string;
+  expenseDate?: string;
+  location?: string;
+  vendorName?: string;
+  notes?: string;
+  isEstimated?: boolean;
 }
 
 /**

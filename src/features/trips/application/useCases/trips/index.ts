@@ -4,6 +4,7 @@ export * from "./DeleteTripUseCase";
 export * from "./FinishTripUseCase";
 export * from "./GetTripByIdUseCase";
 export * from "./GetTripsUseCase";
+export * from "./ScheduleTripUseCase";
 export * from "./StartTripUseCase";
 export * from "./UpdateTripStatusUseCase";
 export * from "./UpdateTripUseCase";

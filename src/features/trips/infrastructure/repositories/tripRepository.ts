@@ -24,7 +24,6 @@ import {
   mapTrip,
   mapPaginatedTripListItems,
   toApiCreateTrip,
-  toApiCreateStop,
   toApiUpdateStatus,
   toApiFinishTrip,
   type ApiTripResponse,
@@ -83,32 +82,13 @@ export class TripRepository implements ITripRepository {
    * Crea un nuevo viaje
    */
   async create(data: CreateTripDTO): Promise<Trip> {
-    const apiData = toApiCreateTrip({
-      vehicleId: data.vehicleId,
-      driverId: data.driverId,
-      clientId: data.clientId,
-      scheduledDeparture: data.scheduledDeparture,
-      scheduledArrival: data.scheduledArrival,
-      startMileage: data.startMileage,
-      originAddress: data.originAddress,
-      originCity: data.originCity,
-      originState: data.originState,
-      destinationAddress: data.destinationAddress,
-      destinationCity: data.destinationCity,
-      destinationState: data.destinationState,
-      cargoDescription: data.cargoDescription,
-      cargoWeight: data.cargoWeight,
-      cargoVolume: data.cargoVolume,
-      cargoUnits: data.cargoUnits,
-      cargoValue: data.cargoValue,
-      baseRate: data.baseRate,
-      notes: data.notes,
-    });
+    // Usar toApiCreateTrip que ya incluye el mapeo de stops, cargos y expenses
+    const apiData = toApiCreateTrip(data);
 
-    const response = await apiClient.post<ApiTripResponse>(TRIPS_ENDPOINT, {
-      ...apiData,
-      stops: data.stops?.map(toApiCreateStop),
-    });
+    const response = await apiClient.post<ApiTripResponse>(
+      TRIPS_ENDPOINT,
+      apiData,
+    );
 
     const responseData = this.extractData(response);
     return mapTrip(responseData);

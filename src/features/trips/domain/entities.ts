@@ -319,14 +319,14 @@ export interface CargoStopAssignment {
 
 /**
  * Entidad: Parada de viaje (TripStop)
- * ACTUALIZADO: Incluye relación con cargas
+ * ACTUALIZADO: Incluye relación con cargas y stopType como array
  */
 export interface TripStop {
   readonly id: string;
   readonly tenantId: string;
   readonly tripId: string;
   readonly sequenceOrder: number;
-  readonly stopType: StopTypeValue;
+  readonly stopType: StopTypeValue[]; // ACTUALIZADO: Ahora es un array de tipos
   readonly address: string;
   readonly city: string;
   readonly state: string | null;
