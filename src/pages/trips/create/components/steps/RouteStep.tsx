@@ -25,6 +25,16 @@ import {
   DialogFooter,
 } from "@shared/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
+import {
   MapPin,
   Plus,
   Trash2,
@@ -34,12 +44,14 @@ import {
   ChevronUp,
   ChevronDown,
   Building2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils";
 import type { TripWizardFormValues, TripStopFormValues } from "../types";
 import { useActiveClients } from "@/features/clients/application/hooks/useClients";
 import { useClientAddresses } from "@/features/clients/application/hooks/useClientAddresses";
 import { ADDRESS_TYPE_LABELS } from "@/features/clients/domain/entities";
+import { StopType } from "@features/trips";
 
 interface RouteStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,13 +60,30 @@ interface RouteStepProps {
   stopsFieldArray: UseFieldArrayReturn<TripWizardFormValues, "stops", any>;
 }
 
-const STOP_TYPE_OPTIONS = [
+// Categorías principales de parada (mutuamente excluyentes)
+const STOP_CATEGORY_OPTIONS = [
   {
     value: "origin",
     label: "Origen",
     icon: Navigation,
     color: "text-green-600",
   },
+  {
+    value: "waypoint",
+    label: "Escala",
+    icon: MapPin,
+    color: "text-gray-600",
+  },
+  {
+    value: "destination",
+    label: "Destino",
+    icon: Flag,
+    color: "text-red-600",
+  },
+];
+
+// Tipos de operación en la parada (pueden ser múltiples según la categoría)
+const STOP_OPERATION_OPTIONS = [
   { value: "pickup", label: "Carga", icon: MapPin, color: "text-blue-600" },
   {
     value: "delivery",
@@ -62,40 +91,62 @@ const STOP_TYPE_OPTIONS = [
     icon: MapPin,
     color: "text-orange-600",
   },
-  { value: "waypoint", label: "Escala", icon: MapPin, color: "text-gray-600" },
-  { value: "destination", label: "Destino", icon: Flag, color: "text-red-600" },
 ];
 
-// Tipos de parada permitidos según la posición
-const getAvailableStopTypes = (position: "first" | "last" | "middle") => {
-  switch (position) {
-    case "first":
-      // Primera parada: solo origen y/o carga
-      return STOP_TYPE_OPTIONS.filter(
-        (opt) => opt.value === "origin" || opt.value === "pickup",
-      );
-    case "last":
-      // Última parada: solo destino y/o descarga
-      return STOP_TYPE_OPTIONS.filter(
-        (opt) => opt.value === "destination" || opt.value === "delivery",
-      );
-    case "middle":
-      // Paradas intermedias: carga, descarga, escala
-      return STOP_TYPE_OPTIONS.filter(
-        (opt) =>
-          opt.value === "pickup" ||
-          opt.value === "delivery" ||
-          opt.value === "waypoint",
-      );
+/**
+ * Obtiene las operaciones permitidas según la categoría de parada
+ * - Origen: solo carga (pickup)
+ * - Destino: solo descarga (delivery)
+ * - Escala: carga y/o descarga
+ */
+const getAvailableOperations = (
+  category: "origin" | "waypoint" | "destination" | undefined,
+) => {
+  if (!category) return [];
+
+  switch (category) {
+    case "origin":
+      // Origen: solo carga
+      return STOP_OPERATION_OPTIONS.filter((opt) => opt.value === "pickup");
+    case "destination":
+      // Destino: solo descarga
+      return STOP_OPERATION_OPTIONS.filter((opt) => opt.value === "delivery");
+    case "waypoint":
+      // Escala: carga y/o descarga
+      return STOP_OPERATION_OPTIONS;
+    default:
+      return [];
   }
 };
 
+// Interfaz extendida para el estado del formulario de nueva parada
+interface NewStopState extends Partial<TripStopFormValues> {
+  stopCategory?: "origin" | "waypoint" | "destination"; // Nueva propiedad para la categoría
+}
+
 export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
-  const { fields, append, remove, move } = stopsFieldArray;
+  const { fields, append, insert, remove, move } = stopsFieldArray;
   const [isAddStopDialogOpen, setIsAddStopDialogOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [newStop, setNewStop] = useState<Partial<TripStopFormValues>>({
-    stopType: ["pickup"], // Ahora es un array
+
+  // Estado para el AlertDialog de confirmación de cambio de tipo
+  const [dragDropConfirmation, setDragDropConfirmation] = useState<{
+    isOpen: boolean;
+    fromIndex: number;
+    toIndex: number;
+    willBecomeOrigin: boolean;
+    willBecomeDestination: boolean;
+  }>({
+    isOpen: false,
+    fromIndex: -1,
+    toIndex: -1,
+    willBecomeOrigin: false,
+    willBecomeDestination: false,
+  });
+
+  const [newStop, setNewStop] = useState<NewStopState>({
+    stopCategory: undefined, // Categoría de parada (origen/escala/destino)
+    stopType: [], // Operaciones (carga/descarga)
     clientId: "",
     clientAddressId: "",
     address: "",
@@ -105,6 +156,45 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     contactPhone: "",
     notes: "",
   });
+
+  // ========== FUNCIONES HELPER ==========
+
+  /**
+   * Verifica si ya existe una parada con la categoría especificada
+   */
+  const hasStopCategory = (
+    category: "origin" | "destination" | "waypoint",
+  ): boolean => {
+    const categoryType =
+      category === "origin"
+        ? StopType.ORIGIN
+        : category === "destination"
+          ? StopType.DESTINATION
+          : StopType.WAYPOINT;
+
+    return fields.some((_, index) => {
+      const stop = form.getValues(`stops.${index}`);
+      return stop.stopType.includes(categoryType);
+    });
+  };
+
+  /**
+   * Obtiene las categorías disponibles según las reglas de negocio
+   * - Solo puede existir una parada de tipo "origen"
+   * - Solo puede existir una parada de tipo "destino"
+   */
+  // const getAvailableCategories = () => {
+  //   return STOP_CATEGORY_OPTIONS.filter((option) => {
+  //     if (option.value === "origin") {
+  //       return !hasStopCategory("origin");
+  //     }
+  //     if (option.value === "destination") {
+  //       return !hasStopCategory("destination");
+  //     }
+  //     // Las escalas siempre están disponibles
+  //     return true;
+  //   });
+  // };
 
   // Cargar clientes activos
   const { data: clients = [] } = useActiveClients();
@@ -151,21 +241,83 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     });
   };
 
+  // Manejar cambio de categoría de parada
+  // const handleCategoryChange = (
+  //   category: "origin" | "waypoint" | "destination",
+  // ) => {
+  //   // Definir operaciones por defecto según la categoría
+  //   let defaultOperations: TripStopFormValues["stopType"] = [];
+
+  //   if (category === "origin") {
+  //     // Origen: por defecto es carga (pickup)
+  //     defaultOperations = ["pickup" as any];
+  //   } else if (category === "destination") {
+  //     // Destino: por defecto es descarga (delivery)
+  //     defaultOperations = ["delivery" as any];
+  //   }
+  //   // Escala: sin valor por defecto, el usuario debe seleccionar
+
+  //   setNewStop((prev) => ({
+  //     ...prev,
+  //     stopCategory: category,
+  //     stopType: defaultOperations,
+  //   }));
+  // };
+
   const handleAddStop = () => {
-    if (newStop.address && newStop.city && newStop.stopType) {
-      // Determinar el tipo de parada según la posición
-      const stopType = newStop.stopType as TripStopFormValues["stopType"];
+    if (
+      newStop.address &&
+      newStop.city &&
+      newStop.stopCategory &&
+      newStop.stopType &&
+      newStop.stopType.length > 0
+    ) {
+      // Combinar la categoría con las operaciones
+      const stopTypes: TripStopFormValues["stopType"] = [
+        newStop.stopCategory as any,
+        ...newStop.stopType,
+      ];
 
-      // Si es la primera parada, debe ser origen
-      // if (fields.length === 0) {
-      //   stopType = "origin";
-      // }
-      // Si ya existe al menos una parada, insertar antes de la última (que será destino)
-      const insertIndex = fields.length > 0 ? fields.length : 0;
+      // let insertIndex = fields.length > 0 ? fields.length : 0;
+      let insertIndex = 0;
 
-      append({
+      if (fields.length > 0) {
+        if (stopTypes.includes(StopType.ORIGIN)) {
+          insertIndex = 0;
+        } else if (stopTypes.includes(StopType.DESTINATION)) {
+          insertIndex = fields.length;
+        } else {
+          // Para escalas, insertamos antes del destino (si existe)
+          const destinationIndex = fields.findIndex((_, index) => {
+            const stop = form.getValues(`stops.${index}`);
+            return stop.stopType.includes(StopType.DESTINATION);
+          });
+          insertIndex =
+            destinationIndex !== -1 ? destinationIndex : fields.length;
+        }
+      } else {
+        insertIndex = 0;
+      }
+
+      // append({
+      //   sequenceOrder: insertIndex,
+      //   stopType: stopTypes,
+      //   clientId: newStop.clientId || undefined,
+      //   clientAddressId: newStop.clientAddressId || undefined,
+      //   address: newStop.address,
+      //   city: newStop.city,
+      //   state: newStop.state || "",
+      //   postalCode: newStop.postalCode,
+      //   locationName: newStop.locationName,
+      //   contactName: newStop.contactName,
+      //   contactPhone: newStop.contactPhone,
+      //   estimatedArrival: newStop.estimatedArrival,
+      //   notes: newStop.notes,
+      // });
+
+      insert(insertIndex, {
         sequenceOrder: insertIndex,
-        stopType,
+        stopType: stopTypes,
         clientId: newStop.clientId || undefined,
         clientAddressId: newStop.clientAddressId || undefined,
         address: newStop.address,
@@ -180,14 +332,19 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       });
 
       // Actualizar sequenceOrder de todas las paradas
-      setTimeout(() => {
-        fields.forEach((_, index) => {
-          form.setValue(`stops.${index}.sequenceOrder`, index);
-        });
-      }, 0);
+      requestAnimationFrame(() => {
+        const currentStops = form.getValues("stops");
 
+        currentStops.forEach((_, index) => {
+          form.setValue(`stops.${index}.sequenceOrder`, index);
+          // updateStopTypeForPosition(index);
+        });
+      });
+
+      // Resetear el formulario
       setNewStop({
-        stopType: ["pickup"],
+        stopCategory: undefined,
+        stopType: [],
         clientId: "",
         clientAddressId: "",
         address: "",
@@ -202,172 +359,284 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   };
 
   const handleMoveStop = (fromIndex: number, toIndex: number) => {
-    // No permitir mover la primera (origen) ni la última (destino)
-    // if (fromIndex === 0 || fromIndex === fields.length - 1) return;
-    // if (toIndex === 0 || toIndex === fields.length - 1) return;
     if (toIndex >= 0 && toIndex < fields.length) {
-      move(fromIndex, toIndex);
-      // Actualizar sequenceOrder después de mover
-      setTimeout(() => {
-        fields.forEach((_, index) => {
-          form.setValue(`stops.${index}.sequenceOrder`, index);
+      const currentStop = form.getValues(`stops.${fromIndex}`);
+
+      // Verificar si la parada se convertirá en origen (posición 0) o destino (última posición)
+      const willBecomeOrigin =
+        toIndex === 0 && !currentStop.stopType.includes(StopType.ORIGIN);
+      const willBecomeDestination =
+        toIndex === fields.length - 1 &&
+        !currentStop.stopType.includes(StopType.DESTINATION);
+
+      // Si la parada se convertirá en origen o destino, mostrar confirmación
+      if (willBecomeOrigin || willBecomeDestination) {
+        setDragDropConfirmation({
+          isOpen: true,
+          fromIndex,
+          toIndex,
+          willBecomeOrigin,
+          willBecomeDestination,
         });
-      }, 0);
+      } else {
+        // Si no cambia a origen/destino, mover directamente
+        performMove(fromIndex, toIndex);
+      }
     }
   };
 
-  const handleRemoveStop = (index: number) => {
-    // Eliminar la parada
-    remove(index);
+  const performMove = (fromIndex: number, toIndex: number) => {
+    move(fromIndex, toIndex);
 
-    // Actualizar sequenceOrder de las paradas restantes inmediatamente
-    // Usar el array actualizado después del remove
-    const remainingStops = fields.filter((_, idx) => idx !== index);
-    remainingStops.forEach((_, idx) => {
-      form.setValue(`stops.${idx}.sequenceOrder`, idx);
+    requestAnimationFrame(() => {
+      const currentStops = form.getValues("stops");
+
+      currentStops.forEach((_, index) => {
+        form.setValue(`stops.${index}.sequenceOrder`, index);
+        updateStopTypeForPosition(index);
+      });
     });
   };
 
+  const confirmDragDropChange = () => {
+    performMove(dragDropConfirmation.fromIndex, dragDropConfirmation.toIndex);
+    setDragDropConfirmation({
+      isOpen: false,
+      fromIndex: -1,
+      toIndex: -1,
+      willBecomeOrigin: false,
+      willBecomeDestination: false,
+    });
+  };
+
+  const cancelDragDropChange = () => {
+    setDragDropConfirmation({
+      isOpen: false,
+      fromIndex: -1,
+      toIndex: -1,
+      willBecomeOrigin: false,
+      willBecomeDestination: false,
+    });
+  };
+
+  const handleRemoveStop = (index: number) => {
+    remove(index);
+
+    // Usar requestAnimationFrame en lugar de setTimeout
+    requestAnimationFrame(() => {
+      // ✅ Obtener el array ACTUALIZADO después de la eliminación
+      const currentStops = form.getValues("stops");
+
+      // ✅ Iterar solo sobre las paradas que REALMENTE existen
+      currentStops.forEach((_, idx) => {
+        form.setValue(`stops.${idx}.sequenceOrder`, idx);
+        updateStopTypeForPosition(idx);
+      });
+    });
+  };
+
+  const updateStopTypeForPosition = (index: number) => {
+    const currentStop = form.getValues(`stops.${index}`);
+    if (!currentStop) return;
+
+    let newTypes: TripStopFormValues["stopType"];
+
+    const currentStops = form.getValues("stops");
+
+    if (currentStops.length === 0 && index === 0) {
+      return;
+    }
+
+    if (index === 0 && currentStops.length > 0) {
+      // Primera parada: debe ser ORIGIN + solo PICKUP (carga)
+      newTypes = [StopType.ORIGIN, StopType.PICKUP];
+    }
+    // else if (isAddStop && index === fields.length) {
+    //   // Última parada al agregar: debe ser DESTINATION + solo DELIVERY (descarga)
+    //   newTypes = [StopType.DESTINATION, StopType.DELIVERY];
+    // }
+    else if (index === currentStops.length - 1 && currentStops.length > 0) {
+      // Última parada: debe ser DESTINATION + solo DELIVERY (descarga)
+      newTypes = [StopType.DESTINATION, StopType.DELIVERY];
+    } else {
+      // Parada intermedia: remover ORIGIN y DESTINATION, mantener operaciones existentes
+      newTypes = currentStop.stopType.filter(
+        (type) => type !== StopType.ORIGIN && type !== StopType.DESTINATION,
+      );
+
+      // Agregar WAYPOINT si no tiene ninguna categoría de posición
+      if (
+        !newTypes.includes(StopType.WAYPOINT) &&
+        !newTypes.includes(StopType.ORIGIN) &&
+        !newTypes.includes(StopType.DESTINATION)
+      ) {
+        newTypes = [StopType.WAYPOINT, ...newTypes];
+      }
+
+      // Si no tiene operaciones (pickup/delivery), mantener las que tenía
+      const hasOperations = newTypes.some(
+        (type) => type === StopType.PICKUP || type === StopType.DELIVERY,
+      );
+      if (!hasOperations) {
+        // Preservar las operaciones originales que no sean categorías
+        const originalOperations = currentStop.stopType.filter(
+          (type) =>
+            type !== StopType.ORIGIN &&
+            type !== StopType.DESTINATION &&
+            type !== StopType.WAYPOINT,
+        );
+        newTypes = [...newTypes, ...originalOperations];
+      }
+    }
+
+    form.setValue(`stops.${index}.stopType`, newTypes);
+  };
+
+  // Drag and drop handlers
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== index) {
-      handleMoveStop(draggedIndex, index);
-      setDraggedIndex(index);
-    }
   };
 
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== dropIndex) {
+      handleMoveStop(draggedIndex, dropIndex);
+    }
+    setDraggedIndex(null);
+  };
+
+  // Nuevo: Resetear draggedIndex cuando termine el drag, incluso si se suelta fuera
   const handleDragEnd = () => {
     setDraggedIndex(null);
   };
 
-  const getStopTypeInfo = (stopType: string) => {
-    return (
-      STOP_TYPE_OPTIONS.find((o) => o.value === stopType) ||
-      STOP_TYPE_OPTIONS[0]
-    );
+  const getStopIcon = (stopType: TripStopFormValues["stopType"]) => {
+    if (stopType.includes(StopType.ORIGIN)) return Navigation;
+    if (stopType.includes(StopType.DESTINATION)) return Flag;
+    return MapPin;
+  };
+
+  const getStopLabel = (stopType: TripStopFormValues["stopType"]) => {
+    const labels: string[] = [];
+
+    if (stopType.includes(StopType.ORIGIN)) labels.push("Origen");
+    if (stopType.includes(StopType.DESTINATION)) labels.push("Destino");
+    if (stopType.includes(StopType.WAYPOINT)) labels.push("Escala");
+    if (stopType.includes(StopType.PICKUP)) labels.push("Carga");
+    if (stopType.includes(StopType.DELIVERY)) labels.push("Descarga");
+
+    return labels.join(" + ");
+  };
+
+  const getStopTypeInfo = (type: string) => {
+    const category = STOP_CATEGORY_OPTIONS.find((opt) => opt.value === type);
+    if (category) {
+      return {
+        label: category.label,
+        icon: category.icon,
+        color: category.color,
+      };
+    }
+    const operation = STOP_OPERATION_OPTIONS.find((opt) => opt.value === type);
+    if (operation) {
+      return {
+        label: operation.label,
+        icon: operation.icon,
+        color: operation.color,
+      };
+    }
+    return { label: type, icon: MapPin, color: "text-gray-600" };
   };
 
   return (
-    <div className="space-y-6">
-      {/* Paradas */}
+    <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-blue-600" /> Paradas del Viaje
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Ruta del Viaje
           </CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAddStopDialogOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Agregar Parada
-          </Button>
         </CardHeader>
-        <CardContent>
-          {fields.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p className="font-medium">No hay paradas agregadas</p>
-              <p className="text-sm">
-                Agregue al menos el origen y destino del viaje
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => setIsAddStopDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Agregar Primera Parada
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {fields.map((field, index) => {
-                const isFirst = index === 0;
-                const isLast = index === fields.length - 1;
-                // const canMove = !isFirst && !isLast;
-                // const canDelete = !isFirst && !isLast;
-                const stopInfo = getStopTypeInfo(field.stopType);
-                const StopIcon = stopInfo.icon;
+        <CardContent className="space-y-4">
+          {/* Lista de paradas */}
+          <div className="space-y-2">
+            {fields.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No hay paradas agregadas</p>
+                <p className="text-sm">
+                  Agregue al menos una parada de origen y una de destino
+                </p>
+              </div>
+            )}
 
-                return (
-                  <div
-                    key={field.id}
-                    draggable={true}
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      "flex items-start gap-3 p-4 border rounded-lg transition-all",
-                      draggedIndex === index && "opacity-50 scale-95",
-                      "hover:shadow-md cursor-move bg-muted/30",
-                      isFirst && "border-green-200 bg-green-50/50",
-                      fields.length > 1 &&
-                        isLast &&
-                        "border-red-200 bg-red-50/50",
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-1 pt-1">
-                      {
-                        // canMove ? (
-                        <div className="flex flex-col">
-                          <button
-                            type="button"
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveStop(index, index - 1);
-                            }}
-                            disabled={isFirst}
-                            title="Mover arriba"
-                          >
-                            <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                          </button>
-                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                          <button
-                            type="button"
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveStop(index, index + 1);
-                            }}
-                            disabled={isLast}
-                            title="Mover abajo"
-                          >
-                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                          </button>
-                        </div>
-                        // ) : (
-                        // <StopIcon className={cn("h-6 w-6", stopInfo.color)} />
-                        // )
-                      }
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {index + 1}
-                      </span>
-                    </div>
+            {fields.map((field, index) => {
+              const stop = form.watch(`stops.${index}`);
 
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Mostrar múltiples badges para cada tipo de parada */}
-                        {Array.isArray(field.stopType) ? (
-                          field.stopType.map((type) => {
-                            const typeInfo = getStopTypeInfo(type);
-                            const TypeIcon = typeInfo.icon;
-                            return (
-                              <div
-                                key={type}
-                                className="flex items-center gap-1"
-                              >
-                                <TypeIcon
-                                  className={cn("h-4 w-4", typeInfo.color)}
-                                />
+              // Si stop es undefined, no renderizar nada
+              if (!stop || !stop.stopType) {
+                return null;
+              }
+
+              const Icon = getStopIcon(stop.stopType);
+
+              return (
+                <div
+                  key={field.id}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={cn(
+                    "flex items-start gap-3 p-4 border rounded-lg transition-all",
+                    draggedIndex === index && "opacity-50",
+                    "hover:shadow-md cursor-move",
+                    stop.stopType.includes(StopType.ORIGIN) &&
+                      "border-green-200 bg-green-50/50",
+                    stop.stopType.includes(StopType.DESTINATION) &&
+                      "border-red-200 bg-red-50/50",
+                  )}
+                >
+                  {/* Drag Handle */}
+                  <div className="flex flex-col items-center gap-1 pt-1">
+                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      #{index + 1}
+                    </span>
+                  </div>
+
+                  {/* Stop Icon */}
+                  <div className="pt-1">
+                    <Icon
+                      className={cn(
+                        "h-5 w-5",
+                        stop.stopType.includes(StopType.ORIGIN) &&
+                          "text-green-600",
+                        stop.stopType.includes(StopType.DESTINATION) &&
+                          "text-red-600",
+                        stop.stopType.includes(StopType.WAYPOINT) &&
+                          "text-gray-600",
+                      )}
+                    />
+                  </div>
+
+                  {/* Stop Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap gap-1">
+                          {Array.isArray(stop.stopType) ? (
+                            stop.stopType.map((type) => {
+                              const stopTypeInfo = getStopTypeInfo(type);
+
+                              return (
                                 <span
+                                  key={type}
                                   className={cn(
                                     "px-2 py-0.5 text-xs font-medium rounded",
                                     type === "origin" &&
@@ -382,204 +651,294 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                                       "bg-red-100 text-red-700",
                                   )}
                                 >
-                                  {typeInfo.label}
+                                  {stopTypeInfo.label}
                                 </span>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          // Fallback para compatibilidad con datos antiguos
-                          <>
-                            <StopIcon
-                              className={cn("h-5 w-5", stopInfo.color)}
-                            />
-                            <span
-                              className={cn(
-                                "px-2 py-0.5 text-xs font-medium rounded",
-                                field.stopType === "origin" &&
-                                  "bg-green-100 text-green-700",
-                                field.stopType === "pickup" &&
-                                  "bg-blue-100 text-blue-700",
-                                field.stopType === "delivery" &&
-                                  "bg-orange-100 text-orange-700",
-                                field.stopType === "waypoint" &&
-                                  "bg-gray-100 text-gray-700",
-                                field.stopType === "destination" &&
-                                  "bg-red-100 text-red-700",
-                              )}
-                            >
-                              {stopInfo.label}
+                              );
+                            })
+                          ) : (
+                            // <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {getStopLabel(stop.stopType)}
                             </span>
-                          </>
-                        )}
+                            // </div>
+                          )}
+                        </div>
 
-                        {field.locationName && (
-                          <span className="text-sm font-medium">
-                            {field.locationName}
-                          </span>
+                        {stop.locationName && (
+                          <p className="font-medium truncate">
+                            {stop.locationName}
+                          </p>
                         )}
+                        <p className="text-sm text-muted-foreground truncate">
+                          {stop.address}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {stop.city}
+                          {stop.state && `, ${stop.state}`}
+                        </p>
                       </div>
-                      <p className="text-sm font-medium">{field.address}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {field.city}
-                        {field.state && `, ${field.state}`}
-                      </p>
-                      {field.contactName && (
-                        <p className="text-xs text-muted-foreground">
-                          Contacto: {field.contactName}{" "}
-                          {field.contactPhone && `- ${field.contactPhone}`}
-                        </p>
-                      )}
-                      {field.notes && (
-                        <p className="text-xs text-muted-foreground italic">
-                          {field.notes}
-                        </p>
-                      )}
                     </div>
 
-                    {
-                      // canDelete && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveStop(index);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      // )
-                    }
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    {stop.contactName && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Contacto: {stop.contactName}
+                        {stop.contactPhone && ` · ${stop.contactPhone}`}
+                      </p>
+                    )}
 
-          {fields.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-              <p className="font-medium">💡 Información:</p>
-              <ul className="mt-1 ml-4 list-disc space-y-1">
-                <li>
-                  La primera parada es el <strong>origen</strong> del viaje
-                </li>
-                <li>
-                  La última parada es el <strong>destino</strong> del viaje
-                </li>
-                {/* <li>
-                  Puede agregar paradas intermedias de carga, descarga o escalas
-                </li>
-                <li>Las paradas intermedias se pueden reordenar</li> */}
-              </ul>
+                    {stop.notes && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        {stop.notes}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleMoveStop(index, index - 1)}
+                      disabled={index === 0}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleMoveStop(index, index + 1)}
+                      disabled={index === fields.length - 1}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveStop(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add Stop Buttons */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">
+              Agregar parada:
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {/* Botón Origen */}
+              <Button
+                type="button"
+                variant="outline"
+                className="flex flex-col items-center gap-1 h-auto py-3"
+                onClick={() => {
+                  setNewStop((prev) => ({
+                    ...prev,
+                    stopCategory: "origin",
+                    stopType: ["pickup" as any],
+                  }));
+                  setIsAddStopDialogOpen(true);
+                }}
+                disabled={hasStopCategory("origin")}
+              >
+                <Navigation className="h-5 w-5 text-green-600" />
+                <span className="text-xs">Origen</span>
+                {hasStopCategory("origin") && (
+                  <span className="text-xs text-muted-foreground">
+                    (Existe)
+                  </span>
+                )}
+              </Button>
+
+              {/* Botón Escala */}
+              <Button
+                type="button"
+                variant="outline"
+                className="flex flex-col items-center gap-1 h-auto py-3"
+                onClick={() => {
+                  setNewStop((prev) => ({
+                    ...prev,
+                    stopCategory: "waypoint",
+                    stopType: [],
+                  }));
+                  setIsAddStopDialogOpen(true);
+                }}
+              >
+                <MapPin className="h-5 w-5 text-gray-600" />
+                <span className="text-xs">Escala</span>
+              </Button>
+
+              {/* Botón Destino */}
+              <Button
+                type="button"
+                variant="outline"
+                className="flex flex-col items-center gap-1 h-auto py-3"
+                onClick={() => {
+                  setNewStop((prev) => ({
+                    ...prev,
+                    stopCategory: "destination",
+                    stopType: ["delivery" as any],
+                  }));
+                  setIsAddStopDialogOpen(true);
+                }}
+                disabled={hasStopCategory("destination")}
+              >
+                <Flag className="h-5 w-5 text-red-600" />
+                <span className="text-xs">Destino</span>
+                {hasStopCategory("destination") && (
+                  <span className="text-xs text-muted-foreground">
+                    (Existe)
+                  </span>
+                )}
+              </Button>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              Solo puede existir un origen y un destino. Puede agregar múltiples
+              escalas.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Dialog para agregar parada */}
+      {/* Add Stop Dialog */}
       <Dialog open={isAddStopDialogOpen} onOpenChange={setIsAddStopDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {
-                // fields.length === 0
-                //   ? "Agregar Origen"
-                //   : fields.length === 1
-                //     ? "Agregar Destino"
-                //     :
-                "Agregar Parada"
-              }
+              Agregar Nueva Parada:{" "}
+              {newStop.stopCategory === "origin" && "Origen"}
+              {newStop.stopCategory === "waypoint" && "Escala"}
+              {newStop.stopCategory === "destination" && "Destino"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Tipo de Parada *</label>
-              <div className="space-y-2">
-                {(() => {
-                  // Determinar posición de la nueva parada
-                  let position: "first" | "last" | "middle";
-                  if (fields.length === 0) {
-                    position = "first";
-                  } else if (fields.length === 1) {
-                    position = "last";
-                  } else {
-                    position = "middle";
-                  }
-
-                  // Obtener tipos disponibles según la posición
-                  const availableTypes = getAvailableStopTypes(position);
-
-                  return availableTypes.map((option) => {
-                    const Icon = option.icon;
-                    const isChecked =
-                      newStop.stopType?.includes(
-                        option.value as TripStopFormValues["stopType"][number],
-                      ) || false;
-
-                    return (
-                      <div
-                        key={option.value}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`stopType-${option.value}`}
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            const currentTypes = newStop.stopType || [];
-                            let newTypes: typeof currentTypes;
-
-                            if (checked) {
-                              // Agregar el tipo si no existe
-                              newTypes = [
-                                ...currentTypes,
-                                option.value as TripStopFormValues["stopType"][number],
-                              ];
-                            } else {
-                              // Remover el tipo
-                              newTypes = currentTypes.filter(
-                                (t) => t !== option.value,
-                              );
-                            }
-
-                            setNewStop({
-                              ...newStop,
-                              stopType: newTypes,
-                            });
-                          }}
-                        />
-                        <label
-                          htmlFor={`stopType-${option.value}`}
-                          className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          <Icon className={cn("h-4 w-4", option.color)} />
-                          {option.label}
-                        </label>
-                      </div>
-                    );
-                  });
-                })()}
+          <div className="space-y-4">
+            {/* Información del Tipo de Parada (Solo lectura) */}
+            <div className="p-4 border-2 border-primary/20 bg-primary/5 rounded-lg">
+              <div className="flex items-center gap-3">
+                {newStop.stopCategory === "origin" && (
+                  <>
+                    <Navigation className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="font-medium text-sm">Parada de Origen</p>
+                      <p className="text-xs text-muted-foreground">
+                        Solo permite operación de carga (por defecto)
+                      </p>
+                    </div>
+                  </>
+                )}
+                {newStop.stopCategory === "waypoint" && (
+                  <>
+                    <MapPin className="h-6 w-6 text-gray-600" />
+                    <div>
+                      <p className="font-medium text-sm">
+                        Parada Intermedia (Escala)
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Puede realizar carga, descarga o ambas operaciones
+                      </p>
+                    </div>
+                  </>
+                )}
+                {newStop.stopCategory === "destination" && (
+                  <>
+                    <Flag className="h-6 w-6 text-red-600" />
+                    <div>
+                      <p className="font-medium text-sm">Parada de Destino</p>
+                      <p className="text-xs text-muted-foreground">
+                        Solo permite operación de descarga (por defecto)
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {fields.length === 0 &&
-                  "Primera parada: Seleccione Origen y/o Carga"}
-                {fields.length === 1 &&
-                  "Última parada: Seleccione Destino y/o Descarga"}
-                {fields.length > 1 &&
-                  "Parada intermedia: Seleccione Carga, Descarga y/o Escala"}
-              </p>
             </div>
 
-            {/* {fields.length < 2 && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                {fields.length === 0
-                  ? "Esta será la parada de origen del viaje"
-                  : "Esta será la parada de destino del viaje"}
+            {/* Operaciones en la Parada */}
+            {newStop.stopCategory && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium">
+                  Operaciones en esta Parada *{" "}
+                  <span className="text-muted-foreground font-normal">
+                    {newStop.stopCategory === "origin" && "(solo carga)"}
+                    {newStop.stopCategory === "destination" &&
+                      "(solo descarga)"}
+                    {newStop.stopCategory === "waypoint" &&
+                      "(carga y/o descarga)"}
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {getAvailableOperations(newStop.stopCategory).map(
+                    (option) => {
+                      const Icon = option.icon;
+                      const isChecked =
+                        newStop.stopType?.includes(option.value as any) ??
+                        false;
+
+                      return (
+                        <div
+                          key={option.value}
+                          className={cn(
+                            "flex items-center gap-3 p-3 border rounded-lg",
+                            isChecked && "border-primary bg-primary/5",
+                          )}
+                        >
+                          <Checkbox
+                            id={`operation-${option.value}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const currentTypes = newStop.stopType || [];
+                              let newTypes: typeof currentTypes;
+
+                              if (checked) {
+                                newTypes = [
+                                  ...currentTypes,
+                                  option.value as TripStopFormValues["stopType"][number],
+                                ];
+                              } else {
+                                newTypes = currentTypes.filter(
+                                  (t) => t !== option.value,
+                                );
+                              }
+
+                              setNewStop({
+                                ...newStop,
+                                stopType: newTypes,
+                              });
+                            }}
+                          />
+                          <label
+                            htmlFor={`operation-${option.value}`}
+                            className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            <Icon className={cn("h-4 w-4", option.color)} />
+                            {option.label}
+                          </label>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {newStop.stopCategory === "origin" &&
+                    "En el origen solo se permite carga de mercancía (por defecto)"}
+                  {newStop.stopCategory === "destination" &&
+                    "En el destino solo se permite descarga de mercancía (por defecto)"}
+                  {newStop.stopCategory === "waypoint" &&
+                    "En escalas puede realizar carga, descarga o ambas operaciones"}
+                </p>
               </div>
-            )} */}
+            )}
 
             {/* Selector de Cliente */}
             <div className="space-y-2">
@@ -744,20 +1103,114 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsAddStopDialogOpen(false)}
+              onClick={() => {
+                setNewStop({
+                  stopCategory: undefined,
+                  stopType: [],
+                  clientId: "",
+                  clientAddressId: "",
+                  address: "",
+                  city: "",
+                  state: "",
+                  contactName: "",
+                  contactPhone: "",
+                  notes: "",
+                });
+                setIsAddStopDialogOpen(false);
+              }}
             >
               Cancelar
             </Button>
             <Button
               type="button"
               onClick={handleAddStop}
-              disabled={!newStop.address || !newStop.city}
+              disabled={
+                !newStop.address ||
+                !newStop.city ||
+                !newStop.stopCategory ||
+                !newStop.stopType ||
+                newStop.stopType.length === 0
+              }
             >
               Agregar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog para confirmar cambio de tipo de parada en drag & drop */}
+      <AlertDialog
+        open={dragDropConfirmation.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelDragDropChange();
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <AlertDialogTitle>
+                Confirmar Cambio de Tipo de Parada
+              </AlertDialogTitle>
+            </div>
+          </AlertDialogHeader>
+          <div className="space-y-3 pt-2 px-6">
+            {dragDropConfirmation.willBecomeOrigin && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Navigation className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-sm text-green-900">
+                      Esta parada se convertirá en ORIGEN
+                    </div>
+                    <div className="text-xs text-green-700 mt-1">
+                      • El tipo de operación cambiará automáticamente a:{" "}
+                      <strong>Carga (Pickup)</strong>
+                    </div>
+                    <div className="text-xs text-green-700">
+                      • Se removerá cualquier operación de descarga existente
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {dragDropConfirmation.willBecomeDestination && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Flag className="h-5 w-5 text-red-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-sm text-red-900">
+                      Esta parada se convertirá en DESTINO
+                    </div>
+                    <div className="text-xs text-red-700 mt-1">
+                      • El tipo de operación cambiará automáticamente a:{" "}
+                      <strong>Descarga (Delivery)</strong>
+                    </div>
+                    <div className="text-xs text-red-700">
+                      • Se removerá cualquier operación de carga existente
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground mt-2">
+              ¿Desea continuar con este cambio?
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDragDropChange}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDragDropChange}>
+              Confirmar Cambio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
