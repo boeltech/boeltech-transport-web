@@ -14,12 +14,14 @@ import {
   type TripListItem,
   type TripQueryParams,
   type PaginatedList,
+} from "@features/trips/domain/entities";
+import {
   type CreateTripDTO,
   type UpdateTripDTO,
   type UpdateTripStatusDTO,
   type FinishTripDTO,
   type ITripRepository,
-} from "@features/trips/domain";
+} from "@features/trips/domain/repository";
 import {
   mapTrip,
   mapPaginatedTripListItems,

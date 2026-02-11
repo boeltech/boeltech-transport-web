@@ -2,10 +2,11 @@
  * Trip Mappers
  * Clean Architecture - Infrastructure Layer
  *
- * ACTUALIZADO: Alineado con la estructura real del Backend
+ * ACTUALIZADO: Modelo Carga → Movimientos
+ * - ApiCreateCargoRequest ahora envía movements[] en lugar de pickupStopIndex/deliveryStopIndex
+ * - toApiCreateCargo mapea movements correctamente
  *
  * Transforman datos entre el formato de la API y las entidades del dominio.
- * Esto mantiene el dominio independiente del formato de datos externo.
  */
 
 import {
@@ -24,21 +25,22 @@ import {
   type TripStatusType,
   type StopTypeValue,
   type StopStatusValue,
+} from "@features/trips/domain/entities";
+
+import {
   type CreateTripDTO,
   type CreateTripStopDTO,
   type CreateTripCargoDTO,
   type CreateTripExpenseDTO,
+  type CreateCargoMovementDTO,
   type UpdateTripStatusDTO,
   type FinishTripDTO,
-} from "@features/trips/domain";
+} from "@features/trips/domain/repository";
 
 // ============================================================================
 // API RESPONSE TYPES - Estructura del Backend (snake_case)
 // ============================================================================
 
-/**
- * Respuesta de la API para un viaje en listado
- */
 export interface ApiTripListItemResponse {
   id: string;
   trip_code: string;
@@ -59,9 +61,6 @@ export interface ApiTripListItemResponse {
   created_at: string;
 }
 
-/**
- * Respuesta de la API para un viaje completo
- */
 export interface ApiTripResponse {
   id: string;
   tenant_id: string;
@@ -98,7 +97,6 @@ export interface ApiTripResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
-  // Relaciones opcionales
   vehicle?: ApiVehicleResponse;
   driver?: ApiDriverResponse;
   client?: ApiClientResponse | null;
@@ -106,34 +104,22 @@ export interface ApiTripResponse {
   status_history?: ApiStatusHistoryResponse[];
 }
 
-/**
- * Respuesta de vehículo de la API
- */
 export interface ApiVehicleResponse {
   id: string;
   unit_number: string;
   license_plate: string;
 }
 
-/**
- * Respuesta de conductor de la API
- */
 export interface ApiDriverResponse {
   id: string;
   full_name: string;
 }
 
-/**
- * Respuesta de cliente de la API
- */
 export interface ApiClientResponse {
   id: string;
   legal_name: string;
 }
 
-/**
- * Respuesta de parada de la API
- */
 export interface ApiTripStopResponse {
   id: string;
   tenant_id: string;
@@ -162,9 +148,6 @@ export interface ApiTripStopResponse {
   updated_at: string;
 }
 
-/**
- * Respuesta de historial de estado de la API
- */
 export interface ApiStatusHistoryResponse {
   id: string;
   trip_id: string;
@@ -179,9 +162,6 @@ export interface ApiStatusHistoryResponse {
   reason: string | null;
 }
 
-/**
- * Respuesta paginada de la API
- */
 export interface ApiPaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -196,9 +176,6 @@ export interface ApiPaginatedResponse<T> {
 // API REQUEST TYPES - Estructura para enviar al Backend
 // ============================================================================
 
-/**
- * Request para crear un viaje
- */
 export interface ApiCreateTripRequest {
   vehicleId: string;
   driverId: string;
@@ -224,12 +201,9 @@ export interface ApiCreateTripRequest {
   expenses?: ApiCreateExpenseRequest[];
 }
 
-/**
- * Request para crear una parada
- */
 export interface ApiCreateStopRequest {
   sequenceOrder: number;
-  stopType: string;
+  stopType: string | string[];
   address: string;
   city: string;
   state?: string;
@@ -247,7 +221,19 @@ export interface ApiCreateStopRequest {
 }
 
 /**
+ * Request para un movimiento de carga
+ */
+export interface ApiCreateCargoMovementRequest {
+  stopIndex: number;
+  movementType: string;
+  weight?: number;
+  units?: number;
+  notes?: string;
+}
+
+/**
  * Request para crear una carga
+ * ACTUALIZADO: Usa movements[] en lugar de pickupStopIndex/deliveryStopIndex
  */
 export interface ApiCreateCargoRequest {
   clientId: string;
@@ -259,15 +245,11 @@ export interface ApiCreateCargoRequest {
   declaredValue?: number;
   rate: number;
   currency?: string;
-  pickupStopIndex?: number;
-  deliveryStopIndex?: number;
+  movements: ApiCreateCargoMovementRequest[];
   notes?: string;
   specialInstructions?: string;
 }
 
-/**
- * Request para crear un gasto
- */
 export interface ApiCreateExpenseRequest {
   category: string;
   description: string;
@@ -280,9 +262,6 @@ export interface ApiCreateExpenseRequest {
   isEstimated?: boolean;
 }
 
-/**
- * Request para actualizar estado
- */
 export interface ApiUpdateStatusRequest {
   status: string;
   mileage?: number;
@@ -291,9 +270,6 @@ export interface ApiUpdateStatusRequest {
   reason?: string;
 }
 
-/**
- * Request para finalizar viaje
- */
 export interface ApiFinishTripRequest {
   endMileage: number;
   actualArrival: string;
@@ -307,18 +283,12 @@ export interface ApiFinishTripRequest {
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Convierte un valor a número de forma segura
- */
 function toNumber(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
   const num = typeof value === "string" ? parseFloat(value) : value;
   return isNaN(num) ? null : num;
 }
 
-/**
- * Convierte un valor a número con valor por defecto
- */
 function toNumberOrDefault(
   value: string | number | null | undefined,
   defaultValue: number = 0,
@@ -327,32 +297,20 @@ function toNumberOrDefault(
   return num ?? defaultValue;
 }
 
-/**
- * Convierte una fecha de string a Date de forma segura
- */
 function toDate(value: string | null | undefined): Date | null {
   if (!value) return null;
   const date = new Date(value);
   return isNaN(date.getTime()) ? null : date;
 }
 
-/**
- * Convierte una fecha de string a Date (requerida)
- */
 function toDateRequired(value: string): Date {
   return new Date(value);
 }
 
-/**
- * Convierte Date o string a string ISO
- */
 function toISOString(value: Date | string): string {
   return typeof value === "string" ? value : value.toISOString();
 }
 
-/**
- * Convierte Date o string a string ISO (opcional)
- */
 function toISOStringOptional(
   value: Date | string | undefined,
 ): string | undefined {
@@ -364,9 +322,6 @@ function toISOStringOptional(
 // MAPPERS - API Response to Domain Entity
 // ============================================================================
 
-/**
- * Mapea respuesta de vehículo de API a entidad de dominio
- */
 export function mapVehicleRef(api: ApiVehicleResponse): VehicleRef {
   return {
     id: api.id,
@@ -375,9 +330,6 @@ export function mapVehicleRef(api: ApiVehicleResponse): VehicleRef {
   };
 }
 
-/**
- * Mapea respuesta de conductor de API a entidad de dominio
- */
 export function mapDriverRef(api: ApiDriverResponse): DriverRef {
   return {
     id: api.id,
@@ -385,9 +337,6 @@ export function mapDriverRef(api: ApiDriverResponse): DriverRef {
   };
 }
 
-/**
- * Mapea respuesta de cliente de API a entidad de dominio
- */
 export function mapClientRef(api: ApiClientResponse): ClientRef {
   return {
     id: api.id,
@@ -395,9 +344,6 @@ export function mapClientRef(api: ApiClientResponse): ClientRef {
   };
 }
 
-/**
- * Mapea respuesta de parada de API a entidad de dominio
- */
 export function mapTripStop(api: ApiTripStopResponse): TripStop {
   return {
     id: api.id,
@@ -428,9 +374,6 @@ export function mapTripStop(api: ApiTripStopResponse): TripStop {
   };
 }
 
-/**
- * Mapea respuesta de historial de estado a entidad de dominio
- */
 export function mapStatusHistory(
   api: ApiStatusHistoryResponse,
 ): TripStatusHistory {
@@ -449,12 +392,8 @@ export function mapStatusHistory(
   };
 }
 
-/**
- * Mapea respuesta de item de lista a entidad de dominio
- */
 export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
   const totalCost = toNumberOrDefault(api.total_cost);
-  // Valores por defecto para campos nuevos (el backend puede no enviarlos aún)
   const totalRevenue = 0; // TODO: Agregar cuando el backend lo soporte
   const estimatedProfit = totalRevenue - totalCost;
 
@@ -485,15 +424,12 @@ export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
     totalCost,
     totalRevenue,
     estimatedProfit,
-    cargoCount: 0, // TODO: Agregar cuando el backend lo soporte
+    cargoCount: 0,
     clientCount: api.client_id ? 1 : 0,
     createdAt: toDateRequired(api.created_at),
   };
 }
 
-/**
- * Mapea respuesta de viaje completo de API a entidad de dominio
- */
 export function mapTrip(api: ApiTripResponse): Trip {
   const mileage: Mileage = {
     start: api.start_mileage,
@@ -536,8 +472,8 @@ export function mapTrip(api: ApiTripResponse): Trip {
     destinationState: api.destination_state,
     cargo,
     costs,
-    detailedCosts: null, // TODO: Agregar cuando el backend lo soporte
-    profitability: null, // TODO: Agregar cuando el backend lo soporte
+    detailedCosts: null,
+    profitability: null,
     status: api.status as TripStatusType,
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
@@ -545,7 +481,6 @@ export function mapTrip(api: ApiTripResponse): Trip {
     updatedAt: toDateRequired(api.updated_at),
     createdBy: api.created_by,
     updatedBy: api.updated_by,
-    // Relaciones opcionales
     vehicle: api.vehicle ? mapVehicleRef(api.vehicle) : undefined,
     driver: api.driver ? mapDriverRef(api.driver) : undefined,
     client: api.client ? mapClientRef(api.client) : undefined,
@@ -558,9 +493,6 @@ export function mapTrip(api: ApiTripResponse): Trip {
   return trip;
 }
 
-/**
- * Mapea respuesta paginada de API a formato de dominio (para listados)
- */
 export function mapPaginatedTripListItems(
   api: ApiPaginatedResponse<ApiTripListItemResponse>,
 ): PaginatedList<TripListItem> {
@@ -577,9 +509,6 @@ export function mapPaginatedTripListItems(
   };
 }
 
-/**
- * Mapea respuesta paginada de viajes completos
- */
 export function mapPaginatedTrips(
   api: ApiPaginatedResponse<ApiTripResponse>,
 ): PaginatedList<Trip> {
@@ -600,9 +529,6 @@ export function mapPaginatedTrips(
 // REVERSE MAPPERS - Domain to API Request
 // ============================================================================
 
-/**
- * Prepara datos de creación de viaje para API
- */
 export function toApiCreateTrip(data: CreateTripDTO): ApiCreateTripRequest {
   return {
     vehicleId: data.vehicleId,
@@ -630,9 +556,6 @@ export function toApiCreateTrip(data: CreateTripDTO): ApiCreateTripRequest {
   };
 }
 
-/**
- * Prepara datos de creación de parada para API
- */
 export function toApiCreateStop(data: CreateTripStopDTO): ApiCreateStopRequest {
   return {
     sequenceOrder: data.sequenceOrder,
@@ -655,22 +578,8 @@ export function toApiCreateStop(data: CreateTripStopDTO): ApiCreateStopRequest {
 }
 
 /**
- * Prepara datos de actualización de estado para API
- */
-export function toApiUpdateStatus(
-  data: UpdateTripStatusDTO,
-): ApiUpdateStatusRequest {
-  return {
-    status: data.status,
-    mileage: data.mileage,
-    latitude: data.latitude,
-    longitude: data.longitude,
-    reason: data.reason,
-  };
-}
-
-/**
  * Prepara datos de creación de carga para API
+ * ACTUALIZADO: Envía movements[] en lugar de pickupStopIndex/deliveryStopIndex
  */
 export function toApiCreateCargo(
   data: CreateTripCargoDTO,
@@ -685,16 +594,20 @@ export function toApiCreateCargo(
     declaredValue: data.declaredValue,
     rate: data.rate,
     currency: data.currency,
-    pickupStopIndex: data.pickupStopIndex,
-    deliveryStopIndex: data.deliveryStopIndex,
+    movements: data.movements.map(
+      (m: CreateCargoMovementDTO): ApiCreateCargoMovementRequest => ({
+        stopIndex: m.stopIndex,
+        movementType: m.movementType,
+        weight: m.weight,
+        units: m.units,
+        notes: m.notes,
+      }),
+    ),
     notes: data.notes,
     specialInstructions: data.specialInstructions,
   };
 }
 
-/**
- * Prepara datos de creación de gasto para API
- */
 export function toApiCreateExpense(
   data: CreateTripExpenseDTO,
 ): ApiCreateExpenseRequest {
@@ -711,9 +624,18 @@ export function toApiCreateExpense(
   };
 }
 
-/**
- * Prepara datos de finalización de viaje para API
- */
+export function toApiUpdateStatus(
+  data: UpdateTripStatusDTO,
+): ApiUpdateStatusRequest {
+  return {
+    status: data.status,
+    mileage: data.mileage,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    reason: data.reason,
+  };
+}
+
 export function toApiFinishTrip(data: FinishTripDTO): ApiFinishTripRequest {
   return {
     endMileage: data.endMileage,

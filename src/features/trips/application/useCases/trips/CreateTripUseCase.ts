@@ -2,25 +2,25 @@
  * Create Trip Use Case
  * Clean Architecture - Application Layer
  *
- * ACTUALIZADO: Alineado con el Backend
- * - El tripCode lo genera el backend automáticamente
- * - Los campos siguen la nomenclatura del backend
- * - Mapeo completo de errores del backend a mensajes en español
- * - Soporte para AxiosError
- *
- * Los casos de uso orquestan la lógica de negocio.
- * Coordinan entre el dominio y la infraestructura.
+ * ACTUALIZADO: Modelo Carga → Movimientos
+ * - CreateTripCargoInput usa movements[] en lugar de pickupStopIndex/deliveryStopIndex
+ * - Validaciones de negocio para movimientos (pickup obligatorio, entregas parciales)
  */
+
+import {
+  type CargoMovementTypeValue,
+  type StopTypeValue,
+} from "@features/trips/domain/entities";
 
 import {
   type CreateTripDTO,
   type CreateTripStopDTO,
   type CreateTripCargoDTO,
   type CreateTripExpenseDTO,
+  type CreateCargoMovementDTO,
   type ITripRepository,
-  type StopTypeValue,
   type ExpenseCategoryValue,
-} from "@features/trips/domain";
+} from "@features/trips/domain/repository";
 
 import { mapBackendError, type MappedError } from "@shared/utils/errorMapper";
 
@@ -28,12 +28,20 @@ import { mapBackendError, type MappedError } from "@shared/utils/errorMapper";
 // TYPES
 // ============================================================================
 
-/**
- * Resultado del caso de uso
- */
 export type UseCaseResult<T> =
   | { success: true; data: T }
   | { success: false; error: MappedError };
+
+/**
+ * Input para un movimiento de carga
+ */
+export interface CreateCargoMovementInput {
+  stopIndex: number;
+  movementType: CargoMovementTypeValue;
+  weight?: number;
+  units?: number;
+  notes?: string;
+}
 
 /**
  * Input para crear un viaje
@@ -74,7 +82,7 @@ export interface CreateTripInput {
  */
 export interface CreateTripStopInput {
   sequenceOrder: number;
-  stopType: StopTypeValue;
+  stopType: StopTypeValue | StopTypeValue[];
   address: string;
   city: string;
   state?: string;
@@ -93,6 +101,7 @@ export interface CreateTripStopInput {
 
 /**
  * Input para crear una carga
+ * ACTUALIZADO: Usa movements[] en lugar de pickupStopIndex/deliveryStopIndex
  */
 export interface CreateTripCargoInput {
   clientId: string;
@@ -104,8 +113,7 @@ export interface CreateTripCargoInput {
   declaredValue?: number;
   rate: number;
   currency?: string;
-  pickupStopIndex?: number;
-  deliveryStopIndex?: number;
+  movements: CreateCargoMovementInput[];
   notes?: string;
   specialInstructions?: string;
 }
@@ -156,7 +164,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     input: CreateTripInput,
   ): Promise<UseCaseResult<CreateTripResponse>> {
     try {
-      // Validaciones de negocio del lado del cliente
       const validationError = this.validateInput(input);
       if (validationError) {
         return {
@@ -165,10 +172,7 @@ export class CreateTripUseCase implements ICreateTripUseCase {
         };
       }
 
-      // Preparar DTO para el repositorio
       const createDTO = this.mapInputToDTO(input);
-
-      // Crear el viaje (el backend genera el tripCode)
       const trip = await this.repository.create(createDTO);
 
       return {
@@ -179,7 +183,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
         },
       };
     } catch (error) {
-      // Mapear el error del backend (soporta AxiosError)
       const mappedError = mapBackendError(error);
 
       console.error("[CreateTripUseCase] Error:", {
@@ -242,7 +245,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       };
     }
 
-    // Validar que llegada sea después de salida si se proporciona
     if (input.scheduledArrival) {
       const arrivalDate =
         typeof input.scheduledArrival === "string"
@@ -257,18 +259,10 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       }
     }
 
-    // Validar valores numéricos positivos
     if (input.startMileage !== undefined && input.startMileage < 0) {
       return {
         code: "INVALID_MILEAGE",
         message: "El kilometraje inicial no puede ser negativo",
-      };
-    }
-
-    if (input.cargoWeight !== undefined && input.cargoWeight < 0) {
-      return {
-        code: "INVALID_CARGO_WEIGHT",
-        message: "El peso de la carga no puede ser negativo",
       };
     }
 
@@ -277,6 +271,75 @@ export class CreateTripUseCase implements ICreateTripUseCase {
         code: "INVALID_BASE_RATE",
         message: "La tarifa base no puede ser negativa",
       };
+    }
+
+    // Validar movimientos de cargas
+    if (input.cargos && input.cargos.length > 0) {
+      for (let i = 0; i < input.cargos.length; i++) {
+        const cargo = input.cargos[i];
+
+        if (!cargo.movements || cargo.movements.length === 0) {
+          return {
+            code: "CARGO_MISSING_MOVEMENTS",
+            message: `La carga "${cargo.description}" debe tener al menos un movimiento de carga (pickup)`,
+          };
+        }
+
+        const hasPickup = cargo.movements.some(
+          (m) => m.movementType === "pickup",
+        );
+        if (!hasPickup) {
+          return {
+            code: "CARGO_MISSING_PICKUP",
+            message: `La carga "${cargo.description}" debe tener al menos un punto de recogida (pickup)`,
+          };
+        }
+
+        // Validar que delivery stops estén después del pickup stop
+        const pickupStop = cargo.movements.find(
+          (m) => m.movementType === "pickup",
+        );
+        const deliveries = cargo.movements.filter(
+          (m) => m.movementType === "delivery",
+        );
+
+        for (const delivery of deliveries) {
+          if (pickupStop && delivery.stopIndex <= pickupStop.stopIndex) {
+            return {
+              code: "INVALID_DELIVERY_ORDER",
+              message: `La carga "${cargo.description}" tiene un punto de entrega anterior o igual al punto de recogida`,
+            };
+          }
+        }
+
+        // Validar concordancia de peso
+        if (deliveries.length > 0 && cargo.weight != null && cargo.weight > 0) {
+          const totalDeliveryWeight = deliveries.reduce(
+            (sum, d) => sum + (d.weight || 0),
+            0,
+          );
+          if (totalDeliveryWeight > cargo.weight) {
+            return {
+              code: "DELIVERY_WEIGHT_EXCEEDS",
+              message: `La carga "${cargo.description}": el peso de entregas (${totalDeliveryWeight} kg) excede el peso de la carga (${cargo.weight} kg)`,
+            };
+          }
+        }
+
+        // Validar concordancia de unidades
+        if (deliveries.length > 0 && cargo.units != null && cargo.units > 0) {
+          const totalDeliveryUnits = deliveries.reduce(
+            (sum, d) => sum + (d.units || 0),
+            0,
+          );
+          if (totalDeliveryUnits > cargo.units) {
+            return {
+              code: "DELIVERY_UNITS_EXCEEDS",
+              message: `La carga "${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
+            };
+          }
+        }
+      }
     }
 
     return null;
@@ -319,9 +382,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     };
   }
 
-  /**
-   * Mapea el input de parada al DTO
-   */
   private mapStopInputToDTO(stop: CreateTripStopInput): CreateTripStopDTO {
     return {
       sequenceOrder: stop.sequenceOrder,
@@ -347,9 +407,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     };
   }
 
-  /**
-   * Mapea el input de carga al DTO
-   */
   private mapCargoInputToDTO(cargo: CreateTripCargoInput): CreateTripCargoDTO {
     return {
       clientId: cargo.clientId,
@@ -361,16 +418,20 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       declaredValue: cargo.declaredValue,
       rate: cargo.rate,
       currency: cargo.currency,
-      pickupStopIndex: cargo.pickupStopIndex,
-      deliveryStopIndex: cargo.deliveryStopIndex,
+      movements: cargo.movements.map(
+        (m): CreateCargoMovementDTO => ({
+          stopIndex: m.stopIndex,
+          movementType: m.movementType,
+          weight: m.weight,
+          units: m.units,
+          notes: m.notes,
+        }),
+      ),
       notes: cargo.notes,
       specialInstructions: cargo.specialInstructions,
     };
   }
 
-  /**
-   * Mapea el input de gasto al DTO
-   */
   private mapExpenseInputToDTO(
     expense: CreateTripExpenseInput,
   ): CreateTripExpenseDTO {

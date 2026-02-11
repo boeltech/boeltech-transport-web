@@ -1,6 +1,10 @@
 /**
  * Types for Trip Wizard
  * Tipos compartidos entre los componentes del wizard
+ *
+ * ACTUALIZADO: Modelo Carga → Movimientos
+ * - tripCargoSchema usa movements[] en lugar de pickupStopIndex/deliveryStopIndex
+ * - cargoMovementSchema define pickup/delivery parciales
  */
 
 import { z } from "zod";
@@ -11,18 +15,18 @@ import { z } from "zod";
 
 /**
  * Schema para una parada del viaje
- * ACTUALIZADO: stopType ahora es un array
+ * stopType es un array que combina categoría + operaciones
  */
 export const tripStopSchema = z.object({
-  id: z.string().optional(), // Para edición
+  id: z.string().optional(),
   sequenceOrder: z.number().min(0),
   stopType: z
     .array(z.enum(["origin", "pickup", "delivery", "waypoint", "destination"]))
     .min(1, "Debe seleccionar al menos un tipo de parada"),
 
   // Asociación con cliente y dirección
-  clientId: z.string().optional(), // Cliente asociado a esta parada
-  clientAddressId: z.string().optional(), // Dirección del cliente
+  clientId: z.string().optional(),
+  clientAddressId: z.string().optional(),
 
   address: z.string().min(1, "Dirección requerida"),
   city: z.string().min(1, "Ciudad requerida"),
@@ -38,10 +42,29 @@ export const tripStopSchema = z.object({
 });
 
 /**
+ * Schema para un movimiento de carga (pickup o delivery parcial/total)
+ * Conecta una carga con una parada específica.
+ *
+ * - pickup:  la mercancía se recoge en esta parada
+ * - delivery: la mercancía (parcial o total) se entrega en esta parada
+ */
+export const cargoMovementSchema = z.object({
+  stopIndex: z.number().min(0, "Parada requerida"),
+  movementType: z.enum(["pickup", "delivery"]),
+  weight: z.coerce.number().min(0).optional(),
+  units: z.coerce.number().min(0).optional(),
+  notes: z.string().optional(),
+});
+
+/**
  * Schema para una carga
+ *
+ * El array `movements` reemplaza a pickupStopIndex / deliveryStopIndex.
+ * Cada carga debe tener al menos 1 movimiento de tipo "pickup".
+ * Puede tener 0..N movimientos de tipo "delivery" (entregas parciales).
  */
 export const tripCargoSchema = z.object({
-  id: z.string().optional(), // Para edición
+  id: z.string().optional(),
   clientId: z.string().min(1, "Cliente requerido"),
   description: z.string().min(1, "Descripción requerida"),
   productType: z.string().optional(),
@@ -51,8 +74,9 @@ export const tripCargoSchema = z.object({
   declaredValue: z.coerce.number().min(0).optional(),
   rate: z.coerce.number().min(0, "Tarifa requerida"),
   currency: z.string().default("MXN"),
-  pickupStopIndex: z.number().optional(), // Índice de la parada de recogida
-  deliveryStopIndex: z.number().optional(), // Índice de la parada de entrega
+  movements: z
+    .array(cargoMovementSchema)
+    .min(1, "Debe asignar al menos un punto de carga"),
   notes: z.string().optional(),
   specialInstructions: z.string().optional(),
 });
@@ -61,7 +85,7 @@ export const tripCargoSchema = z.object({
  * Schema para un gasto/costo
  */
 export const tripExpenseSchema = z.object({
-  id: z.string().optional(), // Para edición
+  id: z.string().optional(),
   category: z.enum([
     "fuel",
     "tolls",
@@ -81,7 +105,7 @@ export const tripExpenseSchema = z.object({
   location: z.string().optional(),
   vendorName: z.string().optional(),
   notes: z.string().optional(),
-  isEstimated: z.boolean().default(true), // true = estimado, false = real
+  isEstimated: z.boolean().default(true),
 });
 
 /**
@@ -96,9 +120,9 @@ export const tripWizardFormSchema = z
     scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
     scheduledArrival: z.string().optional(),
     startMileage: z.coerce.number("Kilometraje inicial requerido"),
-    vehicleCurrentMileage: z.number().optional(), // Kilometraje actual del vehículo (para validación)
+    vehicleCurrentMileage: z.number().optional(),
 
-    // Paso 2: Ruta (paradas: primera = origen, última = destino)
+    // Paso 2: Ruta
     stops: z
       .array(tripStopSchema)
       .min(2, "Debe agregar al menos origen y destino")
@@ -109,7 +133,7 @@ export const tripWizardFormSchema = z
 
     // Paso 4: Costos
     expenses: z.array(tripExpenseSchema).default([]),
-    baseRate: z.coerce.number().min(0).optional(), // Tarifa base del viaje
+    baseRate: z.coerce.number().min(0).optional(),
 
     // Notas generales
     notes: z.string().max(1000).optional(),
@@ -138,7 +162,6 @@ export const tripWizardFormSchema = z
   )
   .refine(
     (data) => {
-      // Validar que el kilometraje inicial no sea menor al kilometraje actual del vehículo
       if (
         data.startMileage !== undefined &&
         data.vehicleCurrentMileage !== undefined
@@ -155,15 +178,11 @@ export const tripWizardFormSchema = z
   )
   .refine(
     (data) => {
-      // Validar que la primera parada incluya "origin" o "pickup"
       if (data.stops.length > 0) {
         const firstStopTypes = data.stops[0].stopType;
-        const hasValidType = firstStopTypes.some(
+        return firstStopTypes.some(
           (type) => type === "origin" || type === "pickup",
         );
-        if (!hasValidType) {
-          return false;
-        }
       }
       return true;
     },
@@ -174,15 +193,11 @@ export const tripWizardFormSchema = z
   )
   .refine(
     (data) => {
-      // Validar que la última parada incluya "destination" o "delivery"
       if (data.stops.length > 0) {
         const lastStopTypes = data.stops[data.stops.length - 1].stopType;
-        const hasValidType = lastStopTypes.some(
+        return lastStopTypes.some(
           (type) => type === "destination" || type === "delivery",
         );
-        if (!hasValidType) {
-          return false;
-        }
       }
       return true;
     },
@@ -193,18 +208,14 @@ export const tripWizardFormSchema = z
   )
   .refine(
     (data) => {
-      // Validar que las paradas intermedias solo incluyan "pickup", "delivery" o "waypoint"
       if (data.stops.length > 2) {
         const middleStops = data.stops.slice(1, -1);
-        const invalidMiddleStop = middleStops.find((stop) => {
-          return stop.stopType.some(
+        return !middleStops.some((stop) =>
+          stop.stopType.some(
             (type) =>
               type !== "pickup" && type !== "delivery" && type !== "waypoint",
-          );
-        });
-        if (invalidMiddleStop) {
-          return false;
-        }
+          ),
+        );
       }
       return true;
     },
@@ -222,6 +233,7 @@ export const tripWizardFormSchema = z
 export type TripWizardFormValues = z.infer<typeof tripWizardFormSchema>;
 export type TripStopFormValues = z.infer<typeof tripStopSchema>;
 export type TripCargoFormValues = z.infer<typeof tripCargoSchema>;
+export type CargoMovementFormValues = z.infer<typeof cargoMovementSchema>;
 export type TripExpenseFormValues = z.infer<typeof tripExpenseSchema>;
 
 /**

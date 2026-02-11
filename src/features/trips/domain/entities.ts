@@ -2,24 +2,16 @@
  * Trip Domain Entities
  * Clean Architecture - Domain Layer
  *
- * ACTUALIZADO: Incluye entidades para Cargas (Cargo), Gastos (Expenses) y Rentabilidad
+ * Entidades del negocio, Value Objects, Enums y Constantes.
+ * Los DTOs e Interfaces de repositorio están en repository.ts (Ports).
  *
- * Esta capa contiene:
- * - Entidades del negocio (sin dependencias externas)
- * - Value Objects
- * - Enums del dominio
- * - Constantes del dominio
- *
- * REGLA: Esta capa NO debe importar nada de otras capas
+ * REGLA: Esta capa NO debe importar nada de otras capas.
  */
 
 // ============================================================================
-// ENUMS - Tipos enumerados del dominio (Alineados con Backend)
+// ENUMS
 // ============================================================================
 
-/**
- * Estados posibles de un viaje
- */
 export const TripStatus = {
   DRAFT: "draft",
   SCHEDULED: "scheduled",
@@ -30,9 +22,6 @@ export const TripStatus = {
 
 export type TripStatusType = (typeof TripStatus)[keyof typeof TripStatus];
 
-/**
- * Tipos de parada
- */
 export const StopType = {
   ORIGIN: "origin",
   PICKUP: "pickup",
@@ -43,9 +32,6 @@ export const StopType = {
 
 export type StopTypeValue = (typeof StopType)[keyof typeof StopType];
 
-/**
- * Estados de una parada
- */
 export const StopStatus = {
   PENDING: "pending",
   IN_PROGRESS: "in_progress",
@@ -55,64 +41,60 @@ export const StopStatus = {
 
 export type StopStatusValue = (typeof StopStatus)[keyof typeof StopStatus];
 
-/**
- * Categorías de gastos del viaje (basado en catálogos SAT)
- */
 export const ExpenseCategory = {
-  FUEL: "fuel", // Combustible
-  TOLLS: "tolls", // Casetas/Peajes
-  DRIVER_ALLOWANCE: "driver_allowance", // Viáticos del operador
-  LODGING: "lodging", // Hospedaje
-  LOADING_UNLOADING: "loading_unloading", // Maniobras de carga/descarga
-  PARKING: "parking", // Pensión/estacionamiento
-  MAINTENANCE: "maintenance", // Refacciones/mantenimiento en ruta
-  INSURANCE: "insurance", // Seguros
-  PERMITS: "permits", // Permisos y trámites
-  OTHER: "other", // Otros gastos
+  FUEL: "fuel",
+  TOLLS: "tolls",
+  DRIVER_ALLOWANCE: "driver_allowance",
+  LODGING: "lodging",
+  LOADING_UNLOADING: "loading_unloading",
+  PARKING: "parking",
+  MAINTENANCE: "maintenance",
+  INSURANCE: "insurance",
+  PERMITS: "permits",
+  OTHER: "other",
 } as const;
 
 export type ExpenseCategoryType =
   (typeof ExpenseCategory)[keyof typeof ExpenseCategory];
 
-/**
- * Estados de un gasto
- */
 export const ExpenseStatus = {
-  PENDING: "pending", // Pendiente de comprobante
-  DOCUMENTED: "documented", // Con comprobante adjunto
-  APPROVED: "approved", // Aprobado
-  REJECTED: "rejected", // Rechazado
+  PENDING: "pending",
+  DOCUMENTED: "documented",
+  APPROVED: "approved",
+  REJECTED: "rejected",
 } as const;
 
 export type ExpenseStatusType =
   (typeof ExpenseStatus)[keyof typeof ExpenseStatus];
 
-/**
- * Tipos de acción de carga en una parada
- */
 export const CargoAction = {
-  PICKUP: "pickup", // Recoger carga
-  DELIVERY: "delivery", // Entregar carga
-  PARTIAL_DELIVERY: "partial_delivery", // Entrega parcial
+  PICKUP: "pickup",
+  DELIVERY: "delivery",
+  PARTIAL_DELIVERY: "partial_delivery",
 } as const;
 
 export type CargoActionType = (typeof CargoAction)[keyof typeof CargoAction];
 
-/**
- * Estados de una carga
- */
+export const CargoMovementType = {
+  PICKUP: "pickup",
+  DELIVERY: "delivery",
+} as const;
+
+export type CargoMovementTypeValue =
+  (typeof CargoMovementType)[keyof typeof CargoMovementType];
+
 export const CargoStatus = {
-  PENDING: "pending", // Pendiente de recoger
-  IN_TRANSIT: "in_transit", // En tránsito
-  DELIVERED: "delivered", // Entregada
-  RETURNED: "returned", // Devuelta
-  CANCELLED: "cancelled", // Cancelada
+  PENDING: "pending",
+  IN_TRANSIT: "in_transit",
+  DELIVERED: "delivered",
+  RETURNED: "returned",
+  CANCELLED: "cancelled",
 } as const;
 
 export type CargoStatusType = (typeof CargoStatus)[keyof typeof CargoStatus];
 
 // ============================================================================
-// VALUE OBJECTS - Objetos inmutables
+// VALUE OBJECTS
 // ============================================================================
 
 export interface Coordinates {
@@ -141,9 +123,6 @@ export interface CostBreakdown {
   readonly totalCost: number;
 }
 
-/**
- * Desglose detallado de costos por categoría
- */
 export interface DetailedCostBreakdown {
   readonly fuel: number;
   readonly tolls: number;
@@ -158,55 +137,41 @@ export interface DetailedCostBreakdown {
   readonly totalExpenses: number;
 }
 
-/**
- * Información de rentabilidad del viaje
- */
 export interface TripProfitability {
-  readonly totalRevenue: number; // Ingresos totales (suma de tarifas de cargas)
-  readonly totalExpenses: number; // Gastos totales
-  readonly grossProfit: number; // Utilidad bruta (Ingresos - Gastos)
-  readonly profitMargin: number; // Margen de utilidad (%)
-  readonly revenuePerKm: number | null; // Ingreso por kilómetro
-  readonly costPerKm: number | null; // Costo por kilómetro
-  readonly isEstimated: boolean; // true si es estimada, false si es real (viaje finalizado)
-}
-
-/**
- * Información para Carta Porte (CFDI con Complemento)
- */
-export interface CartaPorteInfo {
-  readonly claveProdServCP: string | null; // Clave producto/servicio Carta Porte
-  readonly claveUnidad: string | null; // Clave unidad de medida SAT
-  readonly materialPeligroso: boolean;
-  readonly cveMaterialPeligroso: string | null; // Clave material peligroso
-  readonly tipoEmbalaje: string | null; // Tipo de embalaje
-  readonly fraccionArancelaria: string | null; // Para comercio exterior
-  readonly uuidComercioExt: string | null; // UUID del pedimento
-}
-
-/**
- * Dirección completa para Carta Porte
- */
-export interface CartaPorteAddress {
-  readonly calle: string;
-  readonly numeroExterior: string | null;
-  readonly numeroInterior: string | null;
-  readonly colonia: string | null;
-  readonly codigoPostal: string;
-  readonly localidad: string | null;
-  readonly municipio: string;
-  readonly estado: string;
-  readonly pais: string;
-  readonly referencia: string | null;
+  readonly totalRevenue: number;
+  readonly totalExpenses: number;
+  readonly grossProfit: number;
+  readonly profitMargin: number;
+  readonly revenuePerKm: number | null;
+  readonly costPerKm: number | null;
+  readonly isEstimated: boolean;
 }
 
 // ============================================================================
-// ENTITIES - Entidades del dominio (Alineadas con Backend)
+// ENTITIES
 // ============================================================================
 
 /**
- * Entidad: Carga (Cargo/Shipment)
- * Representa una carga que pertenece a un cliente y se asocia a paradas
+ * Movimiento de Carga
+ *
+ * Conecta una carga con una parada (pickup o delivery parcial/total).
+ * Una carga tiene 1 pickup y 0..N deliveries.
+ */
+export interface CargoMovement {
+  readonly id?: string;
+  readonly cargoId?: string;
+  readonly stopId?: string;
+  readonly stopIndex: number;
+  readonly movementType: CargoMovementTypeValue;
+  readonly weight: number | null;
+  readonly units: number | null;
+  readonly completedAt: Date | null;
+  readonly notes: string | null;
+}
+
+/**
+ * Carga (Cargo/Shipment)
+ * Mercancía asociada a un viaje con movimientos pickup/delivery.
  */
 export interface TripCargo {
   readonly id: string;
@@ -215,35 +180,30 @@ export interface TripCargo {
   readonly clientId: string;
   readonly client?: ClientRef;
 
-  // Información de la carga
   readonly description: string;
-  readonly productType: string | null; // Tipo de producto
-  readonly weight: number | null; // Peso en kg
-  readonly volume: number | null; // Volumen en m³
-  readonly units: number | null; // Cantidad de unidades/bultos
-  readonly declaredValue: number | null; // Valor declarado
+  readonly productType: string | null;
+  readonly weight: number | null;
+  readonly volume: number | null;
+  readonly units: number | null;
+  readonly declaredValue: number | null;
 
-  // Información comercial
-  readonly rate: number; // Tarifa cobrada al cliente
-  readonly currency: string; // Moneda (MXN, USD, etc.)
+  readonly rate: number;
+  readonly currency: string;
 
-  // Paradas asociadas (pickup y delivery)
-  readonly pickupStopId: string | null; // Parada donde se recoge
-  readonly deliveryStopId: string | null; // Parada donde se entrega
+  // Movimientos (modelo actual)
+  readonly movements: CargoMovement[];
 
-  // Información para Carta Porte
-  readonly cartaPorteInfo: CartaPorteInfo | null;
+  // Legacy (compatibilidad backend actual)
+  readonly pickupStopId: string | null;
+  readonly deliveryStopId: string | null;
 
-  // Estado y tracking
   readonly status: CargoStatusType;
   readonly pickedUpAt: Date | null;
   readonly deliveredAt: Date | null;
 
-  // Notas y observaciones
   readonly notes: string | null;
   readonly specialInstructions: string | null;
 
-  // Auditoría
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly createdBy: string | null;
@@ -251,8 +211,7 @@ export interface TripCargo {
 }
 
 /**
- * Entidad: Gasto del Viaje (TripExpense)
- * Representa un gasto individual asociado al viaje
+ * Gasto del Viaje (TripExpense)
  */
 export interface TripExpense {
   readonly id: string;
@@ -303,30 +262,14 @@ export interface TripExpense {
 }
 
 /**
- * Entidad: Asociación Carga-Parada (CargoStopAssignment)
- * Permite que una carga tenga múltiples paradas (entregas parciales)
- */
-export interface CargoStopAssignment {
-  readonly id: string;
-  readonly cargoId: string;
-  readonly stopId: string;
-  readonly action: CargoActionType;
-  readonly quantity: number | null; // Cantidad en esta parada (para entregas parciales)
-  readonly weight: number | null; // Peso en esta parada
-  readonly completedAt: Date | null;
-  readonly notes: string | null;
-}
-
-/**
- * Entidad: Parada de viaje (TripStop)
- * ACTUALIZADO: Incluye relación con cargas y stopType como array
+ * Parada de viaje (TripStop)
  */
 export interface TripStop {
   readonly id: string;
   readonly tenantId: string;
   readonly tripId: string;
   readonly sequenceOrder: number;
-  readonly stopType: StopTypeValue[]; // ACTUALIZADO: Ahora es un array de tipos
+  readonly stopType: StopTypeValue[];
   readonly address: string;
   readonly city: string;
   readonly state: string | null;
@@ -348,13 +291,11 @@ export interface TripStop {
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
-  // Relaciones con cargas (opcional, cuando se cargan con detalle)
-  readonly cargoAssignments?: CargoStopAssignment[];
   readonly cargos?: TripCargo[];
 }
 
 /**
- * Entidad: Historial de estado del viaje
+ * Historial de estado del viaje
  */
 export interface TripStatusHistory {
   readonly id: string;
@@ -370,35 +311,30 @@ export interface TripStatusHistory {
   readonly reason: string | null;
 }
 
-/**
- * Entidad: Vehículo (referencia embebida)
- */
+// ============================================================================
+// REFERENCE ENTITIES
+// ============================================================================
+
 export interface VehicleRef {
   readonly id: string;
   readonly unitNumber: string;
   readonly licensePlate: string;
 }
 
-/**
- * Entidad: Conductor (referencia embebida)
- */
 export interface DriverRef {
   readonly id: string;
   readonly fullName: string;
 }
 
-/**
- * Entidad: Cliente (referencia embebida)
- */
 export interface ClientRef {
   readonly id: string;
   readonly legalName: string;
 }
 
-/**
- * Entidad: Item de lista de viajes (para listados)
- * Versión optimizada para queries de lista
- */
+// ============================================================================
+// LIST / DETAIL ENTITIES
+// ============================================================================
+
 export interface TripListItem {
   readonly id: string;
   readonly tripCode: string;
@@ -412,17 +348,15 @@ export interface TripListItem {
   readonly status: TripStatusType;
   readonly cargoDescription: string | null;
   readonly totalCost: number;
-  readonly totalRevenue: number; // NUEVO: Ingresos totales
-  readonly estimatedProfit: number; // NUEVO: Rentabilidad estimada
-  readonly cargoCount: number; // NUEVO: Número de cargas
-  readonly clientCount: number; // NUEVO: Número de clientes
+  readonly totalRevenue: number;
+  readonly estimatedProfit: number;
+  readonly cargoCount: number;
+  readonly clientCount: number;
   readonly createdAt: Date;
 }
 
 /**
- * Entidad Principal: Viaje (Trip)
- * Aggregate Root del módulo de viajes
- * ACTUALIZADO: Incluye cargas, gastos y rentabilidad
+ * Viaje (Trip) - Aggregate Root
  */
 export interface Trip {
   readonly id: string;
@@ -430,7 +364,7 @@ export interface Trip {
   readonly tripCode: string;
   readonly vehicleId: string;
   readonly driverId: string;
-  readonly clientId: string | null; // Cliente principal (puede haber múltiples en cargas)
+  readonly clientId: string | null;
   readonly scheduledDeparture: Date;
   readonly scheduledArrival: Date | null;
   readonly actualDeparture: Date | null;
@@ -442,10 +376,10 @@ export interface Trip {
   readonly destinationAddress: string;
   readonly destinationCity: string;
   readonly destinationState: string | null;
-  readonly cargo: CargoInfo; // Información resumida de carga (legacy)
-  readonly costs: CostBreakdown; // Costos resumidos (legacy)
-  readonly detailedCosts: DetailedCostBreakdown | null; // NUEVO: Costos detallados
-  readonly profitability: TripProfitability | null; // NUEVO: Rentabilidad
+  readonly cargo: CargoInfo;
+  readonly costs: CostBreakdown;
+  readonly detailedCosts: DetailedCostBreakdown | null;
+  readonly profitability: TripProfitability | null;
   readonly status: TripStatusType;
   readonly notes: string | null;
   readonly cancellationReason: string | null;
@@ -454,20 +388,15 @@ export interface Trip {
   readonly createdBy: string | null;
   readonly updatedBy: string | null;
 
-  // Relaciones (opcionales, para cuando se cargan con detalle)
   readonly vehicle?: VehicleRef;
   readonly driver?: DriverRef;
   readonly client?: ClientRef;
   readonly stops?: TripStop[];
-  readonly cargos?: TripCargo[]; // NUEVO: Lista de cargas
-  readonly expenses?: TripExpense[]; // NUEVO: Lista de gastos
+  readonly cargos?: TripCargo[];
+  readonly expenses?: TripExpense[];
   readonly statusHistory?: TripStatusHistory[];
 }
 
-/**
- * Entidad: Detalle completo del viaje
- * Incluye todas las relaciones cargadas
- */
 export interface TripDetail extends Trip {
   readonly vehicle: VehicleRef;
   readonly driver: DriverRef;
@@ -480,46 +409,31 @@ export interface TripDetail extends Trip {
 }
 
 // ============================================================================
-// DOMAIN TYPES - Tipos auxiliares del dominio
+// DOMAIN TYPES
 // ============================================================================
 
-/**
- * Resultado de una operación de dominio
- */
 export type DomainResult<T> =
   | { success: true; data: T }
   | { success: false; error: DomainError };
 
-/**
- * Error de dominio
- */
 export interface DomainError {
   readonly code: string;
   readonly message: string;
   readonly field?: string;
 }
 
-/**
- * Resultado de caso de uso
- */
 export type UseCaseResult<T> =
   | { success: true; data: T }
   | { success: false; error: { code: string; message: string } };
 
-/**
- * Resultado de validación
- */
 export type ValidationResult =
   | { success: true }
   | { success: false; error: { code: string; message: string } };
 
 // ============================================================================
-// PAGINATION TYPES
+// PAGINATION
 // ============================================================================
 
-/**
- * Información de paginación
- */
 export interface Pagination {
   readonly page: number;
   readonly limit: number;
@@ -527,9 +441,6 @@ export interface Pagination {
   readonly totalPages: number;
 }
 
-/**
- * Lista paginada genérica
- */
 export interface PaginatedList<T> {
   readonly items: T[];
   readonly pagination: Pagination;
@@ -539,9 +450,6 @@ export interface PaginatedList<T> {
 // QUERY TYPES
 // ============================================================================
 
-/**
- * Filtros de búsqueda de viajes
- */
 export interface TripFilters {
   readonly status?: TripStatusType | TripStatusType[];
   readonly clientId?: string;
@@ -550,13 +458,10 @@ export interface TripFilters {
   readonly dateFrom?: string;
   readonly dateTo?: string;
   readonly search?: string;
-  readonly minProfit?: number; // NUEVO: Filtrar por rentabilidad mínima
-  readonly maxProfit?: number; // NUEVO: Filtrar por rentabilidad máxima
+  readonly minProfit?: number;
+  readonly maxProfit?: number;
 }
 
-/**
- * Opciones de ordenamiento
- */
 export interface SortOptions {
   readonly field:
     | "scheduled_departure"
@@ -570,13 +475,6 @@ export interface SortOptions {
   readonly direction: "asc" | "desc";
 }
 
-// ============================================================================
-// QUERY KEYS
-// ============================================================================
-
-/**
- * Parámetros de consulta completos
- */
 export interface TripQueryParams {
   readonly filters?: TripFilters;
   readonly sort?: SortOptions;
@@ -605,10 +503,6 @@ export const tripQueryKeys = {
 // DOMAIN CONSTANTS
 // ============================================================================
 
-/**
- * Matriz de transiciones válidas de estado
- * Define qué estados pueden pasar a qué otros estados
- */
 export const VALID_STATUS_TRANSITIONS: Record<
   TripStatusType,
   TripStatusType[]
@@ -620,17 +514,15 @@ export const VALID_STATUS_TRANSITIONS: Record<
   [TripStatus.CANCELLED]: [],
 };
 
-/**
- * Tipos de parada que solo pueden existir una vez por viaje
- */
 export const UNIQUE_STOP_TYPES: readonly StopTypeValue[] = [
   StopType.ORIGIN,
   StopType.DESTINATION,
 ] as const;
 
-/**
- * Etiquetas de estado para UI
- */
+// ============================================================================
+// UI LABELS
+// ============================================================================
+
 export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
   [TripStatus.DRAFT]: "Borrador",
   [TripStatus.SCHEDULED]: "Programado",
@@ -639,9 +531,6 @@ export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
   [TripStatus.CANCELLED]: "Cancelado",
 };
 
-/**
- * Etiquetas de tipo de parada para UI
- */
 export const STOP_TYPE_LABELS: Record<StopTypeValue, string> = {
   [StopType.ORIGIN]: "Origen",
   [StopType.PICKUP]: "Carga",
@@ -650,9 +539,6 @@ export const STOP_TYPE_LABELS: Record<StopTypeValue, string> = {
   [StopType.DESTINATION]: "Destino",
 };
 
-/**
- * Etiquetas de estado de parada para UI
- */
 export const STOP_STATUS_LABELS: Record<StopStatusValue, string> = {
   [StopStatus.PENDING]: "Pendiente",
   [StopStatus.IN_PROGRESS]: "En Progreso",
@@ -660,9 +546,6 @@ export const STOP_STATUS_LABELS: Record<StopStatusValue, string> = {
   [StopStatus.SKIPPED]: "Omitido",
 };
 
-/**
- * Etiquetas de categoría de gasto para UI
- */
 export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategoryType, string> = {
   [ExpenseCategory.FUEL]: "Combustible",
   [ExpenseCategory.TOLLS]: "Casetas/Peajes",
@@ -676,9 +559,6 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategoryType, string> = {
   [ExpenseCategory.OTHER]: "Otros Gastos",
 };
 
-/**
- * Etiquetas de estado de gasto para UI
- */
 export const EXPENSE_STATUS_LABELS: Record<ExpenseStatusType, string> = {
   [ExpenseStatus.PENDING]: "Pendiente",
   [ExpenseStatus.DOCUMENTED]: "Documentado",
@@ -686,18 +566,12 @@ export const EXPENSE_STATUS_LABELS: Record<ExpenseStatusType, string> = {
   [ExpenseStatus.REJECTED]: "Rechazado",
 };
 
-/**
- * Etiquetas de acción de carga para UI
- */
 export const CARGO_ACTION_LABELS: Record<CargoActionType, string> = {
   [CargoAction.PICKUP]: "Recoger",
   [CargoAction.DELIVERY]: "Entregar",
   [CargoAction.PARTIAL_DELIVERY]: "Entrega Parcial",
 };
 
-/**
- * Etiquetas de estado de carga para UI
- */
 export const CARGO_STATUS_LABELS: Record<CargoStatusType, string> = {
   [CargoStatus.PENDING]: "Pendiente",
   [CargoStatus.IN_TRANSIT]: "En Tránsito",
@@ -706,9 +580,6 @@ export const CARGO_STATUS_LABELS: Record<CargoStatusType, string> = {
   [CargoStatus.CANCELLED]: "Cancelada",
 };
 
-/**
- * Iconos sugeridos para categorías de gasto
- */
 export const EXPENSE_CATEGORY_ICONS: Record<ExpenseCategoryType, string> = {
   [ExpenseCategory.FUEL]: "fuel",
   [ExpenseCategory.TOLLS]: "toll",
@@ -722,18 +593,15 @@ export const EXPENSE_CATEGORY_ICONS: Record<ExpenseCategoryType, string> = {
   [ExpenseCategory.OTHER]: "more-horizontal",
 };
 
-/**
- * Colores para categorías de gasto (para gráficos)
- */
 export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategoryType, string> = {
-  [ExpenseCategory.FUEL]: "#ef4444", // red
-  [ExpenseCategory.TOLLS]: "#f97316", // orange
-  [ExpenseCategory.DRIVER_ALLOWANCE]: "#eab308", // yellow
-  [ExpenseCategory.LODGING]: "#22c55e", // green
-  [ExpenseCategory.LOADING_UNLOADING]: "#14b8a6", // teal
-  [ExpenseCategory.PARKING]: "#3b82f6", // blue
-  [ExpenseCategory.MAINTENANCE]: "#8b5cf6", // violet
-  [ExpenseCategory.INSURANCE]: "#ec4899", // pink
-  [ExpenseCategory.PERMITS]: "#6b7280", // gray
-  [ExpenseCategory.OTHER]: "#a3a3a3", // neutral
+  [ExpenseCategory.FUEL]: "#ef4444",
+  [ExpenseCategory.TOLLS]: "#f97316",
+  [ExpenseCategory.DRIVER_ALLOWANCE]: "#eab308",
+  [ExpenseCategory.LODGING]: "#22c55e",
+  [ExpenseCategory.LOADING_UNLOADING]: "#14b8a6",
+  [ExpenseCategory.PARKING]: "#3b82f6",
+  [ExpenseCategory.MAINTENANCE]: "#8b5cf6",
+  [ExpenseCategory.INSURANCE]: "#ec4899",
+  [ExpenseCategory.PERMITS]: "#6b7280",
+  [ExpenseCategory.OTHER]: "#a3a3a3",
 };

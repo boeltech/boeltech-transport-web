@@ -1,6 +1,13 @@
 /**
  * RouteStep - Paso 2 del Wizard
  * Ruta: Paradas del viaje (primera = origen, última = destino)
+ *
+ * Reglas de negocio:
+ * - Origen (posición 0): solo operación "carga" (pickup)
+ * - Destino (última posición): solo operación "descarga" (delivery)
+ * - Escala (posiciones intermedias): carga y/o descarga (editable inline)
+ * - Drag & drop libre sin confirmación; las operaciones se ajustan automáticamente
+ *   al cambiar de posición (origen/destino), y se preservan para escalas.
  */
 
 import { useState } from "react";
@@ -24,16 +31,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@shared/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@shared/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 import {
   MapPin,
   Plus,
@@ -44,7 +42,7 @@ import {
   ChevronUp,
   ChevronDown,
   Building2,
-  AlertTriangle,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils";
 import type { TripWizardFormValues, TripStopFormValues } from "../types";
@@ -106,47 +104,44 @@ const getAvailableOperations = (
 
   switch (category) {
     case "origin":
-      // Origen: solo carga
       return STOP_OPERATION_OPTIONS.filter((opt) => opt.value === "pickup");
     case "destination":
-      // Destino: solo descarga
       return STOP_OPERATION_OPTIONS.filter((opt) => opt.value === "delivery");
     case "waypoint":
-      // Escala: carga y/o descarga
       return STOP_OPERATION_OPTIONS;
     default:
       return [];
   }
 };
 
+/**
+ * Obtiene la categoría de una parada según su stopType array
+ */
+const getStopCategory = (
+  stopType: TripStopFormValues["stopType"],
+): "origin" | "waypoint" | "destination" | undefined => {
+  if (stopType.includes(StopType.ORIGIN)) return "origin";
+  if (stopType.includes(StopType.DESTINATION)) return "destination";
+  if (stopType.includes(StopType.WAYPOINT)) return "waypoint";
+  return undefined;
+};
+
 // Interfaz extendida para el estado del formulario de nueva parada
 interface NewStopState extends Partial<TripStopFormValues> {
-  stopCategory?: "origin" | "waypoint" | "destination"; // Nueva propiedad para la categoría
+  stopCategory?: "origin" | "waypoint" | "destination";
 }
 
 export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
-  const { fields, append, insert, remove, move } = stopsFieldArray;
+  const { fields, insert, remove, move } = stopsFieldArray;
   const [isAddStopDialogOpen, setIsAddStopDialogOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  // Estado para el AlertDialog de confirmación de cambio de tipo
-  const [dragDropConfirmation, setDragDropConfirmation] = useState<{
-    isOpen: boolean;
-    fromIndex: number;
-    toIndex: number;
-    willBecomeOrigin: boolean;
-    willBecomeDestination: boolean;
-  }>({
-    isOpen: false,
-    fromIndex: -1,
-    toIndex: -1,
-    willBecomeOrigin: false,
-    willBecomeDestination: false,
-  });
+  // Estado para el popover de edición de operaciones en escalas
+  const [editingStopIndex, setEditingStopIndex] = useState<number | null>(null);
 
   const [newStop, setNewStop] = useState<NewStopState>({
-    stopCategory: undefined, // Categoría de parada (origen/escala/destino)
-    stopType: [], // Operaciones (carga/descarga)
+    stopCategory: undefined,
+    stopType: [],
     clientId: "",
     clientAddressId: "",
     address: "",
@@ -177,24 +172,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       return stop.stopType.includes(categoryType);
     });
   };
-
-  /**
-   * Obtiene las categorías disponibles según las reglas de negocio
-   * - Solo puede existir una parada de tipo "origen"
-   * - Solo puede existir una parada de tipo "destino"
-   */
-  // const getAvailableCategories = () => {
-  //   return STOP_CATEGORY_OPTIONS.filter((option) => {
-  //     if (option.value === "origin") {
-  //       return !hasStopCategory("origin");
-  //     }
-  //     if (option.value === "destination") {
-  //       return !hasStopCategory("destination");
-  //     }
-  //     // Las escalas siempre están disponibles
-  //     return true;
-  //   });
-  // };
 
   // Cargar clientes activos
   const { data: clients = [] } = useActiveClients();
@@ -241,29 +218,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     });
   };
 
-  // Manejar cambio de categoría de parada
-  // const handleCategoryChange = (
-  //   category: "origin" | "waypoint" | "destination",
-  // ) => {
-  //   // Definir operaciones por defecto según la categoría
-  //   let defaultOperations: TripStopFormValues["stopType"] = [];
-
-  //   if (category === "origin") {
-  //     // Origen: por defecto es carga (pickup)
-  //     defaultOperations = ["pickup" as any];
-  //   } else if (category === "destination") {
-  //     // Destino: por defecto es descarga (delivery)
-  //     defaultOperations = ["delivery" as any];
-  //   }
-  //   // Escala: sin valor por defecto, el usuario debe seleccionar
-
-  //   setNewStop((prev) => ({
-  //     ...prev,
-  //     stopCategory: category,
-  //     stopType: defaultOperations,
-  //   }));
-  // };
-
   const handleAddStop = () => {
     if (
       newStop.address &&
@@ -278,7 +232,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         ...newStop.stopType,
       ];
 
-      // let insertIndex = fields.length > 0 ? fields.length : 0;
       let insertIndex = 0;
 
       if (fields.length > 0) {
@@ -298,22 +251,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       } else {
         insertIndex = 0;
       }
-
-      // append({
-      //   sequenceOrder: insertIndex,
-      //   stopType: stopTypes,
-      //   clientId: newStop.clientId || undefined,
-      //   clientAddressId: newStop.clientAddressId || undefined,
-      //   address: newStop.address,
-      //   city: newStop.city,
-      //   state: newStop.state || "",
-      //   postalCode: newStop.postalCode,
-      //   locationName: newStop.locationName,
-      //   contactName: newStop.contactName,
-      //   contactPhone: newStop.contactPhone,
-      //   estimatedArrival: newStop.estimatedArrival,
-      //   notes: newStop.notes,
-      // });
 
       insert(insertIndex, {
         sequenceOrder: insertIndex,
@@ -337,7 +274,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
         currentStops.forEach((_, index) => {
           form.setValue(`stops.${index}.sequenceOrder`, index);
-          // updateStopTypeForPosition(index);
         });
       });
 
@@ -358,30 +294,14 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     }
   };
 
+  /**
+   * Maneja el movimiento de paradas (botones arriba/abajo y drag & drop).
+   * Se ejecuta directamente sin confirmación; las operaciones se ajustan
+   * automáticamente según la nueva posición.
+   */
   const handleMoveStop = (fromIndex: number, toIndex: number) => {
     if (toIndex >= 0 && toIndex < fields.length) {
-      const currentStop = form.getValues(`stops.${fromIndex}`);
-
-      // Verificar si la parada se convertirá en origen (posición 0) o destino (última posición)
-      const willBecomeOrigin =
-        toIndex === 0 && !currentStop.stopType.includes(StopType.ORIGIN);
-      const willBecomeDestination =
-        toIndex === fields.length - 1 &&
-        !currentStop.stopType.includes(StopType.DESTINATION);
-
-      // Si la parada se convertirá en origen o destino, mostrar confirmación
-      if (willBecomeOrigin || willBecomeDestination) {
-        setDragDropConfirmation({
-          isOpen: true,
-          fromIndex,
-          toIndex,
-          willBecomeOrigin,
-          willBecomeDestination,
-        });
-      } else {
-        // Si no cambia a origen/destino, mover directamente
-        performMove(fromIndex, toIndex);
-      }
+      performMove(fromIndex, toIndex);
     }
   };
 
@@ -398,36 +318,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     });
   };
 
-  const confirmDragDropChange = () => {
-    performMove(dragDropConfirmation.fromIndex, dragDropConfirmation.toIndex);
-    setDragDropConfirmation({
-      isOpen: false,
-      fromIndex: -1,
-      toIndex: -1,
-      willBecomeOrigin: false,
-      willBecomeDestination: false,
-    });
-  };
-
-  const cancelDragDropChange = () => {
-    setDragDropConfirmation({
-      isOpen: false,
-      fromIndex: -1,
-      toIndex: -1,
-      willBecomeOrigin: false,
-      willBecomeDestination: false,
-    });
-  };
-
   const handleRemoveStop = (index: number) => {
     remove(index);
 
-    // Usar requestAnimationFrame en lugar de setTimeout
     requestAnimationFrame(() => {
-      // ✅ Obtener el array ACTUALIZADO después de la eliminación
       const currentStops = form.getValues("stops");
 
-      // ✅ Iterar solo sobre las paradas que REALMENTE existen
       currentStops.forEach((_, idx) => {
         form.setValue(`stops.${idx}.sequenceOrder`, idx);
         updateStopTypeForPosition(idx);
@@ -435,6 +331,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     });
   };
 
+  /**
+   * Actualiza el stopType de una parada según su posición en la lista.
+   * - Posición 0 → ORIGIN + PICKUP
+   * - Última posición → DESTINATION + DELIVERY
+   * - Posiciones intermedias → WAYPOINT + operaciones preservadas
+   */
   const updateStopTypeForPosition = (index: number) => {
     const currentStop = form.getValues(`stops.${index}`);
     if (!currentStop) return;
@@ -450,12 +352,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     if (index === 0 && currentStops.length > 0) {
       // Primera parada: debe ser ORIGIN + solo PICKUP (carga)
       newTypes = [StopType.ORIGIN, StopType.PICKUP];
-    }
-    // else if (isAddStop && index === fields.length) {
-    //   // Última parada al agregar: debe ser DESTINATION + solo DELIVERY (descarga)
-    //   newTypes = [StopType.DESTINATION, StopType.DELIVERY];
-    // }
-    else if (index === currentStops.length - 1 && currentStops.length > 0) {
+    } else if (index === currentStops.length - 1 && currentStops.length > 0) {
       // Última parada: debe ser DESTINATION + solo DELIVERY (descarga)
       newTypes = [StopType.DESTINATION, StopType.DELIVERY];
     } else {
@@ -492,7 +389,48 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     form.setValue(`stops.${index}.stopType`, newTypes);
   };
 
-  // Drag and drop handlers
+  /**
+   * Maneja el cambio de operaciones en una parada tipo Escala (waypoint) ya creada.
+   * Solo aplica para paradas intermedias (no origen ni destino).
+   */
+  const handleWaypointOperationChange = (
+    stopIndex: number,
+    operation: string,
+    checked: boolean,
+  ) => {
+    const currentStop = form.getValues(`stops.${stopIndex}`);
+    if (!currentStop) return;
+
+    // Extraer las operaciones actuales (sin categorías)
+    const currentOperations = currentStop.stopType.filter(
+      (type) =>
+        type !== StopType.ORIGIN &&
+        type !== StopType.DESTINATION &&
+        type !== StopType.WAYPOINT,
+    );
+
+    let newOperations: string[];
+
+    if (checked) {
+      newOperations = [...currentOperations, operation];
+    } else {
+      newOperations = currentOperations.filter((t) => t !== operation);
+    }
+
+    // No permitir dejar sin operaciones
+    if (newOperations.length === 0) return;
+
+    // Reconstruir el stopType: WAYPOINT + operaciones seleccionadas
+    const newStopType = [
+      StopType.WAYPOINT,
+      ...newOperations,
+    ] as TripStopFormValues["stopType"];
+
+    form.setValue(`stops.${stopIndex}.stopType`, newStopType);
+  };
+
+  // ========== DRAG AND DROP HANDLERS ==========
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
@@ -509,10 +447,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     setDraggedIndex(null);
   };
 
-  // Nuevo: Resetear draggedIndex cuando termine el drag, incluso si se suelta fuera
   const handleDragEnd = () => {
     setDraggedIndex(null);
   };
+
+  // ========== UI HELPERS ==========
 
   const getStopIcon = (stopType: TripStopFormValues["stopType"]) => {
     if (stopType.includes(StopType.ORIGIN)) return Navigation;
@@ -583,6 +522,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
               }
 
               const Icon = getStopIcon(stop.stopType);
+              const category = getStopCategory(stop.stopType);
+              const isWaypoint = category === "waypoint";
 
               return (
                 <div
@@ -629,7 +570,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           {Array.isArray(stop.stopType) ? (
                             stop.stopType.map((type) => {
                               const stopTypeInfo = getStopTypeInfo(type);
@@ -656,11 +597,112 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                               );
                             })
                           ) : (
-                            // <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-medium text-muted-foreground">
                               {getStopLabel(stop.stopType)}
                             </span>
-                            // </div>
+                          )}
+
+                          {/* Botón editar operaciones - solo para escalas (waypoint) */}
+                          {isWaypoint && (
+                            <Popover
+                              open={editingStopIndex === index}
+                              onOpenChange={(open) =>
+                                setEditingStopIndex(open ? index : null)
+                              }
+                            >
+                              <PopoverTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 ml-1"
+                                  title="Editar operaciones de esta escala"
+                                >
+                                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-64 p-3"
+                                align="start"
+                                side="bottom"
+                              >
+                                <div className="space-y-3">
+                                  <p className="text-sm font-medium">
+                                    Operaciones de la Escala
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Seleccione carga, descarga o ambas
+                                  </p>
+                                  <div className="space-y-2">
+                                    {STOP_OPERATION_OPTIONS.map((option) => {
+                                      const OpIcon = option.icon;
+                                      const isChecked = stop.stopType.includes(
+                                        option.value as any,
+                                      );
+                                      // No permitir desmarcar si es la única operación seleccionada
+                                      const operationCount =
+                                        stop.stopType.filter(
+                                          (t) =>
+                                            t === StopType.PICKUP ||
+                                            t === StopType.DELIVERY,
+                                        ).length;
+                                      const isLastOperation =
+                                        isChecked && operationCount === 1;
+
+                                      return (
+                                        <div
+                                          key={option.value}
+                                          className={cn(
+                                            "flex items-center gap-3 p-2.5 border rounded-lg transition-colors",
+                                            isChecked &&
+                                              "border-primary bg-primary/5",
+                                          )}
+                                        >
+                                          <Checkbox
+                                            id={`edit-op-${index}-${option.value}`}
+                                            checked={isChecked}
+                                            disabled={isLastOperation}
+                                            onCheckedChange={(checked) => {
+                                              handleWaypointOperationChange(
+                                                index,
+                                                option.value,
+                                                !!checked,
+                                              );
+                                            }}
+                                          />
+                                          <label
+                                            htmlFor={`edit-op-${index}-${option.value}`}
+                                            className={cn(
+                                              "flex items-center gap-2 text-sm font-medium leading-none cursor-pointer",
+                                              isLastOperation &&
+                                                "opacity-50 cursor-not-allowed",
+                                            )}
+                                          >
+                                            <OpIcon
+                                              className={cn(
+                                                "h-4 w-4",
+                                                option.color,
+                                              )}
+                                            />
+                                            {option.label}
+                                          </label>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {stop.stopType.filter(
+                                    (t) =>
+                                      t === StopType.PICKUP ||
+                                      t === StopType.DELIVERY,
+                                  ).length === 1 && (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Debe tener al menos una operación
+                                      seleccionada
+                                    </p>
+                                  )}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           )}
                         </div>
 
@@ -880,7 +922,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 <div className="grid grid-cols-2 gap-3">
                   {getAvailableOperations(newStop.stopCategory).map(
                     (option) => {
-                      const Icon = option.icon;
+                      const OpIcon = option.icon;
                       const isChecked =
                         newStop.stopType?.includes(option.value as any) ??
                         false;
@@ -921,7 +963,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                             htmlFor={`operation-${option.value}`}
                             className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                           >
-                            <Icon className={cn("h-4 w-4", option.color)} />
+                            <OpIcon className={cn("h-4 w-4", option.color)} />
                             {option.label}
                           </label>
                         </div>
@@ -1137,80 +1179,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Alert Dialog para confirmar cambio de tipo de parada en drag & drop */}
-      <AlertDialog
-        open={dragDropConfirmation.isOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            cancelDragDropChange();
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <AlertDialogTitle>
-                Confirmar Cambio de Tipo de Parada
-              </AlertDialogTitle>
-            </div>
-          </AlertDialogHeader>
-          <div className="space-y-3 pt-2 px-6">
-            {dragDropConfirmation.willBecomeOrigin && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Navigation className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-sm text-green-900">
-                      Esta parada se convertirá en ORIGEN
-                    </div>
-                    <div className="text-xs text-green-700 mt-1">
-                      • El tipo de operación cambiará automáticamente a:{" "}
-                      <strong>Carga (Pickup)</strong>
-                    </div>
-                    <div className="text-xs text-green-700">
-                      • Se removerá cualquier operación de descarga existente
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {dragDropConfirmation.willBecomeDestination && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Flag className="h-5 w-5 text-red-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-sm text-red-900">
-                      Esta parada se convertirá en DESTINO
-                    </div>
-                    <div className="text-xs text-red-700 mt-1">
-                      • El tipo de operación cambiará automáticamente a:{" "}
-                      <strong>Descarga (Delivery)</strong>
-                    </div>
-                    <div className="text-xs text-red-700">
-                      • Se removerá cualquier operación de carga existente
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="text-sm text-muted-foreground mt-2">
-              ¿Desea continuar con este cambio?
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDragDropChange}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDragDropChange}>
-              Confirmar Cambio
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

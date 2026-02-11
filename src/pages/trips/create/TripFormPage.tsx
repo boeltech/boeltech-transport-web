@@ -19,7 +19,12 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { AlertWithIcon } from "@shared/ui/alert";
 
 // Feature hooks
-import { useTrip, useCreateTrip, useUpdateTrip } from "@/features/trips";
+import {
+  useTrip,
+  useCreateTrip,
+  useUpdateTrip,
+  StopType,
+} from "@/features/trips";
 import { useAvailableVehicles } from "@features/vehicles/application";
 import { useAvailableDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
@@ -109,7 +114,6 @@ function TripFormPage() {
   // Actualizar form cuando se carga un viaje existente
   useEffect(() => {
     if (existingTrip && isEditMode) {
-      // Mapear stops del backend al formato del formulario
       const mappedStops = (existingTrip.stops || []).map((stop) => ({
         id: stop.id,
         sequenceOrder: stop.sequenceOrder,
@@ -134,7 +138,7 @@ function TripFormPage() {
         notes: stop.notes || undefined,
       }));
 
-      // Mapear cargos del backend al formato del formulario
+      // Mapear cargos del backend con movements
       const mappedCargos = (existingTrip.cargos || []).map((cargo) => ({
         id: cargo.id,
         clientId: cargo.clientId,
@@ -146,13 +150,11 @@ function TripFormPage() {
         declaredValue: cargo.declaredValue || undefined,
         rate: cargo.rate,
         currency: cargo.currency,
-        pickupStopIndex: undefined,
-        deliveryStopIndex: undefined,
+        movements: cargo.movements || [],
         notes: cargo.notes || undefined,
         specialInstructions: cargo.specialInstructions || undefined,
       }));
 
-      // Mapear expenses del backend al formato del formulario
       const mappedExpenses = (existingTrip.expenses || []).map((expense) => ({
         id: expense.id,
         category: expense.category as
@@ -242,14 +244,211 @@ function TripFormPage() {
   // Validación por paso
   // ============================================
 
+  /**
+   * Valida el paso de cargas:
+   *
+   * 1. Cada parada pickup debe tener al menos una carga.
+   * 2. Si una carga tiene deliveries asignados:
+   *    a. Suma de peso en deliveries NO debe exceder el peso de la carga.
+   *    b. Suma de unidades en deliveries NO debe exceder las unidades de la carga.
+   *    c. Suma de peso/unidades debe ser IGUAL al total (asignación completa).
+   * 3. Si una carga NO tiene deliveries asignados:
+   *    a. Solo se permite si existe exactamente 1 parada con operación de descarga
+   *       (destino implícito). Se notifica al usuario.
+   *    b. Si hay más de 1 parada de descarga → bloquea (ambigüedad).
+   *
+   * Retorna:
+   * - isValid: si se permite avanzar
+   * - message: mensaje de error (cuando isValid = false)
+   * - warning: mensaje de advertencia (cuando isValid = true pero hay destino implícito)
+   */
+  const validateCargoStep = useCallback((): {
+    isValid: boolean;
+    message?: string;
+    warning?: string;
+  } => {
+    const currentStops = form.getValues("stops");
+    const currentCargos = form.getValues("cargos");
+
+    // ------------------------------------------------------------------
+    // 1. Verificar que existan paradas pickup
+    // ------------------------------------------------------------------
+
+    const pickupStopIndices = currentStops
+      .map((stop, index) => ({
+        index,
+        hasPickup: stop.stopType.includes(StopType.PICKUP),
+        label: stop.locationName || stop.address || `Parada #${index + 1}`,
+      }))
+      .filter((s) => s.hasPickup);
+
+    if (pickupStopIndices.length === 0) {
+      return {
+        isValid: false,
+        message:
+          "No hay paradas con operación de carga. Regrese al paso de Ruta para configurarlas.",
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // 2. Verificar que cada parada pickup tenga al menos una carga
+    // ------------------------------------------------------------------
+
+    const stopsWithoutCargos = pickupStopIndices.filter((stop) => {
+      const cargosForStop = currentCargos.filter((cargo) =>
+        cargo.movements?.some(
+          (m) => m.movementType === "pickup" && m.stopIndex === stop.index,
+        ),
+      );
+      return cargosForStop.length === 0;
+    });
+
+    if (stopsWithoutCargos.length > 0) {
+      const stopLabels = stopsWithoutCargos
+        .map((s) => `Parada #${s.index + 1} (${s.label})`)
+        .join(", ");
+      return {
+        isValid: false,
+        message: `Las siguientes paradas de carga no tienen mercancías registradas: ${stopLabels}`,
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // 3. Contar paradas con operación de descarga (delivery)
+    // ------------------------------------------------------------------
+
+    const deliveryStopCount = currentStops.filter((stop) =>
+      stop.stopType.includes(StopType.DELIVERY),
+    ).length;
+
+    // ------------------------------------------------------------------
+    // 4. Validar movimientos de entrega por cada carga
+    // ------------------------------------------------------------------
+
+    const cargosWithoutDeliveries: string[] = [];
+    const errors: string[] = [];
+
+    for (const cargo of currentCargos) {
+      const movements = cargo.movements || [];
+      const deliveries = movements.filter((m) => m.movementType === "delivery");
+
+      if (deliveries.length === 0) {
+        // Carga sin entregas asignadas → verificar destino implícito
+        cargosWithoutDeliveries.push(cargo.description);
+        continue;
+      }
+
+      // Validar concordancia de peso (si la carga tiene peso definido)
+      if (cargo.weight != null && cargo.weight > 0) {
+        const totalDeliveryWeight = deliveries.reduce(
+          (sum, d) => sum + (d.weight || 0),
+          0,
+        );
+
+        if (totalDeliveryWeight > cargo.weight) {
+          errors.push(
+            `"${cargo.description}": el peso total de entregas (${totalDeliveryWeight} kg) excede el peso de la carga (${cargo.weight} kg)`,
+          );
+        } else if (totalDeliveryWeight < cargo.weight) {
+          const pendingWeight = cargo.weight - totalDeliveryWeight;
+          errors.push(
+            `"${cargo.description}": faltan ${pendingWeight} kg por asignar a puntos de entrega (${totalDeliveryWeight}/${cargo.weight} kg)`,
+          );
+        }
+      }
+
+      // Validar concordancia de unidades (si la carga tiene unidades definidas)
+      if (cargo.units != null && cargo.units > 0) {
+        const totalDeliveryUnits = deliveries.reduce(
+          (sum, d) => sum + (d.units || 0),
+          0,
+        );
+
+        if (totalDeliveryUnits > cargo.units) {
+          errors.push(
+            `"${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
+          );
+        } else if (totalDeliveryUnits < cargo.units) {
+          const pendingUnits = cargo.units - totalDeliveryUnits;
+          errors.push(
+            `"${cargo.description}": faltan ${pendingUnits} unidades por asignar a puntos de entrega (${totalDeliveryUnits}/${cargo.units})`,
+          );
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 5. Evaluar errores de concordancia
+    // ------------------------------------------------------------------
+
+    if (errors.length > 0) {
+      return {
+        isValid: false,
+        message: errors.join(". "),
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // 6. Evaluar cargas sin deliveries asignados
+    // ------------------------------------------------------------------
+
+    if (cargosWithoutDeliveries.length > 0) {
+      if (deliveryStopCount === 1) {
+        // Exactamente 1 parada de descarga → destino implícito, permitir con aviso
+        const cargoNames = cargosWithoutDeliveries.join(", ");
+        return {
+          isValid: true,
+          warning:
+            cargosWithoutDeliveries.length === 1
+              ? `La carga "${cargoNames}" no tiene punto de entrega asignado. Se entregará en la única parada de descarga del viaje.`
+              : `Las cargas ${cargoNames} no tienen punto de entrega asignado. Se entregarán en la única parada de descarga del viaje.`,
+        };
+      }
+
+      // Más de 1 parada de descarga → ambigüedad, bloquear
+      const cargoNames = cargosWithoutDeliveries
+        .map((name) => `"${name}"`)
+        .join(", ");
+      return {
+        isValid: false,
+        message: `${cargosWithoutDeliveries.length === 1 ? "La carga" : "Las cargas"} ${cargoNames} ${cargosWithoutDeliveries.length === 1 ? "no tiene" : "no tienen"} puntos de entrega asignados. Existen ${deliveryStopCount} paradas de descarga en la ruta, por lo que debe especificar a cuál ${cargosWithoutDeliveries.length === 1 ? "se entregará" : "se entregarán"}.`,
+      };
+    }
+
+    return { isValid: true };
+  }, [form]);
+
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
     const currentStepConfig = WIZARD_STEPS[currentStep];
     const fieldsToValidate = currentStepConfig.fields;
 
-    // Trigger validation solo para los campos del paso actual
     const result = await form.trigger(
       fieldsToValidate as (keyof TripWizardFormValues)[],
     );
+
+    // Validación adicional para el paso de Cargas (step 2)
+    if (currentStep === 2) {
+      const cargoValidation = validateCargoStep();
+
+      if (!cargoValidation.isValid) {
+        toast({
+          title: "Cargas incompletas",
+          description: cargoValidation.message,
+          variant: "error",
+        });
+        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        return false;
+      }
+
+      // Notificar destino implícito (válido pero con advertencia)
+      if (cargoValidation.warning) {
+        toast({
+          title: "Entrega con destino implícito",
+          description: cargoValidation.warning,
+          variant: "warning",
+        });
+      }
+    }
 
     setStepErrors((prev) => ({
       ...prev,
@@ -257,7 +456,7 @@ function TripFormPage() {
     }));
 
     return result;
-  }, [currentStep, form]);
+  }, [currentStep, form, validateCargoStep, toast]);
 
   // ============================================
   // Navegación del wizard
@@ -277,11 +476,9 @@ function TripFormPage() {
   };
 
   const handleStepClick = async (stepIndex: number) => {
-    // Solo permitir ir a pasos anteriores o al actual
     if (stepIndex <= currentStep) {
       setCurrentStep(stepIndex);
     } else {
-      // Para ir adelante, validar el paso actual primero
       const isValid = await validateCurrentStep();
       if (isValid) {
         setCurrentStep(stepIndex);
@@ -298,7 +495,6 @@ function TripFormPage() {
       return;
     }
 
-    // Extraer origen y destino desde las paradas
     const originStop = data.stops?.[0];
     const destinationStop = data.stops?.[data.stops.length - 1];
 
@@ -311,15 +507,13 @@ function TripFormPage() {
         ? localDateTimeToISO(data.scheduledArrival)
         : undefined,
       startMileage: data.startMileage,
-      // Origen desde la primera parada
       originAddress: originStop?.address || "",
       originCity: originStop?.city || "",
       originState: originStop?.state || undefined,
-      // Destino desde la última parada
       destinationAddress: destinationStop?.address || "",
       destinationCity: destinationStop?.city || "",
       destinationState: destinationStop?.state || undefined,
-      // Información legacy de carga (para compatibilidad)
+      // Información legacy de carga (compatibilidad)
       cargoDescription: data.cargos?.[0]?.description,
       cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
       cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
@@ -330,7 +524,6 @@ function TripFormPage() {
       ),
       baseRate: data.baseRate,
       notes: data.notes || undefined,
-      // Mapear stops al formato esperado por el backend
       stops: data.stops?.map((stop) => ({
         sequenceOrder: stop.sequenceOrder,
         stopType: stop.stopType,
@@ -346,12 +539,9 @@ function TripFormPage() {
         estimatedArrival: stop.estimatedArrival
           ? localDateTimeToISO(stop.estimatedArrival)
           : undefined,
-        cargoActionDescription: undefined,
-        cargoWeight: undefined,
-        cargoUnits: undefined,
         notes: stop.notes,
       })),
-      // Mapear cargos al formato esperado por el backend
+      // Mapear cargos con movements
       cargos: data.cargos?.map((cargo) => ({
         clientId: cargo.clientId,
         description: cargo.description,
@@ -362,12 +552,16 @@ function TripFormPage() {
         declaredValue: cargo.declaredValue,
         rate: cargo.rate,
         currency: cargo.currency,
-        pickupStopIndex: cargo.pickupStopIndex,
-        deliveryStopIndex: cargo.deliveryStopIndex,
+        movements: cargo.movements.map((m) => ({
+          stopIndex: m.stopIndex,
+          movementType: m.movementType,
+          weight: m.weight,
+          units: m.units,
+          notes: m.notes,
+        })),
         notes: cargo.notes,
         specialInstructions: cargo.specialInstructions,
       })),
-      // Mapear expenses al formato esperado por el backend
       expenses: data.expenses?.map((expense) => ({
         category: expense.category,
         description: expense.description,
@@ -434,6 +628,7 @@ function TripFormPage() {
       case 2:
         return (
           <CargoStep
+            form={form}
             cargosFieldArray={cargosFieldArray}
             clients={clients}
             isLoadingClients={isLoadingClients}
@@ -495,17 +690,14 @@ function TripFormPage() {
       {/* Form */}
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()}>
-          {/* Step Content */}
           <div className="min-h-[400px]">{renderStepContent()}</div>
 
-          {/* Error Alert */}
           {stepErrors[currentStep] && (
             <AlertWithIcon variant="destructive" className="mt-4">
               Por favor complete todos los campos requeridos antes de continuar.
             </AlertWithIcon>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex items-center justify-between pt-6 mt-6 border-t">
             <Button
               type="button"
