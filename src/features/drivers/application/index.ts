@@ -8,6 +8,7 @@
 export {
   useDrivers,
   useAvailableDrivers,
+  useAssignableDrivers,
   driverKeys,
   fetchDrivers,
 } from "./hooks/useDrivers";
@@ -18,4 +19,5 @@ export type {
   DriverFilters,
   DriverStatus,
   LicenseType,
+  AssignableDriverItem,
 } from "./hooks/useDrivers";

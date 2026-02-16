@@ -204,6 +204,19 @@ export interface TripCargo {
   readonly notes: string | null;
   readonly specialInstructions: string | null;
 
+  // ── Carta Porte 3.1 — Nodo Mercancía ──────────────────────────
+  readonly satProductCode: string | null; // Catálogo c_ClaveProdServCP (8 dígitos, ej: "24131510")
+  readonly satUnitCode: string | null; // Catálogo c_ClaveUnidad (ej: "KGM", "H87", "XBX")
+  readonly satUnitName: string | null; // Nombre unidad (ej: "Kilogramo", "Pieza")
+  readonly weightInKg: number | null; // Peso obligatorio en kg para Carta Porte (PesoEnKg)
+  readonly dimensions: string | null; // Largo/Alto/Ancho en cm (ej: "50/40/30cm")
+
+  // Material peligroso
+  readonly hazardousMaterial: boolean | null; // ¿Transporta material peligroso?
+  readonly hazardousMaterialCode: string | null; // Catálogo c_MaterialPeligroso (ej: "1203")
+  readonly packagingType: string | null; // Catálogo c_TipoEmbalaje (ej: "4H2")
+  readonly packagingDescription: string | null; // Descripción del embalaje
+
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly createdBy: string | null;
@@ -290,6 +303,26 @@ export interface TripStop {
   readonly notes: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+
+  // ── Carta Porte 3.1 — Nodo Ubicación / Domicilio ──────────────
+  // Dirección desglosada (el campo `address` se mantiene como dirección de texto libre)
+  readonly street: string | null;
+  readonly exteriorNumber: string | null;
+  readonly interiorNumber: string | null;
+  readonly colonia: string | null;
+  readonly reference: string | null;
+
+  // Claves SAT (catálogos oficiales del SAT)
+  readonly satEstadoCode: string | null; // Catálogo c_Estado (ej: "MEX", "SLP", "NLE")
+  readonly satMunicipioCode: string | null; // Catálogo c_Municipio (ej: "028")
+  readonly satLocalidadCode: string | null; // Catálogo c_Localidad (ej: "05")
+  readonly satColoniaCode: string | null; // Catálogo c_Colonia (ej: "0001")
+
+  // Datos del remitente/destinatario en esta ubicación
+  readonly rfcRemitenteDestinatario: string | null; // RFC de quien envía/recibe en esta parada
+
+  // Distancia recorrida (obligatorio para destinos en Carta Porte)
+  readonly distanceToNextKm: number | null; // km desde ubicación anterior
 
   readonly cargos?: TripCargo[];
 }

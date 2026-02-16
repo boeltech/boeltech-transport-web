@@ -79,9 +79,10 @@ const RegisterPage = lazy(() => import("@/pages/auth/register"));
 const DashboardPage = lazy(() => import("@/pages/dashboard"));
 
 // Trips
-const TripsListPage = lazy(() => import("@pages/trips"));
+const TripFormPage = lazy(() => import("@/pages/trips/create"));
+const FinishTripPage = lazy(() => import("@pages/trips/finish"));
 const TripDetailPage = lazy(() => import("@/pages/trips/detail"));
-const TripCreatePage = lazy(() => import("@/pages/trips/create"));
+const TripsListPage = lazy(() => import("@pages/trips"));
 // const TripEditPage = lazy(() => import("@/pages/trips/edit"));
 
 // Vehicles
@@ -214,12 +215,12 @@ export const router = createBrowserRouter([
             element: <ModuleRoute module="trips" />,
             children: [
               {
-                path: "/trips",
-                element: withSuspense(TripsListPage),
-              },
-              {
                 path: "/trips/:id",
                 element: withSuspense(TripDetailPage),
+              },
+              {
+                path: "/trips",
+                element: withSuspense(TripsListPage),
               },
             ],
           },
@@ -229,7 +230,11 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/trips/new",
-                element: withSuspense(TripCreatePage),
+                element: withSuspense(TripFormPage),
+              },
+              {
+                path: "/trips/:id/finish",
+                element: withSuspense(FinishTripPage),
               },
             ],
           },

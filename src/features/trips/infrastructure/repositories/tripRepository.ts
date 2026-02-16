@@ -34,6 +34,21 @@ import {
 } from "./mappers";
 
 // ============================================================================
+// API RESPONSE WRAPPERS
+// ============================================================================
+
+/**
+ * Estructura estándar de respuesta del backend para un recurso individual.
+ * Todos los endpoints que devuelven un trip usan: { data: { ...trip }, message?: string }
+ *
+ * Esta convención se aplica a todos los módulos del ERP.
+ */
+interface ApiResourceResponse<T> {
+  data: T;
+  message?: string;
+}
+
+// ============================================================================
 // CONSTANTS
 // ============================================================================
 
@@ -67,11 +82,11 @@ export class TripRepository implements ITripRepository {
    */
   async findById(id: string): Promise<Trip | null> {
     try {
-      const response = await apiClient.get<ApiTripResponse>(
-        `${TRIPS_ENDPOINT}/${id}`,
-      );
-      const data = this.extractData(response);
-      return mapTrip(data);
+      const response = await apiClient.get<
+        ApiResourceResponse<ApiTripResponse>
+      >(`${TRIPS_ENDPOINT}/${id}`);
+      const responseData = this.extractData(response);
+      return mapTrip(responseData);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) {
         return null;
@@ -87,7 +102,7 @@ export class TripRepository implements ITripRepository {
     // Usar toApiCreateTrip que ya incluye el mapeo de stops, cargos y expenses
     const apiData = toApiCreateTrip(data);
 
-    const response = await apiClient.post<ApiTripResponse>(
+    const response = await apiClient.post<ApiResourceResponse<ApiTripResponse>>(
       TRIPS_ENDPOINT,
       apiData,
     );
@@ -134,7 +149,7 @@ export class TripRepository implements ITripRepository {
     if (data.baseRate !== undefined) updateData.baseRate = data.baseRate;
     if (data.notes !== undefined) updateData.notes = data.notes;
 
-    const response = await apiClient.put<ApiTripResponse>(
+    const response = await apiClient.put<ApiResourceResponse<ApiTripResponse>>(
       `${TRIPS_ENDPOINT}/${id}`,
       updateData,
     );
@@ -149,10 +164,9 @@ export class TripRepository implements ITripRepository {
   async updateStatus(id: string, data: UpdateTripStatusDTO): Promise<Trip> {
     const apiData = toApiUpdateStatus(data);
 
-    const response = await apiClient.patch<ApiTripResponse>(
-      `${TRIPS_ENDPOINT}/${id}/status`,
-      apiData,
-    );
+    const response = await apiClient.patch<
+      ApiResourceResponse<ApiTripResponse>
+    >(`${TRIPS_ENDPOINT}/${id}/status`, apiData);
 
     const responseData = this.extractData(response);
     return mapTrip(responseData);
@@ -164,7 +178,7 @@ export class TripRepository implements ITripRepository {
   async finish(id: string, data: FinishTripDTO): Promise<Trip> {
     const apiData = toApiFinishTrip(data);
 
-    const response = await apiClient.patch<ApiTripResponse>(
+    const response = await apiClient.post<ApiResourceResponse<ApiTripResponse>>(
       `${TRIPS_ENDPOINT}/${id}/finish`,
       apiData,
     );

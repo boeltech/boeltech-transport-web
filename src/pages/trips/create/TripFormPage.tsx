@@ -25,8 +25,8 @@ import {
   useUpdateTrip,
   StopType,
 } from "@/features/trips";
-import { useAvailableVehicles } from "@features/vehicles/application";
-import { useAvailableDrivers } from "@features/drivers/application";
+import { useAssignableVehicles } from "@features/vehicles/application";
+import { useAssignableDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
@@ -67,12 +67,11 @@ function TripFormPage() {
   // ============================================
   // Queries para cargar datos de los selects
   // ============================================
-
   const { data: vehicles = [], isLoading: isLoadingVehicles } =
-    useAvailableVehicles();
+    useAssignableVehicles();
 
   const { data: drivers = [], isLoading: isLoadingDrivers } =
-    useAvailableDrivers();
+    useAssignableDrivers();
 
   const { data: clients = [], isLoading: isLoadingClients } =
     useActiveClients();
@@ -540,6 +539,18 @@ function TripFormPage() {
           ? localDateTimeToISO(stop.estimatedArrival)
           : undefined,
         notes: stop.notes,
+        // Carta Porte 3.1
+        street: stop.street,
+        exteriorNumber: stop.exteriorNumber,
+        interiorNumber: stop.interiorNumber,
+        colonia: stop.colonia,
+        reference: stop.reference,
+        satEstadoCode: stop.satEstadoCode,
+        satMunicipioCode: stop.satMunicipioCode,
+        satLocalidadCode: stop.satLocalidadCode,
+        satColoniaCode: stop.satColoniaCode,
+        rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario,
+        distanceToNextKm: stop.distanceToNextKm,
       })),
       // Mapear cargos con movements
       cargos: data.cargos?.map((cargo) => ({
@@ -561,6 +572,16 @@ function TripFormPage() {
         })),
         notes: cargo.notes,
         specialInstructions: cargo.specialInstructions,
+        // Carta Porte 3.1
+        satProductCode: cargo.satProductCode,
+        satUnitCode: cargo.satUnitCode,
+        satUnitName: cargo.satUnitName,
+        weightInKg: cargo.weightInKg,
+        dimensions: cargo.dimensions,
+        hazardousMaterial: cargo.hazardousMaterial,
+        hazardousMaterialCode: cargo.hazardousMaterialCode,
+        packagingType: cargo.packagingType,
+        packagingDescription: cargo.packagingDescription,
       })),
       expenses: data.expenses?.map((expense) => ({
         category: expense.category,

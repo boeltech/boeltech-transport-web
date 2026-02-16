@@ -2,9 +2,11 @@
  * Trip Mappers
  * Clean Architecture - Infrastructure Layer
  *
- * ACTUALIZADO: Modelo Carga → Movimientos
+ * ACTUALIZADO: Modelo Carga → Movimientos + Cargos y Expenses Response
  * - ApiCreateCargoRequest ahora envía movements[] en lugar de pickupStopIndex/deliveryStopIndex
  * - toApiCreateCargo mapea movements correctamente
+ * - ApiTripCargoResponse y ApiTripExpenseResponse agregados para recibir datos del backend
+ * - mapTripCargo y mapTripExpense agregan transformación API → Domain
  *
  * Transforman datos entre el formato de la API y las entidades del dominio.
  */
@@ -25,6 +27,9 @@ import {
   type TripStatusType,
   type StopTypeValue,
   type StopStatusValue,
+  type TripCargo,
+  type CargoMovement,
+  type TripExpense,
 } from "@features/trips/domain/entities";
 
 import {
@@ -102,6 +107,8 @@ export interface ApiTripResponse {
   client?: ApiClientResponse | null;
   stops?: ApiTripStopResponse[];
   status_history?: ApiStatusHistoryResponse[];
+  cargos?: ApiTripCargoResponse[];
+  expenses?: ApiTripExpenseResponse[];
 }
 
 export interface ApiVehicleResponse {
@@ -162,6 +169,81 @@ export interface ApiStatusHistoryResponse {
   reason: string | null;
 }
 
+// ----------------------------------------------------------------------------
+// Cargo & Movements Response (Backend → Frontend)
+// ----------------------------------------------------------------------------
+
+export interface ApiCargoMovementResponse {
+  id: string;
+  cargo_id: string;
+  stop_id: string;
+  stop_sequence_order: number;
+  movement_type: string; // 'pickup' | 'delivery' | 'partial_pickup' | 'partial_delivery'
+  weight: string | number | null;
+  units: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ApiTripCargoResponse {
+  id: string;
+  tenant_id: string;
+  trip_id: string;
+  client_id: string;
+  description: string;
+  product_type: string | null;
+  weight: string | number | null;
+  volume: string | number | null;
+  units: number | null;
+  declared_value: string | number | null;
+  rate: string | number;
+  currency: string;
+  status: string; // 'pending' | 'in_transit' | 'delivered' | 'cancelled'
+  notes: string | null;
+  special_instructions: string | null;
+  // Carta Porte 3.1
+  sat_product_code: string | null;
+  sat_unit_code: string | null;
+  sat_unit_name: string | null;
+  weight_in_kg: string | number | null;
+  dimensions: string | null;
+  hazardous_material: boolean;
+  hazardous_material_code: string | null;
+  packaging_type: string | null;
+  packaging_description: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relaciones anidadas
+  client?: ApiClientResponse;
+  movements?: ApiCargoMovementResponse[];
+}
+
+// ----------------------------------------------------------------------------
+// Expense Response (Backend → Frontend)
+// ----------------------------------------------------------------------------
+
+export interface ApiTripExpenseResponse {
+  id: string;
+  tenant_id: string;
+  trip_id: string;
+  category: string; // 'fuel' | 'toll' | 'lodging' | 'food' | 'maintenance' | 'other'
+  description: string;
+  amount: string | number;
+  currency: string;
+  expense_date: string | null;
+  location: string | null;
+  vendor_name: string | null;
+  receipt_url: string | null;
+  notes: string | null;
+  is_estimated: boolean;
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApiPaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -218,6 +300,19 @@ export interface ApiCreateStopRequest {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+
+  // Carta Porte 3.1
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  colonia?: string;
+  reference?: string;
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
+  rfcRemitenteDestinatario?: string;
+  distanceToNextKm?: number;
 }
 
 /**
@@ -248,6 +343,17 @@ export interface ApiCreateCargoRequest {
   movements: ApiCreateCargoMovementRequest[];
   notes?: string;
   specialInstructions?: string;
+
+  // Carta Porte 3.1
+  satProductCode?: string;
+  satUnitCode?: string;
+  satUnitName?: string;
+  weightInKg?: number;
+  dimensions?: string;
+  hazardousMaterial?: boolean;
+  hazardousMaterialCode?: string;
+  packagingType?: string;
+  packagingDescription?: string;
 }
 
 export interface ApiCreateExpenseRequest {
@@ -392,6 +498,93 @@ export function mapStatusHistory(
   };
 }
 
+// ----------------------------------------------------------------------------
+// Cargo & Movements Mappers (API Response → Domain)
+// ----------------------------------------------------------------------------
+
+export function mapCargoMovement(api: ApiCargoMovementResponse): CargoMovement {
+  return {
+    id: api.id,
+    cargoId: api.cargo_id,
+    stopId: api.stop_id,
+    stopSequenceOrder: api.stop_sequence_order,
+    movementType: api.movement_type,
+    weight: toNumber(api.weight),
+    units: api.units,
+    notes: api.notes,
+    createdAt: toDateRequired(api.created_at),
+  };
+}
+
+export function mapTripCargo(api: ApiTripCargoResponse): TripCargo {
+  return {
+    id: api.id,
+    tenantId: api.tenant_id,
+    tripId: api.trip_id,
+    clientId: api.client_id,
+    description: api.description,
+    productType: api.product_type,
+    weight: toNumber(api.weight),
+    volume: toNumber(api.volume),
+    units: api.units,
+    declaredValue: toNumber(api.declared_value),
+    rate: toNumberOrDefault(api.rate),
+    currency: api.currency,
+    status: api.status,
+    notes: api.notes,
+    specialInstructions: api.special_instructions,
+    // Carta Porte 3.1
+    satProductCode: api.sat_product_code,
+    satUnitCode: api.sat_unit_code,
+    satUnitName: api.sat_unit_name,
+    weightInKg: toNumber(api.weight_in_kg),
+    dimensions: api.dimensions,
+    hazardousMaterial: api.hazardous_material,
+    hazardousMaterialCode: api.hazardous_material_code,
+    packagingType: api.packaging_type,
+    packagingDescription: api.packaging_description,
+    createdAt: toDateRequired(api.created_at),
+    updatedAt: toDateRequired(api.updated_at),
+    // Relaciones anidadas
+    client: api.client ? mapClientRef(api.client) : undefined,
+    movements: api.movements
+      ? api.movements.map(mapCargoMovement)
+      : undefined,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Expense Mapper (API Response → Domain)
+// ----------------------------------------------------------------------------
+
+export function mapTripExpense(api: ApiTripExpenseResponse): TripExpense {
+  return {
+    id: api.id,
+    tenantId: api.tenant_id,
+    tripId: api.trip_id,
+    category: api.category,
+    description: api.description,
+    amount: toNumberOrDefault(api.amount),
+    currency: api.currency,
+    expenseDate: toDate(api.expense_date),
+    location: api.location,
+    vendorName: api.vendor_name,
+    receiptUrl: api.receipt_url,
+    notes: api.notes,
+    isEstimated: api.is_estimated,
+    approved: api.approved,
+    approvedBy: api.approved_by,
+    approvedAt: toDate(api.approved_at),
+    createdBy: api.created_by,
+    createdAt: toDateRequired(api.created_at),
+    updatedAt: toDateRequired(api.updated_at),
+  };
+}
+
+// ============================================================================
+// COMPOSITE MAPPERS - Full Trip with relations
+// ============================================================================
+
 export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
   const totalCost = toNumberOrDefault(api.total_cost);
   const totalRevenue = 0; // TODO: Agregar cuando el backend lo soporte
@@ -488,6 +681,8 @@ export function mapTrip(api: ApiTripResponse): Trip {
     statusHistory: api.status_history
       ? api.status_history.map(mapStatusHistory)
       : undefined,
+    cargos: api.cargos ? api.cargos.map(mapTripCargo) : undefined,
+    expenses: api.expenses ? api.expenses.map(mapTripExpense) : undefined,
   };
 
   return trip;
@@ -574,6 +769,19 @@ export function toApiCreateStop(data: CreateTripStopDTO): ApiCreateStopRequest {
     cargoWeight: data.cargoWeight,
     cargoUnits: data.cargoUnits,
     notes: data.notes,
+
+    // Carta Porte 3.1
+    street: data.street,
+    exteriorNumber: data.exteriorNumber,
+    interiorNumber: data.interiorNumber,
+    colonia: data.colonia,
+    reference: data.reference,
+    satEstadoCode: data.satEstadoCode,
+    satMunicipioCode: data.satMunicipioCode,
+    satLocalidadCode: data.satLocalidadCode,
+    satColoniaCode: data.satColoniaCode,
+    rfcRemitenteDestinatario: data.rfcRemitenteDestinatario,
+    distanceToNextKm: data.distanceToNextKm,
   };
 }
 
@@ -605,6 +813,17 @@ export function toApiCreateCargo(
     ),
     notes: data.notes,
     specialInstructions: data.specialInstructions,
+
+    // Carta Porte 3.1
+    satProductCode: data.satProductCode,
+    satUnitCode: data.satUnitCode,
+    satUnitName: data.satUnitName,
+    weightInKg: data.weightInKg,
+    dimensions: data.dimensions,
+    hazardousMaterial: data.hazardousMaterial,
+    hazardousMaterialCode: data.hazardousMaterialCode,
+    packagingType: data.packagingType,
+    packagingDescription: data.packagingDescription,
   };
 }
 

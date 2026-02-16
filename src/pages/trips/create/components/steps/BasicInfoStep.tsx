@@ -1,6 +1,9 @@
 /**
  * BasicInfoStep - Paso 1 del Wizard
  * Información básica: Asignaciones y Programación
+ *
+ * Los selects de vehículo y conductor muestran todos los recursos activos.
+ * Los que tienen documentos vencidos aparecen deshabilitados con etiqueta de advertencia.
  */
 
 import { useEffect } from "react";
@@ -20,21 +23,28 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
 } from "@shared/ui/select";
 import { Input } from "@shared/ui/input";
-import { Truck, User, Building2, Calendar, Loader2 } from "lucide-react";
+import {
+  Truck,
+  User,
+  Building2,
+  Calendar,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import type { TripWizardFormValues } from "../types";
+import type { AssignableVehicleItem } from "@/features/vehicles/application";
+import type { AssignableDriverItem } from "@/features/drivers/application";
 
 interface BasicInfoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
-  vehicles: Array<{
-    id: string;
-    unitNumber: string;
-    licensePlate: string;
-    currentMileage: number;
-  }>;
-  drivers: Array<{ id: string; fullName: string }>;
+  vehicles: AssignableVehicleItem[];
+  drivers: AssignableDriverItem[];
   clients: Array<{ id: string; legalName: string }>;
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
@@ -52,19 +62,21 @@ export function BasicInfoStep({
 }: BasicInfoStepProps) {
   const selectedVehicleId = form.watch("vehicleId");
 
+  // Separar vehículos asignables y bloqueados
+  const assignableVehicles = vehicles.filter((v) => v.canBeAssigned);
+  const blockedVehicles = vehicles.filter((v) => !v.canBeAssigned);
+
+  // Separar conductores asignables y bloqueados
+  const assignableDrivers = drivers.filter((d) => d.canBeAssigned);
+  const blockedDrivers = drivers.filter((d) => !d.canBeAssigned);
+
   // Efecto para precargar el kilometraje cuando se selecciona un vehículo
   useEffect(() => {
     if (selectedVehicleId && vehicles.length > 0) {
       const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
       if (selectedVehicle) {
-        // Guardar el kilometraje actual del vehículo para validación
         form.setValue("vehicleCurrentMileage", selectedVehicle.currentMileage);
-
-        // Precargar el kilometraje inicial solo si no tiene valor
-        // const currentStartMileage = form.getValues("startMileage");
-        // if (currentStartMileage === undefined || currentStartMileage === null) {
         form.setValue("startMileage", selectedVehicle.currentMileage);
-        // }
       }
     }
   }, [selectedVehicleId, vehicles, form]);
@@ -106,11 +118,51 @@ export function BasicInfoStep({
                           No hay vehículos disponibles
                         </SelectItem>
                       ) : (
-                        vehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.unitNumber} - {vehicle.licensePlate}
-                          </SelectItem>
-                        ))
+                        <>
+                          {/* Vehículos asignables */}
+                          {assignableVehicles.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Disponibles</SelectLabel>
+                              {assignableVehicles.map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.unitNumber} — {vehicle.licensePlate}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+
+                          {/* Separador si hay bloqueados */}
+                          {blockedVehicles.length > 0 &&
+                            assignableVehicles.length > 0 && (
+                              <SelectSeparator />
+                            )}
+
+                          {/* Vehículos bloqueados */}
+                          {blockedVehicles.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                No asignables
+                              </SelectLabel>
+                              {blockedVehicles.map((vehicle) => (
+                                <SelectItem
+                                  key={vehicle.id}
+                                  value={vehicle.id}
+                                  disabled
+                                  className="opacity-60"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {vehicle.unitNumber} —{" "}
+                                    {vehicle.licensePlate}
+                                    <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900 dark:text-yellow-400">
+                                      {vehicle.blockReason}
+                                    </span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
@@ -147,11 +199,48 @@ export function BasicInfoStep({
                           No hay conductores disponibles
                         </SelectItem>
                       ) : (
-                        drivers.map((driver) => (
-                          <SelectItem key={driver.id} value={driver.id}>
-                            {driver.fullName}
-                          </SelectItem>
-                        ))
+                        <>
+                          {/* Conductores asignables */}
+                          {assignableDrivers.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Disponibles</SelectLabel>
+                              {assignableDrivers.map((driver) => (
+                                <SelectItem key={driver.id} value={driver.id}>
+                                  {driver.fullName}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+
+                          {/* Separador si hay bloqueados */}
+                          {blockedDrivers.length > 0 &&
+                            assignableDrivers.length > 0 && <SelectSeparator />}
+
+                          {/* Conductores bloqueados */}
+                          {blockedDrivers.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                No asignables
+                              </SelectLabel>
+                              {blockedDrivers.map((driver) => (
+                                <SelectItem
+                                  key={driver.id}
+                                  value={driver.id}
+                                  disabled
+                                  className="opacity-60"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {driver.fullName}
+                                    <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900 dark:text-yellow-400">
+                                      {driver.blockReason}
+                                    </span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

@@ -23,6 +23,7 @@ export {
   type TripStatusType,
   type StopTypeValue,
   type StopStatusValue,
+  type ExpenseCategoryType,
   // Value Objects
   type Coordinates,
   type Mileage,
@@ -30,6 +31,7 @@ export {
   type CostBreakdown,
   // Entities
   type TripStop,
+  type TripCargo,
   type TripStatusHistory,
   type VehicleRef,
   type DriverRef,
@@ -55,6 +57,8 @@ export {
   TRIP_STATUS_LABELS,
   STOP_TYPE_LABELS,
   STOP_STATUS_LABELS,
+  CARGO_STATUS_LABELS,
+  EXPENSE_CATEGORY_LABELS,
 } from "./entities";
 
 // ============================================================================

@@ -2,20 +2,23 @@
  * TripDetailPage
  * FSD: Pages Layer - Composition
  *
- * ACTUALIZADO: Alineado con el Backend
- * - Campos alineados con estructura del backend
- * - Sección de origen/destino agregada
- * - Helpers de UI incluidos
+ * ACTUALIZADO: Alineado con el Wizard de Creación
+ * - Stops obtenidos de trip.stops (ya vienen en useTrip, no requiere useTripStops)
+ * - stopType como StopTypeValue[] (array) — soporta tipos compuestos
+ * - Tabs: Resumen, Ruta, Cargas, Costos, Historial
+ * - Preparado para cargos y expenses (cuando el backend los incluya)
+ *
+ * Clean Architecture: Page compone componentes de Presentation + hooks de Application
  */
 
 import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@shared/lib/utils";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
-import { Badge } from "@shared/ui/badge";
 import { Separator } from "@shared/ui/separator";
 
 import {
@@ -23,18 +26,25 @@ import {
   useTripStops,
   useMarkStopVisited,
   calculateDistance,
+  calculateTripDuration,
   formatDisplayDate,
   formatDuration,
   formatMileage,
   formatCurrency,
   getStopTypeConfig,
+  getStatusConfig,
 } from "@/features/trips";
 
 import {
   type TripStatusType,
+  type TripStop,
+  type StopTypeValue,
+  type ExpenseCategoryType,
   TripStatus,
   TRIP_STATUS_LABELS,
-  calculateTripDuration,
+  STOP_TYPE_LABELS,
+  EXPENSE_CATEGORY_LABELS,
+  getOrderedStops,
   calculateStopsProgress,
 } from "@features/trips/domain";
 
@@ -53,14 +63,46 @@ import {
   Check,
   Package,
   Navigation,
+  FileText,
+  History,
+  Receipt,
+  Phone,
+  Weight,
+  Box,
+  CircleDollarSign,
 } from "lucide-react";
 import {
   TRIP_STATUS_BADGE_COLORS,
   TripActions,
+  TripStatusBadgeAnimated,
 } from "@features/trips/presentation";
 
 // ============================================================================
-// COMPONENTS
+// HELPERS
+// ============================================================================
+
+/**
+ * Obtiene la config visual para un stopType que puede ser string | string[]
+ * Para arrays compuestos (["origin", "pickup"]), retorna la config del primer tipo
+ * y un label combinado.
+ */
+function getStopDisplayConfig(
+  stopType: StopTypeValue | StopTypeValue[] | string | string[],
+) {
+  const types = Array.isArray(stopType) ? stopType : [stopType];
+  const primaryType = types[0] as StopTypeValue;
+  const config = getStopTypeConfig(primaryType);
+
+  if (types.length > 1) {
+    const labels = types.map((t) => STOP_TYPE_LABELS[t as StopTypeValue] || t);
+    return { ...config, label: labels.join(" + ") };
+  }
+
+  return config;
+}
+
+// ============================================================================
+// SUB-COMPONENTS
 // ============================================================================
 
 interface InfoRowProps {
@@ -81,18 +123,6 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
   );
 }
 
-interface TripStatusBadgeProps {
-  status: TripStatusType;
-}
-
-function TripStatusBadge({ status }: TripStatusBadgeProps) {
-  return (
-    <Badge className={cn("font-medium", TRIP_STATUS_BADGE_COLORS[status])}>
-      {TRIP_STATUS_LABELS[status]}
-    </Badge>
-  );
-}
-
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -102,22 +132,34 @@ function TripDetailPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Queries
+  // ── Queries ──────────────────────────────────────────────────────────────
   const { data: trip, isLoading, refetch } = useTrip(id || "");
-  const { data: stops = [] } = useTripStops(id || "");
 
-  // Mutations
+  // Stops: usar trip.stops si disponible, fallback a useTripStops
+  // const { data: stopsFromQuery = [] } = useTripStops(id || "", {
+  //   enabled: !!id && !trip?.stops,
+  // });
+  // const stops = trip?.stops ?? stopsFromQuery;
+
+  const stops = trip?.stops ?? [];
+  const orderedStops = getOrderedStops(stops);
+
+  // Cargos y expenses del trip (cuando el backend los incluya)
+  const cargos = trip?.cargos ?? [];
+  const expenses = trip?.expenses ?? [];
+
+  // ── Mutations ────────────────────────────────────────────────────────────
   const markVisitedMutation = useMarkStopVisited({
     onSuccess: () =>
       toast({ title: "Parada marcada como visitada", variant: "success" }),
-    onError: (e) =>
+    onError: (e: Error) =>
       toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  // Loading state
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) return <TripDetailSkeleton />;
 
-  // Not found state
+  // ── Not Found ────────────────────────────────────────────────────────────
   if (!trip) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -132,14 +174,27 @@ function TripDetailPage() {
     );
   }
 
-  // Calculated values
+  // ── Calculated values ────────────────────────────────────────────────────
   const distance = calculateDistance(trip.mileage);
   const duration = calculateTripDuration(trip);
   const progress = calculateStopsProgress(stops);
 
+  // Totales de cargos
+  const totalRevenue = cargos.reduce((sum, c) => sum + (c.rate || 0), 0);
+  const totalCargoWeight = cargos.reduce((sum, c) => sum + (c.weight || 0), 0);
+
+  // Totales de expenses
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  // Tab count badges
+  const cargoCount = cargos.length;
+  const expenseCount = expenses.length;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ================================================================ */}
+      {/* HEADER                                                           */}
+      {/* ================================================================ */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -151,7 +206,7 @@ function TripDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-2xl font-bold">{trip.tripCode}</h1>
-            <TripStatusBadge status={trip.status} />
+            <TripStatusBadgeAnimated status={trip.status} size="sm" />
           </div>
           <div className="pl-12 space-y-1">
             {trip.client && (
@@ -165,30 +220,37 @@ function TripDetailPage() {
           </div>
         </div>
 
-        {/* Componente de acciones */}
         <TripActions
           tripId={trip.id}
           tripCode={trip.tripCode}
           status={trip.status}
-          variant="buttons" // o "dropdown" o "both"
-          onActionComplete={refetch} // Refresca después de una acción
+          variant="buttons"
+          onActionComplete={refetch}
         />
       </div>
 
-      {/* Tabs */}
+      {/* ================================================================ */}
+      {/* TABS                                                             */}
+      {/* ================================================================ */}
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="route">
-            Ruta {stops.length > 0 && `(${stops.length})`}
+            Ruta {orderedStops.length > 0 && `(${orderedStops.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="cargo">
+            Cargas {cargoCount > 0 && `(${cargoCount})`}
           </TabsTrigger>
           <TabsTrigger value="costs">Costos</TabsTrigger>
+          <TabsTrigger value="history">Historial</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
+        {/* ============================================================ */}
+        {/* TAB: RESUMEN                                                  */}
+        {/* ============================================================ */}
         <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* Trip Info */}
+            {/* ── Información del Viaje ──────────────────────────────── */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -228,7 +290,7 @@ function TripDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Vehicle & Driver */}
+            {/* ── Unidad y Conductor ─────────────────────────────────── */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -271,7 +333,7 @@ function TripDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Mileage */}
+            {/* ── Kilometraje ────────────────────────────────────────── */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -299,7 +361,7 @@ function TripDetailPage() {
             </Card>
           </div>
 
-          {/* Origin & Destination */}
+          {/* ── Origen y Destino ──────────────────────────────────────── */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader className="pb-2">
@@ -332,14 +394,14 @@ function TripDetailPage() {
             </Card>
           </div>
 
-          {/* Cargo Info */}
+          {/* ── Resumen de Carga (legacy fields) ─────────────────────── */}
           {(trip.cargo.description ||
             trip.cargo.weight ||
             trip.cargo.volume) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Información de Carga
+                  <Package className="h-4 w-4" /> Información General de Carga
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -382,7 +444,7 @@ function TripDetailPage() {
             </Card>
           )}
 
-          {/* Notes */}
+          {/* ── Notas ────────────────────────────────────────────────── */}
           {trip.notes && (
             <Card>
               <CardHeader className="pb-2">
@@ -393,27 +455,46 @@ function TripDetailPage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
 
-        {/* Route Tab */}
-        <TabsContent value="route" className="space-y-4 mt-4">
-          {/* Progress Bar for In-Progress Trips */}
-          {trip.status === TripStatus.IN_PROGRESS && stops.length > 0 && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progreso de la ruta</span>
-                    <span className="font-medium">{progress}%</span>
-                  </div>
-                  <Progress value={progress} />
-                </div>
+          {/* ── Razón de Cancelación ─────────────────────────────────── */}
+          {trip.cancellationReason && (
+            <Card className="border-red-200 dark:border-red-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-red-600 dark:text-red-400">
+                  Razón de Cancelación
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap">
+                  {trip.cancellationReason}
+                </p>
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ============================================================ */}
+        {/* TAB: RUTA                                                     */}
+        {/* ============================================================ */}
+        <TabsContent value="route" className="space-y-4 mt-4">
+          {/* Progress Bar for In-Progress Trips */}
+          {trip.status === TripStatus.IN_PROGRESS &&
+            orderedStops.length > 0 && (
+              <Card>
+                <CardContent className="pt-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progreso de la ruta</span>
+                      <span className="font-medium">{progress}%</span>
+                    </div>
+                    <Progress value={progress} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
           {/* Stops List */}
-          {stops.length === 0 ? (
+          {orderedStops.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
                 <MapPin className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -424,10 +505,10 @@ function TripDetailPage() {
             </Card>
           ) : (
             <div className="relative">
-              {stops.map((stop, index) => {
-                const config = getStopTypeConfig(stop.stopType);
+              {orderedStops.map((stop, index) => {
+                const config = getStopDisplayConfig(stop.stopType);
                 const isVisited = !!stop.actualArrival;
-                const isLast = index === stops.length - 1;
+                const isLast = index === orderedStops.length - 1;
                 const canMarkVisited =
                   trip.status === TripStatus.IN_PROGRESS && !isVisited;
 
@@ -441,7 +522,7 @@ function TripDetailPage() {
                         className={cn(
                           "h-10 w-10 rounded-full flex items-center justify-center border-2",
                           isVisited
-                            ? "bg-emerald-100 border-emerald-500"
+                            ? "bg-emerald-100 border-emerald-500 dark:bg-emerald-900/30"
                             : "bg-background border-muted-foreground/30",
                         )}
                       >
@@ -472,25 +553,95 @@ function TripDetailPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2">
+                            {/* Stop Type + Sequence */}
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium">
                                 {config.label}
                               </span>
                               <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                                 #{stop.sequenceOrder}
                               </span>
+                              {/* Badges para tipos compuestos */}
+                              {Array.isArray(stop.stopType) &&
+                                stop.stopType.length > 1 &&
+                                stop.stopType.map((type) => {
+                                  const typeConfig = getStopTypeConfig(
+                                    type as StopTypeValue,
+                                  );
+                                  return (
+                                    <Badge
+                                      key={type}
+                                      variant="outline"
+                                      className={cn(
+                                        "text-xs",
+                                        typeConfig.color,
+                                      )}
+                                    >
+                                      {typeConfig.label}
+                                    </Badge>
+                                  );
+                                })}
                             </div>
+
+                            {/* Address */}
                             <p className="text-sm">{stop.address}</p>
                             <p className="text-sm text-muted-foreground">
                               {stop.city}
                               {stop.state && `, ${stop.state}`}
                               {stop.postalCode && ` ${stop.postalCode}`}
                             </p>
+
+                            {/* Location name */}
                             {stop.locationName && (
-                              <p className="text-sm text-muted-foreground">
-                                📍 {stop.locationName}
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />{" "}
+                                {stop.locationName}
                               </p>
                             )}
+
+                            {/* Contact */}
+                            {stop.contactName && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <User className="h-3 w-3" /> {stop.contactName}
+                                {stop.contactPhone && (
+                                  <span className="flex items-center gap-1 ml-2">
+                                    <Phone className="h-3 w-3" />
+                                    {stop.contactPhone}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+
+                            {/* Cargo action */}
+                            {stop.cargoActionDescription && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Package className="h-3 w-3" />{" "}
+                                {stop.cargoActionDescription}
+                              </p>
+                            )}
+
+                            {/* Cargo weight/units on stop */}
+                            {(stop.cargoWeight || stop.cargoUnits) && (
+                              <div className="flex gap-3 text-xs text-muted-foreground">
+                                {stop.cargoWeight && (
+                                  <span>Peso: {stop.cargoWeight} kg</span>
+                                )}
+                                {stop.cargoUnits && (
+                                  <span>Unidades: {stop.cargoUnits}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Distance to next */}
+                            {stop.distanceToNextKm != null &&
+                              stop.distanceToNextKm > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Distancia al siguiente:{" "}
+                                  {stop.distanceToNextKm} km
+                                </p>
+                              )}
+
+                            {/* Times */}
                             {stop.estimatedArrival && !isVisited && (
                               <p className="text-xs text-muted-foreground">
                                 Llegada est.:{" "}
@@ -503,13 +654,16 @@ function TripDetailPage() {
                                 {formatDisplayDate(stop.actualArrival)}
                               </p>
                             )}
+
+                            {/* Notes */}
                             {stop.notes && (
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-muted-foreground mt-1 italic">
                                 {stop.notes}
                               </p>
                             )}
                           </div>
 
+                          {/* Mark Visited Button */}
                           {canMarkVisited && (
                             <Button
                               size="sm"
@@ -535,8 +689,170 @@ function TripDetailPage() {
           )}
         </TabsContent>
 
-        {/* Costs Tab */}
+        {/* ============================================================ */}
+        {/* TAB: CARGAS                                                   */}
+        {/* ============================================================ */}
+        <TabsContent value="cargo" className="space-y-4 mt-4">
+          {cargos.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">
+                  No hay cargas registradas para este viaje.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Las cargas detalladas se registran en el wizard de creación.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Resumen de cargas */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4" />
+                      <span>Total Cargas</span>
+                    </div>
+                    <p className="text-2xl font-bold mt-1">{cargoCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Weight className="h-4 w-4" />
+                      <span>Peso Total</span>
+                    </div>
+                    <p className="text-2xl font-bold mt-1">
+                      {totalCargoWeight > 0
+                        ? `${totalCargoWeight.toLocaleString("es-MX")} kg`
+                        : "—"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CircleDollarSign className="h-4 w-4" />
+                      <span>Ingreso Total</span>
+                    </div>
+                    <p className="text-2xl font-bold mt-1 text-emerald-600">
+                      {formatCurrency(totalRevenue)}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Lista de cargas */}
+              <div className="space-y-3">
+                {cargos.map((cargo) => (
+                  <Card key={cargo.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {cargo.description}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {cargo.status}
+                            </Badge>
+                          </div>
+
+                          {cargo.client && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Building2 className="h-3 w-3" />
+                              {cargo.client.legalName}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                            {cargo.weight && (
+                              <span>Peso: {cargo.weight} kg</span>
+                            )}
+                            {cargo.units && (
+                              <span>Unidades: {cargo.units}</span>
+                            )}
+                            {cargo.volume && (
+                              <span>Volumen: {cargo.volume} m³</span>
+                            )}
+                            {cargo.declaredValue && (
+                              <span>
+                                Valor: {formatCurrency(cargo.declaredValue)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Movements */}
+                          {cargo.movements && cargo.movements.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {cargo.movements.map((movement, idx) => {
+                                const stopForMovement = orderedStops.find(
+                                  (s) =>
+                                    s.id === movement.stopId ||
+                                    s.sequenceOrder === movement.stopIndex,
+                                );
+                                return (
+                                  <div
+                                    key={movement.id || idx}
+                                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                                  >
+                                    {movement.movementType === "pickup" ? (
+                                      <Package className="h-3 w-3 text-blue-500" />
+                                    ) : (
+                                      <Box className="h-3 w-3 text-orange-500" />
+                                    )}
+                                    <span className="capitalize">
+                                      {movement.movementType === "pickup"
+                                        ? "Recoger"
+                                        : "Entregar"}
+                                    </span>
+                                    {stopForMovement && (
+                                      <span>
+                                        en {stopForMovement.city}
+                                        {stopForMovement.locationName &&
+                                          ` (${stopForMovement.locationName})`}
+                                      </span>
+                                    )}
+                                    {movement.weight && (
+                                      <span>• {movement.weight} kg</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {cargo.notes && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">
+                              {cargo.notes}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold text-emerald-600">
+                            {formatCurrency(cargo.rate)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {cargo.currency || "MXN"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ============================================================ */}
+        {/* TAB: COSTOS                                                   */}
+        {/* ============================================================ */}
         <TabsContent value="costs" className="space-y-4 mt-4">
+          {/* Desglose base */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
@@ -578,6 +894,152 @@ function TripDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Gastos detallados del wizard */}
+          {expenses.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Receipt className="h-4 w-4" /> Gastos Detallados
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {expenseCount} gastos
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {expenses.map((expense) => (
+                    <div
+                      key={expense.id}
+                      className="flex items-center justify-between py-2 border-b last:border-0"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {expense.description}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {EXPENSE_CATEGORY_LABELS[
+                              expense.category as ExpenseCategoryType
+                            ] || expense.category}
+                          </Badge>
+                        </div>
+                        {expense.vendorName && (
+                          <p className="text-xs text-muted-foreground">
+                            {expense.vendorName}
+                          </p>
+                        )}
+                      </div>
+                      <span className="font-medium shrink-0 ml-4">
+                        {formatCurrency(expense.amount)}
+                      </span>
+                    </div>
+                  ))}
+
+                  <Separator className="my-2" />
+                  <div className="flex justify-between py-2 font-semibold">
+                    <span>Total Gastos Detallados</span>
+                    <span>{formatCurrency(totalExpenses)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ============================================================ */}
+        {/* TAB: HISTORIAL                                                */}
+        {/* ============================================================ */}
+        <TabsContent value="history" className="space-y-4 mt-4">
+          {!trip.statusHistory || trip.statusHistory.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <History className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">
+                  No hay historial de cambios disponible.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4" /> Historial de Estados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  {trip.statusHistory.map((entry, index) => {
+                    const isLast = index === trip.statusHistory!.length - 1;
+                    const statusConfig = getStatusConfig(
+                      entry.newStatus as TripStatusType,
+                    );
+                    const StatusIcon = statusConfig?.icon || FileText;
+
+                    return (
+                      <div key={entry.id} className="flex gap-4">
+                        {/* Timeline dot */}
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={cn(
+                              "h-8 w-8 rounded-full flex items-center justify-center border-2",
+                              statusConfig?.bgColor ||
+                                "bg-gray-100 dark:bg-gray-800",
+                              statusConfig?.borderColor || "border-gray-300",
+                            )}
+                          >
+                            <StatusIcon
+                              className={cn(
+                                "h-4 w-4",
+                                statusConfig?.color || "text-gray-500",
+                              )}
+                            />
+                          </div>
+                          {!isLast && (
+                            <div className="w-0.5 flex-1 min-h-[24px] bg-muted-foreground/20" />
+                          )}
+                        </div>
+
+                        {/* Entry content */}
+                        <div className="pb-4 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {TRIP_STATUS_LABELS[
+                                entry.newStatus as TripStatusType
+                              ] || entry.newStatus}
+                            </span>
+                            {entry.previousStatus && (
+                              <span className="text-xs text-muted-foreground">
+                                (desde{" "}
+                                {TRIP_STATUS_LABELS[
+                                  entry.previousStatus as TripStatusType
+                                ] || entry.previousStatus}
+                                )
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDisplayDate(entry.changedAt)}
+                            {entry.changedByName && ` • ${entry.changedByName}`}
+                          </p>
+                          {entry.reason && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">
+                              {entry.reason}
+                            </p>
+                          )}
+                          {entry.mileage != null && (
+                            <p className="text-xs text-muted-foreground">
+                              Kilometraje: {formatMileage(entry.mileage)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -599,7 +1061,7 @@ function TripDetailSkeleton() {
       </div>
 
       {/* Tabs skeleton */}
-      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-10 w-96" />
 
       {/* Cards skeleton */}
       <div className="grid gap-4 md:grid-cols-3">

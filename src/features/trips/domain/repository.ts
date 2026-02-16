@@ -88,6 +88,17 @@ export interface CreateTripCargoDTO {
   movements: CreateCargoMovementDTO[];
   notes?: string;
   specialInstructions?: string;
+
+  // ── Carta Porte 3.1 — Mercancía ──────────────────────────────
+  satProductCode?: string;
+  satUnitCode?: string;
+  satUnitName?: string;
+  weightInKg?: number;
+  dimensions?: string;
+  hazardousMaterial?: boolean;
+  hazardousMaterialCode?: string;
+  packagingType?: string;
+  packagingDescription?: string;
 }
 
 /**
@@ -192,6 +203,19 @@ export interface CreateTripStopDTO {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+
+  // ── Carta Porte 3.1 — Ubicación / Domicilio ──────────────────
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  colonia?: string;
+  reference?: string;
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
+  rfcRemitenteDestinatario?: string;
+  distanceToNextKm?: number;
 }
 
 /**
@@ -214,6 +238,19 @@ export interface AddStopData {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+
+  // Carta Porte 3.1
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  colonia?: string;
+  reference?: string;
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
+  rfcRemitenteDestinatario?: string;
+  distanceToNextKm?: number;
 }
 
 /**
@@ -236,6 +273,19 @@ export interface UpdateStopDTO {
   cargoWeight?: number;
   cargoUnits?: number;
   notes?: string;
+
+  // Carta Porte 3.1
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  colonia?: string;
+  reference?: string;
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
+  rfcRemitenteDestinatario?: string;
+  distanceToNextKm?: number;
 }
 
 // ============================================================================

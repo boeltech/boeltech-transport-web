@@ -2,6 +2,7 @@
 export {
   useVehicles,
   useAvailableVehicles,
+  useAssignableVehicles,
   vehicleKeys,
   fetchVehicles,
 } from "./hooks/useVehicles";
@@ -12,4 +13,5 @@ export type {
   VehicleFilters,
   VehicleStatus,
   VehicleType,
+  AssignableVehicleItem,
 } from "./hooks/useVehicles";

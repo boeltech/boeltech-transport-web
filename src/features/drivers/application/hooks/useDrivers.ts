@@ -49,6 +49,14 @@ export interface DriverListItem {
 }
 
 /**
+ * Conductor enriquecido con estado de asignabilidad
+ */
+export interface AssignableDriverItem extends DriverListItem {
+  canBeAssigned: boolean;
+  blockReason?: string;
+}
+
+/**
  * Filtros para consulta de conductores
  */
 export interface DriverFilters {
@@ -110,6 +118,33 @@ function mapDriverListItem(api: ApiDriverListItem): DriverListItem {
   };
 }
 
+/**
+ * Clasifica un conductor como asignable o bloqueado
+ */
+function classifyDriverForAssignment(
+  driver: DriverListItem,
+): AssignableDriverItem {
+  // Status no disponible
+  if (driver.status !== "available") {
+    return {
+      ...driver,
+      canBeAssigned: false,
+      blockReason: `Estado: ${driver.status}`,
+    };
+  }
+
+  // Licencia vencida
+  if (driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date()) {
+    return {
+      ...driver,
+      canBeAssigned: false,
+      blockReason: "Licencia vencida",
+    };
+  }
+
+  return { ...driver, canBeAssigned: true };
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
@@ -167,20 +202,11 @@ export const driverKeys = {
   list: (filters?: DriverFilters) => [...driverKeys.lists(), filters] as const,
   available: () =>
     [...driverKeys.list({ status: "available", isActive: true })] as const,
+  assignable: () => [...driverKeys.all, "assignable"] as const,
 };
 
 /**
  * Hook para obtener listado de conductores
- *
- * @example
- * // Todos los conductores
- * const { data: drivers } = useDrivers();
- *
- * // Solo conductores disponibles
- * const { data: drivers } = useDrivers({ status: 'available' });
- *
- * // Conductores con licencia federal
- * const { data: drivers } = useDrivers({ licenseType: 'federal', isActive: true });
  */
 export function useDrivers(
   filters?: DriverFilters,
@@ -199,9 +225,6 @@ export function useDrivers(
 
 /**
  * Hook para obtener conductores disponibles (para asignar a viajes)
- *
- * @example
- * const { data: availableDrivers, isLoading } = useAvailableDrivers();
  */
 export function useAvailableDrivers(
   options?: Omit<
@@ -212,7 +235,34 @@ export function useAvailableDrivers(
   return useQuery({
     queryKey: driverKeys.available(),
     queryFn: () => fetchDrivers({ status: "available", isActive: true }),
-    staleTime: 1000 * 60 * 2, // 2 minutos (datos que cambian frecuentemente)
+    staleTime: 1000 * 60 * 2,
+    ...options,
+  });
+}
+
+/**
+ * Hook para obtener conductores clasificados por asignabilidad.
+ * Retorna TODOS los conductores activos + disponibles, clasificados como
+ * asignables o bloqueados (licencia vencida).
+ *
+ * Los bloqueados se muestran en el select pero deshabilitados con la razón.
+ */
+export function useAssignableDrivers(
+  options?: Omit<
+    UseQueryOptions<AssignableDriverItem[], Error>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery({
+    queryKey: driverKeys.assignable(),
+    queryFn: async (): Promise<AssignableDriverItem[]> => {
+      const drivers = await fetchDrivers({
+        status: "available",
+        isActive: true,
+      });
+      return drivers.map(classifyDriverForAssignment);
+    },
+    staleTime: 1000 * 60 * 2,
     ...options,
   });
 }

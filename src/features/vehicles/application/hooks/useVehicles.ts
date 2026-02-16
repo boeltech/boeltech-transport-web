@@ -43,6 +43,16 @@ export interface VehicleListItem {
   status: VehicleStatus;
   currentMileage: number;
   isActive: boolean;
+  insuranceExpiry?: Date;
+  sctPermitExpiry?: Date;
+}
+
+/**
+ * Vehículo enriquecido con estado de asignabilidad
+ */
+export interface AssignableVehicleItem extends VehicleListItem {
+  canBeAssigned: boolean;
+  blockReason?: string;
 }
 
 /**
@@ -69,6 +79,8 @@ interface ApiVehicleListItem {
   status: VehicleStatus;
   current_mileage: number;
   is_active: boolean;
+  insurance_expiry?: string;
+  sct_permit_expiry?: string;
 }
 
 interface ApiPaginatedResponse {
@@ -100,7 +112,55 @@ function mapVehicleListItem(api: ApiVehicleListItem): VehicleListItem {
     status: api.status,
     currentMileage: api.current_mileage,
     isActive: api.is_active,
+    insuranceExpiry: api.insurance_expiry
+      ? new Date(api.insurance_expiry)
+      : undefined,
+    sctPermitExpiry: api.sct_permit_expiry
+      ? new Date(api.sct_permit_expiry)
+      : undefined,
   };
+}
+
+/**
+ * Clasifica un vehículo como asignable o bloqueado
+ */
+function classifyVehicleForAssignment(
+  vehicle: VehicleListItem,
+): AssignableVehicleItem {
+  // Status no disponible
+  if (vehicle.status !== "available") {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: `Estado: ${vehicle.status}`,
+    };
+  }
+
+  // Seguro vencido
+  if (
+    vehicle.insuranceExpiry &&
+    new Date(vehicle.insuranceExpiry) < new Date()
+  ) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Seguro vencido",
+    };
+  }
+
+  // Permiso SCT vencido
+  if (
+    vehicle.sctPermitExpiry &&
+    new Date(vehicle.sctPermitExpiry) < new Date()
+  ) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Permiso SCT vencido",
+    };
+  }
+
+  return { ...vehicle, canBeAssigned: true };
 }
 
 // ============================================================================
@@ -161,20 +221,11 @@ export const vehicleKeys = {
     [...vehicleKeys.lists(), filters] as const,
   available: () =>
     [...vehicleKeys.list({ status: "available", isActive: true })] as const,
+  assignable: () => [...vehicleKeys.all, "assignable"] as const,
 };
 
 /**
  * Hook para obtener listado de vehículos
- *
- * @example
- * // Todos los vehículos
- * const { data: vehicles } = useVehicles();
- *
- * // Solo vehículos disponibles
- * const { data: vehicles } = useVehicles({ status: 'available' });
- *
- * // Vehículos activos de tipo truck
- * const { data: vehicles } = useVehicles({ type: 'truck', isActive: true });
  */
 export function useVehicles(
   filters?: VehicleFilters,
@@ -193,9 +244,6 @@ export function useVehicles(
 
 /**
  * Hook para obtener vehículos disponibles (para asignar a viajes)
- *
- * @example
- * const { data: availableVehicles, isLoading } = useAvailableVehicles();
  */
 export function useAvailableVehicles(
   options?: Omit<
@@ -206,7 +254,34 @@ export function useAvailableVehicles(
   return useQuery({
     queryKey: vehicleKeys.available(),
     queryFn: () => fetchVehicles({ status: "available", isActive: true }),
-    staleTime: 1000 * 60 * 2, // 2 minutos (datos que cambian frecuentemente)
+    staleTime: 1000 * 60 * 2,
+    ...options,
+  });
+}
+
+/**
+ * Hook para obtener vehículos clasificados por asignabilidad.
+ * Retorna TODOS los vehículos activos + disponibles, clasificados como
+ * asignables o bloqueados (seguro vencido, permiso SCT vencido).
+ *
+ * Los bloqueados se muestran en el select pero deshabilitados con la razón.
+ */
+export function useAssignableVehicles(
+  options?: Omit<
+    UseQueryOptions<AssignableVehicleItem[], Error>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery({
+    queryKey: vehicleKeys.assignable(),
+    queryFn: async (): Promise<AssignableVehicleItem[]> => {
+      const vehicles = await fetchVehicles({
+        status: "available",
+        isActive: true,
+      });
+      return vehicles.map(classifyVehicleForAssignment);
+    },
+    staleTime: 1000 * 60 * 2,
     ...options,
   });
 }

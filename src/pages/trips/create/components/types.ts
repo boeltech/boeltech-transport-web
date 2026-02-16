@@ -39,6 +39,25 @@ export const tripStopSchema = z.object({
   contactPhone: z.string().optional(),
   estimatedArrival: z.string().optional(),
   notes: z.string().optional(),
+
+  // ── Carta Porte 3.1 — Domicilio desglosado ────────────────────
+  street: z.string().optional(), // Calle
+  exteriorNumber: z.string().optional(), // Número exterior
+  interiorNumber: z.string().optional(), // Número interior
+  colonia: z.string().optional(), // Colonia / Asentamiento
+  reference: z.string().optional(), // Referencia geográfica
+
+  // Claves SAT (catálogos oficiales)
+  satEstadoCode: z.string().optional(), // c_Estado (ej: "MEX", "SLP")
+  satMunicipioCode: z.string().optional(), // c_Municipio (ej: "028")
+  satLocalidadCode: z.string().optional(), // c_Localidad (ej: "05")
+  satColoniaCode: z.string().optional(), // c_Colonia (ej: "0001")
+
+  // Remitente / Destinatario
+  rfcRemitenteDestinatario: z.string().optional(), // RFC de quien envía/recibe
+
+  // Distancia (obligatorio para destinos en Carta Porte)
+  distanceToNextKm: z.coerce.number().min(0).optional(), // km desde ubicación anterior
 });
 
 /**
@@ -79,6 +98,19 @@ export const tripCargoSchema = z.object({
     .min(1, "Debe asignar al menos un punto de carga"),
   notes: z.string().optional(),
   specialInstructions: z.string().optional(),
+
+  // ── Carta Porte 3.1 — Mercancía ──────────────────────────────
+  satProductCode: z.string().optional(), // c_ClaveProdServCP (8 dígitos, ej: "24131510")
+  satUnitCode: z.string().optional(), // c_ClaveUnidad (ej: "KGM", "H87")
+  satUnitName: z.string().optional(), // Nombre unidad (ej: "Kilogramo")
+  weightInKg: z.coerce.number().min(0).optional(), // PesoEnKg (obligatorio para CP)
+  dimensions: z.string().optional(), // Dimensiones empaque (ej: "50/40/30cm")
+
+  // Material peligroso
+  hazardousMaterial: z.boolean().optional(), // ¿Material peligroso?
+  hazardousMaterialCode: z.string().optional(), // c_MaterialPeligroso (ej: "1203")
+  packagingType: z.string().optional(), // c_TipoEmbalaje (ej: "4H2")
+  packagingDescription: z.string().optional(), // Descripción del embalaje
 });
 
 /**
