@@ -41,7 +41,7 @@ export function useUpdateTripStatus(
       }
       return result.data;
     },
-    onMutate: async ({ id, status }) => {
+    onMutate: async ({ id, status }): Promise<{ previous: Trip | undefined }> => {
       await queryClient.cancelQueries({ queryKey: tripQueryKeys.detail(id) });
       const previous = queryClient.getQueryData<Trip>(tripQueryKeys.detail(id));
 

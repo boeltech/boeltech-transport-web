@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/shared/api/apiClient";
+import { apiClient } from "@/shared/api";
 import type { DashboardData } from "@features/dashboard/types";
 
 const dashboardApi = {

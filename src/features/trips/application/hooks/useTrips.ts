@@ -1,14 +1,12 @@
-// src/features/trips/application/hooks/useTrips.ts
-
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import type {
-  PaginatedList,
   TripListItem, // ← Cambio: usar TripListItem para listados
   TripQueryParams,
 } from "@features/trips/domain";
 import { createGetTripsUseCase } from "@features/trips/application";
 import { createTripRepository } from "@features/trips/infrastructure";
 import { tripQueryKeys } from "@features/trips/domain/entities";
+import type { MappedPaginatedResult } from "@shared/api";
 
 // ============================================================================
 // REPOSITORY INSTANCES
@@ -24,7 +22,7 @@ const tripRepository = createTripRepository();
 export function useTrips(
   params?: TripQueryParams,
   options?: Omit<
-    UseQueryOptions<PaginatedList<TripListItem>>, // ← Cambio aquí
+    UseQueryOptions<MappedPaginatedResult<TripListItem>>, // ← Cambio aquí
     "queryKey" | "queryFn"
   >,
 ) {

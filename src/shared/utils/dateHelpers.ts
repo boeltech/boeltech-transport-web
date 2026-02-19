@@ -136,3 +136,24 @@ export function isDateBefore(dateA: string, dateB: string): boolean {
   if (!dateA || !dateB) return false;
   return new Date(dateA) < new Date(dateB);
 }
+
+export function toDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+export function toDateRequired(value: string): Date {
+  return new Date(value);
+}
+
+export function toISOString(value: Date | string): string {
+  return typeof value === "string" ? value : value.toISOString();
+}
+
+export function toISOStringOptional(
+  value: Date | string | undefined,
+): string | undefined {
+  if (!value) return undefined;
+  return toISOString(value);
+}

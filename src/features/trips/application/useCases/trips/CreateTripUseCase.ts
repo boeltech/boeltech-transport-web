@@ -178,8 +178,8 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       return {
         success: true,
         data: {
-          id: trip.id,
-          tripCode: trip.tripCode,
+          id: trip.data.id,
+          tripCode: trip.data.tripCode,
         },
       };
     } catch (error) {

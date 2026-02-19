@@ -19,8 +19,6 @@ import {
   type VehicleRef,
   type DriverRef,
   type ClientRef,
-  type PaginatedList,
-  type Pagination,
   type Mileage,
   type CargoInfo,
   type CostBreakdown,
@@ -41,6 +39,20 @@ import {
   type UpdateTripStatusDTO,
   type FinishTripDTO,
 } from "@features/trips/domain/repository";
+import {
+  type ApiPaginatedResponse,
+  type ApiSingleResponse,
+  type MappedPaginatedResult,
+  type MappedSingleResult,
+  type Pagination,
+} from "@shared/api";
+import {
+  toDate,
+  toDateRequired,
+  toISOString,
+  toISOStringOptional,
+} from "@shared/utils/dateHelpers";
+import { toNumber, toNumberOrDefault } from "@shared/utils/numberHelpers";
 
 // ============================================================================
 // API RESPONSE TYPES - Estructura del Backend (snake_case)
@@ -244,16 +256,6 @@ export interface ApiTripExpenseResponse {
   updated_at: string;
 }
 
-export interface ApiPaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
 // ============================================================================
 // API REQUEST TYPES - Estructura para enviar al Backend
 // ============================================================================
@@ -386,45 +388,6 @@ export interface ApiFinishTripRequest {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-function toNumber(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  return isNaN(num) ? null : num;
-}
-
-function toNumberOrDefault(
-  value: string | number | null | undefined,
-  defaultValue: number = 0,
-): number {
-  const num = toNumber(value);
-  return num ?? defaultValue;
-}
-
-function toDate(value: string | null | undefined): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return isNaN(date.getTime()) ? null : date;
-}
-
-function toDateRequired(value: string): Date {
-  return new Date(value);
-}
-
-function toISOString(value: Date | string): string {
-  return typeof value === "string" ? value : value.toISOString();
-}
-
-function toISOStringOptional(
-  value: Date | string | undefined,
-): string | undefined {
-  if (!value) return undefined;
-  return toISOString(value);
-}
-
-// ============================================================================
 // MAPPERS - API Response to Domain Entity
 // ============================================================================
 
@@ -547,9 +510,7 @@ export function mapTripCargo(api: ApiTripCargoResponse): TripCargo {
     updatedAt: toDateRequired(api.updated_at),
     // Relaciones anidadas
     client: api.client ? mapClientRef(api.client) : undefined,
-    movements: api.movements
-      ? api.movements.map(mapCargoMovement)
-      : undefined,
+    movements: api.movements ? api.movements.map(mapCargoMovement) : undefined,
   };
 }
 
@@ -623,74 +584,81 @@ export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
   };
 }
 
-export function mapTrip(api: ApiTripResponse): Trip {
+export function mapTrip(
+  api: ApiSingleResponse<ApiTripResponse>,
+): MappedSingleResult<Trip> {
   const mileage: Mileage = {
-    start: api.start_mileage,
-    end: api.end_mileage,
+    start: api.data.start_mileage,
+    end: api.data.end_mileage,
   };
 
   const cargo: CargoInfo = {
-    description: api.cargo_description,
-    weight: toNumber(api.cargo_weight),
-    volume: toNumber(api.cargo_volume),
-    units: api.cargo_units,
-    value: toNumber(api.cargo_value),
+    description: api.data.cargo_description,
+    weight: toNumber(api.data.cargo_weight),
+    volume: toNumber(api.data.cargo_volume),
+    units: api.data.cargo_units,
+    value: toNumber(api.data.cargo_value),
   };
 
   const costs: CostBreakdown = {
-    baseRate: toNumberOrDefault(api.base_rate),
-    fuelCost: toNumberOrDefault(api.fuel_cost),
-    tollCost: toNumberOrDefault(api.toll_cost),
-    otherCosts: toNumberOrDefault(api.other_costs),
-    totalCost: toNumberOrDefault(api.total_cost),
+    baseRate: toNumberOrDefault(api.data.base_rate),
+    fuelCost: toNumberOrDefault(api.data.fuel_cost),
+    tollCost: toNumberOrDefault(api.data.toll_cost),
+    otherCosts: toNumberOrDefault(api.data.other_costs),
+    totalCost: toNumberOrDefault(api.data.total_cost),
   };
 
   const trip: Trip = {
-    id: api.id,
-    tenantId: api.tenant_id,
-    tripCode: api.trip_code,
-    vehicleId: api.vehicle_id,
-    driverId: api.driver_id,
-    clientId: api.client_id,
-    scheduledDeparture: toDateRequired(api.scheduled_departure),
-    scheduledArrival: toDate(api.scheduled_arrival),
-    actualDeparture: toDate(api.actual_departure),
-    actualArrival: toDate(api.actual_arrival),
+    id: api.data.id,
+    tenantId: api.data.tenant_id,
+    tripCode: api.data.trip_code,
+    vehicleId: api.data.vehicle_id,
+    driverId: api.data.driver_id,
+    clientId: api.data.client_id,
+    scheduledDeparture: toDateRequired(api.data.scheduled_departure),
+    scheduledArrival: toDate(api.data.scheduled_arrival),
+    actualDeparture: toDate(api.data.actual_departure),
+    actualArrival: toDate(api.data.actual_arrival),
     mileage,
-    originAddress: api.origin_address,
-    originCity: api.origin_city,
-    originState: api.origin_state,
-    destinationAddress: api.destination_address,
-    destinationCity: api.destination_city,
-    destinationState: api.destination_state,
+    originAddress: api.data.origin_address,
+    originCity: api.data.origin_city,
+    originState: api.data.origin_state,
+    destinationAddress: api.data.destination_address,
+    destinationCity: api.data.destination_city,
+    destinationState: api.data.destination_state,
     cargo,
     costs,
     detailedCosts: null,
     profitability: null,
-    status: api.status as TripStatusType,
-    notes: api.notes,
-    cancellationReason: api.cancellation_reason,
-    createdAt: toDateRequired(api.created_at),
-    updatedAt: toDateRequired(api.updated_at),
-    createdBy: api.created_by,
-    updatedBy: api.updated_by,
-    vehicle: api.vehicle ? mapVehicleRef(api.vehicle) : undefined,
-    driver: api.driver ? mapDriverRef(api.driver) : undefined,
-    client: api.client ? mapClientRef(api.client) : undefined,
-    stops: api.stops ? api.stops.map(mapTripStop) : undefined,
-    statusHistory: api.status_history
-      ? api.status_history.map(mapStatusHistory)
+    status: api.data.status as TripStatusType,
+    notes: api.data.notes,
+    cancellationReason: api.data.cancellation_reason,
+    createdAt: toDateRequired(api.data.created_at),
+    updatedAt: toDateRequired(api.data.updated_at),
+    createdBy: api.data.created_by,
+    updatedBy: api.data.updated_by,
+    vehicle: api.data.vehicle ? mapVehicleRef(api.data.vehicle) : undefined,
+    driver: api.data.driver ? mapDriverRef(api.data.driver) : undefined,
+    client: api.data.client ? mapClientRef(api.data.client) : undefined,
+    stops: api.data.stops ? api.data.stops.map(mapTripStop) : undefined,
+    statusHistory: api.data.status_history
+      ? api.data.status_history.map(mapStatusHistory)
       : undefined,
-    cargos: api.cargos ? api.cargos.map(mapTripCargo) : undefined,
-    expenses: api.expenses ? api.expenses.map(mapTripExpense) : undefined,
+    cargos: api.data.cargos ? api.data.cargos.map(mapTripCargo) : undefined,
+    expenses: api.data.expenses
+      ? api.data.expenses.map(mapTripExpense)
+      : undefined,
   };
 
-  return trip;
+  return {
+    data: trip,
+    message: api.message,
+  };
 }
 
 export function mapPaginatedTripListItems(
   api: ApiPaginatedResponse<ApiTripListItemResponse>,
-): PaginatedList<TripListItem> {
+): MappedPaginatedResult<TripListItem> {
   const pagination: Pagination = {
     page: api.pagination.page,
     limit: api.pagination.limit,
@@ -699,14 +667,14 @@ export function mapPaginatedTripListItems(
   };
 
   return {
-    items: api.data.map(mapTripListItem),
+    data: api.data.map(mapTripListItem),
     pagination,
   };
 }
 
 export function mapPaginatedTrips(
   api: ApiPaginatedResponse<ApiTripResponse>,
-): PaginatedList<Trip> {
+): MappedPaginatedResult<Trip> {
   const pagination: Pagination = {
     page: api.pagination.page,
     limit: api.pagination.limit,
@@ -715,7 +683,7 @@ export function mapPaginatedTrips(
   };
 
   return {
-    items: api.data.map(mapTrip),
+    data: api.data.map(mapTrip),
     pagination,
   };
 }

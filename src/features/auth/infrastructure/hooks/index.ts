@@ -9,7 +9,10 @@
 
 import { useContext, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AuthContext, type AuthContextType } from "../../ui/AuthProvider";
+import {
+  AuthContext,
+  type AuthContextType,
+} from "../../presentation/ui/AuthProvider";
 
 // ============================================
 // useAuth

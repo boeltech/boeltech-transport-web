@@ -8,12 +8,18 @@
  * Esta es la capa que conoce los detalles de implementación (axios, URLs, etc.)
  */
 
-import { apiClient } from "@/shared/api";
+import {
+  apiClient,
+  type ApiPaginatedResponse,
+  type ApiSingleResponse,
+  type MappedActionResult,
+  type MappedPaginatedResult,
+  type MappedSingleResult,
+} from "@/shared/api";
 import {
   type Trip,
   type TripListItem,
   type TripQueryParams,
-  type PaginatedList,
 } from "@features/trips/domain/entities";
 import {
   type CreateTripDTO,
@@ -30,23 +36,7 @@ import {
   toApiFinishTrip,
   type ApiTripResponse,
   type ApiTripListItemResponse,
-  type ApiPaginatedResponse,
 } from "./mappers";
-
-// ============================================================================
-// API RESPONSE WRAPPERS
-// ============================================================================
-
-/**
- * Estructura estándar de respuesta del backend para un recurso individual.
- * Todos los endpoints que devuelven un trip usan: { data: { ...trip }, message?: string }
- *
- * Esta convención se aplica a todos los módulos del ERP.
- */
-interface ApiResourceResponse<T> {
-  data: T;
-  message?: string;
-}
 
 // ============================================================================
 // CONSTANTS
@@ -64,32 +54,36 @@ export class TripRepository implements ITripRepository {
    */
   async findAll(
     params?: TripQueryParams,
-  ): Promise<PaginatedList<TripListItem>> {
+  ): Promise<MappedPaginatedResult<TripListItem>> {
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiTripListItemResponse>
     >(TRIPS_ENDPOINT, {
       params: this.buildQueryParams(params),
     });
 
-    // apiClient.get retorna response.data directamente si está configurado así,
-    // o response completo si no. Ajustar según tu configuración de axios.
-    // const data = this.extractData(response);
+    // Paso 1: snake_case → camelCase (shared/api)
+    // const mapped = mapPaginatedResponse(raw);
+
+    // Paso 2: plano → estructurado (mapper de dominio del repositorio)
     return mapPaginatedTripListItems(response);
   }
 
   /**
    * Obtiene un viaje por su ID
    */
-  async findById(id: string): Promise<Trip | null> {
+  async findById(id: string): Promise<MappedSingleResult<Trip | null>> {
     try {
-      const response = await apiClient.get<
-        ApiResourceResponse<ApiTripResponse>
-      >(`${TRIPS_ENDPOINT}/${id}`);
-      const responseData = this.extractData(response);
-      return mapTrip(responseData);
+      const response = await apiClient.get<ApiSingleResponse<ApiTripResponse>>(
+        `${TRIPS_ENDPOINT}/${id}`,
+      );
+      // const responseData = this.extractData(raw);
+      return mapTrip(response);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) {
-        return null;
+        return {
+          data: null,
+          message: error,
+        };
       }
       throw error;
     }
@@ -98,23 +92,26 @@ export class TripRepository implements ITripRepository {
   /**
    * Crea un nuevo viaje
    */
-  async create(data: CreateTripDTO): Promise<Trip> {
+  async create(data: CreateTripDTO): Promise<MappedSingleResult<Trip>> {
     // Usar toApiCreateTrip que ya incluye el mapeo de stops, cargos y expenses
     const apiData = toApiCreateTrip(data);
 
-    const response = await apiClient.post<ApiResourceResponse<ApiTripResponse>>(
+    const response = await apiClient.post<ApiSingleResponse<ApiTripResponse>>(
       TRIPS_ENDPOINT,
       apiData,
     );
 
-    const responseData = this.extractData(response);
-    return mapTrip(responseData);
+    // const responseData = this.extractData(response);
+    return mapTrip(response);
   }
 
   /**
    * Actualiza un viaje existente
    */
-  async update(id: string, data: UpdateTripDTO): Promise<Trip> {
+  async update(
+    id: string,
+    data: UpdateTripDTO,
+  ): Promise<MappedSingleResult<Trip>> {
     // Solo enviar campos que tienen valor
     const updateData: Record<string, unknown> = {};
 
@@ -149,49 +146,59 @@ export class TripRepository implements ITripRepository {
     if (data.baseRate !== undefined) updateData.baseRate = data.baseRate;
     if (data.notes !== undefined) updateData.notes = data.notes;
 
-    const response = await apiClient.put<ApiResourceResponse<ApiTripResponse>>(
+    const response = await apiClient.put<ApiSingleResponse<ApiTripResponse>>(
       `${TRIPS_ENDPOINT}/${id}`,
       updateData,
     );
 
-    const responseData = this.extractData(response);
-    return mapTrip(responseData);
+    // const responseData = this.extractData(response);
+    return mapTrip(response);
   }
 
   /**
    * Actualiza el estado de un viaje
    */
-  async updateStatus(id: string, data: UpdateTripStatusDTO): Promise<Trip> {
+  async updateStatus(
+    id: string,
+    data: UpdateTripStatusDTO,
+  ): Promise<MappedSingleResult<Trip>> {
     const apiData = toApiUpdateStatus(data);
 
-    const response = await apiClient.patch<
-      ApiResourceResponse<ApiTripResponse>
-    >(`${TRIPS_ENDPOINT}/${id}/status`, apiData);
+    const response = await apiClient.patch<ApiSingleResponse<ApiTripResponse>>(
+      `${TRIPS_ENDPOINT}/${id}/status`,
+      apiData,
+    );
 
-    const responseData = this.extractData(response);
-    return mapTrip(responseData);
+    // const responseData = this.extractData(response);
+    return mapTrip(response);
   }
 
   /**
    * Finaliza un viaje
    */
-  async finish(id: string, data: FinishTripDTO): Promise<Trip> {
+  async finish(
+    id: string,
+    data: FinishTripDTO,
+  ): Promise<MappedSingleResult<Trip>> {
     const apiData = toApiFinishTrip(data);
 
-    const response = await apiClient.post<ApiResourceResponse<ApiTripResponse>>(
+    const response = await apiClient.post<ApiSingleResponse<ApiTripResponse>>(
       `${TRIPS_ENDPOINT}/${id}/finish`,
       apiData,
     );
 
-    const responseData = this.extractData(response);
-    return mapTrip(responseData);
+    // const responseData = this.extractData(response);
+    return mapTrip(response);
   }
 
   /**
    * Elimina un viaje
    */
-  async delete(id: string): Promise<void> {
-    await apiClient.delete(`${TRIPS_ENDPOINT}/${id}`);
+  async delete(id: string): Promise<MappedActionResult> {
+    const response = await apiClient.delete(`${TRIPS_ENDPOINT}/${id}`);
+    return {
+      message: response,
+    };
   }
 
   /**

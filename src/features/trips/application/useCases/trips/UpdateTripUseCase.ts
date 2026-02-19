@@ -26,18 +26,20 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip) {
+      if (!currentTrip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: currentTrip.message
+              ? currentTrip.message
+              : "El viaje no fue encontrado",
           },
         };
       }
 
       // Verificar que se puede editar
-      if (!canEditTrip(currentTrip.status)) {
+      if (!canEditTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {
@@ -48,7 +50,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       }
 
       // Validar datos de actualización
-      const validationError = this.validateUpdateData(data, currentTrip);
+      const validationError = this.validateUpdateData(data, currentTrip.data);
       if (validationError) {
         return { success: false, error: validationError };
       }
@@ -56,7 +58,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       // Actualizar
       const updatedTrip = await this.repository.update(id, data);
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

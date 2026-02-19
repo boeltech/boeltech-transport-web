@@ -1,17 +1,11 @@
 // Hooks
 export {
   useVehicles,
-  useAvailableVehicles,
+  useVehicle,
+  useCreateVehicle,
+  useUpdateVehicle,
+  useUpdateVehicleStatus,
+  useDeleteVehicle,
+  // useAvailableVehicles,
   useAssignableVehicles,
-  vehicleKeys,
-  fetchVehicles,
-} from "./hooks/useVehicles";
-
-// Types
-export type {
-  VehicleListItem,
-  VehicleFilters,
-  VehicleStatus,
-  VehicleType,
-  AssignableVehicleItem,
 } from "./hooks/useVehicles";

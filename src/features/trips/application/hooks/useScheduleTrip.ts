@@ -61,7 +61,7 @@ export function useScheduleTrip(
 
       return result.data;
     },
-    onSuccess: (data, tripId) => {
+    onSuccess: (_data, tripId) => {
       // Invalidar queries relacionadas
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });

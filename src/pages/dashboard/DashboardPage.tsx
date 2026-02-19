@@ -19,7 +19,6 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  XCircle,
   ArrowRight,
   RefreshCw,
   Loader2,
@@ -30,12 +29,11 @@ import {
 
 import { useAuth } from "@/features/auth";
 import { usePermissions } from "@shared/permissions";
-import { getUserFullName, getGreeting } from "@/shared/lib/userHelpers";
+import { getGreeting } from "@/shared/lib/userHelpers";
 import { useDashboard } from "@features/dashboard/application/hooks/useDashboard";
 
 import type {
   DashboardAlert,
-  DashboardStats,
   RecentTrip,
   AlertSeverity,
 } from "@/features/dashboard/types";

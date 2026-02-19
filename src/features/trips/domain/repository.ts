@@ -10,12 +10,16 @@
  */
 
 import type {
+  MappedActionResult,
+  MappedPaginatedResult,
+  MappedSingleResult,
+} from "@shared/api";
+import type {
   Trip,
   TripListItem,
   TripStop,
   TripStatusType,
   TripQueryParams,
-  PaginatedList,
   StopTypeValue,
   CargoMovementTypeValue,
 } from "./entities";
@@ -296,13 +300,18 @@ export interface UpdateStopDTO {
  * Interfaz del repositorio de viajes
  */
 export interface ITripRepository {
-  findAll(params?: TripQueryParams): Promise<PaginatedList<TripListItem>>;
-  findById(id: string): Promise<Trip | null>;
-  create(data: CreateTripDTO): Promise<Trip>;
-  update(id: string, data: UpdateTripDTO): Promise<Trip>;
-  updateStatus(id: string, data: UpdateTripStatusDTO): Promise<Trip>;
-  finish(id: string, data: FinishTripDTO): Promise<Trip>;
-  delete(id: string): Promise<void>;
+  findAll(
+    params?: TripQueryParams,
+  ): Promise<MappedPaginatedResult<TripListItem>>;
+  findById(id: string): Promise<MappedSingleResult<Trip | null>>;
+  create(data: CreateTripDTO): Promise<MappedSingleResult<Trip>>;
+  update(id: string, data: UpdateTripDTO): Promise<MappedSingleResult<Trip>>;
+  updateStatus(
+    id: string,
+    data: UpdateTripStatusDTO,
+  ): Promise<MappedSingleResult<Trip>>;
+  finish(id: string, data: FinishTripDTO): Promise<MappedSingleResult<Trip>>;
+  delete(id: string): Promise<MappedActionResult>;
   existsByCode(code: string): Promise<boolean>;
 }
 

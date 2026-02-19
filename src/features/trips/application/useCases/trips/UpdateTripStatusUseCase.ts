@@ -44,19 +44,21 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip) {
+      if (!currentTrip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: currentTrip.message
+              ? currentTrip.message
+              : "El viaje no fue encontrado",
           },
         };
       }
 
       // Validar transición de estado
       const transitionResult = validateStatusTransition(
-        currentTrip.status,
+        currentTrip.data.status,
         newStatus,
       );
 
@@ -76,7 +78,7 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
         longitude: options?.longitude,
       });
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

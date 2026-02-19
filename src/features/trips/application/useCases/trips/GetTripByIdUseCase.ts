@@ -33,17 +33,17 @@ export class GetTripByIdUseCase implements IGetTripByIdUseCase {
 
       const trip = await this.repository.findById(id);
 
-      if (!trip) {
+      if (!trip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: trip.message ? trip.message : "El viaje no fue encontrado",
           },
         };
       }
 
-      return { success: true, data: trip };
+      return { success: true, data: trip.data };
     } catch (error) {
       return {
         success: false,

@@ -9,7 +9,7 @@
  */
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { apiClient } from "@/shared/api/apiClient";
+import { apiClient } from "@/shared/api";
 
 // ============================================================================
 // TYPES

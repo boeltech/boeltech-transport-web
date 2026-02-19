@@ -79,16 +79,56 @@ const RegisterPage = lazy(() => import("@/pages/auth/register"));
 const DashboardPage = lazy(() => import("@/pages/dashboard"));
 
 // Trips
-const TripFormPage = lazy(() => import("@/pages/trips/create"));
-const FinishTripPage = lazy(() => import("@pages/trips/finish"));
-const TripDetailPage = lazy(() => import("@/pages/trips/detail"));
-const TripsListPage = lazy(() => import("@pages/trips"));
+const TripFormPage = lazy(() =>
+  import("@features/trips/presentation/pages/create/TripFormPage").then(
+    (m) => ({
+      default: m.TripFormPage,
+    }),
+  ),
+);
+const FinishTripPage = lazy(() =>
+  import("@features/trips/presentation/pages/FinishTripPage").then((m) => ({
+    default: m.FinishTripPage,
+  })),
+);
+const TripDetailPage = lazy(() =>
+  import("@features/trips/presentation/pages/TripDetailPage").then((m) => ({
+    default: m.TripDetailPage,
+  })),
+);
+const TripsListPage = lazy(() =>
+  import("@features/trips/presentation/pages/TripsListPage").then((m) => ({
+    default: m.TripsListPage,
+  })),
+);
+// NOTE: Trip edit reuses TripFormPage — it detects edit mode via :id param
 // const TripEditPage = lazy(() => import("@/pages/trips/edit"));
 
 // Vehicles
-// const VehiclesListPage = lazy(() => import("@/pages/vehicles"));
-// const VehicleDetailPage = lazy(() => import("@/pages/vehicles/detail"));
-// const VehicleCreatePage = lazy(() => import("@/pages/vehicles/create"));
+const VehicleListPage = lazy(() =>
+  import("@features/vehicles/presentation/pages/VehicleListPage").then((m) => ({
+    default: m.VehicleListPage,
+  })),
+);
+const VehicleDetailPage = lazy(() =>
+  import("@features/vehicles/presentation/pages/VehicleDetailPage").then(
+    (m) => ({
+      default: m.VehicleDetailPage,
+    }),
+  ),
+);
+const CreateVehiclePage = lazy(() =>
+  import("@features/vehicles/presentation/pages/CreateVehiclePage").then(
+    (m) => ({
+      default: m.CreateVehiclePage,
+    }),
+  ),
+);
+const EditVehiclePage = lazy(() =>
+  import("@features/vehicles/presentation/pages/EditVehiclePage").then((m) => ({
+    default: m.EditVehiclePage,
+  })),
+);
 
 // Drivers
 // const DriversListPage = lazy(() => import("@/pages/drivers"));
@@ -239,15 +279,15 @@ export const router = createBrowserRouter([
             ],
           },
           // Trips - Edit (requiere permiso)
-          // {
-          //   element: <PermissionRoute module="trips" action="update" />,
-          //   children: [
-          //     {
-          //       path: "/trips/:id/edit",
-          //       element: withSuspense(TripEditPage),
-          //     },
-          //   ],
-          // },
+          {
+            element: <PermissionRoute module="trips" action="update" />,
+            children: [
+              {
+                path: "/trips/:id/edit",
+                element: withSuspense(TripFormPage),
+              },
+            ],
+          },
 
           // ========================================
           // Módulo: Vehicles (Vehículos)
@@ -255,23 +295,27 @@ export const router = createBrowserRouter([
           {
             element: <ModuleRoute module="vehicles" />,
             children: [
-              // {
-              //   path: "/vehicles",
-              //   element: withSuspense(VehiclesListPage),
-              // },
-              // {
-              //   path: "/vehicles/:id",
-              //   element: withSuspense(VehicleDetailPage),
-              // },
+              {
+                path: "/vehicles",
+                element: withSuspense(VehicleListPage),
+              },
+              {
+                path: "/vehicles/:id",
+                element: withSuspense(VehicleDetailPage),
+              },
             ],
           },
           {
             element: <PermissionRoute module="vehicles" action="create" />,
             children: [
-              // {
-              //   path: "/vehicles/new",
-              //   element: withSuspense(VehicleCreatePage),
-              // },
+              {
+                path: "/vehicles/new",
+                element: withSuspense(CreateVehiclePage),
+              },
+              {
+                path: "/vehicles/:id/edit",
+                element: withSuspense(EditVehiclePage),
+              },
             ],
           },
 

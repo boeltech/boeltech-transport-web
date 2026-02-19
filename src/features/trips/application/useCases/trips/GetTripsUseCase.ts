@@ -1,10 +1,10 @@
 import type {
   TripQueryParams,
-  PaginatedList,
   ITripRepository,
   UseCaseResult,
   TripListItem,
 } from "@features/trips/domain";
+import type { MappedPaginatedResult } from "@shared/api";
 
 // ============================================================================
 // GET TRIPS USE CASE
@@ -13,7 +13,7 @@ import type {
 export interface IGetTripsUseCase {
   execute(
     params?: TripQueryParams,
-  ): Promise<UseCaseResult<PaginatedList<TripListItem>>>;
+  ): Promise<UseCaseResult<MappedPaginatedResult<TripListItem>>>;
 }
 
 export class GetTripsUseCase implements IGetTripsUseCase {
@@ -25,7 +25,7 @@ export class GetTripsUseCase implements IGetTripsUseCase {
 
   async execute(
     params?: TripQueryParams,
-  ): Promise<UseCaseResult<PaginatedList<TripListItem>>> {
+  ): Promise<UseCaseResult<MappedPaginatedResult<TripListItem>>> {
     try {
       const result = await this.repository.findAll(params);
       return { success: true, data: result };

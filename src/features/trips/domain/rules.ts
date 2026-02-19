@@ -222,7 +222,7 @@ export function canAddStopType(
   }
 
   // Verificar que no exista ya una parada de este tipo
-  return !currentStops.some((stop) => stop.stopType === stopType);
+  return !currentStops.some((stop) => stop.stopType.includes(stopType));
 }
 
 /**
@@ -270,29 +270,33 @@ export function canDeleteStop(
   allStops: TripStop[],
 ): { canDelete: boolean; reason?: string } {
   // Siempre se pueden eliminar paradas intermedias
-  if (
-    stop.stopType !== StopType.ORIGIN &&
-    stop.stopType !== StopType.DESTINATION
-  ) {
+  const prohibited: StopTypeValue[] = [StopType.ORIGIN, StopType.DESTINATION];
+  const canDeleteStop = stop.stopType.every(
+    (element) => !prohibited.includes(element),
+  );
+
+  if (canDeleteStop) {
     return { canDelete: true };
   }
 
   // Para origin/destination, verificar que quede al menos una ruta válida
   const remainingStops = allStops.filter((s) => s.id !== stop.id);
 
-  const hasOrigin = remainingStops.some((s) => s.stopType === StopType.ORIGIN);
-  const hasDestination = remainingStops.some(
-    (s) => s.stopType === StopType.DESTINATION,
+  const hasOrigin = remainingStops.some((s) =>
+    s.stopType.includes(StopType.ORIGIN),
+  );
+  const hasDestination = remainingStops.some((s) =>
+    s.stopType.includes(StopType.DESTINATION),
   );
 
-  if (stop.stopType === StopType.ORIGIN && !hasOrigin) {
+  if (stop.stopType.includes(StopType.ORIGIN) && !hasOrigin) {
     return {
       canDelete: false,
       reason: "No se puede eliminar el único origen del viaje",
     };
   }
 
-  if (stop.stopType === StopType.DESTINATION && !hasDestination) {
+  if (stop.stopType.includes(StopType.DESTINATION) && !hasDestination) {
     return {
       canDelete: false,
       reason: "No se puede eliminar el único destino del viaje",

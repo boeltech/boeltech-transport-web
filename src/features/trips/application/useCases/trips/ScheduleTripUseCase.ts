@@ -26,19 +26,21 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       // Obtener el viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip) {
+      if (!currentTrip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: currentTrip.message
+              ? currentTrip.message
+              : "El viaje no fue encontrado",
           },
         };
       }
 
       // Validar que la transición de estado sea válida
       const validation = validateStatusTransition(
-        currentTrip.status,
+        currentTrip.data.status,
         TripStatus.SCHEDULED,
       );
 
@@ -50,7 +52,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       }
 
       // Validar que el viaje tenga la información mínima requerida
-      const validationResult = this.validateTripForScheduling(currentTrip);
+      const validationResult = this.validateTripForScheduling(currentTrip.data);
       if (!validationResult.success) {
         return validationResult;
       }
@@ -60,7 +62,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         status: TripStatus.SCHEDULED,
       });
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

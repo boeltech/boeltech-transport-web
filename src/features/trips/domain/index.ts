@@ -44,9 +44,6 @@ export {
   type DomainError,
   type UseCaseResult,
   type ValidationResult,
-  // Pagination
-  type Pagination,
-  type PaginatedList,
   // Query Types
   type TripFilters,
   type SortOptions,

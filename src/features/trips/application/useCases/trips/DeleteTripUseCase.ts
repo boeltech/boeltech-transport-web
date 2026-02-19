@@ -24,18 +24,20 @@ export class DeleteTripUseCase implements IDeleteTripUseCase {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip) {
+      if (!currentTrip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: currentTrip.message
+              ? currentTrip.message
+              : "El viaje no fue encontrado",
           },
         };
       }
 
       // Verificar que se puede eliminar (solo drafts)
-      if (!canDeleteTrip(currentTrip.status)) {
+      if (!canDeleteTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {

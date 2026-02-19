@@ -40,8 +40,6 @@ export {
   type ClientRef,
   type TripFilters,
   type TripQueryParams,
-  type PaginatedList,
-  type Pagination,
 
   // Enums
   TripStatus,

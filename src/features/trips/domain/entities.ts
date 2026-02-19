@@ -464,22 +464,6 @@ export type ValidationResult =
   | { success: false; error: { code: string; message: string } };
 
 // ============================================================================
-// PAGINATION
-// ============================================================================
-
-export interface Pagination {
-  readonly page: number;
-  readonly limit: number;
-  readonly total: number;
-  readonly totalPages: number;
-}
-
-export interface PaginatedList<T> {
-  readonly items: T[];
-  readonly pagination: Pagination;
-}
-
-// ============================================================================
 // QUERY TYPES
 // ============================================================================
 

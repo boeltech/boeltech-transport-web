@@ -38,19 +38,21 @@ export class FinishTripUseCase implements IFinishTripUseCase {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip) {
+      if (!currentTrip.data) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: "El viaje no fue encontrado",
+            message: currentTrip.message
+              ? currentTrip.message
+              : "El viaje no fue encontrado",
           },
         };
       }
 
       // Validar datos para finalizar
       const validationResult = validateFinishTripData(
-        currentTrip,
+        currentTrip.data,
         input.endMileage,
         input.actualArrival,
       );
@@ -78,7 +80,7 @@ export class FinishTripUseCase implements IFinishTripUseCase {
       // Finalizar viaje
       const finishedTrip = await this.repository.finish(id, finishDTO);
 
-      return { success: true, data: finishedTrip };
+      return { success: true, data: finishedTrip.data };
     } catch (error) {
       return {
         success: false,
