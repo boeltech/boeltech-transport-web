@@ -49,8 +49,8 @@ export {
   camelToSnake,
   deepToCamel,
   deepToSnake,
-} from "./mappers/case-transformer";
-export type { DeepCamelCase } from "./mappers/case-transformer";
+} from "./utils/case-transformer";
+export type { DeepCamelCase } from "./utils/case-transformer";
 
 // Mappers de respuesta
 export {

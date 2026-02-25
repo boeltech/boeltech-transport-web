@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { cn } from "@shared/lib/utils";
+import { cn } from "@shared/lib/utils/cn";
 import type { ThemeMode } from "./types";
 
 // ============================================

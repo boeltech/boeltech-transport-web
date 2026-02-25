@@ -15,7 +15,7 @@ import {
   type UpdateDriverDTO,
   driverQueryKeys,
 } from "../../domain";
-import { createUpdateDriverUseCase } from "../useCases";
+import { createUpdateDriverUseCase } from "../index";
 import { createDriverRepository } from "../../infrastructure";
 
 // ============================================================================

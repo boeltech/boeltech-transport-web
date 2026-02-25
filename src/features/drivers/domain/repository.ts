@@ -17,6 +17,7 @@ import type {
   DriverStatusType,
   DriverQueryParams,
   LicenseTypeValue,
+  DriverTripSummary,
 } from "./entities";
 
 // ============================================================================
@@ -132,27 +133,6 @@ export interface IDriverRepository {
     driverId: string,
     params?: { page?: number; limit?: number },
   ): Promise<MappedPaginatedResult<DriverTripSummary>>;
-}
-
-// ============================================================================
-// ADDITIONAL TYPES
-// ============================================================================
-
-/**
- * Resumen de viaje del conductor
- */
-export interface DriverTripSummary {
-  readonly id: string;
-  readonly tripCode: string;
-  readonly status: string;
-  readonly originCity: string;
-  readonly destinationCity: string;
-  readonly scheduledDeparture: Date;
-  readonly scheduledArrival: Date | null;
-  readonly actualDeparture: Date | null;
-  readonly actualArrival: Date | null;
-  readonly totalCost: number;
-  readonly createdAt: Date;
 }
 
 // ============================================================================

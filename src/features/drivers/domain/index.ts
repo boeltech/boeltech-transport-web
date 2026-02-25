@@ -22,15 +22,14 @@ export {
   type DriverListItem,
   type Driver,
   type DriverDetail,
-  // Domain Types
-  type DomainResult,
-  type DomainError,
-  type UseCaseResult,
-  type ValidationResult,
+  type AssignableDriverItem,
+  DriverQueryError,
   // Query Types
   type DriverFilters,
   type DriverSortOptions,
   type DriverQueryParams,
+  type DriverTripSummary,
+  type DriverAvailableItem,
   // Query Keys
   driverQueryKeys,
   // Constants
@@ -50,8 +49,6 @@ export {
   type UpdateDriverStatusDTO,
   // Repository Interface
   type IDriverRepository,
-  // Additional Types
-  type DriverTripSummary,
   // Service Interfaces
   type ILicenseValidationService,
   type IDriverNotificationService,

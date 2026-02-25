@@ -1,11 +1,13 @@
 /**
- * TripTable Component
- * Clean Architecture - Presentation Layer
+ * TripTable
+ * Clean Architecture - Presentation Layer (Components)
+ *
+ * Componente de tabla para listar viajes.
+ * Homologado con DriverTable y VehicleTable.
+ *
+ * Ubicación: src/features/trips/presentation/components/TripTable.tsx
  */
 
-import { memo } from "react";
-import { Link } from "react-router-dom";
-import { cn } from "@shared/lib/utils/cn";
 import {
   Table,
   TableBody,
@@ -14,314 +16,232 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
-import { Checkbox } from "@shared/ui/checkbox";
-import { Button } from "@shared/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@shared/ui/dropdown-menu";
 import { Skeleton } from "@shared/ui/skeleton";
-import { TripStatusBadge } from "./TripStatusBadge";
-import {
-  type SortOptions,
-  TripStatus,
-  type TripListItem,
-} from "@features/trips/domain";
-import { canDeleteTrip, canEditTrip } from "../../domain/rules";
-import { formatDisplayDate } from "../uiHelpers";
-import {
-  MoreHorizontal,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Eye,
-  Pencil,
-  Play,
-  CheckCircle,
-  XCircle,
-  Trash2,
-} from "lucide-react";
+import type { TripListItem } from "../../domain";
+import { TripStatusBadge } from "../config/tripStatusConfig";
+import { TripActions } from "./TripActions";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface TripTableProps {
-  // trips: Trip[];
   trips: TripListItem[];
-  isLoading?: boolean;
-  sort?: SortOptions;
-  onSort?: (field: SortOptions["field"]) => void;
-  selectedIds?: string[];
-  onSelectAll?: () => void;
-  onSelectOne?: (id: string) => void;
-  isAllSelected?: boolean;
-  onView?: (id: string) => void;
+  isLoading: boolean;
+  onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onSchedule?: (id: string) => void;
   onStart?: (id: string) => void;
   onFinish?: (id: string) => void;
   onCancel?: (id: string) => void;
 }
 
-const COLUMNS = [
-  { key: "tripCode", label: "Código", sortable: true },
-  { key: "status", label: "Estado", sortable: true },
-  { key: "client", label: "Cliente", sortable: false },
-  { key: "vehicle", label: "Unidad", sortable: false },
-  { key: "driver", label: "Conductor", sortable: false },
-  { key: "departureDate", label: "Salida", sortable: true },
-  { key: "createdAt", label: "Creado", sortable: true },
-  { key: "actions", label: "", sortable: false },
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TABLE_HEADERS = [
+  { key: "code", label: "Código" },
+  { key: "route", label: "Ruta" },
+  { key: "vehicle", label: "Vehículo" },
+  { key: "driver", label: "Conductor" },
+  { key: "departure", label: "Salida" },
+  { key: "status", label: "Estado" },
+  { key: "actions", label: "", className: "w-12" },
 ];
 
-export const TripTable = memo(function TripTable({
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatTime(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function TableHeaderRow() {
+  return (
+    <TableHeader>
+      <TableRow>
+        {TABLE_HEADERS.map((header) => (
+          <TableHead key={header.key} className={header.className}>
+            {header.label}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <TableBody>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <TableRow key={i}>
+          <TableCell>
+            <Skeleton className="h-4 w-20" />
+          </TableCell>
+          <TableCell>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-16" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-28" />
+          </TableCell>
+          <TableCell>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-6 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-8 w-8" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  );
+}
+
+function EmptyState() {
+  return (
+    <TableBody>
+      <TableRow>
+        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
+          No se encontraron viajes.
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  );
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function TripTable({
   trips,
   isLoading,
-  sort,
-  onSort,
-  selectedIds = [],
-  onSelectAll,
-  onSelectOne,
-  isAllSelected,
   onView,
   onEdit,
   onDelete,
+  onSchedule,
   onStart,
   onFinish,
   onCancel,
 }: TripTableProps) {
-  if (isLoading) return <TripTableSkeleton />;
-
-  if (trips.length === 0) {
+  // Loading state
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="rounded-full bg-muted p-4 mb-4">
-          <svg
-            className="h-8 w-8 text-muted-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"
-            />
-          </svg>
-        </div>
-        <h3 className="font-medium text-lg mb-1">No hay viajes</h3>
-        <p className="text-sm text-muted-foreground">
-          No se encontraron viajes con los filtros actuales.
-        </p>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeaderRow />
+          <LoadingSkeleton />
+        </Table>
       </div>
     );
   }
 
-  const renderSortIcon = (field: string, sortable: boolean) => {
-    if (!sortable) return null;
-    if (sort?.field !== field)
-      return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />;
-    return sort.direction === "asc" ? (
-      <ArrowUp className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDown className="ml-2 h-4 w-4" />
+  // Empty state
+  if (trips.length === 0) {
+    return (
+      <div className="rounded-md border">
+        <Table>
+          <TableHeaderRow />
+          <EmptyState />
+        </Table>
+      </div>
     );
-  };
+  }
 
+  // Data table
   return (
     <div className="rounded-md border">
       <Table>
-        <TableHeader>
-          <TableRow>
-            {onSelectAll && (
-              <TableHead className="w-[40px]">
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={onSelectAll}
-                />
-              </TableHead>
-            )}
-            {COLUMNS.map((col) => (
-              <TableHead
-                key={col.key}
-                className={cn(col.sortable && "cursor-pointer select-none")}
-                onClick={() =>
-                  col.sortable && onSort?.(col.key as SortOptions["field"])
-                }
-              >
-                <div className="flex items-center">
-                  {col.label}
-                  {renderSortIcon(col.key, col.sortable)}
-                </div>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
+        <TableHeaderRow />
         <TableBody>
           {trips.map((trip) => (
-            <TripTableRow
+            <TableRow
               key={trip.id}
-              trip={trip}
-              isSelected={selectedIds.includes(trip.id)}
-              onSelect={onSelectOne}
-              showCheckbox={!!onSelectAll}
-              onView={onView}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onStart={onStart}
-              onFinish={onFinish}
-              onCancel={onCancel}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-});
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={() => onView(trip.id)}
+            >
+              {/* Código */}
+              <TableCell className="font-medium font-mono">
+                {trip.tripCode}
+              </TableCell>
 
-interface TripTableRowProps {
-  trip: TripListItem;
-  isSelected: boolean;
-  onSelect?: (id: string) => void;
-  showCheckbox: boolean;
-  onView?: (id: string) => void;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onStart?: (id: string) => void;
-  onFinish?: (id: string) => void;
-  onCancel?: (id: string) => void;
-}
+              {/* Ruta */}
+              <TableCell>
+                <div className="space-y-0.5">
+                  <p className="font-medium">{trip.originCity}</p>
+                  <p className="text-sm text-muted-foreground">
+                    → {trip.destinationCity}
+                  </p>
+                </div>
+              </TableCell>
 
-const TripTableRow = memo(function TripTableRow({
-  trip,
-  isSelected,
-  onSelect,
-  showCheckbox,
-  onView,
-  onEdit,
-  onDelete,
-  onStart,
-  onFinish,
-  onCancel,
-}: TripTableRowProps) {
-  const canEdit = canEditTrip(trip.status);
-  const canDelete = canDeleteTrip(trip.status);
-  const canStart = trip.status === TripStatus.SCHEDULED;
-  const canFinish = trip.status === TripStatus.IN_PROGRESS;
-  const canCancel =
-    trip.status === TripStatus.SCHEDULED ||
-    trip.status === TripStatus.IN_PROGRESS;
+              {/* Vehículo */}
+              <TableCell>{trip.vehicle?.unitNumber || "—"}</TableCell>
 
-  return (
-    <TableRow className={cn(isSelected && "bg-muted/50")}>
-      {showCheckbox && (
-        <TableCell>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onSelect?.(trip.id)}
-          />
-        </TableCell>
-      )}
-      <TableCell className="font-medium">
-        <Link
-          to={`/trips/${trip.id}`}
-          className="hover:text-primary hover:underline"
-        >
-          {trip.tripCode}
-        </Link>
-      </TableCell>
-      <TableCell>
-        <TripStatusBadge status={trip.status} size="sm" />
-      </TableCell>
-      <TableCell className="max-w-[200px] truncate">
-        {trip.client?.legalName || "-"}
-      </TableCell>
-      <TableCell>{trip.vehicle?.licensePlate || "-"}</TableCell>
-      <TableCell className="max-w-[150px] truncate">
-        {trip.driver?.fullName || "-"}
-      </TableCell>
-      <TableCell>{formatDisplayDate(trip.scheduledDeparture)}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {formatDisplayDate(trip.createdAt)}
-      </TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onView?.(trip.id)}>
-              <Eye className="mr-2 h-4 w-4" />
-              Ver
-            </DropdownMenuItem>
-            {canEdit && onEdit && (
-              <DropdownMenuItem onClick={() => onEdit(trip.id)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            {canStart && onStart && (
-              <DropdownMenuItem onClick={() => onStart(trip.id)}>
-                <Play className="mr-2 h-4 w-4 text-amber-500" />
-                Iniciar
-              </DropdownMenuItem>
-            )}
-            {canFinish && onFinish && (
-              <DropdownMenuItem onClick={() => onFinish(trip.id)}>
-                <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" />
-                Finalizar
-              </DropdownMenuItem>
-            )}
-            {canCancel && onCancel && (
-              <DropdownMenuItem onClick={() => onCancel(trip.id)}>
-                <XCircle className="mr-2 h-4 w-4 text-amber-600" />
-                Cancelar
-              </DropdownMenuItem>
-            )}
-            {canDelete && onDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => onDelete(trip.id)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  );
-});
+              {/* Conductor */}
+              <TableCell>{trip.driver?.fullName || "—"}</TableCell>
 
-function TripTableSkeleton() {
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((col) => (
-              <TableHead key={col.key}>
-                <Skeleton className="h-4 w-20" />
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              {COLUMNS.map((col) => (
-                <TableCell key={col.key}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
+              {/* Salida */}
+              <TableCell>
+                <div className="space-y-0.5">
+                  <p>{formatDate(trip.scheduledDeparture)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatTime(trip.scheduledDeparture)}
+                  </p>
+                </div>
+              </TableCell>
+
+              {/* Estado */}
+              <TableCell>
+                <TripStatusBadge status={trip.status} size="sm" showIcon />
+              </TableCell>
+
+              {/* Acciones */}
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <TripActions
+                  trip={trip}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onSchedule={onSchedule}
+                  onStart={onStart}
+                  onFinish={onFinish}
+                  onCancel={onCancel}
+                />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

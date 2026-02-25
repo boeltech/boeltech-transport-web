@@ -15,7 +15,7 @@ import {
   type CreateDriverDTO,
   driverQueryKeys,
 } from "../../domain";
-import { createCreateDriverUseCase } from "../useCases";
+import { createCreateDriverUseCase } from "../index";
 import { createDriverRepository } from "../../infrastructure";
 
 // ============================================================================

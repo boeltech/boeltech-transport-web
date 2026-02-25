@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { TripStatusBadgeAnimated } from "./TripStatusBadge";
 import { TripStatus, type Trip } from "@features/trips/domain";
 import { canDeleteTrip, canEditTrip } from "../../domain/rules";
 import { formatDisplayDate } from "../uiHelpers";
@@ -34,6 +33,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
+import { TripStatusBadge } from "../config/tripStatusConfig";
 
 interface TripCardProps {
   trip: Trip;
@@ -101,7 +101,8 @@ export const TripCard = memo(function TripCard({
               >
                 {trip.tripCode}
               </Link>
-              <TripStatusBadgeAnimated status={trip.status} size="sm" />
+              {/* <TripStatusBadgeAnimated status={trip.status} size="sm" /> */}
+              <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
             </div>
             {trip.client && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

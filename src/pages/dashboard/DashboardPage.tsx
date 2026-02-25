@@ -46,11 +46,8 @@ import {
 } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
-import {
-  TripStatus,
-  TripStatusBadge,
-  type TripStatusType,
-} from "@features/trips";
+import { TripStatus, type TripStatusType } from "@features/trips";
+import { TripStatusBadge } from "@features/trips/presentation";
 
 // ============================================
 // Main Component
@@ -395,7 +392,7 @@ function RecentTripItem({ trip, onClick }: RecentTripItemProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="font-medium">{trip.trip_code}</p>
-          <TripStatusBadge status={tripStatus} size="sm" />
+          <TripStatusBadge status={tripStatus} size="sm" showIcon={true} />
         </div>
         <p className="text-sm text-muted-foreground">
           {trip.origin_city} → {trip.destination_city}

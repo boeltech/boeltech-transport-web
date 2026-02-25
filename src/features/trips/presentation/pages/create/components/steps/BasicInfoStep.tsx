@@ -2,11 +2,13 @@
  * BasicInfoStep - Paso 1 del Wizard
  * Información básica: Asignaciones y Programación
  *
- * Los selects de vehículo y conductor muestran todos los recursos activos.
- * Los que tienen documentos vencidos aparecen deshabilitados con etiqueta de advertencia.
+ * ACTUALIZADO: Select de conductores con misma UX que vehículos
+ * - Muestra todos los conductores activos
+ * - Los no asignables aparecen deshabilitados con razón del bloqueo
+ * - Calcula canBeAssigned y blockReason en frontend
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
@@ -37,19 +39,162 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { TripWizardFormValues } from "../validation";
-import type { AssignableDriverItem } from "@/features/drivers/application";
+import type { DriverListItem } from "@features/drivers/domain";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/**
+ * Driver con información de asignabilidad calculada
+ */
+interface AssignableDriverItem extends DriverListItem {
+  canBeAssigned: boolean;
+  blockReason?: string;
+  displayName: string;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Calcula si un conductor puede ser asignado a un viaje
+ * y la razón por la que no puede (si aplica)
+ *
+ * Reglas de negocio:
+ * 1. Debe estar activo (isActive = true)
+ * 2. Debe estar disponible (status = "available")
+ * 3. Su licencia NO debe estar vencida
+ */
+function calculateDriverAssignability(
+  driver: DriverListItem,
+): Pick<AssignableDriverItem, "canBeAssigned" | "blockReason"> {
+  // Verificar si está activo
+  // if (!driver.isActive) {
+  //   return {
+  //     canBeAssigned: false,
+  //     blockReason: "Inactivo",
+  //   };
+  // }
+  // Backend manda por default is_active = true
+
+  // Verificar status
+  if (driver.status !== "available") {
+    const statusReasons: Record<string, string> = {
+      on_trip: "En viaje",
+      resting: "Descansando",
+      on_vacation: "De vacaciones",
+      on_leave: "Con permiso",
+      terminated: "Dado de baja",
+    };
+    return {
+      canBeAssigned: false,
+      blockReason: statusReasons[driver.status] || driver.status,
+    };
+  }
+
+  // Verificar licencia vencida
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // const licenseExpiry =
+  //   driver.licenseExpiry instanceof Date
+  //     ? driver.licenseExpiry
+  //     : new Date(driver.licenseExpiry);
+
+  // if (licenseExpiry < today) {
+  if (driver.isLicenseExpired) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Licencia vencida",
+    };
+  }
+
+  // Verificar si la licencia está próxima a vencer (30 días)
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+  // if (licenseExpiry <= thirtyDaysFromNow) {
+  if (driver.licenseExpiration <= thirtyDaysFromNow) {
+    // Permitir asignar pero con advertencia (no bloqueamos)
+    return {
+      canBeAssigned: true,
+      blockReason: undefined,
+    };
+  }
+
+  // Puede ser asignado
+  return {
+    canBeAssigned: true,
+    blockReason: undefined,
+  };
+}
+
+/**
+ * Obtiene el nombre completo del conductor
+ * Soporta tanto la estructura plana (fullName) como la anidada (employee.firstName)
+ */
+function getDriverDisplayName(driver: DriverListItem): string {
+  // Si tiene fullName directo, usarlo
+  if (driver.fullName) {
+    return driver.fullName;
+  }
+
+  // Si tiene estructura anidada con employee
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const driverAny = driver as any;
+  if (driverAny.employee?.firstName) {
+    const { firstName, lastName, secondLastName } = driverAny.employee;
+    return [firstName, lastName, secondLastName].filter(Boolean).join(" ");
+  }
+
+  // Fallback a firstName/lastName directos
+  if (driver.firstName) {
+    return [driver.firstName, driver.lastName, driver.secondLastName]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return "Sin nombre";
+}
+
+/**
+ * Procesa la lista de conductores y calcula asignabilidad
+ */
+function processDriversForAssignment(
+  drivers: DriverListItem[],
+): AssignableDriverItem[] {
+  return drivers.map((driver) => {
+    const { canBeAssigned, blockReason } = calculateDriverAssignability(driver);
+    return {
+      ...driver,
+      canBeAssigned,
+      blockReason,
+      displayName: getDriverDisplayName(driver),
+    };
+  });
+}
+
+// ============================================================================
+// COMPONENT PROPS
+// ============================================================================
 
 interface BasicInfoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
   vehicles: AssignableVehicleItem[];
-  drivers: AssignableDriverItem[];
+  drivers: DriverListItem[];
   clients: Array<{ id: string; legalName: string }>;
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
   isLoadingClients: boolean;
 }
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function BasicInfoStep({
   form,
@@ -62,15 +207,20 @@ export function BasicInfoStep({
 }: BasicInfoStepProps) {
   const selectedVehicleId = form.watch("vehicleId");
 
-  // Separar vehículos asignables y bloqueados
+  // ── Procesar vehículos ────────────────────────────────────────────────────
   const assignableVehicles = vehicles.filter((v) => v.canBeAssigned);
   const blockedVehicles = vehicles.filter((v) => !v.canBeAssigned);
 
-  // Separar conductores asignables y bloqueados
-  const assignableDrivers = drivers.filter((d) => d.canBeAssigned);
-  const blockedDrivers = drivers.filter((d) => !d.canBeAssigned);
+  // ── Procesar conductores (calcular asignabilidad) ─────────────────────────
+  const processedDrivers = useMemo(
+    () => processDriversForAssignment(drivers),
+    [drivers],
+  );
 
-  // Efecto para precargar el kilometraje cuando se selecciona un vehículo
+  const assignableDrivers = processedDrivers.filter((d) => d.canBeAssigned);
+  const blockedDrivers = processedDrivers.filter((d) => !d.canBeAssigned);
+
+  // ── Efecto para precargar kilometraje ─────────────────────────────────────
   useEffect(() => {
     if (selectedVehicleId && vehicles.length > 0) {
       const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
@@ -83,14 +233,16 @@ export function BasicInfoStep({
 
   return (
     <div className="space-y-6">
-      {/* Asignaciones */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* ASIGNACIONES                                                       */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Asignaciones</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            {/* Vehículo */}
+            {/* ── Vehículo ─────────────────────────────────────────────────── */}
             <FormField
               control={form.control}
               name="vehicleId"
@@ -171,7 +323,7 @@ export function BasicInfoStep({
               )}
             />
 
-            {/* Conductor */}
+            {/* ── Conductor ────────────────────────────────────────────────── */}
             <FormField
               control={form.control}
               name="driverId"
@@ -206,7 +358,7 @@ export function BasicInfoStep({
                               <SelectLabel>Disponibles</SelectLabel>
                               {assignableDrivers.map((driver) => (
                                 <SelectItem key={driver.id} value={driver.id}>
-                                  {driver.fullName}
+                                  {driver.displayName}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
@@ -231,7 +383,7 @@ export function BasicInfoStep({
                                   className="opacity-60"
                                 >
                                   <span className="flex items-center gap-2">
-                                    {driver.fullName}
+                                    {driver.displayName}
                                     <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900 dark:text-yellow-400">
                                       {driver.blockReason}
                                     </span>
@@ -249,7 +401,7 @@ export function BasicInfoStep({
               )}
             />
 
-            {/* Cliente */}
+            {/* ── Cliente ──────────────────────────────────────────────────── */}
             <FormField
               control={form.control}
               name="clientId"
@@ -288,7 +440,9 @@ export function BasicInfoStep({
         </CardContent>
       </Card>
 
-      {/* Programación */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* PROGRAMACIÓN                                                       */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">

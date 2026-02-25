@@ -10,10 +10,7 @@
  * Domain DTO (camelCase) → toApiCreateDriver/toApiUpdateDriver → API Request (snake_case)
  */
 
-import {
-  deepToCamel,
-  type DeepCamelCase,
-} from "@shared/api/utils/case-transformer";
+import { type DeepCamelCase } from "@shared/api/utils/case-transformer";
 import {
   mapSingleResponse,
   mapPaginatedResponse,
@@ -26,13 +23,13 @@ import type {
   Driver,
   DriverListItem,
   DriverStatusType,
+  DriverTripSummary,
   LicenseTypeValue,
 } from "../domain/entities";
 import type {
   CreateDriverDTO,
   UpdateDriverDTO,
   UpdateDriverStatusDTO,
-  DriverTripSummary,
 } from "../domain/repository";
 
 // ============================================================================
@@ -123,6 +120,32 @@ export interface ApiDriverTripResponse {
   created_at: string;
 }
 
+/**
+ * Respuesta de la API para viajes del conductor (snake_case)
+ */
+export interface ApiDriverTripResponse {
+  id: string;
+  trip_code: string;
+  status: string;
+  scheduled_departure: string;
+  scheduled_arrival: string | null;
+  actual_departure: string | null;
+  actual_arrival: string | null;
+  origin_city: string;
+  destination_city: string;
+  vehicle: {
+    id: string;
+    unit_number: string;
+    license_plate: string;
+  };
+  client: {
+    id: string;
+    legal_name: string;
+  } | null;
+  total_cost: number;
+  distance: number | null;
+}
+
 // ============================================================================
 // MAPPERS: API → Domain
 // ============================================================================
@@ -211,23 +234,59 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
 /**
  * Mapea un viaje del conductor del API al dominio
  */
-function mapDriverTripToDomain(
-  raw: DeepCamelCase<ApiDriverTripResponse>,
+// function mapDriverTripToDomain(
+//   raw: DeepCamelCase<ApiDriverTripResponse>,
+// ): DriverTripSummary {
+//   return {
+//     id: raw.id,
+//     tripCode: raw.tripCode,
+//     status: raw.status,
+//     originCity: raw.originCity,
+//     destinationCity: raw.destinationCity,
+//     scheduledDeparture: new Date(raw.scheduledDeparture),
+//     scheduledArrival: raw.scheduledArrival
+//       ? new Date(raw.scheduledArrival)
+//       : null,
+//     actualDeparture: raw.actualDeparture ? new Date(raw.actualDeparture) : null,
+//     actualArrival: raw.actualArrival ? new Date(raw.actualArrival) : null,
+//     totalCost: raw.totalCost,
+//     createdAt: new Date(raw.createdAt),
+//   };
+// }
+
+/**
+ * Mapea un viaje del conductor de API a dominio
+ */
+export function mapApiDriverTrip(
+  api: ApiDriverTripResponse,
 ): DriverTripSummary {
   return {
-    id: raw.id,
-    tripCode: raw.tripCode,
-    status: raw.status,
-    originCity: raw.originCity,
-    destinationCity: raw.destinationCity,
-    scheduledDeparture: new Date(raw.scheduledDeparture),
-    scheduledArrival: raw.scheduledArrival
-      ? new Date(raw.scheduledArrival)
+    id: api.id,
+    tripCode: api.trip_code,
+    status: api.status as DriverTripSummary["status"],
+    scheduledDeparture: new Date(api.scheduled_departure),
+    scheduledArrival: api.scheduled_arrival
+      ? new Date(api.scheduled_arrival)
       : null,
-    actualDeparture: raw.actualDeparture ? new Date(raw.actualDeparture) : null,
-    actualArrival: raw.actualArrival ? new Date(raw.actualArrival) : null,
-    totalCost: raw.totalCost,
-    createdAt: new Date(raw.createdAt),
+    actualDeparture: api.actual_departure
+      ? new Date(api.actual_departure)
+      : null,
+    actualArrival: api.actual_arrival ? new Date(api.actual_arrival) : null,
+    originCity: api.origin_city,
+    destinationCity: api.destination_city,
+    vehicle: {
+      id: api.vehicle.id,
+      unitNumber: api.vehicle.unit_number,
+      licensePlate: api.vehicle.license_plate,
+    },
+    client: api.client
+      ? {
+          id: api.client.id,
+          legalName: api.client.legal_name,
+        }
+      : null,
+    totalCost: api.total_cost,
+    distance: api.distance,
   };
 }
 
@@ -282,13 +341,30 @@ export function mapDriverOrNull(
 /**
  * Mapea respuesta paginada de viajes del conductor
  */
+// export function mapPaginatedDriverTrips(
+//   response: ApiPaginatedResponse<ApiDriverTripResponse>,
+// ): MappedPaginatedResult<DriverTripSummary> {
+//   const mapped = mapPaginatedResponse(response);
+//   return {
+//     data: mapped.data.map(mapDriverTripToDomain),
+//     pagination: mapped.pagination,
+//   };
+// }
+
+/**
+ * Mapea respuesta paginada de viajes del conductor
+ */
 export function mapPaginatedDriverTrips(
   response: ApiPaginatedResponse<ApiDriverTripResponse>,
 ): MappedPaginatedResult<DriverTripSummary> {
-  const mapped = mapPaginatedResponse(response);
   return {
-    data: mapped.data.map(mapDriverTripToDomain),
-    pagination: mapped.pagination,
+    data: response.data.map(mapApiDriverTrip),
+    pagination: {
+      page: response.pagination.page,
+      limit: response.pagination.limit,
+      total: response.pagination.total,
+      totalPages: response.pagination.totalPages,
+    },
   };
 }
 

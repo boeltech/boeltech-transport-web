@@ -442,28 +442,6 @@ export interface TripDetail extends Trip {
 }
 
 // ============================================================================
-// DOMAIN TYPES
-// ============================================================================
-
-export type DomainResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: DomainError };
-
-export interface DomainError {
-  readonly code: string;
-  readonly message: string;
-  readonly field?: string;
-}
-
-export type UseCaseResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: { code: string; message: string } };
-
-export type ValidationResult =
-  | { success: true }
-  | { success: false; error: { code: string; message: string } };
-
-// ============================================================================
 // QUERY TYPES
 // ============================================================================
 

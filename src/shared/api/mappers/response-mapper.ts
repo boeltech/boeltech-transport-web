@@ -14,7 +14,7 @@
  *   Siempre deben usar estos mappers para mantener la consistencia.
  */
 
-import { deepToCamel, type DeepCamelCase } from "./case-transformer";
+import { deepToCamel, type DeepCamelCase } from "../utils/case-transformer";
 import type {
   ApiSingleResponse,
   ApiPaginatedResponse,

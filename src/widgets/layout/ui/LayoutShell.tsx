@@ -13,7 +13,7 @@
 
 import { Outlet } from "react-router-dom";
 
-import { cn } from "@shared/lib/utils";
+import { cn } from "@shared/lib/utils/cn";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
 import { Header } from "@/widgets/header";

@@ -3,7 +3,9 @@
  * Clean Architecture - Presentation Layer (Pages)
  *
  * Página principal de listado de conductores.
- * Compone componentes del feature sin lógica de negocio.
+ * Sin selección múltiple (checkboxes).
+ *
+ * Ubicación: src/features/drivers/presentation/pages/DriversListPage.tsx
  */
 
 import { useCallback, useState } from "react";
@@ -42,8 +44,9 @@ import {
   DRIVER_STATUS_LABELS,
 } from "../../domain";
 import { DriverTable, DriverCard, DriverCardSkeleton } from "../components";
-import { DRIVER_STATUS_CONFIG } from "../config";
-import { generatePageNumbers } from "../utils";
+// import { DRIVER_STATUS_CONFIG } from "../config";
+import { generatePageNumbers } from "@shared/lib/utils/generatePageNumbers";
+import { DRIVER_STATUS_CONFIG } from "../index";
 
 // ============================================================================
 // TYPES
@@ -61,7 +64,6 @@ export function DriversListPage() {
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Parse URL params
   const page = parseInt(searchParams.get("page") || "1", 10);
@@ -85,7 +87,6 @@ export function DriversListPage() {
   const deleteMutation = useDeleteDriver({
     onSuccess: () => {
       toast({ title: "Conductor eliminado", variant: "success" });
-      setSelectedIds([]);
       refetch();
     },
     onError: (error) => {
@@ -193,6 +194,7 @@ export function DriversListPage() {
         params.set("page", newPage.toString());
         return params;
       });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [setSearchParams],
   );
@@ -202,7 +204,7 @@ export function DriversListPage() {
   }, [setSearchParams]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -250,10 +252,13 @@ export function DriversListPage() {
 
           {/* License Expiring Filter */}
           <Button
-            variant={licenseExpiring ? "default" : "outline"}
+            variant={licenseExpiring ? "secondary" : "outline"}
             size="sm"
             onClick={handleLicenseExpiringToggle}
-            className={cn(licenseExpiring && "bg-amber-500 hover:bg-amber-600")}
+            className={cn(
+              licenseExpiring &&
+                "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50",
+            )}
           >
             <AlertTriangle className="mr-2 h-4 w-4" />
             Licencias por vencer
@@ -362,22 +367,6 @@ export function DriversListPage() {
         <DriverTable
           drivers={drivers}
           isLoading={isLoading}
-          selectedIds={selectedIds}
-          onSelectAll={() =>
-            setSelectedIds(
-              selectedIds.length === drivers.length
-                ? []
-                : drivers.map((d) => d.id),
-            )
-          }
-          onSelectOne={(id) =>
-            setSelectedIds((prev) =>
-              prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-            )
-          }
-          isAllSelected={
-            drivers.length > 0 && selectedIds.length === drivers.length
-          }
           onView={handleView}
           onEdit={canEdit ? handleEdit : undefined}
           onDelete={canDelete ? handleDelete : undefined}

@@ -32,12 +32,14 @@ import {
 } from "lucide-react";
 import type { TripWizardFormValues } from "../validation";
 import { StopType } from "@features/trips";
+import type { DriverListItem } from "@features/drivers";
 
 interface SummaryStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
   vehicles: Array<{ id: string; unitNumber: string; licensePlate: string }>;
-  drivers: Array<{ id: string; fullName: string }>;
+  // drivers: Array<{ id: string; fullName: string }>;
+  drivers: DriverListItem[];
   clients: Array<{ id: string; legalName: string }>;
 }
 
@@ -59,7 +61,8 @@ export function SummaryStep({
 
   const getDriverName = (id: string) => {
     const driver = drivers.find((d) => d.id === id);
-    return driver?.fullName || "No seleccionado";
+    const driverName = `${driver?.employee.firstName} ${driver?.employee.lastName}`;
+    return driverName || "No seleccionado";
   };
 
   const getClientName = (id: string) => {

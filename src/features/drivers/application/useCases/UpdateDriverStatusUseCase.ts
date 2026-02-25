@@ -5,11 +5,11 @@
  * Caso de uso para cambiar el estado de un conductor.
  */
 
+import type { UseCaseResult } from "@shared/utils/errorMapper";
 import {
   VALID_STATUS_TRANSITIONS,
   type Driver,
   type DriverStatusType,
-  type UseCaseResult,
   type IDriverRepository,
   type UpdateDriverStatusDTO,
 } from "../../domain";
@@ -19,7 +19,11 @@ import {
 // ============================================================================
 
 export class UpdateDriverStatusUseCase {
-  constructor(private readonly driverRepository: IDriverRepository) {}
+  private readonly driverRepository: IDriverRepository;
+
+  constructor(driverRepository: IDriverRepository) {
+    this.driverRepository = driverRepository;
+  }
 
   /**
    * Ejecuta el caso de uso

@@ -5,19 +5,19 @@
  * Caso de uso para actualizar un conductor existente.
  */
 
-import type {
-  Driver,
-  UseCaseResult,
-  IDriverRepository,
-  UpdateDriverDTO,
-} from "../../domain";
+import type { UseCaseResult } from "@shared/utils/errorMapper";
+import type { Driver, IDriverRepository, UpdateDriverDTO } from "../../domain";
 
 // ============================================================================
 // USE CASE
 // ============================================================================
 
 export class UpdateDriverUseCase {
-  constructor(private readonly driverRepository: IDriverRepository) {}
+  private readonly driverRepository: IDriverRepository;
+
+  constructor(driverRepository: IDriverRepository) {
+    this.driverRepository = driverRepository;
+  }
 
   /**
    * Ejecuta el caso de uso

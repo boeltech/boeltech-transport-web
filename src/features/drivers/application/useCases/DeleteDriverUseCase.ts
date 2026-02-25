@@ -6,18 +6,19 @@
  */
 
 import type { MappedActionResult } from "@shared/api";
-import {
-  DriverStatus,
-  type UseCaseResult,
-  type IDriverRepository,
-} from "../../domain";
+import { DriverStatus, type IDriverRepository } from "../../domain";
+import type { UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // USE CASE
 // ============================================================================
 
 export class DeleteDriverUseCase {
-  constructor(private readonly driverRepository: IDriverRepository) {}
+  private readonly driverRepository: IDriverRepository;
+
+  constructor(driverRepository: IDriverRepository) {
+    this.driverRepository = driverRepository;
+  }
 
   /**
    * Ejecuta el caso de uso

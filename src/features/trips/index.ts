@@ -84,32 +84,77 @@ export {
   useDeleteTrip,
   useAddStop,
   useMarkStopVisited,
+  useTripCargos,
+  useTripExpenses,
+  useTripExpensesSummary,
 } from "./application";
 
 // ============================================================================
-// PRESENTATION - UI Components
+// PRESENTATION
 // ============================================================================
+
+//Pages
 export {
-  TripStatusBadge,
-  TripStatusBadgeAnimated,
-  TripCard,
-  TripCardSkeleton,
-  TripTable,
+  FinishTripPage,
+  TripDetailPage,
+  TripFormPage,
+  TripsListPage,
 } from "./presentation";
 
-// ============================================================================
-// PRESENTATION - UI Helpers
-// ============================================================================
+// Components
 export {
-  TRIP_STATUS_CONFIG,
+  BasicInfoStep,
+  CargoStep,
+  CostsStep,
+  RouteStep,
+  SummaryStep,
+  TripActions,
+  TripCard,
+  TripCardSkeleton,
+  TripStatusBadge,
+  TripTable,
+  WizardSteps,
+} from "./presentation";
+
+// Config
+export {
+  STOP_STATUS_CONFIG,
   STOP_TYPE_CONFIG,
-  formatDisplayDate,
-  formatShortDate,
-  formatMileage,
-  formatWeight,
-  formatVolume,
+  TRIP_STATUS_CONFIG,
+  WIZARD_STEPS,
+} from "./presentation";
+
+// Helpers
+export {
+  type TripCargoFormValues,
+  type TripExpenseFormValues,
+  type TripStopFormValues,
+  type TripWizardFormValues,
+  type WizardStepDefinition,
+  type WizardStep,
+  capitalize,
+  defaultWizardFormValues,
+  formatAddress,
   formatCurrency,
+  formatDateOnly,
+  formatDisplayDate,
   formatDuration,
-  getStatusConfig,
+  formatMileage,
+  formatNumber,
+  formatPercent,
+  formatRelativeDate,
+  formatRoute,
+  formatShortDate,
+  formatTimeOnly,
+  formatVolume,
+  formatWeight,
+  getStopStatusConfig,
   getStopTypeConfig,
+  getTripStatusConfig,
+  getTripStatusLabel,
+  tripCargoSchema,
+  tripExpenseSchema,
+  tripStopSchema,
+  tripWizardFormSchema,
+  truncateText,
 } from "./presentation";

@@ -12,7 +12,7 @@ import {
   type DriverQueryParams,
   driverQueryKeys,
 } from "../../domain";
-import { createGetDriversUseCase } from "../useCases";
+import { createGetDriversUseCase } from "../index";
 import { createDriverRepository } from "../../infrastructure";
 
 // ============================================================================

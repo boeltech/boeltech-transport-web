@@ -28,8 +28,6 @@ import {
   type StopTypeValue,
 } from "@features/trips/domain";
 
-import { TripStatusBadgeAnimated } from "@features/trips";
-
 // shadcn/ui
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -67,6 +65,7 @@ import {
   FileText,
   Building2,
 } from "lucide-react";
+import { TripStatusBadge } from "../config/tripStatusConfig";
 
 // ============================================================================
 // TYPES
@@ -517,7 +516,8 @@ export function FinishTripPage() {
             {trip.tripCode} · {trip.originCity} → {trip.destinationCity}
           </p>
         </div>
-        <TripStatusBadgeAnimated status={trip.status} size="sm" />
+        {/* <TripStatusBadgeAnimated status={trip.status} size="sm" /> */}
+        <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

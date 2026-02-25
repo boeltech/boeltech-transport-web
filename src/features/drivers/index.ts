@@ -26,11 +26,6 @@ export {
   type DriverListItem,
   type Driver,
   type DriverDetail,
-  // Domain Types
-  type DomainResult,
-  type DomainError,
-  type UseCaseResult,
-  type ValidationResult,
   // Query Types
   type DriverFilters,
   type DriverSortOptions,
@@ -52,6 +47,7 @@ export {
   type IDriverRepository,
   // Additional Types
   type DriverTripSummary,
+  type DriverAvailableItem,
 } from "./domain";
 
 // ============================================================================
@@ -66,6 +62,10 @@ export {
   useUpdateDriver,
   useDeleteDriver,
   useUpdateDriverStatus,
+  useAvailableDrivers,
+  useDriverTrips,
+  useDriverTripsInfinite,
+  useDriverTripsStats,
   // Use Cases
   GetDriversUseCase,
   createGetDriversUseCase,
@@ -79,6 +79,11 @@ export {
   createDeleteDriverUseCase,
   UpdateDriverStatusUseCase,
   createUpdateDriverStatusUseCase,
+  GetAvailableDriversUseCase,
+  createGetAvailableDriversUseCase,
+  GetDriverTripsUseCase,
+  type GetDriverTripsParams,
+  createGetDriverTripsUseCase,
 } from "./application";
 
 // ============================================================================
@@ -89,6 +94,7 @@ export {
   DriverRepository,
   createDriverRepository,
   driverRepository,
+  type ApiDriverListItemResponse,
 } from "./infrastructure";
 
 // ============================================================================
@@ -97,7 +103,6 @@ export {
 
 export {
   // Components
-  DriverStatusBadge,
   DriverCard,
   DriverCardSkeleton,
   DriverTable,
@@ -106,10 +111,10 @@ export {
   DriversListPage,
   // Config
   DRIVER_STATUS_CONFIG,
+  DriverStatusBadge,
   getDriverStatusConfig,
+  getDriverStatusLabel,
   getDaysUntilLicenseExpiration,
   getLicenseExpirationVariant,
   formatDriverName,
-  // Utils
-  generatePageNumbers,
 } from "./presentation";

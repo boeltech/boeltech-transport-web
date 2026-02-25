@@ -18,13 +18,13 @@ import {
   type Driver,
   type DriverListItem,
   type DriverQueryParams,
+  type DriverTripSummary,
 } from "../domain/entities";
 import {
   type CreateDriverDTO,
   type UpdateDriverDTO,
   type UpdateDriverStatusDTO,
   type IDriverRepository,
-  type DriverTripSummary,
 } from "../domain/repository";
 import {
   mapDriver,

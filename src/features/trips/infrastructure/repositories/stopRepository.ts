@@ -19,7 +19,7 @@ import {
   mapTripStop,
   toApiCreateStop,
   type ApiTripStopResponse,
-} from "./mappers";
+} from "../mappers/stopMappers";
 
 // ============================================================================
 // CONSTANTS

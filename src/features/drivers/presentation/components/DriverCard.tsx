@@ -1,13 +1,15 @@
 /**
- * DriverCard Component
- * Clean Architecture - Presentation Layer
+ * DriverCard
+ * Clean Architecture - Presentation Layer (Components)
  *
- * Tarjeta que muestra información resumida de un conductor.
+ * Tarjeta para mostrar información resumida de un conductor.
+ * Usado en la vista de cards del listado.
+ *
+ * Ubicación: src/features/drivers/presentation/components/DriverCard.tsx
  */
 
 import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
-import { Badge } from "@shared/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,23 +18,23 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import {
-  Eye,
-  Edit,
-  Trash2,
+  User,
   MoreVertical,
+  Eye,
+  Pencil,
+  Trash2,
   Phone,
-  Mail,
+  CreditCard,
   Calendar,
+  Truck,
   AlertTriangle,
-  Award,
 } from "lucide-react";
-import { type DriverListItem } from "../../domain";
-import { DriverStatusBadge } from "./DriverStatusBadge";
+import type { DriverListItem, DriverStatusType } from "../../domain";
+import { DriverStatusBadge } from "../config/driverStatusConfig";
 import {
-  formatDriverName,
   getDaysUntilLicenseExpiration,
-  getLicenseExpirationVariant,
-} from "../config";
+  formatDriverName,
+} from "../config/driverStatusConfig";
 
 // ============================================================================
 // TYPES
@@ -40,9 +42,24 @@ import {
 
 interface DriverCardProps {
   driver: DriverListItem;
-  onView?: (id: string) => void;
+  onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onChangeStatus?: (id: string, status: DriverStatusType) => void;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function formatDate(date: Date | string | null): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  return d.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // ============================================================================
@@ -55,51 +72,66 @@ export function DriverCard({
   onEdit,
   onDelete,
 }: DriverCardProps) {
+  const hasActions = onEdit || onDelete;
+  const fullName = formatDriverName(driver.employee);
+
   const daysUntilExpiration = getDaysUntilLicenseExpiration(
     driver.licenseExpiration,
   );
-  const licenseVariant = getLicenseExpirationVariant(daysUntilExpiration);
-  const isLicenseExpiringSoon =
-    daysUntilExpiration <= 30 && daysUntilExpiration > 0;
-  const isLicenseExpired = daysUntilExpiration <= 0;
-
-  const formatDate = (date: Date) =>
-    new Intl.DateTimeFormat("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(date));
+  const isExpired = daysUntilExpiration <= 0;
+  const isExpiringSoon = daysUntilExpiration > 0 && daysUntilExpiration <= 30;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
+    <Card
+      className="group cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+      onClick={() => onView(driver.id)}
+    >
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-lg leading-none">
-              {formatDriverName(driver.employee)}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {driver.employee.employeeNumber}
-            </p>
+          {/* Avatar & Name */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg leading-none">{fullName}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {driver.employee.employeeNumber}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <DriverStatusBadge status={driver.status} />
+
+          {/* Actions Menu */}
+          {hasActions && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
                   <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Acciones</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {onView && (
-                  <DropdownMenuItem onClick={() => onView(driver.id)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Ver detalles
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView(driver.id);
+                  }}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver detalles
+                </DropdownMenuItem>
                 {onEdit && (
-                  <DropdownMenuItem onClick={() => onEdit(driver.id)}>
-                    <Edit className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(driver.id);
+                    }}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
                 )}
@@ -107,8 +139,11 @@ export function DriverCard({
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => onDelete(driver.id)}
                       className="text-destructive focus:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(driver.id);
+                      }}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Eliminar
@@ -117,96 +152,75 @@ export function DriverCard({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          )}
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        {/* Licencia */}
-        <div className="flex items-center justify-between text-sm">
+      <CardContent className="pb-3">
+        {/* Driver Details */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          {/* Phone */}
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Award className="h-4 w-4" />
-            <span>Licencia {driver.licenseType}</span>
+            <Phone className="h-4 w-4 shrink-0" />
+            <span className="truncate">
+              {driver.employee.phone || "Sin teléfono"}
+            </span>
           </div>
-          <span className="font-mono text-xs">{driver.licenseNumber}</span>
-        </div>
 
-        {/* Vencimiento de licencia */}
-        <div className="flex items-center justify-between text-sm">
+          {/* License Number */}
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>Vencimiento</span>
+            <CreditCard className="h-4 w-4 shrink-0" />
+            <span className="font-mono truncate">{driver.licenseNumber}</span>
           </div>
-          <div className="flex items-center gap-2">
-            {(isLicenseExpiringSoon || isLicenseExpired) && (
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+
+          {/* License Expiration */}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span
+              className={
+                isExpired
+                  ? "text-destructive"
+                  : isExpiringSoon
+                    ? "text-amber-600 dark:text-amber-500"
+                    : ""
+              }
+            >
+              {formatDate(driver.licenseExpiration)}
+            </span>
+            {(isExpired || isExpiringSoon) && (
+              <AlertTriangle
+                className={`h-3 w-3 ${
+                  isExpired
+                    ? "text-destructive"
+                    : "text-amber-600 dark:text-amber-500"
+                }`}
+              />
             )}
-            <Badge variant={licenseVariant}>
-              {isLicenseExpired
-                ? "Vencida"
-                : isLicenseExpiringSoon
-                  ? `${daysUntilExpiration} días`
-                  : formatDate(driver.licenseExpiration)}
-            </Badge>
+          </div>
+
+          {/* Total Trips */}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Truck className="h-4 w-4 shrink-0" />
+            <span>{driver.totalTrips} viajes</span>
           </div>
         </div>
-
-        {/* Contacto */}
-        {driver.employee.phone && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="h-4 w-4" />
-            <span>{driver.employee.phone}</span>
-          </div>
-        )}
-
-        {driver.employee.email && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{driver.employee.email}</span>
-          </div>
-        )}
       </CardContent>
 
-      <CardFooter className="pt-2 border-t">
-        <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-          <span>
-            {driver.yearsOfExperience} año
-            {driver.yearsOfExperience !== 1 ? "s" : ""} de experiencia
-          </span>
-          <span>
-            {driver.totalTrips} viaje{driver.totalTrips !== 1 ? "s" : ""}
-          </span>
-        </div>
-      </CardFooter>
-    </Card>
-  );
-}
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-export function DriverCardSkeleton() {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
-            <div className="h-4 w-20 bg-muted animate-pulse rounded" />
-          </div>
-          <div className="h-6 w-20 bg-muted animate-pulse rounded" />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="h-4 w-full bg-muted animate-pulse rounded" />
-        <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-        <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
-      </CardContent>
-      <CardFooter className="pt-2 border-t">
-        <div className="flex justify-between w-full">
-          <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+      <CardFooter className="pt-3 border-t">
+        <div className="flex w-full items-center justify-between">
+          <DriverStatusBadge status={driver.status} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(driver.id);
+            }}
+          >
+            Ver más
+            <Eye className="ml-2 h-4 w-4" />
+          </Button>
         </div>
       </CardFooter>
     </Card>

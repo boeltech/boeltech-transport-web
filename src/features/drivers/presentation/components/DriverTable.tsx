@@ -1,8 +1,11 @@
 /**
- * DriverTable Component
- * Clean Architecture - Presentation Layer
+ * DriverTable
+ * Clean Architecture - Presentation Layer (Components)
  *
- * Tabla para mostrar lista de conductores.
+ * Componente de tabla para listar conductores.
+ * Homologado con TripTable y VehicleTable.
+ *
+ * Ubicación: src/features/drivers/presentation/components/DriverTable.tsx
  */
 
 import {
@@ -13,25 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
-import { Checkbox } from "@shared/ui/checkbox";
-import { Button } from "@shared/ui/button";
-import { Badge } from "@shared/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@shared/ui/dropdown-menu";
 import { Skeleton } from "@shared/ui/skeleton";
-import { Eye, Edit, Trash2, MoreHorizontal, AlertTriangle } from "lucide-react";
-import { type DriverListItem } from "../../domain";
-import { DriverStatusBadge } from "./DriverStatusBadge";
-import {
-  formatDriverName,
-  getDaysUntilLicenseExpiration,
-  getLicenseExpirationVariant,
-} from "../config";
+import { AlertTriangle } from "lucide-react";
+import type { DriverListItem, DriverStatusType } from "../../domain";
+import { DriverStatusBadge } from "../config/driverStatusConfig";
+import { DriverActions } from "./DriverActions";
 
 // ============================================================================
 // TYPES
@@ -39,14 +28,121 @@ import {
 
 interface DriverTableProps {
   drivers: DriverListItem[];
-  isLoading?: boolean;
-  selectedIds?: string[];
-  onSelectAll?: () => void;
-  onSelectOne?: (id: string) => void;
-  isAllSelected?: boolean;
-  onView?: (id: string) => void;
+  isLoading: boolean;
+  onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onChangeStatus?: (id: string, status: DriverStatusType) => void;
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TABLE_HEADERS = [
+  { key: "name", label: "Nombre" },
+  { key: "phone", label: "Teléfono" },
+  { key: "license", label: "Licencia" },
+  { key: "expiration", label: "Vencimiento" },
+  { key: "trips", label: "Viajes", className: "text-right" },
+  { key: "status", label: "Estado" },
+  { key: "actions", label: "", className: "w-12" },
+];
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function isLicenseExpiringSoon(expirationDate: string | null): boolean {
+  if (!expirationDate) return false;
+  const expDate = new Date(expirationDate);
+  const today = new Date();
+  const diffDays = Math.ceil(
+    (expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return diffDays <= 30 && diffDays >= 0;
+}
+
+function isLicenseExpired(expirationDate: string | null): boolean {
+  if (!expirationDate) return false;
+  const expDate = new Date(expirationDate);
+  const today = new Date();
+  return expDate < today;
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function TableHeaderRow() {
+  return (
+    <TableHeader>
+      <TableRow>
+        {TABLE_HEADERS.map((header) => (
+          <TableHead key={header.key} className={header.className}>
+            {header.label}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <TableBody>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <TableRow key={i}>
+          <TableCell>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-28" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-24" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-12 ml-auto" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-6 w-16" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-8 w-8" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  );
+}
+
+function EmptyState() {
+  return (
+    <TableBody>
+      <TableRow>
+        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
+          No se encontraron conductores.
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  );
 }
 
 // ============================================================================
@@ -55,242 +151,127 @@ interface DriverTableProps {
 
 export function DriverTable({
   drivers,
-  isLoading = false,
-  selectedIds = [],
-  onSelectAll,
-  onSelectOne,
-  isAllSelected = false,
+  isLoading,
   onView,
   onEdit,
   onDelete,
+  onChangeStatus,
 }: DriverTableProps) {
-  const formatDate = (date: Date) =>
-    new Intl.DateTimeFormat("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(date));
-
-  // Loading skeleton
+  // Loading state
   if (isLoading) {
-    return <DriverTableSkeleton />;
+    return (
+      <div className="rounded-md border">
+        <Table>
+          <TableHeaderRow />
+          <LoadingSkeleton />
+        </Table>
+      </div>
+    );
   }
 
   // Empty state
   if (drivers.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No se encontraron conductores</p>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeaderRow />
+          <EmptyState />
+        </Table>
       </div>
     );
   }
 
+  // Data table
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="rounded-md border">
       <Table>
-        <TableHeader>
-          <TableRow>
-            {onSelectOne && (
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={onSelectAll}
-                  aria-label="Seleccionar todos"
-                />
-              </TableHead>
-            )}
-            <TableHead>Conductor</TableHead>
-            <TableHead>Licencia</TableHead>
-            <TableHead>Vencimiento</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-center">Experiencia</TableHead>
-            <TableHead className="text-center">Viajes</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeaderRow />
         <TableBody>
           {drivers.map((driver) => {
-            const isSelected = selectedIds.includes(driver.id);
-            const daysUntilExpiration = getDaysUntilLicenseExpiration(
+            const expiringSoon = isLicenseExpiringSoon(
               driver.licenseExpiration,
             );
-            const licenseVariant =
-              getLicenseExpirationVariant(daysUntilExpiration);
-            const showWarning = daysUntilExpiration <= 30;
+            const expired = isLicenseExpired(driver.licenseExpiration);
 
             return (
               <TableRow
                 key={driver.id}
-                className={isSelected ? "bg-muted/50" : undefined}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => onView(driver.id)}
               >
-                {onSelectOne && (
-                  <TableCell>
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => onSelectOne(driver.id)}
-                      aria-label={`Seleccionar ${formatDriverName(driver.employee)}`}
-                    />
-                  </TableCell>
-                )}
-
-                {/* Conductor */}
+                {/* Nombre */}
                 <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {formatDriverName(driver.employee)}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {driver.employee.employeeNumber}
-                    </span>
+                  <div className="space-y-0.5">
+                    <p className="font-medium">
+                      {`${driver.employee.firstName} ${driver.employee.lastName}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {driver.employee.email}
+                    </p>
                   </div>
                 </TableCell>
 
+                {/* Teléfono */}
+                <TableCell>{driver.employee.phone || "—"}</TableCell>
+
                 {/* Licencia */}
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-mono text-sm">
-                      {driver.licenseNumber}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Tipo {driver.licenseType}
-                    </span>
-                  </div>
+                <TableCell className="font-mono">
+                  {driver.licenseNumber}
                 </TableCell>
 
                 {/* Vencimiento */}
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {showWarning && (
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <span
+                      className={
+                        expired
+                          ? "text-destructive"
+                          : expiringSoon
+                            ? "text-amber-600 dark:text-amber-500"
+                            : ""
+                      }
+                    >
+                      {formatDate(driver.licenseExpiration)}
+                    </span>
+                    {(expiringSoon || expired) && (
+                      <AlertTriangle
+                        className={`h-4 w-4 ${
+                          expired
+                            ? "text-destructive"
+                            : "text-amber-600 dark:text-amber-500"
+                        }`}
+                      />
                     )}
-                    <Badge variant={licenseVariant}>
-                      {daysUntilExpiration <= 0
-                        ? "Vencida"
-                        : daysUntilExpiration <= 30
-                          ? `${daysUntilExpiration} días`
-                          : formatDate(driver.licenseExpiration)}
-                    </Badge>
                   </div>
+                </TableCell>
+
+                {/* Viajes */}
+                <TableCell className="text-right">
+                  {driver.totalTrips ?? 0}
                 </TableCell>
 
                 {/* Estado */}
                 <TableCell>
-                  <DriverStatusBadge status={driver.status} size="sm" />
-                </TableCell>
-
-                {/* Experiencia */}
-                <TableCell className="text-center">
-                  {driver.yearsOfExperience} año
-                  {driver.yearsOfExperience !== 1 ? "s" : ""}
-                </TableCell>
-
-                {/* Viajes */}
-                <TableCell className="text-center font-medium">
-                  {driver.totalTrips}
+                  <DriverStatusBadge
+                    status={driver.status}
+                    size="sm"
+                    showIcon
+                  />
                 </TableCell>
 
                 {/* Acciones */}
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onView && (
-                        <DropdownMenuItem onClick={() => onView(driver.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalles
-                        </DropdownMenuItem>
-                      )}
-                      {onEdit && (
-                        <DropdownMenuItem onClick={() => onEdit(driver.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                      )}
-                      {onDelete && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => onDelete(driver.id)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <DriverActions
+                    driver={driver}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onChangeStatus={onChangeStatus}
+                  />
                 </TableCell>
               </TableRow>
             );
           })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function DriverTableSkeleton() {
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
-              <Skeleton className="h-4 w-4" />
-            </TableHead>
-            <TableHead>Conductor</TableHead>
-            <TableHead>Licencia</TableHead>
-            <TableHead>Vencimiento</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-center">Experiencia</TableHead>
-            <TableHead className="text-center">Viajes</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell>
-                <Skeleton className="h-4 w-4" />
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-6 w-20" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-6 w-24" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-12 mx-auto" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-8 mx-auto" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-8 w-8" />
-              </TableCell>
-            </TableRow>
-          ))}
         </TableBody>
       </Table>
     </div>

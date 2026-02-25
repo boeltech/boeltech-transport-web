@@ -12,7 +12,7 @@ import {
 } from "@tanstack/react-query";
 import type { MappedActionResult } from "@shared/api";
 import { driverQueryKeys } from "../../domain";
-import { createDeleteDriverUseCase } from "../useCases";
+import { createDeleteDriverUseCase } from "../index";
 import { createDriverRepository } from "../../infrastructure";
 
 // ============================================================================

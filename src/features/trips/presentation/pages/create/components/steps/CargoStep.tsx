@@ -42,7 +42,7 @@ import {
   AlertTriangle,
   Truck,
 } from "lucide-react";
-import { cn } from "@shared/lib/utils";
+import { cn } from "@shared/lib/utils/cn";
 import type {
   TripWizardFormValues,
   TripCargoFormValues,

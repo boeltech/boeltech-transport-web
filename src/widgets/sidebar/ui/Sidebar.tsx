@@ -14,7 +14,7 @@ import { memo } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Truck, LogOut } from "lucide-react";
 
-import { cn } from "@shared/lib/utils";
+import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
 import {
   Tooltip,

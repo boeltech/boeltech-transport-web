@@ -9,16 +9,20 @@ import type { MappedPaginatedResult } from "@shared/api";
 import type {
   DriverListItem,
   DriverQueryParams,
-  UseCaseResult,
   IDriverRepository,
 } from "../../domain";
+import type { UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // USE CASE
 // ============================================================================
 
 export class GetDriversUseCase {
-  constructor(private readonly driverRepository: IDriverRepository) {}
+  private readonly driverRepository: IDriverRepository;
+
+  constructor(driverRepository: IDriverRepository) {
+    this.driverRepository = driverRepository;
+  }
 
   /**
    * Ejecuta el caso de uso

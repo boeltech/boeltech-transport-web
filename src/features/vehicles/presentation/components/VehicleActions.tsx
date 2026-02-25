@@ -1,8 +1,15 @@
 /**
- * VehicleActions Component
+ * VehicleActions
+ * Clean Architecture - Presentation Layer (Components)
  *
- * Componente que muestra las acciones disponibles para un vehículo
- * según su estado actual y los permisos del usuario.
+ * Menú de acciones para un vehículo individual.
+ * Soporta dos modos de uso:
+ *
+ * 1. Con objeto vehicle (para VehicleTable):
+ *    <VehicleActions vehicle={vehicle} onView={...} onEdit={...} />
+ *
+ * 2. Con props individuales (para VehicleDetailPage):
+ *    <VehicleActions vehicleId={id} vehicleName={name} status={status} variant="buttons" />
  *
  * Ubicación: src/features/vehicles/presentation/components/VehicleActions.tsx
  */
@@ -21,6 +28,16 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@shared/ui/dialog";
+import { Label } from "@shared/ui/label";
+import { Textarea } from "@shared/ui/text-area";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,204 +45,178 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
-import { useAuth } from "@features/auth";
 import { useToast } from "@shared/hooks";
+import { useUpdateVehicle, useDeleteVehicle } from "../../application";
 import {
-  useUpdateVehicleStatus,
-  useDeleteVehicle,
-} from "@features/vehicles/application";
-import type {
-  VehicleListItem,
-  Vehicle,
-  VehicleStatusType,
-} from "@features/vehicles/domain";
-import { VALID_STATUS_TRANSITIONS } from "@features/vehicles/domain";
+  VehicleStatus,
+  VEHICLE_STATUS_LABELS,
+  type VehicleListItem,
+  type Vehicle,
+  type VehicleStatusType,
+} from "../../domain";
 import {
   MoreHorizontal,
   Eye,
   Pencil,
   Trash2,
   Wrench,
-  CheckCircle2,
+  FileText,
+  CheckCircle,
   XCircle,
-  Truck,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type VehicleActionTarget = VehicleListItem | Vehicle;
+/**
+ * Props cuando se pasa el objeto vehicle completo (usado en VehicleTable)
+ */
+interface VehicleObjectProps {
+  vehicle: VehicleListItem | Vehicle;
+  vehicleId?: never;
+  vehicleName?: never;
+  status?: never;
+}
 
-interface VehicleActionsProps {
-  vehicle: VehicleActionTarget;
-  /** Variante de visualización */
-  variant?: "buttons" | "dropdown" | "both";
-  /** Callback después de una acción exitosa */
+/**
+ * Props cuando se pasan valores individuales (usado en VehicleDetailPage)
+ */
+interface VehicleIndividualProps {
+  vehicle?: never;
+  vehicleId: string;
+  vehicleName: string;
+  status: VehicleStatusType;
+}
+
+/**
+ * Props comunes
+ */
+interface CommonProps {
+  /** Variante de visualización: dropdown (default) o buttons */
+  variant?: "dropdown" | "buttons";
+  /** Callback para ver detalles (solo en modo dropdown desde tabla) */
+  onView?: (id: string) => void;
+  /** Callback para editar (solo en modo dropdown desde tabla) */
+  onEdit?: (id: string) => void;
+  /** Callback para eliminar (solo en modo dropdown desde tabla) */
+  onDelete?: (id: string) => void;
+  /** Callback para cambio de estado (solo en modo dropdown desde tabla) */
+  onChangeStatus?: (id: string, status: VehicleStatusType) => void;
+  /** Callback para historial de mantenimiento */
+  onMaintenance?: (id: string) => void;
+  /** Callback para documentos */
+  onDocuments?: (id: string) => void;
+  /** Callback después de una acción exitosa (usado en VehicleDetailPage) */
   onActionComplete?: () => void;
-  /** Mostrar solo acciones principales */
-  compact?: boolean;
 }
 
-type VehicleActionType =
-  | "view"
-  | "edit"
-  | "to_available"
-  | "to_on_trip"
-  | "to_in_maintenance"
-  | "to_out_of_service"
-  | "delete";
-
-interface ConfirmDialogState {
-  open: boolean;
-  action: VehicleActionType | null;
-  title: string;
-  description: string;
-  destructive: boolean;
-}
+type VehicleActionsProps = CommonProps &
+  (VehicleObjectProps | VehicleIndividualProps);
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const ACTION_CONFIG: Record<
-  VehicleActionType,
-  {
-    label: string;
-    icon: typeof Eye;
-    variant: "default" | "outline" | "destructive";
-    confirmTitle?: string;
-    confirmDescription?: string;
-  }
+const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  [VehicleStatus.AVAILABLE]: [
+    VehicleStatus.IN_MAINTENANCE,
+    VehicleStatus.OUT_OF_SERVICE,
+  ],
+  [VehicleStatus.IN_MAINTENANCE]: [
+    VehicleStatus.AVAILABLE,
+    VehicleStatus.OUT_OF_SERVICE,
+  ],
+  [VehicleStatus.OUT_OF_SERVICE]: [
+    VehicleStatus.AVAILABLE,
+    VehicleStatus.IN_MAINTENANCE,
+  ],
+  [VehicleStatus.ON_TRIP]: [], // No se puede cambiar manualmente mientras está en viaje
+};
+
+const STATUS_ACTION_CONFIG: Record<
+  string,
+  { label: string; icon: typeof CheckCircle; colorClass: string }
 > = {
-  view: {
-    label: "Ver detalle",
-    icon: Eye,
-    variant: "outline",
+  [VehicleStatus.AVAILABLE]: {
+    label: "Marcar disponible",
+    icon: CheckCircle,
+    colorClass: "text-green-500",
   },
-  edit: {
-    label: "Editar",
-    icon: Pencil,
-    variant: "outline",
-  },
-  to_available: {
-    label: "Cambiar a Disponible",
-    icon: CheckCircle2,
-    variant: "default",
-    confirmTitle: "¿Marcar como disponible?",
-    confirmDescription:
-      "El vehículo quedará disponible para ser asignado a viajes.",
-  },
-  to_on_trip: {
-    label: "Cambiar a En Viaje",
-    icon: Truck,
-    variant: "default",
-    confirmTitle: "¿Marcar como en viaje?",
-    confirmDescription:
-      "El vehículo será marcado como en viaje y no podrá asignarse a otros viajes.",
-  },
-  to_in_maintenance: {
-    label: "Enviar a Mantenimiento",
+  [VehicleStatus.IN_MAINTENANCE]: {
+    label: "Enviar a mantenimiento",
     icon: Wrench,
-    variant: "outline",
-    confirmTitle: "¿Enviar a mantenimiento?",
-    confirmDescription:
-      "El vehículo será marcado como en mantenimiento y no estará disponible.",
+    colorClass: "text-amber-500",
   },
-  to_out_of_service: {
-    label: "Fuera de Servicio",
+  [VehicleStatus.OUT_OF_SERVICE]: {
+    label: "Marcar fuera de servicio",
     icon: XCircle,
-    variant: "destructive",
-    confirmTitle: "¿Marcar como fuera de servicio?",
-    confirmDescription:
-      "El vehículo quedará fuera de servicio. Solo administradores podrán reactivarlo.",
-  },
-  delete: {
-    label: "Eliminar",
-    icon: Trash2,
-    variant: "destructive",
-    confirmTitle: "¿Eliminar este vehículo?",
-    confirmDescription:
-      "El vehículo será dado de baja (fuera de servicio e inactivo). Esta acción no se puede deshacer.",
+    colorClass: "text-red-500",
   },
 };
-
-const STATUS_TO_ACTION: Record<VehicleStatusType, VehicleActionType> = {
-  available: "to_available",
-  on_trip: "to_on_trip",
-  in_maintenance: "to_in_maintenance",
-  out_of_service: "to_out_of_service",
-};
-
-const ACTION_TO_STATUS: Partial<Record<VehicleActionType, VehicleStatusType>> =
-  {
-    to_available: "available",
-    to_on_trip: "on_trip",
-    to_in_maintenance: "in_maintenance",
-    to_out_of_service: "out_of_service",
-  };
-
-/**
- * Define qué acciones están disponibles para cada estado.
- * Incluye navegación (view, edit) + transiciones + delete.
- */
-function getActionsForVehicle(status: VehicleStatusType): VehicleActionType[] {
-  const transitions = VALID_STATUS_TRANSITIONS[status] || [];
-  const transitionActions = transitions.map((s) => STATUS_TO_ACTION[s]);
-
-  const actions: VehicleActionType[] = ["view"];
-
-  if (status !== "out_of_service") {
-    actions.push("edit");
-  }
-
-  actions.push(...transitionActions);
-
-  if (status !== "on_trip") {
-    actions.push("delete");
-  }
-
-  return actions;
-}
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function VehicleActions({
-  vehicle,
-  variant = "dropdown",
-  onActionComplete,
-  compact = false,
-}: VehicleActionsProps) {
+export function VehicleActions(props: VehicleActionsProps) {
+  const {
+    variant = "dropdown",
+    onView,
+    onEdit,
+    onDelete,
+    onChangeStatus,
+    onMaintenance,
+    onDocuments,
+    onActionComplete,
+  } = props;
+
+  // Extraer valores del vehicle o de props individuales
+  const id = props.vehicle?.id ?? props.vehicleId!;
+  const name = props.vehicle?.unitNumber ?? props.vehicleName!;
+  const currentStatus = props.vehicle?.status ?? props.status!;
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const { user } = useAuth();
 
-  // Dialog state
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+  // ══════════════════════════════════════════════════════════════════════════
+  // DIALOG STATES (solo para variant="buttons")
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean }>({
     open: false,
-    action: null,
-    title: "",
-    description: "",
-    destructive: false,
   });
 
-  // Mutations
-  const updateStatus = useUpdateVehicleStatus({
+  const [statusDialog, setStatusDialog] = useState<{
+    open: boolean;
+    targetStatus: VehicleStatusType | null;
+    reason: string;
+  }>({
+    open: false,
+    targetStatus: null,
+    reason: "",
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MUTATIONS (solo para variant="buttons")
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const updateMutation = useUpdateVehicle({
     onSuccess: () => {
       toast({
         title: "Estado actualizado",
-        description: `${vehicle.unitNumber} actualizado exitosamente`,
+        description: `${name} ahora está ${VEHICLE_STATUS_LABELS[statusDialog.targetStatus!] || statusDialog.targetStatus}`,
         variant: "success",
       });
+      setStatusDialog({ open: false, targetStatus: null, reason: "" });
       onActionComplete?.();
     },
     onError: (error) => {
       toast({
-        title: "Error al cambiar estado",
+        title: "Error al actualizar estado",
         description: error.message,
         variant: "destructive",
       });
@@ -234,12 +225,8 @@ export function VehicleActions({
 
   const deleteMutation = useDeleteVehicle({
     onSuccess: () => {
-      toast({
-        title: "Vehículo eliminado",
-        description: `${vehicle.unitNumber} fue dado de baja`,
-        variant: "success",
-      });
-      onActionComplete?.();
+      toast({ title: "Vehículo eliminado", variant: "success" });
+      navigate("/vehicles");
     },
     onError: (error) => {
       toast({
@@ -250,210 +237,304 @@ export function VehicleActions({
     },
   });
 
-  const isLoading = updateStatus.isPending || deleteMutation.isPending;
+  const isLoading = updateMutation.isPending || deleteMutation.isPending;
 
-  // ── Permissions ──
-  const canRead = hasPermission("vehicles", "read");
+  // ══════════════════════════════════════════════════════════════════════════
+  // PERMISSIONS & AVAILABLE ACTIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
   const canUpdate = hasPermission("vehicles", "update");
   const canDelete = hasPermission("vehicles", "delete");
-  const hasFullAccess = ["admin", "gerente"].includes(user?.role ?? "");
 
-  const allActions = getActionsForVehicle(vehicle.status);
+  const availableTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
 
-  const filteredActions = allActions.filter((action) => {
-    if (action === "view" && !canRead) return false;
-    if (action === "edit" && !canUpdate) return false;
-    if (action === "delete" && !canDelete) return false;
-    if (action === "to_out_of_service" && !hasFullAccess) return false;
-    if (
-      ["to_available", "to_on_trip", "to_in_maintenance"].includes(action) &&
-      !canUpdate
-    )
-      return false;
-    return true;
-  });
+  // No se puede eliminar si está en viaje
+  const canDeleteVehicle = currentStatus !== VehicleStatus.ON_TRIP && canDelete;
 
-  if (filteredActions.length === 0) {
+  // ══════════════════════════════════════════════════════════════════════════
+  // HANDLERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const handleDeleteConfirm = () => {
+    deleteMutation.mutate(id);
+  };
+
+  const handleStatusConfirm = () => {
+    if (!statusDialog.targetStatus) return;
+    updateMutation.mutate({
+      id,
+      data: {
+        status: statusDialog.targetStatus,
+      },
+    });
+  };
+
+  const openStatusDialog = (targetStatus: VehicleStatusType) => {
+    setStatusDialog({ open: true, targetStatus, reason: "" });
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: DROPDOWN MODE (para VehicleTable)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (variant === "dropdown") {
+    const hasStatusActions =
+      canUpdate && onChangeStatus && availableTransitions.length > 0;
+    const hasSecondaryActions = onMaintenance || onDocuments;
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Abrir menú de acciones</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {/* Ver detalles */}
+          {onView && (
+            <DropdownMenuItem onClick={() => onView(id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Ver detalles
+            </DropdownMenuItem>
+          )}
+
+          {/* Editar */}
+          {canUpdate && onEdit && (
+            <DropdownMenuItem onClick={() => onEdit(id)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
+
+          {/* Acciones secundarias */}
+          {hasSecondaryActions && (
+            <>
+              <DropdownMenuSeparator />
+
+              {onMaintenance && (
+                <DropdownMenuItem onClick={() => onMaintenance(id)}>
+                  <Wrench className="mr-2 h-4 w-4" />
+                  Historial mantenimiento
+                </DropdownMenuItem>
+              )}
+
+              {onDocuments && (
+                <DropdownMenuItem onClick={() => onDocuments(id)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Documentos
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+
+          {/* Acciones de cambio de estado */}
+          {hasStatusActions && (
+            <>
+              <DropdownMenuSeparator />
+              {availableTransitions.map((targetStatus) => {
+                const config = STATUS_ACTION_CONFIG[targetStatus];
+                if (!config) return null;
+
+                const Icon = config.icon;
+                return (
+                  <DropdownMenuItem
+                    key={targetStatus}
+                    onClick={() =>
+                      onChangeStatus(id, targetStatus as VehicleStatusType)
+                    }
+                  >
+                    <Icon className={`mr-2 h-4 w-4 ${config.colorClass}`} />
+                    {config.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </>
+          )}
+
+          {/* Eliminar */}
+          {canDeleteVehicle && onDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(id)}
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: BUTTONS MODE (para VehicleDetailPage)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const hasNoActions =
+    !canUpdate && !canDeleteVehicle && availableTransitions.length === 0;
+
+  if (hasNoActions) {
     return null;
   }
 
-  // ============================================
-  // Handlers
-  // ============================================
-
-  const handleAction = (action: VehicleActionType) => {
-    switch (action) {
-      case "view":
-        navigate(`/vehicles/${vehicle.id}`);
-        break;
-
-      case "edit":
-        navigate(`/vehicles/${vehicle.id}/edit`);
-        break;
-
-      case "to_available":
-      case "to_on_trip":
-      case "to_in_maintenance":
-      case "to_out_of_service": {
-        const config = ACTION_CONFIG[action];
-        setConfirmDialog({
-          open: true,
-          action,
-          title: config.confirmTitle!,
-          description: config.confirmDescription!,
-          destructive: action === "to_out_of_service",
-        });
-        break;
-      }
-
-      case "delete":
-        setConfirmDialog({
-          open: true,
-          action: "delete",
-          title: ACTION_CONFIG.delete.confirmTitle!,
-          description: ACTION_CONFIG.delete.confirmDescription!,
-          destructive: true,
-        });
-        break;
-    }
-  };
-
-  const handleConfirm = () => {
-    const { action } = confirmDialog;
-
-    if (action === "delete") {
-      deleteMutation.mutate(vehicle.id);
-    } else if (action) {
-      const targetStatus = ACTION_TO_STATUS[action];
-      if (targetStatus) {
-        updateStatus.mutate({ id: vehicle.id, status: targetStatus });
-      }
-    }
-
-    setConfirmDialog({ ...confirmDialog, open: false });
-  };
-
-  // ============================================
-  // Render helpers
-  // ============================================
-
-  const renderButton = (action: VehicleActionType) => {
-    const config = ACTION_CONFIG[action];
-    const Icon = config.icon;
-    const isPrimary = [
-      "to_available",
-      "to_in_maintenance",
-      "to_out_of_service",
-    ].includes(action);
-
-    if (compact && !isPrimary) return null;
-
-    return (
-      <Button
-        key={action}
-        variant={config.variant}
-        size="sm"
-        onClick={() => handleAction(action)}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Icon className="mr-2 h-4 w-4" />
-        )}
-        {config.label}
-      </Button>
-    );
-  };
-
-  const renderDropdownItem = (action: VehicleActionType) => {
-    const config = ACTION_CONFIG[action];
-    const Icon = config.icon;
-    const isDestructive = action === "delete" || action === "to_out_of_service";
-
-    return (
-      <DropdownMenuItem
-        key={action}
-        onClick={() => handleAction(action)}
-        disabled={isLoading}
-        className={
-          isDestructive ? "text-destructive focus:text-destructive" : ""
-        }
-      >
-        <Icon className="mr-2 h-4 w-4" />
-        {config.label}
-      </DropdownMenuItem>
-    );
-  };
-
-  const navigationActions = filteredActions.filter((a) =>
-    ["view", "edit"].includes(a),
-  );
-  const statusActions = filteredActions.filter((a) => a.startsWith("to_"));
-  const destructiveActions = filteredActions.filter((a) => a === "delete");
-
-  // ============================================
-  // Render
-  // ============================================
-
   return (
     <>
-      {(variant === "buttons" || variant === "both") && (
-        <div className="flex flex-wrap items-center gap-2">
-          {filteredActions.map(renderButton)}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Editar */}
+        {canUpdate && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/vehicles/${id}/edit`)}
+            disabled={isLoading}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        )}
 
-      {(variant === "dropdown" || (variant === "both" && compact)) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <MoreHorizontal className="h-4 w-4" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {navigationActions.map(renderDropdownItem)}
-            {navigationActions.length > 0 && statusActions.length > 0 && (
-              <DropdownMenuSeparator />
-            )}
-            {statusActions.map(renderDropdownItem)}
-            {(navigationActions.length > 0 || statusActions.length > 0) &&
-              destructiveActions.length > 0 && <DropdownMenuSeparator />}
-            {destructiveActions.map(renderDropdownItem)}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+        {/* Cambiar Estado (dropdown dentro del modo buttons) */}
+        {canUpdate && availableTransitions.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Cambiar Estado
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {availableTransitions.map((targetStatus) => {
+                const config = STATUS_ACTION_CONFIG[targetStatus];
+                if (!config) return null;
 
+                const Icon = config.icon;
+                return (
+                  <DropdownMenuItem
+                    key={targetStatus}
+                    onClick={() =>
+                      openStatusDialog(targetStatus as VehicleStatusType)
+                    }
+                  >
+                    <Icon className={`mr-2 h-4 w-4 ${config.colorClass}`} />
+                    {config.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Eliminar */}
+        {canDeleteVehicle && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteDialog({ open: true })}
+            disabled={isLoading}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </Button>
+        )}
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* DIALOGS                                                              */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar este vehículo?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.description}
+              Esta acción no se puede deshacer. El vehículo{" "}
+              <strong>{name}</strong> será eliminado permanentemente del
+              sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirm}
-              className={
-                confirmDialog.destructive
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : ""
-              }
+              onClick={handleDeleteConfirm}
+              className="bg-destructive hover:bg-destructive/90"
             >
-              Confirmar
+              {deleteMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Status Change Dialog */}
+      <Dialog
+        open={statusDialog.open}
+        onOpenChange={(open) =>
+          setStatusDialog({ ...statusDialog, open, reason: "" })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Estado del Vehículo</DialogTitle>
+            <DialogDescription>
+              El vehículo <strong>{name}</strong> pasará de{" "}
+              <strong>{VEHICLE_STATUS_LABELS[currentStatus]}</strong> a{" "}
+              <strong>
+                {statusDialog.targetStatus
+                  ? VEHICLE_STATUS_LABELS[statusDialog.targetStatus]
+                  : ""}
+              </strong>
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="status-reason">Motivo (opcional)</Label>
+              <Textarea
+                id="status-reason"
+                placeholder="Ingrese el motivo del cambio de estado..."
+                value={statusDialog.reason}
+                onChange={(e) =>
+                  setStatusDialog({ ...statusDialog, reason: e.target.value })
+                }
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setStatusDialog({ open: false, targetStatus: null, reason: "" })
+              }
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleStatusConfirm}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirmar Cambio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

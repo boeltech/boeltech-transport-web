@@ -29,7 +29,7 @@ import type {
 // ============================================================================
 
 /** GET /api/v1/vehicles — List item shape from backend */
-interface VehicleListItemRaw {
+export interface ApiVehicleListItemResponse {
   id: string;
   unit_number: string;
   license_plate: string;
@@ -46,7 +46,7 @@ interface VehicleListItemRaw {
 }
 
 /** GET /api/v1/vehicles/:id — Full detail shape from backend */
-interface VehicleDetailRaw {
+export interface ApiVehicleResponse {
   id: string;
   tenant_id: string;
   unit_number: string;
@@ -92,7 +92,9 @@ interface VehicleDetailRaw {
 /**
  * Maps a single raw list item from API to domain VehicleListItem
  */
-export function mapVehicleListItem(raw: VehicleListItemRaw): VehicleListItem {
+export function mapVehicleListItem(
+  raw: ApiVehicleListItemResponse,
+): VehicleListItem {
   return {
     id: raw.id,
     unitNumber: raw.unit_number,
@@ -114,7 +116,7 @@ export function mapVehicleListItem(raw: VehicleListItemRaw): VehicleListItem {
  * Maps a paginated API response to domain MappedPaginatedResult<VehicleListItem>
  */
 export function mapVehicleList(
-  raw: ApiPaginatedResponse<VehicleListItemRaw>,
+  raw: ApiPaginatedResponse<ApiVehicleListItemResponse>,
 ): MappedPaginatedResult<VehicleListItem> {
   return {
     data: raw.data.map(mapVehicleListItem),
@@ -126,7 +128,7 @@ export function mapVehicleList(
  * Maps a single raw detail from API to domain Vehicle entity
  */
 export function mapVehicleDetail(
-  raw: ApiSingleResponse<VehicleDetailRaw>,
+  raw: ApiSingleResponse<ApiVehicleResponse>,
 ): MappedSingleResult<Vehicle> {
   return {
     data: {

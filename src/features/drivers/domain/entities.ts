@@ -8,6 +8,8 @@
  * REGLA: Esta capa NO debe importar nada de otras capas.
  */
 
+import type { TripStatusType } from "@features/trips";
+
 // ============================================================================
 // ENUMS
 // ============================================================================
@@ -16,7 +18,10 @@ export const DriverStatus = {
   AVAILABLE: "available",
   ON_TRIP: "on_trip",
   RESTING: "resting",
-  INACTIVE: "inactive",
+  // INACTIVE: "inactive",
+  ON_VACATION: "on_vacation",
+  ON_LEAVE: "on_leave",
+  TERMINATED: "terminated",
 } as const;
 
 export type DriverStatusType = (typeof DriverStatus)[keyof typeof DriverStatus];
@@ -149,27 +154,30 @@ export interface DriverDetail extends Driver {
   } | null;
 }
 
+/**
+ * Driver con información de asignabilidad calculada
+ */
+export interface AssignableDriverItem extends DriverListItem {
+  canBeAssigned: boolean;
+  blockReason?: string;
+  displayName: string;
+}
+
 // ============================================================================
 // DOMAIN TYPES
 // ============================================================================
 
-export type DomainResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: DomainError };
+export class DriverQueryError extends Error {
+  code: string;
+  originalMessage?: string;
 
-export interface DomainError {
-  readonly code: string;
-  readonly message: string;
-  readonly field?: string;
+  constructor(code: string, message: string, originalMessage?: string) {
+    super(message);
+    this.name = "DriverQueryError";
+    this.code = code;
+    this.originalMessage = originalMessage;
+  }
 }
-
-export type UseCaseResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: { code: string; message: string } };
-
-export type ValidationResult =
-  | { success: true }
-  | { success: false; error: { code: string; message: string } };
 
 // ============================================================================
 // QUERY TYPES
@@ -203,10 +211,68 @@ export interface DriverQueryParams {
   readonly limit?: number;
 }
 
+/**
+ * Resumen de un viaje asociado a un conductor
+ * Usado en el endpoint GET /drivers/:id/trips
+ */
+export interface DriverTripSummary {
+  readonly id: string;
+  readonly tripCode: string;
+  readonly status: TripStatusType;
+  readonly scheduledDeparture: Date;
+  readonly scheduledArrival: Date | null;
+  readonly actualDeparture: Date | null;
+  readonly actualArrival: Date | null;
+  readonly originCity: string;
+  readonly destinationCity: string;
+  readonly vehicle: {
+    readonly id: string;
+    readonly unitNumber: string;
+    readonly licensePlate: string;
+  };
+  readonly client: {
+    readonly id: string;
+    readonly legalName: string;
+  } | null;
+  readonly totalCost: number;
+  readonly distance: number | null; // km recorridos
+}
+
+/**
+ * Conductor disponible para asignación
+ * Versión simplificada para selectores/dropdowns
+ */
+export interface DriverAvailableItem {
+  readonly id: string;
+  readonly employeeNumber: string;
+  readonly fullName: string;
+  readonly licenseType: string;
+  readonly licenseNumber: string;
+  readonly licenseExpiry: Date;
+  readonly phone?: string;
+}
+
 // ============================================================================
 // QUERY KEYS
 // ============================================================================
 
+// export const driverQueryKeys = {
+//   all: ["drivers"] as const,
+//   lists: () => [...driverQueryKeys.all, "list"] as const,
+//   list: (params?: DriverQueryParams) =>
+//     [...driverQueryKeys.lists(), params] as const,
+//   details: () => [...driverQueryKeys.all, "detail"] as const,
+//   detail: (id: string) => [...driverQueryKeys.details(), id] as const,
+//   trips: (driverId: string) =>
+//     [...driverQueryKeys.detail(driverId), "trips"] as const,
+//   stats: (driverId: string) =>
+//     [...driverQueryKeys.detail(driverId), "stats"] as const,
+//   available: () => [...driverQueryKeys.all, "available"] as const,
+// };
+
+/**
+ * Query keys para React Query - Drivers
+ */
 export const driverQueryKeys = {
   all: ["drivers"] as const,
   lists: () => [...driverQueryKeys.all, "list"] as const,
@@ -214,11 +280,15 @@ export const driverQueryKeys = {
     [...driverQueryKeys.lists(), params] as const,
   details: () => [...driverQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...driverQueryKeys.details(), id] as const,
+  // Nuevos query keys
+  available: () => [...driverQueryKeys.all, "available"] as const,
+  // assignable: () => [...driverQueryKeys.all, "assignable"] as const,
   trips: (driverId: string) =>
     [...driverQueryKeys.detail(driverId), "trips"] as const,
   stats: (driverId: string) =>
     [...driverQueryKeys.detail(driverId), "stats"] as const,
-  available: () => [...driverQueryKeys.all, "available"] as const,
+  tripsPage: (driverId: string, page: number) =>
+    [...driverQueryKeys.trips(driverId), { page }] as const,
 };
 
 // ============================================================================
@@ -234,11 +304,16 @@ export const VALID_STATUS_TRANSITIONS: Record<
   [DriverStatus.AVAILABLE]: [
     DriverStatus.ON_TRIP,
     DriverStatus.RESTING,
-    DriverStatus.INACTIVE,
+    DriverStatus.ON_VACATION,
+    DriverStatus.ON_LEAVE,
+    DriverStatus.TERMINATED,
   ],
   [DriverStatus.ON_TRIP]: [DriverStatus.AVAILABLE, DriverStatus.RESTING],
-  [DriverStatus.RESTING]: [DriverStatus.AVAILABLE, DriverStatus.INACTIVE],
-  [DriverStatus.INACTIVE]: [DriverStatus.AVAILABLE],
+  [DriverStatus.RESTING]: [DriverStatus.AVAILABLE, DriverStatus.TERMINATED],
+  // [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
+  [DriverStatus.ON_VACATION]: [DriverStatus.AVAILABLE],
+  [DriverStatus.ON_LEAVE]: [DriverStatus.AVAILABLE],
+  [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
 };
 
 // ============================================================================
@@ -249,7 +324,10 @@ export const DRIVER_STATUS_LABELS: Record<DriverStatusType, string> = {
   [DriverStatus.AVAILABLE]: "Disponible",
   [DriverStatus.ON_TRIP]: "En Viaje",
   [DriverStatus.RESTING]: "Descansando",
-  [DriverStatus.INACTIVE]: "Inactivo",
+  // [DriverStatus.INACTIVE]: "Inactivo",
+  [DriverStatus.ON_VACATION]: "De Vacaciones",
+  [DriverStatus.ON_LEAVE]: "Con Permiso",
+  [DriverStatus.TERMINATED]: "Dado de Baja",
 };
 
 export const LICENSE_TYPE_LABELS: Record<LicenseTypeValue, string> = {
@@ -265,5 +343,8 @@ export const DRIVER_STATUS_COLORS: Record<DriverStatusType, string> = {
   [DriverStatus.AVAILABLE]: "success",
   [DriverStatus.ON_TRIP]: "warning",
   [DriverStatus.RESTING]: "secondary",
-  [DriverStatus.INACTIVE]: "destructive",
+  // [DriverStatus.INACTIVE]: "destructive",
+  [DriverStatus.ON_VACATION]: "secondary",
+  [DriverStatus.ON_LEAVE]: "secondary",
+  [DriverStatus.TERMINATED]: "destructive",
 };

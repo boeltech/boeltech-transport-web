@@ -5,14 +5,19 @@
  * Caso de uso para obtener un conductor por su ID.
  */
 
-import type { Driver, UseCaseResult, IDriverRepository } from "../../domain";
+import type { UseCaseResult } from "@shared/utils/errorMapper";
+import type { Driver, IDriverRepository } from "../../domain";
 
 // ============================================================================
 // USE CASE
 // ============================================================================
 
 export class GetDriverUseCase {
-  constructor(private readonly driverRepository: IDriverRepository) {}
+  private readonly driverRepository: IDriverRepository;
+
+  constructor(driverRepository: IDriverRepository) {
+    this.driverRepository = driverRepository;
+  }
 
   /**
    * Ejecuta el caso de uso

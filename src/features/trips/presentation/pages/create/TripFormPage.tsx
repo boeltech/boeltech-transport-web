@@ -26,7 +26,7 @@ import {
   StopType,
 } from "@/features/trips";
 import { useAssignableVehicles } from "@features/vehicles/application";
-import { useAssignableDrivers } from "@features/drivers/application";
+import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
@@ -70,8 +70,7 @@ export function TripFormPage() {
   const { data: vehicles = [], isLoading: isLoadingVehicles } =
     useAssignableVehicles();
 
-  const { data: drivers = [], isLoading: isLoadingDrivers } =
-    useAssignableDrivers();
+  const { data: drivers, isLoading: isLoadingDrivers } = useDrivers();
 
   const { data: clients = [], isLoading: isLoadingClients } =
     useActiveClients();
@@ -637,7 +636,7 @@ export function TripFormPage() {
           <BasicInfoStep
             form={form}
             vehicles={vehicles}
-            drivers={drivers}
+            drivers={drivers?.data ? drivers.data : []}
             clients={clients}
             isLoadingVehicles={isLoadingVehicles}
             isLoadingDrivers={isLoadingDrivers}
@@ -664,7 +663,7 @@ export function TripFormPage() {
           <SummaryStep
             form={form}
             vehicles={vehicles}
-            drivers={drivers}
+            drivers={drivers?.data ? drivers.data : []}
             clients={clients}
           />
         );

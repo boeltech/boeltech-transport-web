@@ -1,14 +1,11 @@
 /**
  * TripsListPage
- * FSD: Pages Layer - Composition
+ * Clean Architecture - Presentation Layer (Pages)
  *
- * ACTUALIZADO:
- * - Filtros de rango de fechas (dateFrom, dateTo)
- * - Status config alineado con valores del backend
- * - Rutas corregidas
+ * Página principal de listado de viajes.
+ * Sin selección múltiple (checkboxes).
  *
- * Esta página compone elementos del feature de trips.
- * No contiene lógica de negocio, solo composición de UI.
+ * Ubicación: src/features/trips/presentation/pages/TripsListPage.tsx
  */
 
 import { useCallback, useState } from "react";
@@ -25,21 +22,6 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-
-// Import from feature
-import {
-  useTrips,
-  useDeleteTrip,
-  useStartTrip,
-  useCancelTrip,
-  TripTable,
-  TripCard,
-  TripCardSkeleton,
-  TRIP_STATUS_CONFIG,
-} from "@/features/trips";
-
-import { type TripStatusType } from "@features/trips/domain";
-
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
@@ -52,7 +34,18 @@ import {
   X,
   Filter,
 } from "lucide-react";
-import { generatePageNumbers } from "@features/trips/presentation";
+
+// Feature imports
+import {
+  useTrips,
+  useDeleteTrip,
+  useStartTrip,
+  useCancelTrip,
+} from "../../application";
+import { type TripStatusType } from "../../domain";
+import { TripTable, TripCard, TripCardSkeleton } from "../components";
+import { TRIP_STATUS_CONFIG } from "../index";
+import { generatePageNumbers } from "@shared/lib/utils/generatePageNumbers";
 
 // ============================================================================
 // TYPES
@@ -64,21 +57,10 @@ type ViewMode = "table" | "cards";
 // HELPERS
 // ============================================================================
 
-/**
- * Convierte fecha de input date para el backend
- * Solo envía la fecha en formato YYYY-MM-DD
- * El backend hace cast a DATE en la consulta SQL
- *
- * Input: "2026-01-28" (date input)
- * Output: "2026-01-28" (solo fecha, sin hora)
- */
 function formatDateForAPI(dateStr: string): string {
   return dateStr || "";
 }
 
-/**
- * Formatea fecha para mostrar en el botón
- */
 function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return "";
   const date = new Date(dateStr + "T00:00:00");
@@ -99,7 +81,6 @@ export function TripsListPage() {
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
   // Parse URL params
@@ -109,7 +90,7 @@ export function TripsListPage() {
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
 
-  // Fetch trips - Usa TripListItem (no Trip completo)
+  // Fetch trips
   const { data, isLoading, refetch } = useTrips({
     page,
     limit: 10,
@@ -126,7 +107,6 @@ export function TripsListPage() {
   const deleteMutation = useDeleteTrip({
     onSuccess: () => {
       toast({ title: "Viaje eliminado", variant: "success" });
-      setSelectedIds([]);
       refetch();
     },
     onError: (error) => {
@@ -163,6 +143,26 @@ export function TripsListPage() {
         variant: "destructive",
       }),
   });
+
+  // Data
+  const trips = data?.data ?? [];
+  const pagination = data?.pagination;
+  const hasFilters = !!status || !!search || !!dateFrom || !!dateTo;
+  const hasDateFilter = !!dateFrom || !!dateTo;
+
+  // Permissions
+  const canCreate = hasPermission("trips", "create");
+  const canEdit = hasPermission("trips", "update");
+  const canDelete = hasPermission("trips", "delete");
+
+  // Date filter display text
+  const dateFilterText = hasDateFilter
+    ? dateFrom && dateTo
+      ? `${formatDateDisplay(dateFrom)} - ${formatDateDisplay(dateTo)}`
+      : dateFrom
+        ? `Desde ${formatDateDisplay(dateFrom)}`
+        : `Hasta ${formatDateDisplay(dateTo)}`
+    : "Filtrar por fecha";
 
   // Handlers
   const handleView = useCallback(
@@ -287,26 +287,6 @@ export function TripsListPage() {
     setSearchParams({});
   }, [setSearchParams]);
 
-  // Data
-  const trips = data?.data ?? [];
-  const pagination = data?.pagination;
-  const hasFilters = !!status || !!search || !!dateFrom || !!dateTo;
-  const hasDateFilter = !!dateFrom || !!dateTo;
-
-  // Permissions
-  const canCreate = hasPermission("trips", "create");
-  const canEdit = hasPermission("trips", "update");
-  const canDelete = hasPermission("trips", "delete");
-
-  // Date filter display text
-  const dateFilterText = hasDateFilter
-    ? dateFrom && dateTo
-      ? `${formatDateDisplay(dateFrom)} - ${formatDateDisplay(dateTo)}`
-      : dateFrom
-        ? `Desde ${formatDateDisplay(dateFrom)}`
-        : `Hasta ${formatDateDisplay(dateTo)}`
-    : "Filtrar por fecha";
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -325,17 +305,16 @@ export function TripsListPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3">
-        {/* Row 1: Search and main filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por código, origen, destino..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9"
+              className="pl-8"
             />
           </div>
 
@@ -522,7 +501,7 @@ export function TripsListPage() {
           </Button>
 
           {/* View Toggle */}
-          <div className="flex border rounded-md">
+          <div className="flex border rounded-md ml-auto">
             <Button
               variant={viewMode === "table" ? "secondary" : "ghost"}
               size="icon"
@@ -606,20 +585,6 @@ export function TripsListPage() {
         <TripTable
           trips={trips}
           isLoading={isLoading}
-          selectedIds={selectedIds}
-          onSelectAll={() =>
-            setSelectedIds(
-              selectedIds.length === trips.length ? [] : trips.map((t) => t.id),
-            )
-          }
-          onSelectOne={(id) =>
-            setSelectedIds((prev) =>
-              prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-            )
-          }
-          isAllSelected={
-            trips.length > 0 && selectedIds.length === trips.length
-          }
           onView={handleView}
           onEdit={canEdit ? handleEdit : undefined}
           onDelete={canDelete ? handleDelete : undefined}
@@ -630,12 +595,10 @@ export function TripsListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            // Skeleton loading
             Array.from({ length: 6 }).map((_, i) => (
               <TripCardSkeleton key={i} />
             ))
           ) : trips.length === 0 ? (
-            // Empty state
             <div className="col-span-full text-center py-12">
               <div className="mx-auto w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Search className="h-10 w-10 text-muted-foreground" />
@@ -661,7 +624,6 @@ export function TripsListPage() {
               )}
             </div>
           ) : (
-            // Trip cards
             trips.map((trip) => (
               <TripCard
                 key={trip.id}

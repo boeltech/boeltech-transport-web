@@ -114,6 +114,12 @@ export interface ApiErrorResponse {
   details?: unknown;
 }
 
+export interface DomainError {
+  readonly code: string;
+  readonly message: string;
+  readonly field?: string;
+}
+
 /**
  * Estructura de error anidada: error.response.data.error = { code, message, statusCode }
  * Esta es la estructura que usa tu backend
@@ -402,6 +408,14 @@ export function isValidationError(error: unknown): boolean {
 export type UseCaseResult<T> =
   | { success: true; data: T }
   | { success: false; error: MappedError };
+
+export type ValidationResult =
+  | { success: true }
+  | { success: false; error: { code: string; message: string } };
+
+export type DomainResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: DomainError };
 
 /**
  * Crea un resultado exitoso

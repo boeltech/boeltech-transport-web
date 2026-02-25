@@ -3,7 +3,7 @@
  * Indicador visual de progreso del wizard
  */
 
-import { cn } from "@shared/lib/utils";
+import { cn } from "@shared/lib/utils/cn";
 import { Check } from "lucide-react";
 
 export interface WizardStep {

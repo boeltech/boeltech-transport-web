@@ -9,13 +9,12 @@
  * No incluimos generateTripCode aquí.
  */
 
+import type { DomainResult, ValidationResult } from "@shared/utils/errorMapper";
 import {
   type Trip,
   type TripStatusType,
   type StopTypeValue,
   type TripStop,
-  type DomainResult,
-  type ValidationResult,
   TripStatus,
   StopType,
   VALID_STATUS_TRANSITIONS,

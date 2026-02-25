@@ -11,21 +11,13 @@ import {
   Package,
   MapPin,
   Flag,
-  Clock,
-  Truck,
-  CheckCircle2,
-  XCircle,
-  FileText,
   type LucideIcon,
 } from "lucide-react";
 import {
-  type TripStatusType,
   type StopTypeValue,
   type StopStatusValue,
-  TripStatus,
   StopType,
   StopStatus,
-  TRIP_STATUS_LABELS,
   STOP_TYPE_LABELS,
   STOP_STATUS_LABELS,
 } from "../domain";
@@ -34,14 +26,14 @@ import {
 // TYPES
 // ============================================================================
 
-interface StatusConfig {
-  label: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  dotColor: string;
-  icon: LucideIcon;
-}
+// interface StatusConfig {
+//   label: string;
+//   color: string;
+//   bgColor: string;
+//   borderColor: string;
+//   dotColor: string;
+//   icon: LucideIcon;
+// }
 
 interface StopTypeConfig {
   label: string;
@@ -57,68 +49,21 @@ interface StopStatusConfig {
   bgColor: string;
 }
 
-// ============================================================================
-// STATUS CONFIG - Configuración visual para estados de viaje
-// ============================================================================
-
-export const TRIP_STATUS_CONFIG: Record<TripStatusType, StatusConfig> = {
-  [TripStatus.DRAFT]: {
-    label: TRIP_STATUS_LABELS[TripStatus.DRAFT],
-    color: "text-gray-700 dark:text-gray-300",
-    bgColor: "bg-gray-100 dark:bg-gray-800",
-    borderColor: "border-gray-200 dark:border-gray-700",
-    dotColor: "bg-gray-500",
-    icon: FileText,
-  },
-  [TripStatus.SCHEDULED]: {
-    label: TRIP_STATUS_LABELS[TripStatus.SCHEDULED],
-    color: "text-blue-700 dark:text-blue-300",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    borderColor: "border-blue-200 dark:border-blue-800",
-    dotColor: "bg-blue-500",
-    icon: Clock,
-  },
-  [TripStatus.IN_PROGRESS]: {
-    label: TRIP_STATUS_LABELS[TripStatus.IN_PROGRESS],
-    color: "text-amber-700 dark:text-amber-300",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
-    borderColor: "border-amber-200 dark:border-amber-800",
-    dotColor: "bg-amber-500",
-    icon: Truck,
-  },
-  [TripStatus.COMPLETED]: {
-    label: TRIP_STATUS_LABELS[TripStatus.COMPLETED],
-    color: "text-emerald-700 dark:text-emerald-300",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
-    borderColor: "border-emerald-200 dark:border-emerald-800",
-    dotColor: "bg-emerald-500",
-    icon: CheckCircle2,
-  },
-  [TripStatus.CANCELLED]: {
-    label: TRIP_STATUS_LABELS[TripStatus.CANCELLED],
-    color: "text-red-700 dark:text-red-300",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
-    borderColor: "border-red-200 dark:border-red-800",
-    dotColor: "bg-red-500",
-    icon: XCircle,
-  },
-};
-
 /**
  * Colores simplificados para badges (compatibilidad con shadcn Badge)
  */
-export const TRIP_STATUS_BADGE_COLORS: Record<TripStatusType, string> = {
-  [TripStatus.DRAFT]:
-    "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-  [TripStatus.SCHEDULED]:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  [TripStatus.IN_PROGRESS]:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  [TripStatus.COMPLETED]:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  [TripStatus.CANCELLED]:
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-};
+// export const TRIP_STATUS_BADGE_COLORS: Record<TripStatusType, string> = {
+//   [TripStatus.DRAFT]:
+//     "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+//   [TripStatus.SCHEDULED]:
+//     "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+//   [TripStatus.IN_PROGRESS]:
+//     "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+//   [TripStatus.COMPLETED]:
+//     "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+//   [TripStatus.CANCELLED]:
+//     "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+// };
 
 // ============================================================================
 // STOP TYPE CONFIG - Configuración visual para tipos de parada
@@ -354,9 +299,9 @@ export function formatPercent(value: number | null | undefined): string {
 /**
  * Obtiene la configuración de un estado de viaje
  */
-export function getStatusConfig(status: TripStatusType): StatusConfig {
-  return TRIP_STATUS_CONFIG[status];
-}
+// export function getStatusConfig(status: TripStatusType): StatusConfig {
+//   return TRIP_STATUS_CONFIG[status];
+// }
 
 /**
  * Obtiene la configuración de un tipo de parada
@@ -385,52 +330,6 @@ export function getStopTypeConfig(
  */
 export function getStopStatusConfig(status: StopStatusValue): StopStatusConfig {
   return STOP_STATUS_CONFIG[status];
-}
-
-// ============================================================================
-// PAGINATION HELPERS
-// ============================================================================
-
-/**
- * Genera los números de página a mostrar en la paginación
- */
-export function generatePageNumbers(
-  currentPage: number,
-  totalPages: number,
-): (number | "...")[] {
-  const pages: (number | "...")[] = [];
-  const delta = 2; // Páginas a mostrar antes y después de la actual
-
-  if (totalPages <= 1) return [1];
-
-  // Siempre mostrar primera página
-  pages.push(1);
-
-  // Calcular rango alrededor de la página actual
-  const rangeStart = Math.max(2, currentPage - delta);
-  const rangeEnd = Math.min(totalPages - 1, currentPage + delta);
-
-  // Agregar ellipsis si hay gap después de 1
-  if (rangeStart > 2) {
-    pages.push("...");
-  }
-
-  // Agregar páginas del rango
-  for (let i = rangeStart; i <= rangeEnd; i++) {
-    pages.push(i);
-  }
-
-  // Agregar ellipsis si hay gap antes del final
-  if (rangeEnd < totalPages - 1) {
-    pages.push("...");
-  }
-
-  // Siempre mostrar última página
-  if (totalPages > 1) {
-    pages.push(totalPages);
-  }
-
-  return pages;
 }
 
 // ============================================================================

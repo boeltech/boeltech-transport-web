@@ -7,7 +7,7 @@
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { type Driver, driverQueryKeys } from "../../domain";
-import { createGetDriverUseCase } from "../useCases";
+import { createGetDriverUseCase } from "../index";
 import { createDriverRepository } from "../../infrastructure";
 
 // ============================================================================

@@ -131,9 +131,26 @@ const EditVehiclePage = lazy(() =>
 );
 
 // Drivers
-// const DriversListPage = lazy(() => import("@/pages/drivers"));
-// const DriverDetailPage = lazy(() => import("@/pages/drivers/detail"));
-// const DriverCreatePage = lazy(() => import("@/pages/drivers/create"));
+const DriversListPage = lazy(() =>
+  import("@features/drivers").then((m) => ({
+    default: m.DriversListPage,
+  })),
+);
+const DriverDetailPage = lazy(() =>
+  import("@features/drivers/presentation").then((m) => ({
+    default: m.DriverDetailPage,
+  })),
+);
+const DriverCreatePage = lazy(() =>
+  import("@features/drivers/presentation").then((m) => ({
+    default: m.DriverCreatePage,
+  })),
+);
+const DriverEditPage = lazy(() =>
+  import("@features/drivers/presentation").then((m) => ({
+    default: m.DriverEditPage,
+  })),
+);
 
 // Clients
 // const ClientsListPage = lazy(() => import("@/pages/clients"));
@@ -325,23 +342,27 @@ export const router = createBrowserRouter([
           {
             element: <ModuleRoute module="drivers" />,
             children: [
-              // {
-              //   path: "/drivers",
-              //   element: withSuspense(DriversListPage),
-              // },
-              // {
-              //   path: "/drivers/:id",
-              //   element: withSuspense(DriverDetailPage),
-              // },
+              {
+                path: "/drivers",
+                element: withSuspense(DriversListPage),
+              },
+              {
+                path: "/drivers/:id",
+                element: withSuspense(DriverDetailPage),
+              },
             ],
           },
           {
             element: <PermissionRoute module="drivers" action="create" />,
             children: [
-              // {
-              //   path: "/drivers/new",
-              //   element: withSuspense(DriverCreatePage),
-              // },
+              {
+                path: "/drivers/new",
+                element: withSuspense(DriverCreatePage),
+              },
+              {
+                path: "/drivers/:id/edit",
+                element: withSuspense(DriverEditPage),
+              },
             ],
           },
 

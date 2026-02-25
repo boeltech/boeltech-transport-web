@@ -27,7 +27,7 @@ import {
   type UpdateTripStatusDTO,
   type FinishTripDTO,
   type ITripRepository,
-} from "@features/trips/domain/repository";
+} from "@features/trips/domain";
 import {
   mapTrip,
   mapPaginatedTripListItems,
@@ -36,7 +36,7 @@ import {
   toApiFinishTrip,
   type ApiTripResponse,
   type ApiTripListItemResponse,
-} from "./mappers";
+} from "../mappers/tripMappers";
 
 // ============================================================================
 // CONSTANTS
@@ -93,7 +93,7 @@ export class TripRepository implements ITripRepository {
    * Crea un nuevo viaje
    */
   async create(data: CreateTripDTO): Promise<MappedSingleResult<Trip>> {
-    // Usar toApiCreateTrip que ya incluye el mapeo de stops, cargos y expenses
+    // Usar toApiCreateTrip que ya incluye el mapeo de stops
     const apiData = toApiCreateTrip(data);
 
     const response = await apiClient.post<ApiSingleResponse<ApiTripResponse>>(
