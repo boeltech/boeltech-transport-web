@@ -31,19 +31,17 @@ export class StartTripUseCase implements IStartTripUseCase {
     try {
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip.data) {
+      if (!currentTrip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: currentTrip.message
-              ? currentTrip.message
-              : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
-      if (!canStartTrip(currentTrip.data.status)) {
+      if (!canStartTrip(currentTrip.status)) {
         return {
           success: false,
           error: {
@@ -60,7 +58,7 @@ export class StartTripUseCase implements IStartTripUseCase {
         longitude: options?.longitude,
       });
 
-      return { success: true, data: updatedTrip.data };
+      return { success: true, data: updatedTrip };
     } catch (error) {
       return {
         success: false,

@@ -41,7 +41,10 @@
 export { apiClient } from "./client/apiClient";
 
 // Interceptors (para configuración avanzada)
-export { setupInterceptors, setupRetryInterceptor } from "./interceptors";
+export {
+  setupInterceptors,
+  setupRetryInterceptor,
+} from "./interceptors/interceptors";
 
 // Transformadores de casing
 export {

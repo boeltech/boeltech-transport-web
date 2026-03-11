@@ -37,9 +37,6 @@ export {
   mapCargosResponse,
   mapCargoResponse,
   mapCargoMovementResponse,
-  toApiCreateCargo,
-  toApiUpdateCargo,
-  toApiCreateCargoMovement,
 } from "./mappers/cargoMappers";
 export {
   type ApiExpenseResponse,
@@ -49,33 +46,16 @@ export {
   mapExpensesResponse,
   mapExpenseResponse,
   mapExpensesSummaryResponse,
-  toApiCreateExpense,
-  toApiUpdateExpense,
 } from "./mappers/expenseMappers";
 export {
-  type ApiTripStopResponse,
-  type ApiCreateStopRequest,
+  type ApiStopResponse as ApiTripStopResponse,
   mapTripStop,
-  toApiCreateStop,
 } from "./mappers/stopMappers";
 export {
   type ApiTripListItemResponse,
   type ApiTripResponse,
-  type ApiVehicleResponse,
-  type ApiDriverResponse,
-  type ApiClientResponse,
   type ApiStatusHistoryResponse,
-  type ApiCreateTripRequest,
-  type ApiUpdateStatusRequest,
-  type ApiFinishTripRequest,
-  mapVehicleRef,
-  mapDriverRef,
-  mapClientRef,
   mapStatusHistory,
   mapTripListItem,
   mapTrip,
-  mapPaginatedTripListItems,
-  toApiCreateTrip,
-  toApiUpdateStatus,
-  toApiFinishTrip,
 } from "./mappers/tripMappers";

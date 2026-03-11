@@ -9,17 +9,9 @@
  */
 
 import { apiClient } from "@/shared/api";
-import {
-  type TripStop,
-  type CreateTripStopDTO,
-  type AddStopData,
-  type IStopRepository,
-} from "@features/trips/domain";
-import {
-  mapTripStop,
-  toApiCreateStop,
-  type ApiTripStopResponse,
-} from "../mappers/stopMappers";
+import { type TripStop, type IStopRepository } from "@features/trips/domain";
+import { mapTripStop, type ApiStopResponse } from "../mappers/stopMappers";
+import type { CreateStopInput } from "@features/trips/application";
 
 // ============================================================================
 // CONSTANTS
@@ -36,7 +28,7 @@ export class StopRepository implements IStopRepository {
    * Obtiene todas las paradas de un viaje
    */
   async findByTripId(tripId: string): Promise<TripStop[]> {
-    const response = await apiClient.get<ApiTripStopResponse[]>(
+    const response = await apiClient.get<ApiStopResponse[]>(
       `${TRIPS_ENDPOINT}/${tripId}/stops`,
     );
 
@@ -49,7 +41,7 @@ export class StopRepository implements IStopRepository {
    */
   async findById(tripId: string, stopId: string): Promise<TripStop | null> {
     try {
-      const response = await apiClient.get<ApiTripStopResponse>(
+      const response = await apiClient.get<ApiStopResponse>(
         `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,
       );
 
@@ -66,29 +58,29 @@ export class StopRepository implements IStopRepository {
   /**
    * Agrega una nueva parada a un viaje
    */
-  async add(tripId: string, data: AddStopData): Promise<TripStop> {
-    const apiData = toApiCreateStop({
-      sequenceOrder: data.sequenceOrder,
-      stopType: data.stopType,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      postalCode: data.postalCode,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      locationName: data.locationName,
-      contactName: data.contactName,
-      contactPhone: data.contactPhone,
-      estimatedArrival: data.estimatedArrival,
-      cargoActionDescription: data.cargoActionDescription,
-      cargoWeight: data.cargoWeight,
-      cargoUnits: data.cargoUnits,
-      notes: data.notes,
-    });
+  async add(tripId: string, input: CreateStopInput): Promise<TripStop> {
+    // const apiData = toApiCreateStop({
+    //   sequenceOrder: data.sequenceOrder,
+    //   stopType: data.stopType,
+    //   address: data.address,
+    //   city: data.city,
+    //   state: data.state,
+    //   postalCode: data.postalCode,
+    //   latitude: data.latitude,
+    //   longitude: data.longitude,
+    //   locationName: data.locationName,
+    //   contactName: data.contactName,
+    //   contactPhone: data.contactPhone,
+    //   estimatedArrival: data.estimatedArrival,
+    //   cargoActionDescription: data.cargoActionDescription,
+    //   cargoWeight: data.cargoWeight,
+    //   cargoUnits: data.cargoUnits,
+    //   notes: data.notes,
+    // });
 
-    const response = await apiClient.post<ApiTripStopResponse>(
+    const response = await apiClient.post<ApiStopResponse>(
       `${TRIPS_ENDPOINT}/${tripId}/stops`,
-      apiData,
+      input,
     );
 
     const responseData = this.extractData(response);
@@ -101,36 +93,38 @@ export class StopRepository implements IStopRepository {
   async update(
     tripId: string,
     stopId: string,
-    data: Partial<CreateTripStopDTO>,
+    input: Partial<CreateStopInput>,
   ): Promise<TripStop> {
     // Solo enviar campos que tienen valor
     const updateData: Record<string, unknown> = {};
 
-    if (data.sequenceOrder !== undefined)
-      updateData.sequenceOrder = data.sequenceOrder;
-    if (data.stopType !== undefined) updateData.stopType = data.stopType;
-    if (data.address !== undefined) updateData.address = data.address;
-    if (data.city !== undefined) updateData.city = data.city;
-    if (data.state !== undefined) updateData.state = data.state;
-    if (data.postalCode !== undefined) updateData.postalCode = data.postalCode;
-    if (data.latitude !== undefined) updateData.latitude = data.latitude;
-    if (data.longitude !== undefined) updateData.longitude = data.longitude;
-    if (data.locationName !== undefined)
-      updateData.locationName = data.locationName;
-    if (data.contactName !== undefined)
-      updateData.contactName = data.contactName;
-    if (data.contactPhone !== undefined)
-      updateData.contactPhone = data.contactPhone;
-    if (data.estimatedArrival !== undefined)
-      updateData.estimatedArrival = data.estimatedArrival;
-    if (data.cargoActionDescription !== undefined)
-      updateData.cargoActionDescription = data.cargoActionDescription;
-    if (data.cargoWeight !== undefined)
-      updateData.cargoWeight = data.cargoWeight;
-    if (data.cargoUnits !== undefined) updateData.cargoUnits = data.cargoUnits;
-    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (input.sequenceOrder !== undefined)
+      updateData.sequenceOrder = input.sequenceOrder;
+    if (input.stopType !== undefined) updateData.stopType = input.stopType;
+    if (input.address !== undefined) updateData.address = input.address;
+    if (input.city !== undefined) updateData.city = input.city;
+    if (input.state !== undefined) updateData.state = input.state;
+    if (input.postalCode !== undefined)
+      updateData.postalCode = input.postalCode;
+    if (input.latitude !== undefined) updateData.latitude = input.latitude;
+    if (input.longitude !== undefined) updateData.longitude = input.longitude;
+    if (input.locationName !== undefined)
+      updateData.locationName = input.locationName;
+    if (input.contactName !== undefined)
+      updateData.contactName = input.contactName;
+    if (input.contactPhone !== undefined)
+      updateData.contactPhone = input.contactPhone;
+    if (input.estimatedArrival !== undefined)
+      updateData.estimatedArrival = input.estimatedArrival;
+    // if (input.cargoActionDescription !== undefined)
+    //   updateData.cargoActionDescription = input.cargoActionDescription;
+    // if (input.cargoWeight !== undefined)
+    //   updateData.cargoWeight = input.cargoWeight;
+    // if (input.cargoUnits !== undefined)
+    //   updateData.cargoUnits = input.cargoUnits;
+    if (input.notes !== undefined) updateData.notes = input.notes;
 
-    const response = await apiClient.put<ApiTripStopResponse>(
+    const response = await apiClient.put<ApiStopResponse>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,
       updateData,
     );
@@ -150,7 +144,7 @@ export class StopRepository implements IStopRepository {
    * Reordena las paradas de un viaje
    */
   async reorder(tripId: string, orderedIds: string[]): Promise<TripStop[]> {
-    const response = await apiClient.patch<ApiTripStopResponse[]>(
+    const response = await apiClient.patch<ApiStopResponse[]>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/reorder`,
       { orderedIds },
     );
@@ -167,7 +161,7 @@ export class StopRepository implements IStopRepository {
     stopId: string,
     actualArrival: Date,
   ): Promise<TripStop> {
-    const response = await apiClient.patch<ApiTripStopResponse>(
+    const response = await apiClient.patch<ApiStopResponse>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}/visited`,
       {
         actualArrival: actualArrival.toISOString(),

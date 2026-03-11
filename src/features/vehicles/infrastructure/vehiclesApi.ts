@@ -27,13 +27,25 @@ import type {
   UpdateVehiclePayload,
   VehicleStatusType,
 } from "@features/vehicles/domain";
-import { toISOString } from "@shared/utils/dateHelpers";
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const VEHICLE_ENDPOINT = "/vehicles";
+
+// ============================================================================
+// TIPOS DE RESPUESTA RAW (snake_case del backend)
+// ============================================================================
+
+/** Respuesta de POST /vehicles */
+interface CreateVehicleRawResponse {
+  message: string;
+  data: {
+    id: string;
+    unit_number: string;
+  };
+}
 
 // ============================================================================
 // API CLIENT
@@ -105,11 +117,17 @@ export const vehiclesApi = {
   create: async (
     payload: CreateVehiclePayload,
   ): Promise<MappedSingleResult<{ id: string; unitNumber: string }>> => {
-    const response = await apiClient.post(VEHICLE_ENDPOINT, payload);
-    const raw = response.data;
+    const response = await apiClient.post<CreateVehicleRawResponse>(
+      VEHICLE_ENDPOINT,
+      payload,
+    );
+
     return {
-      data: { id: raw.id, unitNumber: raw.unit_number },
-      message: response.menssage,
+      data: {
+        id: response.data.id,
+        unitNumber: response.data.unit_number,
+      },
+      message: response.message,
     };
   },
 
@@ -121,13 +139,7 @@ export const vehiclesApi = {
     id: string,
     payload: UpdateVehiclePayload,
   ): Promise<MappedSingleResult<Vehicle>> => {
-    const insuranceExpiryISO = toISOString(payload.insuranceExpiry);
-    const data: UpdateVehiclePayload = {
-      ...payload,
-      insuranceExpiry: insuranceExpiryISO,
-    };
-
-    const response = await apiClient.put(`${VEHICLE_ENDPOINT}/${id}`, data);
+    const response = await apiClient.put(`${VEHICLE_ENDPOINT}/${id}`, payload);
     return mapVehicleDetail(response);
   },
 

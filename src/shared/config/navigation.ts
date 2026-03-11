@@ -1,3 +1,4 @@
+import { ROLES, type UserRole } from "@shared/constants/roles";
 import {
   LayoutDashboard,
   Truck,
@@ -27,7 +28,7 @@ export interface NavItem {
   /** Permiso requerido para ver este item */
   permission?: string;
   /** Roles que pueden ver este item (si no hay permission) */
-  roles?: string[];
+  roles?: UserRole[];
   /** Badge para notificaciones */
   badge?: number;
 }
@@ -201,28 +202,28 @@ export const navigationConfig: NavGroup[] = [
         label: "Usuarios",
         icon: UserCog,
         href: "/admin/users",
-        roles: ["admin"],
+        roles: [ROLES.ADMIN], // Solo admin puede ver gestión de usuarios
       },
       {
         id: "roles",
         label: "Roles y Permisos",
         icon: Shield,
         href: "/admin/roles",
-        roles: ["admin"],
+        roles: [ROLES.ADMIN], // Solo admin puede gestionar roles
       },
       {
         id: "audit",
         label: "Auditoría",
         icon: ScrollText,
         href: "/admin/audit",
-        roles: ["admin"],
+        roles: [ROLES.ADMIN],
       },
       {
         id: "settings",
         label: "Configuración",
         icon: Settings,
         href: "/admin/settings",
-        roles: ["admin", "gerente"],
+        roles: [ROLES.ADMIN, ROLES.MANAGER],
       },
     ],
   },
@@ -233,15 +234,15 @@ export const navigationConfig: NavGroup[] = [
  */
 export const filterNavigation = (
   navigation: NavGroup[],
-  userRole: string,
-  hasPermission: (permission: string) => boolean
+  userRole: UserRole,
+  hasPermission: (permission: string) => boolean,
 ): NavGroup[] => {
   return navigation
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
         // Admin ve todo
-        if (userRole === "admin") return true;
+        if (userRole === ROLES.ADMIN) return true;
 
         // Si tiene permiso específico
         if (item.permission) {

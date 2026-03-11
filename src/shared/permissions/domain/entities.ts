@@ -8,9 +8,11 @@
  * Ubicación: src/shared/auth/domain/entities.ts
  */
 
-// ============================================
+import type { UserRole } from "@shared/constants/roles";
+
+// ============================================================================
 // MODULES - Módulos del sistema ERP
-// ============================================
+// ============================================================================
 
 export const MODULES = [
   "dashboard",
@@ -18,19 +20,24 @@ export const MODULES = [
   "vehicles",
   "drivers",
   "clients",
+  "employees",
   "maintenance",
   "fuel",
+  "expenses",
   "invoices",
+  "payroll",
+  "payments",
   "reports",
   "users",
   "settings",
+  "audit_logs",
 ] as const;
 
 export type Module = (typeof MODULES)[number];
 
-// ============================================
+// ============================================================================
 // ACTIONS - Acciones disponibles
-// ============================================
+// ============================================================================
 
 export const ACTIONS = [
   "read",
@@ -43,31 +50,14 @@ export const ACTIONS = [
   "export",
   "import",
   "assign",
+  "execute", // For special actions like "process payroll", "generate report"
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];
 
-// ============================================
-// ROLES - Roles del sistema
-// ============================================
-
-export const ROLES = [
-  "admin",
-  "manager",
-  "fleet_coordinator",
-  "trip_coordinator",
-  "hr",
-  "accountant",
-  "operator",
-  "driver",
-  "client",
-] as const;
-
-export type Role = (typeof ROLES)[number];
-
-// ============================================
+// ============================================================================
 // PERMISSION - Permiso individual
-// ============================================
+// ============================================================================
 
 /**
  * Permiso en formato string: "module.action"
@@ -83,39 +73,39 @@ export interface Permission {
   readonly action: Action;
 }
 
-// ============================================
+// ============================================================================
 // USER PERMISSIONS - Permisos de un usuario
-// ============================================
+// ============================================================================
 
 /**
  * Información de permisos de un usuario
  */
 export interface UserPermissions {
   readonly userId: string;
-  readonly role: Role;
+  readonly role: UserRole;
   readonly permissions: PermissionString[];
   readonly customPermissions?: PermissionString[];
   readonly deniedPermissions?: PermissionString[];
 }
 
-// ============================================
+// ============================================================================
 // ROLE DEFINITION - Definición de un rol
-// ============================================
+// ============================================================================
 
 /**
  * Definición completa de un rol
  */
 export interface RoleDefinition {
-  readonly role: Role;
+  readonly role: UserRole;
   readonly name: string;
   readonly description: string;
   readonly permissions: PermissionString[];
-  readonly inheritsFrom?: Role[];
+  readonly inheritsFrom?: UserRole[];
 }
 
-// ============================================
+// ============================================================================
 // PERMISSION CHECK RESULT
-// ============================================
+// ============================================================================
 
 /**
  * Resultado de verificación de permiso
@@ -126,15 +116,15 @@ export interface PermissionCheckResult {
   readonly source?: "role" | "custom" | "admin";
 }
 
-// ============================================
+// ============================================================================
 // PERMISSION CONTEXT STATE
-// ============================================
+// ============================================================================
 
 /**
  * Estado del contexto de permisos
  */
 export interface PermissionState {
-  readonly role: Role | null;
+  readonly role: UserRole | null;
   readonly permissions: PermissionString[];
   readonly isLoading: boolean;
   readonly isAuthenticated: boolean;

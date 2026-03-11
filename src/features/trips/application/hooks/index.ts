@@ -26,14 +26,8 @@ export { useMarkStopVisited } from "./stop/useMarkStopVisited";
 export { useTripStops } from "./stop/useTripStops";
 
 export { useCancelTrip } from "./trip/useCancelTrip";
-export { TripError, useCreateTrip } from "./trip/useCreateTrip";
-export {
-  TripOrchestrationError,
-  type CreateTripWithCargosInput,
-  type CreateTripWithCargosResult,
-  useCreateTripWithCargos,
-  useCreateTripBase,
-} from "./trip/useCreateTripWithCargos";
+export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";
+
 export { useDeleteTrip } from "./trip/useDeleteTrip";
 export { useFinishTrip } from "./trip/useFinishTrip";
 export { TripActionError, useScheduleTrip } from "./trip/useScheduleTrip";

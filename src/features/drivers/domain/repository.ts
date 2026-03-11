@@ -1,9 +1,9 @@
 /**
- * Driver Repository Interfaces
+ * Driver Repository Interface
  * Clean Architecture - Domain Layer (Ports)
  *
- * Define los contratos que la capa de infraestructura debe implementar.
- * Patrón: Ports & Adapters (Hexagonal Architecture)
+ * Define los DTOs y la interfaz del repositorio.
+ * La implementación está en la capa de infraestructura.
  */
 
 import type {
@@ -14,56 +14,92 @@ import type {
 import type {
   Driver,
   DriverListItem,
-  DriverStatusType,
   DriverQueryParams,
-  LicenseTypeValue,
+  DriverStatusType,
   DriverTripSummary,
+  LicenseTypeValue,
 } from "./entities";
 
 // ============================================================================
-// DTOs - Driver
+// DTOs - Create
 // ============================================================================
 
 /**
- * DTO para crear un conductor
+ * DTO para crear un conductor.
+ * Solo requiere employee_id y datos de licencia.
+ * Los datos personales ya existen en employees.
  */
 export interface CreateDriverDTO {
+  // Referencia al empleado (REQUERIDO)
   employeeId: string;
+
+  // Licencia (REQUERIDO)
   licenseNumber: string;
   licenseType: LicenseTypeValue;
-  licenseExpiration: string; // ISO 8601 date string
-  licenseIssuedDate?: string;
+  licenseExpiry: string; // YYYY-MM-DD
   licenseIssuingState?: string;
-  yearsOfExperience?: number;
-  bloodType?: string;
-  medicalCertificateExpiration?: string;
+
+  // Certificado médico (OPCIONAL)
+  medicalCertificateNumber?: string;
+  medicalCertificateExpiry?: string; // YYYY-MM-DD
+  medicalCertificateIssuer?: string;
+
+  // Examen psicométrico (OPCIONAL)
+  psychometricTestDate?: string; // YYYY-MM-DD
+  psychometricTestResult?: string;
+
+  // Examen antidoping (OPCIONAL)
+  lastDrugTestDate?: string; // YYYY-MM-DD
+  drugTestResult?: string;
+
+  // Dispositivo (OPCIONAL)
+  assignedDeviceId?: string;
+
+  // Notas (OPCIONAL)
   notes?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelationship?: string;
 }
 
+// ============================================================================
+// DTOs - Update
+// ============================================================================
+
 /**
- * DTO para actualizar un conductor
+ * DTO para actualizar un conductor.
+ * NO se puede cambiar el employee_id.
  */
 export interface UpdateDriverDTO {
-  employeeId?: string;
+  // Licencia
   licenseNumber?: string;
   licenseType?: LicenseTypeValue;
-  licenseExpiration?: string;
-  licenseIssuedDate?: string;
-  licenseIssuingState?: string;
-  yearsOfExperience?: number;
-  bloodType?: string;
-  medicalCertificateExpiration?: string;
-  notes?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelationship?: string;
+  licenseExpiry?: string;
+  licenseIssuingState?: string | null;
+
+  // Certificado médico
+  medicalCertificateNumber?: string | null;
+  medicalCertificateExpiry?: string | null;
+  medicalCertificateIssuer?: string | null;
+
+  // Examen psicométrico
+  psychometricTestDate?: string | null;
+  psychometricTestResult?: string | null;
+
+  // Examen antidoping
+  lastDrugTestDate?: string | null;
+  drugTestResult?: string | null;
+
+  // Dispositivo
+  assignedDeviceId?: string | null;
+
+  // Notas
+  notes?: string | null;
+
+  // Estado
+  status?: DriverStatusType;
+  isActive?: boolean;
 }
 
 /**
- * DTO para actualizar el estado de un conductor
+ * DTO para actualizar el estado del conductor
  */
 export interface UpdateDriverStatusDTO {
   status: DriverStatusType;
@@ -71,108 +107,60 @@ export interface UpdateDriverStatusDTO {
 }
 
 // ============================================================================
-// REPOSITORY INTERFACES
+// Pagination Types
+// ============================================================================
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// ============================================================================
+// Repository Interface
 // ============================================================================
 
 /**
- * Interfaz del repositorio de conductores
+ * Interfaz del repositorio de conductores.
+ * Define el contrato que debe implementar la capa de infraestructura.
  */
 export interface IDriverRepository {
-  /**
-   * Obtiene todos los conductores con filtros y paginación
-   */
+  // Queries
+  // getAll(params?: DriverQueryParams): Promise<PaginatedResult<DriverListItem>>;
   findAll(
     params?: DriverQueryParams,
   ): Promise<MappedPaginatedResult<DriverListItem>>;
-
-  /**
-   * Obtiene un conductor por su ID
-   */
+  // getById(id: string): Promise<Driver | null>;
   findById(id: string): Promise<MappedSingleResult<Driver | null>>;
-
-  /**
-   * Crea un nuevo conductor
-   */
-  create(data: CreateDriverDTO): Promise<MappedSingleResult<Driver>>;
-
-  /**
-   * Actualiza un conductor existente
-   */
-  update(
-    id: string,
-    data: UpdateDriverDTO,
-  ): Promise<MappedSingleResult<Driver>>;
-
-  /**
-   * Actualiza el estado de un conductor
-   */
-  updateStatus(
-    id: string,
-    data: UpdateDriverStatusDTO,
-  ): Promise<MappedSingleResult<Driver>>;
-
-  /**
-   * Elimina un conductor
-   */
-  delete(id: string): Promise<MappedActionResult>;
-
-  /**
-   * Verifica si existe un conductor con el número de licencia dado
-   */
+  // checkLicenseNumber(
+  //   licenseNumber: string,
+  //   excludeId?: string,
+  // ): Promise<boolean>;
   existsByLicenseNumber(licenseNumber: string): Promise<boolean>;
-
-  /**
-   * Obtiene conductores disponibles (para asignación a viajes)
-   */
+  // getAvailable(): Promise<DriverListItem[]>;
   findAvailable(): Promise<DriverListItem[]>;
-
-  /**
-   * Obtiene los viajes de un conductor
-   */
+  // getTrips(
+  //   driverId: string,
+  //   params: { page: number; limit: number },
+  // ): Promise<PaginatedResult<DriverTripSummary>>;
   findTrips(
     driverId: string,
     params?: { page?: number; limit?: number },
   ): Promise<MappedPaginatedResult<DriverTripSummary>>;
-}
 
-// ============================================================================
-// SERVICE INTERFACES
-// ============================================================================
-
-/**
- * Interfaz para servicio de validación de licencias
- */
-export interface ILicenseValidationService {
-  /**
-   * Valida que el número de licencia tenga el formato correcto
-   */
-  validateLicenseNumber(licenseNumber: string): boolean;
-
-  /**
-   * Verifica si la licencia está por vencer
-   */
-  isLicenseExpiringSoon(expirationDate: Date, daysThreshold?: number): boolean;
-
-  /**
-   * Verifica si la licencia está vencida
-   */
-  isLicenseExpired(expirationDate: Date): boolean;
-}
-
-/**
- * Interfaz para servicio de notificaciones de conductores
- */
-export interface IDriverNotificationService {
-  /**
-   * Notifica que la licencia de un conductor está por vencer
-   */
-  notifyLicenseExpiring(driver: Driver, daysRemaining: number): Promise<void>;
-
-  /**
-   * Notifica cambio de estado del conductor
-   */
-  notifyStatusChange(
-    driver: Driver,
-    previousStatus: DriverStatusType,
-  ): Promise<void>;
+  // Commands
+  create(data: CreateDriverDTO): Promise<MappedSingleResult<Driver>>;
+  update(
+    id: string,
+    data: UpdateDriverDTO,
+  ): Promise<MappedSingleResult<Driver>>;
+  updateStatus(
+    id: string,
+    data: UpdateDriverStatusDTO,
+  ): Promise<MappedSingleResult<Driver>>;
+  delete(id: string): Promise<MappedActionResult>;
 }

@@ -8,12 +8,8 @@
  */
 
 import { createContext } from "react";
-import type {
-  Role,
-  PermissionString,
-  Module,
-  Action,
-} from "../domain/entities";
+import type { PermissionString, Module, Action } from "../domain/entities";
+import type { UserRole } from "@shared/constants/roles";
 
 // ============================================
 // Context Value Type
@@ -21,7 +17,7 @@ import type {
 
 export interface PermissionContextValue {
   // State
-  role: Role | null;
+  role: UserRole | null;
   permissions: PermissionString[];
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -33,8 +29,8 @@ export interface PermissionContextValue {
   canAny: (permissions: PermissionString[]) => boolean;
 
   // Role checks
-  hasRole: (role: Role) => boolean;
-  hasAnyRole: (roles: Role[]) => boolean;
+  hasRole: (role: UserRole) => boolean;
+  hasAnyRole: (roles: UserRole[]) => boolean;
 
   // Module helpers
   getModuleActions: (module: Module) => Action[];

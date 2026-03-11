@@ -4,15 +4,9 @@ import type {
   TripQueryParams,
 } from "@features/trips/domain";
 import { createGetTripsUseCase } from "@features/trips/application";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
+import { tripRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 import type { MappedPaginatedResult } from "@shared/api";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
 
 /**
  * Hook para obtener lista de viajes (devuelve TripListItem, no Trip completo)

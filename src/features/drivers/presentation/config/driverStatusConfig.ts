@@ -20,7 +20,7 @@ import {
   type StatusConfig,
   createStatusConfig,
 } from "@shared/config/status/types";
-import { createStatusBadgeComponent } from "@shared/ui/custom-components/status-badge";
+import { createStatusBadgeComponent } from "@shared/components/StatusBadge";
 import {
   DRIVER_STATUS_LABELS,
   DriverStatus,

@@ -9,10 +9,9 @@
 import type {
   TripExpense,
   ExpenseCategoryType,
-} from "@features/trips/domain/entities";
+} from "@features/trips/domain/entities/entities";
 import type {
   IExpenseRepository,
-  CreateExpenseDTO,
   UpdateExpenseDTO,
   ExpensesSummary,
 } from "@features/trips/domain";
@@ -154,9 +153,9 @@ export class AddExpenseUseCase implements IAddExpenseUseCase {
       }
 
       // Mapear input a DTO
-      const dto = this.mapInputToDTO(input);
+      // const dto = this.mapInputToDTO(input);
 
-      const result = await this.repository.create(tripId, dto);
+      const result = await this.repository.create(tripId, input);
 
       return {
         success: true,
@@ -193,26 +192,6 @@ export class AddExpenseUseCase implements IAddExpenseUseCase {
     }
 
     return null;
-  }
-
-  private mapInputToDTO(input: CreateExpenseInput): CreateExpenseDTO {
-    return {
-      category: input.category,
-      description: input.description,
-      amount: input.amount,
-      currency: input.currency,
-      expenseDate: input.expenseDate
-        ? typeof input.expenseDate === "string"
-          ? input.expenseDate
-          : input.expenseDate.toISOString()
-        : undefined,
-      location: input.location,
-      hasReceipt: input.hasReceipt,
-      receiptUrl: input.receiptUrl,
-      vendorName: input.vendorName,
-      isEstimated: input.isEstimated,
-      notes: input.notes,
-    };
   }
 }
 

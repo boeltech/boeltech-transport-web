@@ -1,7 +1,12 @@
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import axios from "axios";
-import { setupInterceptors, setupRetryInterceptor } from "../interceptors";
+import {
+  setupInterceptors,
+  setupRetryInterceptor,
+} from "../interceptors/interceptors";
 import { config } from "@shared/config/index";
+import { deepToSnake } from "../utils/case-transformer";
+import { setupErrorInterceptor } from "../interceptors/error-handler";
 
 /**
  * Clase Singleton para el cliente API
@@ -39,6 +44,7 @@ class ApiClient {
   private axiosInstance: AxiosInstance;
   private cleanupInterceptors: (() => void) | null = null;
   private cleanupRetry: (() => void) | null = null;
+  private cleanupErrorInterceptor: (() => void) | null = null;
 
   /**
    * Constructor privado - Solo se puede instanciar desde getInstance()
@@ -51,6 +57,9 @@ class ApiClient {
       // Validar status codes
       validateStatus: (status) => status >= 200 && status < 300,
     });
+
+    // Configurar interceptor de errores
+    this.cleanupErrorInterceptor = setupErrorInterceptor(this.axiosInstance);
   }
 
   /**
@@ -129,6 +138,8 @@ class ApiClient {
       this.cleanupRetry();
       this.cleanupRetry = null;
     }
+    this.cleanupErrorInterceptor?.();
+    this.cleanupErrorInterceptor = null;
   }
 
   // ============================================
@@ -164,8 +175,7 @@ class ApiClient {
   ): Promise<T> {
     const response = await this.axiosInstance.post<T>(
       url,
-      // data !== undefined ? deepToSnake(data) : undefined,
-      data,
+      data !== undefined ? deepToSnake(data) : undefined,
       config,
     );
     return response.data;
@@ -183,8 +193,7 @@ class ApiClient {
   ): Promise<T> {
     const response = await this.axiosInstance.put<T>(
       url,
-      // data !== undefined ? deepToSnake(data) : undefined,
-      data,
+      data !== undefined ? deepToSnake(data) : undefined,
       config,
     );
     return response.data;
@@ -202,8 +211,7 @@ class ApiClient {
   ): Promise<T> {
     const response = await this.axiosInstance.patch<T>(
       url,
-      // data !== undefined ? deepToSnake(data) : undefined,
-      data,
+      data !== undefined ? deepToSnake(data) : undefined,
       config,
     );
     return response.data;

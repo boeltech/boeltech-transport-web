@@ -14,6 +14,7 @@
 
 import { Navigate, Outlet } from "react-router-dom";
 import { usePermissions } from "@/shared/permissions";
+import { ROLES } from "@shared/constants/roles";
 
 // ============================================
 // Types
@@ -47,7 +48,7 @@ export function AdminRoute({
   }
 
   // Verificar si es admin
-  if (!hasRole("admin")) {
+  if (!hasRole(ROLES.ADMIN)) {
     return <Navigate to={redirectTo} replace />;
   }
 

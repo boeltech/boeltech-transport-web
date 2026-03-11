@@ -87,6 +87,7 @@ export {
   useTripCargos,
   useTripExpenses,
   useTripExpensesSummary,
+  TripCreationError,
 } from "./application";
 
 // ============================================================================

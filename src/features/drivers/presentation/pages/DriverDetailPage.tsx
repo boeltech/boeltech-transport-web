@@ -31,14 +31,27 @@ import {
   Users,
   TrendingUp,
   Route,
-  Gauge,
+  Brain,
+  FlaskConical,
+  Cpu,
+  Stethoscope,
+  ClipboardCheck,
+  XCircle,
+  Clock,
 } from "lucide-react";
 
 // Application Layer
 import { useDriver, useDriverTrips } from "../../application";
 
 // Domain
-import { LICENSE_TYPE_LABELS, type LicenseTypeValue } from "../../domain";
+import {
+  LICENSE_TYPE_LABELS,
+  PSYCHOMETRIC_RESULT_LABELS,
+  PSYCHOMETRIC_RESULT_COLORS,
+  DRUG_TEST_RESULT_LABELS,
+  DRUG_TEST_RESULT_COLORS,
+  type LicenseTypeValue,
+} from "../../domain";
 
 // Presentation
 import {
@@ -75,15 +88,28 @@ function formatDateTime(date: Date | string | null): string {
   });
 }
 
-// function formatCurrency(amount: number): string {
-//   return new Intl.NumberFormat("es-MX", {
-//     style: "currency",
-//     currency: "MXN",
-//   }).format(amount);
-// }
-
 function formatNumber(num: number): string {
   return new Intl.NumberFormat("es-MX").format(num);
+}
+
+function getDaysUntilDate(date: Date | string | null): number | null {
+  if (!date) return null;
+  const targetDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+  const diffTime = targetDate.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function getExpirationStatus(days: number | null): {
+  variant: "default" | "secondary" | "destructive" | "outline";
+  label: string;
+} {
+  if (days === null) return { variant: "secondary", label: "Sin fecha" };
+  if (days <= 0) return { variant: "destructive", label: "Vencido" };
+  if (days <= 30) return { variant: "outline", label: `${days} días` };
+  return { variant: "default", label: "Vigente" };
 }
 
 // ============================================================================
@@ -114,10 +140,9 @@ interface StatCardProps {
   value: string | number;
   icon: React.ReactNode;
   description?: string;
-  trend?: "up" | "down" | "neutral";
 }
 
-function StatCard({ title, value, icon, description, trend }: StatCardProps) {
+function StatCard({ title, value, icon, description }: StatCardProps) {
   return (
     <Card>
       <CardContent className="pt-4">
@@ -136,6 +161,31 @@ function StatCard({ title, value, icon, description, trend }: StatCardProps) {
       </CardContent>
     </Card>
   );
+}
+
+interface ResultBadgeProps {
+  result: string | null;
+  labels: Record<string, string>;
+  colors: Record<string, string>;
+}
+
+function ResultBadge({ result, labels, colors }: ResultBadgeProps) {
+  if (!result) return <span className="text-muted-foreground">—</span>;
+
+  const label = labels[result] || result;
+  const colorClass = colors[result] || "secondary";
+
+  const variantMap: Record<
+    string,
+    "default" | "secondary" | "destructive" | "outline"
+  > = {
+    success: "default",
+    warning: "outline",
+    destructive: "destructive",
+    secondary: "secondary",
+  };
+
+  return <Badge variant={variantMap[colorClass] || "secondary"}>{label}</Badge>;
 }
 
 // ============================================================================
@@ -197,19 +247,31 @@ export function DriverDetailPage() {
     ? formatDriverName(driver.employee)
     : "Conductor";
 
-  const daysUntilExpiration = getDaysUntilLicenseExpiration(
-    driver.licenseExpiration,
+  const daysUntilLicenseExpiration = getDaysUntilLicenseExpiration(
+    driver.licenseExpiry,
   );
-  const licenseVariant = getLicenseExpirationVariant(daysUntilExpiration);
-  const isLicenseExpired = daysUntilExpiration <= 0;
+  const licenseVariant = getLicenseExpirationVariant(
+    daysUntilLicenseExpiration,
+  );
+  const isLicenseExpired = daysUntilLicenseExpiration <= 0;
   const isLicenseExpiringSoon =
-    daysUntilExpiration > 0 && daysUntilExpiration <= 30;
+    daysUntilLicenseExpiration > 0 && daysUntilLicenseExpiration <= 30;
+
+  const daysUntilMedicalExpiration = getDaysUntilDate(
+    driver.medicalCertificateExpiry,
+  );
+  const medicalStatus = getExpirationStatus(daysUntilMedicalExpiration);
+  const isMedicalExpired =
+    daysUntilMedicalExpiration !== null && daysUntilMedicalExpiration <= 0;
+  const isMedicalExpiringSoon =
+    daysUntilMedicalExpiration !== null &&
+    daysUntilMedicalExpiration > 0 &&
+    daysUntilMedicalExpiration <= 30;
 
   const stats = driver.stats || {
     totalTrips: 0,
     completedTrips: 0,
     cancelledTrips: 0,
-    totalKilometers: 0,
     averageRating: null,
     yearsOfExperience: driver.yearsOfExperience || 0,
   };
@@ -258,7 +320,7 @@ export function DriverDetailPage() {
       </div>
 
       {/* ================================================================== */}
-      {/* ALERT: LICENSE EXPIRING/EXPIRED                                    */}
+      {/* ALERTS: LICENSE/MEDICAL EXPIRING                                   */}
       {/* ================================================================== */}
       {(isLicenseExpired || isLicenseExpiringSoon) && (
         <Card
@@ -284,8 +346,40 @@ export function DriverDetailPage() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {isLicenseExpired
-                  ? `La licencia venció hace ${Math.abs(daysUntilExpiration)} días`
-                  : `La licencia vence en ${daysUntilExpiration} días (${formatDate(driver.licenseExpiration)})`}
+                  ? `La licencia venció hace ${Math.abs(daysUntilLicenseExpiration)} días`
+                  : `La licencia vence en ${daysUntilLicenseExpiration} días (${formatDate(driver.licenseExpiry)})`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(isMedicalExpired || isMedicalExpiringSoon) && (
+        <Card
+          className={cn(
+            "border-l-4",
+            isMedicalExpired
+              ? "border-l-destructive bg-destructive/5"
+              : "border-l-amber-500 bg-amber-50 dark:bg-amber-950/20",
+          )}
+        >
+          <CardContent className="flex items-center gap-3 py-3">
+            <Stethoscope
+              className={cn(
+                "h-5 w-5",
+                isMedicalExpired ? "text-destructive" : "text-amber-500",
+              )}
+            />
+            <div>
+              <p className="font-medium">
+                {isMedicalExpired
+                  ? "Certificado médico vencido"
+                  : "Certificado médico próximo a vencer"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isMedicalExpired
+                  ? `El certificado venció hace ${Math.abs(daysUntilMedicalExpiration!)} días`
+                  : `El certificado vence en ${daysUntilMedicalExpiration} días (${formatDate(driver.medicalCertificateExpiry)})`}
               </p>
             </div>
           </CardContent>
@@ -312,9 +406,9 @@ export function DriverDetailPage() {
           }
         />
         <StatCard
-          title="Kilómetros Recorridos"
-          value={`${formatNumber(stats.totalKilometers)} km`}
-          icon={<Gauge className="h-5 w-5 text-blue-500" />}
+          title="Viajes Cancelados"
+          value={formatNumber(stats.cancelledTrips)}
+          icon={<XCircle className="h-5 w-5 text-red-500" />}
         />
         <StatCard
           title="Años de Experiencia"
@@ -330,6 +424,8 @@ export function DriverDetailPage() {
         <TabsList>
           <TabsTrigger value="info">Información</TabsTrigger>
           <TabsTrigger value="license">Licencia</TabsTrigger>
+          <TabsTrigger value="medical">Médico</TabsTrigger>
+          <TabsTrigger value="exams">Exámenes</TabsTrigger>
           <TabsTrigger value="trips">
             Viajes{" "}
             {trips.length > 0 &&
@@ -345,7 +441,7 @@ export function DriverDetailPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <User className="h-4 w-4" /> Datos Personales
+                  <User className="h-4 w-4" /> Datos del Empleado
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -369,57 +465,65 @@ export function DriverDetailPage() {
                   label="Teléfono"
                   value={driver.employee?.phone || "—"}
                 />
+                {driver.employee?.curp && (
+                  <InfoRow
+                    icon={<FileText className="h-4 w-4" />}
+                    label="CURP"
+                    value={
+                      <span className="font-mono text-xs">
+                        {driver.employee.curp}
+                      </span>
+                    }
+                  />
+                )}
+                {driver.employee?.rfc && (
+                  <InfoRow
+                    icon={<FileText className="h-4 w-4" />}
+                    label="RFC"
+                    value={
+                      <span className="font-mono text-xs">
+                        {driver.employee.rfc}
+                      </span>
+                    }
+                  />
+                )}
               </CardContent>
             </Card>
 
-            {/* Información Médica */}
+            {/* Dispositivo y Notas */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Heart className="h-4 w-4" /> Información Médica
+                  <Cpu className="h-4 w-4" /> Dispositivo y Notas
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <InfoRow
-                  icon={<Heart className="h-4 w-4" />}
-                  label="Tipo de sangre"
-                  value={driver.bloodType || "No registrado"}
-                />
-                <InfoRow
-                  icon={<FileText className="h-4 w-4" />}
-                  label="Certificado médico"
+                  icon={<Cpu className="h-4 w-4" />}
+                  label="Dispositivo GPS asignado"
                   value={
-                    driver.medicalCertificateExpiration ? (
-                      <span
-                        className={cn(
-                          new Date(driver.medicalCertificateExpiration) <
-                            new Date() && "text-destructive",
-                        )}
-                      >
-                        Vence: {formatDate(driver.medicalCertificateExpiration)}
+                    driver.assignedDeviceId ? (
+                      <span className="font-mono">
+                        {driver.assignedDeviceId}
                       </span>
                     ) : (
-                      "No registrado"
+                      <span className="text-muted-foreground">
+                        Sin dispositivo
+                      </span>
                     )
                   }
                 />
+                {driver.notes && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground mb-1">Notas</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {driver.notes}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          {/* Notas */}
-          {driver.notes && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Notas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {driver.notes}
-                </p>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* TAB: LICENCIA */}
@@ -450,11 +554,6 @@ export function DriverDetailPage() {
                 />
                 <InfoRow
                   icon={<Calendar className="h-4 w-4" />}
-                  label="Fecha de emisión"
-                  value={formatDate(driver.licenseIssuedDate)}
-                />
-                <InfoRow
-                  icon={<Calendar className="h-4 w-4" />}
                   label="Fecha de vencimiento"
                   value={
                     <div className="flex items-center gap-2">
@@ -464,13 +563,13 @@ export function DriverDetailPage() {
                           isLicenseExpiringSoon && "text-amber-600",
                         )}
                       >
-                        {formatDate(driver.licenseExpiration)}
+                        {formatDate(driver.licenseExpiry)}
                       </span>
                       <Badge variant={licenseVariant}>
                         {isLicenseExpired
                           ? "Vencida"
                           : isLicenseExpiringSoon
-                            ? `${daysUntilExpiration} días`
+                            ? `${daysUntilLicenseExpiration} días`
                             : "Vigente"}
                       </Badge>
                     </div>
@@ -484,6 +583,152 @@ export function DriverDetailPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* TAB: CERTIFICADO MÉDICO */}
+        <TabsContent value="medical" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Stethoscope className="h-4 w-4" /> Certificado Médico
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <InfoRow
+                  icon={<FileText className="h-4 w-4" />}
+                  label="Número de certificado"
+                  value={
+                    driver.medicalCertificateNumber ? (
+                      <span className="font-mono">
+                        {driver.medicalCertificateNumber}
+                      </span>
+                    ) : (
+                      "No registrado"
+                    )
+                  }
+                />
+                <InfoRow
+                  icon={<Calendar className="h-4 w-4" />}
+                  label="Fecha de vencimiento"
+                  value={
+                    driver.medicalCertificateExpiry ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            isMedicalExpired && "text-destructive",
+                            isMedicalExpiringSoon && "text-amber-600",
+                          )}
+                        >
+                          {formatDate(driver.medicalCertificateExpiry)}
+                        </span>
+                        <Badge variant={medicalStatus.variant}>
+                          {medicalStatus.label}
+                        </Badge>
+                      </div>
+                    ) : (
+                      "No registrado"
+                    )
+                  }
+                />
+                <InfoRow
+                  icon={<Stethoscope className="h-4 w-4" />}
+                  label="Institución emisora"
+                  value={driver.medicalCertificateIssuer || "No especificada"}
+                />
+                <InfoRow
+                  icon={<Heart className="h-4 w-4" />}
+                  label="Tipo de sangre"
+                  value={driver.bloodType || "No registrado"}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB: EXÁMENES */}
+        <TabsContent value="exams" className="space-y-4 mt-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Examen Psicométrico */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-4 w-4" /> Examen Psicométrico
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <InfoRow
+                  icon={<Calendar className="h-4 w-4" />}
+                  label="Fecha del examen"
+                  value={formatDate(driver.psychometricTestDate)}
+                />
+                <InfoRow
+                  icon={<ClipboardCheck className="h-4 w-4" />}
+                  label="Resultado"
+                  value={
+                    <ResultBadge
+                      result={driver.psychometricTestResult}
+                      labels={PSYCHOMETRIC_RESULT_LABELS}
+                      colors={PSYCHOMETRIC_RESULT_COLORS}
+                    />
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            {/* Examen Antidoping */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4" /> Examen Antidoping
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <InfoRow
+                  icon={<Calendar className="h-4 w-4" />}
+                  label="Fecha del último examen"
+                  value={formatDate(driver.lastDrugTestDate)}
+                />
+                <InfoRow
+                  icon={<ClipboardCheck className="h-4 w-4" />}
+                  label="Resultado"
+                  value={
+                    <ResultBadge
+                      result={driver.drugTestResult}
+                      labels={DRUG_TEST_RESULT_LABELS}
+                      colors={DRUG_TEST_RESULT_COLORS}
+                    />
+                  }
+                />
+                {driver.lastDrugTestDate && (
+                  <InfoRow
+                    icon={<Clock className="h-4 w-4" />}
+                    label="Vigencia estimada"
+                    value={(() => {
+                      const testDate = new Date(driver.lastDrugTestDate);
+                      const validUntil = new Date(testDate);
+                      validUntil.setDate(validUntil.getDate() + 180); // 6 meses
+                      const daysRemaining = getDaysUntilDate(validUntil);
+                      if (daysRemaining === null) return "—";
+                      if (daysRemaining <= 0)
+                        return (
+                          <span className="text-destructive">
+                            Examen vencido
+                          </span>
+                        );
+                      if (daysRemaining <= 30)
+                        return (
+                          <span className="text-amber-600">
+                            {daysRemaining} días restantes
+                          </span>
+                        );
+                      return `${daysRemaining} días restantes`;
+                    })()}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* TAB: VIAJES */}
@@ -593,14 +838,9 @@ export function DriverDetailPage() {
                   <p className="text-muted-foreground">
                     No se ha registrado un contacto de emergencia.
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={() => navigate(`/drivers/${driverId}/edit`)}
-                  >
-                    Agregar contacto
-                  </Button>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Esta información proviene del perfil del empleado.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -655,7 +895,7 @@ function DriverDetailSkeleton() {
       </div>
 
       {/* Tabs */}
-      <Skeleton className="h-10 w-96" />
+      <Skeleton className="h-10 w-full max-w-xl" />
 
       {/* Content */}
       <div className="grid gap-4 md:grid-cols-2">

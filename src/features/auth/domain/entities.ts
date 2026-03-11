@@ -7,7 +7,7 @@
  * Ubicación: src/features/auth/domain/entities.ts
  */
 
-import type { Role } from "@/shared/permissions";
+import { ROLES, type UserRole } from "@shared/constants/roles";
 
 // ============================================
 // TENANT ENTITY
@@ -110,7 +110,7 @@ export interface UserData {
   email: string;
   firstName: string;
   lastName: string;
-  role: Role;
+  role: UserRole;
   tenant: Tenant | TenantData;
   lastLogin?: string | Date;
   permissions?: string[];
@@ -124,7 +124,7 @@ export interface UserJSON {
   email: string;
   firstName: string;
   lastName: string;
-  role: Role;
+  role: UserRole;
   tenant: TenantData;
   lastLogin?: string;
   permissions?: string[];
@@ -144,7 +144,7 @@ export class User {
   public readonly email: string;
   public readonly firstName: string;
   public readonly lastName: string;
-  public readonly role: Role;
+  public readonly role: UserRole;
   public readonly tenant: Tenant;
   public readonly lastLogin?: Date;
   public readonly permissions?: string[];
@@ -251,7 +251,7 @@ export class User {
    * Verifica si el usuario es administrador
    */
   isAdmin(): boolean {
-    return this.role === "admin";
+    return this.role === ROLES.ADMIN;
   }
 
   /**

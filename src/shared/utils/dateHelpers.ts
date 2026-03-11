@@ -112,6 +112,10 @@ export function getCurrentLocalDateTime(): string {
   return isoToLocalDateTime(new Date());
 }
 
+export function getCurrentLocalDate(): string {
+  return isoToLocalDateTime(new Date()).split("T")[0];
+}
+
 /**
  * Obtiene la fecha actual + N horas en formato datetime-local
  */

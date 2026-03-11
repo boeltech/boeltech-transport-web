@@ -42,3 +42,15 @@ export {
   type InitializePermissionStateUseCase,
   createInitializePermissionStateUseCase,
 } from "./useCases";
+
+// Hooks
+export {
+  usePermissions,
+  useHasPermission,
+  useHasRole,
+  useCanAll,
+  useCanAny,
+  useRole,
+  useIsAuthenticated,
+  type UsePermissionsReturn,
+} from "./usePermissions";

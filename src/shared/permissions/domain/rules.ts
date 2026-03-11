@@ -8,8 +8,8 @@
  * Ubicación: src/shared/auth/domain/rules.ts
  */
 
+import { ROLES, type UserRole } from "@shared/constants/roles";
 import {
-  type Role,
   type Module,
   type Action,
   type Permission,
@@ -20,9 +20,9 @@ import {
   ACTIONS,
 } from "./entities";
 
-// ============================================
+// ============================================================================
 // PERMISSION STRING HELPERS
-// ============================================
+// ============================================================================
 
 /**
  * Crea un string de permiso desde módulo y acción
@@ -59,15 +59,15 @@ export function isValidPermission(
   );
 }
 
-// ============================================
+// ============================================================================
 // PERMISSION CHECK RULES
-// ============================================
+// ============================================================================
 
 /**
  * Verifica si un rol es admin
  */
-export function isAdminRole(role: Role | null): boolean {
-  return role === "admin";
+export function isAdminRole(role: UserRole | null): boolean {
+  return role === ROLES.ADMIN;
 }
 
 /**
@@ -84,7 +84,7 @@ export function hasPermissionInList(
  * Verifica permiso con resultado detallado
  */
 export function checkPermission(
-  role: Role | null,
+  role: UserRole | null,
   permissions: PermissionString[],
   module: Module,
   action: Action,
@@ -119,7 +119,7 @@ export function checkPermission(
  * Verifica múltiples permisos (AND - todos requeridos)
  */
 export function checkAllPermissions(
-  role: Role | null,
+  role: UserRole | null,
   permissions: PermissionString[],
   required: PermissionString[],
 ): boolean {
@@ -131,7 +131,7 @@ export function checkAllPermissions(
  * Verifica múltiples permisos (OR - al menos uno)
  */
 export function checkAnyPermission(
-  role: Role | null,
+  role: UserRole | null,
   permissions: PermissionString[],
   required: PermissionString[],
 ): boolean {
@@ -139,39 +139,44 @@ export function checkAnyPermission(
   return required.some((p) => hasPermissionInList(p, permissions));
 }
 
-// ============================================
+// ============================================================================
 // ROLE RULES
-// ============================================
+// ============================================================================
 
 /**
  * Verifica si tiene un rol específico
  */
-export function hasRole(userRole: Role | null, targetRole: Role): boolean {
+export function hasRole(
+  userRole: UserRole | null,
+  targetRole: UserRole,
+): boolean {
   return userRole === targetRole;
 }
 
 /**
  * Verifica si tiene alguno de los roles
  */
-export function hasAnyRole(userRole: Role | null, roles: Role[]): boolean {
+export function hasAnyRole(
+  userRole: UserRole | null,
+  roles: UserRole[],
+): boolean {
   if (!userRole) return false;
   return roles.includes(userRole);
 }
 
 /**
- * Obtiene la jerarquía de roles (para herencia)
+ * Obtiene la jerarquía de roles (para herencia de permisos si se implementa)
+ *
+ * NOTA: Actualmente no se usa herencia de roles, pero se deja la estructura
+ * preparada por si en el futuro se requiere.
  */
-export function getRoleHierarchy(role: Role): Role[] {
-  const hierarchy: Record<Role, Role[]> = {
-    admin: [],
-    manager: ["fleet_coordinator", "trip_coordinator", "accountant"],
-    fleet_coordinator: ["operator"],
-    trip_coordinator: ["operator"],
-    hr: [],
-    accountant: [],
-    operator: [],
-    driver: [],
-    client: [],
+export function getRoleHierarchy(role: UserRole): UserRole[] {
+  const hierarchy: Record<UserRole, UserRole[]> = {
+    admin: [], // Admin no hereda de nadie
+    manager: [], // Manager no hereda (tiene permisos propios)
+    accountant: [], // Accountant no hereda
+    operator: [], // Operator no hereda
+    client: [], // Client no hereda
   };
 
   return hierarchy[role] || [];
@@ -179,22 +184,32 @@ export function getRoleHierarchy(role: Role): Role[] {
 
 /**
  * Verifica si un rol tiene jerarquía sobre otro
+ * Útil para features como "ver subordinados" o "aprobar requests"
  */
-export function isRoleAbove(userRole: Role, targetRole: Role): boolean {
-  if (userRole === "admin") return true;
-  const subordinates = getRoleHierarchy(userRole);
-  return subordinates.includes(targetRole);
+export function isRoleAbove(userRole: UserRole, targetRole: UserRole): boolean {
+  if (userRole === ROLES.ADMIN) return true;
+
+  // Jerarquía simple: manager > accountant/operator > client
+  const levels: Record<UserRole, number> = {
+    admin: 5,
+    manager: 4,
+    accountant: 3,
+    operator: 2,
+    client: 1,
+  };
+
+  return levels[userRole] > levels[targetRole];
 }
 
-// ============================================
+// ============================================================================
 // MODULE ACCESS RULES
-// ============================================
+// ============================================================================
 
 /**
  * Obtiene las acciones disponibles para un módulo según el rol
  */
 export function getAvailableActions(
-  role: Role | null,
+  role: UserRole | null,
   module: Module,
   permissions: PermissionString[],
 ): Action[] {
@@ -211,7 +226,7 @@ export function getAvailableActions(
  * Obtiene los módulos accesibles para un usuario
  */
 export function getAccessibleModules(
-  role: Role | null,
+  role: UserRole | null,
   permissions: PermissionString[],
 ): Module[] {
   if (!role) return [];
@@ -227,9 +242,23 @@ export function getAccessibleModules(
   return Array.from(accessibleModules);
 }
 
-// ============================================
+/**
+ * Verifica si un módulo es accesible
+ */
+export function isModuleAccessible(
+  role: UserRole | null,
+  module: Module,
+  permissions: PermissionString[],
+): boolean {
+  if (!role) return false;
+  if (isAdminRole(role)) return true;
+
+  return permissions.some((p) => p.startsWith(`${module}.`));
+}
+
+// ============================================================================
 // PERMISSION MERGE RULES
-// ============================================
+// ============================================================================
 
 /**
  * Combina permisos de rol con permisos personalizados
@@ -250,17 +279,20 @@ export function mergePermissions(
 
 /**
  * Resuelve permisos de un rol incluyendo herencia
+ *
+ * NOTA: Actualmente la herencia no está implementada en rolePermissions,
+ * pero esta función está preparada para cuando se necesite.
  */
 export function resolveRolePermissions(
-  role: Role,
-  roleDefinitions: Map<Role, RoleDefinition>,
+  role: UserRole,
+  roleDefinitions: Map<UserRole, RoleDefinition>,
 ): PermissionString[] {
   const definition = roleDefinitions.get(role);
   if (!definition) return [];
 
   const permissions = new Set(definition.permissions);
 
-  // Agregar permisos heredados
+  // Agregar permisos heredados (si existen)
   if (definition.inheritsFrom) {
     definition.inheritsFrom.forEach((inheritedRole) => {
       const inheritedDef = roleDefinitions.get(inheritedRole);

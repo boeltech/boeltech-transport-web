@@ -3,10 +3,10 @@
  *
  * Panel de control principal con datos reales:
  * - Stats cards (vehículos, conductores, viajes, facturación)
- * - Alertas operativas (viajes vencidos, licencias, seguros, permisos SCT)
+ * - Alertas operativas (viajes vencidos, licencias, certificados médicos, seguros, permisos SCT)
  * - Viajes recientes
  *
- * Ubicación: src/pages/dashboard/DashboardPage.tsx
+ * Ubicación: src/features/dashboard/presentation/pages/DashboardPage.tsx
  */
 
 import { useNavigate } from "react-router-dom";
@@ -25,18 +25,20 @@ import {
   ShieldAlert,
   FileWarning,
   IdCard,
+  Stethoscope,
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth";
 import { usePermissions } from "@shared/permissions";
 import { getGreeting } from "@/shared/lib/userHelpers";
-import { useDashboard } from "@features/dashboard/application/hooks/useDashboard";
+import { useDashboard } from "../application/hooks/useDashboard";
 
 import type {
   DashboardAlert,
   RecentTrip,
   AlertSeverity,
-} from "@/features/dashboard/types";
+  AlertType,
+} from "../domain/types";
 import {
   Card,
   CardContent,
@@ -120,9 +122,7 @@ function DashboardPage() {
             title="Conductores"
             value={data?.stats.drivers.total}
             subtitle={
-              data
-                ? `${data.stats.drivers.available} disponibles · ${data.stats.drivers.on_trip} en viaje`
-                : undefined
+              data ? formatDriversSubtitle(data.stats.drivers) : undefined
             }
             icon={Users}
             isLoading={isLoading}
@@ -194,15 +194,7 @@ function DashboardPage() {
                     <AlertItem
                       key={`${alert.type}-${alert.entity_id}-${i}`}
                       alert={alert}
-                      onClick={() => {
-                        if (alert.type === "overdue_trip") {
-                          navigate(`/trips/${alert.entity_id}`);
-                        } else if (alert.type === "license_expiring") {
-                          navigate(`/drivers/${alert.entity_id}`);
-                        } else {
-                          navigate(`/vehicles/${alert.entity_id}`);
-                        }
-                      }}
+                      onClick={() => handleAlertClick(alert, navigate)}
                     />
                   ))}
                 </div>
@@ -258,6 +250,67 @@ function DashboardPage() {
       </div>
     </div>
   );
+}
+
+// ============================================
+// Helpers
+// ============================================
+
+/**
+ * Formatea el subtítulo de conductores con los nuevos campos
+ */
+function formatDriversSubtitle(drivers: {
+  available: number;
+  on_trip: number;
+  on_vacation: number;
+  on_leave: number;
+}): string {
+  const parts: string[] = [];
+
+  parts.push(`${drivers.available} disponibles`);
+  parts.push(`${drivers.on_trip} en viaje`);
+
+  // Agregar ausentes si hay alguno
+  const absent = drivers.on_vacation + drivers.on_leave;
+  if (absent > 0) {
+    parts.push(`${absent} ausentes`);
+  }
+
+  return parts.join(" · ");
+}
+
+/**
+ * Maneja el click en una alerta y navega a la entidad correspondiente
+ */
+function handleAlertClick(
+  alert: DashboardAlert,
+  navigate: ReturnType<typeof useNavigate>,
+) {
+  switch (alert.type) {
+    case "overdue_trip":
+      navigate(`/trips/${alert.entity_id}`);
+      break;
+    case "license_expiring":
+    case "medical_certificate_expiring":
+      navigate(`/drivers/${alert.entity_id}`);
+      break;
+    case "insurance_expiring":
+    case "sct_permit_expiring":
+      navigate(`/vehicles/${alert.entity_id}`);
+      break;
+    default:
+      // Fallback: intentar determinar por el tipo de entidad
+      if (
+        alert.entity_code?.startsWith("VH-") ||
+        alert.entity_code?.startsWith("U-")
+      ) {
+        navigate(`/vehicles/${alert.entity_id}`);
+      } else if (alert.entity_code?.startsWith("EMP")) {
+        navigate(`/drivers/${alert.entity_id}`);
+      } else {
+        navigate(`/trips/${alert.entity_id}`);
+      }
+  }
 }
 
 // ============================================
@@ -317,9 +370,10 @@ function StatCard({
 // AlertItem
 // ============================================
 
-const ALERT_ICON_MAP: Record<string, React.ElementType> = {
+const ALERT_ICON_MAP: Record<AlertType, React.ElementType> = {
   overdue_trip: Clock,
   license_expiring: IdCard,
+  medical_certificate_expiring: Stethoscope,
   insurance_expiring: ShieldAlert,
   sct_permit_expiring: FileWarning,
 };

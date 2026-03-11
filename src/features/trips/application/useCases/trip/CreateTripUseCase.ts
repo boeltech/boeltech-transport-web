@@ -2,86 +2,88 @@
  * Create Trip Use Case
  * Clean Architecture - Application Layer
  *
- * ACTUALIZADO: Modelo Carga → Movimientos
- * - CreateTripCargoInput usa movements[] en lugar de pickupStopIndex/deliveryStopIndex
- * - Validaciones de negocio para movimientos (pickup obligatorio, entregas parciales)
+ * PATRÓN ACTUALIZADO:
+ * - Input: camelCase (lo que recibe el UseCase)
+ * - El apiClient convierte automáticamente a snake_case
+ * - NO se necesitan DTOs ni funciones toApi*()
+ *
+ * Ubicación: src/features/trips/application/useCases/CreateTripUseCase.ts
  */
 
-import {
-  type CreateTripDTO,
-  type CreateTripStopDTO,
-  type ITripRepository,
-} from "@features/trips/domain";
-
+import type { ITripRepository } from "@features/trips/domain";
+import type { Trip } from "@features/trips/domain";
 import { mapBackendError, type UseCaseResult } from "@shared/utils/errorMapper";
-import type { AddStopInput } from "../stop/AddStopUseCase";
+import type { CreateStopInput } from "../stop/AddStopUseCase";
+import type {
+  CreateCargoInput,
+  CreateCargoMovementInput,
+} from "../cargo/CargoUseCases";
+import type { CreateExpenseInput } from "../expense/ExpenseUseCases";
 
 // ============================================================================
-// TYPES
+// INPUT TYPES (camelCase - lo que recibe el UseCase)
 // ============================================================================
 
 /**
- * Input para crear un viaje
+ * Input completo para crear viaje con detalles
+ * Todo en camelCase - el apiClient convierte automáticamente a snake_case
  */
 export interface CreateTripInput {
+  // Datos del viaje base
   vehicleId: string;
   driverId: string;
   clientId?: string;
-
-  scheduledDeparture: Date | string;
-  scheduledArrival?: Date | string;
+  scheduledDeparture: string;
+  scheduledArrival?: string;
   startMileage?: number;
-
   originAddress: string;
   originCity: string;
   originState?: string;
-
   destinationAddress: string;
   destinationCity: string;
   destinationState?: string;
-
   cargoDescription?: string;
   cargoWeight?: number;
   cargoVolume?: number;
   cargoUnits?: number;
   cargoValue?: number;
-
   baseRate?: number;
   notes?: string;
 
-  stops?: AddStopInput[];
-  // cargos?: CreateTripCargoInput[];
-  // expenses?: CreateTripExpenseInput[];
+  // Paradas
+  stops?: CreateStopInput[];
+
+  // Cargas
+  cargos?: CreateCargoInput[];
+
+  // Gastos estimados
+  estimatedExpenses?: CreateExpenseInput[];
+
+  // Opciones de comportamiento
+  options?: {
+    scheduleAfterCreate?: boolean;
+    startImmediately?: boolean;
+    startMileage?: number;
+  };
 }
 
-/**
- * Input para crear una parada
- */
-// export interface CreateTripStopInput {
-//   sequenceOrder: number;
-//   stopType: StopTypeValue | StopTypeValue[];
-//   address: string;
-//   city: string;
-//   state?: string;
-//   postalCode?: string;
-//   latitude?: number;
-//   longitude?: number;
-//   locationName?: string;
-//   contactName?: string;
-//   contactPhone?: string;
-//   estimatedArrival?: Date | string;
-//   cargoActionDescription?: string;
-//   cargoWeight?: number;
-//   cargoUnits?: number;
-//   notes?: string;
-// }
+// ============================================================================
+// RESULT TYPE (camelCase - lo que retorna el UseCase)
+// ============================================================================
 
 /**
- * Respuesta del backend al crear un viaje
+ * Resultado de crear un viaje
  */
-export interface CreateTripResponse {
-  id: string;
-  tripCode: string;
+export interface CreateTripResult {
+  trip: Trip;
+  summary: {
+    tripId: string;
+    tripCode: string;
+    stopsCreated: number;
+    cargosCreated: number;
+    expensesCreated: number;
+    finalStatus: string;
+  };
 }
 
 // ============================================================================
@@ -89,7 +91,7 @@ export interface CreateTripResponse {
 // ============================================================================
 
 export interface ICreateTripUseCase {
-  execute(input: CreateTripInput): Promise<UseCaseResult<CreateTripResponse>>;
+  execute(input: CreateTripInput): Promise<UseCaseResult<CreateTripResult>>;
 }
 
 // ============================================================================
@@ -105,45 +107,71 @@ export class CreateTripUseCase implements ICreateTripUseCase {
 
   async execute(
     input: CreateTripInput,
-  ): Promise<UseCaseResult<CreateTripResponse>> {
+  ): Promise<UseCaseResult<CreateTripResult>> {
     try {
-      const validationError = this.validateInput(input);
+      // ════════════════════════════════════════════════════════════════════
+      // VALIDACIONES DE NEGOCIO
+      // ════════════════════════════════════════════════════════════════════
+
+      const validationError = this.validate(input);
       if (validationError) {
-        return {
-          success: false,
-          error: validationError,
-        };
+        return { success: false, error: validationError };
       }
 
-      const createDTO = this.mapInputToDTO(input);
-      const trip = await this.repository.create(createDTO);
+      // ════════════════════════════════════════════════════════════════════
+      // LLAMAR AL REPOSITORIO
+      // El Input va en camelCase, el apiClient convierte automáticamente
+      // ════════════════════════════════════════════════════════════════════
+
+      const result = await this.repository.create(input);
 
       return {
         success: true,
-        data: {
-          id: trip.data.id,
-          tripCode: trip.data.tripCode,
-        },
+        data: result,
       };
     } catch (error) {
-      const mappedError = mapBackendError(error);
-
-      console.error("[CreateTripUseCase] Error:", {
-        original: error,
-        mapped: mappedError,
-      });
+      console.error("[CreateTripUseCase] Error:", error);
 
       return {
         success: false,
-        error: mappedError,
+        error: mapBackendError(error),
       };
     }
   }
 
-  /**
-   * Valida el input antes de enviarlo al backend
-   */
-  private validateInput(
+  // ══════════════════════════════════════════════════════════════════════════
+  // VALIDACIONES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private validate(
+    input: CreateTripInput,
+  ): { code: string; message: string } | null {
+    // Validar viaje base
+    const tripError = this.validateTrip(input);
+    if (tripError) return tripError;
+
+    // Validar paradas
+    if (input.stops?.length) {
+      const stopsError = this.validateStops(input.stops);
+      if (stopsError) return stopsError;
+    }
+
+    // Validar cargas
+    if (input.cargos?.length) {
+      const cargosError = this.validateCargos(input.cargos, input.stops);
+      if (cargosError) return cargosError;
+    }
+
+    // Validar gastos
+    if (input.estimatedExpenses?.length) {
+      const expensesError = this.validateExpenses(input.estimatedExpenses);
+      if (expensesError) return expensesError;
+    }
+
+    return null;
+  }
+
+  private validateTrip(
     input: CreateTripInput,
   ): { code: string; message: string } | null {
     if (!input.vehicleId) {
@@ -173,27 +201,20 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     }
 
     // Validar fecha de salida no sea en el pasado
-    const departureDate =
-      typeof input.scheduledDeparture === "string"
-        ? new Date(input.scheduledDeparture)
-        : input.scheduledDeparture;
+    const departureDate = new Date(input.scheduledDeparture);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    if (departureDate < now) {
+    if (departureDate < today) {
       return {
         code: "INVALID_DEPARTURE_DATE",
         message: "La fecha de salida no puede ser en el pasado",
       };
     }
 
+    // Validar fecha de llegada posterior a salida
     if (input.scheduledArrival) {
-      const arrivalDate =
-        typeof input.scheduledArrival === "string"
-          ? new Date(input.scheduledArrival)
-          : input.scheduledArrival;
-
+      const arrivalDate = new Date(input.scheduledArrival);
       if (arrivalDate <= departureDate) {
         return {
           code: "INVALID_ARRIVAL_DATE",
@@ -202,6 +223,7 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       }
     }
 
+    // Validar valores numéricos
     if (input.startMileage !== undefined && input.startMileage < 0) {
       return {
         code: "INVALID_MILEAGE",
@@ -216,184 +238,203 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       };
     }
 
-    // Validar movimientos de cargas
-    // if (input.cargos && input.cargos.length > 0) {
-    //   for (let i = 0; i < input.cargos.length; i++) {
-    //     const cargo = input.cargos[i];
+    return null;
+  }
 
-    //     if (!cargo.movements || cargo.movements.length === 0) {
-    //       return {
-    //         code: "CARGO_MISSING_MOVEMENTS",
-    //         message: `La carga "${cargo.description}" debe tener al menos un movimiento de carga (pickup)`,
-    //       };
-    //     }
+  private validateStops(
+    stops: CreateStopInput[],
+  ): { code: string; message: string } | null {
+    for (let i = 0; i < stops.length; i++) {
+      const stop = stops[i];
 
-    //     const hasPickup = cargo.movements.some(
-    //       (m) => m.movementType === "pickup",
-    //     );
-    //     if (!hasPickup) {
-    //       return {
-    //         code: "CARGO_MISSING_PICKUP",
-    //         message: `La carga "${cargo.description}" debe tener al menos un punto de recogida (pickup)`,
-    //       };
-    //     }
+      if (!stop.stopType) {
+        return {
+          code: "STOP_TYPE_REQUIRED",
+          message: `Parada #${i + 1}: El tipo de parada es requerido`,
+        };
+      }
 
-    //     // Validar que delivery stops estén después del pickup stop
-    //     const pickupStop = cargo.movements.find(
-    //       (m) => m.movementType === "pickup",
-    //     );
-    //     const deliveries = cargo.movements.filter(
-    //       (m) => m.movementType === "delivery",
-    //     );
+      if (!stop.address) {
+        return {
+          code: "STOP_ADDRESS_REQUIRED",
+          message: `Parada #${i + 1}: La dirección es requerida`,
+        };
+      }
 
-    //     for (const delivery of deliveries) {
-    //       if (pickupStop && delivery.stopIndex <= pickupStop.stopIndex) {
-    //         return {
-    //           code: "INVALID_DELIVERY_ORDER",
-    //           message: `La carga "${cargo.description}" tiene un punto de entrega anterior o igual al punto de recogida`,
-    //         };
-    //       }
-    //     }
-
-    //     // Validar concordancia de peso
-    //     if (deliveries.length > 0 && cargo.weight != null && cargo.weight > 0) {
-    //       const totalDeliveryWeight = deliveries.reduce(
-    //         (sum, d) => sum + (d.weight || 0),
-    //         0,
-    //       );
-    //       if (totalDeliveryWeight > cargo.weight) {
-    //         return {
-    //           code: "DELIVERY_WEIGHT_EXCEEDS",
-    //           message: `La carga "${cargo.description}": el peso de entregas (${totalDeliveryWeight} kg) excede el peso de la carga (${cargo.weight} kg)`,
-    //         };
-    //       }
-    //     }
-
-    //     // Validar concordancia de unidades
-    //     if (deliveries.length > 0 && cargo.units != null && cargo.units > 0) {
-    //       const totalDeliveryUnits = deliveries.reduce(
-    //         (sum, d) => sum + (d.units || 0),
-    //         0,
-    //       );
-    //       if (totalDeliveryUnits > cargo.units) {
-    //         return {
-    //           code: "DELIVERY_UNITS_EXCEEDS",
-    //           message: `La carga "${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
-    //         };
-    //       }
-    //     }
-    //   }
-    // }
+      if (!stop.city) {
+        return {
+          code: "STOP_CITY_REQUIRED",
+          message: `Parada #${i + 1}: La ciudad es requerida`,
+        };
+      }
+    }
 
     return null;
   }
 
-  /**
-   * Mapea el input al DTO esperado por el repositorio
-   */
-  private mapInputToDTO(input: CreateTripInput): CreateTripDTO {
-    return {
-      vehicleId: input.vehicleId,
-      driverId: input.driverId,
-      clientId: input.clientId,
-      scheduledDeparture:
-        typeof input.scheduledDeparture === "string"
-          ? input.scheduledDeparture
-          : input.scheduledDeparture.toISOString(),
-      scheduledArrival: input.scheduledArrival
-        ? typeof input.scheduledArrival === "string"
-          ? input.scheduledArrival
-          : input.scheduledArrival.toISOString()
-        : undefined,
-      startMileage: input.startMileage,
-      originAddress: input.originAddress,
-      originCity: input.originCity,
-      originState: input.originState,
-      destinationAddress: input.destinationAddress,
-      destinationCity: input.destinationCity,
-      destinationState: input.destinationState,
-      cargoDescription: input.cargoDescription,
-      cargoWeight: input.cargoWeight,
-      cargoVolume: input.cargoVolume,
-      cargoUnits: input.cargoUnits,
-      cargoValue: input.cargoValue,
-      baseRate: input.baseRate,
-      notes: input.notes,
-      stops: input.stops?.map(this.mapStopInputToDTO),
-      // cargos: input.cargos?.map(this.mapCargoInputToDTO),
-      // expenses: input.expenses?.map(this.mapExpenseInputToDTO),
-    };
+  private validateCargos(
+    cargos: CreateCargoInput[],
+    stops?: CreateStopInput[],
+  ): { code: string; message: string } | null {
+    const maxStopIndex = stops ? stops.length - 1 : -1;
+
+    for (let i = 0; i < cargos.length; i++) {
+      const cargo = cargos[i];
+
+      if (!cargo.clientId) {
+        return {
+          code: "CARGO_CLIENT_REQUIRED",
+          message: `Carga #${i + 1}: El cliente es requerido`,
+        };
+      }
+
+      if (!cargo.description?.trim()) {
+        return {
+          code: "CARGO_DESCRIPTION_REQUIRED",
+          message: `Carga #${i + 1}: La descripción es requerida`,
+        };
+      }
+
+      if (cargo.rate === undefined || cargo.rate < 0) {
+        return {
+          code: "CARGO_INVALID_RATE",
+          message: `Carga "${cargo.description}": La tarifa debe ser un valor positivo`,
+        };
+      }
+
+      // Validar movimientos
+      if (cargo.movements?.length) {
+        const movementsError = this.validateCargoMovements(
+          cargo.movements,
+          cargo.description,
+          maxStopIndex,
+          cargo.weight,
+          cargo.units,
+        );
+        if (movementsError) return movementsError;
+      }
+    }
+
+    return null;
   }
 
-  private mapStopInputToDTO(stop: AddStopInput): CreateTripStopDTO {
-    return {
-      sequenceOrder: stop.sequenceOrder,
-      stopType: stop.stopType,
-      address: stop.address,
-      city: stop.city,
-      state: stop.state,
-      postalCode: stop.postalCode,
-      latitude: stop.latitude,
-      longitude: stop.longitude,
-      locationName: stop.locationName,
-      contactName: stop.contactName,
-      contactPhone: stop.contactPhone,
-      estimatedArrival: stop.estimatedArrival
-        ? typeof stop.estimatedArrival === "string"
-          ? stop.estimatedArrival
-          : stop.estimatedArrival.toISOString()
-        : undefined,
-      cargoActionDescription: stop.cargoActionDescription,
-      cargoWeight: stop.cargoWeight,
-      cargoUnits: stop.cargoUnits,
-      notes: stop.notes,
-    };
+  private validateCargoMovements(
+    movements: CreateCargoMovementInput[],
+    cargoDescription: string,
+    maxStopIndex: number,
+    cargoWeight?: number,
+    cargoUnits?: number,
+  ): { code: string; message: string } | null {
+    // Debe tener al menos un pickup
+    const hasPickup = movements.some((m) => m.movementType === "pickup");
+    if (!hasPickup) {
+      return {
+        code: "CARGO_MISSING_PICKUP",
+        message: `Carga "${cargoDescription}": Debe tener al menos un punto de recogida`,
+      };
+    }
+
+    // Validar índices de paradas
+    for (const movement of movements) {
+      if (maxStopIndex >= 0 && movement.stopIndex > maxStopIndex) {
+        return {
+          code: "INVALID_STOP_INDEX",
+          message: `Carga "${cargoDescription}": El índice de parada ${movement.stopIndex} no existe`,
+        };
+      }
+    }
+
+    // Validar orden: deliveries después de pickups
+    const pickupMovement = movements.find((m) => m.movementType === "pickup");
+    const deliveries = movements.filter((m) => m.movementType === "delivery");
+
+    for (const delivery of deliveries) {
+      if (pickupMovement && delivery.stopIndex <= pickupMovement.stopIndex) {
+        return {
+          code: "INVALID_DELIVERY_ORDER",
+          message: `Carga "${cargoDescription}": Las entregas deben estar después de la recogida`,
+        };
+      }
+    }
+
+    // Validar peso no exceda
+    if (deliveries.length > 0 && cargoWeight && cargoWeight > 0) {
+      const totalWeight = deliveries.reduce(
+        (sum, d) => sum + (d.weight || 0),
+        0,
+      );
+      if (totalWeight > cargoWeight) {
+        return {
+          code: "DELIVERY_WEIGHT_EXCEEDS",
+          message: `Carga "${cargoDescription}": Peso de entregas (${totalWeight} kg) excede el total (${cargoWeight} kg)`,
+        };
+      }
+    }
+
+    // Validar unidades no excedan
+    if (deliveries.length > 0 && cargoUnits && cargoUnits > 0) {
+      const totalUnits = deliveries.reduce((sum, d) => sum + (d.units || 0), 0);
+      if (totalUnits > cargoUnits) {
+        return {
+          code: "DELIVERY_UNITS_EXCEEDS",
+          message: `Carga "${cargoDescription}": Unidades de entregas (${totalUnits}) exceden el total (${cargoUnits})`,
+        };
+      }
+    }
+
+    return null;
   }
 
-  // private mapCargoInputToDTO(cargo: CreateTripCargoInput): CreateTripCargoDTO {
-  //   return {
-  //     clientId: cargo.clientId,
-  //     description: cargo.description,
-  //     productType: cargo.productType,
-  //     weight: cargo.weight,
-  //     volume: cargo.volume,
-  //     units: cargo.units,
-  //     declaredValue: cargo.declaredValue,
-  //     rate: cargo.rate,
-  //     currency: cargo.currency,
-  //     movements: cargo.movements.map(
-  //       (m): CreateCargoMovementDTO => ({
-  //         stopIndex: m.stopIndex,
-  //         movementType: m.movementType,
-  //         weight: m.weight,
-  //         units: m.units,
-  //         notes: m.notes,
-  //       }),
-  //     ),
-  //     notes: cargo.notes,
-  //     specialInstructions: cargo.specialInstructions,
-  //   };
-  // }
+  private validateExpenses(
+    expenses: CreateExpenseInput[],
+  ): { code: string; message: string } | null {
+    const validCategories = [
+      "fuel",
+      "tolls",
+      "driver_allowance",
+      "lodging",
+      "loading_unloading",
+      "parking",
+      "maintenance",
+      "insurance",
+      "permits",
+      "other",
+    ];
 
-  // private mapExpenseInputToDTO(
-  //   expense: CreateTripExpenseInput,
-  // ): CreateTripExpenseDTO {
-  //   return {
-  //     category: expense.category,
-  //     description: expense.description,
-  //     amount: expense.amount,
-  //     currency: expense.currency,
-  //     expenseDate: expense.expenseDate
-  //       ? typeof expense.expenseDate === "string"
-  //         ? expense.expenseDate
-  //         : expense.expenseDate.toISOString()
-  //       : undefined,
-  //     location: expense.location,
-  //     vendorName: expense.vendorName,
-  //     notes: expense.notes,
-  //     isEstimated: expense.isEstimated,
-  //   };
-  // }
+    for (let i = 0; i < expenses.length; i++) {
+      const expense = expenses[i];
+
+      if (!expense.category) {
+        return {
+          code: "EXPENSE_CATEGORY_REQUIRED",
+          message: `Gasto #${i + 1}: La categoría es requerida`,
+        };
+      }
+
+      if (!validCategories.includes(expense.category)) {
+        return {
+          code: "EXPENSE_INVALID_CATEGORY",
+          message: `Gasto #${i + 1}: Categoría inválida "${expense.category}"`,
+        };
+      }
+
+      if (!expense.description?.trim()) {
+        return {
+          code: "EXPENSE_DESCRIPTION_REQUIRED",
+          message: `Gasto #${i + 1}: La descripción es requerida`,
+        };
+      }
+
+      if (expense.amount === undefined || expense.amount <= 0) {
+        return {
+          code: "EXPENSE_INVALID_AMOUNT",
+          message: `Gasto "${expense.description}": El monto debe ser mayor a cero`,
+        };
+      }
+    }
+
+    return null;
+  }
 }
 
 // ============================================================================

@@ -10,12 +10,10 @@ import type {
   TripCargo,
   CargoMovement,
   CargoMovementTypeValue,
-} from "@features/trips/domain/entities";
+} from "@features/trips/domain/entities/entities";
 import type {
   ICargoRepository,
-  CreateCargoDTO,
   UpdateCargoDTO,
-  CreateCargoMovementDTO,
   CompleteCargoMovementDTO,
 } from "@features/trips/domain";
 import {
@@ -29,10 +27,10 @@ import {
 // ============================================================================
 
 /**
- * Input para crear un movimiento de carga
+ * Input para movimiento de carga
  */
 export interface CreateCargoMovementInput {
-  stopId: string;
+  // stopId: string;
   stopIndex: number;
   movementType: CargoMovementTypeValue;
   weight?: number;
@@ -41,7 +39,7 @@ export interface CreateCargoMovementInput {
 }
 
 /**
- * Input para crear una carga
+ * Input para carga
  */
 export interface CreateCargoInput {
   clientId: string;
@@ -53,12 +51,10 @@ export interface CreateCargoInput {
   declaredValue?: number;
   rate: number;
   currency?: string;
-  pickupStopId?: string;
-  deliveryStopId?: string;
   notes?: string;
   specialInstructions?: string;
   movements?: CreateCargoMovementInput[];
-  // Carta Porte
+  // Carta Porte 3.1
   satProductCode?: string;
   satUnitCode?: string;
   satUnitName?: string;
@@ -147,10 +143,7 @@ export class AddCargoUseCase implements IAddCargoUseCase {
         return { success: false, error: validationError };
       }
 
-      // Mapear input a DTO
-      const dto = this.mapInputToDTO(input);
-
-      const result = await this.repository.create(tripId, dto);
+      const result = await this.repository.create(tripId, input);
 
       return {
         success: true,
@@ -220,42 +213,6 @@ export class AddCargoUseCase implements IAddCargoUseCase {
     }
 
     return null;
-  }
-
-  private mapInputToDTO(input: CreateCargoInput): CreateCargoDTO {
-    return {
-      clientId: input.clientId,
-      description: input.description,
-      productType: input.productType,
-      weight: input.weight,
-      volume: input.volume,
-      units: input.units,
-      declaredValue: input.declaredValue,
-      rate: input.rate,
-      currency: input.currency,
-      pickupStopId: input.pickupStopId,
-      deliveryStopId: input.deliveryStopId,
-      notes: input.notes,
-      specialInstructions: input.specialInstructions,
-      movements: input.movements?.map((m) => ({
-        stopId: m.stopId,
-        stopIndex: m.stopIndex,
-        movementType: m.movementType,
-        weight: m.weight,
-        units: m.units,
-        notes: m.notes,
-      })),
-      // Carta Porte
-      satProductCode: input.satProductCode,
-      satUnitCode: input.satUnitCode,
-      satUnitName: input.satUnitName,
-      weightInKg: input.weightInKg,
-      dimensions: input.dimensions,
-      hazardousMaterial: input.hazardousMaterial,
-      hazardousMaterialCode: input.hazardousMaterialCode,
-      packagingType: input.packagingType,
-      packagingDescription: input.packagingDescription,
-    };
   }
 }
 
@@ -366,16 +323,7 @@ export class AddCargoMovementUseCase implements IAddCargoMovementUseCase {
     input: CreateCargoMovementInput,
   ): Promise<UseCaseResult<CargoMovement>> {
     try {
-      const dto: CreateCargoMovementDTO = {
-        stopId: input.stopId,
-        stopIndex: input.stopIndex,
-        movementType: input.movementType,
-        weight: input.weight,
-        units: input.units,
-        notes: input.notes,
-      };
-
-      const result = await this.repository.addMovement(tripId, cargoId, dto);
+      const result = await this.repository.addMovement(tripId, cargoId, input);
 
       return {
         success: true,

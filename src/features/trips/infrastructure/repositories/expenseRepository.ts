@@ -12,22 +12,22 @@ import {
   type MappedActionResult,
   type MappedSingleResult,
 } from "@shared/api";
-import type { TripExpense } from "@features/trips/domain/entities";
+import type { TripExpense } from "@features/trips/domain/entities/entities";
 import type {
   IExpenseRepository,
-  CreateExpenseDTO,
-  UpdateExpenseDTO,
   ExpensesSummary,
 } from "@features/trips/domain";
 import {
   mapExpensesResponse,
   mapExpenseResponse,
   mapExpensesSummaryResponse,
-  toApiCreateExpense,
-  toApiUpdateExpense,
   type ApiExpenseResponse,
   type ApiExpensesSummaryResponse,
 } from "../mappers/expenseMappers";
+import type {
+  CreateExpenseInput,
+  UpdateExpenseInput,
+} from "@features/trips/application";
 
 // ============================================================================
 // CONSTANTS
@@ -92,13 +92,13 @@ export class ExpenseRepository implements IExpenseRepository {
    */
   async create(
     tripId: string,
-    data: CreateExpenseDTO,
+    input: CreateExpenseInput,
   ): Promise<MappedSingleResult<TripExpense>> {
-    const apiData = toApiCreateExpense(data);
+    // const apiData = toApiCreateExpense(data);
 
     const response = await apiClient.post<
       ApiSingleResponse<ApiExpenseResponse>
-    >(`${TRIPS_ENDPOINT}/${tripId}/expenses`, apiData);
+    >(`${TRIPS_ENDPOINT}/${tripId}/expenses`, input);
 
     return mapExpenseResponse(response);
   }
@@ -109,13 +109,13 @@ export class ExpenseRepository implements IExpenseRepository {
   async update(
     tripId: string,
     expenseId: string,
-    data: UpdateExpenseDTO,
+    input: UpdateExpenseInput,
   ): Promise<MappedSingleResult<TripExpense>> {
-    const apiData = toApiUpdateExpense(data);
+    // const apiData = toApiUpdateExpense(input);
 
     const response = await apiClient.put<ApiSingleResponse<ApiExpenseResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}`,
-      apiData,
+      input,
     );
 
     return mapExpenseResponse(response);
@@ -129,7 +129,7 @@ export class ExpenseRepository implements IExpenseRepository {
       `${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}`,
     );
 
-    return { message: response?.message || "Gasto eliminado exitosamente" };
+    return { message: "Gasto eliminado exitosamente" };
   }
 
   /**

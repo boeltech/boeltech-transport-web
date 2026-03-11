@@ -76,6 +76,7 @@ export function VehicleListPage() {
       status: status || undefined,
       type: type || undefined,
       search: search || undefined,
+      isActive: true,
     },
     sort: { field: "unit_number", direction: "asc" },
   });

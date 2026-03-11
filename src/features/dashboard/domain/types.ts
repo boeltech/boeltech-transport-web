@@ -1,3 +1,14 @@
+/**
+ * Dashboard Types
+ * Clean Architecture - Domain Layer
+ *
+ * Tipos para el módulo del dashboard.
+ */
+
+// ============================================
+// Stats Types
+// ============================================
+
 export interface DashboardStats {
   vehicles: {
     total: number;
@@ -9,6 +20,8 @@ export interface DashboardStats {
     total: number;
     available: number;
     on_trip: number;
+    on_vacation: number;
+    on_leave: number;
   };
   trips: {
     total_this_month: number;
@@ -22,9 +35,14 @@ export interface DashboardStats {
   };
 }
 
+// ============================================
+// Alert Types
+// ============================================
+
 export type AlertType =
   | "overdue_trip"
   | "license_expiring"
+  | "medical_certificate_expiring"
   | "insurance_expiring"
   | "sct_permit_expiring";
 
@@ -39,6 +57,10 @@ export interface DashboardAlert {
   entity_code?: string;
 }
 
+// ============================================
+// Recent Trips Types
+// ============================================
+
 export interface RecentTrip {
   id: string;
   trip_code: string;
@@ -50,8 +72,24 @@ export interface RecentTrip {
   vehicle_unit_number: string;
 }
 
+// ============================================
+// Dashboard Response
+// ============================================
+
 export interface DashboardData {
   stats: DashboardStats;
   alerts: DashboardAlert[];
   recent_trips: RecentTrip[];
 }
+
+// ============================================
+// UI Constants
+// ============================================
+
+export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
+  overdue_trip: "Viaje vencido",
+  license_expiring: "Licencia por vencer",
+  medical_certificate_expiring: "Certificado médico por vencer",
+  insurance_expiring: "Seguro por vencer",
+  sct_permit_expiring: "Permiso SCT por vencer",
+};

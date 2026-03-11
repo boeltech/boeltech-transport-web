@@ -34,6 +34,8 @@ export {
   // Entities
   type TripStop,
   type TripCargo,
+  type CargoMovement,
+  type TripExpense,
   type TripStatusHistory,
   type VehicleRef,
   type DriverRef,
@@ -45,6 +47,7 @@ export {
   type TripFilters,
   type SortOptions,
   type TripQueryParams,
+  tripQueryKeys,
   // Constants
   VALID_STATUS_TRANSITIONS,
   UNIQUE_STOP_TYPES,
@@ -54,7 +57,7 @@ export {
   CARGO_STATUS_LABELS,
   EXPENSE_CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS,
-} from "./entities";
+} from "./entities/entities";
 
 // ============================================================================
 // BUSINESS RULES
@@ -103,47 +106,32 @@ export {
 
 export {
   // DTOs
-  type CreateCargoMovementDTO,
-  type CreateCargoDTO,
   type UpdateCargoDTO,
   type CompleteCargoMovementDTO,
 
   // Repository Interfaces
   type ICargoRepository,
-} from "./cargoRepositoryInterfaces";
+} from "./respositories/ICargoRepository";
 
 export {
   // DTOs
-  type CreateExpenseDTO,
   type UpdateExpenseDTO,
   type ExpensesSummary,
 
   // Repository Interfaces
   type IExpenseRepository,
-} from "./expenseRepositoryInterfaces";
+} from "./respositories/IExpenseRepository";
 
 export {
   // DTOs
-  type CreateTripStopDTO,
-  type AddStopData,
   type UpdateStopDTO,
 
   // Repository Interfaces
   type IStopRepository,
-} from "./stopRepositoryInterfaces";
+} from "./respositories/IStopRepository";
 
 export {
-  // DTOs
-  type CreateTripDTO,
-  type UpdateTripDTO,
-  type UpdateTripStatusDTO,
-  type FinishTripDTO,
-  type ExpenseCategoryValue,
-
   // Repository Interfaces
   type ITripRepository,
-
-  // Service Interfaces
-  type INotificationService,
-  type IGeolocationService,
-} from "./tripRepositoryInterfaces";
+  type PaginatedResult,
+} from "./respositories/ITripRepository";

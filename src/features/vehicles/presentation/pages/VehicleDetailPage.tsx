@@ -38,12 +38,7 @@ import {
 import { useVehicle } from "../../application";
 
 // Domain
-import {
-  type VehicleStatusType,
-  VEHICLE_STATUS_LABELS,
-  VEHICLE_TYPE_LABELS,
-  type VehicleTypeValue,
-} from "../../domain";
+import { VEHICLE_TYPE_LABELS, type VehicleTypeValue } from "../../domain";
 
 // Presentation
 import { useToast } from "@shared/hooks";

@@ -76,7 +76,7 @@ export function DriverCard({
   const fullName = formatDriverName(driver.employee);
 
   const daysUntilExpiration = getDaysUntilLicenseExpiration(
-    driver.licenseExpiration,
+    driver.licenseExpiry,
   );
   const isExpired = daysUntilExpiration <= 0;
   const isExpiringSoon = daysUntilExpiration > 0 && daysUntilExpiration <= 30;
@@ -185,7 +185,7 @@ export function DriverCard({
                     : ""
               }
             >
-              {formatDate(driver.licenseExpiration)}
+              {formatDate(driver.licenseExpiry)}
             </span>
             {(isExpired || isExpiringSoon) && (
               <AlertTriangle

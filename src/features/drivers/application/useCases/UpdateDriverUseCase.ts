@@ -92,8 +92,8 @@ export class UpdateDriverUseCase {
     existingDriver: Driver,
   ): Promise<UseCaseResult<Driver>> {
     // Si se está actualizando la fecha de vencimiento, validar que no esté vencida
-    if (data.licenseExpiration) {
-      const expirationDate = new Date(data.licenseExpiration);
+    if (data.licenseExpiry) {
+      const expirationDate = new Date(data.licenseExpiry);
       if (expirationDate < new Date()) {
         return {
           success: false,

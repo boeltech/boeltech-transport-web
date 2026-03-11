@@ -6,20 +6,10 @@ import {
 import type { TripStop } from "@features/trips/domain";
 import {
   createAddStopUseCase,
-  type AddStopInput,
+  type CreateStopInput,
 } from "@features/trips/application";
-import {
-  createTripRepository,
-  createStopRepository,
-} from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
-const stopRepository = createStopRepository();
+import { tripRepository, stopRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para agregar destino
@@ -28,7 +18,7 @@ export function useAddStop(
   options?: UseMutationOptions<
     TripStop,
     Error,
-    { tripId: string; data: AddStopInput }
+    { tripId: string; data: CreateStopInput }
   >,
 ) {
   const queryClient = useQueryClient();

@@ -2,41 +2,40 @@
  * Trip Repository Implementation
  * Clean Architecture - Infrastructure Layer
  *
- * ACTUALIZADO: Alineado con la estructura real del Backend
+ * Implementa ITripRepository usando HTTP/REST.
  *
- * Implementa la interfaz ITripRepository usando HTTP/REST.
- * Esta es la capa que conoce los detalles de implementación (axios, URLs, etc.)
+ * PATRÓN:
+ * - Recibe Input en camelCase
+ * - apiClient convierte automáticamente a snake_case
+ * - Mappers convierten Response (snake_case) → Entity (camelCase)
+ *
+ * Ubicación: src/features/trips/infrastructure/repositories/TripRepository.ts
  */
 
-import {
-  apiClient,
-  type ApiPaginatedResponse,
-  type ApiSingleResponse,
-  type MappedActionResult,
-  type MappedPaginatedResult,
-  type MappedSingleResult,
-} from "@/shared/api";
-import {
-  type Trip,
-  type TripListItem,
-  type TripQueryParams,
-} from "@features/trips/domain/entities";
-import {
-  type CreateTripDTO,
-  type UpdateTripDTO,
-  type UpdateTripStatusDTO,
-  type FinishTripDTO,
-  type ITripRepository,
+import { apiClient, type ApiPaginatedResponse } from "@shared/api";
+import type { ITripRepository, PaginatedResult } from "@features/trips/domain";
+import type {
+  Trip,
+  TripListItem,
+  TripQueryParams,
 } from "@features/trips/domain";
+import type {
+  CreateTripInput,
+  CreateTripResult,
+} from "@features/trips/application/useCases/trip/CreateTripUseCase";
 import {
   mapTrip,
-  mapPaginatedTripListItems,
-  toApiCreateTrip,
-  toApiUpdateStatus,
-  toApiFinishTrip,
+  mapTripListItem,
+  mapCreateTripResponse,
   type ApiTripResponse,
   type ApiTripListItemResponse,
+  type ApiCreateTripResponse,
 } from "../mappers/tripMappers";
+import type {
+  FinishTripInput,
+  UpdateTripInput,
+  UpdateTripStatusInput,
+} from "@features/trips/application";
 
 // ============================================================================
 // CONSTANTS
@@ -45,160 +44,104 @@ import {
 const TRIPS_ENDPOINT = "/trips";
 
 // ============================================================================
-// TRIP REPOSITORY IMPLEMENTATION
+// REPOSITORY IMPLEMENTATION
 // ============================================================================
 
 export class TripRepository implements ITripRepository {
   /**
-   * Obtiene todos los viajes con filtros y paginación
+   * Lista viajes con filtros y paginación
    */
   async findAll(
     params?: TripQueryParams,
-  ): Promise<MappedPaginatedResult<TripListItem>> {
+  ): Promise<PaginatedResult<TripListItem>> {
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiTripListItemResponse>
-    >(TRIPS_ENDPOINT, {
-      params: this.buildQueryParams(params),
-    });
+    >(TRIPS_ENDPOINT, { params: this.buildQueryParams(params) });
 
-    // Paso 1: snake_case → camelCase (shared/api)
-    // const mapped = mapPaginatedResponse(raw);
-
-    // Paso 2: plano → estructurado (mapper de dominio del repositorio)
-    return mapPaginatedTripListItems(response);
+    return {
+      data: response.data.map(mapTripListItem),
+      pagination: {
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.total_pages,
+      },
+    };
   }
 
   /**
-   * Obtiene un viaje por su ID
+   * Obtiene un viaje por ID
    */
-  async findById(id: string): Promise<MappedSingleResult<Trip | null>> {
+  async findById(id: string): Promise<Trip | null> {
     try {
-      const response = await apiClient.get<ApiSingleResponse<ApiTripResponse>>(
+      const response = await apiClient.get<{ data: ApiTripResponse }>(
         `${TRIPS_ENDPOINT}/${id}`,
       );
-      // const responseData = this.extractData(raw);
-      return mapTrip(response);
+      return mapTrip(response.data);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) {
-        return {
-          data: null,
-          message: error,
-        };
+        return null;
       }
       throw error;
     }
   }
 
   /**
-   * Crea un nuevo viaje
+   * Crea un viaje completo con paradas, cargas y gastos
+   *
+   * El Input va en camelCase, apiClient.post() convierte automáticamente
+   * a snake_case con deepToSnake()
    */
-  async create(data: CreateTripDTO): Promise<MappedSingleResult<Trip>> {
-    // Usar toApiCreateTrip que ya incluye el mapeo de stops
-    const apiData = toApiCreateTrip(data);
-
-    const response = await apiClient.post<ApiSingleResponse<ApiTripResponse>>(
+  async create(input: CreateTripInput): Promise<CreateTripResult> {
+    const response = await apiClient.post<ApiCreateTripResponse>(
       TRIPS_ENDPOINT,
-      apiData,
+      input, // ← camelCase, se convierte automáticamente a snake_case
     );
 
-    // const responseData = this.extractData(response);
-    return mapTrip(response);
+    return mapCreateTripResponse(response);
   }
 
   /**
    * Actualiza un viaje existente
    */
-  async update(
-    id: string,
-    data: UpdateTripDTO,
-  ): Promise<MappedSingleResult<Trip>> {
-    // Solo enviar campos que tienen valor
-    const updateData: Record<string, unknown> = {};
-
-    if (data.vehicleId !== undefined) updateData.vehicleId = data.vehicleId;
-    if (data.driverId !== undefined) updateData.driverId = data.driverId;
-    if (data.clientId !== undefined) updateData.clientId = data.clientId;
-    if (data.scheduledDeparture !== undefined)
-      updateData.scheduledDeparture = data.scheduledDeparture;
-    if (data.scheduledArrival !== undefined)
-      updateData.scheduledArrival = data.scheduledArrival;
-    if (data.startMileage !== undefined)
-      updateData.startMileage = data.startMileage;
-    if (data.originAddress !== undefined)
-      updateData.originAddress = data.originAddress;
-    if (data.originCity !== undefined) updateData.originCity = data.originCity;
-    if (data.originState !== undefined)
-      updateData.originState = data.originState;
-    if (data.destinationAddress !== undefined)
-      updateData.destinationAddress = data.destinationAddress;
-    if (data.destinationCity !== undefined)
-      updateData.destinationCity = data.destinationCity;
-    if (data.destinationState !== undefined)
-      updateData.destinationState = data.destinationState;
-    if (data.cargoDescription !== undefined)
-      updateData.cargoDescription = data.cargoDescription;
-    if (data.cargoWeight !== undefined)
-      updateData.cargoWeight = data.cargoWeight;
-    if (data.cargoVolume !== undefined)
-      updateData.cargoVolume = data.cargoVolume;
-    if (data.cargoUnits !== undefined) updateData.cargoUnits = data.cargoUnits;
-    if (data.cargoValue !== undefined) updateData.cargoValue = data.cargoValue;
-    if (data.baseRate !== undefined) updateData.baseRate = data.baseRate;
-    if (data.notes !== undefined) updateData.notes = data.notes;
-
-    const response = await apiClient.put<ApiSingleResponse<ApiTripResponse>>(
+  async update(id: string, input: UpdateTripInput): Promise<Trip> {
+    const response = await apiClient.put<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}`,
-      updateData,
+      input, // ← camelCase, se convierte automáticamente
     );
 
-    // const responseData = this.extractData(response);
-    return mapTrip(response);
+    return mapTrip(response.data);
   }
 
   /**
    * Actualiza el estado de un viaje
    */
-  async updateStatus(
-    id: string,
-    data: UpdateTripStatusDTO,
-  ): Promise<MappedSingleResult<Trip>> {
-    const apiData = toApiUpdateStatus(data);
-
-    const response = await apiClient.patch<ApiSingleResponse<ApiTripResponse>>(
+  async updateStatus(id: string, input: UpdateTripStatusInput): Promise<Trip> {
+    const response = await apiClient.patch<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/status`,
-      apiData,
+      input,
     );
 
-    // const responseData = this.extractData(response);
-    return mapTrip(response);
+    return mapTrip(response.data);
   }
 
   /**
    * Finaliza un viaje
    */
-  async finish(
-    id: string,
-    data: FinishTripDTO,
-  ): Promise<MappedSingleResult<Trip>> {
-    const apiData = toApiFinishTrip(data);
-
-    const response = await apiClient.post<ApiSingleResponse<ApiTripResponse>>(
+  async finish(id: string, input: FinishTripInput): Promise<Trip> {
+    const response = await apiClient.post<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/finish`,
-      apiData,
+      input,
     );
 
-    // const responseData = this.extractData(response);
-    return mapTrip(response);
+    return mapTrip(response.data);
   }
 
   /**
    * Elimina un viaje
    */
-  async delete(id: string): Promise<MappedActionResult> {
-    const response = await apiClient.delete(`${TRIPS_ENDPOINT}/${id}`);
-    return {
-      message: response,
-    };
+  async delete(id: string): Promise<void> {
+    await apiClient.delete(`${TRIPS_ENDPOINT}/${id}`);
   }
 
   /**
@@ -209,36 +152,29 @@ export class TripRepository implements ITripRepository {
       const response = await apiClient.get<{ exists: boolean }>(
         `${TRIPS_ENDPOINT}/check-code/${code}`,
       );
-      const data = this.extractData(response);
-      return data?.exists ?? false;
+      return response.exists ?? false;
     } catch {
-      // Si falla, asumimos que no existe
       return false;
     }
   }
 
-  // ============================================================================
-  // PRIVATE METHODS
-  // ============================================================================
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRIVATE HELPERS
+  // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Construye los parámetros de consulta para la API
-   */
   private buildQueryParams(params?: TripQueryParams): Record<string, unknown> {
     if (!params) return {};
 
-    const queryParams: Record<string, unknown> = {
+    const query: Record<string, unknown> = {
       page: params.page ?? 1,
       limit: params.limit ?? 10,
     };
 
-    // Ordenamiento
     if (params.sort?.field) {
-      queryParams.sortBy = params.sort.field;
-      queryParams.sortOrder = params.sort.direction ?? "desc";
+      query.sortBy = params.sort.field;
+      query.sortOrder = params.sort.direction ?? "desc";
     }
 
-    // Filtros
     if (params.filters) {
       const {
         status,
@@ -250,35 +186,18 @@ export class TripRepository implements ITripRepository {
         search,
       } = params.filters;
 
-      if (status) {
-        queryParams.status = Array.isArray(status) ? status : [status];
-      }
-      if (clientId) queryParams.clientId = clientId;
-      if (driverId) queryParams.driverId = driverId;
-      if (vehicleId) queryParams.vehicleId = vehicleId;
-      if (dateFrom) queryParams.dateFrom = dateFrom;
-      if (dateTo) queryParams.dateTo = dateTo;
-      if (search) queryParams.search = search;
+      if (status) query.status = Array.isArray(status) ? status : [status];
+      if (clientId) query.clientId = clientId;
+      if (driverId) query.driverId = driverId;
+      if (vehicleId) query.vehicleId = vehicleId;
+      if (dateFrom) query.dateFrom = dateFrom;
+      if (dateTo) query.dateTo = dateTo;
+      if (search) query.search = search;
     }
 
-    return queryParams;
+    return query;
   }
 
-  /**
-   * Extrae los datos de la respuesta de axios
-   * Maneja tanto el caso donde apiClient retorna response.data
-   * como cuando retorna el response completo
-   */
-  private extractData<T>(response: T | { data: T }): T {
-    if (response && typeof response === "object" && "data" in response) {
-      return (response as { data: T }).data;
-    }
-    return response as T;
-  }
-
-  /**
-   * Verifica si un error es un 404
-   */
   private isNotFoundError(error: unknown): boolean {
     if (error && typeof error === "object") {
       const axiosError = error as { response?: { status?: number } };
@@ -289,21 +208,11 @@ export class TripRepository implements ITripRepository {
 }
 
 // ============================================================================
-// FACTORY FUNCTIONS
+// FACTORY & SINGLETON
 // ============================================================================
 
-/**
- * Crea una instancia del repositorio de viajes
- */
 export function createTripRepository(): ITripRepository {
   return new TripRepository();
 }
 
-// ============================================================================
-// SINGLETON INSTANCE
-// ============================================================================
-
-/**
- * Instancia singleton del repositorio
- */
 export const tripRepository = new TripRepository();

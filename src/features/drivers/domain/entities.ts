@@ -18,7 +18,6 @@ export const DriverStatus = {
   AVAILABLE: "available",
   ON_TRIP: "on_trip",
   RESTING: "resting",
-  // INACTIVE: "inactive",
   ON_VACATION: "on_vacation",
   ON_LEAVE: "on_leave",
   TERMINATED: "terminated",
@@ -45,8 +44,25 @@ export interface LicenseInfo {
   readonly number: string;
   readonly type: LicenseTypeValue;
   readonly expirationDate: Date;
+  readonly issuingState: string | null;
   readonly isExpired: boolean;
   readonly daysUntilExpiration: number | null;
+}
+
+export interface MedicalCertificateInfo {
+  readonly number: string | null;
+  readonly expirationDate: Date | null;
+  readonly issuer: string | null;
+}
+
+export interface PsychometricTestInfo {
+  readonly testDate: Date | null;
+  readonly result: string | null;
+}
+
+export interface DrugTestInfo {
+  readonly testDate: Date | null;
+  readonly result: string | null;
 }
 
 export interface ContactInfo {
@@ -60,7 +76,6 @@ export interface DriverStats {
   readonly totalTrips: number;
   readonly completedTrips: number;
   readonly cancelledTrips: number;
-  readonly totalKilometers: number;
   readonly averageRating: number | null;
   readonly yearsOfExperience: number;
 }
@@ -77,8 +92,12 @@ export interface EmployeeRef {
   readonly employeeNumber: string;
   readonly firstName: string;
   readonly lastName: string;
+  readonly secondLastName: string | null;
+  readonly fullName: string;
   readonly email: string | null;
   readonly phone: string | null;
+  readonly curp: string | null;
+  readonly rfc: string | null;
 }
 
 /**
@@ -91,11 +110,12 @@ export interface DriverListItem {
   readonly employee: EmployeeRef;
   readonly licenseNumber: string;
   readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiration: Date;
+  readonly licenseExpiry: Date;
   readonly status: DriverStatusType;
   readonly yearsOfExperience: number;
   readonly totalTrips: number;
   readonly isLicenseExpired: boolean;
+  readonly isActive: boolean;
   readonly createdAt: Date;
 }
 
@@ -111,23 +131,38 @@ export interface Driver {
   // Información de licencia
   readonly licenseNumber: string;
   readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiration: Date;
-  readonly licenseIssuedDate: Date | null;
+  readonly licenseExpiry: Date;
   readonly licenseIssuingState: string | null;
+
+  // Certificado médico
+  readonly medicalCertificateNumber: string | null;
+  readonly medicalCertificateExpiry: Date | null;
+  readonly medicalCertificateIssuer: string | null;
+
+  // Examen psicométrico
+  readonly psychometricTestDate: Date | null;
+  readonly psychometricTestResult: string | null;
+
+  // Examen antidoping
+  readonly lastDrugTestDate: Date | null;
+  readonly drugTestResult: string | null;
+
+  // Dispositivo asignado
+  readonly assignedDeviceId: string | null;
 
   // Estado y disponibilidad
   readonly status: DriverStatusType;
+  readonly isActive: boolean;
   readonly yearsOfExperience: number;
 
-  // Información adicional
+  // Información del empleado (solo lectura, viene de employees)
   readonly bloodType: string | null;
-  readonly medicalCertificateExpiration: Date | null;
-  readonly notes: string | null;
-
-  // Contacto de emergencia
   readonly emergencyContactName: string | null;
   readonly emergencyContactPhone: string | null;
   readonly emergencyContactRelationship: string | null;
+
+  // Notas
+  readonly notes: string | null;
 
   // Estadísticas
   readonly stats?: DriverStats;
@@ -186,17 +221,22 @@ export class DriverQueryError extends Error {
 export interface DriverFilters {
   readonly status?: DriverStatusType | DriverStatusType[];
   readonly licenseType?: LicenseTypeValue;
+  readonly isActive?: boolean;
   readonly search?: string;
-  readonly licenseExpiringSoon?: boolean; // Licencias por vencer en 30 días
+  readonly licenseExpiringSoon?: boolean;
+  readonly licenseExpiringSoonDays?: number;
   readonly minExperience?: number;
   readonly maxExperience?: number;
 }
 
 export interface DriverSortOptions {
   readonly field:
+    | "employee_number"
     | "employee_name"
+    | "first_name"
+    | "last_name"
     | "license_number"
-    | "license_expiration"
+    | "license_expiry"
     | "status"
     | "years_of_experience"
     | "total_trips"
@@ -235,7 +275,7 @@ export interface DriverTripSummary {
     readonly legalName: string;
   } | null;
   readonly totalCost: number;
-  readonly distance: number | null; // km recorridos
+  readonly distance: number | null;
 }
 
 /**
@@ -244,9 +284,10 @@ export interface DriverTripSummary {
  */
 export interface DriverAvailableItem {
   readonly id: string;
+  readonly employeeId: string;
   readonly employeeNumber: string;
   readonly fullName: string;
-  readonly licenseType: string;
+  readonly licenseType: LicenseTypeValue;
   readonly licenseNumber: string;
   readonly licenseExpiry: Date;
   readonly phone?: string;
@@ -255,20 +296,6 @@ export interface DriverAvailableItem {
 // ============================================================================
 // QUERY KEYS
 // ============================================================================
-
-// export const driverQueryKeys = {
-//   all: ["drivers"] as const,
-//   lists: () => [...driverQueryKeys.all, "list"] as const,
-//   list: (params?: DriverQueryParams) =>
-//     [...driverQueryKeys.lists(), params] as const,
-//   details: () => [...driverQueryKeys.all, "detail"] as const,
-//   detail: (id: string) => [...driverQueryKeys.details(), id] as const,
-//   trips: (driverId: string) =>
-//     [...driverQueryKeys.detail(driverId), "trips"] as const,
-//   stats: (driverId: string) =>
-//     [...driverQueryKeys.detail(driverId), "stats"] as const,
-//   available: () => [...driverQueryKeys.all, "available"] as const,
-// };
 
 /**
  * Query keys para React Query - Drivers
@@ -280,9 +307,7 @@ export const driverQueryKeys = {
     [...driverQueryKeys.lists(), params] as const,
   details: () => [...driverQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...driverQueryKeys.details(), id] as const,
-  // Nuevos query keys
   available: () => [...driverQueryKeys.all, "available"] as const,
-  // assignable: () => [...driverQueryKeys.all, "assignable"] as const,
   trips: (driverId: string) =>
     [...driverQueryKeys.detail(driverId), "trips"] as const,
   stats: (driverId: string) =>
@@ -296,6 +321,8 @@ export const driverQueryKeys = {
 // ============================================================================
 
 export const LICENSE_EXPIRATION_WARNING_DAYS = 30;
+export const MEDICAL_CERTIFICATE_WARNING_DAYS = 30;
+export const DRUG_TEST_VALIDITY_DAYS = 180; // 6 meses
 
 export const VALID_STATUS_TRANSITIONS: Record<
   DriverStatusType,
@@ -310,7 +337,6 @@ export const VALID_STATUS_TRANSITIONS: Record<
   ],
   [DriverStatus.ON_TRIP]: [DriverStatus.AVAILABLE, DriverStatus.RESTING],
   [DriverStatus.RESTING]: [DriverStatus.AVAILABLE, DriverStatus.TERMINATED],
-  // [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
   [DriverStatus.ON_VACATION]: [DriverStatus.AVAILABLE],
   [DriverStatus.ON_LEAVE]: [DriverStatus.AVAILABLE],
   [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
@@ -324,7 +350,6 @@ export const DRIVER_STATUS_LABELS: Record<DriverStatusType, string> = {
   [DriverStatus.AVAILABLE]: "Disponible",
   [DriverStatus.ON_TRIP]: "En Viaje",
   [DriverStatus.RESTING]: "Descansando",
-  // [DriverStatus.INACTIVE]: "Inactivo",
   [DriverStatus.ON_VACATION]: "De Vacaciones",
   [DriverStatus.ON_LEAVE]: "Con Permiso",
   [DriverStatus.TERMINATED]: "Dado de Baja",
@@ -343,8 +368,33 @@ export const DRIVER_STATUS_COLORS: Record<DriverStatusType, string> = {
   [DriverStatus.AVAILABLE]: "success",
   [DriverStatus.ON_TRIP]: "warning",
   [DriverStatus.RESTING]: "secondary",
-  // [DriverStatus.INACTIVE]: "destructive",
   [DriverStatus.ON_VACATION]: "secondary",
   [DriverStatus.ON_LEAVE]: "secondary",
   [DriverStatus.TERMINATED]: "destructive",
+};
+
+export const PSYCHOMETRIC_RESULT_LABELS: Record<string, string> = {
+  approved: "Aprobado",
+  conditionally_approved: "Aprobado con observaciones",
+  not_approved: "No aprobado",
+  pending: "Pendiente",
+};
+
+export const DRUG_TEST_RESULT_LABELS: Record<string, string> = {
+  negative: "Negativo",
+  positive: "Positivo",
+  pending: "Pendiente",
+};
+
+export const PSYCHOMETRIC_RESULT_COLORS: Record<string, string> = {
+  approved: "success",
+  conditionally_approved: "warning",
+  not_approved: "destructive",
+  pending: "secondary",
+};
+
+export const DRUG_TEST_RESULT_COLORS: Record<string, string> = {
+  negative: "success",
+  positive: "destructive",
+  pending: "secondary",
 };

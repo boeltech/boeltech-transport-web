@@ -15,6 +15,7 @@ import { useLocation } from "react-router-dom";
 import { usePermissions } from "@/shared/permissions";
 import { navigationConfig } from "./navigation";
 import type { NavGroup, NavItem } from "./types";
+import { ROLES } from "@shared/constants/roles";
 
 // ============================================================================
 // TYPES
@@ -170,7 +171,11 @@ export function useNavigation(): UseNavigationReturn {
    * Solo se recalcula cuando cambian los permisos o el rol
    */
   const navigation = useMemo<NavGroup[]>(() => {
-    return filterNavigation(navigationConfig, hasPermission, role === "admin");
+    return filterNavigation(
+      navigationConfig,
+      hasPermission,
+      role === ROLES.ADMIN,
+    );
   }, [hasPermission, role]);
 
   /**

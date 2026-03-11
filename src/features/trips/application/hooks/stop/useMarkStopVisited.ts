@@ -5,18 +5,8 @@ import {
 } from "@tanstack/react-query";
 import type { TripStop } from "@features/trips/domain";
 import { createMarkStopVisitedUseCase } from "@features/trips/application";
-import {
-  createTripRepository,
-  createStopRepository,
-} from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
-const stopRepository = createStopRepository();
+import { tripRepository, stopRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para marcar destino como visitado

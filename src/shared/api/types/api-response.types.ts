@@ -33,7 +33,7 @@ export interface ApiPagination {
   page: number;
   limit: number;
   total: number;
-  totalPages: number;
+  total_pages: number;
 }
 
 /** Respuesta del backend para listas paginadas. */

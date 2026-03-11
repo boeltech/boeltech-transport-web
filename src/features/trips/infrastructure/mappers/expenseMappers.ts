@@ -9,12 +9,8 @@ import type {
   TripExpense,
   ExpenseCategoryType,
   ExpenseStatusType,
-} from "@features/trips/domain/entities";
-import type {
-  CreateExpenseDTO,
-  UpdateExpenseDTO,
-  ExpensesSummary,
-} from "@features/trips/domain";
+} from "@features/trips/domain/entities/entities";
+import type { ExpensesSummary } from "@features/trips/domain";
 import type { MappedSingleResult } from "@shared/api";
 
 // ============================================================================
@@ -167,44 +163,44 @@ export function mapExpensesSummaryResponse(response: {
 /**
  * Convierte DTO de crear gasto a formato API
  */
-export function toApiCreateExpense(
-  dto: CreateExpenseDTO,
-): Record<string, unknown> {
-  return {
-    category: dto.category,
-    description: dto.description,
-    amount: dto.amount,
-    currency: dto.currency ?? "MXN",
-    expense_date: dto.expenseDate,
-    location: dto.location,
-    has_receipt: dto.hasReceipt ?? false,
-    receipt_url: dto.receiptUrl,
-    vendor_name: dto.vendorName,
-    is_estimated: dto.isEstimated ?? false,
-    notes: dto.notes,
-  };
-}
+// export function toApiCreateExpense(
+//   dto: CreateExpenseDTO,
+// ): Record<string, unknown> {
+//   return {
+//     category: dto.category,
+//     description: dto.description,
+//     amount: dto.amount,
+//     currency: dto.currency ?? "MXN",
+//     expense_date: dto.expenseDate,
+//     location: dto.location,
+//     has_receipt: dto.hasReceipt ?? false,
+//     receipt_url: dto.receiptUrl,
+//     vendor_name: dto.vendorName,
+//     is_estimated: dto.isEstimated ?? false,
+//     notes: dto.notes,
+//   };
+// }
 
 /**
  * Convierte DTO de actualizar gasto a formato API
  */
-export function toApiUpdateExpense(
-  dto: UpdateExpenseDTO,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+// export function toApiUpdateExpense(
+//   dto: UpdateExpenseDTO,
+// ): Record<string, unknown> {
+//   const result: Record<string, unknown> = {};
 
-  if (dto.category !== undefined) result.category = dto.category;
-  if (dto.description !== undefined) result.description = dto.description;
-  if (dto.amount !== undefined) result.amount = dto.amount;
-  if (dto.currency !== undefined) result.currency = dto.currency;
-  if (dto.expenseDate !== undefined) result.expense_date = dto.expenseDate;
-  if (dto.location !== undefined) result.location = dto.location;
-  if (dto.hasReceipt !== undefined) result.has_receipt = dto.hasReceipt;
-  if (dto.receiptUrl !== undefined) result.receipt_url = dto.receiptUrl;
-  if (dto.vendorName !== undefined) result.vendor_name = dto.vendorName;
-  if (dto.isEstimated !== undefined) result.is_estimated = dto.isEstimated;
-  if (dto.status !== undefined) result.status = dto.status;
-  if (dto.notes !== undefined) result.notes = dto.notes;
+//   if (dto.category !== undefined) result.category = dto.category;
+//   if (dto.description !== undefined) result.description = dto.description;
+//   if (dto.amount !== undefined) result.amount = dto.amount;
+//   if (dto.currency !== undefined) result.currency = dto.currency;
+//   if (dto.expenseDate !== undefined) result.expense_date = dto.expenseDate;
+//   if (dto.location !== undefined) result.location = dto.location;
+//   if (dto.hasReceipt !== undefined) result.has_receipt = dto.hasReceipt;
+//   if (dto.receiptUrl !== undefined) result.receipt_url = dto.receiptUrl;
+//   if (dto.vendorName !== undefined) result.vendor_name = dto.vendorName;
+//   if (dto.isEstimated !== undefined) result.is_estimated = dto.isEstimated;
+//   if (dto.status !== undefined) result.status = dto.status;
+//   if (dto.notes !== undefined) result.notes = dto.notes;
 
-  return result;
-}
+//   return result;
+// }

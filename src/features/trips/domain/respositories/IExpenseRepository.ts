@@ -11,28 +11,12 @@ import type {
   TripExpense,
   ExpenseCategoryType,
   ExpenseStatusType,
-} from "./entities";
+} from "../entities/entities";
+import type { CreateExpenseInput } from "@features/trips/application";
 
 // ============================================================================
 // EXPENSE DTOs
 // ============================================================================
-
-/**
- * DTO para crear un gasto
- */
-export interface CreateExpenseDTO {
-  category: ExpenseCategoryType;
-  description: string;
-  amount: number;
-  currency?: string;
-  expenseDate?: string;
-  location?: string;
-  hasReceipt?: boolean;
-  receiptUrl?: string;
-  vendorName?: string;
-  isEstimated?: boolean;
-  notes?: string;
-}
 
 /**
  * DTO para actualizar un gasto
@@ -93,7 +77,7 @@ export interface IExpenseRepository {
    */
   create(
     tripId: string,
-    data: CreateExpenseDTO,
+    data: CreateExpenseInput,
   ): Promise<MappedSingleResult<TripExpense>>;
 
   /**

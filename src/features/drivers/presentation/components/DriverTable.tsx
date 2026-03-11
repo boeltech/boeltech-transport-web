@@ -188,10 +188,8 @@ export function DriverTable({
         <TableHeaderRow />
         <TableBody>
           {drivers.map((driver) => {
-            const expiringSoon = isLicenseExpiringSoon(
-              driver.licenseExpiration,
-            );
-            const expired = isLicenseExpired(driver.licenseExpiration);
+            const expiringSoon = isLicenseExpiringSoon(driver.licenseExpiry);
+            const expired = isLicenseExpired(driver.licenseExpiry);
 
             return (
               <TableRow
@@ -231,7 +229,7 @@ export function DriverTable({
                             : ""
                       }
                     >
-                      {formatDate(driver.licenseExpiration)}
+                      {formatDate(driver.licenseExpiry)}
                     </span>
                     {(expiringSoon || expired) && (
                       <AlertTriangle

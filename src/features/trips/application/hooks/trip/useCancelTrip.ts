@@ -5,14 +5,8 @@ import {
 } from "@tanstack/react-query";
 import type { Trip } from "@features/trips/domain";
 import { createCancelTripUseCase } from "@features/trips/application";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
+import { tripRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para cancelar viaje

@@ -7,7 +7,7 @@ export {
   type VehicleTypeValue,
   type CreateVehiclePayload,
   type UpdateVehiclePayload,
-  type VehicleFilters,
+  type VehicleFiltersType,
   type VehicleQueryParams,
   type AssignableVehicleItem,
   vehicleQueryKeys,

@@ -52,7 +52,7 @@ export {
 
 //Stop
 export {
-  type AddStopInput,
+  type CreateStopInput,
   type IAddStopUseCase,
   AddStopUseCase,
   createAddStopUseCase,
@@ -91,7 +91,6 @@ export {
 } from "./trip/CancelTripUseCase";
 export {
   type CreateTripInput,
-  type CreateTripResponse,
   type ICreateTripUseCase,
   CreateTripUseCase,
   createCreateTripUseCase,
@@ -128,11 +127,13 @@ export {
   createStartTripUseCase,
 } from "./trip/StartTripUseCase";
 export {
+  type UpdateTripStatusInput,
   type IUpdateTripStatusUseCase,
   UpdateTripStatusUseCase,
   createUpdateTripStatusUseCase,
 } from "./trip/UpdateTripStatusUseCase";
 export {
+  type UpdateTripInput,
   type IUpdateTripUseCase,
   UpdateTripUseCase,
   createUpdateTripUseCase,

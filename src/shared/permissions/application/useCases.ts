@@ -9,7 +9,6 @@
  */
 
 import {
-  type Role,
   type Module,
   type Action,
   type PermissionString,
@@ -24,17 +23,17 @@ import {
   hasAnyRole as domainHasAnyRole,
   getAvailableActions as domainGetAvailableActions,
   getAccessibleModules as domainGetAccessibleModules,
-  //   createPermissionString,
   mergePermissions,
 } from "../domain/rules";
 import { getPermissionsForRole } from "../domain/rolePermissions";
+import type { UserRole } from "@shared/constants/roles";
 
-// ============================================
+// ============================================================================
 // CHECK PERMISSION USE CASE
-// ============================================
+// ============================================================================
 
 export interface CheckPermissionInput {
-  role: Role | null;
+  role: UserRole | null;
   module: Module;
   action: Action;
   customPermissions?: PermissionString[];
@@ -78,12 +77,12 @@ export function createCheckPermissionUseCase(): CheckPermissionUseCase {
   };
 }
 
-// ============================================
+// ============================================================================
 // GET USER PERMISSIONS USE CASE
-// ============================================
+// ============================================================================
 
 export interface GetUserPermissionsInput {
-  role: Role | null;
+  role: UserRole | null;
   customPermissions?: PermissionString[];
   deniedPermissions?: PermissionString[];
 }
@@ -124,13 +123,13 @@ export function createGetUserPermissionsUseCase(): GetUserPermissionsUseCase {
   };
 }
 
-// ============================================
+// ============================================================================
 // CHECK ROLE USE CASE
-// ============================================
+// ============================================================================
 
 export interface CheckRoleInput {
-  userRole: Role | null;
-  requiredRole: Role;
+  userRole: UserRole | null;
+  requiredRole: UserRole;
 }
 
 export interface CheckRoleUseCase {
@@ -145,13 +144,13 @@ export function createCheckRoleUseCase(): CheckRoleUseCase {
   };
 }
 
-// ============================================
+// ============================================================================
 // CHECK ANY ROLE USE CASE
-// ============================================
+// ============================================================================
 
 export interface CheckAnyRoleInput {
-  userRole: Role | null;
-  requiredRoles: Role[];
+  userRole: UserRole | null;
+  requiredRoles: UserRole[];
 }
 
 export interface CheckAnyRoleUseCase {
@@ -166,12 +165,12 @@ export function createCheckAnyRoleUseCase(): CheckAnyRoleUseCase {
   };
 }
 
-// ============================================
+// ============================================================================
 // GET MODULE ACTIONS USE CASE
-// ============================================
+// ============================================================================
 
 export interface GetModuleActionsInput {
-  role: Role | null;
+  role: UserRole | null;
   module: Module;
   permissions: PermissionString[];
 }
@@ -192,12 +191,12 @@ export function createGetModuleActionsUseCase(): GetModuleActionsUseCase {
   };
 }
 
-// ============================================
+// ============================================================================
 // CHECK MULTIPLE PERMISSIONS USE CASE
-// ============================================
+// ============================================================================
 
 export interface CheckMultiplePermissionsInput {
-  role: Role | null;
+  role: UserRole | null;
   permissions: PermissionString[];
   required: PermissionString[];
   mode: "all" | "any";
@@ -220,12 +219,12 @@ export function createCheckMultiplePermissionsUseCase(): CheckMultiplePermission
   };
 }
 
-// ============================================
+// ============================================================================
 // INITIALIZE PERMISSION STATE USE CASE
-// ============================================
+// ============================================================================
 
 export interface InitializePermissionStateInput {
-  role: Role | null;
+  role: UserRole | null;
   isAuthenticated: boolean;
   customPermissions?: PermissionString[];
   deniedPermissions?: PermissionString[];

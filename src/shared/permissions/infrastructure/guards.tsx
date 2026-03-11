@@ -24,13 +24,9 @@
  */
 
 import { memo, type ReactNode } from "react";
-import { usePermissions } from "./usePermissions";
-import type {
-  Module,
-  Action,
-  Role,
-  PermissionString,
-} from "../domain/entities";
+import { usePermissions } from "../application/usePermissions";
+import type { Module, Action, PermissionString } from "../domain/entities";
+import { ROLES, type UserRole } from "@shared/constants/roles";
 
 // ============================================
 // PERMISSION GUARD
@@ -140,7 +136,7 @@ export const MultiPermissionGuard = memo(function MultiPermissionGuard({
 
 interface RoleGuardProps {
   /** Roles permitidos */
-  roles: Role[];
+  roles: UserRole[];
   /** Contenido si tiene el rol */
   children: ReactNode;
   /** Contenido alternativo */
@@ -186,7 +182,7 @@ export const AdminGuard = memo(function AdminGuard({
     return null;
   }
 
-  if (!hasRole("admin")) {
+  if (!hasRole(ROLES.ADMIN)) {
     return <>{fallback}</>;
   }
 

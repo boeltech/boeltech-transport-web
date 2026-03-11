@@ -1,4 +1,11 @@
-// src/features/trips/application/hooks/useCreateTrip.ts
+/**
+ * useCreateTrip Hook
+ * Clean Architecture - Application Layer (Hooks)
+ *
+ * Hook para crear un viaje completo usando el endpoint transaccional.
+ *
+ * Ubicación: src/features/trips/application/hooks/useCreateTrip.ts
+ */
 
 import {
   useMutation,
@@ -6,33 +13,27 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import {
-  createCreateTripUseCase,
+  CreateTripUseCase,
   type CreateTripInput,
-  type CreateTripResponse,
-} from "@features/trips/application";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
+  type CreateTripResult,
+} from "@features/trips/application/useCases/trip/CreateTripUseCase";
+import { tripRepository } from "@features/trips/infrastructure/repositories/tripRepository";
+import { tripQueryKeys } from "@features/trips/domain";
 
 // ============================================================================
 // CUSTOM ERROR CLASS
 // ============================================================================
 
 /**
- * Error personalizado que preserva el código y mensaje mapeado del backend
+ * Error de creación de viaje con información detallada
  */
-export class TripError extends Error {
+export class TripCreationError extends Error {
   code: string;
   originalMessage?: string;
 
   constructor(code: string, message: string, originalMessage?: string) {
-    super(message); // Este es el mensaje en español que se mostrará
-    this.name = "TripError";
+    super(message);
+    this.name = "TripCreationError";
     this.code = code;
     this.originalMessage = originalMessage;
   }
@@ -43,42 +44,82 @@ export class TripError extends Error {
 // ============================================================================
 
 /**
- * Hook para crear viaje
+ * Hook para crear un viaje completo con todos sus detalles.
  *
- * El error que se lanza contiene:
- * - error.message: Mensaje en español (mapeado) - USAR ESTE PARA MOSTRAR AL USUARIO
- * - error.code: Código del error del backend
- * - error.originalMessage: Mensaje original del backend (en inglés)
+ * Usa el endpoint transaccional POST /api/v1/trips/with-details
+ * que garantiza atomicidad (todo o nada).
+ *
+ * @example
+ * ```tsx
+ * const createTrip = useCreateTrip();
+ *
+ * const handleSubmit = async (formData: TripWizardFormValues) => {
+ *   try {
+ *     const result = await createTrip.mutateAsync({
+ *       vehicleId: formData.vehicleId,
+ *       driverId: formData.driverId,
+ *       scheduledDeparture: localDateTimeToISO(formData.scheduledDeparture),
+ *       originAddress: formData.stops[0].address,
+ *       originCity: formData.stops[0].city,
+ *       destinationAddress: formData.stops.at(-1).address,
+ *       destinationCity: formData.stops.at(-1).city,
+ *       stops: formData.stops,
+ *       cargos: formData.cargos,
+ *       estimatedExpenses: formData.expenses,
+ *     });
+ *
+ *     toast({ title: `Viaje ${result.summary.tripCode} creado` });
+ *     navigate(`/trips/${result.trip.id}`);
+ *   } catch (error) {
+ *     if (error instanceof TripCreationError) {
+ *       toast({ title: "Error", description: error.message, variant: "error" });
+ *     }
+ *   }
+ * };
+ * ```
  */
 export function useCreateTrip(
-  options?: UseMutationOptions<CreateTripResponse, TripError, CreateTripInput>,
+  options?: UseMutationOptions<
+    CreateTripResult,
+    TripCreationError,
+    CreateTripInput
+  >,
 ) {
   const queryClient = useQueryClient();
-  const createTripUseCase = createCreateTripUseCase(tripRepository);
+  const useCase = new CreateTripUseCase(tripRepository);
 
   return useMutation({
     mutationFn: async (input: CreateTripInput) => {
-      const result = await createTripUseCase.execute(input);
+      const result = await useCase.execute(input);
 
       if (!result.success) {
-        // Lanzar error con el mensaje EN ESPAÑOL (result.error.message)
-        // El mensaje mapeado está en result.error.message
-        // El mensaje original del backend está en result.error.originalMessage
-        throw new TripError(
+        throw new TripCreationError(
           result.error.code,
-          result.error.message, // ← Mensaje en español (mapeado)
-          result.error.originalMessage, // ← Mensaje original (inglés)
+          result.error.message,
+          result.error.originalMessage,
         );
       }
 
       return result.data;
     },
-    onSuccess: (newTrip) => {
-      // Invalidar lista de viajes para refrescar
+
+    onSuccess: (result) => {
+      // Invalidar lista de viajes
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-      // Opcional: pre-popular el cache del detalle
-      queryClient.setQueryData(tripQueryKeys.detail(newTrip.id), newTrip);
+
+      // Pre-popular cache del detalle
+      queryClient.setQueryData(
+        tripQueryKeys.detail(result.trip.id),
+        result.trip,
+      );
     },
+
     ...options,
   });
 }
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export type { CreateTripInput, CreateTripResult };

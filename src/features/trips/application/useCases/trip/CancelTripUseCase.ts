@@ -25,19 +25,17 @@ export class CancelTripUseCase implements ICancelTripUseCase {
     try {
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip.data) {
+      if (!currentTrip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: currentTrip.message
-              ? currentTrip.message
-              : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
-      if (!canCancelTrip(currentTrip.data.status)) {
+      if (!canCancelTrip(currentTrip.status)) {
         return {
           success: false,
           error: {
@@ -52,7 +50,7 @@ export class CancelTripUseCase implements ICancelTripUseCase {
         reason: reason,
       });
 
-      return { success: true, data: updatedTrip.data };
+      return { success: true, data: updatedTrip };
     } catch (error) {
       return {
         success: false,

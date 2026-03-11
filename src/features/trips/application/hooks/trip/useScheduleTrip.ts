@@ -3,20 +3,12 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys, type Trip } from "@features/trips/domain/entities";
+import { tripRepository } from "@features/trips/infrastructure";
+import {
+  tripQueryKeys,
+  type Trip,
+} from "@features/trips/domain/entities/entities";
 import { createScheduleTripUseCase } from "../../useCases";
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-// ============================================================================
-// USE CASE
-// ============================================================================
-
-const tripRepository = createTripRepository();
-const scheduleTripUseCase = createScheduleTripUseCase(tripRepository);
 
 // ============================================================================
 // CUSTOM ERROR
@@ -46,6 +38,7 @@ export function useScheduleTrip(
   options?: UseMutationOptions<Trip, TripActionError, string>,
 ) {
   const queryClient = useQueryClient();
+  const scheduleTripUseCase = createScheduleTripUseCase(tripRepository);
 
   return useMutation({
     mutationFn: async (tripId: string) => {

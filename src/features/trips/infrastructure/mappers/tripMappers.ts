@@ -2,58 +2,41 @@
  * Trip Mappers
  * Clean Architecture - Infrastructure Layer
  *
- * ACTUALIZADO: Modelo Carga → Movimientos + Cargos y Expenses Response
- * - ApiCreateCargoRequest ahora envía movements[] en lugar de pickupStopIndex/deliveryStopIndex
- * - toApiCreateCargo mapea movements correctamente
- * - ApiTripCargoResponse y ApiTripExpenseResponse agregados para recibir datos del backend
- * - mapTripCargo y mapTripExpense agregan transformación API → Domain
+ * Transforman respuestas del backend (snake_case) a entidades de dominio (camelCase).
  *
- * Transforman datos entre el formato de la API y las entidades del dominio.
+ * PATRÓN:
+ * - ApiResponse types: snake_case (tipar respuesta exacta del backend)
+ * - map*() functions: snake_case → camelCase
+ * - NO hay toApi*() functions (apiClient hace deepToSnake automáticamente)
+ *
+ * Ubicación: src/features/trips/infrastructure/mappers/tripMappers.ts
  */
 
-import {
-  type Trip,
-  type TripListItem,
-  type TripStatusHistory,
-  type VehicleRef,
-  type DriverRef,
-  type ClientRef,
-  type Mileage,
-  type CargoInfo,
-  type CostBreakdown,
-  type TripStatusType,
-} from "@features/trips/domain/entities";
-
-import {
-  type CreateTripDTO,
-  type UpdateTripStatusDTO,
-  type FinishTripDTO,
+import type {
+  Trip,
+  TripListItem,
+  TripStop,
+  TripCargo,
+  TripExpense,
+  CargoMovement,
+  TripStatusHistory,
+  TripStatusType,
 } from "@features/trips/domain";
-import {
-  type ApiPaginatedResponse,
-  type ApiSingleResponse,
-  type MappedPaginatedResult,
-  type MappedSingleResult,
-  type Pagination,
-} from "@shared/api";
-import {
-  toDate,
-  toDateRequired,
-  toISOString,
-  toISOStringOptional,
-} from "@shared/utils/dateHelpers";
-import { toNumber, toNumberOrDefault } from "@shared/utils/numberHelpers";
-import {
-  mapTripStop,
-  toApiCreateStop,
-  type ApiCreateStopRequest,
-  type ApiTripStopResponse,
-} from "./stopMappers";
+import type { CreateTripResult } from "@features/trips/application/useCases/trip/CreateTripUseCase";
+import type { ApiStopResponse } from "./stopMappers";
+import type {
+  ApiCargoMovementResponse,
+  ApiCargoResponse,
+} from "./cargoMappers";
+import type { ApiExpenseResponse } from "./expenseMappers";
 
 // ============================================================================
-// API RESPONSE TYPES - Estructura del Backend (snake_case)
+// API RESPONSE TYPES (snake_case - estructura exacta del backend)
 // ============================================================================
 
+/**
+ * Viaje en listado (respuesta del backend)
+ */
 export interface ApiTripListItemResponse {
   id: string;
   trip_code: string;
@@ -74,6 +57,9 @@ export interface ApiTripListItemResponse {
   created_at: string;
 }
 
+/**
+ * Viaje detallado (respuesta del backend)
+ */
 export interface ApiTripResponse {
   id: string;
   tenant_id: string;
@@ -110,30 +96,97 @@ export interface ApiTripResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
-  vehicle?: ApiVehicleResponse;
-  driver?: ApiDriverResponse;
-  client?: ApiClientResponse | null;
-  stops?: ApiTripStopResponse[];
+  // Relaciones
+  vehicle?: ApiVehicleRefResponse;
+  driver?: ApiDriverRefResponse;
+  client?: ApiClientRefResponse | null;
+  stops?: ApiStopResponse[];
+  cargos?: ApiCargoResponse[];
+  expenses?: ApiExpenseResponse[];
   status_history?: ApiStatusHistoryResponse[];
-  //   cargos?: ApiTripCargoResponse[];
-  //   expenses?: ApiTripExpenseResponse[];
 }
 
-export interface ApiVehicleResponse {
+export interface ApiVehicleRefResponse {
   id: string;
   unit_number: string;
   license_plate: string;
 }
 
-export interface ApiDriverResponse {
+export interface ApiDriverRefResponse {
   id: string;
   full_name: string;
 }
 
-export interface ApiClientResponse {
+export interface ApiClientRefResponse {
   id: string;
   legal_name: string;
 }
+
+// export interface ApiTripStopResponse {
+//   id: string;
+//   trip_id: string;
+//   sequence_order: number;
+//   stop_type: string | string[];
+//   address: string;
+//   city: string;
+//   state: string | null;
+//   postal_code: string | null;
+//   latitude: number | null;
+//   longitude: number | null;
+//   location_name: string | null;
+//   contact_name: string | null;
+//   contact_phone: string | null;
+//   estimated_arrival: string | null;
+//   actual_arrival: string | null;
+//   notes: string | null;
+// }
+
+// export interface ApiTripCargoResponse {
+//   id: string;
+//   trip_id: string;
+//   client_id: string;
+//   description: string;
+//   product_type: string | null;
+//   weight: number | null;
+//   volume: number | null;
+//   units: number | null;
+//   declared_value: number | null;
+//   rate: number;
+//   currency: string;
+//   status: string;
+//   notes: string | null;
+//   special_instructions: string | null;
+//   movements?: ApiCargoMovementResponse[];
+// }
+
+// export interface ApiCargoMovementResponse {
+//   id: string;
+//   cargo_id: string;
+//   stop_id: string;
+//   stop_index: number;
+//   movement_type: string;
+//   weight: number | null;
+//   units: number | null;
+//   completed_at: string | null;
+//   notes: string | null;
+// }
+
+// export interface ApiTripExpenseResponse {
+//   id: string;
+//   trip_id: string;
+//   category: string;
+//   description: string;
+//   amount: number;
+//   currency: string;
+//   expense_date: string;
+//   location: string | null;
+//   has_receipt: boolean;
+//   receipt_url: string | null;
+//   vendor_name: string | null;
+//   is_estimated: boolean;
+//   status: string;
+//   notes: string | null;
+// }
 
 export interface ApiStatusHistoryResponse {
   id: string;
@@ -149,105 +202,49 @@ export interface ApiStatusHistoryResponse {
   reason: string | null;
 }
 
-// ============================================================================
-// API REQUEST TYPES - Estructura para enviar al Backend
-// ============================================================================
-
-export interface ApiCreateTripRequest {
-  vehicleId: string;
-  driverId: string;
-  clientId?: string;
-  scheduledDeparture: string;
-  scheduledArrival?: string;
-  startMileage?: number;
-  originAddress: string;
-  originCity: string;
-  originState?: string;
-  destinationAddress: string;
-  destinationCity: string;
-  destinationState?: string;
-  cargoDescription?: string;
-  cargoWeight?: number;
-  cargoVolume?: number;
-  cargoUnits?: number;
-  cargoValue?: number;
-  baseRate?: number;
-  notes?: string;
-  stops?: ApiCreateStopRequest[];
-  //   cargos?: ApiCreateCargoRequest[];
-  //   expenses?: ApiCreateExpenseRequest[];
-}
-
-export interface ApiUpdateStatusRequest {
-  status: string;
-  mileage?: number;
-  latitude?: number;
-  longitude?: number;
-  reason?: string;
-}
-
-export interface ApiFinishTripRequest {
-  endMileage: number;
-  actualArrival: string;
-  fuelCost?: number;
-  tollCost?: number;
-  otherCosts?: number;
-  notes?: string;
-}
-
-// ============================================================================
-// MAPPERS - API Response to Domain Entity
-// ============================================================================
-
-export function mapVehicleRef(api: ApiVehicleResponse): VehicleRef {
-  return {
-    id: api.id,
-    unitNumber: api.unit_number,
-    licensePlate: api.license_plate,
-  };
-}
-
-export function mapDriverRef(api: ApiDriverResponse): DriverRef {
-  return {
-    id: api.id,
-    fullName: api.full_name,
-  };
-}
-
-export function mapClientRef(api: ApiClientResponse): ClientRef {
-  return {
-    id: api.id,
-    legalName: api.legal_name,
-  };
-}
-
-export function mapStatusHistory(
-  api: ApiStatusHistoryResponse,
-): TripStatusHistory {
-  return {
-    id: api.id,
-    tripId: api.trip_id,
-    previousStatus: api.previous_status as TripStatusType | null,
-    newStatus: api.new_status as TripStatusType,
-    changedBy: api.changed_by,
-    changedByName: api.changed_by_name,
-    changedAt: toDateRequired(api.changed_at),
-    mileage: api.mileage,
-    latitude: toNumber(api.latitude),
-    longitude: toNumber(api.longitude),
-    reason: api.reason,
+/**
+ * Respuesta del endpoint transaccional POST /trips/with-details
+ */
+export interface ApiCreateTripResponse {
+  message: string;
+  data: {
+    trip: ApiTripResponse;
+    summary: {
+      trip_id: string;
+      trip_code: string;
+      stops_created: number;
+      cargos_created: number;
+      expenses_created: number;
+      final_status: string;
+    };
   };
 }
 
 // ============================================================================
-// COMPOSITE MAPPERS - Full Trip with relations
+// MAPPER FUNCTIONS (snake_case → camelCase)
 // ============================================================================
 
+/**
+ * Convierte un número que puede venir como string
+ */
+function toNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return isNaN(num) ? null : num;
+}
+
+function toNumberOrDefault(
+  value: string | number | null | undefined,
+  defaultValue = 0,
+): number {
+  const num = toNumber(value);
+  return num ?? defaultValue;
+}
+
+/**
+ * Mapea item de listado
+ */
 export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
-  const totalCost = toNumberOrDefault(api.total_cost);
-  const totalRevenue = 0; // TODO: Agregar cuando el backend lo soporte
-  const estimatedProfit = totalRevenue - totalCost;
-
   return {
     id: api.id,
     tripCode: api.trip_code,
@@ -268,178 +265,219 @@ export function mapTripListItem(api: ApiTripListItemResponse): TripListItem {
       : null,
     originCity: api.origin_city,
     destinationCity: api.destination_city,
-    scheduledDeparture: toDateRequired(api.scheduled_departure),
-    scheduledArrival: toDate(api.scheduled_arrival),
+    scheduledDeparture: new Date(api.scheduled_departure),
+    scheduledArrival: api.scheduled_arrival
+      ? new Date(api.scheduled_arrival)
+      : null,
     status: api.status as TripStatusType,
     cargoDescription: api.cargo_description,
-    totalCost,
-    totalRevenue,
-    estimatedProfit,
-    cargoCount: 0,
-    clientCount: api.client_id ? 1 : 0,
-    createdAt: toDateRequired(api.created_at),
-  };
-}
-
-export function mapTrip(
-  api: ApiSingleResponse<ApiTripResponse>,
-): MappedSingleResult<Trip> {
-  const mileage: Mileage = {
-    start: api.data.start_mileage,
-    end: api.data.end_mileage,
-  };
-
-  const cargo: CargoInfo = {
-    description: api.data.cargo_description,
-    weight: toNumber(api.data.cargo_weight),
-    volume: toNumber(api.data.cargo_volume),
-    units: api.data.cargo_units,
-    value: toNumber(api.data.cargo_value),
-  };
-
-  const costs: CostBreakdown = {
-    baseRate: toNumberOrDefault(api.data.base_rate),
-    fuelCost: toNumberOrDefault(api.data.fuel_cost),
-    tollCost: toNumberOrDefault(api.data.toll_cost),
-    otherCosts: toNumberOrDefault(api.data.other_costs),
-    totalCost: toNumberOrDefault(api.data.total_cost),
-  };
-
-  const trip: Trip = {
-    id: api.data.id,
-    tenantId: api.data.tenant_id,
-    tripCode: api.data.trip_code,
-    vehicleId: api.data.vehicle_id,
-    driverId: api.data.driver_id,
-    clientId: api.data.client_id,
-    scheduledDeparture: toDateRequired(api.data.scheduled_departure),
-    scheduledArrival: toDate(api.data.scheduled_arrival),
-    actualDeparture: toDate(api.data.actual_departure),
-    actualArrival: toDate(api.data.actual_arrival),
-    mileage,
-    originAddress: api.data.origin_address,
-    originCity: api.data.origin_city,
-    originState: api.data.origin_state,
-    destinationAddress: api.data.destination_address,
-    destinationCity: api.data.destination_city,
-    destinationState: api.data.destination_state,
-    cargo,
-    costs,
-    detailedCosts: null,
-    profitability: null,
-    status: api.data.status as TripStatusType,
-    notes: api.data.notes,
-    cancellationReason: api.data.cancellation_reason,
-    createdAt: toDateRequired(api.data.created_at),
-    updatedAt: toDateRequired(api.data.updated_at),
-    createdBy: api.data.created_by,
-    updatedBy: api.data.updated_by,
-    vehicle: api.data.vehicle ? mapVehicleRef(api.data.vehicle) : undefined,
-    driver: api.data.driver ? mapDriverRef(api.data.driver) : undefined,
-    client: api.data.client ? mapClientRef(api.data.client) : undefined,
-    stops: api.data.stops ? api.data.stops.map(mapTripStop) : undefined,
-    statusHistory: api.data.status_history
-      ? api.data.status_history.map(mapStatusHistory)
-      : undefined,
-    // cargos: api.data.cargos ? api.data.cargos.map(mapTripCargo) : undefined,
-    // expenses: api.data.expenses
-    //   ? api.data.expenses.map(mapTripExpense)
-    //   : undefined,
-  };
-
-  return {
-    data: trip,
-    message: api.message,
-  };
-}
-
-export function mapPaginatedTripListItems(
-  api: ApiPaginatedResponse<ApiTripListItemResponse>,
-): MappedPaginatedResult<TripListItem> {
-  const pagination: Pagination = {
-    page: api.pagination.page,
-    limit: api.pagination.limit,
-    total: api.pagination.total,
-    totalPages: api.pagination.totalPages,
-  };
-
-  return {
-    data: api.data.map(mapTripListItem),
-    pagination,
-  };
-}
-
-// export function mapPaginatedTrips(
-//   api: ApiPaginatedResponse<ApiTripResponse>,
-// ): MappedPaginatedResult<Trip> {
-//   const pagination: Pagination = {
-//     page: api.pagination.page,
-//     limit: api.pagination.limit,
-//     total: api.pagination.total,
-//     totalPages: api.pagination.totalPages,
-//   };
-
-//   return {
-//     data: api.data.map(mapTrip),
-//     pagination,
-//   };
-// }
-
-// ============================================================================
-// REVERSE MAPPERS - Domain to API Request
-// ============================================================================
-
-export function toApiCreateTrip(data: CreateTripDTO): ApiCreateTripRequest {
-  return {
-    vehicleId: data.vehicleId,
-    driverId: data.driverId,
-    clientId: data.clientId,
-    scheduledDeparture: toISOString(data.scheduledDeparture),
-    scheduledArrival: toISOStringOptional(data.scheduledArrival),
-    startMileage: data.startMileage,
-    originAddress: data.originAddress,
-    originCity: data.originCity,
-    originState: data.originState,
-    destinationAddress: data.destinationAddress,
-    destinationCity: data.destinationCity,
-    destinationState: data.destinationState,
-    cargoDescription: data.cargoDescription,
-    cargoWeight: data.cargoWeight,
-    cargoVolume: data.cargoVolume,
-    cargoUnits: data.cargoUnits,
-    cargoValue: data.cargoValue,
-    baseRate: data.baseRate,
-    notes: data.notes,
-    stops: data.stops?.map(toApiCreateStop),
-    // cargos: data.cargos?.map(toApiCreateCargo),
-    // expenses: data.expenses?.map(toApiCreateExpense),
+    totalCost: toNumberOrDefault(api.total_cost),
+    createdAt: new Date(api.created_at),
   };
 }
 
 /**
- * Prepara datos de creación de carga para API
- * ACTUALIZADO: Envía movements[] en lugar de pickupStopIndex/deliveryStopIndex
+ * Mapea viaje detallado
  */
-
-export function toApiUpdateStatus(
-  data: UpdateTripStatusDTO,
-): ApiUpdateStatusRequest {
+export function mapTrip(api: ApiTripResponse): Trip {
   return {
-    status: data.status,
-    mileage: data.mileage,
-    latitude: data.latitude,
-    longitude: data.longitude,
-    reason: data.reason,
+    id: api.id,
+    tenantId: api.tenant_id,
+    tripCode: api.trip_code,
+    vehicleId: api.vehicle_id,
+    driverId: api.driver_id,
+    clientId: api.client_id,
+    scheduledDeparture: new Date(api.scheduled_departure),
+    scheduledArrival: api.scheduled_arrival
+      ? new Date(api.scheduled_arrival)
+      : null,
+    actualDeparture: api.actual_departure
+      ? new Date(api.actual_departure)
+      : null,
+    actualArrival: api.actual_arrival ? new Date(api.actual_arrival) : null,
+    mileage: {
+      start: api.start_mileage,
+      end: api.end_mileage,
+    },
+    originAddress: api.origin_address,
+    originCity: api.origin_city,
+    originState: api.origin_state,
+    destinationAddress: api.destination_address,
+    destinationCity: api.destination_city,
+    destinationState: api.destination_state,
+    cargo: {
+      description: api.cargo_description,
+      weight: toNumber(api.cargo_weight),
+      volume: toNumber(api.cargo_volume),
+      units: api.cargo_units,
+      value: toNumber(api.cargo_value),
+    },
+    costs: {
+      baseRate: toNumberOrDefault(api.base_rate),
+      fuelCost: toNumberOrDefault(api.fuel_cost),
+      tollCost: toNumberOrDefault(api.toll_cost),
+      otherCosts: toNumberOrDefault(api.other_costs),
+      totalCost: toNumberOrDefault(api.total_cost),
+    },
+    status: api.status as TripStatusType,
+    notes: api.notes,
+    cancellationReason: api.cancellation_reason,
+    createdAt: new Date(api.created_at),
+    updatedAt: new Date(api.updated_at),
+    createdBy: api.created_by,
+    updatedBy: api.updated_by,
+    // Relaciones
+    vehicle: api.vehicle
+      ? {
+          id: api.vehicle.id,
+          unitNumber: api.vehicle.unit_number,
+          licensePlate: api.vehicle.license_plate,
+        }
+      : undefined,
+    driver: api.driver
+      ? {
+          id: api.driver.id,
+          fullName: api.driver.full_name,
+        }
+      : undefined,
+    client: api.client
+      ? {
+          id: api.client.id,
+          legalName: api.client.legal_name,
+        }
+      : undefined,
+    stops: api.stops?.map(mapTripStop),
+    cargos: api.cargos?.map(mapTripCargo),
+    expenses: api.expenses?.map(mapTripExpense),
+    statusHistory: api.status_history?.map(mapStatusHistory),
   };
 }
 
-export function toApiFinishTrip(data: FinishTripDTO): ApiFinishTripRequest {
+/**
+ * Mapea parada
+ */
+export function mapTripStop(api: ApiStopResponse): TripStop {
   return {
-    endMileage: data.endMileage,
-    actualArrival: toISOString(data.actualArrival),
-    fuelCost: data.fuelCost,
-    tollCost: data.tollCost,
-    otherCosts: data.otherCosts,
-    notes: data.notes,
+    id: api.id,
+    tripId: api.trip_id,
+    sequenceOrder: api.sequence_order,
+    stopType: api.stop_type,
+    address: api.address,
+    city: api.city,
+    state: api.state,
+    postalCode: api.postal_code,
+    latitude: api.latitude,
+    longitude: api.longitude,
+    locationName: api.location_name,
+    contactName: api.contact_name,
+    contactPhone: api.contact_phone,
+    estimatedArrival: api.estimated_arrival
+      ? new Date(api.estimated_arrival)
+      : null,
+    actualArrival: api.actual_arrival ? new Date(api.actual_arrival) : null,
+    notes: api.notes,
+  };
+}
+
+/**
+ * Mapea carga
+ */
+export function mapTripCargo(api: ApiTripCargoResponse): TripCargo {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    clientId: api.client_id,
+    description: api.description,
+    productType: api.product_type,
+    weight: api.weight,
+    volume: api.volume,
+    units: api.units,
+    declaredValue: api.declared_value,
+    rate: api.rate,
+    currency: api.currency,
+    status: api.status,
+    notes: api.notes,
+    specialInstructions: api.special_instructions,
+    movements: api.movements?.map(mapCargoMovement),
+  };
+}
+
+/**
+ * Mapea movimiento de carga
+ */
+export function mapCargoMovement(api: ApiCargoMovementResponse): CargoMovement {
+  return {
+    id: api.id,
+    cargoId: api.cargo_id,
+    stopId: api.stop_id,
+    stopIndex: api.stop_index,
+    // movementType: api.movement_type as "pickup" | "delivery" | "transfer",
+    movementType: api.movement_type,
+    weight: api.weight,
+    units: api.units,
+    completedAt: api.completed_at ? new Date(api.completed_at) : null,
+    notes: api.notes,
+  };
+}
+
+/**
+ * Mapea gasto
+ */
+export function mapTripExpense(api: ApiTripExpenseResponse): TripExpense {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    category: api.category,
+    description: api.description,
+    amount: api.amount,
+    currency: api.currency,
+    expenseDate: new Date(api.expense_date),
+    location: api.location,
+    hasReceipt: api.has_receipt,
+    receiptUrl: api.receipt_url,
+    vendorName: api.vendor_name,
+    isEstimated: api.is_estimated,
+    status: api.status,
+    notes: api.notes,
+  };
+}
+
+/**
+ * Mapea historial de estado
+ */
+export function mapStatusHistory(
+  api: ApiStatusHistoryResponse,
+): TripStatusHistory {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    previousStatus: api.previous_status as TripStatusType | null,
+    newStatus: api.new_status as TripStatusType,
+    changedBy: api.changed_by,
+    changedByName: api.changed_by_name,
+    changedAt: new Date(api.changed_at),
+    mileage: api.mileage,
+    latitude: toNumber(api.latitude),
+    longitude: toNumber(api.longitude),
+    reason: api.reason,
+  };
+}
+
+/**
+ * Mapea respuesta del endpoint transaccional
+ */
+export function mapCreateTripResponse(
+  response: ApiCreateTripResponse,
+): CreateTripResult {
+  return {
+    trip: mapTrip(response.data.trip),
+    summary: {
+      tripId: response.data.summary.trip_id,
+      tripCode: response.data.summary.trip_code,
+      stopsCreated: response.data.summary.stops_created,
+      cargosCreated: response.data.summary.cargos_created,
+      expensesCreated: response.data.summary.expenses_created,
+      finalStatus: response.data.summary.final_status,
+    },
   };
 }

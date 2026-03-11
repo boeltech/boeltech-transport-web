@@ -10,56 +10,16 @@ import type { MappedActionResult, MappedSingleResult } from "@shared/api";
 import type {
   TripCargo,
   CargoMovement,
-  CargoMovementTypeValue,
   CargoStatusType,
-} from "./entities";
+} from "../entities/entities";
+import type {
+  CreateCargoInput,
+  CreateCargoMovementInput,
+} from "@features/trips/application";
 
 // ============================================================================
 // CARGO DTOs
 // ============================================================================
-
-/**
- * DTO para crear un movimiento de carga
- */
-export interface CreateCargoMovementDTO {
-  stopId: string;
-  stopIndex: number;
-  movementType: CargoMovementTypeValue;
-  weight?: number;
-  units?: number;
-  notes?: string;
-}
-
-/**
- * DTO para crear una carga
- */
-export interface CreateCargoDTO {
-  clientId: string;
-  description: string;
-  productType?: string;
-  weight?: number;
-  volume?: number;
-  units?: number;
-  declaredValue?: number;
-  rate: number;
-  currency?: string;
-  pickupStopId?: string;
-  deliveryStopId?: string;
-  notes?: string;
-  specialInstructions?: string;
-  movements?: CreateCargoMovementDTO[];
-
-  // Carta Porte 3.1
-  satProductCode?: string;
-  satUnitCode?: string;
-  satUnitName?: string;
-  weightInKg?: number;
-  dimensions?: string;
-  hazardousMaterial?: boolean;
-  hazardousMaterialCode?: string;
-  packagingType?: string;
-  packagingDescription?: string;
-}
 
 /**
  * DTO para actualizar una carga
@@ -125,7 +85,7 @@ export interface ICargoRepository {
    */
   create(
     tripId: string,
-    data: CreateCargoDTO,
+    input: CreateCargoInput,
   ): Promise<MappedSingleResult<TripCargo>>;
 
   /**
@@ -148,7 +108,7 @@ export interface ICargoRepository {
   addMovement(
     tripId: string,
     cargoId: string,
-    data: CreateCargoMovementDTO,
+    data: CreateCargoMovementInput,
   ): Promise<MappedSingleResult<CargoMovement>>;
 
   /**

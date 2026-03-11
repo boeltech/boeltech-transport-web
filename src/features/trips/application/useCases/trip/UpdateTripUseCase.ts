@@ -2,7 +2,6 @@ import {
   canEditTrip,
   type Trip,
   type ITripRepository,
-  type UpdateTripDTO,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
@@ -10,8 +9,32 @@ import type { UseCaseResult } from "@shared/utils/errorMapper";
 // UPDATE TRIP USE CASE
 // ============================================================================
 
+// INPUT TYPES (camelCase - lo que recibe el UseCase)
+
+export interface UpdateTripInput {
+  vehicleId?: string;
+  driverId?: string;
+  clientId?: string;
+  scheduledDeparture?: string;
+  scheduledArrival?: string;
+  startMileage?: number;
+  originAddress?: string;
+  originCity?: string;
+  originState?: string;
+  destinationAddress?: string;
+  destinationCity?: string;
+  destinationState?: string;
+  cargoDescription?: string;
+  cargoWeight?: number;
+  cargoVolume?: number;
+  cargoUnits?: number;
+  cargoValue?: number;
+  baseRate?: number;
+  notes?: string;
+}
+
 export interface IUpdateTripUseCase {
-  execute(id: string, data: UpdateTripDTO): Promise<UseCaseResult<Trip>>;
+  execute(id: string, data: UpdateTripInput): Promise<UseCaseResult<Trip>>;
 }
 
 export class UpdateTripUseCase implements IUpdateTripUseCase {
@@ -21,25 +44,26 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
     this.repository = repository;
   }
 
-  async execute(id: string, data: UpdateTripDTO): Promise<UseCaseResult<Trip>> {
+  async execute(
+    id: string,
+    data: UpdateTripInput,
+  ): Promise<UseCaseResult<Trip>> {
     try {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip.data) {
+      if (!currentTrip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: currentTrip.message
-              ? currentTrip.message
-              : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
       // Verificar que se puede editar
-      if (!canEditTrip(currentTrip.data.status)) {
+      if (!canEditTrip(currentTrip.status)) {
         return {
           success: false,
           error: {
@@ -50,7 +74,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       }
 
       // Validar datos de actualización
-      const validationError = this.validateUpdateData(data, currentTrip.data);
+      const validationError = this.validateUpdateData(data, currentTrip);
       if (validationError) {
         return { success: false, error: validationError };
       }
@@ -58,7 +82,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       // Actualizar
       const updatedTrip = await this.repository.update(id, data);
 
-      return { success: true, data: updatedTrip.data };
+      return { success: true, data: updatedTrip };
     } catch (error) {
       return {
         success: false,
@@ -74,7 +98,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
   }
 
   private validateUpdateData(
-    data: UpdateTripDTO,
+    data: UpdateTripInput,
     _currentTrip: Trip,
   ): { code: string; message: string } | null {
     // Validar fechas si se proporcionan

@@ -7,6 +7,7 @@
 
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, CreateDriverDTO } from "../../domain";
+import { getCurrentLocalDate } from "@shared/utils/dateHelpers";
 
 // ============================================================================
 // USE CASE
@@ -90,19 +91,22 @@ export class CreateDriverUseCase {
       };
     }
 
-    if (!data.licenseExpiration) {
+    if (!data.licenseExpiry) {
       return {
         success: false,
         error: {
-          code: "MISSING_LICENSE_EXPIRATION",
+          code: "MISSING_LICENSE_EXPIRY",
           message: "La fecha de vencimiento de licencia es requerida",
         },
       };
     }
 
     // Validar que la licencia no esté vencida
-    const expirationDate = new Date(data.licenseExpiration);
-    if (expirationDate < new Date()) {
+    const rawLicenseExpiry = new Date(data.licenseExpiry);
+    const expirationDate = rawLicenseExpiry.toISOString().split("T")[0];
+    const now = getCurrentLocalDate();
+
+    if (expirationDate < now) {
       return {
         success: false,
         error: {

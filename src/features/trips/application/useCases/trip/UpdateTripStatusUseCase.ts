@@ -10,16 +10,26 @@ import type { UseCaseResult } from "@shared/utils/errorMapper";
 // UPDATE TRIP STATUS USE CASE
 // ============================================================================
 
+// INPUT TYPES (camelCase - lo que recibe el UseCase)
+export interface UpdateTripStatusInput {
+  status: string;
+  mileage?: number;
+  latitude?: number;
+  longitude?: number;
+  reason?: string;
+}
+
 export interface IUpdateTripStatusUseCase {
   execute(
     id: string,
-    newStatus: TripStatusType,
-    options?: {
-      mileage?: number;
-      reason?: string;
-      latitude?: number;
-      longitude?: number;
-    },
+    // newStatus: TripStatusType,
+    // options?: {
+    //   mileage?: number;
+    //   reason?: string;
+    //   latitude?: number;
+    //   longitude?: number;
+    // },
+    data: UpdateTripStatusInput,
   ): Promise<UseCaseResult<Trip>>;
 }
 
@@ -32,34 +42,33 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
 
   async execute(
     id: string,
-    newStatus: TripStatusType,
-    options?: {
-      mileage?: number;
-      reason?: string;
-      latitude?: number;
-      longitude?: number;
-    },
+    // newStatus: TripStatusType,
+    // options?: {
+    //   mileage?: number;
+    //   reason?: string;
+    //   latitude?: number;
+    //   longitude?: number;
+    // },
+    data: UpdateTripStatusInput,
   ): Promise<UseCaseResult<Trip>> {
     try {
       // Obtener viaje actual
       const currentTrip = await this.repository.findById(id);
 
-      if (!currentTrip.data) {
+      if (!currentTrip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: currentTrip.message
-              ? currentTrip.message
-              : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
       // Validar transición de estado
       const transitionResult = validateStatusTransition(
-        currentTrip.data.status,
-        newStatus,
+        currentTrip.status,
+        data.status as TripStatusType,
       );
 
       if (!transitionResult.success) {
@@ -70,15 +79,9 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
       }
 
       // Actualizar estado
-      const updatedTrip = await this.repository.updateStatus(id, {
-        status: newStatus,
-        mileage: options?.mileage,
-        reason: options?.reason,
-        latitude: options?.latitude,
-        longitude: options?.longitude,
-      });
+      const updatedTrip = await this.repository.updateStatus(id, data);
 
-      return { success: true, data: updatedTrip.data };
+      return { success: true, data: updatedTrip };
     } catch (error) {
       return {
         success: false,

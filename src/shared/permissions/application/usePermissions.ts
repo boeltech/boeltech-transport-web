@@ -23,13 +23,9 @@ import { useContext } from "react";
 import {
   PermissionContext,
   type PermissionContextValue,
-} from "./PermissionContext";
-import type {
-  Role,
-  Module,
-  Action,
-  PermissionString,
-} from "../domain/entities";
+} from "../infrastructure/PermissionContext";
+import type { Module, Action, PermissionString } from "../domain/entities";
+import { ROLES, type UserRole } from "@shared/constants/roles";
 
 // ============================================
 // Return Type
@@ -43,7 +39,7 @@ export interface UsePermissionsReturn extends PermissionContextValue {}
 
 function createDevFallback(): PermissionContextValue {
   return {
-    role: "admin",
+    role: ROLES.ADMIN,
     permissions: [],
     isLoading: false,
     isAuthenticated: true,
@@ -119,7 +115,7 @@ export function useHasPermission(module: Module, action: Action): boolean {
 /**
  * Hook para verificar si tiene un rol
  */
-export function useHasRole(role: Role): boolean {
+export function useHasRole(role: UserRole): boolean {
   const { hasRole } = usePermissions();
   return hasRole(role);
 }
@@ -143,7 +139,7 @@ export function useCanAny(permissions: PermissionString[]): boolean {
 /**
  * Hook para obtener el rol actual
  */
-export function useRole(): Role | null {
+export function useRole(): UserRole | null {
   const { role } = usePermissions();
   return role;
 }

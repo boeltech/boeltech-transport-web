@@ -30,7 +30,7 @@ import {
   mapDriver,
   mapPaginatedDriverListItems,
   mapPaginatedDriverTrips,
-  toApiCreateDriver,
+  // toApiCreateDriver,
   toApiUpdateDriver,
   toApiUpdateStatus,
   type ApiDriverResponse,
@@ -82,14 +82,59 @@ export class DriverRepository implements IDriverRepository {
   }
 
   /**
+   * Verifica si existe un conductor con el número de licencia dado
+   */
+  async existsByLicenseNumber(licenseNumber: string): Promise<boolean> {
+    try {
+      const response = await apiClient.get<{ exists: boolean }>(
+        `${DRIVERS_ENDPOINT}/check-license/${licenseNumber}`,
+      );
+      return response.exists ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene conductores disponibles
+   */
+  async findAvailable(): Promise<DriverListItem[]> {
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ApiDriverListItemResponse>
+    >(`${DRIVERS_ENDPOINT}/available`);
+
+    const mapped = mapPaginatedDriverListItems(response);
+    return mapped.data;
+  }
+
+  /**
+   * Obtiene los viajes de un conductor
+   */
+  async findTrips(
+    driverId: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<MappedPaginatedResult<DriverTripSummary>> {
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ApiDriverTripResponse>
+    >(`${DRIVERS_ENDPOINT}/${driverId}/trips`, {
+      params: {
+        page: params?.page ?? 1,
+        limit: params?.limit ?? 10,
+      },
+    });
+
+    return mapPaginatedDriverTrips(response);
+  }
+
+  /**
    * Crea un nuevo conductor
    */
   async create(data: CreateDriverDTO): Promise<MappedSingleResult<Driver>> {
-    const apiData = toApiCreateDriver(data);
+    // const apiData = toApiCreateDriver(data);
 
     const response = await apiClient.post<ApiSingleResponse<ApiDriverResponse>>(
       DRIVERS_ENDPOINT,
-      apiData,
+      data,
     );
 
     return mapDriver(response);
@@ -140,51 +185,6 @@ export class DriverRepository implements IDriverRepository {
     };
   }
 
-  /**
-   * Verifica si existe un conductor con el número de licencia dado
-   */
-  async existsByLicenseNumber(licenseNumber: string): Promise<boolean> {
-    try {
-      const response = await apiClient.get<{ exists: boolean }>(
-        `${DRIVERS_ENDPOINT}/check-license/${licenseNumber}`,
-      );
-      return response.exists ?? false;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Obtiene conductores disponibles
-   */
-  async findAvailable(): Promise<DriverListItem[]> {
-    const response = await apiClient.get<
-      ApiPaginatedResponse<ApiDriverListItemResponse>
-    >(`${DRIVERS_ENDPOINT}/available`);
-
-    const mapped = mapPaginatedDriverListItems(response);
-    return mapped.data;
-  }
-
-  /**
-   * Obtiene los viajes de un conductor
-   */
-  async findTrips(
-    driverId: string,
-    params?: { page?: number; limit?: number },
-  ): Promise<MappedPaginatedResult<DriverTripSummary>> {
-    const response = await apiClient.get<
-      ApiPaginatedResponse<ApiDriverTripResponse>
-    >(`${DRIVERS_ENDPOINT}/${driverId}/trips`, {
-      params: {
-        page: params?.page ?? 1,
-        limit: params?.limit ?? 10,
-      },
-    });
-
-    return mapPaginatedDriverTrips(response);
-  }
-
   // ============================================================================
   // PRIVATE METHODS
   // ============================================================================
@@ -204,8 +204,8 @@ export class DriverRepository implements IDriverRepository {
 
     // Ordenamiento
     if (params.sort?.field) {
-      queryParams.sortBy = params.sort.field;
-      queryParams.sortOrder = params.sort.direction ?? "desc";
+      queryParams.sort_by = params.sort.field;
+      queryParams.sort_order = params.sort.direction ?? "desc";
     }
 
     // Filtros
@@ -222,14 +222,14 @@ export class DriverRepository implements IDriverRepository {
       if (status) {
         queryParams.status = Array.isArray(status) ? status : [status];
       }
-      if (licenseType) queryParams.licenseType = licenseType;
+      if (licenseType) queryParams.license_type = licenseType;
       if (search) queryParams.search = search;
       if (licenseExpiringSoon !== undefined)
-        queryParams.licenseExpiringSoon = licenseExpiringSoon;
+        queryParams.license_expiring_soon = licenseExpiringSoon;
       if (minExperience !== undefined)
-        queryParams.minExperience = minExperience;
+        queryParams.min_experience = minExperience;
       if (maxExperience !== undefined)
-        queryParams.maxExperience = maxExperience;
+        queryParams.max_experience = maxExperience;
     }
 
     return queryParams;

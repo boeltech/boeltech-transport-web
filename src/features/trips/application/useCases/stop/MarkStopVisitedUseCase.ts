@@ -30,18 +30,18 @@ export class MarkStopVisitedUseCase implements IMarkStopVisitedUseCase {
       // Verificar que el viaje existe
       const trip = await this.tripRepository.findById(tripId);
 
-      if (!trip.data) {
+      if (!trip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: trip.message ? trip.message : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
       // Solo se pueden marcar paradas en viajes en curso
-      if (trip.data.status !== TripStatus.IN_PROGRESS) {
+      if (trip.status !== TripStatus.IN_PROGRESS) {
         return {
           success: false,
           error: {

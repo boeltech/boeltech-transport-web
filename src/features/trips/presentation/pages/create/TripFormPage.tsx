@@ -5,6 +5,14 @@
  * Formulario tipo wizard para crear y editar viajes.
  * Incluye pasos para: información básica, ruta, cargas, costos y resumen.
  *
+ * ACTUALIZADO: Usa useCreateTrip con endpoint transaccional
+ * POST /api/v1/trips/with-details
+ *
+ * GARANTÍAS:
+ * - Atomicidad: Todo se crea o nada se crea
+ * - Una sola llamada HTTP
+ * - No hay datos huérfanos si algo falla
+ *
  * Ubicación: src/pages/trips/create/TripFormPage.tsx
  */
 
@@ -24,6 +32,7 @@ import {
   useCreateTrip,
   useUpdateTrip,
   StopType,
+  TripCreationError,
 } from "@/features/trips";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
@@ -206,23 +215,15 @@ export function TripFormPage() {
   // Mutations
   // ============================================
 
-  const createMutation = useCreateTrip({
-    onSuccess: (response) => {
-      toast({
-        title: "Viaje creado exitosamente",
-        description: `Código: ${response.tripCode}`,
-        variant: "success",
-      });
-      navigate(`/trips/${response.id}`);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al crear viaje",
-        description: error.message,
-        variant: "error",
-      });
-    },
-  });
+  /**
+   * useCreateTrip: Usa endpoint transaccional POST /api/v1/trips/with-details
+   *
+   * GARANTÍAS:
+   * - Todo se crea o nada se crea (transacción en el backend)
+   * - Una sola llamada HTTP
+   * - Rollback automático si algo falla
+   */
+  const createMutation = useCreateTrip();
 
   const updateMutation = useUpdateTrip({
     onSuccess: () => {
@@ -242,24 +243,6 @@ export function TripFormPage() {
   // Validación por paso
   // ============================================
 
-  /**
-   * Valida el paso de cargas:
-   *
-   * 1. Cada parada pickup debe tener al menos una carga.
-   * 2. Si una carga tiene deliveries asignados:
-   *    a. Suma de peso en deliveries NO debe exceder el peso de la carga.
-   *    b. Suma de unidades en deliveries NO debe exceder las unidades de la carga.
-   *    c. Suma de peso/unidades debe ser IGUAL al total (asignación completa).
-   * 3. Si una carga NO tiene deliveries asignados:
-   *    a. Solo se permite si existe exactamente 1 parada con operación de descarga
-   *       (destino implícito). Se notifica al usuario.
-   *    b. Si hay más de 1 parada de descarga → bloquea (ambigüedad).
-   *
-   * Retorna:
-   * - isValid: si se permite avanzar
-   * - message: mensaje de error (cuando isValid = false)
-   * - warning: mensaje de advertencia (cuando isValid = true pero hay destino implícito)
-   */
   const validateCargoStep = useCallback((): {
     isValid: boolean;
     message?: string;
@@ -496,7 +479,48 @@ export function TripFormPage() {
     const originStop = data.stops?.[0];
     const destinationStop = data.stops?.[data.stops.length - 1];
 
-    const preparedData = {
+    // ════════════════════════════════════════════════════════════════════════
+    // MODO EDICIÓN: Usar updateMutation
+    // ════════════════════════════════════════════════════════════════════════
+    if (isEditMode && id) {
+      const preparedData = {
+        vehicleId: data.vehicleId,
+        driverId: data.driverId,
+        clientId: data.clientId || undefined,
+        scheduledDeparture: localDateTimeToISO(data.scheduledDeparture),
+        scheduledArrival: data.scheduledArrival
+          ? localDateTimeToISO(data.scheduledArrival)
+          : undefined,
+        startMileage: data.startMileage,
+        originAddress: originStop?.address || "",
+        originCity: originStop?.city || "",
+        originState: originStop?.state || undefined,
+        destinationAddress: destinationStop?.address || "",
+        destinationCity: destinationStop?.city || "",
+        destinationState: destinationStop?.state || undefined,
+        cargoDescription: data.cargos?.[0]?.description,
+        cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
+        cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
+        cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
+        cargoValue: data.cargos?.reduce(
+          (sum, c) => sum + (c.declaredValue || 0),
+          0,
+        ),
+        baseRate: data.baseRate,
+        notes: data.notes || undefined,
+        // TODO: Implementar update de stops, cargos y expenses
+      };
+
+      updateMutation.mutate({ id, data: preparedData });
+      return;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODO CREACIÓN: Endpoint transaccional
+    // ════════════════════════════════════════════════════════════════════════
+
+    const createInput = {
+      // Datos del viaje
       vehicleId: data.vehicleId,
       driverId: data.driverId,
       clientId: data.clientId || undefined,
@@ -522,6 +546,8 @@ export function TripFormPage() {
       ),
       baseRate: data.baseRate,
       notes: data.notes || undefined,
+
+      // Paradas
       stops: data.stops?.map((stop) => ({
         sequenceOrder: stop.sequenceOrder,
         stopType: stop.stopType,
@@ -562,15 +588,16 @@ export function TripFormPage() {
         declaredValue: cargo.declaredValue,
         rate: cargo.rate,
         currency: cargo.currency,
-        movements: cargo.movements.map((m) => ({
+        notes: cargo.notes,
+        specialInstructions: cargo.specialInstructions,
+        movements: cargo.movements?.map((m) => ({
           stopIndex: m.stopIndex,
           movementType: m.movementType,
           weight: m.weight,
           units: m.units,
           notes: m.notes,
         })),
-        notes: cargo.notes,
-        specialInstructions: cargo.specialInstructions,
+
         // Carta Porte 3.1
         satProductCode: cargo.satProductCode,
         satUnitCode: cargo.satUnitCode,
@@ -582,7 +609,9 @@ export function TripFormPage() {
         packagingType: cargo.packagingType,
         packagingDescription: cargo.packagingDescription,
       })),
-      expenses: data.expenses?.map((expense) => ({
+
+      // Gastos estimados
+      estimatedExpenses: data.expenses?.map((expense) => ({
         category: expense.category,
         description: expense.description,
         amount: expense.amount,
@@ -593,14 +622,49 @@ export function TripFormPage() {
         location: expense.location,
         vendorName: expense.vendorName,
         notes: expense.notes,
-        isEstimated: expense.isEstimated,
+        isEstimated: true,
       })),
     };
 
-    if (isEditMode && id) {
-      updateMutation.mutate({ id, data: preparedData });
-    } else {
-      createMutation.mutate(preparedData);
+    try {
+      const result = await createMutation.mutateAsync(createInput);
+
+      // Notificar éxito con detalles
+      // const details: string[] = [`Código: ${result.summary.tripCode}`];
+      // if (result.summary.stopsCreated > 0) {
+      //   details.push(`${result.summary.stopsCreated} parada(s)`);
+      // }
+      // if (result.summary.cargosCreated > 0) {
+      //   details.push(`${result.summary.cargosCreated} carga(s)`);
+      // }
+      // if (result.summary.expensesCreated > 0) {
+      //   details.push(`${result.summary.expensesCreated} gasto(s) estimado(s)`);
+      // }
+
+      toast({
+        title: "Viaje creado exitosamente",
+        // description: details.join(" • "),
+        variant: "success",
+      });
+
+      // navigate(`/trips/${result.summary.tripId}`);
+      navigate(`/trips/${result.trip.id}`);
+    } catch (error) {
+      // Error - nada se guardó (rollback automático en el backend)
+      if (error instanceof TripCreationError) {
+        toast({
+          title: "Error al crear viaje",
+          description: error.message,
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: "Error al crear viaje",
+          description:
+            error instanceof Error ? error.message : "Error desconocido",
+          variant: "error",
+        });
+      }
     }
   };
 

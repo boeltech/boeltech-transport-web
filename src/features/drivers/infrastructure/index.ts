@@ -13,7 +13,7 @@ export {
   mapDriver,
   mapPaginatedDriverListItems,
   mapPaginatedDriverTrips,
-  toApiCreateDriver,
+  // toApiCreateDriver,
   toApiUpdateDriver,
   toApiUpdateStatus,
   type ApiDriverResponse,

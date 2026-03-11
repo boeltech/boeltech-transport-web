@@ -117,7 +117,7 @@ function calculateDriverAssignability(
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
   // if (licenseExpiry <= thirtyDaysFromNow) {
-  if (driver.licenseExpiration <= thirtyDaysFromNow) {
+  if (driver.licenseExpiry <= thirtyDaysFromNow) {
     // Permitir asignar pero con advertencia (no bloqueamos)
     return {
       canBeAssigned: true,

@@ -172,7 +172,8 @@ export interface UpdateVehiclePayload extends Partial<
 // QUERY TYPES
 // ============================================================================
 
-export interface VehicleFilters {
+//
+export interface VehicleFiltersType {
   readonly status?: VehicleStatusType | VehicleStatusType[];
   readonly type?: VehicleTypeValue;
   readonly isActive?: boolean;
@@ -190,7 +191,7 @@ export interface VehicleSortOptions {
 }
 
 export interface VehicleQueryParams {
-  readonly filters?: VehicleFilters;
+  readonly filters?: VehicleFiltersType;
   readonly sort?: VehicleSortOptions;
   readonly page?: number;
   readonly limit?: number;

@@ -5,14 +5,8 @@ import {
 } from "@tanstack/react-query";
 import type { Trip, TripStatusType } from "@features/trips/domain";
 import { createUpdateTripStatusUseCase } from "@features/trips/application";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
+import { tripRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para actualizar estado
@@ -41,7 +35,10 @@ export function useUpdateTripStatus(
       }
       return result.data;
     },
-    onMutate: async ({ id, status }): Promise<{ previous: Trip | undefined }> => {
+    onMutate: async ({
+      id,
+      status,
+    }): Promise<{ previous: Trip | undefined }> => {
       await queryClient.cancelQueries({ queryKey: tripQueryKeys.detail(id) });
       const previous = queryClient.getQueryData<Trip>(tripQueryKeys.detail(id));
 

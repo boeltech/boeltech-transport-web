@@ -2,9 +2,12 @@
  * DriverCreatePage
  * Clean Architecture - Presentation Layer (Pages)
  *
- * Página para crear un nuevo conductor.
+ * Página para registrar un nuevo conductor.
  *
- * Ubicación: src/features/drivers/presentation/pages/DriverCreatePage.tsx
+ * Flujo:
+ * 1. Usuario selecciona un empleado existente
+ * 2. Usuario completa datos de licencia y certificados
+ * 3. Se crea el registro de conductor vinculado al empleado
  */
 
 import { useNavigate } from "react-router-dom";
@@ -14,10 +17,17 @@ import { ArrowLeft, UserPlus } from "lucide-react";
 import { useToast } from "@shared/hooks";
 import { useCreateDriver } from "../../application";
 import { DriverForm } from "../components/DriverForm";
-import type { DriverFormData } from "../validation/driverSchema";
+import {
+  type DriverFormData,
+  // toApiCreateDriver,
+} from "../validation/driverSchema";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 
 // ============================================================================
-// COMPONENT
+// Component
 // ============================================================================
 
 export function DriverCreatePage() {
@@ -25,49 +35,43 @@ export function DriverCreatePage() {
   const { toast } = useToast();
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MUTATIONS
+  // Mutations
   // ══════════════════════════════════════════════════════════════════════════
 
   const createMutation = useCreateDriver({
     onSuccess: (driver) => {
       toast({
-        title: "Conductor creado",
+        title: "Conductor registrado",
         description: "El conductor ha sido registrado exitosamente",
         variant: "success",
       });
       navigate(`/drivers/${driver.id}`);
     },
     onError: (error) => {
-      toast({
-        title: "Error al crear conductor",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (isApiError(error)) {
+        toast({
+          title: "Error al registrar conductor",
+          description: error.getDetailedMessage(),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error al registrar conductor",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      }
     },
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // HANDLERS
+  // Handlers
   // ══════════════════════════════════════════════════════════════════════════
 
   const handleSubmit = (data: DriverFormData) => {
-    createMutation.mutate({
-      employeeId: data.employeeId,
-      licenseNumber: data.licenseNumber,
-      licenseType: data.licenseType,
-      licenseExpiration: data.licenseExpiration,
-      licenseIssuedDate: data.licenseIssuedDate || undefined,
-      licenseIssuingState: data.licenseIssuingState || undefined,
-      yearsOfExperience: data.yearsOfExperience,
-      bloodType: data.bloodType || undefined,
-      medicalCertificateExpiration:
-        data.medicalCertificateExpiration || undefined,
-      notes: data.notes || undefined,
-      emergencyContactName: data.emergencyContactName || undefined,
-      emergencyContactPhone: data.emergencyContactPhone || undefined,
-      emergencyContactRelationship:
-        data.emergencyContactRelationship || undefined,
-    });
+    // Transformar a formato API (snake_case)
+    // const apiData = toApiCreateDriver(data);
+    createMutation.mutate(data);
   };
 
   const handleCancel = () => {
@@ -75,7 +79,7 @@ export function DriverCreatePage() {
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER
+  // Render
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
@@ -94,9 +98,9 @@ export function DriverCreatePage() {
             <UserPlus className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Nuevo Conductor</h1>
+            <h1 className="text-2xl font-bold">Registrar Conductor</h1>
             <p className="text-sm text-muted-foreground">
-              Registrar un nuevo conductor en el sistema
+              Registrar un empleado existente como conductor
             </p>
           </div>
         </div>

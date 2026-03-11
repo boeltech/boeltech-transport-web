@@ -27,20 +27,20 @@ export class DeleteStopUseCase implements IDeleteStopUseCase {
       // Verificar que el viaje existe
       const trip = await this.tripRepository.findById(tripId);
 
-      if (!trip.data) {
+      if (!trip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: trip.message ? trip.message : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.data.status !== TripStatus.DRAFT &&
-        trip.data.status !== TripStatus.SCHEDULED
+        trip.status !== TripStatus.DRAFT &&
+        trip.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,

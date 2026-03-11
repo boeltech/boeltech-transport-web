@@ -10,12 +10,7 @@ import type {
   CargoMovement,
   CargoStatusType,
   CargoMovementTypeValue,
-} from "@features/trips/domain/entities";
-import type {
-  CreateCargoDTO,
-  UpdateCargoDTO,
-  CreateCargoMovementDTO,
-} from "@features/trips/domain";
+} from "@features/trips/domain/entities/entities";
 import type { MappedSingleResult } from "@shared/api";
 
 // ============================================================================
@@ -54,11 +49,11 @@ export interface ApiCargoResponse {
   rate: number;
   currency: string;
   movements: ApiCargoMovementResponse[];
-  pickup_stop_id: string | null;
-  delivery_stop_id: string | null;
+  // pickup_stop_id: string | null;
+  // delivery_stop_id: string | null;
   status: CargoStatusType;
-  picked_up_at: string | null;
-  delivered_at: string | null;
+  // picked_up_at: string | null;
+  // delivered_at: string | null;
   notes: string | null;
   special_instructions: string | null;
   // Carta Porte
@@ -124,11 +119,11 @@ export function mapApiCargo(api: ApiCargoResponse): TripCargo {
     rate: api.rate,
     currency: api.currency,
     movements: api.movements?.map(mapApiCargoMovement) || [],
-    pickupStopId: api.pickup_stop_id,
-    deliveryStopId: api.delivery_stop_id,
+    // pickupStopId: api.pickup_stop_id,
+    // deliveryStopId: api.delivery_stop_id,
     status: api.status,
-    pickedUpAt: api.picked_up_at ? new Date(api.picked_up_at) : null,
-    deliveredAt: api.delivered_at ? new Date(api.delivered_at) : null,
+    // pickedUpAt: api.picked_up_at ? new Date(api.picked_up_at) : null,
+    // deliveredAt: api.delivered_at ? new Date(api.delivered_at) : null,
     notes: api.notes,
     specialInstructions: api.special_instructions,
     // Carta Porte
@@ -198,95 +193,95 @@ export function mapCargoMovementResponse(response: {
 /**
  * Convierte DTO de crear carga a formato API
  */
-export function toApiCreateCargo(dto: CreateCargoDTO): Record<string, unknown> {
-  return {
-    client_id: dto.clientId,
-    description: dto.description,
-    product_type: dto.productType,
-    weight: dto.weight,
-    volume: dto.volume,
-    units: dto.units,
-    declared_value: dto.declaredValue,
-    rate: dto.rate,
-    currency: dto.currency ?? "MXN",
-    pickup_stop_id: dto.pickupStopId,
-    delivery_stop_id: dto.deliveryStopId,
-    notes: dto.notes,
-    special_instructions: dto.specialInstructions,
-    movements: dto.movements?.map((m) => ({
-      stop_id: m.stopId,
-      stop_index: m.stopIndex,
-      movement_type: m.movementType,
-      weight: m.weight,
-      units: m.units,
-      notes: m.notes,
-    })),
-    // Carta Porte
-    sat_product_code: dto.satProductCode,
-    sat_unit_code: dto.satUnitCode,
-    sat_unit_name: dto.satUnitName,
-    weight_in_kg: dto.weightInKg,
-    dimensions: dto.dimensions,
-    hazardous_material: dto.hazardousMaterial,
-    hazardous_material_code: dto.hazardousMaterialCode,
-    packaging_type: dto.packagingType,
-    packaging_description: dto.packagingDescription,
-  };
-}
+// export function toApiCreateCargo(dto: CreateCargoDTO): Record<string, unknown> {
+//   return {
+//     client_id: dto.clientId,
+//     description: dto.description,
+//     product_type: dto.productType,
+//     weight: dto.weight,
+//     volume: dto.volume,
+//     units: dto.units,
+//     declared_value: dto.declaredValue,
+//     rate: dto.rate,
+//     currency: dto.currency ?? "MXN",
+//     pickup_stop_id: dto.pickupStopId,
+//     delivery_stop_id: dto.deliveryStopId,
+//     notes: dto.notes,
+//     special_instructions: dto.specialInstructions,
+//     movements: dto.movements?.map((m) => ({
+//       stop_id: m.stopId,
+//       stop_index: m.stopIndex,
+//       movement_type: m.movementType,
+//       weight: m.weight,
+//       units: m.units,
+//       notes: m.notes,
+//     })),
+//     // Carta Porte
+//     sat_product_code: dto.satProductCode,
+//     sat_unit_code: dto.satUnitCode,
+//     sat_unit_name: dto.satUnitName,
+//     weight_in_kg: dto.weightInKg,
+//     dimensions: dto.dimensions,
+//     hazardous_material: dto.hazardousMaterial,
+//     hazardous_material_code: dto.hazardousMaterialCode,
+//     packaging_type: dto.packagingType,
+//     packaging_description: dto.packagingDescription,
+//   };
+// }
 
 /**
  * Convierte DTO de actualizar carga a formato API
  */
-export function toApiUpdateCargo(dto: UpdateCargoDTO): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+// export function toApiUpdateCargo(dto: UpdateCargoDTO): Record<string, unknown> {
+//   const result: Record<string, unknown> = {};
 
-  if (dto.description !== undefined) result.description = dto.description;
-  if (dto.productType !== undefined) result.product_type = dto.productType;
-  if (dto.weight !== undefined) result.weight = dto.weight;
-  if (dto.volume !== undefined) result.volume = dto.volume;
-  if (dto.units !== undefined) result.units = dto.units;
-  if (dto.declaredValue !== undefined)
-    result.declared_value = dto.declaredValue;
-  if (dto.rate !== undefined) result.rate = dto.rate;
-  if (dto.currency !== undefined) result.currency = dto.currency;
-  if (dto.pickupStopId !== undefined) result.pickup_stop_id = dto.pickupStopId;
-  if (dto.deliveryStopId !== undefined)
-    result.delivery_stop_id = dto.deliveryStopId;
-  if (dto.notes !== undefined) result.notes = dto.notes;
-  if (dto.specialInstructions !== undefined)
-    result.special_instructions = dto.specialInstructions;
-  if (dto.status !== undefined) result.status = dto.status;
-  // Carta Porte
-  if (dto.satProductCode !== undefined)
-    result.sat_product_code = dto.satProductCode;
-  if (dto.satUnitCode !== undefined) result.sat_unit_code = dto.satUnitCode;
-  if (dto.satUnitName !== undefined) result.sat_unit_name = dto.satUnitName;
-  if (dto.weightInKg !== undefined) result.weight_in_kg = dto.weightInKg;
-  if (dto.dimensions !== undefined) result.dimensions = dto.dimensions;
-  if (dto.hazardousMaterial !== undefined)
-    result.hazardous_material = dto.hazardousMaterial;
-  if (dto.hazardousMaterialCode !== undefined)
-    result.hazardous_material_code = dto.hazardousMaterialCode;
-  if (dto.packagingType !== undefined)
-    result.packaging_type = dto.packagingType;
-  if (dto.packagingDescription !== undefined)
-    result.packaging_description = dto.packagingDescription;
+//   if (dto.description !== undefined) result.description = dto.description;
+//   if (dto.productType !== undefined) result.product_type = dto.productType;
+//   if (dto.weight !== undefined) result.weight = dto.weight;
+//   if (dto.volume !== undefined) result.volume = dto.volume;
+//   if (dto.units !== undefined) result.units = dto.units;
+//   if (dto.declaredValue !== undefined)
+//     result.declared_value = dto.declaredValue;
+//   if (dto.rate !== undefined) result.rate = dto.rate;
+//   if (dto.currency !== undefined) result.currency = dto.currency;
+//   if (dto.pickupStopId !== undefined) result.pickup_stop_id = dto.pickupStopId;
+//   if (dto.deliveryStopId !== undefined)
+//     result.delivery_stop_id = dto.deliveryStopId;
+//   if (dto.notes !== undefined) result.notes = dto.notes;
+//   if (dto.specialInstructions !== undefined)
+//     result.special_instructions = dto.specialInstructions;
+//   if (dto.status !== undefined) result.status = dto.status;
+//   // Carta Porte
+//   if (dto.satProductCode !== undefined)
+//     result.sat_product_code = dto.satProductCode;
+//   if (dto.satUnitCode !== undefined) result.sat_unit_code = dto.satUnitCode;
+//   if (dto.satUnitName !== undefined) result.sat_unit_name = dto.satUnitName;
+//   if (dto.weightInKg !== undefined) result.weight_in_kg = dto.weightInKg;
+//   if (dto.dimensions !== undefined) result.dimensions = dto.dimensions;
+//   if (dto.hazardousMaterial !== undefined)
+//     result.hazardous_material = dto.hazardousMaterial;
+//   if (dto.hazardousMaterialCode !== undefined)
+//     result.hazardous_material_code = dto.hazardousMaterialCode;
+//   if (dto.packagingType !== undefined)
+//     result.packaging_type = dto.packagingType;
+//   if (dto.packagingDescription !== undefined)
+//     result.packaging_description = dto.packagingDescription;
 
-  return result;
-}
+//   return result;
+// }
 
 /**
  * Convierte DTO de crear movimiento a formato API
  */
-export function toApiCreateCargoMovement(
-  dto: CreateCargoMovementDTO,
-): Record<string, unknown> {
-  return {
-    stop_id: dto.stopId,
-    stop_index: dto.stopIndex,
-    movement_type: dto.movementType,
-    weight: dto.weight,
-    units: dto.units,
-    notes: dto.notes,
-  };
-}
+// export function toApiCreateCargoMovement(
+//   dto: CreateCargoMovementDTO,
+// ): Record<string, unknown> {
+//   return {
+//     stop_id: dto.stopId,
+//     stop_index: dto.stopIndex,
+//     movement_type: dto.movementType,
+//     weight: dto.weight,
+//     units: dto.units,
+//     notes: dto.notes,
+//   };
+// }

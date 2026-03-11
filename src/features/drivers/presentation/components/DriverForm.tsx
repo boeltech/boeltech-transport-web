@@ -2,15 +2,22 @@
  * DriverForm
  * Clean Architecture - Presentation Layer (Components)
  *
- * Formulario reutilizable para crear y editar conductores.
- * Usa React Hook Form + Zod para validación.
+ * Formulario para crear y editar conductores.
  *
- * Ubicación: src/features/drivers/presentation/components/DriverForm.tsx
+ * IMPORTANTE: Los datos personales del conductor están en el módulo employees.
+ * Este formulario solo captura:
+ * - Selección del empleado
+ * - Datos de licencia
+ * - Certificado médico
+ * - Exámenes (psicométrico y antidoping)
+ * - Dispositivo GPS/Telemetría
+ * - Notas
  */
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -29,27 +36,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@shared/ui/card";
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
   Loader2,
   User,
   CreditCard,
-  Heart,
-  Users,
+  Stethoscope,
+  Brain,
+  FlaskConical,
+  Cpu,
   FileText,
+  Info,
+  ExternalLink,
 } from "lucide-react";
 
-import { LICENSE_TYPE_LABELS, type Driver } from "../../domain";
+import type { Driver } from "../../domain";
+import { EmployeeSelector } from "./EmployeeSelector";
 import {
   driverSchema,
   type DriverFormData,
   defaultDriverFormValues,
-  BLOOD_TYPE_OPTIONS,
-  RELATIONSHIP_OPTIONS,
+  LICENSE_TYPES,
   MEXICAN_STATES,
+  PSYCHOMETRIC_RESULTS,
+  DRUG_TEST_RESULTS,
 } from "../validation/driverSchema";
 
 // ============================================================================
-// TYPES
+// Types
 // ============================================================================
 
 interface DriverFormProps {
@@ -65,54 +79,8 @@ interface DriverFormProps {
   mode: "create" | "edit";
 }
 
-interface EmployeeOption {
-  id: string;
-  employeeNumber: string;
-  fullName: string;
-}
-
-interface EmployeeSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  disabled?: boolean;
-}
-
 // ============================================================================
-// EMPLOYEE SELECTOR (Placeholder - Implementar con useAvailableEmployees)
-// ============================================================================
-
-function EmployeeSelector({
-  value,
-  onChange,
-  error,
-  disabled,
-}: EmployeeSelectorProps) {
-  // TODO: Implementar con hook useAvailableEmployees
-  // Por ahora es un input de texto para el ID
-  return (
-    <div className="space-y-2">
-      <Label htmlFor="employeeId">
-        Empleado <span className="text-destructive">*</span>
-      </Label>
-      <Input
-        id="employeeId"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="ID del empleado (UUID)"
-        disabled={disabled}
-        className={error ? "border-destructive" : ""}
-      />
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <p className="text-xs text-muted-foreground">
-        Seleccione el empleado que será registrado como conductor
-      </p>
-    </div>
-  );
-}
-
-// ============================================================================
-// FORM FIELD COMPONENT
+// Form Field Component
 // ============================================================================
 
 interface FormFieldProps {
@@ -147,7 +115,7 @@ function FormField({
 }
 
 // ============================================================================
-// MAIN COMPONENT
+// Main Component
 // ============================================================================
 
 export function DriverForm({
@@ -172,9 +140,9 @@ export function DriverForm({
   // Watch values for controlled components
   const watchedEmployeeId = watch("employeeId");
   const watchedLicenseType = watch("licenseType");
-  const watchedBloodType = watch("bloodType");
-  const watchedIssuingState = watch("licenseIssuingState");
-  const watchedRelationship = watch("emergencyContactRelationship");
+  const watchedLicenseState = watch("licenseState");
+  const watchedPsychometricResult = watch("psychometricTestResult");
+  const watchedDrugTestResult = watch("drugTestResult");
 
   // Populate form when editing
   useEffect(() => {
@@ -183,24 +151,27 @@ export function DriverForm({
         employeeId: driver.employeeId,
         licenseNumber: driver.licenseNumber,
         licenseType: driver.licenseType,
-        licenseExpiration: driver.licenseExpiration
-          ? new Date(driver.licenseExpiration).toISOString().split("T")[0]
+        licenseExpiry: driver.licenseExpiry
+          ? new Date(driver.licenseExpiry).toISOString().split("T")[0]
           : "",
-        licenseIssuedDate: driver.licenseIssuedDate
-          ? new Date(driver.licenseIssuedDate).toISOString().split("T")[0]
-          : "",
-        licenseIssuingState: driver.licenseIssuingState || "",
-        yearsOfExperience: driver.yearsOfExperience || 0,
-        bloodType: driver.bloodType || "",
-        medicalCertificateExpiration: driver.medicalCertificateExpiration
-          ? new Date(driver.medicalCertificateExpiration)
+        licenseState: driver.licenseIssuingState || "",
+        medicalCertificateNumber: driver.medicalCertificateNumber || "",
+        medicalCertificateExpiry: driver.medicalCertificateExpiry
+          ? new Date(driver.medicalCertificateExpiry)
               .toISOString()
               .split("T")[0]
           : "",
+        medicalCertificateIssuer: driver.medicalCertificateIssuer || "",
+        psychometricTestDate: driver.psychometricTestDate
+          ? new Date(driver.psychometricTestDate).toISOString().split("T")[0]
+          : "",
+        psychometricTestResult: driver.psychometricTestResult || "",
+        lastDrugTestDate: driver.lastDrugTestDate
+          ? new Date(driver.lastDrugTestDate).toISOString().split("T")[0]
+          : "",
+        drugTestResult: driver.drugTestResult || "",
+        assignedDeviceId: driver.assignedDeviceId || "",
         notes: driver.notes || "",
-        emergencyContactName: driver.emergencyContactName || "",
-        emergencyContactPhone: driver.emergencyContactPhone || "",
-        emergencyContactRelationship: driver.emergencyContactRelationship || "",
       });
     }
   }, [driver, mode, reset]);
@@ -211,6 +182,25 @@ export function DriverForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {/* ================================================================== */}
+      {/* INFO BANNER - Solo en modo crear                                   */}
+      {/* ================================================================== */}
+      {mode === "create" && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Para registrar un conductor, primero debe existir como empleado en
+            el sistema.{" "}
+            <Link
+              to="/employees/new"
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              Crear empleado <ExternalLink className="h-3 w-3" />
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ================================================================== */}
       {/* SECCIÓN: EMPLEADO                                                  */}
       {/* ================================================================== */}
@@ -226,7 +216,9 @@ export function DriverForm({
         <CardContent>
           <EmployeeSelector
             value={watchedEmployeeId || ""}
-            onChange={(value) => setValue("employeeId", value)}
+            onChange={(value) =>
+              setValue("employeeId", value, { shouldValidate: true })
+            }
             error={errors.employeeId?.message}
             disabled={mode === "edit"}
           />
@@ -239,10 +231,10 @@ export function DriverForm({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <CreditCard className="h-5 w-5" /> Información de Licencia
+            <CreditCard className="h-5 w-5" /> Licencia de Conducir
           </CardTitle>
           <CardDescription>
-            Datos de la licencia de conducir del operador
+            Información de la licencia federal de conducir
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -272,7 +264,11 @@ export function DriverForm({
               <Select
                 value={watchedLicenseType}
                 onValueChange={(value) =>
-                  setValue("licenseType", value as typeof watchedLicenseType)
+                  setValue(
+                    "licenseType",
+                    value as DriverFormData["licenseType"],
+                    // value as typeof watchedLicenseType,
+                  )
                 }
               >
                 <SelectTrigger
@@ -281,54 +277,39 @@ export function DriverForm({
                   <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(LICENSE_TYPE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {LICENSE_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </FormField>
 
-            {/* Fecha de emisión */}
-            <FormField
-              label="Fecha de emisión"
-              htmlFor="licenseIssuedDate"
-              error={errors.licenseIssuedDate?.message}
-            >
-              <Input
-                id="licenseIssuedDate"
-                type="date"
-                {...register("licenseIssuedDate")}
-              />
-            </FormField>
-
             {/* Fecha de vencimiento */}
             <FormField
               label="Fecha de vencimiento"
-              htmlFor="licenseExpiration"
+              htmlFor="licenseExpiry"
               required
-              error={errors.licenseExpiration?.message}
+              error={errors.licenseExpiry?.message}
             >
               <Input
-                id="licenseExpiration"
+                id="licenseExpiry"
                 type="date"
-                {...register("licenseExpiration")}
-                className={errors.licenseExpiration ? "border-destructive" : ""}
+                {...register("licenseExpiry")}
+                className={errors.licenseExpiry ? "border-destructive" : ""}
               />
             </FormField>
 
             {/* Estado emisor */}
             <FormField
               label="Estado emisor"
-              htmlFor="licenseIssuingState"
-              error={errors.licenseIssuingState?.message}
+              htmlFor="licenseState"
+              error={errors.licenseState?.message}
             >
               <Select
-                value={watchedIssuingState || ""}
-                onValueChange={(value) =>
-                  setValue("licenseIssuingState", value)
-                }
+                value={watchedLicenseState || ""}
+                onValueChange={(value) => setValue("licenseState", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar estado" />
@@ -342,141 +323,199 @@ export function DriverForm({
                 </SelectContent>
               </Select>
             </FormField>
-
-            {/* Años de experiencia */}
-            <FormField
-              label="Años de experiencia"
-              htmlFor="yearsOfExperience"
-              error={errors.yearsOfExperience?.message}
-            >
-              <Input
-                id="yearsOfExperience"
-                type="number"
-                min={0}
-                max={60}
-                {...register("yearsOfExperience", { valueAsNumber: true })}
-              />
-            </FormField>
           </div>
         </CardContent>
       </Card>
 
       {/* ================================================================== */}
-      {/* SECCIÓN: INFORMACIÓN MÉDICA                                        */}
+      {/* SECCIÓN: CERTIFICADO MÉDICO                                        */}
       {/* ================================================================== */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Heart className="h-5 w-5" /> Información Médica
+            <Stethoscope className="h-5 w-5" /> Certificado Médico
           </CardTitle>
           <CardDescription>
-            Datos médicos relevantes del conductor (opcional)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Tipo de sangre */}
-            <FormField
-              label="Tipo de sangre"
-              htmlFor="bloodType"
-              error={errors.bloodType?.message}
-            >
-              <Select
-                value={watchedBloodType || ""}
-                onValueChange={(value) => setValue("bloodType", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BLOOD_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-
-            {/* Vencimiento certificado médico */}
-            <FormField
-              label="Vencimiento certificado médico"
-              htmlFor="medicalCertificateExpiration"
-              error={errors.medicalCertificateExpiration?.message}
-            >
-              <Input
-                id="medicalCertificateExpiration"
-                type="date"
-                {...register("medicalCertificateExpiration")}
-              />
-            </FormField>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ================================================================== */}
-      {/* SECCIÓN: CONTACTO DE EMERGENCIA                                    */}
-      {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="h-5 w-5" /> Contacto de Emergencia
-          </CardTitle>
-          <CardDescription>
-            Persona a contactar en caso de emergencia (opcional)
+            Certificado de aptitud médica para conducir
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Nombre */}
+            {/* Número de certificado */}
             <FormField
-              label="Nombre"
-              htmlFor="emergencyContactName"
-              error={errors.emergencyContactName?.message}
+              label="Número de certificado"
+              htmlFor="medicalCertificateNumber"
+              error={errors.medicalCertificateNumber?.message}
             >
               <Input
-                id="emergencyContactName"
-                {...register("emergencyContactName")}
-                placeholder="Nombre completo"
+                id="medicalCertificateNumber"
+                {...register("medicalCertificateNumber")}
+                placeholder="Ej: CM-2024-001234"
               />
             </FormField>
 
-            {/* Teléfono */}
+            {/* Fecha de vencimiento */}
             <FormField
-              label="Teléfono"
-              htmlFor="emergencyContactPhone"
-              error={errors.emergencyContactPhone?.message}
+              label="Fecha de vencimiento"
+              htmlFor="medicalCertificateExpiry"
+              error={errors.medicalCertificateExpiry?.message}
             >
               <Input
-                id="emergencyContactPhone"
-                {...register("emergencyContactPhone")}
-                placeholder="Ej: +52 55 1234 5678"
+                id="medicalCertificateExpiry"
+                type="date"
+                {...register("medicalCertificateExpiry")}
               />
             </FormField>
 
-            {/* Parentesco */}
+            {/* Institución emisora */}
             <FormField
-              label="Parentesco"
-              htmlFor="emergencyContactRelationship"
-              error={errors.emergencyContactRelationship?.message}
+              label="Institución emisora"
+              htmlFor="medicalCertificateIssuer"
+              error={errors.medicalCertificateIssuer?.message}
+            >
+              <Input
+                id="medicalCertificateIssuer"
+                {...register("medicalCertificateIssuer")}
+                placeholder="Ej: IMSS, Hospital General, etc."
+              />
+            </FormField>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ================================================================== */}
+      {/* SECCIÓN: EXAMEN PSICOMÉTRICO                                       */}
+      {/* ================================================================== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Brain className="h-5 w-5" /> Examen Psicométrico
+          </CardTitle>
+          <CardDescription>
+            Evaluación psicológica y de aptitudes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Fecha del examen */}
+            <FormField
+              label="Fecha del examen"
+              htmlFor="psychometricTestDate"
+              error={errors.psychometricTestDate?.message}
+            >
+              <Input
+                id="psychometricTestDate"
+                type="date"
+                {...register("psychometricTestDate")}
+              />
+            </FormField>
+
+            {/* Resultado */}
+            <FormField
+              label="Resultado"
+              htmlFor="psychometricTestResult"
+              error={errors.psychometricTestResult?.message}
             >
               <Select
-                value={watchedRelationship || ""}
+                value={watchedPsychometricResult || ""}
                 onValueChange={(value) =>
-                  setValue("emergencyContactRelationship", value)
+                  setValue("psychometricTestResult", value)
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar" />
+                  <SelectValue placeholder="Seleccionar resultado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {RELATIONSHIP_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {PSYCHOMETRIC_RESULTS.map((result) => (
+                    <SelectItem key={result.value} value={result.value}>
+                      {result.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </FormField>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ================================================================== */}
+      {/* SECCIÓN: EXAMEN ANTIDOPING                                         */}
+      {/* ================================================================== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FlaskConical className="h-5 w-5" /> Examen Antidoping
+          </CardTitle>
+          <CardDescription>
+            Prueba de detección de sustancias prohibidas
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Fecha del examen */}
+            <FormField
+              label="Fecha del último examen"
+              htmlFor="lastDrugTestDate"
+              error={errors.lastDrugTestDate?.message}
+            >
+              <Input
+                id="lastDrugTestDate"
+                type="date"
+                {...register("lastDrugTestDate")}
+              />
+            </FormField>
+
+            {/* Resultado */}
+            <FormField
+              label="Resultado"
+              htmlFor="drugTestResult"
+              error={errors.drugTestResult?.message}
+            >
+              <Select
+                value={watchedDrugTestResult || ""}
+                onValueChange={(value) => setValue("drugTestResult", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar resultado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRUG_TEST_RESULTS.map((result) => (
+                    <SelectItem key={result.value} value={result.value}>
+                      {result.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ================================================================== */}
+      {/* SECCIÓN: DISPOSITIVO GPS/TELEMETRÍA                                */}
+      {/* ================================================================== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Cpu className="h-5 w-5" /> Dispositivo GPS / Telemetría
+          </CardTitle>
+          <CardDescription>
+            Dispositivo de rastreo asignado al conductor
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              label="ID del dispositivo"
+              htmlFor="assignedDeviceId"
+              error={errors.assignedDeviceId?.message}
+              description="Identificador único del dispositivo GPS asignado"
+            >
+              <Input
+                id="assignedDeviceId"
+                {...register("assignedDeviceId")}
+                placeholder="Ej: GPS-001, TLM-A1234"
+              />
             </FormField>
           </div>
         </CardContent>
@@ -496,12 +535,12 @@ export function DriverForm({
             label="Notas"
             htmlFor="notes"
             error={errors.notes?.message}
-            description="Información adicional sobre el conductor"
+            description="Información adicional sobre el conductor (restricciones, observaciones, etc.)"
           >
             <Textarea
               id="notes"
               {...register("notes")}
-              placeholder="Observaciones, restricciones, etc..."
+              placeholder="Observaciones, restricciones, certificaciones adicionales..."
               rows={4}
             />
           </FormField>
@@ -511,7 +550,7 @@ export function DriverForm({
       {/* ================================================================== */}
       {/* ACCIONES                                                           */}
       {/* ================================================================== */}
-      <div className="flex items-center justify-end gap-4 pt-4 border-t">
+      <div className="flex items-center justify-end gap-4 border-t pt-4">
         <Button
           type="button"
           variant="outline"
@@ -525,7 +564,7 @@ export function DriverForm({
           disabled={isSubmitting || (!isDirty && mode === "edit")}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {mode === "create" ? "Crear Conductor" : "Guardar Cambios"}
+          {mode === "create" ? "Registrar Conductor" : "Guardar Cambios"}
         </Button>
       </div>
     </form>

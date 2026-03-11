@@ -1,217 +1,222 @@
 /**
- * PermissionProvider
+ * Permission Provider
+ * Clean Architecture - Infrastructure Layer
  *
- * Provider que inicializa y expone el sistema de permisos RBAC.
- * Obtiene el rol del usuario desde AuthProvider y calcula los permisos.
+ * Provider del sistema de permisos que orquesta los casos de uso.
+ * Se coloca en la jerarquía de providers del proyecto.
  *
- * Ubicación: src/app/providers/PermissionProvider.tsx
+ * Ubicación: src/shared/auth/infrastructure/PermissionProvider.tsx
  *
- * @example
- * // En tu App.tsx o providers
- * <QueryProvider>
- *   <AuthProvider>
- *     <PermissionProvider>
- *       <ThemeProvider>
- *         <App />
- *       </ThemeProvider>
- *     </PermissionProvider>
- *   </AuthProvider>
- * </QueryProvider>
+ * ORDEN DE PROVIDERS (importante mantener):
+ * 1. QueryProvider
+ * 2. AuthProvider
+ * 3. PermissionProvider ← ESTE
+ * 4. ThemeProvider
+ * 5. ToastProvider
+ * 6. SidebarProvider
+ * 7. LayoutShell
  */
 
-import { useMemo, useCallback, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@features/auth";
 import {
   PermissionContext,
   type PermissionContextValue,
-} from "@/shared/permissions/infrastructure";
+} from "@shared/permissions/infrastructure";
+import type { UserRole } from "@shared/constants/roles";
+import type {
+  Module,
+  Action,
+  PermissionString,
+} from "@shared/permissions/domain";
 import {
-  type Role,
-  type Module,
-  type Action,
-  type PermissionString,
-  isAdminRole,
-  createPermissionString,
-  hasPermissionInList,
-  checkAllPermissions,
-  checkAnyPermission,
-  hasRole as domainHasRole,
-  hasAnyRole as domainHasAnyRole,
-  getAvailableActions,
-  getAccessibleModules,
-  getPermissionsForRole,
-  MODULES,
-  ACTIONS,
-} from "@/shared/permissions/domain";
+  createCheckPermissionUseCase,
+  createGetUserPermissionsUseCase,
+  createCheckRoleUseCase,
+  createCheckAnyRoleUseCase,
+  createGetModuleActionsUseCase,
+  createCheckMultiplePermissionsUseCase,
+  createInitializePermissionStateUseCase,
+} from "@shared/permissions/application";
+import { parsePermissionString } from "@shared/permissions";
 
-// ============================================
+// ============================================================================
 // Props
-// ============================================
+// ============================================================================
 
 interface PermissionProviderProps {
   children: ReactNode;
-  /** Permisos custom adicionales */
+  /** Permisos adicionales custom (opcional) */
   customPermissions?: PermissionString[];
-  /** Permisos explícitamente denegados */
+  /** Permisos explícitamente denegados (opcional) */
   deniedPermissions?: PermissionString[];
 }
 
-// ============================================
-// Provider
-// ============================================
+// ============================================================================
+// Provider Component
+// ============================================================================
 
 export function PermissionProvider({
   children,
   customPermissions = [],
   deniedPermissions = [],
 }: PermissionProviderProps) {
-  // Obtener datos del usuario desde AuthProvider
-  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Extraer rol del usuario
-  const role = useMemo<Role | null>(() => {
-    if (!user?.role) return null;
-    return user.role as Role;
-  }, [user?.role]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Calcular permisos del usuario
-  const permissions = useMemo<PermissionString[]>(() => {
-    if (!role) return [];
-
-    // Obtener permisos base del rol
-    const rolePermissions = getPermissionsForRole(role);
-
-    // Combinar con permisos custom
-    const combined = new Set([...rolePermissions, ...customPermissions]);
-
-    // Remover permisos denegados
-    deniedPermissions.forEach((p) => combined.delete(p));
-
-    return Array.from(combined);
-  }, [role, customPermissions, deniedPermissions]);
-
-  // ==========================================
-  // Permission Check Functions
-  // ==========================================
-
-  const hasPermission = useCallback(
-    (module: Module, action: Action): boolean => {
-      if (isAdminRole(role)) return true;
-
-      const permission = createPermissionString(module, action);
-
-      // Verificar si está denegado
-      if (hasPermissionInList(permission, deniedPermissions)) {
-        return false;
-      }
-
-      return hasPermissionInList(permission, permissions);
-    },
-    [role, permissions, deniedPermissions],
+  // Casos de uso
+  const checkPermissionUseCase = useMemo(
+    () => createCheckPermissionUseCase(),
+    [],
+  );
+  const getUserPermissionsUseCase = useMemo(
+    () => createGetUserPermissionsUseCase(),
+    [],
+  );
+  const checkRoleUseCase = useMemo(() => createCheckRoleUseCase(), []);
+  const checkAnyRoleUseCase = useMemo(() => createCheckAnyRoleUseCase(), []);
+  const getModuleActionsUseCase = useMemo(
+    () => createGetModuleActionsUseCase(),
+    [],
+  );
+  const checkMultiplePermissionsUseCase = useMemo(
+    () => createCheckMultiplePermissionsUseCase(),
+    [],
+  );
+  const initializePermissionStateUseCase = useMemo(
+    () => createInitializePermissionStateUseCase(),
+    [],
   );
 
-  const can = useCallback(
-    (permission: PermissionString): boolean => {
-      if (isAdminRole(role)) return true;
-      if (hasPermissionInList(permission, deniedPermissions)) return false;
-      return hasPermissionInList(permission, permissions);
-    },
-    [role, permissions, deniedPermissions],
-  );
+  // Estado de permisos
+  const permissionState = useMemo(() => {
+    const role = user?.role as UserRole | null;
 
-  const canAll = useCallback(
-    (required: PermissionString[]): boolean => {
-      return checkAllPermissions(role, permissions, required);
-    },
-    [role, permissions],
-  );
+    return initializePermissionStateUseCase.execute({
+      role,
+      isAuthenticated,
+      customPermissions,
+      deniedPermissions,
+    });
+  }, [
+    user?.role,
+    isAuthenticated,
+    customPermissions,
+    deniedPermissions,
+    initializePermissionStateUseCase,
+  ]);
 
-  const canAny = useCallback(
-    (required: PermissionString[]): boolean => {
-      return checkAnyPermission(role, permissions, required);
-    },
-    [role, permissions],
-  );
+  // Actualizar loading cuando auth termine
+  useEffect(() => {
+    if (!authLoading) {
+      setIsLoading(false);
+    }
+  }, [authLoading]);
 
-  // ==========================================
-  // Role Check Functions
-  // ==========================================
+  // ============================================================================
+  // Context Value Implementation
+  // ============================================================================
 
-  const hasRole = useCallback(
-    (targetRole: Role): boolean => {
-      return domainHasRole(role, targetRole);
-    },
-    [role],
-  );
-
-  const hasAnyRole = useCallback(
-    (roles: Role[]): boolean => {
-      return domainHasAnyRole(role, roles);
-    },
-    [role],
-  );
-
-  // ==========================================
-  // Module Helpers
-  // ==========================================
-
-  const getModuleActions = useCallback(
-    (module: Module): Action[] => {
-      if (isAdminRole(role)) return [...ACTIONS];
-      return getAvailableActions(role, module, permissions);
-    },
-    [role, permissions],
-  );
-
-  const getAccessibleModulesCallback = useCallback((): Module[] => {
-    if (isAdminRole(role)) return [...MODULES];
-    return getAccessibleModules(role, permissions);
-  }, [role, permissions]);
-
-  // ==========================================
-  // Context Value
-  // ==========================================
-
-  const value = useMemo<PermissionContextValue>(
+  const contextValue: PermissionContextValue = useMemo(
     () => ({
       // State
-      role,
-      permissions,
-      isLoading: isAuthLoading,
-      isAuthenticated,
+      role: permissionState.role,
+      permissions: permissionState.permissions,
+      isLoading,
+      isAuthenticated: permissionState.isAuthenticated,
 
       // Permission checks
-      hasPermission,
-      can,
-      canAll,
-      canAny,
+      hasPermission: (module: Module, action: Action): boolean => {
+        const result = checkPermissionUseCase.execute({
+          role: permissionState.role,
+          module,
+          action,
+          customPermissions,
+          deniedPermissions,
+        });
+        return result.allowed;
+      },
+
+      can: (permission: PermissionString): boolean => {
+        const { module, action } = parsePermissionString(permission);
+        const result = checkPermissionUseCase.execute({
+          role: permissionState.role,
+          module,
+          action,
+          customPermissions,
+          deniedPermissions,
+        });
+        return result.allowed;
+      },
+
+      canAll: (permissions: PermissionString[]): boolean => {
+        return checkMultiplePermissionsUseCase.execute({
+          role: permissionState.role,
+          permissions: permissionState.permissions,
+          required: permissions,
+          mode: "all",
+        });
+      },
+
+      canAny: (permissions: PermissionString[]): boolean => {
+        return checkMultiplePermissionsUseCase.execute({
+          role: permissionState.role,
+          permissions: permissionState.permissions,
+          required: permissions,
+          mode: "any",
+        });
+      },
 
       // Role checks
-      hasRole,
-      hasAnyRole,
+      hasRole: (role: UserRole): boolean => {
+        return checkRoleUseCase.execute({
+          userRole: permissionState.role,
+          requiredRole: role,
+        });
+      },
+
+      hasAnyRole: (roles: UserRole[]): boolean => {
+        return checkAnyRoleUseCase.execute({
+          userRole: permissionState.role,
+          requiredRoles: roles,
+        });
+      },
 
       // Module helpers
-      getModuleActions,
-      getAccessibleModules: getAccessibleModulesCallback,
+      getModuleActions: (module: Module): Action[] => {
+        return getModuleActionsUseCase.execute({
+          role: permissionState.role,
+          module,
+          permissions: permissionState.permissions,
+        });
+      },
+
+      getAccessibleModules: (): Module[] => {
+        const result = getUserPermissionsUseCase.execute({
+          role: permissionState.role,
+          customPermissions,
+          deniedPermissions,
+        });
+        return result.accessibleModules;
+      },
     }),
     [
-      role,
-      permissions,
-      isAuthLoading,
-      isAuthenticated,
-      hasPermission,
-      can,
-      canAll,
-      canAny,
-      hasRole,
-      hasAnyRole,
-      getModuleActions,
-      getAccessibleModulesCallback,
+      permissionState,
+      isLoading,
+      customPermissions,
+      deniedPermissions,
+      checkPermissionUseCase,
+      checkRoleUseCase,
+      checkAnyRoleUseCase,
+      getModuleActionsUseCase,
+      getUserPermissionsUseCase,
+      checkMultiplePermissionsUseCase,
     ],
   );
 
   return (
-    <PermissionContext.Provider value={value}>
+    <PermissionContext.Provider value={contextValue}>
       {children}
     </PermissionContext.Provider>
   );

@@ -13,7 +13,7 @@ export {
   type CreateVehiclePayload,
   type UpdateVehiclePayload,
   type Vehicle,
-  type VehicleFilters,
+  type VehicleFiltersType,
   type VehicleListItem,
   type VehicleQueryParams,
   type VehicleStatusType,

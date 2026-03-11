@@ -12,24 +12,26 @@ import {
   type MappedActionResult,
   type MappedSingleResult,
 } from "@shared/api";
-import type { TripCargo, CargoMovement } from "@features/trips/domain/entities";
+import type {
+  TripCargo,
+  CargoMovement,
+} from "@features/trips/domain/entities/entities";
 import type {
   ICargoRepository,
-  CreateCargoDTO,
-  UpdateCargoDTO,
-  CreateCargoMovementDTO,
   CompleteCargoMovementDTO,
 } from "@features/trips/domain";
 import {
   mapCargosResponse,
   mapCargoResponse,
   mapCargoMovementResponse,
-  toApiCreateCargo,
-  toApiUpdateCargo,
-  toApiCreateCargoMovement,
   type ApiCargoResponse,
   type ApiCargoMovementResponse,
 } from "../mappers/cargoMappers";
+import type {
+  CreateCargoInput,
+  CreateCargoMovementInput,
+  UpdateCargoInput,
+} from "@features/trips/application";
 
 // ============================================================================
 // CONSTANTS
@@ -79,13 +81,13 @@ export class CargoRepository implements ICargoRepository {
    */
   async create(
     tripId: string,
-    data: CreateCargoDTO,
+    input: CreateCargoInput,
   ): Promise<MappedSingleResult<TripCargo>> {
-    const apiData = toApiCreateCargo(data);
+    // const apiData = toApiCreateCargo(data);
 
     const response = await apiClient.post<ApiSingleResponse<ApiCargoResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/cargos`,
-      apiData,
+      input,
     );
 
     return mapCargoResponse(response);
@@ -97,13 +99,13 @@ export class CargoRepository implements ICargoRepository {
   async update(
     tripId: string,
     cargoId: string,
-    data: UpdateCargoDTO,
+    input: UpdateCargoInput,
   ): Promise<MappedSingleResult<TripCargo>> {
-    const apiData = toApiUpdateCargo(data);
+    // const apiData = toApiUpdateCargo(data);
 
     const response = await apiClient.put<ApiSingleResponse<ApiCargoResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}`,
-      apiData,
+      input,
     );
 
     return mapCargoResponse(response);
@@ -117,7 +119,7 @@ export class CargoRepository implements ICargoRepository {
       `${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}`,
     );
 
-    return { message: response?.message || "Carga eliminada exitosamente" };
+    return { message: "Carga eliminada exitosamente" };
   }
 
   /**
@@ -126,13 +128,13 @@ export class CargoRepository implements ICargoRepository {
   async addMovement(
     tripId: string,
     cargoId: string,
-    data: CreateCargoMovementDTO,
+    input: CreateCargoMovementInput,
   ): Promise<MappedSingleResult<CargoMovement>> {
-    const apiData = toApiCreateCargoMovement(data);
+    // const apiData = toApiCreateCargoMovement(data);
 
     const response = await apiClient.post<
       ApiSingleResponse<ApiCargoMovementResponse>
-    >(`${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}/movements`, apiData);
+    >(`${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}/movements`, input);
 
     return mapCargoMovementResponse(response);
   }

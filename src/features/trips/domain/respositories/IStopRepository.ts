@@ -9,81 +9,12 @@
  * Patrón: Ports & Adapters (Hexagonal Architecture)
  */
 
-import type { TripStop, StopTypeValue } from "./entities";
+import type { CreateStopInput } from "@features/trips/application";
+import type { TripStop, StopTypeValue } from "../entities/entities";
 
 // ============================================================================
 // DTOs - Stop
 // ============================================================================
-
-/**
- * DTO para crear una parada
- */
-export interface CreateTripStopDTO {
-  sequenceOrder: number;
-  stopType: StopTypeValue | StopTypeValue[];
-  address: string;
-  city: string;
-  state?: string;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
-  locationName?: string;
-  contactName?: string;
-  contactPhone?: string;
-  estimatedArrival?: string | Date | undefined;
-  cargoActionDescription?: string;
-  cargoWeight?: number;
-  cargoUnits?: number;
-  notes?: string;
-
-  // ── Carta Porte 3.1 — Ubicación / Domicilio ──────────────────
-  street?: string;
-  exteriorNumber?: string;
-  interiorNumber?: string;
-  colonia?: string;
-  reference?: string;
-  satEstadoCode?: string;
-  satMunicipioCode?: string;
-  satLocalidadCode?: string;
-  satColoniaCode?: string;
-  rfcRemitenteDestinatario?: string;
-  distanceToNextKm?: number;
-}
-
-/**
- * Datos para agregar una parada (usado en casos de uso)
- */
-export interface AddStopData {
-  sequenceOrder: number;
-  stopType: StopTypeValue;
-  address: string;
-  city: string;
-  state?: string;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
-  locationName?: string;
-  contactName?: string;
-  contactPhone?: string;
-  estimatedArrival?: Date | string;
-  cargoActionDescription?: string;
-  cargoWeight?: number;
-  cargoUnits?: number;
-  notes?: string;
-
-  // Carta Porte 3.1
-  street?: string;
-  exteriorNumber?: string;
-  interiorNumber?: string;
-  colonia?: string;
-  reference?: string;
-  satEstadoCode?: string;
-  satMunicipioCode?: string;
-  satLocalidadCode?: string;
-  satColoniaCode?: string;
-  rfcRemitenteDestinatario?: string;
-  distanceToNextKm?: number;
-}
 
 /**
  * DTO para actualizar una parada
@@ -130,11 +61,11 @@ export interface UpdateStopDTO {
 export interface IStopRepository {
   findByTripId(tripId: string): Promise<TripStop[]>;
   findById(tripId: string, stopId: string): Promise<TripStop | null>;
-  add(tripId: string, data: AddStopData): Promise<TripStop>;
+  add(tripId: string, data: CreateStopInput): Promise<TripStop>;
   update(
     tripId: string,
     stopId: string,
-    data: Partial<CreateTripStopDTO>,
+    data: Partial<CreateStopInput>,
   ): Promise<TripStop>;
   delete(tripId: string, stopId: string): Promise<void>;
   reorder(tripId: string, orderedIds: string[]): Promise<TripStop[]>;

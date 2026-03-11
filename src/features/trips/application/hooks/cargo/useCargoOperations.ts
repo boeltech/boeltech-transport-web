@@ -13,8 +13,11 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { TripCargo, CargoMovement } from "@features/trips/domain/entities";
-import { tripQueryKeys } from "@features/trips/domain/entities";
+import type {
+  TripCargo,
+  CargoMovement,
+} from "@features/trips/domain/entities/entities";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 import {
   cargoRepository,
   // createCargoRepository,

@@ -6,11 +6,13 @@ import {
   type IStopRepository,
   type ITripRepository,
   type StopTypeValue,
-  type AddStopData,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
-export interface AddStopInput {
+/**
+ * Input para parada
+ */
+export interface CreateStopInput {
   sequenceOrder: number;
   stopType: StopTypeValue;
   address: string;
@@ -22,17 +24,26 @@ export interface AddStopInput {
   locationName?: string;
   contactName?: string;
   contactPhone?: string;
-  estimatedArrival?: Date | string;
-  cargoActionDescription?: string;
-  cargoWeight?: number;
-  cargoUnits?: number;
+  estimatedArrival?: string;
   notes?: string;
+  // Carta Porte 3.1
+  street?: string;
+  exteriorNumber?: string;
+  interiorNumber?: string;
+  colonia?: string;
+  reference?: string;
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
+  rfcRemitenteDestinatario?: string;
+  distanceToNextKm?: number;
 }
 
 export interface IAddStopUseCase {
   execute(
     tripId: string,
-    input: AddStopInput,
+    input: CreateStopInput,
   ): Promise<UseCaseResult<TripStop>>;
 }
 
@@ -50,7 +61,7 @@ export class AddStopUseCase implements IAddStopUseCase {
 
   async execute(
     tripId: string,
-    input: AddStopInput,
+    input: CreateStopInput,
   ): Promise<UseCaseResult<TripStop>> {
     try {
       // Validar input
@@ -62,20 +73,20 @@ export class AddStopUseCase implements IAddStopUseCase {
       // Verificar que el viaje existe
       const trip = await this.tripRepository.findById(tripId);
 
-      if (!trip.data) {
+      if (!trip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: trip.message ? trip.message : "El viaje no fue encontrado",
+            message: trip ? trip : "El viaje no fue encontrado",
           },
         };
       }
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.data.status !== TripStatus.DRAFT &&
-        trip.data.status !== TripStatus.SCHEDULED
+        trip.status !== TripStatus.DRAFT &&
+        trip.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,
@@ -104,24 +115,9 @@ export class AddStopUseCase implements IAddStopUseCase {
       // Calcular orden
       const sequenceOrder = getNextStopOrder(currentStops);
 
-      // Preparar datos para agregar
-      const stopData: AddStopData = {
+      const stopData = {
+        ...input,
         sequenceOrder,
-        stopType: input.stopType,
-        address: input.address,
-        city: input.city,
-        state: input.state,
-        postalCode: input.postalCode,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        locationName: input.locationName,
-        contactName: input.contactName,
-        contactPhone: input.contactPhone,
-        estimatedArrival: input.estimatedArrival,
-        cargoActionDescription: input.cargoActionDescription,
-        cargoWeight: input.cargoWeight,
-        cargoUnits: input.cargoUnits,
-        notes: input.notes,
       };
 
       // Agregar parada
@@ -141,7 +137,7 @@ export class AddStopUseCase implements IAddStopUseCase {
   }
 
   private validateInput(
-    input: AddStopInput,
+    input: CreateStopInput,
   ): { code: string; message: string } | null {
     if (!input.stopType) {
       return {

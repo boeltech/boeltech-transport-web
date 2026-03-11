@@ -37,28 +37,49 @@ import type {
 // ============================================================================
 
 /**
+ * Respuesta del API para empleado anidado
+ */
+export interface ApiEmployeeRef {
+  id: string;
+  employee_number: string;
+  first_name: string;
+  last_name: string;
+  second_last_name: string | null;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  curp: string | null;
+  rfc: string | null;
+}
+
+/**
  * Respuesta del API para un conductor en listado
  */
 export interface ApiDriverListItemResponse {
   id: string;
   tenant_id: string;
   employee_id: string;
-  employee: {
-    id: string;
-    employee_number: string;
-    first_name: string;
-    last_name: string;
-    email: string | null;
-    phone: string | null;
-  };
+  employee: ApiEmployeeRef;
   license_number: string;
   license_type: string;
-  license_expiration: string;
+  license_expiry: string;
   status: string;
   years_of_experience: number;
   total_trips: number;
   is_license_expired: boolean;
+  is_active: boolean;
   created_at: string;
+}
+
+/**
+ * Respuesta del API para estadísticas del conductor
+ */
+export interface ApiDriverStats {
+  total_trips: number;
+  completed_trips: number;
+  cancelled_trips: number;
+  average_rating: number | null;
+  years_of_experience: number;
 }
 
 /**
@@ -68,56 +89,52 @@ export interface ApiDriverResponse {
   id: string;
   tenant_id: string;
   employee_id: string;
-  employee?: {
-    id: string;
-    employee_number: string;
-    first_name: string;
-    last_name: string;
-    email: string | null;
-    phone: string | null;
-  };
+  employee?: ApiEmployeeRef;
+
+  // Licencia
   license_number: string;
   license_type: string;
-  license_expiration: string;
-  license_issued_date: string | null;
+  license_expiry: string;
   license_issuing_state: string | null;
+
+  // Certificado médico
+  medical_certificate_number: string | null;
+  medical_certificate_expiry: string | null;
+  medical_certificate_issuer: string | null;
+
+  // Examen psicométrico
+  psychometric_test_date: string | null;
+  psychometric_test_result: string | null;
+
+  // Examen antidoping
+  last_drug_test_date: string | null;
+  drug_test_result: string | null;
+
+  // Dispositivo
+  assigned_device_id: string | null;
+
+  // Estado
   status: string;
+  is_active: boolean;
   years_of_experience: number;
+
+  // Datos del empleado (solo lectura)
   blood_type: string | null;
-  medical_certificate_expiration: string | null;
-  notes: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   emergency_contact_relationship: string | null;
-  stats?: {
-    total_trips: number;
-    completed_trips: number;
-    cancelled_trips: number;
-    total_kilometers: number;
-    average_rating: number | null;
-    years_of_experience: number;
-  };
+
+  // Notas
+  notes: string | null;
+
+  // Stats
+  stats?: ApiDriverStats;
+
+  // Auditoría
   created_at: string;
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
-}
-
-/**
- * Respuesta del API para viaje del conductor
- */
-export interface ApiDriverTripResponse {
-  id: string;
-  trip_code: string;
-  status: string;
-  origin_city: string;
-  destination_city: string;
-  scheduled_departure: string;
-  scheduled_arrival: string | null;
-  actual_departure: string | null;
-  actual_arrival: string | null;
-  total_cost: number;
-  created_at: string;
 }
 
 /**
@@ -151,6 +168,24 @@ export interface ApiDriverTripResponse {
 // ============================================================================
 
 /**
+ * Mapea un empleado del API al dominio
+ */
+function mapEmployeeRefToDomain(raw: DeepCamelCase<ApiEmployeeRef>) {
+  return {
+    id: raw.id,
+    employeeNumber: raw.employeeNumber,
+    firstName: raw.firstName,
+    lastName: raw.lastName,
+    secondLastName: raw.secondLastName,
+    fullName: raw.fullName,
+    email: raw.email,
+    phone: raw.phone,
+    curp: raw.curp,
+    rfc: raw.rfc,
+  };
+}
+
+/**
  * Mapea un conductor de listado del API al dominio
  */
 function mapDriverListItemToDomain(
@@ -160,21 +195,15 @@ function mapDriverListItemToDomain(
     id: raw.id,
     tenantId: raw.tenantId,
     employeeId: raw.employeeId,
-    employee: {
-      id: raw.employee.id,
-      employeeNumber: raw.employee.employeeNumber,
-      firstName: raw.employee.firstName,
-      lastName: raw.employee.lastName,
-      email: raw.employee.email,
-      phone: raw.employee.phone,
-    },
+    employee: mapEmployeeRefToDomain(raw.employee),
     licenseNumber: raw.licenseNumber,
     licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiration: new Date(raw.licenseExpiration),
+    licenseExpiry: new Date(raw.licenseExpiry),
     status: raw.status as DriverStatusType,
     yearsOfExperience: raw.yearsOfExperience,
     totalTrips: raw.totalTrips,
     isLicenseExpired: raw.isLicenseExpired,
+    isActive: raw.isActive,
     createdAt: new Date(raw.createdAt),
   };
 }
@@ -187,72 +216,68 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
     id: raw.id,
     tenantId: raw.tenantId,
     employeeId: raw.employeeId,
-    employee: raw.employee
-      ? {
-          id: raw.employee.id,
-          employeeNumber: raw.employee.employeeNumber,
-          firstName: raw.employee.firstName,
-          lastName: raw.employee.lastName,
-          email: raw.employee.email,
-          phone: raw.employee.phone,
-        }
-      : undefined,
+    employee: raw.employee ? mapEmployeeRefToDomain(raw.employee) : undefined,
+
+    // Licencia
     licenseNumber: raw.licenseNumber,
     licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiration: new Date(raw.licenseExpiration),
-    licenseIssuedDate: raw.licenseIssuedDate
-      ? new Date(raw.licenseIssuedDate)
-      : null,
+    licenseExpiry: new Date(raw.licenseExpiry),
     licenseIssuingState: raw.licenseIssuingState,
-    status: raw.status as DriverStatusType,
-    yearsOfExperience: raw.yearsOfExperience,
-    bloodType: raw.bloodType,
-    medicalCertificateExpiration: raw.medicalCertificateExpiration
-      ? new Date(raw.medicalCertificateExpiration)
+
+    // Certificado médico
+    medicalCertificateNumber: raw.medicalCertificateNumber,
+    medicalCertificateExpiry: raw.medicalCertificateExpiry
+      ? new Date(raw.medicalCertificateExpiry)
       : null,
-    notes: raw.notes,
+    medicalCertificateIssuer: raw.medicalCertificateIssuer,
+
+    // Examen psicométrico
+    psychometricTestDate: raw.psychometricTestDate
+      ? new Date(raw.psychometricTestDate)
+      : null,
+    psychometricTestResult: raw.psychometricTestResult,
+
+    // Examen antidoping
+    lastDrugTestDate: raw.lastDrugTestDate
+      ? new Date(raw.lastDrugTestDate)
+      : null,
+    drugTestResult: raw.drugTestResult,
+
+    // Dispositivo
+    assignedDeviceId: raw.assignedDeviceId,
+
+    // Estado
+    status: raw.status as DriverStatusType,
+    isActive: raw.isActive,
+    yearsOfExperience: raw.yearsOfExperience,
+
+    // Datos del empleado (solo lectura)
+    bloodType: raw.bloodType,
     emergencyContactName: raw.emergencyContactName,
     emergencyContactPhone: raw.emergencyContactPhone,
     emergencyContactRelationship: raw.emergencyContactRelationship,
+
+    // Notas
+    notes: raw.notes,
+
+    // Stats
     stats: raw.stats
       ? {
           totalTrips: raw.stats.totalTrips,
           completedTrips: raw.stats.completedTrips,
           cancelledTrips: raw.stats.cancelledTrips,
-          totalKilometers: raw.stats.totalKilometers,
           averageRating: raw.stats.averageRating,
           yearsOfExperience: raw.stats.yearsOfExperience,
         }
       : undefined,
+
+    // Auditoría
     createdAt: new Date(raw.createdAt),
     updatedAt: new Date(raw.updatedAt),
     createdBy: raw.createdBy,
     updatedBy: raw.updatedBy,
   };
 }
-
-/**
- * Mapea un viaje del conductor del API al dominio
- */
-// function mapDriverTripToDomain(
-//   raw: DeepCamelCase<ApiDriverTripResponse>,
-// ): DriverTripSummary {
-//   return {
-//     id: raw.id,
-//     tripCode: raw.tripCode,
-//     status: raw.status,
-//     originCity: raw.originCity,
-//     destinationCity: raw.destinationCity,
-//     scheduledDeparture: new Date(raw.scheduledDeparture),
-//     scheduledArrival: raw.scheduledArrival
-//       ? new Date(raw.scheduledArrival)
-//       : null,
-//     actualDeparture: raw.actualDeparture ? new Date(raw.actualDeparture) : null,
-//     actualArrival: raw.actualArrival ? new Date(raw.actualArrival) : null,
-//     totalCost: raw.totalCost,
-//     createdAt: new Date(raw.createdAt),
-//   };
-// }
 
 /**
  * Mapea un viaje del conductor de API a dominio
@@ -341,19 +366,6 @@ export function mapDriverOrNull(
 /**
  * Mapea respuesta paginada de viajes del conductor
  */
-// export function mapPaginatedDriverTrips(
-//   response: ApiPaginatedResponse<ApiDriverTripResponse>,
-// ): MappedPaginatedResult<DriverTripSummary> {
-//   const mapped = mapPaginatedResponse(response);
-//   return {
-//     data: mapped.data.map(mapDriverTripToDomain),
-//     pagination: mapped.pagination,
-//   };
-// }
-
-/**
- * Mapea respuesta paginada de viajes del conductor
- */
 export function mapPaginatedDriverTrips(
   response: ApiPaginatedResponse<ApiDriverTripResponse>,
 ): MappedPaginatedResult<DriverTripSummary> {
@@ -363,7 +375,7 @@ export function mapPaginatedDriverTrips(
       page: response.pagination.page,
       limit: response.pagination.limit,
       total: response.pagination.total,
-      totalPages: response.pagination.totalPages,
+      totalPages: response.pagination.total_pages,
     },
   };
 }
@@ -373,58 +385,88 @@ export function mapPaginatedDriverTrips(
 // ============================================================================
 
 /**
- * Convierte DTO de creación de conductor a formato API
+ * Convierte DTO de creación de conductor a formato API (snake_case)
  */
 export function toApiCreateDriver(
   dto: CreateDriverDTO,
 ): Record<string, unknown> {
   return {
     employee_id: dto.employeeId,
+
+    // Licencia
     license_number: dto.licenseNumber,
     license_type: dto.licenseType,
-    license_expiration: dto.licenseExpiration,
-    license_issued_date: dto.licenseIssuedDate,
-    license_issuing_state: dto.licenseIssuingState,
-    years_of_experience: dto.yearsOfExperience ?? 0,
-    blood_type: dto.bloodType,
-    medical_certificate_expiration: dto.medicalCertificateExpiration,
-    notes: dto.notes,
-    emergency_contact_name: dto.emergencyContactName,
-    emergency_contact_phone: dto.emergencyContactPhone,
-    emergency_contact_relationship: dto.emergencyContactRelationship,
+    license_expiry: dto.licenseExpiry,
+    license_state: dto.licenseIssuingState || undefined,
+
+    // Certificado médico
+    medical_certificate_number: dto.medicalCertificateNumber || undefined,
+    medical_certificate_expiry: dto.medicalCertificateExpiry || undefined,
+    medical_certificate_issuer: dto.medicalCertificateIssuer || undefined,
+
+    // Examen psicométrico
+    psychometric_test_date: dto.psychometricTestDate || undefined,
+    psychometric_test_result: dto.psychometricTestResult || undefined,
+
+    // Examen antidoping
+    last_drug_test_date: dto.lastDrugTestDate || undefined,
+    drug_test_result: dto.drugTestResult || undefined,
+
+    // Dispositivo
+    assigned_device_id: dto.assignedDeviceId || undefined,
+
+    // Notas
+    notes: dto.notes || undefined,
   };
 }
 
 /**
- * Convierte DTO de actualización de conductor a formato API
+ * Convierte DTO de actualización de conductor a formato API (snake_case)
  */
 export function toApiUpdateDriver(
   dto: UpdateDriverDTO,
 ): Record<string, unknown> {
   const apiData: Record<string, unknown> = {};
 
-  if (dto.employeeId !== undefined) apiData.employee_id = dto.employeeId;
+  // Licencia
   if (dto.licenseNumber !== undefined)
     apiData.license_number = dto.licenseNumber;
   if (dto.licenseType !== undefined) apiData.license_type = dto.licenseType;
-  if (dto.licenseExpiration !== undefined)
-    apiData.license_expiration = dto.licenseExpiration;
-  if (dto.licenseIssuedDate !== undefined)
-    apiData.license_issued_date = dto.licenseIssuedDate;
+  if (dto.licenseExpiry !== undefined)
+    apiData.license_expiry = dto.licenseExpiry;
   if (dto.licenseIssuingState !== undefined)
-    apiData.license_issuing_state = dto.licenseIssuingState;
-  if (dto.yearsOfExperience !== undefined)
-    apiData.years_of_experience = dto.yearsOfExperience;
-  if (dto.bloodType !== undefined) apiData.blood_type = dto.bloodType;
-  if (dto.medicalCertificateExpiration !== undefined)
-    apiData.medical_certificate_expiration = dto.medicalCertificateExpiration;
+    apiData.license_state = dto.licenseIssuingState;
+
+  // Certificado médico
+  if (dto.medicalCertificateNumber !== undefined)
+    apiData.medical_certificate_number = dto.medicalCertificateNumber;
+  if (dto.medicalCertificateExpiry !== undefined)
+    apiData.medical_certificate_expiry = dto.medicalCertificateExpiry;
+  if (dto.medicalCertificateIssuer !== undefined)
+    apiData.medical_certificate_issuer = dto.medicalCertificateIssuer;
+
+  // Examen psicométrico
+  if (dto.psychometricTestDate !== undefined)
+    apiData.psychometric_test_date = dto.psychometricTestDate;
+  if (dto.psychometricTestResult !== undefined)
+    apiData.psychometric_test_result = dto.psychometricTestResult;
+
+  // Examen antidoping
+  if (dto.lastDrugTestDate !== undefined)
+    apiData.last_drug_test_date = dto.lastDrugTestDate;
+  if (dto.drugTestResult !== undefined)
+    apiData.drug_test_result = dto.drugTestResult;
+
+  // Dispositivo
+  if (dto.assignedDeviceId !== undefined)
+    apiData.assigned_device_id = dto.assignedDeviceId;
+
+  // Notas
   if (dto.notes !== undefined) apiData.notes = dto.notes;
-  if (dto.emergencyContactName !== undefined)
-    apiData.emergency_contact_name = dto.emergencyContactName;
-  if (dto.emergencyContactPhone !== undefined)
-    apiData.emergency_contact_phone = dto.emergencyContactPhone;
-  if (dto.emergencyContactRelationship !== undefined)
-    apiData.emergency_contact_relationship = dto.emergencyContactRelationship;
+
+  // Estado (si se permite actualizar)
+  if (dto.status !== undefined) apiData.status = dto.status;
+  if (dto.isActive !== undefined) apiData.is_active = dto.isActive;
 
   return apiData;
 }

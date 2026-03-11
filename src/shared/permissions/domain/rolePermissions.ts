@@ -5,37 +5,41 @@
  * Define los permisos de cada rol del sistema.
  * Esta es la "fuente de verdad" para los permisos.
  *
+ * UPDATED: Now uses the 5 official English roles with Spanish labels
+ *
  * Ubicación: src/shared/auth/domain/rolePermissions.ts
  */
 
 import {
-  type Role,
-  type PermissionString,
-  type RoleDefinition,
-} from "./entities";
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  ROLES,
+  type UserRole,
+} from "@shared/constants/roles";
+import { type PermissionString, type RoleDefinition } from "./entities";
 
-// ============================================
+// ============================================================================
 // ROLE DEFINITIONS
-// ============================================
+// ============================================================================
 
-export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
-  // ==========================================
-  // ADMIN - Acceso total
-  // ==========================================
+export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
+  // ==========================================================================
+  // ADMIN - Acceso total al sistema
+  // ==========================================================================
   admin: {
-    role: "admin",
-    name: "Administrador",
-    description: "Acceso completo a todas las funcionalidades del sistema",
+    role: ROLES.ADMIN,
+    name: ROLE_LABELS.admin,
+    description: ROLE_DESCRIPTIONS.admin,
     permissions: [], // Admin tiene todos los permisos por defecto (manejado en rules)
   },
 
-  // ==========================================
+  // ==========================================================================
   // MANAGER - Gerente de operaciones
-  // ==========================================
+  // ==========================================================================
   manager: {
-    role: "manager",
-    name: "Gerente",
-    description: "Gestión completa de operaciones, personal y reportes",
+    role: ROLES.MANAGER,
+    name: ROLE_LABELS.manager,
+    description: ROLE_DESCRIPTIONS.manager,
     permissions: [
       // Dashboard
       "dashboard.read",
@@ -62,6 +66,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       "drivers.update",
       "drivers.delete",
       "drivers.assign",
+      "drivers.updateStatus",
       "drivers.export",
 
       // Clientes - Control total
@@ -71,6 +76,12 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       "clients.delete",
       "clients.export",
 
+      // Empleados - Gestión
+      "employees.read",
+      "employees.create",
+      "employees.update",
+      "employees.export",
+
       // Mantenimiento - Control y aprobación
       "maintenance.read",
       "maintenance.create",
@@ -79,142 +90,74 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       "maintenance.approve",
       "maintenance.export",
 
-      // Combustible
+      // Combustible - Control y aprobación
       "fuel.read",
       "fuel.create",
       "fuel.update",
       "fuel.approve",
       "fuel.export",
 
-      // Facturas - Control y aprobación
+      // Gastos - Lectura y aprobación
+      "expenses.read",
+      "expenses.approve",
+      "expenses.export",
+
+      // Facturas - Lectura
       "invoices.read",
-      "invoices.create",
-      "invoices.update",
-      "invoices.approve",
       "invoices.export",
 
-      // Reportes
+      // Nómina - Lectura
+      "payroll.read",
+
+      // Reportes - Todos
       "reports.read",
+      "reports.create",
       "reports.export",
+      "reports.execute",
 
       // Usuarios - Lectura
       "users.read",
-    ],
-    inheritsFrom: ["fleet_coordinator", "trip_coordinator"],
-  },
 
-  // ==========================================
-  // FLEET COORDINATOR - Coordinador de flota
-  // ==========================================
-  fleet_coordinator: {
-    role: "fleet_coordinator",
-    name: "Coordinador de Flota",
-    description: "Gestión de vehículos, mantenimiento y asignaciones",
-    permissions: [
-      "dashboard.read",
-
-      // Viajes - Lectura y actualización de estado
-      "trips.read",
-      "trips.create",
-      "trips.update",
-      "trips.updateStatus",
-
-      // Vehículos - Control
-      "vehicles.read",
-      "vehicles.create",
-      "vehicles.update",
-
-      // Conductores - Lectura y asignación
-      "drivers.read",
-      "drivers.assign",
-
-      // Mantenimiento - Control
-      "maintenance.read",
-      "maintenance.create",
-      "maintenance.update",
-
-      // Combustible
-      "fuel.read",
-      "fuel.create",
-      "fuel.update",
+      // Configuración - Lectura y actualización limitada
+      "settings.read",
+      "settings.update",
     ],
   },
 
-  // ==========================================
-  // TRIP COORDINATOR - Coordinador de viajes
-  // ==========================================
-  trip_coordinator: {
-    role: "trip_coordinator",
-    name: "Coordinador de Viajes",
-    description: "Planificación y seguimiento de viajes",
-    permissions: [
-      "dashboard.read",
-
-      // Viajes - Control completo
-      "trips.read",
-      "trips.create",
-      "trips.update",
-      "trips.updateStatus",
-      "trips.assign",
-
-      // Vehículos - Lectura
-      "vehicles.read",
-
-      // Conductores - Lectura y asignación
-      "drivers.read",
-      "drivers.assign",
-
-      // Clientes - Lectura
-      "clients.read",
-    ],
-  },
-
-  // ==========================================
-  // HR - Recursos Humanos
-  // ==========================================
-  hr: {
-    role: "hr",
-    name: "Recursos Humanos",
-    description: "Gestión de personal y conductores",
-    permissions: [
-      "dashboard.read",
-
-      // Conductores - Control total
-      "drivers.read",
-      "drivers.create",
-      "drivers.update",
-      "drivers.delete",
-      "drivers.export",
-
-      // Usuarios - Control
-      "users.read",
-      "users.create",
-      "users.update",
-
-      // Reportes de personal
-      "reports.read",
-    ],
-  },
-
-  // ==========================================
-  // ACCOUNTANT - Contador
-  // ==========================================
+  // ==========================================================================
+  // ACCOUNTANT - Contador (módulos financieros)
+  // ==========================================================================
   accountant: {
-    role: "accountant",
-    name: "Contador",
-    description: "Gestión financiera, facturación y reportes",
+    role: ROLES.ACCOUNTANT,
+    name: ROLE_LABELS.accountant,
+    description: ROLE_DESCRIPTIONS.accountant,
     permissions: [
+      // Dashboard
       "dashboard.read",
 
-      // Viajes - Solo lectura
+      // Viajes - Solo lectura para contexto
       "trips.read",
       "trips.export",
 
-      // Combustible - Control
+      // Clientes - Lectura para facturación
+      "clients.read",
+
+      // Empleados - Lectura para nómina
+      "employees.read",
+
+      // Combustible - Control y aprobación
       "fuel.read",
       "fuel.update",
       "fuel.approve",
       "fuel.export",
+
+      // Gastos - Control total
+      "expenses.read",
+      "expenses.create",
+      "expenses.update",
+      "expenses.delete",
+      "expenses.approve",
+      "expenses.export",
 
       // Facturas - Control total
       "invoices.read",
@@ -223,96 +166,114 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       "invoices.delete",
       "invoices.approve",
       "invoices.export",
+      "invoices.execute", // Timbrado, envío
 
-      // Clientes - Lectura
-      "clients.read",
+      // Nómina - Control total
+      "payroll.read",
+      "payroll.create",
+      "payroll.update",
+      "payroll.delete",
+      "payroll.approve",
+      "payroll.export",
+      "payroll.execute", // Procesar nómina, generar recibos
 
-      // Reportes
+      // Pagos - Control total
+      "payments.read",
+      "payments.create",
+      "payments.update",
+      "payments.delete",
+      "payments.export",
+
+      // Reportes - Financieros
       "reports.read",
+      "reports.create",
       "reports.export",
+      "reports.execute",
     ],
   },
 
-  // ==========================================
-  // OPERATOR - Operador
-  // ==========================================
+  // ==========================================================================
+  // OPERATOR - Operador (operaciones diarias)
+  // ==========================================================================
   operator: {
-    role: "operator",
-    name: "Operador",
-    description: "Operaciones básicas del día a día",
+    role: ROLES.OPERATOR,
+    name: ROLE_LABELS.operator,
+    description: ROLE_DESCRIPTIONS.operator,
     permissions: [
+      // Dashboard
       "dashboard.read",
 
-      // Viajes - Lectura y actualización de estado
+      // Viajes - CRUD completo + actualización de estado
       "trips.read",
+      "trips.create",
+      "trips.update",
       "trips.updateStatus",
+      "trips.export",
 
       // Vehículos - Lectura
       "vehicles.read",
 
-      // Conductores - Lectura
+      // Conductores - Lectura + cambio de estado
       "drivers.read",
+      "drivers.updateStatus",
 
-      // Combustible - Registro
-      "fuel.read",
-      "fuel.create",
-    ],
-  },
+      // Clientes - Lectura
+      "clients.read",
 
-  // ==========================================
-  // DRIVER - Conductor
-  // ==========================================
-  driver: {
-    role: "driver",
-    name: "Conductor",
-    description: "Acceso a viajes asignados y registro de información",
-    permissions: [
-      "dashboard.read",
-
-      // Viajes - Solo sus viajes asignados
-      "trips.read",
-      "trips.updateStatus",
-
-      // Vehículo asignado
-      "vehicles.read",
-
-      // Combustible - Registro
-      "fuel.read",
-      "fuel.create",
-
-      // Mantenimiento - Reportar
+      // Mantenimiento - CRUD
       "maintenance.read",
       "maintenance.create",
+      "maintenance.update",
+      "maintenance.export",
+
+      // Combustible - CRUD
+      "fuel.read",
+      "fuel.create",
+      "fuel.update",
+      "fuel.export",
+
+      // Gastos - CRUD
+      "expenses.read",
+      "expenses.create",
+      "expenses.update",
+      "expenses.export",
+
+      // Reportes - Lectura limitada
+      "reports.read",
     ],
   },
 
-  // ==========================================
-  // CLIENT - Cliente externo
-  // ==========================================
+  // ==========================================================================
+  // CLIENT - Cliente externo (acceso limitado)
+  // ==========================================================================
   client: {
-    role: "client",
-    name: "Cliente",
-    description: "Acceso limitado a sus viajes y facturas",
+    role: ROLES.CLIENT,
+    name: ROLE_LABELS.client,
+    description: ROLE_DESCRIPTIONS.client,
     permissions: [
+      // Dashboard - Vista limitada
       "dashboard.read",
 
-      // Viajes - Solo los suyos
+      // Viajes - Solo lectura de sus propios viajes
       "trips.read",
 
-      // Facturas - Solo las suyas
+      // Facturas - Solo lectura de sus propias facturas
       "invoices.read",
+
+      // Reportes - Vista limitada de sus propios datos
+      "reports.read",
     ],
   },
 };
 
-// ============================================
+// ============================================================================
 // HELPER FUNCTIONS
-// ============================================
+// ============================================================================
 
 /**
  * Obtiene los permisos de un rol
  */
-export function getPermissionsForRole(role: Role): PermissionString[] {
+export function getPermissionsForRole(role: UserRole): PermissionString[] {
   const definition = ROLE_DEFINITIONS[role];
   if (!definition) return [];
   return [...definition.permissions];
@@ -321,34 +282,41 @@ export function getPermissionsForRole(role: Role): PermissionString[] {
 /**
  * Obtiene la definición de un rol
  */
-export function getRoleDefinition(role: Role): RoleDefinition | undefined {
+export function getRoleDefinition(role: UserRole): RoleDefinition | undefined {
   return ROLE_DEFINITIONS[role];
 }
 
 /**
- * Obtiene el nombre legible de un rol
+ * Obtiene el nombre legible de un rol (en español)
  */
-export function getRoleName(role: Role): string {
+export function getRoleName(role: UserRole): string {
   return ROLE_DEFINITIONS[role]?.name ?? role;
 }
 
 /**
- * Obtiene la descripción de un rol
+ * Obtiene la descripción de un rol (en español)
  */
-export function getRoleDescription(role: Role): string {
+export function getRoleDescription(role: UserRole): string {
   return ROLE_DEFINITIONS[role]?.description ?? "";
 }
 
 /**
  * Obtiene todos los roles disponibles
  */
-export function getAllRoles(): Role[] {
-  return Object.keys(ROLE_DEFINITIONS) as Role[];
+export function getAllRoles(): UserRole[] {
+  return Object.keys(ROLE_DEFINITIONS) as UserRole[];
 }
 
 /**
  * Obtiene roles que pueden ser asignados (excluye admin por seguridad)
  */
-export function getAssignableRoles(): Role[] {
-  return getAllRoles().filter((role) => role !== "admin");
+export function getAssignableRoles(): UserRole[] {
+  return getAllRoles().filter((role) => role !== ROLES.ADMIN);
+}
+
+/**
+ * Verifica si un rol existe
+ */
+export function isValidRole(role: string): role is UserRole {
+  return role in ROLE_DEFINITIONS;
 }

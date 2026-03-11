@@ -20,7 +20,7 @@ import {
   VALID_STATUS_TRANSITIONS,
   UNIQUE_STOP_TYPES,
   TRIP_STATUS_LABELS,
-} from "./entities";
+} from "./entities/entities";
 
 // ============================================================================
 // STATUS TRANSITION VALIDATORS

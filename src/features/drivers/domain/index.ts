@@ -38,6 +38,11 @@ export {
   // Labels
   DRIVER_STATUS_LABELS,
   LICENSE_TYPE_LABELS,
+  PSYCHOMETRIC_RESULT_LABELS,
+  DRUG_TEST_RESULT_LABELS,
+  // Colors
+  PSYCHOMETRIC_RESULT_COLORS,
+  DRUG_TEST_RESULT_COLORS,
   DRIVER_STATUS_COLORS,
 } from "./entities";
 
@@ -49,7 +54,4 @@ export {
   type UpdateDriverStatusDTO,
   // Repository Interface
   type IDriverRepository,
-  // Service Interfaces
-  type ILicenseValidationService,
-  type IDriverNotificationService,
 } from "./repository";

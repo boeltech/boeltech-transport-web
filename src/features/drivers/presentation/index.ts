@@ -40,7 +40,5 @@ export {
   driverSchema,
   type DriverFormData,
   defaultDriverFormValues,
-  BLOOD_TYPE_OPTIONS,
-  RELATIONSHIP_OPTIONS,
   MEXICAN_STATES,
 } from "./validation";

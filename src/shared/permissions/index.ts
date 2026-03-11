@@ -1,93 +1,45 @@
 /**
- * Auth Module - Public API
- * Feature-Sliced Design + Clean Architecture
+ * Permissions Module - Barrel Export
+ * Clean Architecture
  *
- * Sistema de autenticación y autorización (RBAC).
+ * Export point único para todo el módulo de permisos.
  *
  * Ubicación: src/shared/auth/index.ts
- *
- * ============================================================================
- * ESTRUCTURA:
- * ============================================================================
- *
- * src/shared/auth/
- * ├── domain/           → Entidades, reglas, matriz de permisos
- * ├── application/      → Casos de uso
- * ├── infrastructure/   → Context, hooks, guards
- * └── index.ts          → Public API
- *
- * src/app/providers/
- * └── PermissionProvider.tsx  → Provider de React
- *
- * ============================================================================
- * USO BÁSICO:
- * ============================================================================
- *
- * import { usePermissions, PermissionGuard, RoleGuard } from '@/shared/auth';
- *
- * // En componentes
- * const { hasPermission, hasRole } = usePermissions();
- * if (hasPermission('trips', 'create')) { ... }
- *
- * // Guards en JSX
- * <PermissionGuard module="trips" action="delete">
- *   <DeleteButton />
- * </PermissionGuard>
- *
  */
 
 // ============================================================================
-// DOMAIN - Types & Entities
+// Domain Layer Exports
 // ============================================================================
+
+export type {
+  Module,
+  Action,
+  Permission,
+  PermissionString,
+  UserPermissions,
+  RoleDefinition,
+  PermissionCheckResult,
+  PermissionState,
+} from "./domain/entities";
+
+export { MODULES, ACTIONS } from "./domain/entities";
 
 export {
-  // Constants
-  MODULES,
-  ACTIONS,
-  ROLES,
-
-  // Types
-  type Module,
-  type Action,
-  type Role,
-  type Permission,
-  type PermissionString,
-  type UserPermissions,
-  type RoleDefinition,
-  type PermissionCheckResult,
-  type PermissionState,
-} from "@shared/permissions/domain";
-
-// ============================================================================
-// DOMAIN - Business Rules
-// ============================================================================
-
-export {
-  // Permission helpers
   createPermissionString,
   parsePermissionString,
   isValidPermission,
   isAdminRole,
-
-  // Permission checks
+  hasPermissionInList,
   checkPermission,
   checkAllPermissions,
   checkAnyPermission,
-
-  // Role helpers
   hasRole,
   hasAnyRole,
-  getRoleHierarchy,
-  isRoleAbove,
-
-  // Module helpers
   getAvailableActions,
   getAccessibleModules,
-} from "@shared/permissions/domain";
-
-// ============================================================================
-// DOMAIN - Role Permissions Matrix
-// ============================================================================
+  isModuleAccessible,
+  mergePermissions,
+} from "./domain/rules";
 
 export {
   ROLE_DEFINITIONS,
@@ -97,10 +49,11 @@ export {
   getRoleDescription,
   getAllRoles,
   getAssignableRoles,
-} from "@shared/permissions/domain";
+  isValidRole,
+} from "./domain/rolePermissions";
 
 // ============================================================================
-// APPLICATION - Use Cases
+// Application Layer Exports
 // ============================================================================
 
 export {
@@ -111,20 +64,25 @@ export {
   createGetModuleActionsUseCase,
   createCheckMultiplePermissionsUseCase,
   createInitializePermissionStateUseCase,
-} from "@shared/permissions/application";
+} from "./application/useCases";
 
-// ============================================================================
-// INFRASTRUCTURE - Context
-// ============================================================================
-
-export {
-  PermissionContext,
-  type PermissionContextValue,
-} from "@shared/permissions/infrastructure";
-
-// ============================================================================
-// INFRASTRUCTURE - Hooks
-// ============================================================================
+export type {
+  CheckPermissionInput,
+  CheckPermissionUseCase,
+  GetUserPermissionsInput,
+  GetUserPermissionsResult,
+  GetUserPermissionsUseCase,
+  CheckRoleInput,
+  CheckRoleUseCase,
+  CheckAnyRoleInput,
+  CheckAnyRoleUseCase,
+  GetModuleActionsInput,
+  GetModuleActionsUseCase,
+  CheckMultiplePermissionsInput,
+  CheckMultiplePermissionsUseCase,
+  InitializePermissionStateInput,
+  InitializePermissionStateUseCase,
+} from "./application/useCases";
 
 export {
   usePermissions,
@@ -134,12 +92,18 @@ export {
   useCanAny,
   useRole,
   useIsAuthenticated,
-  type UsePermissionsReturn,
-} from "@shared/permissions/infrastructure";
+} from "./application/usePermissions";
+
+export type { UsePermissionsReturn } from "./application/usePermissions";
 
 // ============================================================================
-// INFRASTRUCTURE - Guard Components
+// Infrastructure Layer Exports
 // ============================================================================
+
+export { PermissionContext } from "./infrastructure/PermissionContext";
+export type { PermissionContextValue } from "./infrastructure/PermissionContext";
+
+// export { PermissionProvider } from "./infrastructure/PermissionProvider";
 
 export {
   PermissionGuard,
@@ -148,4 +112,4 @@ export {
   RoleGuard,
   AdminGuard,
   AuthenticatedGuard,
-} from "@shared/permissions/infrastructure";
+} from "./infrastructure";

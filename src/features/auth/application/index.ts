@@ -5,10 +5,18 @@
  * Ubicación: src/features/auth/application/index.ts
  */
 
+// Hooks
 export {
-  LoginUseCase,
-  LogoutUseCase,
-  VerifyAuthUseCase,
-  RefreshTokenUseCase,
-  type LoginUseCaseResult,
-} from "./useCases";
+  useAuth,
+  useRequireAuth,
+  useCurrentUser,
+  useAuthLoading,
+  useIsAuthenticated,
+} from "./hooks";
+
+// Use Cases
+export { LoginUseCase } from "./useCases/LoginUseCase";
+export { LogoutUseCase } from "./useCases/LogoutUseCase";
+export { VerifyAuthUseCase } from "./useCases/VerifyAuthUseCase";
+export { RefreshTokenUseCase } from "./useCases/RefreshTokenUseCase";
+export type { LoginUseCaseResult } from "./useCases/LoginUseCase";

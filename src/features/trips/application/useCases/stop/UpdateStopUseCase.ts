@@ -1,17 +1,17 @@
 import {
   TripStatus,
   type TripStop,
-  type CreateTripStopDTO,
   type IStopRepository,
   type ITripRepository,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
+import type { CreateStopInput } from "./AddStopUseCase";
 
 export interface IUpdateStopUseCase {
   execute(
     tripId: string,
     stopId: string,
-    data: Partial<CreateTripStopDTO>,
+    data: Partial<CreateStopInput>,
   ): Promise<UseCaseResult<TripStop>>;
 }
 
@@ -30,26 +30,26 @@ export class UpdateStopUseCase implements IUpdateStopUseCase {
   async execute(
     tripId: string,
     stopId: string,
-    data: Partial<CreateTripStopDTO>,
+    data: Partial<CreateStopInput>,
   ): Promise<UseCaseResult<TripStop>> {
     try {
       // Verificar que el viaje existe
       const trip = await this.tripRepository.findById(tripId);
 
-      if (!trip.data) {
+      if (!trip) {
         return {
           success: false,
           error: {
             code: "TRIP_NOT_FOUND",
-            message: trip.message ? trip.message : "El viaje no fue encontrado",
+            message: "El viaje no fue encontrado",
           },
         };
       }
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.data.status !== TripStatus.DRAFT &&
-        trip.data.status !== TripStatus.SCHEDULED
+        trip.status !== TripStatus.DRAFT &&
+        trip.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,

@@ -18,7 +18,8 @@
  */
 
 import { Navigate, Outlet } from "react-router-dom";
-import { usePermissions, type Role } from "@/shared/permissions";
+import { usePermissions } from "@/shared/permissions";
+import type { UserRole } from "@shared/constants/roles";
 
 // ============================================
 // Types
@@ -26,7 +27,7 @@ import { usePermissions, type Role } from "@/shared/permissions";
 
 interface RoleRouteProps {
   /** Rol o roles permitidos */
-  roles: Role | Role[];
+  roles: UserRole | UserRole[];
   /** Ruta a la que redirigir si no tiene el rol */
   redirectTo?: string;
   /** Componente a mostrar mientras carga */

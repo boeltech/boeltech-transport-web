@@ -18,6 +18,7 @@ import { useDriver, useUpdateDriver } from "../../application";
 import { DriverForm } from "../components/DriverForm";
 import type { DriverFormData } from "../validation/driverSchema";
 import { formatDriverName } from "../config/driverStatusConfig";
+import { DriverStatus } from "@features/drivers/domain";
 
 // ============================================================================
 // COMPONENT
@@ -68,18 +69,25 @@ export function DriverEditPage() {
         // No incluir employeeId en update (no se puede cambiar)
         licenseNumber: data.licenseNumber,
         licenseType: data.licenseType,
-        licenseExpiration: data.licenseExpiration,
-        licenseIssuedDate: data.licenseIssuedDate || undefined,
-        licenseIssuingState: data.licenseIssuingState || undefined,
-        yearsOfExperience: data.yearsOfExperience,
-        bloodType: data.bloodType || undefined,
-        medicalCertificateExpiration:
-          data.medicalCertificateExpiration || undefined,
+        licenseExpiry: data.licenseExpiry,
+        licenseIssuingState: data.licenseState || undefined,
+
+        medicalCertificateNumber: data.medicalCertificateNumber || undefined,
+        medicalCertificateExpiry: data.medicalCertificateExpiry || undefined,
+        medicalCertificateIssuer: data.medicalCertificateIssuer || undefined,
+
+        psychometricTestDate: data.psychometricTestDate || undefined,
+        psychometricTestResult: data.psychometricTestResult || undefined,
+
+        lastDrugTestDate: data.lastDrugTestDate || undefined,
+        drugTestResult: data.drugTestResult || undefined,
+
+        assignedDeviceId: data.assignedDeviceId || undefined,
+
         notes: data.notes || undefined,
-        emergencyContactName: data.emergencyContactName || undefined,
-        emergencyContactPhone: data.emergencyContactPhone || undefined,
-        emergencyContactRelationship:
-          data.emergencyContactRelationship || undefined,
+
+        status: driver?.status || DriverStatus.AVAILABLE, // Mantener el mismo status (no se puede cambiar desde el form)
+        isActive: driver?.isActive || true, // Mantener el mismo isActive (no se puede cambiar desde el form)
       },
     });
   };

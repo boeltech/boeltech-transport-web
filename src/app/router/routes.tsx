@@ -76,7 +76,9 @@ const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
 const RegisterPage = lazy(() => import("@/pages/auth/register"));
 
 // Dashboard
-const DashboardPage = lazy(() => import("@/pages/dashboard"));
+const DashboardPage = lazy(
+  () => import("@features/dashboard/presentation/DashboardPage"),
+);
 
 // Trips
 const TripFormPage = lazy(() =>

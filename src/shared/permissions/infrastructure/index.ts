@@ -11,18 +11,6 @@ export {
   type PermissionContextValue,
 } from "./PermissionContext";
 
-// Hooks
-export {
-  usePermissions,
-  useHasPermission,
-  useHasRole,
-  useCanAll,
-  useCanAny,
-  useRole,
-  useIsAuthenticated,
-  type UsePermissionsReturn,
-} from "./usePermissions";
-
 // Guards
 export {
   PermissionGuard,

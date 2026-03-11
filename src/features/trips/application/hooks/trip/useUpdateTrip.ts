@@ -3,16 +3,13 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import type { Trip, UpdateTripDTO } from "@features/trips/domain";
-import { createUpdateTripUseCase } from "@features/trips/application";
-import { createTripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities";
-
-// ============================================================================
-// REPOSITORY INSTANCES
-// ============================================================================
-
-const tripRepository = createTripRepository();
+import type { Trip } from "@features/trips/domain";
+import {
+  createUpdateTripUseCase,
+  type UpdateTripInput,
+} from "@features/trips/application";
+import { tripRepository } from "@features/trips/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para actualizar viaje
@@ -21,7 +18,7 @@ export function useUpdateTrip(
   options?: UseMutationOptions<
     Trip,
     Error,
-    { id: string; data: UpdateTripDTO }
+    { id: string; data: UpdateTripInput }
   >,
 ) {
   const queryClient = useQueryClient();

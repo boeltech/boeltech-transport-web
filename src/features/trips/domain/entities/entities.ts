@@ -194,12 +194,12 @@ export interface TripCargo {
   readonly movements: CargoMovement[];
 
   // Legacy (compatibilidad backend actual)
-  readonly pickupStopId: string | null;
-  readonly deliveryStopId: string | null;
+  // readonly pickupStopId: string | null;
+  // readonly deliveryStopId: string | null;
 
   readonly status: CargoStatusType;
-  readonly pickedUpAt: Date | null;
-  readonly deliveredAt: Date | null;
+  // readonly pickedUpAt: Date | null;
+  // readonly deliveredAt: Date | null;
 
   readonly notes: string | null;
   readonly specialInstructions: string | null;
@@ -260,6 +260,7 @@ export interface TripExpense {
 
   // Estado y aprobación
   readonly status: ExpenseStatusType;
+  readonly isEstimated: boolean; // Indica si es un gasto estimado (sin comprobante)
   readonly approvedBy: string | null;
   readonly approvedAt: Date | null;
   readonly rejectionReason: string | null;

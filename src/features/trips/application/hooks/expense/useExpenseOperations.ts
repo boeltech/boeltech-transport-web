@@ -13,8 +13,8 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { TripExpense } from "@features/trips/domain/entities";
-import { tripQueryKeys } from "@features/trips/domain/entities";
+import type { TripExpense } from "@features/trips/domain/entities/entities";
+import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 import type { ExpensesSummary } from "@features/trips/domain";
 import { expenseRepository } from "@features/trips/infrastructure";
 import {

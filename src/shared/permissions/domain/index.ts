@@ -9,10 +9,8 @@
 export {
   MODULES,
   ACTIONS,
-  ROLES,
   type Module,
   type Action,
-  type Role,
   type Permission,
   type PermissionString,
   type UserPermissions,
