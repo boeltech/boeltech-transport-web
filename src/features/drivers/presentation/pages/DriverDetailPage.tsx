@@ -56,50 +56,23 @@ import {
 // Presentation
 import {
   DriverStatusBadge,
-  getDaysUntilLicenseExpiration,
   getLicenseExpirationVariant,
   formatDriverName,
 } from "../config/driverStatusConfig";
 import { DriverActions } from "../components/DriverActions";
+import {
+  formatDate,
+  formatDateTime,
+  getDaysUntilDateString,
+  getExpiryDateString,
+} from "@shared/utils/dateUtils";
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-function formatDate(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = new Date(date);
-  return d.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatDateTime(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = new Date(date);
-  return d.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatNumber(num: number): string {
   return new Intl.NumberFormat("es-MX").format(num);
-}
-
-function getDaysUntilDate(date: Date | string | null): number | null {
-  if (!date) return null;
-  const targetDate = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  targetDate.setHours(0, 0, 0, 0);
-  const diffTime = targetDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
 function getExpirationStatus(days: number | null): {
@@ -247,7 +220,7 @@ export function DriverDetailPage() {
     ? formatDriverName(driver.employee)
     : "Conductor";
 
-  const daysUntilLicenseExpiration = getDaysUntilLicenseExpiration(
+  const daysUntilLicenseExpiration = getDaysUntilDateString(
     driver.licenseExpiry,
   );
   const licenseVariant = getLicenseExpirationVariant(
@@ -257,7 +230,7 @@ export function DriverDetailPage() {
   const isLicenseExpiringSoon =
     daysUntilLicenseExpiration > 0 && daysUntilLicenseExpiration <= 30;
 
-  const daysUntilMedicalExpiration = getDaysUntilDate(
+  const daysUntilMedicalExpiration = getDaysUntilDateString(
     driver.medicalCertificateExpiry,
   );
   const medicalStatus = getExpirationStatus(daysUntilMedicalExpiration);
@@ -705,10 +678,12 @@ export function DriverDetailPage() {
                     icon={<Clock className="h-4 w-4" />}
                     label="Vigencia estimada"
                     value={(() => {
-                      const testDate = new Date(driver.lastDrugTestDate);
-                      const validUntil = new Date(testDate);
-                      validUntil.setDate(validUntil.getDate() + 180); // 6 meses
-                      const daysRemaining = getDaysUntilDate(validUntil);
+                      const expiryDate = getExpiryDateString(
+                        driver.lastDrugTestDate,
+                        180, // 6 meses de vigencia para el examen antidoping
+                      );
+                      const daysRemaining = getDaysUntilDateString(expiryDate);
+
                       if (daysRemaining === null) return "—";
                       if (daysRemaining <= 0)
                         return (
@@ -781,7 +756,9 @@ export function DriverDetailPage() {
                       <div className="text-right">
                         <Badge variant="outline">{trip.status}</Badge>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatDate(trip.scheduledDeparture)}
+                          {formatDate(
+                            trip.scheduledDeparture.toISOString().split("T")[0],
+                          )}
                         </p>
                       </div>
                     </div>
@@ -854,8 +831,12 @@ export function DriverDetailPage() {
       <Card>
         <CardContent className="py-3">
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span>Creado: {formatDateTime(driver.createdAt)}</span>
-            <span>Actualizado: {formatDateTime(driver.updatedAt)}</span>
+            <span>
+              Creado: {formatDateTime(driver.createdAt.toISOString())}
+            </span>
+            <span>
+              Actualizado: {formatDateTime(driver.updatedAt.toISOString())}
+            </span>
             {driver.createdBy && <span>Por: {driver.createdBy}</span>}
           </div>
         </CardContent>

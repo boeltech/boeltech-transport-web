@@ -33,6 +33,7 @@ import {
 import type { TripWizardFormValues } from "../validation";
 import { StopType } from "@features/trips";
 import type { DriverListItem } from "@features/drivers";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
 interface SummaryStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,13 +83,13 @@ export function SummaryStep({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "No especificada";
-    return new Date(dateString).toLocaleString("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  };
+  // const formatDate = (dateString: string) => {
+  //   if (!dateString) return "No especificada";
+  //   return new Date(dateString).toLocaleString("es-MX", {
+  //     dateStyle: "medium",
+  //     timeStyle: "short",
+  //   });
+  // };
 
   // Cálculos financieros
   const totalCargoRevenue =
@@ -172,7 +173,7 @@ export function SummaryStep({
                     Salida Programada
                   </p>
                   <p className="font-medium">
-                    {formatDate(values.scheduledDeparture)}
+                    {formatDateTime(values.scheduledDeparture)}
                   </p>
                 </div>
               </div>
@@ -185,7 +186,7 @@ export function SummaryStep({
                     Llegada Estimada
                   </p>
                   <p className="font-medium">
-                    {formatDate(values.scheduledArrival || "")}
+                    {formatDateTime(values.scheduledArrival || "")}
                   </p>
                 </div>
               </div>

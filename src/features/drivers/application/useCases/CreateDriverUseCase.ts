@@ -7,7 +7,7 @@
 
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, CreateDriverDTO } from "../../domain";
-import { getCurrentLocalDate } from "@shared/utils/dateHelpers";
+import { isExpired } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // USE CASE
@@ -102,11 +102,7 @@ export class CreateDriverUseCase {
     }
 
     // Validar que la licencia no esté vencida
-    const rawLicenseExpiry = new Date(data.licenseExpiry);
-    const expirationDate = rawLicenseExpiry.toISOString().split("T")[0];
-    const now = getCurrentLocalDate();
-
-    if (expirationDate < now) {
+    if (isExpired(data.licenseExpiry)) {
       return {
         success: false,
         error: {

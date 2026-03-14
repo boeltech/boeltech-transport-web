@@ -41,6 +41,7 @@ import {
 import type { TripWizardFormValues } from "../validation";
 import type { DriverListItem } from "@features/drivers/domain";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
+import { isExpiringSoon } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
@@ -96,15 +97,6 @@ function calculateDriverAssignability(
   }
 
   // Verificar licencia vencida
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // const licenseExpiry =
-  //   driver.licenseExpiry instanceof Date
-  //     ? driver.licenseExpiry
-  //     : new Date(driver.licenseExpiry);
-
-  // if (licenseExpiry < today) {
   if (driver.isLicenseExpired) {
     return {
       canBeAssigned: false,
@@ -113,11 +105,7 @@ function calculateDriverAssignability(
   }
 
   // Verificar si la licencia está próxima a vencer (30 días)
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-  // if (licenseExpiry <= thirtyDaysFromNow) {
-  if (driver.licenseExpiry <= thirtyDaysFromNow) {
+  if (isExpiringSoon(driver.licenseExpiry, 30)) {
     // Permitir asignar pero con advertencia (no bloqueamos)
     return {
       canBeAssigned: true,

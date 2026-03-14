@@ -147,37 +147,55 @@ export function DriverForm({
   // Populate form when editing
   useEffect(() => {
     if (driver && mode === "edit") {
-      reset({
+      // Normalizar licenseType a mayúsculas (el backend puede devolver minúsculas)
+      const normalizedLicenseType = (driver.licenseType?.toUpperCase() ||
+        "E") as DriverFormData["licenseType"];
+
+      // Validar que psychometricTestResult sea un valor válido
+      const validPsychometricResults = PSYCHOMETRIC_RESULTS.map((r) => r.value);
+      const normalizedPsychometricResult = validPsychometricResults.includes(
+        driver.psychometricTestResult as any,
+      )
+        ? driver.psychometricTestResult
+        : "";
+
+      // Validar que drugTestResult sea un valor válido
+      const validDrugTestResults = DRUG_TEST_RESULTS.map((r) => r.value);
+      const normalizedDrugTestResult = validDrugTestResults.includes(
+        driver.drugTestResult as any,
+      )
+        ? driver.drugTestResult
+        : "";
+
+      // Usar reset con valores explícitos
+      const formValues: DriverFormData = {
         employeeId: driver.employeeId,
-        licenseNumber: driver.licenseNumber,
-        licenseType: driver.licenseType,
-        licenseExpiry: driver.licenseExpiry
-          ? new Date(driver.licenseExpiry).toISOString().split("T")[0]
-          : "",
+        licenseNumber: driver.licenseNumber || "",
+        licenseType: normalizedLicenseType,
+        licenseExpiry: driver.licenseExpiry,
         licenseState: driver.licenseIssuingState || "",
         medicalCertificateNumber: driver.medicalCertificateNumber || "",
-        medicalCertificateExpiry: driver.medicalCertificateExpiry
-          ? new Date(driver.medicalCertificateExpiry)
-              .toISOString()
-              .split("T")[0]
-          : "",
+        medicalCertificateExpiry: driver.medicalCertificateExpiry || undefined,
         medicalCertificateIssuer: driver.medicalCertificateIssuer || "",
-        psychometricTestDate: driver.psychometricTestDate
-          ? new Date(driver.psychometricTestDate).toISOString().split("T")[0]
-          : "",
-        psychometricTestResult: driver.psychometricTestResult || "",
-        lastDrugTestDate: driver.lastDrugTestDate
-          ? new Date(driver.lastDrugTestDate).toISOString().split("T")[0]
-          : "",
-        drugTestResult: driver.drugTestResult || "",
+        psychometricTestDate: driver.psychometricTestDate || undefined,
+        psychometricTestResult: normalizedPsychometricResult || "",
+        lastDrugTestDate: driver.lastDrugTestDate || undefined,
+        drugTestResult: normalizedDrugTestResult || "",
         assignedDeviceId: driver.assignedDeviceId || "",
         notes: driver.notes || "",
-      });
+      };
+
+      reset(formValues);
     }
   }, [driver, mode, reset]);
 
   const handleFormSubmit = (data: DriverFormData) => {
     onSubmit(data);
+  };
+
+  // Handler para Select que maneja el valor vacío
+  const handleSelectChange = (field: keyof DriverFormData, value: string) => {
+    setValue(field, value as any, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -262,14 +280,12 @@ export function DriverForm({
               error={errors.licenseType?.message}
             >
               <Select
-                value={watchedLicenseType}
-                onValueChange={(value) =>
-                  setValue(
-                    "licenseType",
-                    value as DriverFormData["licenseType"],
-                    // value as typeof watchedLicenseType,
-                  )
-                }
+                value={watchedLicenseType ?? ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    handleSelectChange("licenseType", value);
+                  }
+                }}
               >
                 <SelectTrigger
                   className={errors.licenseType ? "border-destructive" : ""}
@@ -308,8 +324,12 @@ export function DriverForm({
               error={errors.licenseState?.message}
             >
               <Select
-                value={watchedLicenseState || ""}
-                onValueChange={(value) => setValue("licenseState", value)}
+                value={watchedLicenseState ?? ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    handleSelectChange("licenseState", value);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar estado" />
@@ -417,10 +437,12 @@ export function DriverForm({
               error={errors.psychometricTestResult?.message}
             >
               <Select
-                value={watchedPsychometricResult || ""}
-                onValueChange={(value) =>
-                  setValue("psychometricTestResult", value)
-                }
+                value={watchedPsychometricResult ?? ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    handleSelectChange("psychometricTestResult", value);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar resultado" />
@@ -472,8 +494,12 @@ export function DriverForm({
               error={errors.drugTestResult?.message}
             >
               <Select
-                value={watchedDrugTestResult || ""}
-                onValueChange={(value) => setValue("drugTestResult", value)}
+                value={watchedDrugTestResult ?? ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    handleSelectChange("drugTestResult", value);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar resultado" />

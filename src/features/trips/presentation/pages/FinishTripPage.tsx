@@ -66,6 +66,11 @@ import {
   Building2,
 } from "lucide-react";
 import { TripStatusBadge } from "../config/tripStatusConfig";
+import {
+  formatDateTime,
+  getTodayString,
+  localInputToUtcIso,
+} from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
@@ -92,17 +97,6 @@ interface FormErrors {
 // HELPERS
 // ============================================================================
 
-function formatDate(date: Date | null | undefined): string {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return value.toLocaleString("es-MX");
@@ -124,16 +118,6 @@ function getStopTypeLabels(stopType: StopTypeValue | StopTypeValue[]): string {
     return stopType.map((t) => STOP_TYPE_LABELS[t] || t).join(" / ");
   }
   return STOP_TYPE_LABELS[stopType] || String(stopType);
-}
-
-/**
- * Calcula la hora local actual en formato datetime-local
- */
-function getCurrentLocalDatetime(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
 }
 
 // ============================================================================
@@ -311,7 +295,7 @@ export function FinishTripPage() {
   // Form state
   const [form, setForm] = useState<FinishFormState>({
     endMileage: "",
-    actualArrival: getCurrentLocalDatetime(),
+    actualArrival: getTodayString(),
     fuelCost: "",
     tollCost: "",
     otherCosts: "",
@@ -410,7 +394,7 @@ export function FinishTripPage() {
 
     const data: FinishTripInput = {
       endMileage: parseInt(form.endMileage, 10),
-      actualArrival: new Date(form.actualArrival).toISOString(),
+      actualArrival: localInputToUtcIso(form.actualArrival),
       fuelCost: form.fuelCost ? parseFloat(form.fuelCost) : undefined,
       tollCost: form.tollCost ? parseFloat(form.tollCost) : undefined,
       otherCosts: form.otherCosts ? parseFloat(form.otherCosts) : undefined,
@@ -585,7 +569,7 @@ export function FinishTripPage() {
                     Salida programada
                   </span>
                   <p className="font-medium">
-                    {formatDate(trip.scheduledDeparture)}
+                    {formatDateTime(trip.scheduledDeparture.toISOString())}
                   </p>
                 </div>
                 <div>
@@ -593,13 +577,13 @@ export function FinishTripPage() {
                     Llegada programada
                   </span>
                   <p className="font-medium">
-                    {formatDate(trip.scheduledArrival)}
+                    {formatDateTime(trip.scheduledArrival.toISOString())}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Salida real</span>
                   <p className="font-medium">
-                    {formatDate(trip.actualDeparture)}
+                    {formatDateTime(trip.actualDeparture.toISOString())}
                   </p>
                 </div>
                 <div>
@@ -910,7 +894,7 @@ export function FinishTripPage() {
                   <p>
                     <span className="text-muted-foreground">Llegada real:</span>{" "}
                     <span className="font-medium">
-                      {formatDate(new Date(form.actualArrival))}
+                      {formatDateTime(localInputToUtcIso(form.actualArrival))}
                     </span>
                   </p>
                   {finalCosts.total > 0 && (

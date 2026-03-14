@@ -1,6 +1,9 @@
 /**
  * TripCard Component
  * Clean Architecture - Presentation Layer
+ *
+ * CORREGIDO: El menú contextual ahora funciona correctamente.
+ * El problema era que el Link con absolute inset-0 interceptaba los clicks.
  */
 
 import { memo } from "react";
@@ -17,7 +20,6 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { TripStatus, type Trip } from "@features/trips/domain";
 import { canDeleteTrip, canEditTrip } from "../../domain/rules";
-import { formatDisplayDate } from "../uiHelpers";
 import {
   MoreVertical,
   MapPin,
@@ -34,6 +36,7 @@ import {
   Eye,
 } from "lucide-react";
 import { TripStatusBadge } from "../config/tripStatusConfig";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
 interface TripCardProps {
   trip: Trip;
@@ -68,8 +71,8 @@ export const TripCard = memo(function TripCard({
     trip.status === TripStatus.SCHEDULED ||
     trip.status === TripStatus.IN_PROGRESS;
 
-  const originCity = trip.stops?.[0]?.city || "Origen";
-  const destCity = trip.stops?.[trip.stops.length - 1]?.city || "Destino";
+  const originCity = trip.originCity || "Origen";
+  const destCity = trip.destinationCity || "Destino";
 
   return (
     <Card
@@ -81,7 +84,10 @@ export const TripCard = memo(function TripCard({
       )}
     >
       {onSelect && (
-        <div className="absolute top-3 left-3 z-10">
+        <div
+          className="absolute top-3 left-3 z-20"
+          onClick={(e) => e.stopPropagation()}
+        >
           <input
             type="checkbox"
             checked={isSelected}
@@ -97,11 +103,11 @@ export const TripCard = memo(function TripCard({
             <div className="flex items-center gap-2">
               <Link
                 to={`/trips/${trip.id}`}
-                className="font-semibold text-lg hover:text-primary transition-colors truncate"
+                className="font-semibold text-lg hover:text-primary transition-colors truncate relative z-10"
+                onClick={(e) => e.stopPropagation()}
               >
                 {trip.tripCode}
               </Link>
-              {/* <TripStatusBadgeAnimated status={trip.status} size="sm" /> */}
               <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
             </div>
             {trip.client && (
@@ -112,55 +118,62 @@ export const TripCard = memo(function TripCard({
             )}
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onView?.(trip.id)}>
-                <Eye className="mr-2 h-4 w-4" /> Ver detalles
-              </DropdownMenuItem>
-              {canEdit && onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(trip.id)}>
-                  <Pencil className="mr-2 h-4 w-4" /> Editar
+          {/* CORREGIDO: z-20 y stopPropagation para evitar que el Link intercepte */}
+          <div
+            className="relative z-20"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onView?.(trip.id)}>
+                  <Eye className="mr-2 h-4 w-4" /> Ver detalles
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              {canStart && onStart && (
-                <DropdownMenuItem onClick={() => onStart(trip.id)}>
-                  <Play className="mr-2 h-4 w-4 text-amber-500" /> Iniciar
-                </DropdownMenuItem>
-              )}
-              {canFinish && onFinish && (
-                <DropdownMenuItem onClick={() => onFinish(trip.id)}>
-                  <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" />{" "}
-                  Finalizar
-                </DropdownMenuItem>
-              )}
-              {canCancel && onCancel && (
-                <DropdownMenuItem onClick={() => onCancel(trip.id)}>
-                  <XCircle className="mr-2 h-4 w-4 text-amber-600" /> Cancelar
-                </DropdownMenuItem>
-              )}
-              {canDelete && onDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDelete(trip.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                {canEdit && onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(trip.id)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                )}
+                <DropdownMenuSeparator />
+                {canStart && onStart && (
+                  <DropdownMenuItem onClick={() => onStart(trip.id)}>
+                    <Play className="mr-2 h-4 w-4 text-amber-500" /> Iniciar
+                  </DropdownMenuItem>
+                )}
+                {canFinish && onFinish && (
+                  <DropdownMenuItem onClick={() => onFinish(trip.id)}>
+                    <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" />{" "}
+                    Finalizar
+                  </DropdownMenuItem>
+                )}
+                {canCancel && onCancel && (
+                  <DropdownMenuItem onClick={() => onCancel(trip.id)}>
+                    <XCircle className="mr-2 h-4 w-4 text-amber-600" /> Cancelar
+                  </DropdownMenuItem>
+                )}
+                {canDelete && onDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onDelete(trip.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 
@@ -180,15 +193,7 @@ export const TripCard = memo(function TripCard({
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
-            <span>
-              {/* {formatDisplayDate(trip.scheduledDeparture, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })} */}
-              {formatDisplayDate(trip.scheduledDeparture)}
-            </span>
+            <span>{formatDateTime(trip.scheduledDeparture.toISOString())}</span>
           </div>
           {trip.vehicle && (
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -205,7 +210,12 @@ export const TripCard = memo(function TripCard({
         </div>
       </CardContent>
 
-      <Link to={`/trips/${trip.id}`} className="absolute inset-0 z-0" />
+      {/* Link de fondo para hacer click en cualquier parte de la tarjeta */}
+      <Link
+        to={`/trips/${trip.id}`}
+        className="absolute inset-0 z-0"
+        aria-hidden="true"
+      />
     </Card>
   );
 });

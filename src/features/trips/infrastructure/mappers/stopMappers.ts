@@ -16,9 +16,7 @@ import {
   type StopTypeValue,
   type StopStatusValue,
 } from "@features/trips/domain/entities/entities";
-
-import { toDate, toDateRequired } from "@shared/utils/dateHelpers";
-import { toNumber } from "@shared/utils/numberHelpers";
+import { toNumber } from "@shared/utils/numberUtils";
 
 // ============================================================================
 // API RESPONSE TYPES - Estructura del Backend (snake_case)
@@ -75,17 +73,23 @@ export function mapTripStop(api: ApiStopResponse): TripStop {
     locationName: api.location_name,
     contactName: api.contact_name,
     contactPhone: api.contact_phone,
-    estimatedArrival: toDate(api.estimated_arrival),
-    actualArrival: toDate(api.actual_arrival),
-    estimatedDeparture: toDate(api.estimated_departure),
-    actualDeparture: toDate(api.actual_departure),
+    estimatedArrival: api.estimated_arrival
+      ? new Date(api.estimated_arrival)
+      : null,
+    actualArrival: api.actual_arrival ? new Date(api.actual_arrival) : null,
+    estimatedDeparture: api.estimated_departure
+      ? new Date(api.estimated_departure)
+      : null,
+    actualDeparture: api.actual_departure
+      ? new Date(api.actual_departure)
+      : null,
     // cargoActionDescription: api.cargo_action_description,
     // cargoWeight: toNumber(api.cargo_weight),
     // cargoUnits: api.cargo_units,
     status: api.status as StopStatusValue,
     notes: api.notes,
-    createdAt: toDateRequired(api.created_at),
-    updatedAt: toDateRequired(api.updated_at),
+    createdAt: new Date(api.created_at),
+    updatedAt: new Date(api.updated_at),
   };
 }
 

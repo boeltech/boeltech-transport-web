@@ -161,13 +161,9 @@ export function mapVehicleDetail(
       // Documentation (Value Object)
       documentation: {
         insurancePolicy: raw.data.insurance_policy,
-        insuranceExpiry: raw.data.insurance_expiry
-          ? new Date(raw.data.insurance_expiry)
-          : null,
+        insuranceExpiry: raw.data.insurance_expiry,
         sctPermitNumber: raw.data.sct_permit_number,
-        sctPermitExpiry: raw.data.sct_permit_expiry
-          ? new Date(raw.data.sct_permit_expiry)
-          : null,
+        sctPermitExpiry: raw.data.sct_permit_expiry,
       },
 
       // Status

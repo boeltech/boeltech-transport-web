@@ -114,7 +114,6 @@ export {
   DriverStatusBadge,
   getDriverStatusConfig,
   getDriverStatusLabel,
-  getDaysUntilLicenseExpiration,
   getLicenseExpirationVariant,
   formatDriverName,
 } from "./presentation";

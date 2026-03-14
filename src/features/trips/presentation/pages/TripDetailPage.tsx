@@ -59,7 +59,6 @@ import {
   // Helpers
   calculateDistance,
   calculateTripDuration,
-  formatDisplayDate,
   formatDuration,
   formatMileage,
   formatCurrency,
@@ -89,6 +88,7 @@ import {
   TripActions,
   TripStatusBadge,
 } from "@features/trips/presentation";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // HELPERS
@@ -455,25 +455,25 @@ export function TripDetailPage() {
                 <InfoRow
                   icon={<Calendar className="h-4 w-4" />}
                   label="Salida"
-                  value={formatDisplayDate(trip.scheduledDeparture)}
+                  value={formatDateTime(trip.scheduledDeparture.toISOString())}
                 />
                 <InfoRow
                   icon={<Clock className="h-4 w-4" />}
                   label="Llegada Est."
-                  value={formatDisplayDate(trip.scheduledArrival)}
+                  value={formatDateTime(trip.scheduledArrival?.toISOString())}
                 />
                 {trip.actualDeparture && (
                   <InfoRow
                     icon={<Play className="h-4 w-4 text-blue-500" />}
                     label="Salida Real"
-                    value={formatDisplayDate(trip.actualDeparture)}
+                    value={formatDateTime(trip.actualDeparture.toISOString())}
                   />
                 )}
                 {trip.actualArrival && (
                   <InfoRow
                     icon={<Check className="h-4 w-4 text-emerald-500" />}
                     label="Llegada Real"
-                    value={formatDisplayDate(trip.actualArrival)}
+                    value={formatDateTime(trip.actualArrival.toISOString())}
                   />
                 )}
                 <InfoRow
@@ -836,13 +836,17 @@ export function TripDetailPage() {
                               {stop.estimatedArrival && !isVisited && (
                                 <p className="text-xs text-muted-foreground">
                                   Llegada est.:{" "}
-                                  {formatDisplayDate(stop.estimatedArrival)}
+                                  {formatDateTime(
+                                    stop.estimatedArrival.toISOString(),
+                                  )}
                                 </p>
                               )}
                               {stop.actualArrival && (
                                 <p className="text-xs text-emerald-600 font-medium">
                                   ✓ Llegada:{" "}
-                                  {formatDisplayDate(stop.actualArrival)}
+                                  {formatDateTime(
+                                    stop.actualArrival.toISOString(),
+                                  )}
                                 </p>
                               )}
 
@@ -1184,7 +1188,10 @@ export function TripDetailPage() {
                           )}
                           {expense.expenseDate && (
                             <span>
-                              • {formatDisplayDate(expense.expenseDate)}
+                              •{" "}
+                              {formatDateTime(
+                                expense.expenseDate.toISOString(),
+                              )}
                             </span>
                           )}
                           {expense.hasReceipt && (
@@ -1334,7 +1341,7 @@ export function TripDetailPage() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {formatDisplayDate(entry.changedAt)}
+                            {formatDateTime(entry.changedAt.toISOString())}
                             {entry.changedByName && ` • ${entry.changedByName}`}
                           </p>
                           {entry.reason && (

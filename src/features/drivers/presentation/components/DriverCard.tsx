@@ -31,10 +31,8 @@ import {
 } from "lucide-react";
 import type { DriverListItem, DriverStatusType } from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
-import {
-  getDaysUntilLicenseExpiration,
-  formatDriverName,
-} from "../config/driverStatusConfig";
+import { formatDriverName } from "../config/driverStatusConfig";
+import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
@@ -46,20 +44,6 @@ interface DriverCardProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onChangeStatus?: (id: string, status: DriverStatusType) => void;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatDate(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = new Date(date);
-  return d.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 // ============================================================================
@@ -75,11 +59,8 @@ export function DriverCard({
   const hasActions = onEdit || onDelete;
   const fullName = formatDriverName(driver.employee);
 
-  const daysUntilExpiration = getDaysUntilLicenseExpiration(
-    driver.licenseExpiry,
-  );
-  const isExpired = daysUntilExpiration <= 0;
-  const isExpiringSoon = daysUntilExpiration > 0 && daysUntilExpiration <= 30;
+  const isLicenseExpired = isExpired(driver.licenseExpiry);
+  const isLicenseExpiringSoon = isExpiringSoon(driver.licenseExpiry, 30);
 
   return (
     <Card
@@ -178,19 +159,19 @@ export function DriverCard({
             <Calendar className="h-4 w-4 shrink-0" />
             <span
               className={
-                isExpired
+                isLicenseExpired
                   ? "text-destructive"
-                  : isExpiringSoon
+                  : isLicenseExpiringSoon
                     ? "text-amber-600 dark:text-amber-500"
                     : ""
               }
             >
               {formatDate(driver.licenseExpiry)}
             </span>
-            {(isExpired || isExpiringSoon) && (
+            {(isLicenseExpired || isLicenseExpiringSoon) && (
               <AlertTriangle
                 className={`h-3 w-3 ${
-                  isExpired
+                  isLicenseExpired
                     ? "text-destructive"
                     : "text-amber-600 dark:text-amber-500"
                 }`}

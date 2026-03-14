@@ -41,69 +41,30 @@ import { useVehicle } from "../../application";
 import { VEHICLE_TYPE_LABELS, type VehicleTypeValue } from "../../domain";
 
 // Presentation
-import { useToast } from "@shared/hooks";
+// import { useToast } from "@shared/hooks";
 import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
 import { VehicleActions } from "../components/VehicleActions";
+import {
+  formatDate,
+  formatDateTime,
+  getDaysUntilDateString,
+  isExpired,
+  isExpiringSoon,
+} from "@shared/utils/dateUtils";
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-function formatDate(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = new Date(date);
-  return d.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatDateTime(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = new Date(date);
-  return d.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function formatNumber(num: number | null): string {
   if (num === null) return "—";
   return new Intl.NumberFormat("es-MX").format(num);
 }
 
-function isExpired(date: Date | null): boolean {
-  if (!date) return false;
-  return new Date(date) < new Date();
-}
-
-function isExpiringSoon(date: Date | null, days: number = 30): boolean {
-  if (!date) return false;
-  const now = new Date();
-  const expDate = new Date(date);
-  const diffMs = expDate.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  return diffDays > 0 && diffDays <= days;
-}
-
-function getDaysUntilExpiration(date: Date | null): number | null {
-  if (!date) return null;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const expDate = new Date(date);
-  expDate.setHours(0, 0, 0, 0);
-  const diffMs = expDate.getTime() - now.getTime();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-}
-
 function getExpirationVariant(
-  date: Date | null,
+  date: string | null,
 ): "destructive" | "warning" | "secondary" | "default" {
-  const days = getDaysUntilExpiration(date);
+  const days = getDaysUntilDateString(date);
   if (days === null) return "secondary";
   if (days <= 0) return "destructive";
   if (days <= 30) return "warning";
@@ -175,7 +136,7 @@ function StatCard({ title, value, icon, description }: StatCardProps) {
 interface DocumentRowProps {
   label: string;
   documentNumber: string | null;
-  expirationDate: Date | null;
+  expirationDate: string | null;
 }
 
 function DocumentRow({
@@ -185,7 +146,7 @@ function DocumentRow({
 }: DocumentRowProps) {
   const expired = isExpired(expirationDate);
   const expiringSoon = isExpiringSoon(expirationDate);
-  const daysUntil = getDaysUntilExpiration(expirationDate);
+  const daysUntil = getDaysUntilDateString(expirationDate);
   const variant = getExpirationVariant(expirationDate);
 
   return (
@@ -227,7 +188,7 @@ function DocumentRow({
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  // const { toast } = useToast();
   const vehicleId = id || "";
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -357,7 +318,7 @@ export function VehicleDetailPage() {
                     • Seguro:{" "}
                     {insuranceExpired
                       ? "Vencido"
-                      : `Vence en ${getDaysUntilExpiration(documentation.insuranceExpiry)} días`}
+                      : `Vence en ${getDaysUntilDateString(documentation.insuranceExpiry)} días`}
                   </li>
                 )}
                 {(sctExpired || sctExpiringSoon) && (
@@ -365,7 +326,7 @@ export function VehicleDetailPage() {
                     • Permiso SCT:{" "}
                     {sctExpired
                       ? "Vencido"
-                      : `Vence en ${getDaysUntilExpiration(documentation.sctPermitExpiry)} días`}
+                      : `Vence en ${getDaysUntilDateString(documentation.sctPermitExpiry)} días`}
                   </li>
                 )}
               </ul>
@@ -540,12 +501,16 @@ export function VehicleDetailPage() {
                 <InfoRow
                   icon={<Calendar className="h-4 w-4" />}
                   label="Fecha de registro"
-                  value={formatDate(vehicle.createdAt)}
+                  value={formatDate(
+                    vehicle.createdAt.toISOString().split("T")[0],
+                  )}
                 />
                 <InfoRow
                   icon={<Calendar className="h-4 w-4" />}
                   label="Última actualización"
-                  value={formatDate(vehicle.updatedAt)}
+                  value={formatDate(
+                    vehicle.updatedAt.toISOString().split("T")[0],
+                  )}
                 />
               </div>
             </CardContent>
@@ -610,8 +575,12 @@ export function VehicleDetailPage() {
       <Card>
         <CardContent className="py-3">
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span>Creado: {formatDateTime(vehicle.createdAt)}</span>
-            <span>Actualizado: {formatDateTime(vehicle.updatedAt)}</span>
+            <span>
+              Creado: {formatDateTime(vehicle.createdAt.toISOString())}
+            </span>
+            <span>
+              Actualizado: {formatDateTime(vehicle.updatedAt.toISOString())}
+            </span>
             {vehicle.createdBy && <span>Por: {vehicle.createdBy}</span>}
           </div>
         </CardContent>

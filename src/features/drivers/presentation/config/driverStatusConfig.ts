@@ -110,18 +110,6 @@ export function getDriverStatusLabel(status: DriverStatusType): string {
 }
 
 /**
- * Calcula días hasta vencimiento de licencia
- */
-export function getDaysUntilLicenseExpiration(expirationDate: Date): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expDate = new Date(expirationDate);
-  expDate.setHours(0, 0, 0, 0);
-  const diffTime = expDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
-
-/**
  * Determina el color del badge de licencia según días restantes
  */
 export function getLicenseExpirationVariant(

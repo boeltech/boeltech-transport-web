@@ -45,9 +45,9 @@ export interface VehicleCapacities {
 
 export interface VehicleDocumentation {
   readonly insurancePolicy: string | null;
-  readonly insuranceExpiry: Date | null;
+  readonly insuranceExpiry: string | null;
   readonly sctPermitNumber: string | null;
-  readonly sctPermitExpiry: Date | null;
+  readonly sctPermitExpiry: string | null;
 }
 
 // ============================================================================

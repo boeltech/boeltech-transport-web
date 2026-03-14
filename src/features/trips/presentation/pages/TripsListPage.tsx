@@ -46,30 +46,13 @@ import { type TripStatusType } from "../../domain";
 import { TripTable, TripCard, TripCardSkeleton } from "../components";
 import { TRIP_STATUS_CONFIG } from "../index";
 import { generatePageNumbers } from "@shared/lib/utils/generatePageNumbers";
+import { formatDate } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 type ViewMode = "table" | "cards";
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatDateForAPI(dateStr: string): string {
-  return dateStr || "";
-}
-
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 // ============================================================================
 // COMPONENT
@@ -91,14 +74,14 @@ export function TripsListPage() {
   const dateTo = searchParams.get("dateTo") || "";
 
   // Fetch trips
-  const { data, isLoading, refetch } = useTrips({
+  const { data, isLoading, isFetching, refetch } = useTrips({
     page,
     limit: 10,
     filters: {
       status: status || undefined,
       search: search || undefined,
-      dateFrom: formatDateForAPI(dateFrom) || undefined,
-      dateTo: formatDateForAPI(dateTo) || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
     },
     sort: { field: "scheduled_departure", direction: "desc" },
   });
@@ -158,10 +141,10 @@ export function TripsListPage() {
   // Date filter display text
   const dateFilterText = hasDateFilter
     ? dateFrom && dateTo
-      ? `${formatDateDisplay(dateFrom)} - ${formatDateDisplay(dateTo)}`
+      ? `${formatDate(dateFrom)} - ${formatDate(dateTo)}`
       : dateFrom
-        ? `Desde ${formatDateDisplay(dateFrom)}`
-        : `Hasta ${formatDateDisplay(dateTo)}`
+        ? `Desde ${formatDate(dateFrom)}`
+        : `Hasta ${formatDate(dateTo)}`
     : "Filtrar por fecha";
 
   // Handlers
@@ -252,6 +235,25 @@ export function TripsListPage() {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
         if (value) params.set("dateTo", value);
+        else params.delete("dateTo");
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  // ============================================================================
+  // FIX: Handler combinado para setear ambas fechas en una sola operación
+  // Esto evita el race condition cuando se llaman dos setSearchParams seguidos
+  // ============================================================================
+  const handleDateRangeChange = useCallback(
+    (from: string, to: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (from) params.set("dateFrom", from);
+        else params.delete("dateFrom");
+        if (to) params.set("dateTo", to);
         else params.delete("dateTo");
         params.set("page", "1");
         return params;
@@ -407,15 +409,14 @@ export function TripsListPage() {
                   </div>
                 </div>
 
-                {/* Quick filters */}
+                {/* Quick filters - CORREGIDO: Usar handleDateRangeChange */}
                 <div className="flex flex-wrap gap-2 pt-2 border-t">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       const today = new Date().toISOString().split("T")[0];
-                      handleDateFromChange(today);
-                      handleDateToChange(today);
+                      handleDateRangeChange(today, today);
                     }}
                   >
                     Hoy
@@ -427,8 +428,10 @@ export function TripsListPage() {
                       const today = new Date();
                       const weekAgo = new Date(today);
                       weekAgo.setDate(today.getDate() - 7);
-                      handleDateFromChange(weekAgo.toISOString().split("T")[0]);
-                      handleDateToChange(today.toISOString().split("T")[0]);
+                      handleDateRangeChange(
+                        weekAgo.toISOString().split("T")[0],
+                        today.toISOString().split("T")[0],
+                      );
                     }}
                   >
                     Última semana
@@ -440,10 +443,10 @@ export function TripsListPage() {
                       const today = new Date();
                       const monthAgo = new Date(today);
                       monthAgo.setMonth(today.getMonth() - 1);
-                      handleDateFromChange(
+                      handleDateRangeChange(
                         monthAgo.toISOString().split("T")[0],
+                        today.toISOString().split("T")[0],
                       );
-                      handleDateToChange(today.toISOString().split("T")[0]);
                     }}
                   >
                     Último mes
@@ -458,10 +461,10 @@ export function TripsListPage() {
                         today.getMonth(),
                         1,
                       );
-                      handleDateFromChange(
+                      handleDateRangeChange(
                         firstDay.toISOString().split("T")[0],
+                        today.toISOString().split("T")[0],
                       );
-                      handleDateToChange(today.toISOString().split("T")[0]);
                     }}
                   >
                     Este mes
@@ -494,10 +497,15 @@ export function TripsListPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => refetch()}
-            disabled={isLoading}
+            onClick={async () => {
+              await refetch();
+              toast({ title: "Lista actualizada", variant: "success" });
+            }}
+            disabled={isFetching}
           >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            <RefreshCw
+              className={cn("h-4 w-4", isFetching && "animate-spin")}
+            />
           </Button>
 
           {/* View Toggle */}

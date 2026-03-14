@@ -53,10 +53,10 @@ interface VehicleFormProps {
 /**
  * Convierte Date | null a string ISO date (YYYY-MM-DD) para input[type=date]
  */
-function dateToInputValue(date: Date | null): string {
-  if (!date) return "";
-  return date.toISOString().split("T")[0];
-}
+// function dateToInputValue(date: Date | null): string {
+//   if (!date) return "";
+//   return date.toISOString().split("T")[0];
+// }
 
 // ============================================================================
 // COMPONENT
@@ -89,13 +89,9 @@ export function VehicleForm({
             vehicle.capacities.expectedFuelEfficiency ?? undefined,
           currentMileage: vehicle.currentMileage,
           insurancePolicy: vehicle.documentation.insurancePolicy || "",
-          insuranceExpiry: dateToInputValue(
-            vehicle.documentation.insuranceExpiry,
-          ),
+          insuranceExpiry: vehicle.documentation.insuranceExpiry,
           sctPermitNumber: vehicle.documentation.sctPermitNumber || "",
-          sctPermitExpiry: dateToInputValue(
-            vehicle.documentation.sctPermitExpiry,
-          ),
+          sctPermitExpiry: vehicle.documentation.sctPermitExpiry,
         }
       : {
           unitNumber: "",

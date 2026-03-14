@@ -30,7 +30,6 @@ export {
   DriverStatusBadge,
   getDriverStatusConfig,
   getDriverStatusLabel,
-  getDaysUntilLicenseExpiration,
   getLicenseExpirationVariant,
   formatDriverName,
 } from "./config/driverStatusConfig";

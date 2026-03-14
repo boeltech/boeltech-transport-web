@@ -7,6 +7,7 @@
 
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, UpdateDriverDTO } from "../../domain";
+import { isExpired } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // USE CASE
@@ -92,18 +93,15 @@ export class UpdateDriverUseCase {
     existingDriver: Driver,
   ): Promise<UseCaseResult<Driver>> {
     // Si se está actualizando la fecha de vencimiento, validar que no esté vencida
-    if (data.licenseExpiry) {
-      const expirationDate = new Date(data.licenseExpiry);
-      if (expirationDate < new Date()) {
-        return {
-          success: false,
-          error: {
-            code: "LICENSE_EXPIRED",
-            message:
-              "No se puede establecer una fecha de vencimiento en el pasado",
-          },
-        };
-      }
+    if (isExpired(data.licenseExpiry)) {
+      return {
+        success: false,
+        error: {
+          code: "LICENSE_EXPIRED",
+          message:
+            "No se puede establecer una fecha de vencimiento en el pasado",
+        },
+      };
     }
 
     // Si se está cambiando el número de licencia, verificar que no esté en uso

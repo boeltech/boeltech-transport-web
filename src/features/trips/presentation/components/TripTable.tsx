@@ -20,6 +20,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import type { TripListItem } from "../../domain";
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import { TripActions } from "./TripActions";
+import { formatDate, formatTime } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
@@ -50,29 +51,6 @@ const TABLE_HEADERS = [
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
 ];
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatTime(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("es-MX", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 // ============================================================================
 // SUB-COMPONENTS
@@ -217,9 +195,13 @@ export function TripTable({
               {/* Salida */}
               <TableCell>
                 <div className="space-y-0.5">
-                  <p>{formatDate(trip.scheduledDeparture)}</p>
+                  <p>
+                    {formatDate(
+                      trip.scheduledDeparture.toISOString().split("T")[0],
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatTime(trip.scheduledDeparture)}
+                    {formatTime(trip.scheduledDeparture.toISOString())}
                   </p>
                 </div>
               </TableCell>

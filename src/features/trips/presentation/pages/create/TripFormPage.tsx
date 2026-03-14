@@ -40,10 +40,6 @@ import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
 import { ArrowLeft, ArrowRight, RefreshCw, CheckCircle } from "lucide-react";
-import {
-  isoToLocalDateTime,
-  localDateTimeToISO,
-} from "@shared/utils/dateHelpers";
 
 // Wizard components
 import {
@@ -58,6 +54,10 @@ import {
   SummaryStep,
 } from "./components";
 import type { TripWizardFormValues } from "./components";
+import {
+  localInputToUtcIso,
+  utcIsoToLocalInput,
+} from "@shared/utils/dateUtils";
 
 // ============================================================================
 // COMPONENT
@@ -140,7 +140,7 @@ export function TripFormPage() {
         contactName: stop.contactName || undefined,
         contactPhone: stop.contactPhone || undefined,
         estimatedArrival: stop.estimatedArrival
-          ? isoToLocalDateTime(stop.estimatedArrival)
+          ? utcIsoToLocalInput(stop.estimatedArrival.toISOString())
           : undefined,
         notes: stop.notes || undefined,
       }));
@@ -179,7 +179,7 @@ export function TripFormPage() {
         amount: expense.amount,
         currency: expense.currency,
         expenseDate: expense.expenseDate
-          ? isoToLocalDateTime(expense.expenseDate)
+          ? utcIsoToLocalInput(expense.expenseDate.toISOString())
           : undefined,
         location: expense.location || undefined,
         vendorName: expense.vendorName || undefined,
@@ -191,9 +191,11 @@ export function TripFormPage() {
         vehicleId: existingTrip.vehicleId,
         driverId: existingTrip.driverId,
         clientId: existingTrip.clientId || "",
-        scheduledDeparture: isoToLocalDateTime(existingTrip.scheduledDeparture),
+        scheduledDeparture: utcIsoToLocalInput(
+          existingTrip.scheduledDeparture.toISOString(),
+        ),
         scheduledArrival: existingTrip.scheduledArrival
-          ? isoToLocalDateTime(existingTrip.scheduledArrival)
+          ? utcIsoToLocalInput(existingTrip.scheduledArrival.toISOString())
           : "",
         startMileage: existingTrip.mileage.start ?? undefined,
         originAddress: existingTrip.originAddress,
@@ -487,9 +489,9 @@ export function TripFormPage() {
         vehicleId: data.vehicleId,
         driverId: data.driverId,
         clientId: data.clientId || undefined,
-        scheduledDeparture: localDateTimeToISO(data.scheduledDeparture),
+        scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
         scheduledArrival: data.scheduledArrival
-          ? localDateTimeToISO(data.scheduledArrival)
+          ? localInputToUtcIso(data.scheduledArrival)
           : undefined,
         startMileage: data.startMileage,
         originAddress: originStop?.address || "",
@@ -524,9 +526,9 @@ export function TripFormPage() {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
       clientId: data.clientId || undefined,
-      scheduledDeparture: localDateTimeToISO(data.scheduledDeparture),
+      scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
       scheduledArrival: data.scheduledArrival
-        ? localDateTimeToISO(data.scheduledArrival)
+        ? localInputToUtcIso(data.scheduledArrival)
         : undefined,
       startMileage: data.startMileage,
       originAddress: originStop?.address || "",
@@ -561,7 +563,7 @@ export function TripFormPage() {
         contactName: stop.contactName,
         contactPhone: stop.contactPhone,
         estimatedArrival: stop.estimatedArrival
-          ? localDateTimeToISO(stop.estimatedArrival)
+          ? localInputToUtcIso(stop.estimatedArrival)
           : undefined,
         notes: stop.notes,
         // Carta Porte 3.1
@@ -617,7 +619,7 @@ export function TripFormPage() {
         amount: expense.amount,
         currency: expense.currency,
         expenseDate: expense.expenseDate
-          ? localDateTimeToISO(expense.expenseDate)
+          ? localInputToUtcIso(expense.expenseDate)
           : undefined,
         location: expense.location,
         vendorName: expense.vendorName,

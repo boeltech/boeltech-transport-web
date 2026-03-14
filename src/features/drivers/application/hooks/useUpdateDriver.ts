@@ -70,17 +70,28 @@ export function useUpdateDriver(
       return result.data;
     },
     onSuccess: (data, variables, context) => {
-      // Invalidar detalle del conductor
+      // Actualizar el cache del detalle directamente con los datos devueltos
+      // Esto es inmediato y permite que la navegación sea instantánea
+      queryClient.setQueryData(driverQueryKeys.detail(variables.id), data);
+
+      // Invalidar queries en background (sin await)
+      // El refetch ocurrirá cuando el usuario vuelva a necesitar estos datos
       queryClient.invalidateQueries({
         queryKey: driverQueryKeys.detail(variables.id),
       });
-      // Invalidar lista de conductores
-      queryClient.invalidateQueries({ queryKey: driverQueryKeys.lists() });
-      // Invalidar lista de disponibles
-      queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
-      // Llamar callback personalizado
+
+      queryClient.invalidateQueries({
+        queryKey: driverQueryKeys.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: driverQueryKeys.available(),
+      });
+
+      // Llamar callback personalizado inmediatamente
       options?.onSuccess?.(data, variables, context);
     },
-    ...options,
+    onError: options?.onError,
+    onSettled: options?.onSettled,
   });
 }

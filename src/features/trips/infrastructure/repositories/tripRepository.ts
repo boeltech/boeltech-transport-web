@@ -171,8 +171,8 @@ export class TripRepository implements ITripRepository {
     };
 
     if (params.sort?.field) {
-      query.sortBy = params.sort.field;
-      query.sortOrder = params.sort.direction ?? "desc";
+      query.sort_by = params.sort.field;
+      query.sort_order = params.sort.direction ?? "desc";
     }
 
     if (params.filters) {
@@ -187,11 +187,11 @@ export class TripRepository implements ITripRepository {
       } = params.filters;
 
       if (status) query.status = Array.isArray(status) ? status : [status];
-      if (clientId) query.clientId = clientId;
-      if (driverId) query.driverId = driverId;
-      if (vehicleId) query.vehicleId = vehicleId;
-      if (dateFrom) query.dateFrom = dateFrom;
-      if (dateTo) query.dateTo = dateTo;
+      if (clientId) query.client_id = clientId;
+      if (driverId) query.driver_id = driverId;
+      if (vehicleId) query.vehicle_id = vehicleId;
+      if (dateFrom) query.date_from = dateFrom;
+      if (dateTo) query.date_to = dateTo;
       if (search) query.search = search;
     }
 

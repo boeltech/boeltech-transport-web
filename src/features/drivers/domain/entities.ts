@@ -43,7 +43,7 @@ export type LicenseTypeValue = (typeof LicenseType)[keyof typeof LicenseType];
 export interface LicenseInfo {
   readonly number: string;
   readonly type: LicenseTypeValue;
-  readonly expirationDate: Date;
+  readonly expirationDate: string;
   readonly issuingState: string | null;
   readonly isExpired: boolean;
   readonly daysUntilExpiration: number | null;
@@ -51,17 +51,17 @@ export interface LicenseInfo {
 
 export interface MedicalCertificateInfo {
   readonly number: string | null;
-  readonly expirationDate: Date | null;
+  readonly expirationDate: string | null;
   readonly issuer: string | null;
 }
 
 export interface PsychometricTestInfo {
-  readonly testDate: Date | null;
+  readonly testDate: string | null;
   readonly result: string | null;
 }
 
 export interface DrugTestInfo {
-  readonly testDate: Date | null;
+  readonly testDate: string | null;
   readonly result: string | null;
 }
 
@@ -110,7 +110,7 @@ export interface DriverListItem {
   readonly employee: EmployeeRef;
   readonly licenseNumber: string;
   readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiry: Date;
+  readonly licenseExpiry: string;
   readonly status: DriverStatusType;
   readonly yearsOfExperience: number;
   readonly totalTrips: number;
@@ -131,20 +131,20 @@ export interface Driver {
   // Información de licencia
   readonly licenseNumber: string;
   readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiry: Date;
+  readonly licenseExpiry: string;
   readonly licenseIssuingState: string | null;
 
   // Certificado médico
   readonly medicalCertificateNumber: string | null;
-  readonly medicalCertificateExpiry: Date | null;
+  readonly medicalCertificateExpiry: string | null;
   readonly medicalCertificateIssuer: string | null;
 
   // Examen psicométrico
-  readonly psychometricTestDate: Date | null;
+  readonly psychometricTestDate: string | null;
   readonly psychometricTestResult: string | null;
 
   // Examen antidoping
-  readonly lastDrugTestDate: Date | null;
+  readonly lastDrugTestDate: string | null;
   readonly drugTestResult: string | null;
 
   // Dispositivo asignado
@@ -289,7 +289,7 @@ export interface DriverAvailableItem {
   readonly fullName: string;
   readonly licenseType: LicenseTypeValue;
   readonly licenseNumber: string;
-  readonly licenseExpiry: Date;
+  readonly licenseExpiry: string;
   readonly phone?: string;
 }
 
@@ -339,7 +339,8 @@ export const VALID_STATUS_TRANSITIONS: Record<
   [DriverStatus.RESTING]: [DriverStatus.AVAILABLE, DriverStatus.TERMINATED],
   [DriverStatus.ON_VACATION]: [DriverStatus.AVAILABLE],
   [DriverStatus.ON_LEAVE]: [DriverStatus.AVAILABLE],
-  [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
+  // [DriverStatus.TERMINATED]: [DriverStatus.AVAILABLE],
+  [DriverStatus.TERMINATED]: [],
 };
 
 // ============================================================================

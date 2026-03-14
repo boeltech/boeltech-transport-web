@@ -21,6 +21,7 @@ import { AlertTriangle } from "lucide-react";
 import type { DriverListItem, DriverStatusType } from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { DriverActions } from "./DriverActions";
+import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // TYPES
@@ -48,37 +49,6 @@ const TABLE_HEADERS = [
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
 ];
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function isLicenseExpiringSoon(expirationDate: string | null): boolean {
-  if (!expirationDate) return false;
-  const expDate = new Date(expirationDate);
-  const today = new Date();
-  const diffDays = Math.ceil(
-    (expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  return diffDays <= 30 && diffDays >= 0;
-}
-
-function isLicenseExpired(expirationDate: string | null): boolean {
-  if (!expirationDate) return false;
-  const expDate = new Date(expirationDate);
-  const today = new Date();
-  return expDate < today;
-}
 
 // ============================================================================
 // SUB-COMPONENTS
@@ -188,8 +158,8 @@ export function DriverTable({
         <TableHeaderRow />
         <TableBody>
           {drivers.map((driver) => {
-            const expiringSoon = isLicenseExpiringSoon(driver.licenseExpiry);
-            const expired = isLicenseExpired(driver.licenseExpiry);
+            const expiringSoon = isExpiringSoon(driver.licenseExpiry);
+            const expired = isExpired(driver.licenseExpiry);
 
             return (
               <TableRow

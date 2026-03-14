@@ -198,7 +198,7 @@ function mapDriverListItemToDomain(
     employee: mapEmployeeRefToDomain(raw.employee),
     licenseNumber: raw.licenseNumber,
     licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiry: new Date(raw.licenseExpiry),
+    licenseExpiry: raw.licenseExpiry,
     status: raw.status as DriverStatusType,
     yearsOfExperience: raw.yearsOfExperience,
     totalTrips: raw.totalTrips,
@@ -221,26 +221,20 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
     // Licencia
     licenseNumber: raw.licenseNumber,
     licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiry: new Date(raw.licenseExpiry),
+    licenseExpiry: raw.licenseExpiry,
     licenseIssuingState: raw.licenseIssuingState,
 
     // Certificado médico
     medicalCertificateNumber: raw.medicalCertificateNumber,
-    medicalCertificateExpiry: raw.medicalCertificateExpiry
-      ? new Date(raw.medicalCertificateExpiry)
-      : null,
+    medicalCertificateExpiry: raw.medicalCertificateExpiry,
     medicalCertificateIssuer: raw.medicalCertificateIssuer,
 
     // Examen psicométrico
-    psychometricTestDate: raw.psychometricTestDate
-      ? new Date(raw.psychometricTestDate)
-      : null,
+    psychometricTestDate: raw.psychometricTestDate,
     psychometricTestResult: raw.psychometricTestResult,
 
     // Examen antidoping
-    lastDrugTestDate: raw.lastDrugTestDate
-      ? new Date(raw.lastDrugTestDate)
-      : null,
+    lastDrugTestDate: raw.lastDrugTestDate,
     drugTestResult: raw.drugTestResult,
 
     // Dispositivo
