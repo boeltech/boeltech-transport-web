@@ -38,7 +38,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
 
       // Validar que la transición de estado sea válida
       const validation = validateStatusTransition(
-        currentTrip.status,
+        currentTrip.data.status,
         TripStatus.SCHEDULED,
       );
 
@@ -50,7 +50,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       }
 
       // Validar que el viaje tenga la información mínima requerida
-      const validationResult = this.validateTripForScheduling(currentTrip);
+      const validationResult = this.validateTripForScheduling(currentTrip.data);
       if (!validationResult.success) {
         return validationResult;
       }
@@ -60,7 +60,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         status: TripStatus.SCHEDULED,
       });
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

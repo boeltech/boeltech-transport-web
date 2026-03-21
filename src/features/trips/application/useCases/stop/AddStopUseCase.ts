@@ -5,40 +5,9 @@ import {
   type TripStop,
   type IStopRepository,
   type ITripRepository,
-  type StopTypeValue,
+  type CreateStopInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
-
-/**
- * Input para parada
- */
-export interface CreateStopInput {
-  sequenceOrder: number;
-  stopType: StopTypeValue;
-  address: string;
-  city: string;
-  state?: string;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
-  locationName?: string;
-  contactName?: string;
-  contactPhone?: string;
-  estimatedArrival?: string;
-  notes?: string;
-  // Carta Porte 3.1
-  street?: string;
-  exteriorNumber?: string;
-  interiorNumber?: string;
-  colonia?: string;
-  reference?: string;
-  satEstadoCode?: string;
-  satMunicipioCode?: string;
-  satLocalidadCode?: string;
-  satColoniaCode?: string;
-  rfcRemitenteDestinatario?: string;
-  distanceToNextKm?: number;
-}
 
 export interface IAddStopUseCase {
   execute(
@@ -85,8 +54,8 @@ export class AddStopUseCase implements IAddStopUseCase {
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.status !== TripStatus.DRAFT &&
-        trip.status !== TripStatus.SCHEDULED
+        trip.data.status !== TripStatus.DRAFT &&
+        trip.data.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,
@@ -102,7 +71,7 @@ export class AddStopUseCase implements IAddStopUseCase {
       const currentStops = await this.stopRepository.findByTripId(tripId);
 
       // Verificar si se puede agregar este tipo de parada
-      if (!canAddStopType(currentStops, input.stopType)) {
+      if (!canAddStopType(currentStops.data, input.stopType)) {
         return {
           success: false,
           error: {
@@ -113,7 +82,7 @@ export class AddStopUseCase implements IAddStopUseCase {
       }
 
       // Calcular orden
-      const sequenceOrder = getNextStopOrder(currentStops);
+      const sequenceOrder = getNextStopOrder(currentStops.data);
 
       const stopData = {
         ...input,
@@ -123,7 +92,7 @@ export class AddStopUseCase implements IAddStopUseCase {
       // Agregar parada
       const stop = await this.stopRepository.add(tripId, stopData);
 
-      return { success: true, data: stop };
+      return { success: true, data: stop.data };
     } catch (error) {
       return {
         success: false,

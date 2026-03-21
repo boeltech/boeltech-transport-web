@@ -14,14 +14,14 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  useTrip,
-  useFinishTrip,
-  type FinishTripInput,
-} from "@features/trips/application";
+import { useTrip, useFinishTrip } from "@features/trips/application";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
-import type { TripStop, TripCargo } from "@features/trips/domain";
+import type {
+  TripStop,
+  TripCargo,
+  FinishTripInput,
+} from "@features/trips/domain";
 import {
   STOP_TYPE_LABELS,
   CARGO_STATUS_LABELS,
@@ -395,9 +395,9 @@ export function FinishTripPage() {
     const data: FinishTripInput = {
       endMileage: parseInt(form.endMileage, 10),
       actualArrival: localInputToUtcIso(form.actualArrival),
-      fuelCost: form.fuelCost ? parseFloat(form.fuelCost) : undefined,
-      tollCost: form.tollCost ? parseFloat(form.tollCost) : undefined,
-      otherCosts: form.otherCosts ? parseFloat(form.otherCosts) : undefined,
+      // fuelCost: form.fuelCost ? parseFloat(form.fuelCost) : undefined,
+      // tollCost: form.tollCost ? parseFloat(form.tollCost) : undefined,
+      // otherCosts: form.otherCosts ? parseFloat(form.otherCosts) : undefined,
       notes: form.notes || undefined,
     };
 

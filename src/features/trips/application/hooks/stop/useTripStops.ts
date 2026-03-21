@@ -1,8 +1,7 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import type { TripStop } from "@features/trips/domain";
+import { tripQueryKeys, type TripStop } from "@features/trips/domain";
 import { createGetStopsUseCase } from "@features/trips/application";
 import { stopRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para obtener destinos de un viaje

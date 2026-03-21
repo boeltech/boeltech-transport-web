@@ -7,80 +7,19 @@
  */
 
 import type {
-  TripCargo,
   CargoMovement,
-  CargoMovementTypeValue,
-} from "@features/trips/domain/entities/entities";
-import type {
+  CompleteCargoMovementInput,
+  CreateCargoInput,
+  CreateCargoMovementInput,
   ICargoRepository,
-  UpdateCargoDTO,
-  CompleteCargoMovementDTO,
+  TripCargo,
+  UpdateCargoInput,
 } from "@features/trips/domain";
 import {
   mapBackendError,
   type MappedError,
   type UseCaseResult,
 } from "@shared/utils/errorMapper";
-
-// ============================================================================
-// INPUT TYPES
-// ============================================================================
-
-/**
- * Input para movimiento de carga
- */
-export interface CreateCargoMovementInput {
-  // stopId: string;
-  stopIndex: number;
-  movementType: CargoMovementTypeValue;
-  weight?: number;
-  units?: number;
-  notes?: string;
-}
-
-/**
- * Input para carga
- */
-export interface CreateCargoInput {
-  clientId: string;
-  description: string;
-  productType?: string;
-  weight?: number;
-  volume?: number;
-  units?: number;
-  declaredValue?: number;
-  rate: number;
-  currency?: string;
-  notes?: string;
-  specialInstructions?: string;
-  movements?: CreateCargoMovementInput[];
-  // Carta Porte 3.1
-  satProductCode?: string;
-  satUnitCode?: string;
-  satUnitName?: string;
-  weightInKg?: number;
-  dimensions?: string;
-  hazardousMaterial?: boolean;
-  hazardousMaterialCode?: string;
-  packagingType?: string;
-  packagingDescription?: string;
-}
-
-/**
- * Input para actualizar una carga
- */
-export interface UpdateCargoInput {
-  description?: string;
-  productType?: string | null;
-  weight?: number | null;
-  volume?: number | null;
-  units?: number | null;
-  declaredValue?: number | null;
-  rate?: number;
-  currency?: string;
-  notes?: string | null;
-  specialInstructions?: string | null;
-}
 
 // ============================================================================
 // GET CARGOS USE CASE
@@ -241,20 +180,20 @@ export class UpdateCargoUseCase implements IUpdateCargoUseCase {
     input: UpdateCargoInput,
   ): Promise<UseCaseResult<TripCargo>> {
     try {
-      const dto: UpdateCargoDTO = {
-        description: input.description,
-        productType: input.productType,
-        weight: input.weight,
-        volume: input.volume,
-        units: input.units,
-        declaredValue: input.declaredValue,
-        rate: input.rate,
-        currency: input.currency,
-        notes: input.notes,
-        specialInstructions: input.specialInstructions,
-      };
+      // const dto: UpdateCargoDT = {
+      //   description: input.description,
+      //   productType: input.productType,
+      //   weight: input.weight,
+      //   volume: input.volume,
+      //   units: input.units,
+      //   declaredValue: input.declaredValue,
+      //   rate: input.rate,
+      //   currency: input.currency,
+      //   notes: input.notes,
+      //   specialInstructions: input.specialInstructions,
+      // };
 
-      const result = await this.repository.update(tripId, cargoId, dto);
+      const result = await this.repository.update(tripId, cargoId, input);
 
       return {
         success: true,
@@ -365,7 +304,7 @@ export class CompleteCargoMovementUseCase implements ICompleteCargoMovementUseCa
     completedAt?: string,
   ): Promise<UseCaseResult<CargoMovement>> {
     try {
-      const dto: CompleteCargoMovementDTO | undefined = completedAt
+      const dto: CompleteCargoMovementInput | undefined = completedAt
         ? { completedAt }
         : undefined;
 

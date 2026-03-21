@@ -3,13 +3,13 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import type { Trip } from "@features/trips/domain";
 import {
-  createUpdateTripUseCase,
+  tripQueryKeys,
+  type Trip,
   type UpdateTripInput,
-} from "@features/trips/application";
+} from "@features/trips/domain";
+import { createUpdateTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para actualizar viaje

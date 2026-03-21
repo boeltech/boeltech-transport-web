@@ -12,30 +12,35 @@
  * Ubicación: src/features/trips/infrastructure/repositories/TripRepository.ts
  */
 
-import { apiClient, type ApiPaginatedResponse } from "@shared/api";
-import type { ITripRepository, PaginatedResult } from "@features/trips/domain";
+import {
+  apiClient,
+  type ApiPaginatedResponse,
+  type MappedSingleResult,
+} from "@shared/api";
+import type {
+  CreateTripInput,
+  FinishTripInput,
+  ITripRepository,
+  PaginatedResult,
+  UpdateTripInput,
+  UpdateTripStatusInput,
+} from "@features/trips/domain";
 import type {
   Trip,
   TripListItem,
   TripQueryParams,
 } from "@features/trips/domain";
+import type { CreateTripResult } from "@features/trips/application/useCases/trip/CreateTripUseCase";
 import type {
-  CreateTripInput,
-  CreateTripResult,
-} from "@features/trips/application/useCases/trip/CreateTripUseCase";
+  ApiCreateTripResponse,
+  ApiTripListItemResponse,
+  ApiTripResponse,
+} from "../api/api-types";
 import {
-  mapTrip,
-  mapTripListItem,
+  mapApiTripListItem,
   mapCreateTripResponse,
-  type ApiTripResponse,
-  type ApiTripListItemResponse,
-  type ApiCreateTripResponse,
-} from "../mappers/tripMappers";
-import type {
-  FinishTripInput,
-  UpdateTripInput,
-  UpdateTripStatusInput,
-} from "@features/trips/application";
+  mapTripResponse,
+} from "../api/mappers";
 
 // ============================================================================
 // CONSTANTS
@@ -59,7 +64,7 @@ export class TripRepository implements ITripRepository {
     >(TRIPS_ENDPOINT, { params: this.buildQueryParams(params) });
 
     return {
-      data: response.data.map(mapTripListItem),
+      data: response.data.map(mapApiTripListItem),
       pagination: {
         page: response.pagination.page,
         limit: response.pagination.limit,
@@ -72,12 +77,12 @@ export class TripRepository implements ITripRepository {
   /**
    * Obtiene un viaje por ID
    */
-  async findById(id: string): Promise<Trip | null> {
+  async findById(id: string): Promise<MappedSingleResult<Trip> | null> {
     try {
       const response = await apiClient.get<{ data: ApiTripResponse }>(
         `${TRIPS_ENDPOINT}/${id}`,
       );
-      return mapTrip(response.data);
+      return mapTripResponse(response);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) {
         return null;
@@ -104,37 +109,46 @@ export class TripRepository implements ITripRepository {
   /**
    * Actualiza un viaje existente
    */
-  async update(id: string, input: UpdateTripInput): Promise<Trip> {
+  async update(
+    id: string,
+    input: UpdateTripInput,
+  ): Promise<MappedSingleResult<Trip>> {
     const response = await apiClient.put<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}`,
       input, // ← camelCase, se convierte automáticamente
     );
 
-    return mapTrip(response.data);
+    return mapTripResponse(response);
   }
 
   /**
    * Actualiza el estado de un viaje
    */
-  async updateStatus(id: string, input: UpdateTripStatusInput): Promise<Trip> {
+  async updateStatus(
+    id: string,
+    input: UpdateTripStatusInput,
+  ): Promise<MappedSingleResult<Trip>> {
     const response = await apiClient.patch<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/status`,
       input,
     );
 
-    return mapTrip(response.data);
+    return mapTripResponse(response);
   }
 
   /**
    * Finaliza un viaje
    */
-  async finish(id: string, input: FinishTripInput): Promise<Trip> {
+  async finish(
+    id: string,
+    input: FinishTripInput,
+  ): Promise<MappedSingleResult<Trip>> {
     const response = await apiClient.post<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/finish`,
       input,
     );
 
-    return mapTrip(response.data);
+    return mapTripResponse(response);
   }
 
   /**

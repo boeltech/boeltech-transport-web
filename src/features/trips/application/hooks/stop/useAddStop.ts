@@ -3,13 +3,13 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import type { TripStop } from "@features/trips/domain";
 import {
-  createAddStopUseCase,
+  tripQueryKeys,
   type CreateStopInput,
-} from "@features/trips/application";
+  type TripStop,
+} from "@features/trips/domain";
+import { createAddStopUseCase } from "@features/trips/application";
 import { tripRepository, stopRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 
 /**
  * Hook para agregar destino

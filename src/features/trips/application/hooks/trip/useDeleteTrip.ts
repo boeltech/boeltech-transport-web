@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { createDeleteTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
+import { tripQueryKeys } from "@features/trips/domain";
 /**
  * Hook para eliminar viaje
  */

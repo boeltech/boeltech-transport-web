@@ -1,11 +1,11 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import type {
-  TripListItem, // ← Cambio: usar TripListItem para listados
-  TripQueryParams,
+import {
+  tripQueryKeys,
+  type TripListItem, // ← Cambio: usar TripListItem para listados
+  type TripQueryParams,
 } from "@features/trips/domain";
 import { createGetTripsUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
 import type { MappedPaginatedResult } from "@shared/api";
 
 /**

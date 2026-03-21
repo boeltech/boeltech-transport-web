@@ -13,9 +13,13 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type { TripExpense } from "@features/trips/domain/entities/entities";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
-import type { ExpensesSummary } from "@features/trips/domain";
+import {
+  tripQueryKeys,
+  type CreateExpenseInput,
+  type ExpensesSummary,
+  type TripExpense,
+  type UpdateExpenseInput,
+} from "@features/trips/domain";
 import { expenseRepository } from "@features/trips/infrastructure";
 import {
   createGetExpensesUseCase,
@@ -25,8 +29,6 @@ import {
   createDeleteExpenseUseCase,
   createApproveExpenseUseCase,
   createRejectExpenseUseCase,
-  type CreateExpenseInput,
-  type UpdateExpenseInput,
 } from "../../useCases/expense/ExpenseUseCases";
 
 // ============================================================================

@@ -13,25 +13,23 @@ import {
   type MappedSingleResult,
 } from "@shared/api";
 import type {
-  TripCargo,
   CargoMovement,
-} from "@features/trips/domain/entities/entities";
-import type {
-  ICargoRepository,
-  CompleteCargoMovementDTO,
-} from "@features/trips/domain";
-import {
-  mapCargosResponse,
-  mapCargoResponse,
-  mapCargoMovementResponse,
-  type ApiCargoResponse,
-  type ApiCargoMovementResponse,
-} from "../mappers/cargoMappers";
-import type {
+  CompleteCargoMovementInput,
   CreateCargoInput,
   CreateCargoMovementInput,
+  ICargoRepository,
+  TripCargo,
   UpdateCargoInput,
-} from "@features/trips/application";
+} from "@features/trips/domain";
+import type {
+  ApiCargoMovementResponse,
+  ApiCargoResponse,
+} from "../api/api-types";
+import {
+  mapCargoMovementResponse,
+  mapCargoResponse,
+  mapCargosResponse,
+} from "../api/mappers";
 
 // ============================================================================
 // CONSTANTS
@@ -146,7 +144,7 @@ export class CargoRepository implements ICargoRepository {
     tripId: string,
     cargoId: string,
     movementId: string,
-    data?: CompleteCargoMovementDTO,
+    data?: CompleteCargoMovementInput,
   ): Promise<MappedSingleResult<CargoMovement>> {
     const apiData = data
       ? { completed_at: data.completedAt, notes: data.notes }

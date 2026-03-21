@@ -2,36 +2,13 @@ import {
   canEditTrip,
   type Trip,
   type ITripRepository,
+  type UpdateTripInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // UPDATE TRIP USE CASE
 // ============================================================================
-
-// INPUT TYPES (camelCase - lo que recibe el UseCase)
-
-export interface UpdateTripInput {
-  vehicleId?: string;
-  driverId?: string;
-  clientId?: string;
-  scheduledDeparture?: string;
-  scheduledArrival?: string;
-  startMileage?: number;
-  originAddress?: string;
-  originCity?: string;
-  originState?: string;
-  destinationAddress?: string;
-  destinationCity?: string;
-  destinationState?: string;
-  cargoDescription?: string;
-  cargoWeight?: number;
-  cargoVolume?: number;
-  cargoUnits?: number;
-  cargoValue?: number;
-  baseRate?: number;
-  notes?: string;
-}
 
 export interface IUpdateTripUseCase {
   execute(id: string, data: UpdateTripInput): Promise<UseCaseResult<Trip>>;
@@ -63,7 +40,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       }
 
       // Verificar que se puede editar
-      if (!canEditTrip(currentTrip.status)) {
+      if (!canEditTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {
@@ -74,7 +51,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       }
 
       // Validar datos de actualización
-      const validationError = this.validateUpdateData(data, currentTrip);
+      const validationError = this.validateUpdateData(data, currentTrip.data);
       if (validationError) {
         return { success: false, error: validationError };
       }
@@ -82,7 +59,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       // Actualizar
       const updatedTrip = await this.repository.update(id, data);
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,
@@ -115,12 +92,12 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
     }
 
     // Validar valores numéricos
-    if (data.startMileage !== undefined && data.startMileage < 0) {
-      return {
-        code: "INVALID_MILEAGE",
-        message: "El kilometraje no puede ser negativo",
-      };
-    }
+    // if (data.startMileage !== undefined && data.startMileage < 0) {
+    //   return {
+    //     code: "INVALID_MILEAGE",
+    //     message: "El kilometraje no puede ser negativo",
+    //   };
+    // }
 
     if (data.baseRate !== undefined && data.baseRate < 0) {
       return {

@@ -8,10 +8,18 @@
  * Esta es la capa que conoce los detalles de implementación (axios, URLs, etc.)
  */
 
-import { apiClient } from "@/shared/api";
-import { type TripStop, type IStopRepository } from "@features/trips/domain";
-import { mapTripStop, type ApiStopResponse } from "../mappers/stopMappers";
-import type { CreateStopInput } from "@features/trips/application";
+import {
+  apiClient,
+  type ApiSingleResponse,
+  type MappedSingleResult,
+} from "@/shared/api";
+import {
+  type TripStop,
+  type IStopRepository,
+  type CreateStopInput,
+} from "@features/trips/domain";
+import type { ApiStopResponse } from "../api/api-types";
+import { mapStopResponse, mapStopsResponse } from "../api/mappers";
 
 // ============================================================================
 // CONSTANTS
@@ -27,26 +35,27 @@ export class StopRepository implements IStopRepository {
   /**
    * Obtiene todas las paradas de un viaje
    */
-  async findByTripId(tripId: string): Promise<TripStop[]> {
-    const response = await apiClient.get<ApiStopResponse[]>(
+  async findByTripId(tripId: string): Promise<MappedSingleResult<TripStop[]>> {
+    const response = await apiClient.get<ApiSingleResponse<ApiStopResponse[]>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops`,
     );
 
-    const data = this.extractData(response);
-    return Array.isArray(data) ? data.map(mapTripStop) : [];
+    return mapStopsResponse(response);
   }
 
   /**
    * Obtiene una parada por su ID
    */
-  async findById(tripId: string, stopId: string): Promise<TripStop | null> {
+  async findById(
+    tripId: string,
+    stopId: string,
+  ): Promise<MappedSingleResult<TripStop> | null> {
     try {
-      const response = await apiClient.get<ApiStopResponse>(
+      const response = await apiClient.get<ApiSingleResponse<ApiStopResponse>>(
         `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,
       );
 
-      const data = this.extractData(response);
-      return mapTripStop(data);
+      return mapStopResponse(response);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) {
         return null;
@@ -58,33 +67,16 @@ export class StopRepository implements IStopRepository {
   /**
    * Agrega una nueva parada a un viaje
    */
-  async add(tripId: string, input: CreateStopInput): Promise<TripStop> {
-    // const apiData = toApiCreateStop({
-    //   sequenceOrder: data.sequenceOrder,
-    //   stopType: data.stopType,
-    //   address: data.address,
-    //   city: data.city,
-    //   state: data.state,
-    //   postalCode: data.postalCode,
-    //   latitude: data.latitude,
-    //   longitude: data.longitude,
-    //   locationName: data.locationName,
-    //   contactName: data.contactName,
-    //   contactPhone: data.contactPhone,
-    //   estimatedArrival: data.estimatedArrival,
-    //   cargoActionDescription: data.cargoActionDescription,
-    //   cargoWeight: data.cargoWeight,
-    //   cargoUnits: data.cargoUnits,
-    //   notes: data.notes,
-    // });
-
-    const response = await apiClient.post<ApiStopResponse>(
+  async add(
+    tripId: string,
+    input: CreateStopInput,
+  ): Promise<MappedSingleResult<TripStop>> {
+    const response = await apiClient.post<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops`,
       input,
     );
 
-    const responseData = this.extractData(response);
-    return mapTripStop(responseData);
+    return mapStopResponse(response);
   }
 
   /**
@@ -94,7 +86,7 @@ export class StopRepository implements IStopRepository {
     tripId: string,
     stopId: string,
     input: Partial<CreateStopInput>,
-  ): Promise<TripStop> {
+  ): Promise<MappedSingleResult<TripStop>> {
     // Solo enviar campos que tienen valor
     const updateData: Record<string, unknown> = {};
 
@@ -124,13 +116,12 @@ export class StopRepository implements IStopRepository {
     //   updateData.cargoUnits = input.cargoUnits;
     if (input.notes !== undefined) updateData.notes = input.notes;
 
-    const response = await apiClient.put<ApiStopResponse>(
+    const response = await apiClient.put<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,
       updateData,
     );
 
-    const responseData = this.extractData(response);
-    return mapTripStop(responseData);
+    return mapStopResponse(response);
   }
 
   /**
@@ -143,14 +134,15 @@ export class StopRepository implements IStopRepository {
   /**
    * Reordena las paradas de un viaje
    */
-  async reorder(tripId: string, orderedIds: string[]): Promise<TripStop[]> {
-    const response = await apiClient.patch<ApiStopResponse[]>(
-      `${TRIPS_ENDPOINT}/${tripId}/stops/reorder`,
-      { orderedIds },
-    );
+  async reorder(
+    tripId: string,
+    orderedIds: string[],
+  ): Promise<MappedSingleResult<TripStop[]>> {
+    const response = await apiClient.patch<
+      ApiSingleResponse<ApiStopResponse[]>
+    >(`${TRIPS_ENDPOINT}/${tripId}/stops/reorder`, { orderedIds });
 
-    const data = this.extractData(response);
-    return Array.isArray(data) ? data.map(mapTripStop) : [];
+    return mapStopsResponse(response);
   }
 
   /**
@@ -160,16 +152,15 @@ export class StopRepository implements IStopRepository {
     tripId: string,
     stopId: string,
     actualArrival: Date,
-  ): Promise<TripStop> {
-    const response = await apiClient.patch<ApiStopResponse>(
+  ): Promise<MappedSingleResult<TripStop>> {
+    const response = await apiClient.patch<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}/visited`,
       {
         actualArrival: actualArrival.toISOString(),
       },
     );
 
-    const responseData = this.extractData(response);
-    return mapTripStop(responseData);
+    return mapStopResponse(response);
   }
 
   // ============================================================================
@@ -181,12 +172,12 @@ export class StopRepository implements IStopRepository {
    * Maneja tanto el caso donde apiClient retorna response.data
    * como cuando retorna el response completo
    */
-  private extractData<T>(response: T | { data: T }): T {
-    if (response && typeof response === "object" && "data" in response) {
-      return (response as { data: T }).data;
-    }
-    return response as T;
-  }
+  // private extractData<T>(response: T | { data: T }): T {
+  //   if (response && typeof response === "object" && "data" in response) {
+  //     return (response as { data: T }).data;
+  //   }
+  //   return response as T;
+  // }
 
   /**
    * Verifica si un error es un 404

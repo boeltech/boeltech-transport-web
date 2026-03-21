@@ -190,7 +190,7 @@ export function VehicleTable({
 
               {/* Kilometraje */}
               <TableCell className="text-right">
-                {vehicle.currentMileage.toLocaleString("es-MX")} km
+                {vehicle.currentMileage} km
               </TableCell>
 
               {/* Estado */}

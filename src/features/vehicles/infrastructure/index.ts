@@ -1,6 +1,8 @@
-export {
-  type ApiVehicleResponse,
-  type ApiVehicleListItemResponse,
-} from "./mappers";
+/**
+ * Vehicle Infrastructure Barrel Export
+ *
+ * Ubicación: src/features/vehicles/infrastructure/index.ts
+ */
 
-export { vehiclesApi } from "./vehiclesApi";
+export * from "./mappers";
+export * from "./vehiclesApi";

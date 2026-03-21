@@ -13,15 +13,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import type {
-  TripCargo,
-  CargoMovement,
-} from "@features/trips/domain/entities/entities";
-import { tripQueryKeys } from "@features/trips/domain/entities/entities";
-import {
-  cargoRepository,
-  // createCargoRepository,
-} from "@features/trips/infrastructure";
+import { cargoRepository } from "@features/trips/infrastructure";
 import {
   createGetCargosUseCase,
   createAddCargoUseCase,
@@ -29,11 +21,15 @@ import {
   createDeleteCargoUseCase,
   createAddCargoMovementUseCase,
   createCompleteCargoMovementUseCase,
-  type CreateCargoInput,
-  type UpdateCargoInput,
-  type CreateCargoMovementInput,
 } from "../../useCases/cargo/CargoUseCases";
-// import { mapBackendError, type MappedError } from "@shared/utils/errorMapper";
+import {
+  tripQueryKeys,
+  type CargoMovement,
+  type CreateCargoInput,
+  type CreateCargoMovementInput,
+  type TripCargo,
+  type UpdateCargoInput,
+} from "@features/trips/domain";
 
 // ============================================================================
 // ERROR CLASS

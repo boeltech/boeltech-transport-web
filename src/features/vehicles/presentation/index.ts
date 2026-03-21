@@ -23,9 +23,4 @@ export { VehicleDetailPage } from "./pages/VehicleDetailPage";
 export { VehicleListPage } from "./pages/VehicleListPage";
 
 // Validations
-export {
-  type CreateVehicleFormData,
-  type UpdateVehicleFormData,
-  createVehicleSchema,
-  updateVehicleSchema,
-} from "./validation";
+export * from "./validation";

@@ -14,11 +14,10 @@ import {
 } from "@tanstack/react-query";
 import {
   CreateTripUseCase,
-  type CreateTripInput,
   type CreateTripResult,
 } from "@features/trips/application/useCases/trip/CreateTripUseCase";
 import { tripRepository } from "@features/trips/infrastructure/repositories/tripRepository";
-import { tripQueryKeys } from "@features/trips/domain";
+import { tripQueryKeys, type CreateTripInput } from "@features/trips/domain";
 
 // ============================================================================
 // CUSTOM ERROR CLASS

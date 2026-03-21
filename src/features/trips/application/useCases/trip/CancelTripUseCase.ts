@@ -35,7 +35,7 @@ export class CancelTripUseCase implements ICancelTripUseCase {
         };
       }
 
-      if (!canCancelTrip(currentTrip.status)) {
+      if (!canCancelTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {
@@ -50,7 +50,7 @@ export class CancelTripUseCase implements ICancelTripUseCase {
         reason: reason,
       });
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

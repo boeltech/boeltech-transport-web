@@ -12,22 +12,22 @@ import {
   type MappedActionResult,
   type MappedSingleResult,
 } from "@shared/api";
-import type { TripExpense } from "@features/trips/domain/entities/entities";
 import type {
   IExpenseRepository,
   ExpensesSummary,
-} from "@features/trips/domain";
-import {
-  mapExpensesResponse,
-  mapExpenseResponse,
-  mapExpensesSummaryResponse,
-  type ApiExpenseResponse,
-  type ApiExpensesSummaryResponse,
-} from "../mappers/expenseMappers";
-import type {
+  TripExpense,
   CreateExpenseInput,
   UpdateExpenseInput,
-} from "@features/trips/application";
+} from "@features/trips/domain";
+import type {
+  ApiExpenseResponse,
+  ApiExpensesSummaryResponse,
+} from "../api/api-types";
+import {
+  mapExpenseResponse,
+  mapExpensesResponse,
+  mapExpensesSummaryResponse,
+} from "../api/mappers";
 
 // ============================================================================
 // CONSTANTS

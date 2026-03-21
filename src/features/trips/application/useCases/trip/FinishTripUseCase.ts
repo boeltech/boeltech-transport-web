@@ -2,21 +2,13 @@ import {
   validateFinishTripData,
   type Trip,
   type ITripRepository,
+  type FinishTripInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // FINISH TRIP USE CASE
 // ============================================================================
-
-export interface FinishTripInput {
-  endMileage: number;
-  actualArrival: string;
-  fuelCost?: number;
-  tollCost?: number;
-  otherCosts?: number;
-  notes?: string;
-}
 
 export interface IFinishTripUseCase {
   execute(id: string, input: FinishTripInput): Promise<UseCaseResult<Trip>>;
@@ -49,7 +41,7 @@ export class FinishTripUseCase implements IFinishTripUseCase {
 
       // Validar datos para finalizar
       const validationResult = validateFinishTripData(
-        currentTrip,
+        currentTrip.data,
         input.endMileage,
         input.actualArrival,
       );
@@ -64,7 +56,7 @@ export class FinishTripUseCase implements IFinishTripUseCase {
       // Finalizar viaje
       const finishedTrip = await this.repository.finish(id, input);
 
-      return { success: true, data: finishedTrip };
+      return { success: true, data: finishedTrip.data };
     } catch (error) {
       return {
         success: false,

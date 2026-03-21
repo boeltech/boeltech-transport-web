@@ -8,6 +8,8 @@
  * ACTUALIZADO: Usa useCreateTrip con endpoint transaccional
  * POST /api/v1/trips/with-details
  *
+ * ACTUALIZADO: Validaciones compatibles con bloques Origen/Escalas/Destino
+ *
  * GARANTÍAS:
  * - Atomicidad: Todo se crea o nada se crea
  * - Una sola llamada HTTP
@@ -52,6 +54,7 @@ import {
   CargoStep,
   CostsStep,
   SummaryStep,
+  validateRouteStep,
 } from "./components";
 import type { TripWizardFormValues } from "./components";
 import {
@@ -242,7 +245,39 @@ export function TripFormPage() {
   });
 
   // ============================================
-  // Validación por paso
+  // Validación del paso de Ruta (paso 1)
+  // ============================================
+
+  const validateRouteStepHandler = useCallback((): {
+    isValid: boolean;
+    message?: string;
+  } => {
+    const currentStops = form.getValues("stops");
+    const validation = validateRouteStep(currentStops);
+
+    if (!validation.isValid) {
+      return {
+        isValid: false,
+        message: validation.errors.join(". "),
+      };
+    }
+
+    // Mostrar advertencias si las hay (no bloquean)
+    if (validation.warnings.length > 0) {
+      validation.warnings.forEach((warning) => {
+        toast({
+          title: "Información",
+          description: warning,
+          variant: "warning",
+        });
+      });
+    }
+
+    return { isValid: true };
+  }, [form, toast]);
+
+  // ============================================
+  // Validación del paso de Cargas (paso 2)
   // ============================================
 
   const validateCargoStep = useCallback((): {
@@ -401,15 +436,39 @@ export function TripFormPage() {
     return { isValid: true };
   }, [form]);
 
+  // ============================================
+  // Validación general por paso
+  // ============================================
+
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
     const currentStepConfig = WIZARD_STEPS[currentStep];
     const fieldsToValidate = currentStepConfig.fields;
 
+    // Validación de campos del schema
     const result = await form.trigger(
       fieldsToValidate as (keyof TripWizardFormValues)[],
     );
 
-    // Validación adicional para el paso de Cargas (step 2)
+    // ════════════════════════════════════════════════════════════════
+    // Validación adicional para el paso de RUTA (step 1)
+    // ════════════════════════════════════════════════════════════════
+    if (currentStep === 1) {
+      const routeValidation = validateRouteStepHandler();
+
+      if (!routeValidation.isValid) {
+        toast({
+          title: "Ruta incompleta",
+          description: routeValidation.message,
+          variant: "error",
+        });
+        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        return false;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Validación adicional para el paso de CARGAS (step 2)
+    // ════════════════════════════════════════════════════════════════
     if (currentStep === 2) {
       const cargoValidation = validateCargoStep();
 
@@ -439,7 +498,7 @@ export function TripFormPage() {
     }));
 
     return result;
-  }, [currentStep, form, validateCargoStep, toast]);
+  }, [currentStep, form, validateRouteStepHandler, validateCargoStep, toast]);
 
   // ============================================
   // Navegación del wizard
@@ -478,8 +537,13 @@ export function TripFormPage() {
       return;
     }
 
-    const originStop = data.stops?.[0];
-    const destinationStop = data.stops?.[data.stops.length - 1];
+    // Encontrar origen y destino por stopType (no por posición)
+    const originStop = data.stops?.find((stop) =>
+      stop.stopType.includes("origin" as any),
+    );
+    const destinationStop = data.stops?.find((stop) =>
+      stop.stopType.includes("destination" as any),
+    );
 
     // ════════════════════════════════════════════════════════════════════════
     // MODO EDICIÓN: Usar updateMutation
@@ -631,25 +695,11 @@ export function TripFormPage() {
     try {
       const result = await createMutation.mutateAsync(createInput);
 
-      // Notificar éxito con detalles
-      // const details: string[] = [`Código: ${result.summary.tripCode}`];
-      // if (result.summary.stopsCreated > 0) {
-      //   details.push(`${result.summary.stopsCreated} parada(s)`);
-      // }
-      // if (result.summary.cargosCreated > 0) {
-      //   details.push(`${result.summary.cargosCreated} carga(s)`);
-      // }
-      // if (result.summary.expensesCreated > 0) {
-      //   details.push(`${result.summary.expensesCreated} gasto(s) estimado(s)`);
-      // }
-
       toast({
         title: "Viaje creado exitosamente",
-        // description: details.join(" • "),
         variant: "success",
       });
 
-      // navigate(`/trips/${result.summary.tripId}`);
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
       // Error - nada se guardó (rollback automático en el backend)

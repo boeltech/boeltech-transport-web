@@ -41,7 +41,7 @@ export class MarkStopVisitedUseCase implements IMarkStopVisitedUseCase {
       }
 
       // Solo se pueden marcar paradas en viajes en curso
-      if (trip.status !== TripStatus.IN_PROGRESS) {
+      if (trip.data.status !== TripStatus.IN_PROGRESS) {
         return {
           success: false,
           error: {
@@ -65,7 +65,7 @@ export class MarkStopVisitedUseCase implements IMarkStopVisitedUseCase {
       }
 
       // Verificar que no esté ya visitada
-      if (existingStop.actualArrival) {
+      if (existingStop.data.actualArrival) {
         return {
           success: false,
           error: {
@@ -81,7 +81,7 @@ export class MarkStopVisitedUseCase implements IMarkStopVisitedUseCase {
         new Date(),
       );
 
-      return { success: true, data: stop };
+      return { success: true, data: stop.data };
     } catch (error) {
       return {
         success: false,

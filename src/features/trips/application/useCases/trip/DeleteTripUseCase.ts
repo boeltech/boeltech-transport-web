@@ -32,7 +32,7 @@ export class DeleteTripUseCase implements IDeleteTripUseCase {
       }
 
       // Verificar que se puede eliminar (solo drafts)
-      if (!canDeleteTrip(currentTrip.status)) {
+      if (!canDeleteTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {

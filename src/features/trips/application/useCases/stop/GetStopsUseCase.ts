@@ -32,7 +32,7 @@ export class GetStopsUseCase implements IGetStopsUseCase {
       const stops = await this.stopRepository.findByTripId(tripId);
 
       // Ordenar por sequenceOrder antes de retornar
-      const orderedStops = [...stops].sort(
+      const orderedStops = [...stops.data].sort(
         (a, b) => a.sequenceOrder - b.sequenceOrder,
       );
 

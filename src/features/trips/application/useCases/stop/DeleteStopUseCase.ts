@@ -39,8 +39,8 @@ export class DeleteStopUseCase implements IDeleteStopUseCase {
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.status !== TripStatus.DRAFT &&
-        trip.status !== TripStatus.SCHEDULED
+        trip.data.status !== TripStatus.DRAFT &&
+        trip.data.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,
@@ -54,7 +54,7 @@ export class DeleteStopUseCase implements IDeleteStopUseCase {
 
       // Obtener todas las paradas para validar eliminación
       const allStops = await this.stopRepository.findByTripId(tripId);
-      const stopToDelete = allStops.find((s) => s.id === stopId);
+      const stopToDelete = allStops.data.find((s) => s.id === stopId);
 
       if (!stopToDelete) {
         return {
@@ -67,7 +67,7 @@ export class DeleteStopUseCase implements IDeleteStopUseCase {
       }
 
       // Verificar si se puede eliminar
-      const { canDelete, reason } = canDeleteStop(stopToDelete, allStops);
+      const { canDelete, reason } = canDeleteStop(stopToDelete, allStops.data);
 
       if (!canDelete) {
         return {

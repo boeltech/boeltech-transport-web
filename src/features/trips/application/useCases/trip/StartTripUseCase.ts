@@ -41,7 +41,7 @@ export class StartTripUseCase implements IStartTripUseCase {
         };
       }
 
-      if (!canStartTrip(currentTrip.status)) {
+      if (!canStartTrip(currentTrip.data.status)) {
         return {
           success: false,
           error: {
@@ -58,7 +58,7 @@ export class StartTripUseCase implements IStartTripUseCase {
         longitude: options?.longitude,
       });
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

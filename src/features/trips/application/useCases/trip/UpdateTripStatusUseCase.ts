@@ -3,21 +3,13 @@ import {
   type Trip,
   type TripStatusType,
   type ITripRepository,
+  type UpdateTripStatusInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // UPDATE TRIP STATUS USE CASE
 // ============================================================================
-
-// INPUT TYPES (camelCase - lo que recibe el UseCase)
-export interface UpdateTripStatusInput {
-  status: string;
-  mileage?: number;
-  latitude?: number;
-  longitude?: number;
-  reason?: string;
-}
 
 export interface IUpdateTripStatusUseCase {
   execute(
@@ -67,7 +59,7 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
 
       // Validar transición de estado
       const transitionResult = validateStatusTransition(
-        currentTrip.status,
+        currentTrip.data.status,
         data.status as TripStatusType,
       );
 
@@ -81,7 +73,7 @@ export class UpdateTripStatusUseCase implements IUpdateTripStatusUseCase {
       // Actualizar estado
       const updatedTrip = await this.repository.updateStatus(id, data);
 
-      return { success: true, data: updatedTrip };
+      return { success: true, data: updatedTrip.data };
     } catch (error) {
       return {
         success: false,

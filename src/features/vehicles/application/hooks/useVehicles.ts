@@ -5,7 +5,7 @@
  * Hooks de React Query para el módulo de vehículos.
  * Conecta la UI con la infraestructura (vehiclesApi).
  *
- * Ubicación: src/features/vehicles/application/useVehicles.ts
+ * Ubicación: src/features/vehicles/application/hooks/useVehicles.ts
  *
  * REGLA: Los hooks solo orquestan queries/mutations.
  *        La lógica de negocio vive en el dominio.
@@ -25,6 +25,7 @@ import {
   type VehicleQueryParams,
   type VehicleStatusType,
   type VehicleListItem,
+  type Vehicle,
   type AssignableVehicleItem,
   type CreateVehiclePayload,
   type UpdateVehiclePayload,
@@ -43,6 +44,9 @@ interface MutationCallbacks<TData = unknown, TError = Error> {
 // QUERIES
 // ============================================================================
 
+/**
+ * Hook para obtener lista de vehículos con filtros y paginación
+ */
 export const useVehicles = (params?: VehicleQueryParams) => {
   return useQuery({
     queryKey: vehicleQueryKeys.list(params),
@@ -52,12 +56,32 @@ export const useVehicles = (params?: VehicleQueryParams) => {
   });
 };
 
-export const useVehicle = (id: string) => {
+/**
+ * Hook para obtener el detalle de un vehículo
+ *
+ * @param id - ID del vehículo
+ * @param options - Opciones adicionales de React Query (ej: enabled)
+ *
+ * @example
+ * // Uso básico
+ * const { data: vehicle } = useVehicle(vehicleId);
+ *
+ * @example
+ * // Con enabled condicional (útil en formularios)
+ * const { data: vehicleDetail, isLoading } = useVehicle(selectedVehicleId, {
+ *   enabled: !!selectedVehicleId,
+ * });
+ */
+export const useVehicle = (
+  id: string,
+  options?: Omit<UseQueryOptions<Vehicle, Error>, "queryKey" | "queryFn">,
+) => {
   return useQuery({
     queryKey: vehicleQueryKeys.detail(id),
     queryFn: () => vehiclesApi.getById(id),
-    enabled: !!id,
+    enabled: !!id && (options?.enabled ?? true),
     staleTime: 30_000,
+    ...options,
   });
 };
 

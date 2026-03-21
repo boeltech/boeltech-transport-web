@@ -1,8 +1,5 @@
 // Cargo
 export {
-  type CreateCargoMovementInput,
-  type CreateCargoInput,
-  type UpdateCargoInput,
   type IGetCargosUseCase,
   GetCargosUseCase,
   type IAddCargoUseCase,
@@ -25,8 +22,6 @@ export {
 
 //Expense
 export {
-  type CreateExpenseInput,
-  type UpdateExpenseInput,
   type IGetExpensesUseCase,
   GetExpensesUseCase,
   type IGetExpensesSummaryUseCase,
@@ -52,7 +47,6 @@ export {
 
 //Stop
 export {
-  type CreateStopInput,
   type IAddStopUseCase,
   AddStopUseCase,
   createAddStopUseCase,
@@ -90,7 +84,6 @@ export {
   createCancelTripUseCase,
 } from "./trip/CancelTripUseCase";
 export {
-  type CreateTripInput,
   type ICreateTripUseCase,
   CreateTripUseCase,
   createCreateTripUseCase,
@@ -101,7 +94,6 @@ export {
   createDeleteTripUseCase,
 } from "./trip/DeleteTripUseCase";
 export {
-  type FinishTripInput,
   type IFinishTripUseCase,
   FinishTripUseCase,
   createFinishTripUseCase,
@@ -127,13 +119,11 @@ export {
   createStartTripUseCase,
 } from "./trip/StartTripUseCase";
 export {
-  type UpdateTripStatusInput,
   type IUpdateTripStatusUseCase,
   UpdateTripStatusUseCase,
   createUpdateTripStatusUseCase,
 } from "./trip/UpdateTripStatusUseCase";
 export {
-  type UpdateTripInput,
   type IUpdateTripUseCase,
   UpdateTripUseCase,
   createUpdateTripUseCase,

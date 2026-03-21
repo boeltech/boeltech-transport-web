@@ -10,62 +10,16 @@
  * Ubicación: src/features/trips/application/useCases/CreateTripUseCase.ts
  */
 
-import type { ITripRepository } from "@features/trips/domain";
-import type { Trip } from "@features/trips/domain";
-import { mapBackendError, type UseCaseResult } from "@shared/utils/errorMapper";
-import type { CreateStopInput } from "../stop/AddStopUseCase";
 import type {
   CreateCargoInput,
   CreateCargoMovementInput,
-} from "../cargo/CargoUseCases";
-import type { CreateExpenseInput } from "../expense/ExpenseUseCases";
-
-// ============================================================================
-// INPUT TYPES (camelCase - lo que recibe el UseCase)
-// ============================================================================
-
-/**
- * Input completo para crear viaje con detalles
- * Todo en camelCase - el apiClient convierte automáticamente a snake_case
- */
-export interface CreateTripInput {
-  // Datos del viaje base
-  vehicleId: string;
-  driverId: string;
-  clientId?: string;
-  scheduledDeparture: string;
-  scheduledArrival?: string;
-  startMileage?: number;
-  originAddress: string;
-  originCity: string;
-  originState?: string;
-  destinationAddress: string;
-  destinationCity: string;
-  destinationState?: string;
-  cargoDescription?: string;
-  cargoWeight?: number;
-  cargoVolume?: number;
-  cargoUnits?: number;
-  cargoValue?: number;
-  baseRate?: number;
-  notes?: string;
-
-  // Paradas
-  stops?: CreateStopInput[];
-
-  // Cargas
-  cargos?: CreateCargoInput[];
-
-  // Gastos estimados
-  estimatedExpenses?: CreateExpenseInput[];
-
-  // Opciones de comportamiento
-  options?: {
-    scheduleAfterCreate?: boolean;
-    startImmediately?: boolean;
-    startMileage?: number;
-  };
-}
+  CreateExpenseInput,
+  CreateStopInput,
+  CreateTripInput,
+  ITripRepository,
+} from "@features/trips/domain";
+import type { Trip } from "@features/trips/domain";
+import { mapBackendError, type UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // RESULT TYPE (camelCase - lo que retorna el UseCase)

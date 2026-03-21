@@ -3,9 +3,9 @@ import {
   type TripStop,
   type IStopRepository,
   type ITripRepository,
+  type CreateStopInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
-import type { CreateStopInput } from "./AddStopUseCase";
 
 export interface IUpdateStopUseCase {
   execute(
@@ -48,8 +48,8 @@ export class UpdateStopUseCase implements IUpdateStopUseCase {
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.status !== TripStatus.DRAFT &&
-        trip.status !== TripStatus.SCHEDULED
+        trip.data.status !== TripStatus.DRAFT &&
+        trip.data.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,
@@ -77,7 +77,7 @@ export class UpdateStopUseCase implements IUpdateStopUseCase {
       // Actualizar parada
       const stop = await this.stopRepository.update(tripId, stopId, data);
 
-      return { success: true, data: stop };
+      return { success: true, data: stop.data };
     } catch (error) {
       return {
         success: false,

@@ -5,6 +5,8 @@
  * Convierte las respuestas de la API (snake_case) a las entidades
  * del dominio (camelCase). Única capa que conoce el formato de la API.
  *
+ * ACTUALIZADO: Incluye campos de Carta Porte 3.1
+ *
  * Ubicación: src/features/vehicles/infrastructure/mappers.ts
  *
  * REGLA: Solo este archivo sabe que la API usa snake_case.
@@ -16,6 +18,8 @@ import type {
   VehicleListItem,
   VehicleStatusType,
   VehicleTypeValue,
+  CreateVehiclePayload,
+  UpdateVehiclePayload,
 } from "@features/vehicles/domain";
 import type {
   ApiPaginatedResponse,
@@ -43,6 +47,9 @@ export interface ApiVehicleListItemResponse {
   is_active: boolean;
   insurance_expiry: string | null;
   sct_permit_expiry: string | null;
+  // Carta Porte 3.1
+  sat_tipo_permiso_code: string | null;
+  sat_config_autotransporte_code: string | null;
 }
 
 /** GET /api/v1/vehicles/:id — Full detail shape from backend */
@@ -66,27 +73,22 @@ export interface ApiVehicleResponse {
   insurance_expiry: string | null;
   sct_permit_number: string | null;
   sct_permit_expiry: string | null;
+  // Carta Porte 3.1
+  sat_tipo_permiso_code: string | null;
+  sat_config_autotransporte_code: string | null;
+  insurance_company: string | null;
+  // Status
   status: string;
   is_active: boolean;
+  // Audit
   created_at: string;
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
 }
 
-/** Paginated response from backend */
-// interface PaginatedRaw<T> {
-//   data: T[];
-//   pagination: {
-//     page: number;
-//     limit: number;
-//     total: number;
-//     totalPages: number;
-//   };
-// }
-
 // ============================================================================
-// MAPPERS
+// MAPPERS: API → Domain
 // ============================================================================
 
 /**
@@ -109,6 +111,9 @@ export function mapVehicleListItem(
     isActive: raw.is_active,
     insuranceExpiry: raw.insurance_expiry,
     sctPermitExpiry: raw.sct_permit_expiry,
+    // Carta Porte 3.1
+    satTipoPermisoCode: raw.sat_tipo_permiso_code,
+    satConfigAutotransporteCode: raw.sat_config_autotransporte_code,
   };
 }
 
@@ -166,6 +171,13 @@ export function mapVehicleDetail(
         sctPermitExpiry: raw.data.sct_permit_expiry,
       },
 
+      // Carta Porte 3.1 (Value Object)
+      cartaPorte: {
+        satTipoPermisoCode: raw.data.sat_tipo_permiso_code,
+        satConfigAutotransporteCode: raw.data.sat_config_autotransporte_code,
+        insuranceCompany: raw.data.insurance_company,
+      },
+
       // Status
       status: raw.data.status as VehicleStatusType,
       isActive: raw.data.is_active,
@@ -178,4 +190,87 @@ export function mapVehicleDetail(
     },
     message: raw.message,
   };
+}
+
+// ============================================================================
+// MAPPERS: Domain → API (para requests)
+// ============================================================================
+
+/**
+ * Convierte CreateVehiclePayload (camelCase) a snake_case para el API
+ */
+export function toApiCreateVehicle(
+  payload: CreateVehiclePayload,
+): Record<string, unknown> {
+  return {
+    unit_number: payload.unitNumber,
+    license_plate: payload.licensePlate,
+    vin: payload.vin,
+    brand: payload.brand,
+    model: payload.model,
+    year: payload.year,
+    type: payload.type,
+    color: payload.color,
+    load_capacity: payload.loadCapacity,
+    volume_capacity: payload.volumeCapacity,
+    fuel_tank_capacity: payload.fuelTankCapacity,
+    expected_fuel_efficiency: payload.expectedFuelEfficiency,
+    current_mileage: payload.currentMileage,
+    insurance_policy: payload.insurancePolicy,
+    insurance_expiry: payload.insuranceExpiry,
+    sct_permit_number: payload.sctPermitNumber,
+    sct_permit_expiry: payload.sctPermitExpiry,
+    // Carta Porte 3.1
+    sat_tipo_permiso_code: payload.satTipoPermisoCode,
+    sat_config_autotransporte_code: payload.satConfigAutotransporteCode,
+    insurance_company: payload.insuranceCompany,
+  };
+}
+
+/**
+ * Convierte UpdateVehiclePayload (camelCase) a snake_case para el API
+ */
+export function toApiUpdateVehicle(
+  payload: UpdateVehiclePayload,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  if (payload.licensePlate !== undefined)
+    result.license_plate = payload.licensePlate;
+  if (payload.vin !== undefined) result.vin = payload.vin;
+  if (payload.brand !== undefined) result.brand = payload.brand;
+  if (payload.model !== undefined) result.model = payload.model;
+  if (payload.year !== undefined) result.year = payload.year;
+  if (payload.type !== undefined) result.type = payload.type;
+  if (payload.color !== undefined) result.color = payload.color;
+  if (payload.loadCapacity !== undefined)
+    result.load_capacity = payload.loadCapacity;
+  if (payload.volumeCapacity !== undefined)
+    result.volume_capacity = payload.volumeCapacity;
+  if (payload.fuelTankCapacity !== undefined)
+    result.fuel_tank_capacity = payload.fuelTankCapacity;
+  if (payload.expectedFuelEfficiency !== undefined)
+    result.expected_fuel_efficiency = payload.expectedFuelEfficiency;
+  if (payload.currentMileage !== undefined)
+    result.current_mileage = payload.currentMileage;
+  if (payload.insurancePolicy !== undefined)
+    result.insurance_policy = payload.insurancePolicy;
+  if (payload.insuranceExpiry !== undefined)
+    result.insurance_expiry = payload.insuranceExpiry;
+  if (payload.sctPermitNumber !== undefined)
+    result.sct_permit_number = payload.sctPermitNumber;
+  if (payload.sctPermitExpiry !== undefined)
+    result.sct_permit_expiry = payload.sctPermitExpiry;
+  // Carta Porte 3.1
+  if (payload.satTipoPermisoCode !== undefined)
+    result.sat_tipo_permiso_code = payload.satTipoPermisoCode;
+  if (payload.satConfigAutotransporteCode !== undefined)
+    result.sat_config_autotransporte_code = payload.satConfigAutotransporteCode;
+  if (payload.insuranceCompany !== undefined)
+    result.insurance_company = payload.insuranceCompany;
+  // Status
+  if (payload.status !== undefined) result.status = payload.status;
+  if (payload.isActive !== undefined) result.is_active = payload.isActive;
+
+  return result;
 }

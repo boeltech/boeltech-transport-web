@@ -1,24 +1,27 @@
 /**
- * VehicleForm Component
+ * VehicleForm
  *
- * Formulario de creación/edición de vehículos.
- * Usa Zod para validación y React Hook Form para manejo de estado.
+ * Formulario reutilizable para crear/editar vehículos.
+ * Incluye campos de Carta Porte 3.1.
  *
  * Ubicación: src/features/vehicles/presentation/components/VehicleForm.tsx
  */
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { Save, Loader2, Info } from "lucide-react";
+
+import { Button } from "@shared/ui/button";
+import { Input } from "@shared/ui/input";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
 import {
   Select,
   SelectContent,
@@ -26,24 +29,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
+import { Alert, AlertDescription } from "@shared/ui/alert";
+
 import { createVehicleSchema, type CreateVehicleFormData } from "../validation";
-import type { Vehicle, VehicleTypeValue } from "@features/vehicles/domain";
-import { VEHICLE_TYPE_LABELS } from "@features/vehicles/domain";
+import {
+  VEHICLE_TYPE_LABELS,
+  VehicleType,
+  type Vehicle,
+} from "@features/vehicles/domain";
+
+// Importar componentes de catálogo
+import {
+  TipoPermisoSelect,
+  ConfigAutotransporteSelect,
+} from "@features/catalogs";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface VehicleFormProps {
-  /** Existing vehicle for edit mode */
+  /** Vehículo existente (para modo edición) */
   vehicle?: Vehicle;
-  /** Callback on form submit */
+  /** Callback al enviar el formulario */
   onSubmit: (data: CreateVehicleFormData) => void;
-  /** Mutation loading state */
-  isSubmitting: boolean;
+  /** Estado de carga del submit */
+  isSubmitting?: boolean;
 }
 
 // ============================================================================
@@ -51,12 +69,74 @@ interface VehicleFormProps {
 // ============================================================================
 
 /**
- * Convierte Date | null a string ISO date (YYYY-MM-DD) para input[type=date]
+ * Convierte una entidad Vehicle del dominio a datos del formulario.
+ * Maneja la conversión de Value Objects a campos planos.
  */
-// function dateToInputValue(date: Date | null): string {
-//   if (!date) return "";
-//   return date.toISOString().split("T")[0];
-// }
+function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
+  return {
+    // Identification
+    unitNumber: vehicle.unitNumber,
+    licensePlate: vehicle.licensePlate,
+    vin: vehicle.vin ?? "",
+
+    // Characteristics
+    brand: vehicle.brand,
+    model: vehicle.model,
+    year: vehicle.year,
+    type: vehicle.type,
+    color: vehicle.color ?? "",
+
+    // Capacities (from Value Object)
+    loadCapacity: vehicle.capacities.loadCapacity ?? undefined,
+    volumeCapacity: vehicle.capacities.volumeCapacity ?? undefined,
+    fuelTankCapacity: vehicle.capacities.fuelTankCapacity ?? undefined,
+    expectedFuelEfficiency:
+      vehicle.capacities.expectedFuelEfficiency ?? undefined,
+
+    // Mileage
+    currentMileage: vehicle.currentMileage,
+
+    // Documentation (from Value Object)
+    insurancePolicy: vehicle.documentation.insurancePolicy ?? "",
+    insuranceExpiry: vehicle.documentation.insuranceExpiry ?? "",
+    sctPermitNumber: vehicle.documentation.sctPermitNumber ?? "",
+    sctPermitExpiry: vehicle.documentation.sctPermitExpiry ?? "",
+
+    // Carta Porte 3.1 (from Value Object)
+    satTipoPermisoCode: vehicle.cartaPorte.satTipoPermisoCode ?? "",
+    satConfigAutotransporteCode:
+      vehicle.cartaPorte.satConfigAutotransporteCode ?? "",
+    insuranceCompany: vehicle.cartaPorte.insuranceCompany ?? "",
+  };
+}
+
+// ============================================================================
+// DEFAULT VALUES
+// ============================================================================
+
+const defaultValues: CreateVehicleFormData = {
+  unitNumber: "",
+  licensePlate: "",
+  vin: "",
+  brand: "",
+  model: "",
+  year: new Date().getFullYear(),
+  type: "truck",
+  color: "",
+  loadCapacity: undefined,
+  volumeCapacity: undefined,
+  fuelTankCapacity: undefined,
+  expectedFuelEfficiency: undefined,
+  currentMileage: 0,
+  insurancePolicy: "",
+  insuranceExpiry: "",
+  sctPermitNumber: "",
+  sctPermitExpiry: "",
+  // Carta Porte 3.1
+  satTipoPermisoCode: "",
+  satConfigAutotransporteCode: "",
+  insuranceCompany: "",
+};
 
 // ============================================================================
 // COMPONENT
@@ -65,64 +145,34 @@ interface VehicleFormProps {
 export function VehicleForm({
   vehicle,
   onSubmit,
-  isSubmitting,
+  isSubmitting = false,
 }: VehicleFormProps) {
-  const navigate = useNavigate();
   const isEditMode = !!vehicle;
 
   const form = useForm<CreateVehicleFormData>({
     resolver: zodResolver(createVehicleSchema),
-    defaultValues: vehicle
-      ? {
-          unitNumber: vehicle.unitNumber,
-          licensePlate: vehicle.licensePlate,
-          vin: vehicle.vin || "",
-          brand: vehicle.brand,
-          model: vehicle.model,
-          year: vehicle.year,
-          type: vehicle.type,
-          color: vehicle.color || "",
-          loadCapacity: vehicle.capacities.loadCapacity ?? undefined,
-          volumeCapacity: vehicle.capacities.volumeCapacity ?? undefined,
-          fuelTankCapacity: vehicle.capacities.fuelTankCapacity ?? undefined,
-          expectedFuelEfficiency:
-            vehicle.capacities.expectedFuelEfficiency ?? undefined,
-          currentMileage: vehicle.currentMileage,
-          insurancePolicy: vehicle.documentation.insurancePolicy || "",
-          insuranceExpiry: vehicle.documentation.insuranceExpiry,
-          sctPermitNumber: vehicle.documentation.sctPermitNumber || "",
-          sctPermitExpiry: vehicle.documentation.sctPermitExpiry,
-        }
-      : {
-          unitNumber: "",
-          licensePlate: "",
-          vin: "",
-          brand: "",
-          model: "",
-          year: new Date().getFullYear(),
-          type: "truck" as VehicleTypeValue,
-          color: "",
-          loadCapacity: undefined,
-          volumeCapacity: undefined,
-          fuelTankCapacity: undefined,
-          expectedFuelEfficiency: undefined,
-          currentMileage: 0,
-          insurancePolicy: "",
-          insuranceExpiry: "",
-          sctPermitNumber: "",
-          sctPermitExpiry: "",
-        },
+    defaultValues: vehicle ? formDataFromVehicle(vehicle) : defaultValues,
+  });
+
+  const handleSubmit = form.handleSubmit((data) => {
+    onSubmit(data);
   });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* ── Identification ── */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* IDENTIFICACIÓN */}
+        {/* ════════════════════════════════════════════════════════════════ */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Identificación</CardTitle>
+            <CardTitle>Identificación</CardTitle>
+            <CardDescription>
+              Datos básicos de identificación del vehículo
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Número de Unidad */}
             <FormField
               control={form.control}
               name="unitNumber"
@@ -131,9 +181,9 @@ export function VehicleForm({
                   <FormLabel>Número de Unidad *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: U-045"
-                      disabled={isEditMode}
+                      placeholder="Ej: U-001"
                       {...field}
+                      disabled={isEditMode}
                     />
                   </FormControl>
                   <FormMessage />
@@ -141,6 +191,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Placa */}
             <FormField
               control={form.control}
               name="licensePlate"
@@ -155,15 +206,16 @@ export function VehicleForm({
               )}
             />
 
+            {/* VIN */}
             <FormField
               control={form.control}
               name="vin"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>VIN (Número de Serie)</FormLabel>
+                  <FormLabel>VIN / Serie</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Vehicle Identification Number"
+                      placeholder="Número de serie del vehículo"
                       {...field}
                     />
                   </FormControl>
@@ -174,12 +226,16 @@ export function VehicleForm({
           </CardContent>
         </Card>
 
-        {/* ── Vehicle Info ── */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* CARACTERÍSTICAS */}
+        {/* ════════════════════════════════════════════════════════════════ */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Información del Vehículo</CardTitle>
+            <CardTitle>Características</CardTitle>
+            <CardDescription>Especificaciones del vehículo</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Marca */}
             <FormField
               control={form.control}
               name="brand"
@@ -194,6 +250,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Modelo */}
             <FormField
               control={form.control}
               name="model"
@@ -208,6 +265,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Año */}
             <FormField
               control={form.control}
               name="year"
@@ -217,9 +275,13 @@ export function VehicleForm({
                   <FormControl>
                     <Input
                       type="number"
+                      min={1900}
+                      max={new Date().getFullYear() + 1}
                       {...field}
                       onChange={(e) =>
-                        field.onChange(parseInt(e.target.value, 10) || 0)
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : undefined,
+                        )
                       }
                     />
                   </FormControl>
@@ -228,6 +290,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Tipo */}
             <FormField
               control={form.control}
               name="type"
@@ -235,23 +298,20 @@ export function VehicleForm({
                 <FormItem>
                   <FormLabel>Tipo *</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    onValueChange={(value) => {
+                      if (value) field.onChange(value);
+                    }}
+                    value={field.value ?? undefined}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
+                        <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(
-                        Object.entries(VEHICLE_TYPE_LABELS) as [
-                          VehicleTypeValue,
-                          string,
-                        ][]
-                      ).map(([value, label]) => (
+                      {Object.entries(VehicleType).map(([key, value]) => (
                         <SelectItem key={value} value={value}>
-                          {label}
+                          {VEHICLE_TYPE_LABELS[value]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -261,6 +321,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Color */}
             <FormField
               control={form.control}
               name="color"
@@ -274,15 +335,46 @@ export function VehicleForm({
                 </FormItem>
               )}
             />
+
+            {/* Kilometraje */}
+            <FormField
+              control={form.control}
+              name="currentMileage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kilometraje Actual</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : 0,
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
-        {/* ── Capacities & Mileage ── */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* CAPACIDADES */}
+        {/* ════════════════════════════════════════════════════════════════ */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Capacidades y Kilometraje</CardTitle>
+            <CardTitle>Capacidades</CardTitle>
+            <CardDescription>
+              Capacidad de carga y consumo de combustible
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Capacidad de Carga */}
             <FormField
               control={form.control}
               name="loadCapacity"
@@ -293,15 +385,15 @@ export function VehicleForm({
                     <Input
                       type="number"
                       step="0.01"
+                      min={0}
                       placeholder="0.00"
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined,
-                        )
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Mantener string vacío o número - Zod lo transformará
+                        field.onChange(val === "" ? null : parseFloat(val));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -309,6 +401,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Capacidad de Volumen */}
             <FormField
               control={form.control}
               name="volumeCapacity"
@@ -319,15 +412,15 @@ export function VehicleForm({
                     <Input
                       type="number"
                       step="0.01"
+                      min={0}
                       placeholder="0.00"
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined,
-                        )
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Mantener string vacío o número - Zod lo transformará
+                        field.onChange(val === "" ? null : parseFloat(val));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -335,6 +428,7 @@ export function VehicleForm({
               )}
             />
 
+            {/* Capacidad del Tanque */}
             <FormField
               control={form.control}
               name="fuelTankCapacity"
@@ -345,15 +439,15 @@ export function VehicleForm({
                     <Input
                       type="number"
                       step="0.01"
+                      min={0}
                       placeholder="0.00"
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined,
-                        )
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Mantener string vacío o número - Zod lo transformará
+                        field.onChange(val === "" ? null : parseFloat(val));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -361,45 +455,26 @@ export function VehicleForm({
               )}
             />
 
+            {/* Rendimiento Esperado */}
             <FormField
               control={form.control}
               name="expectedFuelEfficiency"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Rendimiento (Km/L)</FormLabel>
+                  <FormLabel>Rendimiento (km/L)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
+                      min={0}
                       placeholder="0.00"
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="currentMileage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Kilometraje Actual</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
                       {...field}
-                      onChange={(e) =>
-                        field.onChange(parseInt(e.target.value, 10) || 0)
-                      }
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Mantener string vacío o número - Zod lo transformará
+                        field.onChange(val === "" ? null : parseFloat(val));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -409,83 +484,191 @@ export function VehicleForm({
           </CardContent>
         </Card>
 
-        {/* ── Documentation ── */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* DOCUMENTACIÓN Y SEGUROS */}
+        {/* ════════════════════════════════════════════════════════════════ */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Documentación</CardTitle>
+            <CardTitle>Documentación y Seguros</CardTitle>
+            <CardDescription>
+              Información de pólizas de seguro y permisos
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="insurancePolicy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Póliza de Seguro</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Número de póliza" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <CardContent className="space-y-4">
+            {/* Seguro */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Aseguradora */}
+              <FormField
+                control={form.control}
+                name="insuranceCompany"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Aseguradora</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Qualitas, GNP, HDI" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Nombre de la compañía aseguradora
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="insuranceExpiry"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vigencia del Seguro</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Póliza de Seguro */}
+              <FormField
+                control={form.control}
+                name="insurancePolicy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Póliza</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número de póliza" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="sctPermitNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número de Permiso SCT</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Permiso SCT" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Vencimiento Seguro */}
+              <FormField
+                control={form.control}
+                name="insuranceExpiry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vencimiento del Seguro</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="sctPermitExpiry"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vigencia del Permiso SCT</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Permiso SCT */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Tipo de Permiso SCT (Catálogo SAT) */}
+              <FormField
+                control={form.control}
+                name="satTipoPermisoCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Permiso SCT</FormLabel>
+                    <FormControl>
+                      <TipoPermisoSelect
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        placeholder="Seleccionar tipo de permiso"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Catálogo SAT c_TipoPermiso
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Número de Permiso SCT */}
+              <FormField
+                control={form.control}
+                name="sctPermitNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Permiso SCT</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número de permiso" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Vencimiento Permiso SCT */}
+              <FormField
+                control={form.control}
+                name="sctPermitExpiry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vencimiento del Permiso</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </CardContent>
         </Card>
 
-        {/* ── Actions ── */}
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate("/vehicles")}
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </Button>
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* CARTA PORTE 3.1 */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Carta Porte 3.1
+              <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                SAT
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Datos requeridos para el complemento Carta Porte del CFDI
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Estos campos se utilizarán automáticamente al generar la Carta
+                Porte en los viajes asignados a este vehículo.
+              </AlertDescription>
+            </Alert>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Configuración Vehicular SAT */}
+              <FormField
+                control={form.control}
+                name="satConfigAutotransporteCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Configuración Vehicular</FormLabel>
+                    <FormControl>
+                      <ConfigAutotransporteSelect
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        placeholder="Seleccionar configuración"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Catálogo SAT c_ConfigAutotransporte (ej: C2, T3S2R4)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* SUBMIT */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <div className="flex justify-end gap-4">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditMode ? "Actualizar Vehículo" : "Crear Vehículo"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {isEditMode ? "Guardar Cambios" : "Crear Vehículo"}
+              </>
+            )}
           </Button>
         </div>
       </form>

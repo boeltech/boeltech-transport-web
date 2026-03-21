@@ -1,3 +1,14 @@
+/**
+ * Vehicle Validation Schemas
+ * Clean Architecture - Presentation Layer
+ *
+ * Schemas Zod para validación de formularios de vehículos.
+ *
+ * ACTUALIZADO: Incluye campos de Carta Porte 3.1
+ *
+ * Ubicación: src/features/vehicles/presentation/validation.ts
+ */
+
 import { z } from "zod";
 
 // ============================================
@@ -20,11 +31,38 @@ const vehicleStatusSchema = z.enum([
 ]);
 
 // ============================================
+// Helper: Optional positive number (handles string from HTML input)
+// ============================================
+
+/**
+ * Schema para números opcionales positivos.
+ * - Acepta: number | string (de HTML input) | null | undefined
+ * - Convierte strings vacíos y null a undefined
+ * - Valida que sea positivo si tiene valor
+ * - Retorna: number | undefined
+ */
+const optionalPositiveNumber = z.preprocess(
+  (val) => {
+    // // null o undefined → undefined
+    // if (val === null || val === undefined) return undefined;
+    // // string vacío → undefined
+    // if (val === "") return undefined;
+
+    // string numérico o número → número
+    const parsed = typeof val === "string" ? parseFloat(val) : val;
+    // NaN → undefined
+    // if (typeof parsed === "number" && isNaN(parsed)) return undefined;
+    return parsed;
+  },
+  z.number().positive("Debe ser mayor a 0").optional().or(z.literal(undefined)),
+);
+
+// ============================================
 // Create Vehicle Schema
 // ============================================
 
 export const createVehicleSchema = z.object({
-  // Identification
+  // ── Identification ────────────────────────────────────────────────────────
   unitNumber: z
     .string()
     .min(1, "El número de unidad es requerido")
@@ -35,7 +73,7 @@ export const createVehicleSchema = z.object({
     .max(15, "Máximo 15 caracteres"),
   vin: z.string().max(50, "Máximo 50 caracteres").optional().or(z.literal("")),
 
-  // Characteristics
+  // ── Characteristics ───────────────────────────────────────────────────────
   brand: z
     .string()
     .min(1, "La marca es requerida")
@@ -55,26 +93,10 @@ export const createVehicleSchema = z.object({
   color: z.string().max(30).optional().or(z.literal("")),
 
   // Capacities
-  loadCapacity: z
-    .number()
-    .positive("Debe ser mayor a 0")
-    .optional()
-    .or(z.literal(undefined)),
-  volumeCapacity: z
-    .number()
-    .positive("Debe ser mayor a 0")
-    .optional()
-    .or(z.literal(undefined)),
-  fuelTankCapacity: z
-    .number()
-    .positive("Debe ser mayor a 0")
-    .optional()
-    .or(z.literal(undefined)),
-  expectedFuelEfficiency: z
-    .number()
-    .positive("Debe ser mayor a 0")
-    .optional()
-    .or(z.literal(undefined)),
+  loadCapacity: optionalPositiveNumber,
+  volumeCapacity: optionalPositiveNumber,
+  fuelTankCapacity: optionalPositiveNumber,
+  expectedFuelEfficiency: optionalPositiveNumber,
 
   // Mileage
   currentMileage: z
@@ -83,11 +105,28 @@ export const createVehicleSchema = z.object({
     .nonnegative("No puede ser negativo")
     .default(0),
 
-  // Documentation
+  // ── Documentation ─────────────────────────────────────────────────────────
   insurancePolicy: z.string().max(50).optional().or(z.literal("")),
   insuranceExpiry: z.string().optional().or(z.literal("")),
   sctPermitNumber: z.string().max(50).optional().or(z.literal("")),
   sctPermitExpiry: z.string().optional().or(z.literal("")),
+
+  // ── Carta Porte 3.1 ───────────────────────────────────────────────────────
+  satTipoPermisoCode: z
+    .string()
+    .max(10, "Máximo 10 caracteres")
+    .optional()
+    .or(z.literal("")),
+  satConfigAutotransporteCode: z
+    .string()
+    .max(10, "Máximo 10 caracteres")
+    .optional()
+    .or(z.literal("")),
+  insuranceCompany: z
+    .string()
+    .max(100, "Máximo 100 caracteres")
+    .optional()
+    .or(z.literal("")),
 });
 
 // ============================================
@@ -95,8 +134,11 @@ export const createVehicleSchema = z.object({
 // ============================================
 
 export const updateVehicleSchema = z.object({
+  // Identification (unitNumber no se puede cambiar)
   licensePlate: z.string().min(1).max(15).optional(),
   vin: z.string().max(50).nullable().optional(),
+
+  // Characteristics
   brand: z.string().min(1).max(50).optional(),
   model: z.string().min(1).max(50).optional(),
   year: z
@@ -107,15 +149,28 @@ export const updateVehicleSchema = z.object({
     .optional(),
   type: vehicleTypeSchema.optional(),
   color: z.string().max(30).nullable().optional(),
+
+  // Capacities
   loadCapacity: z.number().positive().nullable().optional(),
   volumeCapacity: z.number().positive().nullable().optional(),
   fuelTankCapacity: z.number().positive().nullable().optional(),
   expectedFuelEfficiency: z.number().positive().nullable().optional(),
+
+  // Mileage
   currentMileage: z.number().int().nonnegative().optional(),
+
+  // Documentation
   insurancePolicy: z.string().max(50).nullable().optional(),
   insuranceExpiry: z.string().nullable().optional(),
   sctPermitNumber: z.string().max(50).nullable().optional(),
   sctPermitExpiry: z.string().nullable().optional(),
+
+  // Carta Porte 3.1
+  satTipoPermisoCode: z.string().max(10).nullable().optional(),
+  satConfigAutotransporteCode: z.string().max(10).nullable().optional(),
+  insuranceCompany: z.string().max(100).nullable().optional(),
+
+  // Status
   status: vehicleStatusSchema.optional(),
   isActive: z.boolean().optional(),
 });

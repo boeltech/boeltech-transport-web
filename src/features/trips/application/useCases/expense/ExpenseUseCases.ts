@@ -7,57 +7,17 @@
  */
 
 import type {
-  TripExpense,
-  ExpenseCategoryType,
-} from "@features/trips/domain/entities/entities";
-import type {
   IExpenseRepository,
-  UpdateExpenseDTO,
   ExpensesSummary,
+  TripExpense,
+  CreateExpenseInput,
+  UpdateExpenseInput,
 } from "@features/trips/domain";
 import {
   mapBackendError,
   type MappedError,
   type UseCaseResult,
 } from "@shared/utils/errorMapper";
-
-// ============================================================================
-// INPUT TYPES
-// ============================================================================
-
-/**
- * Input para crear un gasto
- */
-export interface CreateExpenseInput {
-  category: ExpenseCategoryType;
-  description: string;
-  amount: number;
-  currency?: string;
-  expenseDate?: Date | string;
-  location?: string;
-  hasReceipt?: boolean;
-  receiptUrl?: string;
-  vendorName?: string;
-  isEstimated?: boolean;
-  notes?: string;
-}
-
-/**
- * Input para actualizar un gasto
- */
-export interface UpdateExpenseInput {
-  category?: ExpenseCategoryType;
-  description?: string;
-  amount?: number;
-  currency?: string;
-  expenseDate?: Date | string;
-  location?: string | null;
-  hasReceipt?: boolean;
-  receiptUrl?: string | null;
-  vendorName?: string | null;
-  isEstimated?: boolean;
-  notes?: string | null;
-}
 
 // ============================================================================
 // GET EXPENSES USE CASE
@@ -231,25 +191,25 @@ export class UpdateExpenseUseCase implements IUpdateExpenseUseCase {
         };
       }
 
-      const dto: UpdateExpenseDTO = {
-        category: input.category,
-        description: input.description,
-        amount: input.amount,
-        currency: input.currency,
-        expenseDate: input.expenseDate
-          ? typeof input.expenseDate === "string"
-            ? input.expenseDate
-            : input.expenseDate.toISOString()
-          : undefined,
-        location: input.location,
-        hasReceipt: input.hasReceipt,
-        receiptUrl: input.receiptUrl,
-        vendorName: input.vendorName,
-        isEstimated: input.isEstimated,
-        notes: input.notes,
-      };
+      // const dto: UpdateExpenseDTO = {
+      //   category: input.category,
+      //   description: input.description,
+      //   amount: input.amount,
+      //   currency: input.currency,
+      //   expenseDate: input.expenseDate
+      //     ? typeof input.expenseDate === "string"
+      //       ? input.expenseDate
+      //       : input.expenseDate.toISOString()
+      //     : undefined,
+      //   location: input.location,
+      //   hasReceipt: input.hasReceipt,
+      //   receiptUrl: input.receiptUrl,
+      //   vendorName: input.vendorName,
+      //   isEstimated: input.isEstimated,
+      //   notes: input.notes,
+      // };
 
-      const result = await this.repository.update(tripId, expenseId, dto);
+      const result = await this.repository.update(tripId, expenseId, input);
 
       return {
         success: true,

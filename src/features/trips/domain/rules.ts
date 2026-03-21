@@ -11,16 +11,15 @@
 
 import type { DomainResult, ValidationResult } from "@shared/utils/errorMapper";
 import {
-  type Trip,
-  type TripStatusType,
-  type StopTypeValue,
-  type TripStop,
-  TripStatus,
   StopType,
-  VALID_STATUS_TRANSITIONS,
-  UNIQUE_STOP_TYPES,
   TRIP_STATUS_LABELS,
-} from "./entities/entities";
+  TripStatus,
+  UNIQUE_STOP_TYPES,
+  VALID_STATUS_TRANSITIONS,
+  type StopTypeValue,
+  type TripStatusType,
+} from "./enums";
+import type { Trip, TripStop } from "./entities";
 
 // ============================================================================
 // STATUS TRANSITION VALIDATORS

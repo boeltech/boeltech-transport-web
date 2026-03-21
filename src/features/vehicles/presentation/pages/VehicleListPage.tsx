@@ -69,7 +69,7 @@ export function VehicleListPage() {
   const search = searchParams.get("search") || "";
 
   // Fetch vehicles
-  const { data, isLoading, refetch } = useVehicles({
+  const { data, isLoading, isFetching, refetch } = useVehicles({
     page,
     limit: 10,
     filters: {
@@ -254,10 +254,15 @@ export function VehicleListPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => refetch()}
-            disabled={isLoading}
+            onClick={async () => {
+              await refetch();
+              toast({ title: "Lista actualizada", variant: "success" });
+            }}
+            disabled={isFetching}
           >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            <RefreshCw
+              className={cn("h-4 w-4", isFetching && "animate-spin")}
+            />
           </Button>
 
           {/* View Toggle */}

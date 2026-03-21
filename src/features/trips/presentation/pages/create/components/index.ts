@@ -12,6 +12,7 @@ export {
   tripExpenseSchema,
   WIZARD_STEPS,
   defaultWizardFormValues,
+  validateRouteStep,
 } from "./validation";
 
 export type {

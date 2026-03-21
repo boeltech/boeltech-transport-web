@@ -5,6 +5,8 @@
  * Entidades del negocio, Enums y Constantes del módulo de Vehículos.
  * Los mappers están en mappers.ts (infraestructura).
  *
+ * ACTUALIZADO: Incluye campos de Carta Porte 3.1
+ *
  * REGLA: Esta capa NO debe importar nada de otras capas.
  */
 
@@ -50,6 +52,18 @@ export interface VehicleDocumentation {
   readonly sctPermitExpiry: string | null;
 }
 
+/**
+ * Datos de Carta Porte 3.1 del vehículo
+ */
+export interface VehicleCartaPorteData {
+  /** Código de tipo de permiso SCT (catálogo SAT c_TipoPermiso) */
+  readonly satTipoPermisoCode: string | null;
+  /** Código de configuración vehicular (catálogo SAT c_ConfigAutotransporte) */
+  readonly satConfigAutotransporteCode: string | null;
+  /** Nombre de la aseguradora de responsabilidad civil */
+  readonly insuranceCompany: string | null;
+}
+
 // ============================================================================
 // ENTITIES
 // ============================================================================
@@ -72,6 +86,9 @@ export interface VehicleListItem {
   readonly isActive: boolean;
   readonly insuranceExpiry: string | null;
   readonly sctPermitExpiry: string | null;
+  // Carta Porte 3.1 (útil para filtros y validaciones)
+  readonly satTipoPermisoCode: string | null;
+  readonly satConfigAutotransporteCode: string | null;
 }
 
 /**
@@ -101,6 +118,9 @@ export interface Vehicle {
 
   // Documentation
   readonly documentation: VehicleDocumentation;
+
+  // Carta Porte 3.1
+  readonly cartaPorte: VehicleCartaPorteData;
 
   // Status
   readonly status: VehicleStatusType;
@@ -159,6 +179,10 @@ export interface CreateVehiclePayload {
   readonly insuranceExpiry?: string;
   readonly sctPermitNumber?: string;
   readonly sctPermitExpiry?: string;
+  // Carta Porte 3.1
+  readonly satTipoPermisoCode?: string;
+  readonly satConfigAutotransporteCode?: string;
+  readonly insuranceCompany?: string;
 }
 
 export interface UpdateVehiclePayload extends Partial<
@@ -172,7 +196,6 @@ export interface UpdateVehiclePayload extends Partial<
 // QUERY TYPES
 // ============================================================================
 
-//
 export interface VehicleFiltersType {
   readonly status?: VehicleStatusType | VehicleStatusType[];
   readonly type?: VehicleTypeValue;

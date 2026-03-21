@@ -40,7 +40,7 @@ export class GetTripByIdUseCase implements IGetTripByIdUseCase {
         };
       }
 
-      return { success: true, data: trip };
+      return { success: true, data: trip.data };
     } catch (error) {
       return {
         success: false,

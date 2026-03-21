@@ -4,11 +4,8 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { tripRepository } from "@features/trips/infrastructure";
-import {
-  tripQueryKeys,
-  type Trip,
-} from "@features/trips/domain/entities/entities";
 import { createScheduleTripUseCase } from "../../useCases";
+import { tripQueryKeys, type Trip } from "@features/trips/domain";
 
 // ============================================================================
 // CUSTOM ERROR

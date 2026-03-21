@@ -55,8 +55,8 @@ export class ReorderStopsUseCase implements IReorderStopsUseCase {
 
       // Solo se pueden modificar viajes en estado draft o scheduled
       if (
-        trip.status !== TripStatus.DRAFT &&
-        trip.status !== TripStatus.SCHEDULED
+        trip.data.status !== TripStatus.DRAFT &&
+        trip.data.status !== TripStatus.SCHEDULED
       ) {
         return {
           success: false,
@@ -70,7 +70,7 @@ export class ReorderStopsUseCase implements IReorderStopsUseCase {
 
       // Verificar que todos los IDs corresponden a paradas existentes
       const currentStops = await this.stopRepository.findByTripId(tripId);
-      const currentIds = new Set(currentStops.map((s) => s.id));
+      const currentIds = new Set(currentStops.data.map((s) => s.id));
 
       for (const id of orderedIds) {
         if (!currentIds.has(id)) {
@@ -85,7 +85,7 @@ export class ReorderStopsUseCase implements IReorderStopsUseCase {
       }
 
       // Verificar que no falten IDs
-      if (orderedIds.length !== currentStops.length) {
+      if (orderedIds.length !== currentStops.data.length) {
         return {
           success: false,
           error: {
@@ -97,7 +97,7 @@ export class ReorderStopsUseCase implements IReorderStopsUseCase {
 
       const stops = await this.stopRepository.reorder(tripId, orderedIds);
 
-      return { success: true, data: stops };
+      return { success: true, data: stops.data };
     } catch (error) {
       return {
         success: false,
