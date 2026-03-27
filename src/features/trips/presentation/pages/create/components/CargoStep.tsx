@@ -86,7 +86,7 @@ import type {
   TripWizardFormValues,
   TripCargoFormValues,
   CargoMovementFormValues,
-} from "../validation";
+} from "./validation";
 import { StopType } from "@features/trips";
 import { useVehicle } from "@features/vehicles/application";
 

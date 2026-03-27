@@ -76,10 +76,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import type {
-  TripWizardFormValues,
-  TripExpenseFormValues,
-} from "../validation";
+import type { TripWizardFormValues, TripExpenseFormValues } from "./validation";
 
 // ============================================================================
 // TYPES

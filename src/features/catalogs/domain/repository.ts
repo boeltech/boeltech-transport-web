@@ -12,9 +12,12 @@ import type {
   CatalogItem,
   CatalogOption,
   CatalogVersion,
-  CatalogTypeCodeValue,
+  CatalogStatistics,
   CatalogSearchParams,
   CatalogFilterParams,
+  CatalogImportOptions,
+  CatalogImportResult,
+  CatalogValidationResult,
 } from "./entities";
 
 // ============================================================================
@@ -61,61 +64,36 @@ export interface CatalogSearchResult {
 // Repository Interface
 // ============================================================================
 
-/**
- * Interfaz del repositorio de catálogos.
- * Define el contrato que debe implementar la capa de infraestructura.
- */
 export interface ICatalogRepository {
   // ─────────────────────────────────────────────────────────────────────────
   // Catalog Types
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Obtiene todos los tipos de catálogo
-   */
   findTypes(): Promise<CatalogType[]>;
+  findTypesGrouped(): Promise<Record<string, CatalogType[]>>;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Statistics
+  // ─────────────────────────────────────────────────────────────────────────
+
+  getStatistics(): Promise<CatalogStatistics[]>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Catalog Items - Read
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Obtiene todos los items de un catálogo (solo para catálogos pequeños)
-   */
   findAll(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     filters?: CatalogFilterParams,
   ): Promise<CatalogItem[]>;
-
-  /**
-   * Obtiene items como opciones ligeras (para dropdowns)
-   */
   findAllAsOptions(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     parentCode?: string,
   ): Promise<CatalogOption[]>;
-
-  /**
-   * Obtiene un item por código exacto
-   */
-  findByCode(
-    typeCode: CatalogTypeCodeValue,
-    code: string,
-  ): Promise<CatalogItem | null>;
-
-  /**
-   * Obtiene los hijos de un item (catálogos jerárquicos)
-   */
-  findChildren(
-    typeCode: CatalogTypeCodeValue,
-    parentCode: string,
-  ): Promise<CatalogItem[]>;
-
-  /**
-   * Busca items usando full-text search
-   */
+  findByCode(typeCode: string, code: string): Promise<CatalogItem | null>;
+  findChildren(typeCode: string, parentCode: string): Promise<CatalogItem[]>;
   search(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     params: CatalogSearchParams,
   ): Promise<CatalogSearchResult>;
 
@@ -123,45 +101,42 @@ export interface ICatalogRepository {
   // Catalog Items - Write (tenant-specific only)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Crea un nuevo item de catálogo
-   */
   create(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     data: CreateCatalogItemDTO,
   ): Promise<MappedSingleResult<CatalogItem>>;
-
-  /**
-   * Actualiza un item de catálogo
-   */
   update(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     code: string,
     data: UpdateCatalogItemDTO,
   ): Promise<MappedSingleResult<CatalogItem>>;
+  delete(typeCode: string, code: string): Promise<void>;
 
-  /**
-   * Elimina un item de catálogo
-   */
-  delete(typeCode: CatalogTypeCodeValue, code: string): Promise<void>;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Import (admin/manager only)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  importCatalog(
+    typeCode: string,
+    file: File,
+    options: CatalogImportOptions,
+  ): Promise<CatalogImportResult>;
+
+  validateImport(
+    typeCode: string,
+    file: File,
+  ): Promise<CatalogValidationResult>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Versions
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Obtiene la versión actual de un catálogo
-   */
-  findCurrentVersion(
-    typeCode: CatalogTypeCodeValue,
-  ): Promise<CatalogVersion | null>;
+  findCurrentVersion(typeCode: string): Promise<CatalogVersion | null>;
+  findVersions(typeCode: string): Promise<CatalogVersion[]>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Utility
   // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Obtiene el conteo de items en un catálogo
-   */
-  count(typeCode: CatalogTypeCodeValue): Promise<number>;
+  count(typeCode: string): Promise<number>;
 }

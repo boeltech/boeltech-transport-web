@@ -139,28 +139,6 @@ function addDays(dateString: string, days: number): string {
 }
 
 /**
- * Calcula días hasta vencimiento de licencia
- */
-// export function getDaysUntilLicenseExpiration(expirationDate: Date): number {
-//   const today = new Date();
-//   today.setHours(0, 0, 0, 0);
-//   const expDate = new Date(expirationDate);
-//   expDate.setHours(0, 0, 0, 0);
-//   const diffTime = expDate.getTime() - today.getTime();
-//   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-// }
-
-// export function getDaysUntilDate(date: Date | string | null): number | null {
-//   if (!date) return null;
-//   const targetDate = new Date(date);
-//   const today = new Date();
-//   today.setHours(0, 0, 0, 0);
-//   targetDate.setHours(0, 0, 0, 0);
-//   const diffTime = targetDate.getTime() - today.getTime();
-//   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-// }
-
-/**
  * Calcula la fecha de vencimiento sumando N días a una fecha "YYYY-MM-DD".
  * Retorna el string de vencimiento en formato "YYYY-MM-DD".
  */
@@ -192,7 +170,127 @@ export function getDaysUntilDateString(
   return Math.round((targetMs - todayMs) / (1000 * 60 * 60 * 24));
 }
 
-// ## Contrato entre capas
+// ──────────────────────────────────────────────
+// VERSIONADO: Para catálogos y otros recursos
+// ──────────────────────────────────────────────
+
+/**
+ * Devuelve la fecha de hoy en formato compacto "YYYYMMDD".
+ * Útil para generar versiones con timestamp.
+ *
+ * @example
+ * getTodayCompact() // "20240323"
+ */
+export function getTodayCompact(): string {
+  return getTodayString().replace(/-/g, "");
+}
+
+/**
+ * Genera una versión con timestamp automático.
+ * Si la versión base ya incluye timestamp (formato X.X.YYYYMMDD), la retorna sin cambios.
+ * Si no, agrega la fecha de hoy.
+ *
+ * @example
+ * generateVersionWithTimestamp("1.0")           // "1.0.20240323"
+ * generateVersionWithTimestamp("1.0.20240320")  // "1.0.20240320" (sin cambios)
+ * generateVersionWithTimestamp("2024.01")       // "2024.01.20240323"
+ *
+ * @param baseVersion - Versión base (ej: "1.0", "2024.01")
+ * @returns Versión con timestamp
+ */
+export function generateVersionWithTimestamp(baseVersion: string): string {
+  // Si ya tiene timestamp (termina en .YYYYMMDD), no modificar
+  if (/\.\d{8}$/.test(baseVersion)) {
+    return baseVersion;
+  }
+
+  return `${baseVersion}.${getTodayCompact()}`;
+}
+
+/**
+ * Extrae la versión base (sin timestamp) de una versión con timestamp.
+ *
+ * @example
+ * extractBaseVersion("1.0.20240323")  // "1.0"
+ * extractBaseVersion("2024.01")       // "2024.01"
+ * extractBaseVersion("1.0")           // "1.0"
+ *
+ * @param version - Versión completa
+ * @returns Versión base sin timestamp
+ */
+export function extractBaseVersion(version: string): string {
+  // Si termina en .YYYYMMDD, remover esa parte
+  if (/\.\d{8}$/.test(version)) {
+    return version.slice(0, -9); // Remueve ".YYYYMMDD"
+  }
+  return version;
+}
+
+/**
+ * Extrae el timestamp de una versión con timestamp.
+ *
+ * @example
+ * extractVersionTimestamp("1.0.20240323")  // "20240323"
+ * extractVersionTimestamp("1.0")           // null
+ *
+ * @param version - Versión completa
+ * @returns Timestamp o null si no tiene
+ */
+export function extractVersionTimestamp(version: string): string | null {
+  const match = version.match(/\.(\d{8})$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Formatea un timestamp de versión (YYYYMMDD) a formato legible.
+ *
+ * @example
+ * formatVersionTimestamp("20240323") // "23 mar 2024"
+ * formatVersionTimestamp(null)       // null
+ *
+ * @param timestamp - Timestamp en formato YYYYMMDD
+ * @returns Fecha formateada o null
+ */
+export function formatVersionTimestamp(
+  timestamp: string | null,
+): string | null {
+  if (!timestamp || !/^\d{8}$/.test(timestamp)) return null;
+
+  const dateString = `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`;
+  return formatDate(dateString);
+}
+
+/**
+ * Genera una versión sugerida basada en la versión actual.
+ * Útil para mostrar en el UI del wizard de importación.
+ *
+ * @example
+ * // Sin versión previa
+ * suggestNextVersion(null)              // "1.0.20240323"
+ *
+ * // Con versión previa
+ * suggestNextVersion("1.0.20240320")    // "1.0.20240323"
+ * suggestNextVersion("2024.01.20240101") // "2024.01.20240323"
+ *
+ * @param currentVersion - Versión actual del catálogo (puede ser null)
+ * @returns Versión sugerida con timestamp de hoy
+ */
+export function suggestNextVersion(
+  currentVersion: string | null | undefined,
+): string {
+  const today = getTodayCompact();
+
+  if (!currentVersion) {
+    return `1.0.${today}`;
+  }
+
+  const baseVersion = extractBaseVersion(currentVersion);
+  return `${baseVersion}.${today}`;
+}
+
+// ──────────────────────────────────────────────
+// CONTRATO ENTRE CAPAS
+// ──────────────────────────────────────────────
 
 // ┌─────────────────────────────────────────────────────────────────┐
 // │  INPUT del usuario                                              │

@@ -31,6 +31,7 @@ export const MODULES = [
   "users",
   "settings",
   "audit_logs",
+  "catalogs",
 ] as const;
 
 export type Module = (typeof MODULES)[number];

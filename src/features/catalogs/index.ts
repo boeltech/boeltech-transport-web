@@ -1,59 +1,66 @@
 /**
- * Catalogs Feature Module - Barrel Export
+ * Catalogs Module - Public API
  *
- * Módulo de catálogos SAT/CFDI para el ERP de transporte.
- * Proporciona acceso a catálogos del SAT para Carta Porte 3.1, CFDI,
- * y direcciones de México.
+ * Este módulo maneja los catálogos SAT e internos del ERP.
  *
- * @example
- * // Usar hooks para obtener datos
- * import { useEstadosOptions, useCatalogSearch } from '@features/catalogs';
+ * Estructura Clean Architecture:
+ * - domain/      → Entidades, interfaces, constantes
+ * - infrastructure/ → Repositorio HTTP, mappers
+ * - application/ → Hooks (React Query)
+ * - presentation/ → Páginas, componentes, rutas
  *
- * // Usar componentes de UI
- * import {
- *   EstadoSelect,
- *   MunicipioSelect,
- *   ProductoServicioCPSearch
- * } from '@features/catalogs';
+ * Uso:
+ * ```tsx
+ * // En el router principal
+ * import { CatalogRoutes } from "@modules/catalogs";
  *
- * // Usar tipos
- * import type { CatalogItem, CatalogTypeCodeValue } from '@features/catalogs';
+ * <Route path="configuracion/catalogos/*" element={<CatalogRoutes />} />
+ *
+ * // Componentes reutilizables
+ * import { CatalogSelect, CatalogSearchInput, AddressFields } from "@modules/catalogs";
+ *
+ * // Hooks
+ * import { useCatalogOptions, useCatalogSearch } from "@modules/catalogs";
+ * ```
  */
 
 // ============================================================================
-// Domain Layer (Entities, Types, Interfaces)
+// DOMAIN
 // ============================================================================
 
 export {
-  // Enums & Constants
+  // Constants & Enums
   CatalogTypeCode,
   CatalogSource,
+  catalogQueryKeys,
   CATALOG_TYPE_LABELS,
+  CATALOG_SOURCE_LABELS,
   SMALL_CATALOGS,
   LARGE_CATALOGS,
   HIERARCHICAL_CATALOGS,
-
   // Helpers
   isSmallCatalog,
   isHierarchicalCatalog,
   getParentCatalogType,
-
-  // Query Keys
-  catalogQueryKeys,
-
-  // Types
-  type CatalogTypeCodeValue,
-  type CatalogSourceValue,
-  type CatalogType,
-  type CatalogItem,
-  type CatalogItemListItem,
-  type CatalogOption,
-  type CatalogVersion,
-  type CatalogSearchParams,
-  type CatalogFilterParams,
+  isSatCatalog,
+  isInternalCatalog,
 } from "./domain";
 
 export type {
+  // Types
+  CatalogTypeCodeValue,
+  CatalogSourceValue,
+  CatalogType,
+  CatalogItem,
+  CatalogOption,
+  CatalogVersion,
+  CatalogStatistics,
+  CatalogImportOptions,
+  CatalogImportResult,
+  CatalogValidationResult,
+  CatalogSearchParams,
+  CatalogFilterParams,
+  // Repository
   ICatalogRepository,
   CreateCatalogItemDTO,
   UpdateCatalogItemDTO,
@@ -61,16 +68,38 @@ export type {
 } from "./domain";
 
 // ============================================================================
+// INFRASTRUCTURE
+// ============================================================================
+
+export { catalogRepository } from "./infrastructure";
+
+// ============================================================================
 // Application Layer (Hooks)
 // ============================================================================
 
 export {
+  // Statistics
+  useCatalogStatistics,
+  useCatalogStatisticsBySource,
+
+  // Import
+  useCatalogImport,
+  useCatalogValidate,
+  useCatalogImportWizard,
+
+  // Items
+  useCatalogItems,
+  useCatalogItemsPaginated,
+
+  // Types
+  useCatalogTypes,
+  useCatalogTypesGrouped,
+
   // Generic hooks
   useCatalogOptions,
   useCatalogSearch,
   useCatalogItem,
   useCatalogChildren,
-  useCatalogTypes,
 
   // Specialized hooks - Options (catálogos pequeños)
   useEstadosOptions,
@@ -100,14 +129,27 @@ export {
 } from "./application/hooks";
 
 // ============================================================================
-// Infrastructure Layer (Repository, Mappers)
+// PRESENTATION
 // ============================================================================
 
-export { catalogRepository, createCatalogRepository } from "./infrastructure";
+export {
+  // Routes
+  // CatalogRoutes,
+  // Pages
+  CatalogsPage,
+  CatalogDetailPage,
+  // Admin components
+  CatalogTypeCard,
+  CatalogItemsTable,
+  CatalogImportWizard,
+} from "./presentation";
 
-// ============================================================================
-// Presentation Layer (Components)
-// ============================================================================
+// Re-export component types
+export type {
+  CatalogTypeCardProps,
+  CatalogItemsTableProps,
+  CatalogImportWizardProps,
+} from "./presentation/components";
 
 export {
   // Generic components

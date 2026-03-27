@@ -5,9 +5,7 @@
  * Transforma los datos entre el formato de la API (snake_case)
  * y el formato del dominio (camelCase).
  *
- * FLUJO:
- * API Response (snake_case) → mapCatalogItem → Domain Entity (camelCase)
- * Domain DTO (camelCase) → toApiCreateCatalogItem → API Request (snake_case)
+ * ACTUALIZADO: Agregado ApiCatalogTypeWithVersionResponse y mapCatalogTypeWithVersion
  */
 
 import type {
@@ -15,9 +13,14 @@ import type {
   CatalogItem,
   CatalogOption,
   CatalogVersion,
+  CatalogStatistics,
+  CatalogImportResult,
+  CatalogValidationResult,
+  CatalogImportOptions,
   CatalogTypeCodeValue,
   CatalogSourceValue,
-} from "../domain/entities";
+  CatalogTypeWithVersion,
+} from "../domain";
 import type {
   CreateCatalogItemDTO,
   UpdateCatalogItemDTO,
@@ -40,6 +43,15 @@ export interface ApiCatalogTypeResponse {
   metadata_schema: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Respuesta del endpoint GET /types/:typeCode
+ * Incluye versión actual e items count
+ */
+export interface ApiCatalogTypeWithVersionResponse extends ApiCatalogTypeResponse {
+  current_version: ApiCatalogVersionResponse | null;
+  items_count: number;
 }
 
 export interface ApiCatalogItemResponse {
@@ -78,6 +90,40 @@ export interface ApiCatalogVersionResponse {
   created_at: string;
 }
 
+export interface ApiCatalogStatisticsResponse {
+  type_code: string;
+  type_name: string;
+  source: string | null;
+  item_count: number;
+  current_version: string | null;
+}
+
+export interface ApiCatalogImportResultResponse {
+  success: boolean;
+  type_code: string;
+  version: string;
+  total_rows: number;
+  inserted_count: number;
+  updated_count: number;
+  skipped_count: number;
+  error_count: number;
+  errors: Array<{ row: number; errors: string[] }>;
+  duration: number;
+}
+
+export interface ApiCatalogValidationResultResponse {
+  is_valid: boolean;
+  total_rows: number;
+  valid_rows: number;
+  errors: Array<{ row: number; errors: string[] }>;
+  preview: Array<{
+    code: string;
+    name: string;
+    description?: string | null;
+    parent_code?: string | null;
+  }>;
+}
+
 export interface ApiCatalogSearchResponse {
   data: ApiCatalogItemResponse[];
   pagination: {
@@ -90,9 +136,6 @@ export interface ApiCatalogSearchResponse {
 // MAPPERS: API → Domain
 // ============================================================================
 
-/**
- * Mapea un tipo de catálogo del API al dominio
- */
 export function mapCatalogType(api: ApiCatalogTypeResponse): CatalogType {
   return {
     id: api.id,
@@ -110,8 +153,31 @@ export function mapCatalogType(api: ApiCatalogTypeResponse): CatalogType {
 }
 
 /**
- * Mapea un item de catálogo del API al dominio
+ * Mapea la respuesta del endpoint GET /types/:typeCode
+ * que incluye versión actual e items count.
  */
+export function mapCatalogTypeWithVersion(
+  api: ApiCatalogTypeWithVersionResponse,
+): CatalogTypeWithVersion {
+  return {
+    id: api.id,
+    code: api.code as CatalogTypeCodeValue,
+    name: api.name,
+    description: api.description,
+    source: api.source as CatalogSourceValue | null,
+    parentTypeCode: api.parent_type_code as CatalogTypeCodeValue | null,
+    isHierarchical: api.is_hierarchical,
+    isGlobal: api.is_global,
+    metadataSchema: api.metadata_schema,
+    createdAt: new Date(api.created_at),
+    updatedAt: new Date(api.updated_at),
+    currentVersion: api.current_version
+      ? mapCatalogVersion(api.current_version)
+      : null,
+    itemsCount: api.items_count,
+  };
+}
+
 export function mapCatalogItem(api: ApiCatalogItemResponse): CatalogItem {
   return {
     id: api.id,
@@ -131,9 +197,6 @@ export function mapCatalogItem(api: ApiCatalogItemResponse): CatalogItem {
   };
 }
 
-/**
- * Mapea una opción de catálogo del API al dominio
- */
 export function mapCatalogOption(api: ApiCatalogOptionResponse): CatalogOption {
   return {
     code: api.code,
@@ -143,9 +206,6 @@ export function mapCatalogOption(api: ApiCatalogOptionResponse): CatalogOption {
   };
 }
 
-/**
- * Mapea una versión de catálogo del API al dominio
- */
 export function mapCatalogVersion(
   api: ApiCatalogVersionResponse,
 ): CatalogVersion {
@@ -162,40 +222,90 @@ export function mapCatalogVersion(
   };
 }
 
+export function mapCatalogStatistics(
+  api: ApiCatalogStatisticsResponse,
+): CatalogStatistics {
+  return {
+    typeCode: api.type_code,
+    typeName: api.type_name,
+    source: api.source,
+    itemCount: api.item_count,
+    currentVersion: api.current_version,
+  };
+}
+
+export function mapCatalogImportResult(
+  api: ApiCatalogImportResultResponse,
+): CatalogImportResult {
+  return {
+    success: api.success,
+    typeCode: api.type_code,
+    version: api.version,
+    totalRows: api.total_rows,
+    insertedCount: api.inserted_count,
+    updatedCount: api.updated_count,
+    skippedCount: api.skipped_count,
+    errorCount: api.error_count,
+    errors: api.errors,
+    duration: api.duration,
+  };
+}
+
+export function mapCatalogValidationResult(
+  api: ApiCatalogValidationResultResponse,
+): CatalogValidationResult {
+  return {
+    isValid: api.is_valid,
+    totalRows: api.total_rows,
+    validRows: api.valid_rows,
+    errors: api.errors,
+    preview: api.preview.map((p) => ({
+      code: p.code,
+      name: p.name,
+      description: p.description,
+      parentCode: p.parent_code,
+    })),
+  };
+}
+
 // ============================================================================
 // PUBLIC MAPPERS (for repository)
 // ============================================================================
 
-/**
- * Mapea array de tipos de catálogo
- */
 export function mapCatalogTypes(response: {
   data: ApiCatalogTypeResponse[];
 }): CatalogType[] {
   return response.data.map(mapCatalogType);
 }
 
-/**
- * Mapea array de items de catálogo
- */
+export function mapCatalogTypesGrouped(response: {
+  data: Record<string, ApiCatalogTypeResponse[]>;
+}): Record<string, CatalogType[]> {
+  const result: Record<string, CatalogType[]> = {};
+  for (const [key, types] of Object.entries(response.data)) {
+    result[key] = types.map(mapCatalogType);
+  }
+  return result;
+}
+
+export function mapCatalogStatisticsArray(response: {
+  data: ApiCatalogStatisticsResponse[];
+}): CatalogStatistics[] {
+  return response.data.map(mapCatalogStatistics);
+}
+
 export function mapCatalogItems(response: {
   data: ApiCatalogItemResponse[];
 }): CatalogItem[] {
   return response.data.map(mapCatalogItem);
 }
 
-/**
- * Mapea array de opciones de catálogo
- */
 export function mapCatalogOptions(response: {
   data: ApiCatalogOptionResponse[];
 }): CatalogOption[] {
   return response.data.map(mapCatalogOption);
 }
 
-/**
- * Mapea respuesta de búsqueda
- */
 export function mapCatalogSearchResult(
   response: ApiCatalogSearchResponse,
 ): CatalogSearchResult {
@@ -205,31 +315,37 @@ export function mapCatalogSearchResult(
   };
 }
 
-/**
- * Mapea respuesta de item único
- */
 export function mapSingleCatalogItem(response: {
   data: ApiCatalogItemResponse;
 }): CatalogItem {
   return mapCatalogItem(response.data);
 }
 
-/**
- * Mapea respuesta de versión
- */
 export function mapSingleCatalogVersion(response: {
   data: ApiCatalogVersionResponse | null;
 }): CatalogVersion | null {
   return response.data ? mapCatalogVersion(response.data) : null;
 }
 
+export function mapCatalogVersions(response: {
+  data: ApiCatalogVersionResponse[];
+}): CatalogVersion[] {
+  return response.data.map(mapCatalogVersion);
+}
+
+/**
+ * Mapea la respuesta del endpoint GET /types/:typeCode
+ */
+export function mapSingleCatalogTypeWithVersion(response: {
+  data: ApiCatalogTypeWithVersionResponse;
+}): CatalogTypeWithVersion {
+  return mapCatalogTypeWithVersion(response.data);
+}
+
 // ============================================================================
 // MAPPERS: Domain → API (for requests)
 // ============================================================================
 
-/**
- * Convierte DTO de creación a formato API (snake_case)
- */
 export function toApiCreateCatalogItem(
   dto: CreateCatalogItemDTO,
 ): Record<string, unknown> {
@@ -246,9 +362,6 @@ export function toApiCreateCatalogItem(
   };
 }
 
-/**
- * Convierte DTO de actualización a formato API (snake_case)
- */
 export function toApiUpdateCatalogItem(
   dto: UpdateCatalogItemDTO,
 ): Record<string, unknown> {
@@ -266,9 +379,19 @@ export function toApiUpdateCatalogItem(
   return apiData;
 }
 
-/**
- * Construye query params para búsqueda
- */
+export function toApiImportOptions(
+  options: CatalogImportOptions,
+): Record<string, unknown> {
+  return {
+    version: options.version,
+    source_url: options.sourceUrl ?? null,
+    notes: options.notes ?? null,
+    skip_errors: options.skipErrors ?? true,
+    update_existing: options.updateExisting ?? true,
+    deactivate_missing: options.deactivateMissing ?? false,
+  };
+}
+
 export function toApiSearchParams(params: {
   query: string;
   parentCode?: string;
@@ -287,9 +410,6 @@ export function toApiSearchParams(params: {
   return queryParams;
 }
 
-/**
- * Construye query params para filtros
- */
 export function toApiFilterParams(params?: {
   parentCode?: string;
   includeInactive?: boolean;

@@ -63,7 +63,7 @@ import {
 // Hook para obtener detalle del vehículo
 import { useVehicle } from "@features/vehicles/application";
 
-import type { TripWizardFormValues } from "../validation";
+import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers/domain";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import { isExpiringSoon } from "@shared/utils/dateUtils";
@@ -201,10 +201,10 @@ export function BasicInfoStep({
   const blockedDrivers = processedDrivers.filter((d) => !d.canBeAssigned);
 
   // ── Obtener vehículo de la lista (para datos básicos) ─────────────────────
-  const selectedVehicleFromList = useMemo(
-    () => vehicles.find((v) => v.id === selectedVehicleId),
-    [vehicles, selectedVehicleId],
-  );
+  // const selectedVehicleFromList = useMemo(
+  //   () => vehicles.find((v) => v.id === selectedVehicleId),
+  //   [vehicles, selectedVehicleId],
+  // );
 
   // ── Obtener conductor seleccionado ────────────────────────────────────────
   const selectedDriver = useMemo(

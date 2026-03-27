@@ -47,7 +47,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import type { TripWizardFormValues, TripStopFormValues } from "../validation";
+import type { TripWizardFormValues, TripStopFormValues } from "./validation";
 import { useActiveClients } from "@/features/clients/application/hooks/useClients";
 import { useClientAddresses } from "@/features/clients/application/hooks/useClientAddresses";
 import { ADDRESS_TYPE_LABELS } from "@/features/clients/domain/entities";

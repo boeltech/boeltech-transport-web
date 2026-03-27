@@ -3,7 +3,8 @@
  * Clean Architecture - Infrastructure Layer
  *
  * Implementa la interfaz ICatalogRepository usando HTTP/REST.
- * Esta es la capa que conoce los detalles de implementación (axios, URLs, etc.)
+ *
+ * ACTUALIZADO: findTypeByCode usa mapCatalogTypeWithVersion correctamente
  */
 
 import { apiClient, type MappedSingleResult } from "@shared/api";
@@ -12,10 +13,14 @@ import type {
   CatalogItem,
   CatalogOption,
   CatalogVersion,
-  CatalogTypeCodeValue,
+  CatalogStatistics,
   CatalogSearchParams,
   CatalogFilterParams,
-} from "../domain/entities";
+  CatalogImportOptions,
+  CatalogImportResult,
+  CatalogValidationResult,
+  CatalogTypeWithVersion,
+} from "../domain";
 import type {
   ICatalogRepository,
   CreateCatalogItemDTO,
@@ -24,20 +29,31 @@ import type {
 } from "../domain/repository";
 import {
   mapCatalogTypes,
+  mapCatalogTypesGrouped,
+  mapCatalogStatisticsArray,
   mapCatalogItems,
   mapCatalogOptions,
   mapCatalogSearchResult,
   mapSingleCatalogItem,
   mapSingleCatalogVersion,
+  mapCatalogVersions,
+  mapCatalogImportResult,
+  mapCatalogValidationResult,
+  mapSingleCatalogTypeWithVersion,
   toApiCreateCatalogItem,
   toApiUpdateCatalogItem,
+  toApiImportOptions,
   toApiSearchParams,
   toApiFilterParams,
   type ApiCatalogTypeResponse,
+  type ApiCatalogTypeWithVersionResponse,
   type ApiCatalogItemResponse,
   type ApiCatalogOptionResponse,
   type ApiCatalogSearchResponse,
   type ApiCatalogVersionResponse,
+  type ApiCatalogStatisticsResponse,
+  type ApiCatalogImportResultResponse,
+  type ApiCatalogValidationResultResponse,
 } from "./mappers";
 
 // ============================================================================
@@ -62,12 +78,51 @@ export class CatalogRepository implements ICatalogRepository {
     return mapCatalogTypes(response);
   }
 
+  async findTypesGrouped(): Promise<Record<string, CatalogType[]>> {
+    const response = await apiClient.get<{
+      data: Record<string, ApiCatalogTypeResponse[]>;
+    }>(`${CATALOGS_ENDPOINT}/types/grouped`);
+    return mapCatalogTypesGrouped(response);
+  }
+
+  /**
+   * Obtiene un tipo de catálogo específico con su versión actual e items count.
+   * Útil para el wizard de importación.
+   *
+   * @param typeCode - Código del tipo de catálogo (ej: "sat_municipio")
+   * @returns Tipo de catálogo con versión actual o null si no existe
+   */
+  async findTypeByCode(
+    typeCode: string,
+  ): Promise<CatalogTypeWithVersion | null> {
+    try {
+      const response = await apiClient.get<{
+        data: ApiCatalogTypeWithVersionResponse;
+      }>(`${CATALOGS_ENDPOINT}/types/${typeCode}`);
+
+      return mapSingleCatalogTypeWithVersion(response);
+    } catch {
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Statistics
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async getStatistics(): Promise<CatalogStatistics[]> {
+    const response = await apiClient.get<{
+      data: ApiCatalogStatisticsResponse[];
+    }>(`${CATALOGS_ENDPOINT}/statistics`);
+    return mapCatalogStatisticsArray(response);
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Catalog Items - Read
   // ─────────────────────────────────────────────────────────────────────────
 
   async findAll(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     filters?: CatalogFilterParams,
   ): Promise<CatalogItem[]> {
     const response = await apiClient.get<{ data: ApiCatalogItemResponse[] }>(
@@ -78,7 +133,7 @@ export class CatalogRepository implements ICatalogRepository {
   }
 
   async findAllAsOptions(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     parentCode?: string,
   ): Promise<CatalogOption[]> {
     const params = parentCode ? { parent_code: parentCode } : {};
@@ -90,7 +145,7 @@ export class CatalogRepository implements ICatalogRepository {
   }
 
   async findByCode(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     code: string,
   ): Promise<CatalogItem | null> {
     try {
@@ -107,7 +162,7 @@ export class CatalogRepository implements ICatalogRepository {
   }
 
   async findChildren(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     parentCode: string,
   ): Promise<CatalogItem[]> {
     const response = await apiClient.get<{ data: ApiCatalogItemResponse[] }>(
@@ -117,7 +172,7 @@ export class CatalogRepository implements ICatalogRepository {
   }
 
   async search(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     params: CatalogSearchParams,
   ): Promise<CatalogSearchResult> {
     const response = await apiClient.get<ApiCatalogSearchResponse>(
@@ -132,7 +187,7 @@ export class CatalogRepository implements ICatalogRepository {
   // ─────────────────────────────────────────────────────────────────────────
 
   async create(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     data: CreateCatalogItemDTO,
   ): Promise<MappedSingleResult<CatalogItem>> {
     const apiData = toApiCreateCatalogItem(data);
@@ -148,7 +203,7 @@ export class CatalogRepository implements ICatalogRepository {
   }
 
   async update(
-    typeCode: CatalogTypeCodeValue,
+    typeCode: string,
     code: string,
     data: UpdateCatalogItemDTO,
   ): Promise<MappedSingleResult<CatalogItem>> {
@@ -164,17 +219,58 @@ export class CatalogRepository implements ICatalogRepository {
     };
   }
 
-  async delete(typeCode: CatalogTypeCodeValue, code: string): Promise<void> {
+  async delete(typeCode: string, code: string): Promise<void> {
     await apiClient.delete(`${CATALOGS_ENDPOINT}/${typeCode}/${code}`);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Import
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async importCatalog(
+    typeCode: string,
+    file: File,
+    options: CatalogImportOptions,
+  ): Promise<CatalogImportResult> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Append options as form fields
+    const apiOptions = toApiImportOptions(options);
+    for (const [key, value] of Object.entries(apiOptions)) {
+      if (value !== null && value !== undefined) {
+        formData.append(key, String(value));
+      }
+    }
+
+    const response = await apiClient.post<{
+      data: ApiCatalogImportResultResponse;
+      message?: string;
+    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import`, formData);
+
+    return mapCatalogImportResult(response.data);
+  }
+
+  async validateImport(
+    typeCode: string,
+    file: File,
+  ): Promise<CatalogValidationResult> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<{
+      data: ApiCatalogValidationResultResponse;
+      message?: string;
+    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import/validate`, formData);
+
+    return mapCatalogValidationResult(response.data);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Versions
   // ─────────────────────────────────────────────────────────────────────────
 
-  async findCurrentVersion(
-    typeCode: CatalogTypeCodeValue,
-  ): Promise<CatalogVersion | null> {
+  async findCurrentVersion(typeCode: string): Promise<CatalogVersion | null> {
     try {
       const response = await apiClient.get<{
         data: ApiCatalogVersionResponse | null;
@@ -188,11 +284,18 @@ export class CatalogRepository implements ICatalogRepository {
     }
   }
 
+  async findVersions(typeCode: string): Promise<CatalogVersion[]> {
+    const response = await apiClient.get<{ data: ApiCatalogVersionResponse[] }>(
+      `${CATALOGS_ENDPOINT}/${typeCode}/versions`,
+    );
+    return mapCatalogVersions(response);
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Utility
   // ─────────────────────────────────────────────────────────────────────────
 
-  async count(typeCode: CatalogTypeCodeValue): Promise<number> {
+  async count(typeCode: string): Promise<number> {
     const response = await apiClient.get<{ data: { count: number } }>(
       `${CATALOGS_ENDPOINT}/${typeCode}/count`,
     );
@@ -213,21 +316,7 @@ export class CatalogRepository implements ICatalogRepository {
 }
 
 // ============================================================================
-// FACTORY FUNCTIONS
-// ============================================================================
-
-/**
- * Crea una instancia del repositorio de catálogos
- */
-export function createCatalogRepository(): ICatalogRepository {
-  return new CatalogRepository();
-}
-
-// ============================================================================
 // SINGLETON INSTANCE
 // ============================================================================
 
-/**
- * Instancia singleton del repositorio
- */
 export const catalogRepository = new CatalogRepository();

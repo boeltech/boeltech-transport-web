@@ -121,6 +121,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Configuración - Lectura y actualización limitada
       "settings.read",
       "settings.update",
+
+      // Catalogs
+      "catalogs.read",
+      "catalogs.import",
     ],
   },
 

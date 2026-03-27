@@ -1,5 +1,3 @@
-// src/widgets/layout/ui/AppLayout.tsx
-
 import { QueryProvider } from "@app/providers/QueryProvider";
 import { AuthProvider } from "@features/auth";
 import { PermissionProvider } from "@app/providers/PermissionProvider";

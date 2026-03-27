@@ -1,3 +1,37 @@
+/**
+ * Catalog Hooks - Public API
+ */
+
+// Types
+export {
+  useCatalogType,
+  useCatalogCurrentVersion,
+  useCatalogVersions,
+} from "./useCatalogType";
+
+export { useCatalogTypes, useCatalogTypesGrouped } from "./useCatalogTypes";
+
+// Statistics
+export {
+  useCatalogStatistics,
+  useCatalogStatisticsBySource,
+} from "./useCatalogStatistics";
+
+// Import
+export {
+  useCatalogImport,
+  useCatalogValidate,
+  useCatalogImportWizard,
+} from "./useCatalogImport";
+export type {
+  ImportCatalogParams,
+  ValidateCatalogParams,
+} from "./useCatalogImport";
+
+// Items
+export { useCatalogItems, useCatalogItemsPaginated } from "./useCatalogItems";
+
+// Item
 export {
   useCatalogChildren,
   useCatalogItem,
@@ -8,6 +42,7 @@ export {
   useMunicipiosByEstado,
 } from "./useCatalogItem";
 
+// Options
 export {
   type UseCatalogOptionsParams,
   useCatalogOptions,
@@ -23,6 +58,7 @@ export {
   useUsoCfdiOptions,
 } from "./useCatalogOptions";
 
+// Search
 export {
   type UseCatalogSearchParams,
   type UseCatalogSearchResult,
@@ -33,5 +69,3 @@ export {
   useSearchProductosServiciosCP,
   useSearchUnidadesMedida,
 } from "./useCatalogSearch";
-
-export { useCatalogTypes } from "./useCatalogTypes";

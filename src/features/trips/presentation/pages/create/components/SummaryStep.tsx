@@ -30,7 +30,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import type { TripWizardFormValues } from "../validation";
+import type { TripWizardFormValues } from "./validation";
 import { StopType } from "@features/trips";
 import type { DriverListItem } from "@features/drivers";
 import { formatDateTime } from "@shared/utils/dateUtils";

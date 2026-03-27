@@ -1,28 +1,44 @@
+/**
+ * Catalog Domain - Public API
+ */
+
+// Entities & Types
 export {
-  CATALOG_TYPE_LABELS,
-  type CatalogFilterParams,
-  type CatalogItem,
-  type CatalogItemListItem,
-  type CatalogOption,
-  type CatalogSearchParams,
-  CatalogSource,
-  type CatalogSourceValue,
-  type CatalogType,
   CatalogTypeCode,
-  type CatalogTypeCodeValue,
-  type CatalogVersion,
-  HIERARCHICAL_CATALOGS,
-  LARGE_CATALOGS,
-  SMALL_CATALOGS,
+  CatalogSource,
   catalogQueryKeys,
-  getParentCatalogType,
-  isHierarchicalCatalog,
+  CATALOG_TYPE_LABELS,
+  CATALOG_SOURCE_LABELS,
+  SMALL_CATALOGS,
+  LARGE_CATALOGS,
+  HIERARCHICAL_CATALOGS,
   isSmallCatalog,
+  isHierarchicalCatalog,
+  getParentCatalogType,
+  isSatCatalog,
+  isInternalCatalog,
 } from "./entities";
 
-export {
-  type CatalogSearchResult,
-  type CreateCatalogItemDTO,
-  type ICatalogRepository,
-  type UpdateCatalogItemDTO,
+export type {
+  CatalogTypeCodeValue,
+  CatalogSourceValue,
+  CatalogType,
+  CatalogItem,
+  CatalogOption,
+  CatalogVersion,
+  CatalogStatistics,
+  CatalogImportOptions,
+  CatalogImportResult,
+  CatalogValidationResult,
+  CatalogSearchParams,
+  CatalogFilterParams,
+  CatalogTypeWithVersion,
+} from "./entities";
+
+// Repository interface & DTOs
+export type {
+  ICatalogRepository,
+  CreateCatalogItemDTO,
+  UpdateCatalogItemDTO,
+  CatalogSearchResult,
 } from "./repository";

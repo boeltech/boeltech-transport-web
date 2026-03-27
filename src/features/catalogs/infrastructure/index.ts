@@ -1,27 +1,40 @@
-export {
-  CatalogRepository,
-  catalogRepository,
-  createCatalogRepository,
-} from "./catalogRepository";
+/**
+ * Catalog Infrastructure - Public API
+ */
+
+export { catalogRepository, CatalogRepository } from "./catalogRepository";
 
 export {
-  type ApiCatalogItemResponse,
-  type ApiCatalogOptionResponse,
-  type ApiCatalogSearchResponse,
-  type ApiCatalogTypeResponse,
-  type ApiCatalogVersionResponse,
+  mapCatalogType,
   mapCatalogItem,
-  mapCatalogItems,
   mapCatalogOption,
+  mapCatalogVersion,
+  mapCatalogStatistics,
+  mapCatalogImportResult,
+  mapCatalogValidationResult,
+  mapCatalogTypes,
+  mapCatalogTypesGrouped,
+  mapCatalogStatisticsArray,
+  mapCatalogItems,
   mapCatalogOptions,
   mapCatalogSearchResult,
-  mapCatalogType,
-  mapCatalogTypes,
-  mapCatalogVersion,
   mapSingleCatalogItem,
   mapSingleCatalogVersion,
+  mapCatalogVersions,
   toApiCreateCatalogItem,
-  toApiFilterParams,
-  toApiSearchParams,
   toApiUpdateCatalogItem,
+  toApiImportOptions,
+  toApiSearchParams,
+  toApiFilterParams,
+} from "./mappers";
+
+export type {
+  ApiCatalogTypeResponse,
+  ApiCatalogItemResponse,
+  ApiCatalogOptionResponse,
+  ApiCatalogVersionResponse,
+  ApiCatalogStatisticsResponse,
+  ApiCatalogImportResultResponse,
+  ApiCatalogValidationResultResponse,
+  ApiCatalogSearchResponse,
 } from "./mappers";

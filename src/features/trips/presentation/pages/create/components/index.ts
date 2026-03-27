@@ -23,10 +23,8 @@ export type {
   WizardStepDefinition,
 } from "./validation";
 
-export {
-  BasicInfoStep,
-  RouteStep,
-  CargoStep,
-  CostsStep,
-  SummaryStep,
-} from "./steps";
+export { BasicInfoStep } from "./BasicInfoStep";
+export { RouteStep } from "./RouteStep";
+export { CargoStep } from "./CargoStep";
+export { CostsStep } from "./CostsStep";
+export { SummaryStep } from "./SummaryStep";

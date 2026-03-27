@@ -165,66 +165,79 @@ class ApiClient {
   /**
    * POST request
    *
-   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake).
-   * Tipear TRaw con la respuesta cruda del backend: ApiSingleResponse<EntityRaw>
+   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake),
+   * EXCEPTO cuando es FormData (para uploads de archivos).
    */
   public async post<T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<T> {
-    const response = await this.axiosInstance.post<T>(
-      url,
-      data !== undefined ? deepToSnake(data) : undefined,
-      config,
-    );
+    // No transformar FormData - enviarlo tal cual para que Axios maneje el multipart
+    const payload =
+      data instanceof FormData
+        ? data
+        : data !== undefined
+          ? deepToSnake(data)
+          : undefined;
+
+    // 👇 Debug temporal
+    // console.log("POST payload type:", payload?.constructor?.name);
+    // console.log("Is FormData:", payload instanceof FormData);
+    // if (payload instanceof FormData) {
+    //   console.log("FormData entries:", [...payload.entries()]);
+    // }
+
+    const response = await this.axiosInstance.post<T>(url, payload, config);
     return response.data;
   }
 
   /**
    * PUT request
    *
-   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake).
+   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake),
+   * EXCEPTO cuando es FormData.
    */
   public async put<T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<T> {
-    const response = await this.axiosInstance.put<T>(
-      url,
-      data !== undefined ? deepToSnake(data) : undefined,
-      config,
-    );
+    const payload =
+      data instanceof FormData
+        ? data
+        : data !== undefined
+          ? deepToSnake(data)
+          : undefined;
+
+    const response = await this.axiosInstance.put<T>(url, payload, config);
     return response.data;
   }
 
   /**
    * PATCH request
    *
-   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake).
+   * El body se serializa automáticamente a snake_case antes de enviarse (deepToSnake),
+   * EXCEPTO cuando es FormData.
    */
   public async patch<T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<T> {
-    const response = await this.axiosInstance.patch<T>(
-      url,
-      data !== undefined ? deepToSnake(data) : undefined,
-      config,
-    );
+    const payload =
+      data instanceof FormData
+        ? data
+        : data !== undefined
+          ? deepToSnake(data)
+          : undefined;
+
+    const response = await this.axiosInstance.patch<T>(url, payload, config);
     return response.data;
   }
 
   /**
    * DELETE request
-   *
-   * Tipear T con `ApiActionResponse` cuando el backend devuelve solo `{ message }`.
-   *
-   * @example
-   * const raw = await apiClient.delete<ApiActionResponse>('/vehicles/123');
-   * const { message } = mapActionResponse(raw);
    */
   public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.delete<T>(url, config);

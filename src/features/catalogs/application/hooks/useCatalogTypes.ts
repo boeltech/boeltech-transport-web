@@ -30,3 +30,21 @@ export function useCatalogTypes(
     ...options,
   });
 }
+
+/**
+ * Hook para obtener tipos de catálogo agrupados por fuente
+ */
+export function useCatalogTypesGrouped(
+  options?: Omit<
+    UseQueryOptions<Record<string, CatalogType[]>, Error>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery({
+    queryKey: catalogQueryKeys.typesGrouped(),
+    queryFn: () => catalogRepository.findTypesGrouped(),
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24,
+    ...options,
+  });
+}

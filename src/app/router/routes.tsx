@@ -32,6 +32,7 @@ import {
 // Layouts
 // ============================================
 import { AppLayout } from "@widgets/layout";
+import { SettingsRoutes } from "@features/settings";
 const AuthLayout = lazy(() => import("@widgets/layout/ui/AuthLayout"));
 
 // ============================================
@@ -509,6 +510,10 @@ export const router = createBrowserRouter([
               //   path: "/settings",
               //   element: withSuspense(SettingsPage),
               // },
+              {
+                path: "/settings/*",
+                element: <SettingsRoutes />,
+              },
             ],
           },
         ],

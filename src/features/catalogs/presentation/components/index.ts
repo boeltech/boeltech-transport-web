@@ -1,3 +1,16 @@
+/**
+ * Catalog Presentation Components - Public API
+ */
+
+export { CatalogTypeCard } from "./CatalogTypeCard";
+export type { CatalogTypeCardProps } from "./CatalogTypeCard";
+
+export { CatalogItemsTable } from "./CatalogItemsTable";
+export type { CatalogItemsTableProps } from "./CatalogItemsTable";
+
+export { CatalogImportWizard } from "./CatalogImportWizard";
+export type { CatalogImportWizardProps } from "./CatalogImportWizard";
+
 export { AddressFields, type AddressFieldsProps } from "./AddressFields";
 
 export {
