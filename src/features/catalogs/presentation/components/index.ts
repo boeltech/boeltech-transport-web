@@ -44,3 +44,12 @@ export {
   TipoPermisoSelect,
   UsoCfdiSelect,
 } from "./CatalogSelect";
+
+export {
+  type CodigoPostalComboboxProps,
+  type ColoniaComboboxProps,
+  type LocalidadComboboxProps,
+  CodigoPostalCombobox,
+  ColoniaCombobox,
+  LocalidadCombobox,
+} from "./GeographicSelects";

@@ -136,7 +136,7 @@ export function CatalogSearchInput({
       query: debouncedSearch,
       parentCode,
       limit,
-      enabled: debouncedSearch.length >= 2,
+      includeInactive: debouncedSearch.length >= 2,
     },
   );
 

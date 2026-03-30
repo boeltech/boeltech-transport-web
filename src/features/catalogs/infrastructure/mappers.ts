@@ -20,6 +20,7 @@ import type {
   CatalogTypeCodeValue,
   CatalogSourceValue,
   CatalogTypeWithVersion,
+  CatalogSearchParams,
 } from "../domain";
 import type {
   CreateCatalogItemDTO,
@@ -392,22 +393,33 @@ export function toApiImportOptions(
   };
 }
 
-export function toApiSearchParams(params: {
-  query: string;
-  parentCode?: string;
-  limit?: number;
-  includeInactive?: boolean;
-}): Record<string, unknown> {
-  const queryParams: Record<string, unknown> = {
-    q: params.query,
-  };
+/**
+ * Convierte parámetros de búsqueda del dominio al formato de la API (snake_case)
+ * ACTUALIZADO: Incluye offset para paginación
+ */
+export function toApiSearchParams(
+  params: CatalogSearchParams,
+): Record<string, unknown> {
+  const apiParams: Record<string, unknown> = {};
 
-  if (params.parentCode) queryParams.parent_code = params.parentCode;
-  if (params.limit) queryParams.limit = params.limit;
-  if (params.includeInactive)
-    queryParams.include_inactive = params.includeInactive;
+  if (params.query !== undefined && params.query !== "") {
+    apiParams.query = params.query;
+  }
 
-  return queryParams;
+  if (params.parentCode !== undefined) {
+    apiParams.parent_code = params.parentCode;
+  }
+
+  if (params.limit !== undefined) {
+    apiParams.limit = params.limit;
+  }
+
+  // if (params.offset !== undefined && params.offset > 0) {
+  if (params.offset !== undefined) {
+    apiParams.offset = params.offset;
+  }
+
+  return apiParams;
 }
 
 export function toApiFilterParams(params?: {

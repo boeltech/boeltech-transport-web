@@ -46,7 +46,6 @@ import {
 } from "../../application/hooks";
 import {
   PAC_PROVIDER_LABELS,
-  PacProviders,
   type BillingSettings,
   type UpdateBillingSettingsDTO,
 } from "../../domain";

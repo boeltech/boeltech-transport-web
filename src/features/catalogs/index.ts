@@ -89,9 +89,10 @@ export {
 
   // Items
   useCatalogItems,
-  useCatalogItemsPaginated,
+  // useCatalogItemsPaginated,
 
   // Types
+  useCatalogType,
   useCatalogTypes,
   useCatalogTypesGrouped,
 
@@ -102,30 +103,34 @@ export {
   useCatalogChildren,
 
   // Specialized hooks - Options (catálogos pequeños)
-  useEstadosOptions,
-  useMunicipiosOptions,
-  useTipoPermisoOptions,
-  useConfigAutotransporteOptions,
-  useTipoFiguraOptions,
-  useFormaPagoOptions,
-  useMetodoPagoOptions,
-  useUsoCfdiOptions,
-  useRegimenFiscalOptions,
-  useTipoEmbalajeOptions,
+  // useEstadosOptions,
+  // useMunicipiosOptions,
+  // useTipoPermisoOptions,
+  // useConfigAutotransporteOptions,
+  // useTipoFiguraOptions,
+  // useFormaPagoOptions,
+  // useMetodoPagoOptions,
+  // useUsoCfdiOptions,
+  // useRegimenFiscalOptions,
+  // useTipoEmbalajeOptions,
 
   // Specialized hooks - Search (catálogos grandes)
-  useSearchProductosServiciosCP,
-  useSearchUnidadesMedida,
-  useSearchMaterialesPeligrosos,
-  useSearchColonias,
-  useSearchLocalidades,
+  // useSearchProductosServiciosCP,
+  // useSearchUnidadesMedida,
+  // useSearchMaterialesPeligrosos,
+  // useSearchColonias,
+  // useSearchLocalidades,
 
   // Specialized hooks - Items
-  useEstado,
-  useMunicipio,
-  useMunicipiosByEstado,
-  useColoniasByMunicipio,
-  useLocalidadesByMunicipio,
+  // useEstado,
+  // useMunicipio,
+  // useMunicipiosByEstado,
+  // useColoniasByMunicipio,
+  // useLocalidadesByMunicipio,
+
+  // Version
+  useCatalogCurrentVersion,
+  useCatalogVersions,
 } from "./application/hooks";
 
 // ============================================================================

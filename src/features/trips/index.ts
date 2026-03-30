@@ -126,7 +126,7 @@ export {
   type TripExpenseFormValues,
   type TripStopFormValues,
   type TripWizardFormValues,
-  type WizardStepDefinition,
+  // type WizardStepDefinition,
   type WizardStep,
   capitalize,
   defaultWizardFormValues,
@@ -146,6 +146,6 @@ export {
   tripCargoSchema,
   tripExpenseSchema,
   tripStopSchema,
-  tripWizardFormSchema,
+  // tripWizardFormSchema,
   truncateText,
 } from "./presentation";

@@ -6,7 +6,7 @@ export { WizardSteps } from "./WizardSteps";
 export type { WizardStep } from "./WizardSteps";
 
 export {
-  tripWizardFormSchema,
+  tripWizardSchema,
   tripStopSchema,
   tripCargoSchema,
   tripExpenseSchema,
@@ -20,7 +20,7 @@ export type {
   TripStopFormValues,
   TripCargoFormValues,
   TripExpenseFormValues,
-  WizardStepDefinition,
+  // WizardStepDefinition,
 } from "./validation";
 
 export { BasicInfoStep } from "./BasicInfoStep";

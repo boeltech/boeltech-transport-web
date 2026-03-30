@@ -5,10 +5,10 @@
  * Formulario tipo wizard para crear y editar viajes.
  * Incluye pasos para: información básica, ruta, cargas, costos y resumen.
  *
- * ACTUALIZADO: Usa useCreateTrip con endpoint transaccional
- * POST /api/v1/trips/with-details
- *
- * ACTUALIZADO: Validaciones compatibles con bloques Origen/Escalas/Destino
+ * ACTUALIZADO: Campos de dirección unificados con Carta Porte 3.1
+ * - Eliminados campos legacy en stops (address, city, state como texto libre)
+ * - Todos los campos de ubicación usan catálogos SAT
+ * - createInput y updateInput adaptados para nuevos campos
  *
  * GARANTÍAS:
  * - Atomicidad: Todo se crea o nada se crea
@@ -46,7 +46,7 @@ import { ArrowLeft, ArrowRight, RefreshCw, CheckCircle } from "lucide-react";
 // Wizard components
 import {
   WizardSteps,
-  tripWizardFormSchema,
+  tripWizardSchema,
   WIZARD_STEPS,
   defaultWizardFormValues,
   BasicInfoStep,
@@ -61,6 +61,46 @@ import {
   localInputToUtcIso,
   utcIsoToLocalInput,
 } from "@shared/utils/dateUtils";
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Construye una dirección legible a partir de campos SAT
+ * Usado para campos legacy del viaje (originAddress, destinationAddress)
+ */
+function buildLegacyAddress(stop: TripWizardFormValues["stops"][0]): {
+  address: string;
+  city: string;
+  state: string;
+} {
+  // Construir dirección a partir de campos desglosados
+  const addressParts: string[] = [];
+
+  if (stop.street) {
+    let streetLine = stop.street;
+    if (stop.exteriorNumber) {
+      streetLine += ` #${stop.exteriorNumber}`;
+    }
+    if (stop.interiorNumber) {
+      streetLine += `, Int. ${stop.interiorNumber}`;
+    }
+    addressParts.push(streetLine);
+  }
+
+  if (stop.postalCode) {
+    addressParts.push(`C.P. ${stop.postalCode}`);
+  }
+
+  return {
+    address:
+      addressParts.join(", ") ||
+      `Ubicación ${stop.satEstadoCode}-${stop.satMunicipioCode}`,
+    city: stop.satMunicipioCode || "", // Código de municipio (idealmente se resolvería el nombre)
+    state: stop.satEstadoCode || "", // Código de estado (idealmente se resolvería el nombre)
+  };
+}
 
 // ============================================================================
 // COMPONENT
@@ -100,7 +140,7 @@ export function TripFormPage() {
   // ============================================
 
   const form = useForm<TripWizardFormValues>({
-    resolver: zodResolver(tripWizardFormSchema) as never,
+    resolver: zodResolver(tripWizardSchema) as never,
     defaultValues: defaultWizardFormValues,
     mode: "onChange",
   });
@@ -121,9 +161,12 @@ export function TripFormPage() {
     name: "expenses",
   });
 
+  // ============================================
   // Actualizar form cuando se carga un viaje existente
+  // ============================================
   useEffect(() => {
     if (existingTrip && isEditMode) {
+      // Mapear stops del backend (adaptado para campos SAT)
       const mappedStops = (existingTrip.stops || []).map((stop) => ({
         id: stop.id,
         sequenceOrder: stop.sequenceOrder,
@@ -133,19 +176,33 @@ export function TripFormPage() {
           | "delivery"
           | "waypoint"
           | "destination",
-        address: stop.address,
-        city: stop.city,
-        state: stop.state || undefined,
-        postalCode: stop.postalCode || undefined,
-        latitude: stop.latitude || undefined,
-        longitude: stop.longitude || undefined,
+        // clientId: stop.clientId || undefined,
+        // clientAddressId: stop.clientAddressId || undefined,
         locationName: stop.locationName || undefined,
+        // Campos Carta Porte (SAT)
+        satEstadoCode: stop.satEstadoCode || "",
+        satMunicipioCode: stop.satMunicipioCode || "",
+        postalCode: stop.postalCode || "",
+        satLocalidadCode: stop.satLocalidadCode || undefined,
+        satColoniaCode: stop.satColoniaCode || undefined,
+        street: stop.street || undefined,
+        exteriorNumber: stop.exteriorNumber || undefined,
+        interiorNumber: stop.interiorNumber || undefined,
+        reference: stop.reference || undefined,
+        rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
+        nombreRemitenteDestinatario:
+          stop.nombreRemitenteDestinatario || undefined,
+        distanceToNextKm: stop.distanceFromPreviousKm || undefined,
+        // Contacto
         contactName: stop.contactName || undefined,
         contactPhone: stop.contactPhone || undefined,
+        notes: stop.notes || undefined,
+        // Coordenadas
+        latitude: stop.latitude || undefined,
+        longitude: stop.longitude || undefined,
         estimatedArrival: stop.estimatedArrival
           ? utcIsoToLocalInput(stop.estimatedArrival.toISOString())
           : undefined,
-        notes: stop.notes || undefined,
       }));
 
       // Mapear cargos del backend con movements
@@ -201,12 +258,6 @@ export function TripFormPage() {
           ? utcIsoToLocalInput(existingTrip.scheduledArrival.toISOString())
           : "",
         startMileage: existingTrip.mileage.start ?? undefined,
-        originAddress: existingTrip.originAddress,
-        originCity: existingTrip.originCity,
-        originState: existingTrip.originState || "",
-        destinationAddress: existingTrip.destinationAddress,
-        destinationCity: existingTrip.destinationCity,
-        destinationState: existingTrip.destinationState || "",
         stops: mappedStops,
         cargos: mappedCargos,
         expenses: mappedExpenses,
@@ -222,11 +273,6 @@ export function TripFormPage() {
 
   /**
    * useCreateTrip: Usa endpoint transaccional POST /api/v1/trips/with-details
-   *
-   * GARANTÍAS:
-   * - Todo se crea o nada se crea (transacción en el backend)
-   * - Una sola llamada HTTP
-   * - Rollback automático si algo falla
    */
   const createMutation = useCreateTrip();
 
@@ -296,7 +342,7 @@ export function TripFormPage() {
       .map((stop, index) => ({
         index,
         hasPickup: stop.stopType.includes(StopType.PICKUP),
-        label: stop.locationName || stop.address || `Parada #${index + 1}`,
+        label: stop.locationName || `Parada #${index + 1}`,
       }))
       .filter((s) => s.hasPickup);
 
@@ -351,12 +397,11 @@ export function TripFormPage() {
       const deliveries = movements.filter((m) => m.movementType === "delivery");
 
       if (deliveries.length === 0) {
-        // Carga sin entregas asignadas → verificar destino implícito
         cargosWithoutDeliveries.push(cargo.description);
         continue;
       }
 
-      // Validar concordancia de peso (si la carga tiene peso definido)
+      // Validar concordancia de peso
       if (cargo.weight != null && cargo.weight > 0) {
         const totalDeliveryWeight = deliveries.reduce(
           (sum, d) => sum + (d.weight || 0),
@@ -375,29 +420,25 @@ export function TripFormPage() {
         }
       }
 
-      // Validar concordancia de unidades (si la carga tiene unidades definidas)
-      if (cargo.units != null && cargo.units > 0) {
-        const totalDeliveryUnits = deliveries.reduce(
-          (sum, d) => sum + (d.units || 0),
-          0,
-        );
+      // Validar concordancia de unidades
+      // if (cargo.units != null && cargo.units > 0) {
+      //   const totalDeliveryUnits = deliveries.reduce(
+      //     (sum, d) => sum + (d.units || 0),
+      //     0,
+      //   );
 
-        if (totalDeliveryUnits > cargo.units) {
-          errors.push(
-            `"${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
-          );
-        } else if (totalDeliveryUnits < cargo.units) {
-          const pendingUnits = cargo.units - totalDeliveryUnits;
-          errors.push(
-            `"${cargo.description}": faltan ${pendingUnits} unidades por asignar a puntos de entrega (${totalDeliveryUnits}/${cargo.units})`,
-          );
-        }
-      }
+      //   if (totalDeliveryUnits > cargo.units) {
+      //     errors.push(
+      //       `"${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
+      //     );
+      //   } else if (totalDeliveryUnits < cargo.units) {
+      //     const pendingUnits = cargo.units - totalDeliveryUnits;
+      //     errors.push(
+      //       `"${cargo.description}": faltan ${pendingUnits} unidades por asignar a puntos de entrega (${totalDeliveryUnits}/${cargo.units})`,
+      //     );
+      //   }
+      // }
     }
-
-    // ------------------------------------------------------------------
-    // 5. Evaluar errores de concordancia
-    // ------------------------------------------------------------------
 
     if (errors.length > 0) {
       return {
@@ -406,13 +447,8 @@ export function TripFormPage() {
       };
     }
 
-    // ------------------------------------------------------------------
-    // 6. Evaluar cargas sin deliveries asignados
-    // ------------------------------------------------------------------
-
     if (cargosWithoutDeliveries.length > 0) {
       if (deliveryStopCount === 1) {
-        // Exactamente 1 parada de descarga → destino implícito, permitir con aviso
         const cargoNames = cargosWithoutDeliveries.join(", ");
         return {
           isValid: true,
@@ -423,7 +459,6 @@ export function TripFormPage() {
         };
       }
 
-      // Más de 1 parada de descarga → ambigüedad, bloquear
       const cargoNames = cargosWithoutDeliveries
         .map((name) => `"${name}"`)
         .join(", ");
@@ -449,9 +484,7 @@ export function TripFormPage() {
       fieldsToValidate as (keyof TripWizardFormValues)[],
     );
 
-    // ════════════════════════════════════════════════════════════════
     // Validación adicional para el paso de RUTA (step 1)
-    // ════════════════════════════════════════════════════════════════
     if (currentStep === 1) {
       const routeValidation = validateRouteStepHandler();
 
@@ -466,9 +499,7 @@ export function TripFormPage() {
       }
     }
 
-    // ════════════════════════════════════════════════════════════════
     // Validación adicional para el paso de CARGAS (step 2)
-    // ════════════════════════════════════════════════════════════════
     if (currentStep === 2) {
       const cargoValidation = validateCargoStep();
 
@@ -482,7 +513,6 @@ export function TripFormPage() {
         return false;
       }
 
-      // Notificar destino implícito (válido pero con advertencia)
       if (cargoValidation.warning) {
         toast({
           title: "Entrega con destino implícito",
@@ -545,6 +575,12 @@ export function TripFormPage() {
       stop.stopType.includes("destination" as any),
     );
 
+    // Construir direcciones legacy para el viaje (compatibilidad)
+    const originAddress = originStop ? buildLegacyAddress(originStop) : null;
+    const destAddress = destinationStop
+      ? buildLegacyAddress(destinationStop)
+      : null;
+
     // ════════════════════════════════════════════════════════════════════════
     // MODO EDICIÓN: Usar updateMutation
     // ════════════════════════════════════════════════════════════════════════
@@ -558,16 +594,17 @@ export function TripFormPage() {
           ? localInputToUtcIso(data.scheduledArrival)
           : undefined,
         startMileage: data.startMileage,
-        originAddress: originStop?.address || "",
-        originCity: originStop?.city || "",
-        originState: originStop?.state || undefined,
-        destinationAddress: destinationStop?.address || "",
-        destinationCity: destinationStop?.city || "",
-        destinationState: destinationStop?.state || undefined,
+        // Direcciones legacy construidas desde campos SAT
+        originAddress: originAddress?.address || "",
+        originCity: originAddress?.city || "",
+        originState: originAddress?.state || undefined,
+        destinationAddress: destAddress?.address || "",
+        destinationCity: destAddress?.city || "",
+        destinationState: destAddress?.state || undefined,
         cargoDescription: data.cargos?.[0]?.description,
         cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
-        cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
-        cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
+        // cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
+        // cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
         cargoValue: data.cargos?.reduce(
           (sum, c) => sum + (c.declaredValue || 0),
           0,
@@ -595,17 +632,18 @@ export function TripFormPage() {
         ? localInputToUtcIso(data.scheduledArrival)
         : undefined,
       startMileage: data.startMileage,
-      originAddress: originStop?.address || "",
-      originCity: originStop?.city || "",
-      originState: originStop?.state || undefined,
-      destinationAddress: destinationStop?.address || "",
-      destinationCity: destinationStop?.city || "",
-      destinationState: destinationStop?.state || undefined,
+      // Direcciones legacy construidas desde campos SAT
+      originAddress: originAddress?.address || "",
+      originCity: originAddress?.city || "",
+      originState: originAddress?.state || undefined,
+      destinationAddress: destAddress?.address || "",
+      destinationCity: destAddress?.city || "",
+      destinationState: destAddress?.state || undefined,
       // Información legacy de carga (compatibilidad)
       cargoDescription: data.cargos?.[0]?.description,
       cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
-      cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
-      cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
+      // cargoVolume: data.cargos?.reduce((sum, c) => sum + (c.volume || 0), 0),
+      // cargoUnits: data.cargos?.reduce((sum, c) => sum + (c.units || 0), 0),
       cargoValue: data.cargos?.reduce(
         (sum, c) => sum + (c.declaredValue || 0),
         0,
@@ -613,82 +651,83 @@ export function TripFormPage() {
       baseRate: data.baseRate,
       notes: data.notes || undefined,
 
-      // Paradas
+      // Paradas con campos Carta Porte unificados
       stops: data.stops?.map((stop) => ({
-        sequenceOrder: stop.sequenceOrder,
-        stopType: stop.stopType,
-        address: stop.address,
-        city: stop.city,
-        state: stop.state,
-        postalCode: stop.postalCode,
+        sequence_order: stop.sequenceOrder,
+        stop_type: stop.stopType,
+        client_id: stop.clientId,
+        client_address_id: stop.clientAddressId,
+        location_name: stop.locationName,
+        // Campos Carta Porte (SAT) - snake_case para API
+        sat_estado_code: stop.satEstadoCode,
+        sat_municipio_code: stop.satMunicipioCode,
+        postal_code: stop.postalCode,
+        sat_localidad_code: stop.satLocalidadCode,
+        sat_colonia_code: stop.satColoniaCode,
+        street: stop.street,
+        exterior_number: stop.exteriorNumber,
+        interior_number: stop.interiorNumber,
+        reference: stop.reference,
+        rfc_remitente_destinatario: stop.rfcRemitenteDestinatario,
+        nombre_remitente_destinatario: stop.nombreRemitenteDestinatario,
+        distance_to_next_km: stop.distanceToNextKm,
+        // Contacto
+        contact_name: stop.contactName,
+        contact_phone: stop.contactPhone,
+        notes: stop.notes,
+        // Coordenadas
         latitude: stop.latitude,
         longitude: stop.longitude,
-        locationName: stop.locationName,
-        contactName: stop.contactName,
-        contactPhone: stop.contactPhone,
-        estimatedArrival: stop.estimatedArrival
+        estimated_arrival: stop.estimatedArrival
           ? localInputToUtcIso(stop.estimatedArrival)
           : undefined,
-        notes: stop.notes,
-        // Carta Porte 3.1
-        street: stop.street,
-        exteriorNumber: stop.exteriorNumber,
-        interiorNumber: stop.interiorNumber,
-        colonia: stop.colonia,
-        reference: stop.reference,
-        satEstadoCode: stop.satEstadoCode,
-        satMunicipioCode: stop.satMunicipioCode,
-        satLocalidadCode: stop.satLocalidadCode,
-        satColoniaCode: stop.satColoniaCode,
-        rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario,
-        distanceToNextKm: stop.distanceToNextKm,
       })),
+
       // Mapear cargos con movements
       cargos: data.cargos?.map((cargo) => ({
-        clientId: cargo.clientId,
+        // client_id: cargo.clientId,
         description: cargo.description,
-        productType: cargo.productType,
+        // product_type: cargo.productType,
         weight: cargo.weight,
-        volume: cargo.volume,
-        units: cargo.units,
-        declaredValue: cargo.declaredValue,
-        rate: cargo.rate,
-        currency: cargo.currency,
+        // volume: cargo.volume,
+        // units: cargo.units,
+        declared_value: cargo.declaredValue,
+        // rate: cargo.rate,
+        // currency: cargo.currency,
         notes: cargo.notes,
-        specialInstructions: cargo.specialInstructions,
+        // special_instructions: cargo.specialInstructions,
         movements: cargo.movements?.map((m) => ({
-          stopIndex: m.stopIndex,
-          movementType: m.movementType,
+          stop_index: m.stopIndex,
+          movement_type: m.movementType,
           weight: m.weight,
           units: m.units,
           notes: m.notes,
         })),
-
         // Carta Porte 3.1
-        satProductCode: cargo.satProductCode,
-        satUnitCode: cargo.satUnitCode,
-        satUnitName: cargo.satUnitName,
-        weightInKg: cargo.weightInKg,
-        dimensions: cargo.dimensions,
-        hazardousMaterial: cargo.hazardousMaterial,
-        hazardousMaterialCode: cargo.hazardousMaterialCode,
-        packagingType: cargo.packagingType,
-        packagingDescription: cargo.packagingDescription,
+        sat_product_code: cargo.satClaveProductoServicio,
+        sat_unit_code: cargo.satClaveUnidad,
+        // sat_unit_name: cargo.satUnitName,
+        weight_in_kg: cargo.weight,
+        // dimensions: cargo.dimensions,
+        hazardous_material: cargo.isMaterialPeligroso,
+        hazardous_material_code: cargo.satClaveMaterialPeligroso,
+        packaging_type: cargo.satTipoEmbalaje,
+        // packaging_description: cargo.packagingDescription,
       })),
 
       // Gastos estimados
-      estimatedExpenses: data.expenses?.map((expense) => ({
+      estimated_expenses: data.expenses?.map((expense) => ({
         category: expense.category,
         description: expense.description,
-        amount: expense.amount,
-        currency: expense.currency,
-        expenseDate: expense.expenseDate
-          ? localInputToUtcIso(expense.expenseDate)
-          : undefined,
-        location: expense.location,
-        vendorName: expense.vendorName,
+        amount: expense.estimatedAmount,
+        // currency: expense.currency,
+        // expense_date: expense.expenseDate
+        // ? localInputToUtcIso(expense.expenseDate)
+        // : undefined,
+        // location: expense.location,
+        // vendor_name: expense.vendorName,
         notes: expense.notes,
-        isEstimated: true,
+        is_estimated: true,
       })),
     };
 
@@ -702,7 +741,6 @@ export function TripFormPage() {
 
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
-      // Error - nada se guardó (rollback automático en el backend)
       if (error instanceof TripCreationError) {
         toast({
           title: "Error al crear viaje",

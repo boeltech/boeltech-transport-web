@@ -205,11 +205,45 @@ export interface CatalogValidationResult {
 // QUERY TYPES
 // ============================================================================
 
+// export interface CatalogSearchParams {
+//   readonly query: string;
+//   readonly parentCode?: string;
+//   readonly limit?: number;
+//   readonly includeInactive?: boolean;
+// }
+
+/**
+ * Parámetros de búsqueda para catálogos (ACTUALIZADO con offset)
+ */
 export interface CatalogSearchParams {
-  readonly query: string;
-  readonly parentCode?: string;
-  readonly limit?: number;
-  readonly includeInactive?: boolean;
+  /**
+   * Texto de búsqueda (busca en código y nombre)
+   */
+  query: string;
+  /**
+   * Código del padre para catálogos jerárquicos
+   */
+  parentCode?: string;
+  /**
+   * Límite de resultados (default: 50)
+   */
+  limit?: number;
+  /**
+   * Offset para paginación (número de registros a saltar)
+   * @default 0
+   */
+  offset?: number;
+}
+
+export interface CatalogOptionsParams {
+  /**
+   * Código del padre para catálogos jerárquicos
+   */
+  parentCode?: string;
+  /**
+   * Si está habilitado el query
+   */
+  enabled?: boolean;
 }
 
 export interface CatalogFilterParams {

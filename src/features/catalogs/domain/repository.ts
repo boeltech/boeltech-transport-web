@@ -55,9 +55,15 @@ export interface UpdateCatalogItemDTO {
 // Result Types
 // ============================================================================
 
+// export interface CatalogSearchResult {
+//   items: CatalogItem[];
+//   total: number;
+// }
+
 export interface CatalogSearchResult {
-  items: CatalogItem[];
-  total: number;
+  readonly items: CatalogItem[];
+  readonly total: number;
+  // readonly hasMore: boolean;
 }
 
 // ============================================================================
@@ -90,12 +96,12 @@ export interface ICatalogRepository {
     typeCode: string,
     parentCode?: string,
   ): Promise<CatalogOption[]>;
-  findByCode(typeCode: string, code: string): Promise<CatalogItem | null>;
-  findChildren(typeCode: string, parentCode: string): Promise<CatalogItem[]>;
   search(
     typeCode: string,
     params: CatalogSearchParams,
   ): Promise<CatalogSearchResult>;
+  findByCode(typeCode: string, code: string): Promise<CatalogItem | null>;
+  findChildren(typeCode: string, parentCode: string): Promise<CatalogItem[]>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Catalog Items - Write (tenant-specific only)

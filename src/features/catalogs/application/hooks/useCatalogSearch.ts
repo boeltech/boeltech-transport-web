@@ -1,147 +1,223 @@
 /**
- * useCatalogSearch Hook
- * Clean Architecture - Application Layer (Hooks)
+ * Catalog Search Hooks
+ * Clean Architecture - Application Layer
  *
- * Hook para buscar en catálogos grandes usando full-text search.
- * Incluye debounce automático para evitar llamadas excesivas.
+ * Hooks para búsqueda en catálogos SAT grandes que requieren
+ * búsqueda del lado del servidor.
  *
- * @example
- * const { data, isLoading } = useCatalogSearch(
- *   CatalogTypeCode.SAT_CLAVE_PROD_SERV_CP,
- *   { query: searchTerm, limit: 20 }
- * );
+ * ACTUALIZADO: Soporte para paginación con offset
+ *
+ * Catálogos soportados:
+ * - sat_municipio (~2,500 items)
+ * - sat_localidad (~45,000 items)
+ * - sat_colonia (~145,000 items)
+ * - sat_codigo_postal (~32,000 items)
+ * - sat_clave_prod_serv_cp (~1,200 items)
+ * - sat_clave_unidad (~2,400 items)
+ * - sat_material_peligroso (~3,800 items)
+ *
+ * Ubicación: src/features/catalogs/application/hooks/useCatalogSearch.ts
  */
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import { catalogRepository } from "../../infrastructure/catalogRepository";
 import {
-  type CatalogItem,
-  type CatalogTypeCodeValue,
-  type CatalogSearchParams,
   catalogQueryKeys,
+  type CatalogFilterParams,
+  type CatalogItem,
+  type CatalogOption,
+  type CatalogOptionsParams,
+  type CatalogSearchParams,
+  type CatalogSearchResult,
+  type CatalogTypeCodeValue,
 } from "../../domain";
-import type { CatalogSearchResult } from "../../domain/repository";
-import { catalogRepository } from "../../infrastructure";
 
 // ============================================================================
-// TYPES
+// HOOK: useCatalogItems (para obtener items de un catálogo con filtros opcionales)
 // ============================================================================
 
-export interface UseCatalogSearchParams extends CatalogSearchParams {
-  /**
-   * Si se debe habilitar la query
-   */
-  enabled?: boolean;
-  /**
-   * Tiempo de debounce en ms (default: 300)
-   */
-  debounceMs?: number;
-}
-
-export interface UseCatalogSearchResult {
-  items: CatalogItem[];
-  total: number;
-}
-
-// ============================================================================
-// HOOK
-// ============================================================================
-
-/**
- * Hook para buscar en catálogos usando full-text search
- */
-export function useCatalogSearch(
-  typeCode: CatalogTypeCodeValue,
-  params: UseCatalogSearchParams,
-  options?: Omit<
-    UseQueryOptions<CatalogSearchResult, Error>,
-    "queryKey" | "queryFn"
-  >,
+export function useCatalogItems(
+  typeCode: string,
+  filters?: CatalogFilterParams,
+  options?: Omit<UseQueryOptions<CatalogItem[], Error>, "queryKey" | "queryFn">,
 ) {
-  const { enabled = true, debounceMs: _debounceMs, ...searchParams } = params;
-
-  // Solo habilitar si hay query de al menos 2 caracteres
-  const shouldEnable = enabled && searchParams.query.trim().length >= 2;
-
   return useQuery({
-    queryKey: catalogQueryKeys.searchQuery(typeCode, searchParams),
-    queryFn: () => catalogRepository.search(typeCode, searchParams),
-    enabled: shouldEnable,
+    queryKey: catalogQueryKeys.itemsFiltered(typeCode, filters),
+    queryFn: () => catalogRepository.findAll(typeCode, filters),
     staleTime: 1000 * 60 * 5, // 5 minutos
-    gcTime: 1000 * 60 * 10, // 10 minutos en cache
+    gcTime: 1000 * 60 * 30, // 30 minutos en cache
     ...options,
   });
 }
 
+// ============================================================================
+// HOOK: useCatalogOptions (para catálogos pequeños o filtrados)
+// ============================================================================
+
 /**
- * Hook para buscar productos/servicios Carta Porte
+ * Hook para obtener todas las opciones de un catálogo pequeño
+ * o las opciones filtradas por padre.
+ *
+ * Ideal para:
+ * - sat_estado (32 items)
+ * - sat_tipo_permiso (20 items)
+ * - sat_colonia filtrado por CP (<50 items típicamente)
+ *
+ * @example
+ * const { data: estados } = useCatalogOptions("sat_estado");
+ * const { data: colonias } = useCatalogOptions("sat_colonia", { parentCode: "01000" });
  */
-export function useSearchProductosServiciosCP(
-  query: string,
-  options?: { limit?: number; enabled?: boolean },
+export function useCatalogOptions(
+  typeCode: CatalogTypeCodeValue,
+  params: CatalogOptionsParams = {},
 ) {
-  return useCatalogSearch("sat_clave_prod_serv_cp" as CatalogTypeCodeValue, {
-    query,
-    limit: options?.limit ?? 20,
-    enabled: options?.enabled,
+  const { parentCode, enabled = true } = params;
+
+  return useQuery({
+    queryKey: ["catalog-options", typeCode, parentCode],
+    queryFn: async (): Promise<CatalogOption[]> => {
+      const result = await catalogRepository.findAllAsOptions(
+        typeCode,
+        parentCode,
+      );
+
+      return result;
+    },
+    enabled,
+    staleTime: 5 * 60_000, // 5 minutos (estos cambian poco)
+    gcTime: 30 * 60_000, // 30 minutos
   });
 }
 
+// ============================================================================
+// TIPOS EXTENDIDOS PARA PAGINACIÓN
+// ============================================================================
+
+export interface CatalogSearchParamsExtended extends CatalogSearchParams {
+  /**
+   * Offset para paginación (número de registros a saltar)
+   */
+  offset?: number;
+  /**
+   * Si incluir items inactivos en la búsqueda
+   */
+  includeInactive?: boolean;
+}
+
+// ============================================================================
+// HOOK: useCatalogSearch
+// ============================================================================
+
 /**
- * Hook para buscar unidades de medida SAT
+ * Hook para buscar items en catálogos grandes con paginación del servidor.
+ *
+ * @example
+ * // Búsqueda simple
+ * const { data, isLoading } = useCatalogSearch("sat_municipio", {
+ *   query: searchTerm,
+ *   parentCode: estadoCode,
+ *   limit: 20,
+ * });
+ *
+ * // Con paginación
+ * const { data, isLoading } = useCatalogSearch("sat_localidad", {
+ *   query: searchTerm,
+ *   limit: 50,
+ *   offset: (currentPage - 1) * 50,
+ * });
  */
-export function useSearchUnidadesMedida(
-  query: string,
-  options?: { limit?: number; enabled?: boolean },
+export function useCatalogSearch(
+  typeCode: CatalogTypeCodeValue | string,
+  params: CatalogSearchParamsExtended,
 ) {
-  return useCatalogSearch("sat_clave_unidad" as CatalogTypeCodeValue, {
+  const {
     query,
-    limit: options?.limit ?? 20,
-    enabled: options?.enabled,
+    parentCode,
+    limit = 50,
+    offset = 0,
+    includeInactive = true,
+  } = params;
+
+  return useQuery({
+    queryKey: ["catalog-search", typeCode, query, parentCode, limit, offset],
+    queryFn: async (): Promise<CatalogSearchResult> => {
+      const result = await catalogRepository.search(typeCode, {
+        query: query?.trim() || "",
+        parentCode,
+        limit,
+        offset,
+      });
+
+      return {
+        items: result.items,
+        total: result.total,
+      };
+    },
+    // Solo habilitar si:
+    // - includeInactive es true (controla si el hook está "activo")
+    // - query tiene al menos 1 caracter O offset > 0 (paginación inicial)
+    enabled:
+      includeInactive && (query.length >= 1 || offset > 0 || query === " "),
+    staleTime: 30_000, // 30 segundos
+    gcTime: 5 * 60_000, // 5 minutos
+    placeholderData: (previousData) => previousData,
   });
 }
 
+// ============================================================================
+// HOOK: useCatalogItem (para obtener un item específico)
+// ============================================================================
+
 /**
- * Hook para buscar materiales peligrosos
+ * Hook para obtener un item específico de catálogo por su código.
+ * Útil para mostrar el nombre de un código ya seleccionado.
+ *
+ * @example
+ * const { data: municipio } = useCatalogItem("sat_municipio", "JAL-001");
  */
-export function useSearchMaterialesPeligrosos(
-  query: string,
-  options?: { limit?: number; enabled?: boolean },
+export function useCatalogItem(
+  typeCode: CatalogTypeCodeValue,
+  code: string | undefined,
 ) {
-  return useCatalogSearch("sat_material_peligroso" as CatalogTypeCodeValue, {
-    query,
-    limit: options?.limit ?? 20,
-    enabled: options?.enabled,
+  return useQuery({
+    queryKey: ["catalog-item", typeCode, code],
+    queryFn: async (): Promise<CatalogItem | null> => {
+      if (!code) return null;
+      return catalogRepository.findByCode(typeCode, code);
+    },
+    enabled: !!code,
+    staleTime: 10 * 60_000, // 10 minutos
+    gcTime: 60 * 60_000, // 1 hora
   });
 }
 
-/**
- * Hook para buscar colonias por municipio
- */
-export function useSearchColonias(
-  query: string,
-  municipioCode?: string,
-  options?: { limit?: number; enabled?: boolean },
+// ============================================================================
+// HOOK: useCatalogChildren (para obtener los hijos de un item (catálogos jerárquicos))
+// ============================================================================
+
+export function useCatalogChildren(
+  typeCode: CatalogTypeCodeValue,
+  parentCode: string | undefined | null,
+  options?: Omit<UseQueryOptions<CatalogItem[], Error>, "queryKey" | "queryFn">,
 ) {
-  return useCatalogSearch("sat_colonia" as CatalogTypeCodeValue, {
-    query,
-    parentCode: municipioCode,
-    limit: options?.limit ?? 20,
-    enabled: options?.enabled && !!municipioCode,
+  return useQuery({
+    queryKey: catalogQueryKeys.children(typeCode, parentCode ?? ""),
+    queryFn: () => catalogRepository.findChildren(typeCode, parentCode!),
+    enabled: !!parentCode,
+    staleTime: 1000 * 60 * 30, // 30 minutos
+    gcTime: 1000 * 60 * 60, // 1 hora en cache
+    ...options,
   });
 }
 
-/**
- * Hook para buscar localidades por municipio
- */
-export function useSearchLocalidades(
-  query: string,
-  municipioCode?: string,
-  options?: { limit?: number; enabled?: boolean },
-) {
-  return useCatalogSearch("sat_localidad" as CatalogTypeCodeValue, {
-    query,
-    parentCode: municipioCode,
-    limit: options?.limit ?? 20,
-    enabled: options?.enabled && !!municipioCode,
-  });
-}
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export default {
+  useCatalogSearch,
+  useCatalogOptions,
+  useCatalogItem,
+  useCatalogItems,
+  useCatalogChildren,
+};

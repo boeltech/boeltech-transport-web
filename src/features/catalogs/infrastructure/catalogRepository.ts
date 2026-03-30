@@ -144,6 +144,17 @@ export class CatalogRepository implements ICatalogRepository {
     return mapCatalogOptions(response);
   }
 
+  async search(
+    typeCode: string,
+    params: CatalogSearchParams,
+  ): Promise<CatalogSearchResult> {
+    const response = await apiClient.get<ApiCatalogSearchResponse>(
+      `${CATALOGS_ENDPOINT}/${typeCode}/search`,
+      { params: toApiSearchParams(params) },
+    );
+    return mapCatalogSearchResult(response);
+  }
+
   async findByCode(
     typeCode: string,
     code: string,
@@ -169,17 +180,6 @@ export class CatalogRepository implements ICatalogRepository {
       `${CATALOGS_ENDPOINT}/${typeCode}/${parentCode}/children`,
     );
     return mapCatalogItems(response);
-  }
-
-  async search(
-    typeCode: string,
-    params: CatalogSearchParams,
-  ): Promise<CatalogSearchResult> {
-    const response = await apiClient.get<ApiCatalogSearchResponse>(
-      `${CATALOGS_ENDPOINT}/${typeCode}/search`,
-      { params: toApiSearchParams(params) },
-    );
-    return mapCatalogSearchResult(response);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

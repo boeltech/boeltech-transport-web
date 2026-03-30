@@ -31,6 +31,7 @@ export type {
   CatalogImportResult,
   CatalogValidationResult,
   CatalogSearchParams,
+  CatalogOptionsParams,
   CatalogFilterParams,
   CatalogTypeWithVersion,
 } from "./entities";

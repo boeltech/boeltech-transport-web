@@ -29,43 +29,43 @@ export type {
 } from "./useCatalogImport";
 
 // Items
-export { useCatalogItems, useCatalogItemsPaginated } from "./useCatalogItems";
+// export {
+//   useCatalogItems,
+//   // useCatalogItemsPaginated
+// } from "./useCatalogItems";
 
 // Item
-export {
-  useCatalogChildren,
-  useCatalogItem,
-  useColoniasByMunicipio,
-  useEstado,
-  useLocalidadesByMunicipio,
-  useMunicipio,
-  useMunicipiosByEstado,
-} from "./useCatalogItem";
+// export {
+//   useCatalogChildren,
+//   useCatalogItem,
+//   useColoniasByMunicipio,
+//   useEstado,
+//   useLocalidadesByMunicipio,
+//   useMunicipio,
+//   useMunicipiosByEstado,
+// } from "./useCatalogItem";
 
 // Options
-export {
-  type UseCatalogOptionsParams,
-  useCatalogOptions,
-  useConfigAutotransporteOptions,
-  useEstadosOptions,
-  useFormaPagoOptions,
-  useMetodoPagoOptions,
-  useMunicipiosOptions,
-  useRegimenFiscalOptions,
-  useTipoEmbalajeOptions,
-  useTipoFiguraOptions,
-  useTipoPermisoOptions,
-  useUsoCfdiOptions,
-} from "./useCatalogOptions";
+// export {
+//   type UseCatalogOptionsParams,
+//   useCatalogOptions,
+//   useConfigAutotransporteOptions,
+//   useEstadosOptions,
+//   useFormaPagoOptions,
+//   useMetodoPagoOptions,
+//   useMunicipiosOptions,
+//   useRegimenFiscalOptions,
+//   useTipoEmbalajeOptions,
+//   useTipoFiguraOptions,
+//   useTipoPermisoOptions,
+//   useUsoCfdiOptions,
+// } from "./useCatalogOptions";
 
-// Search
+// Hooks nuevos para búsqueda en catálogos grandes
 export {
-  type UseCatalogSearchParams,
-  type UseCatalogSearchResult,
+  useCatalogItems,
+  useCatalogOptions,
   useCatalogSearch,
-  useSearchColonias,
-  useSearchLocalidades,
-  useSearchMaterialesPeligrosos,
-  useSearchProductosServiciosCP,
-  useSearchUnidadesMedida,
+  useCatalogItem,
+  useCatalogChildren,
 } from "./useCatalogSearch";

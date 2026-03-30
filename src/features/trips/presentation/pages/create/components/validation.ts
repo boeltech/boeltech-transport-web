@@ -5,11 +5,10 @@
  * Schemas Zod para el wizard de creación de viajes.
  * Incluye validaciones para Carta Porte 3.1.
  *
- * ACTUALIZADO: Campos de Autotransporte Federal
- * - Permiso SCT (tipo y número)
- * - Configuración Vehicular SAT
- * - Datos del vehículo
- * - Seguros obligatorios
+ * ACTUALIZADO: Campos de dirección unificados con Carta Porte
+ * - Eliminados campos duplicados (address, city, state como texto libre)
+ * - Todos los campos geográficos usan catálogos SAT
+ * - Validaciones coherentes con requerimientos fiscales
  *
  * Ubicación: src/features/trips/presentation/pages/create/validation.ts
  */
@@ -208,11 +207,23 @@ export const figuraTransporteSchema = z.object({
 });
 
 // ============================================================================
-// STOP SCHEMA
+// STOP SCHEMA (Carta Porte 3.1 - Campos Unificados)
 // ============================================================================
 
 /**
  * Schema para una parada del viaje
+ *
+ * IMPORTANTE: Los campos de dirección están unificados con los requerimientos
+ * de Carta Porte 3.1. NO hay campos duplicados.
+ *
+ * Campos geográficos SAT obligatorios:
+ * - satEstadoCode (c_Estado)
+ * - satMunicipioCode (c_Municipio)
+ * - postalCode (c_CodigoPostal)
+ *
+ * Campos geográficos SAT opcionales:
+ * - satLocalidadCode (c_Localidad)
+ * - satColoniaCode (c_Colonia)
  */
 export const tripStopSchema = z.object({
   id: z.string().optional(),
@@ -221,42 +232,119 @@ export const tripStopSchema = z.object({
     .array(z.enum(["origin", "pickup", "delivery", "waypoint", "destination"]))
     .min(1, "Debe seleccionar al menos un tipo de parada"),
 
-  // Asociación con cliente y dirección
+  // ── Asociación con cliente (opcional) ───────────────────────────────────
   clientId: z.string().optional(),
   clientAddressId: z.string().optional(),
 
-  // Dirección simplificada
-  address: z.string().min(1, "Dirección requerida"),
-  city: z.string().min(1, "Ciudad requerida"),
-  state: z.string().optional(),
-  postalCode: z.string().optional(),
+  // ── Identificación del lugar ────────────────────────────────────────────
+  locationName: z.string().optional(), // Nombre del lugar (ej: "Bodega Central")
+
+  // ── Ubicación SAT (Carta Porte 3.1) ─────────────────────────────────────
+  /**
+   * Código de Estado SAT (c_Estado)
+   * OBLIGATORIO para Carta Porte
+   */
+  satEstadoCode: z
+    .string()
+    .min(1, "El estado es requerido")
+    .max(3, "Código de estado inválido"),
+
+  /**
+   * Código de Municipio SAT (c_Municipio)
+   * OBLIGATORIO para Carta Porte
+   * Formato: código estado + código municipio (ej: "001" para Aguascalientes)
+   */
+  satMunicipioCode: z
+    .string()
+    .min(1, "El municipio es requerido")
+    .max(5, "Código de municipio inválido"),
+
+  /**
+   * Código Postal (c_CodigoPostal)
+   * OBLIGATORIO para Carta Porte
+   * 5 dígitos
+   */
+  postalCode: z
+    .string()
+    .min(5, "Código postal debe tener 5 dígitos")
+    .max(5, "Código postal debe tener 5 dígitos")
+    .regex(/^\d{5}$/, "Código postal inválido"),
+
+  /**
+   * Código de Localidad SAT (c_Localidad)
+   * OPCIONAL - Usado principalmente en zonas rurales
+   */
+  satLocalidadCode: z.string().optional(),
+
+  /**
+   * Código de Colonia SAT (c_Colonia)
+   * OPCIONAL - Ayuda a precisar la ubicación
+   */
+  satColoniaCode: z.string().optional(),
+
+  // ── Dirección desglosada ────────────────────────────────────────────────
+  /**
+   * Calle
+   */
+  street: z.string().max(100, "Calle muy larga").optional(),
+
+  /**
+   * Número exterior
+   */
+  exteriorNumber: z.string().max(20, "Número exterior muy largo").optional(),
+
+  /**
+   * Número interior
+   */
+  interiorNumber: z.string().max(20, "Número interior muy largo").optional(),
+
+  /**
+   * Referencia (entre calles, cerca de...)
+   */
+  reference: z.string().max(250, "Referencia muy larga").optional(),
+
+  // ── Coordenadas (opcional, para mapas) ──────────────────────────────────
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-  locationName: z.string().optional(),
-  contactName: z.string().optional(),
-  contactPhone: z.string().optional(),
-  estimatedArrival: z.string().optional(),
-  notes: z.string().optional(),
 
-  // ── Carta Porte 3.1 — Domicilio desglosado ────────────────────
-  street: z.string().optional(),
-  exteriorNumber: z.string().optional(),
-  interiorNumber: z.string().optional(),
-  colonia: z.string().optional(),
-  reference: z.string().optional(),
+  // ── Remitente / Destinatario ────────────────────────────────────────────
+  /**
+   * RFC del remitente (origen) o destinatario (destino)
+   */
+  rfcRemitenteDestinatario: z
+    .string()
+    .max(13, "RFC inválido")
+    .regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/, "Formato de RFC inválido")
+    .optional()
+    .or(z.literal("")),
 
-  // Claves SAT (catálogos oficiales)
-  satEstadoCode: z.string().optional(), // c_Estado
-  satMunicipioCode: z.string().optional(), // c_Municipio
-  satLocalidadCode: z.string().optional(), // c_Localidad
-  satColoniaCode: z.string().optional(), // c_Colonia
+  /**
+   * Nombre o razón social del remitente/destinatario
+   */
+  nombreRemitenteDestinatario: z
+    .string()
+    .max(254, "Nombre muy largo")
+    .optional(),
 
-  // Remitente / Destinatario
-  rfcRemitenteDestinatario: z.string().optional(),
-  nombreRemitenteDestinatario: z.string().optional(),
+  // ── Contacto en sitio ───────────────────────────────────────────────────
+  contactName: z.string().max(100, "Nombre muy largo").optional(),
+  contactPhone: z.string().max(20, "Teléfono muy largo").optional(),
 
-  // Distancia
-  distanceToNextKm: z.coerce.number().min(0).optional(),
+  // ── Tiempos ─────────────────────────────────────────────────────────────
+  estimatedArrival: z.string().optional(), // ISO 8601
+
+  // ── Notas ───────────────────────────────────────────────────────────────
+  notes: z.string().max(500, "Notas muy largas").optional(),
+
+  // ── Distancia (Carta Porte) ─────────────────────────────────────────────
+  /**
+   * Distancia en kilómetros desde la parada anterior
+   * OBLIGATORIO para Carta Porte (excepto en origen)
+   */
+  distanceToNextKm: z.coerce
+    .number()
+    .min(0, "La distancia no puede ser negativa")
+    .optional(),
 });
 
 // ============================================================================
@@ -275,36 +363,37 @@ export const cargoMovementSchema = z.object({
 // CARGO SCHEMA
 // ============================================================================
 
+/**
+ * Schema para una mercancía del viaje
+ */
 export const tripCargoSchema = z.object({
   id: z.string().optional(),
-  clientId: z.string().min(1, "Cliente requerido"),
-  description: z.string().min(1, "Descripción requerida"),
-  productType: z.string().optional(),
-  weight: z.coerce.number().min(0).optional(),
-  volume: z.coerce.number().min(0).optional(),
-  units: z.coerce.number().min(0).optional(),
-  declaredValue: z.coerce.number().min(0).optional(),
-  rate: z.coerce.number().min(0, "Tarifa requerida"),
-  currency: z.string().default("MXN"),
-  movements: z
-    .array(cargoMovementSchema)
-    .min(1, "Debe asignar al menos un punto de carga"),
-  notes: z.string().optional(),
-  specialInstructions: z.string().optional(),
 
-  // ── Carta Porte 3.1 — Mercancía ──────────────────────────────
-  satProductCode: z.string().optional(), // c_ClaveProdServCP
-  satProductDescription: z.string().optional(),
-  satUnitCode: z.string().optional(), // c_ClaveUnidad
-  satUnitName: z.string().optional(),
-  weightInKg: z.coerce.number().min(0).optional(),
-  dimensions: z.string().optional(),
+  // Descripción
+  description: z.string().min(1, "Descripción requerida"),
+
+  // Cantidades
+  quantity: z.coerce.number().min(1, "La cantidad debe ser mayor a 0"),
+  weight: z.coerce.number().min(0, "El peso no puede ser negativo").optional(),
+  declaredValue: z.coerce
+    .number()
+    .min(0, "El valor no puede ser negativo")
+    .optional(),
+
+  // Catálogos SAT para Carta Porte
+  satClaveProductoServicio: z.string().optional(), // c_ClaveProdServCP
+  satClaveUnidad: z.string().optional(), // c_ClaveUnidad
 
   // Material peligroso
-  hazardousMaterial: z.boolean().optional(),
-  hazardousMaterialCode: z.string().optional(), // c_MaterialPeligroso
-  packagingType: z.string().optional(), // c_TipoEmbalaje
-  packagingDescription: z.string().optional(),
+  isMaterialPeligroso: z.boolean().default(false),
+  satClaveMaterialPeligroso: z.string().optional(), // c_MaterialPeligroso
+  satTipoEmbalaje: z.string().optional(), // c_TipoEmbalaje
+
+  // Movimientos en paradas
+  movements: z.array(cargoMovementSchema).optional(),
+
+  // Notas
+  notes: z.string().optional(),
 });
 
 // ============================================================================
@@ -326,245 +415,68 @@ export const tripExpenseSchema = z.object({
     "other",
   ]),
   description: z.string().min(1, "Descripción requerida"),
-  amount: z.coerce.number().min(0, "Monto requerido"),
-  currency: z.string().default("MXN"),
-  expenseDate: z.string().optional(),
-  location: z.string().optional(),
-  vendorName: z.string().optional(),
+  estimatedAmount: z.coerce.number().min(0, "El monto no puede ser negativo"),
   notes: z.string().optional(),
-  isEstimated: z.boolean().default(true),
 });
 
 // ============================================================================
-// MAIN WIZARD SCHEMA
+// FULL WIZARD SCHEMA
 // ============================================================================
 
-export const tripWizardFormSchema = z
-  .object({
-    // ══════════════════════════════════════════════════════════════════════
-    // Paso 1: Información Básica y Autotransporte
-    // ══════════════════════════════════════════════════════════════════════
+export const tripWizardSchema = z.object({
+  // Paso 1: Información Básica
+  vehicleId: z.string().min(1, "Vehículo requerido"),
+  driverId: z.string().min(1, "Conductor requerido"),
+  clientId: z.string().optional(),
+  scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
+  scheduledArrival: z.string().optional(),
+  startMileage: z.coerce.number().min(0).optional(),
+  vehicleCurrentMileage: z.coerce.number().min(0).optional(),
 
-    // Asignaciones
-    vehicleId: z.string().min(1, "Seleccione un vehículo"),
-    driverId: z.string().min(1, "Seleccione un conductor"),
-    clientId: z.string().optional(),
+  // Carta Porte - Autotransporte
+  autotransporte: autotransporteSchema,
 
-    // Programación
-    scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
-    scheduledArrival: z.string().optional(),
-    startMileage: z.coerce.number().min(0).optional(),
-    vehicleCurrentMileage: z.number().optional(),
+  // Carta Porte - Figura de Transporte (Operador)
+  figuraTransporte: figuraTransporteSchema,
 
-    // Carta Porte — Autotransporte Federal
-    autotransporte: autotransporteSchema.optional(),
+  // Transporte Internacional
+  transpInternac: z.boolean().default(false),
+  entradaSalidaMerc: z.enum(["Entrada", "Salida"]).optional(),
+  paisOrigenDestino: z.string().optional(), // c_Pais
 
-    // Carta Porte — Figura de Transporte (Operador)
-    figuraTransporte: figuraTransporteSchema.optional(),
+  // Paso 2: Ruta
+  stops: z.array(tripStopSchema).min(2, "Se requieren al menos 2 paradas"),
 
-    // Carta Porte — Ámbito
-    transpInternac: z.boolean().default(false),
+  // Paso 3: Carga
+  cargos: z.array(tripCargoSchema),
 
-    // ══════════════════════════════════════════════════════════════════════
-    // Paso 2: Ruta
-    // ══════════════════════════════════════════════════════════════════════
-    stops: z.array(tripStopSchema).default([]),
+  // Paso 4: Costos
+  expenses: z.array(tripExpenseSchema),
+  baseRate: z.coerce.number().min(0).optional(),
 
-    // ══════════════════════════════════════════════════════════════════════
-    // Paso 3: Cargas
-    // ══════════════════════════════════════════════════════════════════════
-    cargos: z.array(tripCargoSchema).default([]),
-
-    // ══════════════════════════════════════════════════════════════════════
-    // Paso 4: Costos
-    // ══════════════════════════════════════════════════════════════════════
-    expenses: z.array(tripExpenseSchema).default([]),
-    baseRate: z.coerce.number().min(0).optional(),
-
-    // ══════════════════════════════════════════════════════════════════════
-    // Paso 5: Resumen / Notas
-    // ══════════════════════════════════════════════════════════════════════
-    notes: z.string().max(1000).optional(),
-
-    // Legacy — se calculan desde stops
-    originAddress: z.string().optional(),
-    originCity: z.string().optional(),
-    originState: z.string().optional(),
-    destinationAddress: z.string().optional(),
-    destinationCity: z.string().optional(),
-    destinationState: z.string().optional(),
-  })
-
-  // ════════════════════════════════════════════════════════════════════════
-  // REFINEMENTS
-  // ════════════════════════════════════════════════════════════════════════
-
-  // Fecha de llegada posterior a salida
-  .refine(
-    (data) => {
-      if (data.scheduledArrival && data.scheduledDeparture) {
-        return (
-          new Date(data.scheduledArrival) > new Date(data.scheduledDeparture)
-        );
-      }
-      return true;
-    },
-    {
-      message: "La fecha de llegada debe ser posterior a la de salida",
-      path: ["scheduledArrival"],
-    },
-  )
-
-  // Kilometraje inicial >= kilometraje actual del vehículo
-  .refine(
-    (data) => {
-      if (
-        data.startMileage !== undefined &&
-        data.vehicleCurrentMileage !== undefined
-      ) {
-        return data.startMileage >= data.vehicleCurrentMileage;
-      }
-      return true;
-    },
-    {
-      message:
-        "El kilometraje inicial no puede ser menor al kilometraje actual del vehículo",
-      path: ["startMileage"],
-    },
-  )
-
-  // Debe existir exactamente 1 parada de ORIGEN
-  .refine(
-    (data) => {
-      if (data.stops.length === 0) return true;
-      const originStops = data.stops.filter((stop) =>
-        stop.stopType.includes("origin"),
-      );
-      return originStops.length === 1;
-    },
-    {
-      message: "Debe existir exactamente una parada de origen",
-      path: ["stops"],
-    },
-  )
-
-  // Debe existir exactamente 1 parada de DESTINO
-  .refine(
-    (data) => {
-      if (data.stops.length === 0) return true;
-      const destinationStops = data.stops.filter((stop) =>
-        stop.stopType.includes("destination"),
-      );
-      return destinationStops.length === 1;
-    },
-    {
-      message: "Debe existir exactamente una parada de destino",
-      path: ["stops"],
-    },
-  )
-
-  // El origen debe tener operación de carga (pickup)
-  .refine(
-    (data) => {
-      if (data.stops.length === 0) return true;
-      const originStop = data.stops.find((stop) =>
-        stop.stopType.includes("origin"),
-      );
-      if (!originStop) return true;
-      return originStop.stopType.includes("pickup");
-    },
-    {
-      message: "La parada de origen debe incluir operación de carga",
-      path: ["stops"],
-    },
-  )
-
-  // El destino debe tener operación de descarga (delivery)
-  .refine(
-    (data) => {
-      if (data.stops.length === 0) return true;
-      const destinationStop = data.stops.find((stop) =>
-        stop.stopType.includes("destination"),
-      );
-      if (!destinationStop) return true;
-      return destinationStop.stopType.includes("delivery");
-    },
-    {
-      message: "La parada de destino debe incluir operación de descarga",
-      path: ["stops"],
-    },
-  )
-
-  // Las escalas deben tener al menos una operación
-  .refine(
-    (data) => {
-      if (data.stops.length === 0) return true;
-      const waypoints = data.stops.filter(
-        (stop) =>
-          stop.stopType.includes("waypoint") &&
-          !stop.stopType.includes("origin") &&
-          !stop.stopType.includes("destination"),
-      );
-      return waypoints.every(
-        (stop) =>
-          stop.stopType.includes("pickup") ||
-          stop.stopType.includes("delivery"),
-      );
-    },
-    {
-      message:
-        "Las escalas intermedias deben tener al menos una operación (carga o descarga)",
-      path: ["stops"],
-    },
-  )
-
-  // Si hay cargas con valor > 0, debe haber seguro de carga
-  .refine(
-    (data) => {
-      const hasDeclaredValue = data.cargos.some(
-        (c) => c.declaredValue && c.declaredValue > 0,
-      );
-      if (hasDeclaredValue && data.autotransporte) {
-        return (
-          !!data.autotransporte.aseguraCarga &&
-          !!data.autotransporte.polizaCarga
-        );
-      }
-      return true;
-    },
-    {
-      message:
-        "Se requiere seguro de carga cuando las mercancías tienen valor declarado",
-      path: ["autotransporte", "aseguraCarga"],
-    },
-  );
+  // Paso 5: Notas
+  notes: z.string().optional(),
+});
 
 // ============================================================================
-// TYPES
+// TYPES INFERRED FROM SCHEMAS
 // ============================================================================
 
-export type TripWizardFormValues = z.infer<typeof tripWizardFormSchema>;
 export type AutotransporteFormValues = z.infer<typeof autotransporteSchema>;
 export type FiguraTransporteFormValues = z.infer<typeof figuraTransporteSchema>;
 export type TripStopFormValues = z.infer<typeof tripStopSchema>;
-export type TripCargoFormValues = z.infer<typeof tripCargoSchema>;
 export type CargoMovementFormValues = z.infer<typeof cargoMovementSchema>;
+export type TripCargoFormValues = z.infer<typeof tripCargoSchema>;
 export type TripExpenseFormValues = z.infer<typeof tripExpenseSchema>;
+export type TripWizardFormValues = z.infer<typeof tripWizardSchema>;
 
 // ============================================================================
-// WIZARD STEPS DEFINITION
+// WIZARD STEPS CONFIGURATION
 // ============================================================================
 
-export interface WizardStepDefinition {
-  id: string;
-  title: string;
-  description: string;
-  fields: (keyof TripWizardFormValues)[];
-}
-
-export const WIZARD_STEPS: WizardStepDefinition[] = [
+export const WIZARD_STEPS = [
   {
-    id: "basic-info",
+    id: "basic",
     title: "Información",
     description: "Asignaciones, autotransporte y operador",
     fields: [
@@ -647,6 +559,32 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
 };
 
 // ============================================================================
+// DEFAULT STOP VALUES
+// ============================================================================
+
+export const defaultStopFormValues: Partial<TripStopFormValues> = {
+  stopType: [],
+  clientId: "",
+  clientAddressId: "",
+  locationName: "",
+  satEstadoCode: "",
+  satMunicipioCode: "",
+  postalCode: "",
+  satLocalidadCode: "",
+  satColoniaCode: "",
+  street: "",
+  exteriorNumber: "",
+  interiorNumber: "",
+  reference: "",
+  rfcRemitenteDestinatario: "",
+  nombreRemitenteDestinatario: "",
+  contactName: "",
+  contactPhone: "",
+  notes: "",
+  distanceToNextKm: undefined,
+};
+
+// ============================================================================
 // ROUTE STEP VALIDATION HELPER
 // ============================================================================
 
@@ -714,9 +652,29 @@ export function validateRouteStep(
       waypoint.stopType.includes("delivery");
 
     if (!hasOperation) {
-      const label =
-        waypoint.locationName || waypoint.address || `Escala ${i + 1}`;
+      const label = waypoint.locationName || `Escala ${i + 1}`;
       errors.push(`La escala "${label}" no tiene operación asignada`);
+    }
+  }
+
+  // Validar campos Carta Porte en cada parada
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    const label = stop.locationName || `Parada ${i + 1}`;
+
+    if (!stop.satEstadoCode) {
+      errors.push(`"${label}" no tiene estado SAT`);
+    }
+    if (!stop.satMunicipioCode) {
+      errors.push(`"${label}" no tiene municipio SAT`);
+    }
+    if (!stop.postalCode) {
+      errors.push(`"${label}" no tiene código postal`);
+    }
+
+    // Distancia obligatoria excepto en origen
+    if (i > 0 && !stop.distanceToNextKm && stop.distanceToNextKm !== 0) {
+      warnings.push(`"${label}" no tiene distancia desde la parada anterior`);
     }
   }
 
