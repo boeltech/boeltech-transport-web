@@ -156,9 +156,20 @@ const DriverEditPage = lazy(() =>
 );
 
 // Clients
-// const ClientsListPage = lazy(() => import("@/pages/clients"));
-// const ClientDetailPage = lazy(() => import("@/pages/clients/detail"));
-// const ClientCreatePage = lazy(() => import("@/pages/clients/create"));
+const ClientsListPage = lazy(() =>
+  import("@features/clients").then((m) => ({
+    default: m.ClientsListPage,
+  })),
+);
+const ClientDetailPage = lazy(() =>
+  import("@features/clients").then((m) => ({ default: m.ClientDetailPage })),
+);
+const ClientCreatePage = lazy(() =>
+  import("@features/clients").then((m) => ({ default: m.ClientCreatePage })),
+);
+const ClientEditPage = lazy(() =>
+  import("@features/clients").then((m) => ({ default: m.ClientEditPage })),
+);
 
 // Maintenance
 // const MaintenanceListPage = lazy(() => import("@/pages/maintenance"));
@@ -375,23 +386,27 @@ export const router = createBrowserRouter([
           {
             element: <ModuleRoute module="clients" />,
             children: [
-              // {
-              //   path: "/clients",
-              //   element: withSuspense(ClientsListPage),
-              // },
-              // {
-              //   path: "/clients/:id",
-              //   element: withSuspense(ClientDetailPage),
-              // },
+              {
+                path: "/clients",
+                element: withSuspense(ClientsListPage),
+              },
+              {
+                path: "/clients/:id",
+                element: withSuspense(ClientDetailPage),
+              },
             ],
           },
           {
             element: <PermissionRoute module="clients" action="create" />,
             children: [
-              // {
-              //   path: "/clients/new",
-              //   element: withSuspense(ClientCreatePage),
-              // },
+              {
+                path: "/clients/new",
+                element: withSuspense(ClientCreatePage),
+              },
+              {
+                path: "clients/:id/edit",
+                element: withSuspense(ClientEditPage),
+              },
             ],
           },
 

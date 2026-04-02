@@ -14,7 +14,8 @@
  * />
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useDebounce } from "@shared/hooks/use-debounce";
 import { Input } from "@shared/ui/input";
 import { Button } from "@shared/ui/button";
 import {
@@ -110,20 +111,8 @@ export function CatalogSearchInput({
 
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, debounceMs);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Debounce
-  // ══════════════════════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, debounceMs);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm, debounceMs]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // Data Fetching

@@ -11,7 +11,8 @@
  * Ubicación: src/features/catalogs/presentation/pages/CatalogDetailPage.tsx
  */
 
-import { memo, useState, useCallback, useMemo, useEffect } from "react";
+import { memo, useState, useCallback, useMemo } from "react";
+import { useDebounce } from "@shared/hooks/use-debounce";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -95,7 +96,7 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
 
   const [importWizardOpen, setImportWizardOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [currentPage, setCurrentPage] = useState(1);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -135,18 +136,6 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     includeInactive: true,
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // DEBOUNCE SEARCH
-  // ══════════════════════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setCurrentPage(1); // Reset page on search change
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // COMPUTED VALUES
@@ -214,6 +203,7 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1);
   }, []);
 
   const handlePageChange = useCallback((page: number) => {

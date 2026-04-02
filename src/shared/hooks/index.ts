@@ -1,3 +1,6 @@
+// Hook para retrasar actualizaciones hasta que el usuario deje de escribir
+export { useDebounce } from "./use-debounce";
+
 // Hook para detectar media queries
 export { useMediaQuery } from "./useMediaQuery";
 

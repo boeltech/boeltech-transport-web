@@ -100,10 +100,9 @@ export const createVehicleSchema = z.object({
 
   // Mileage
   currentMileage: z
-    .number()
-    .int()
-    .nonnegative("No puede ser negativo")
-    .default(0),
+    .number({ required_error: "El kilometraje actual es requerido" })
+    .int("Debe ser un número entero")
+    .nonnegative("No puede ser negativo"),
 
   // ── Documentation ─────────────────────────────────────────────────────────
   insurancePolicy: z.string().max(50).optional().or(z.literal("")),
@@ -157,7 +156,10 @@ export const updateVehicleSchema = z.object({
   expectedFuelEfficiency: z.number().positive().nullable().optional(),
 
   // Mileage
-  currentMileage: z.number().int().nonnegative().optional(),
+  currentMileage: z
+    .number({ required_error: "El kilometraje actual es requerido" })
+    .int("Debe ser un número entero")
+    .nonnegative("No puede ser negativo"),
 
   // Documentation
   insurancePolicy: z.string().max(50).nullable().optional(),

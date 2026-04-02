@@ -342,16 +342,20 @@ export function VehicleForm({
               name="currentMileage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kilometraje Actual</FormLabel>
+                  <FormLabel>
+                    Kilometraje Actual{" "}
+                    <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       min={0}
                       placeholder="0"
                       {...field}
+                      value={field.value ?? ""}
                       onChange={(e) =>
                         field.onChange(
-                          e.target.value ? Number(e.target.value) : 0,
+                          e.target.value !== "" ? Number(e.target.value) : undefined,
                         )
                       }
                     />
