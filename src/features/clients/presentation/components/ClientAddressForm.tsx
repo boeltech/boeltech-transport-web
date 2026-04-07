@@ -29,12 +29,10 @@ import { Alert, AlertDescription } from "@shared/ui/alert";
 import { MapPin, User, Clock, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
-// Importar componentes de catálogos SAT
+// Importar componente unificado de campos SAT
 import {
-  EstadoSelect,
-  MunicipioSelect,
-  ColoniaCombobox,
-  LocalidadCombobox,
+  AddressFields,
+  type SatAddressValues,
 } from "@features/catalogs/presentation/components";
 
 import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
@@ -143,41 +141,18 @@ export const ClientAddressForm = forwardRef<
     onChange?.(formValues as ClientAddressFormData, isValid);
   }, [formValues, isValid, onChange]);
 
-  // Limpiar dependencias cuando cambia el estado
-  const handleEstadoChange = (value: string) => {
-    setValue("satEstadoCode", value);
-    setValue("satMunicipioCode", "");
-    setValue("satLocalidadCode", "");
-    // Nota: Colonia depende de CP, no de Estado
-  };
-
-  // Limpiar localidad cuando cambia municipio
-  // El catálogo devuelve código compuesto "AGU-001" → guardar solo el código corto "001"
-  const handleMunicipioChange = (value: string) => {
-    const shortCode = value.includes("-") ? value.split("-")[1] : value;
-    setValue("satMunicipioCode", shortCode, { shouldValidate: true });
-    setValue("satLocalidadCode", "");
-  };
-
-  // Limpiar colonia cuando cambia CP
-  const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 5);
-    setValue("postalCode", value, { shouldValidate: true });
-    if (value.length !== 5) {
-      setValue("satColoniaCode", "");
-    }
-  };
-
-  const handleColoniaChange = (value: string) => {
-    // El catálogo devuelve "12345-0001" → guardar solo el código corto "0001"
-    const shortCode = value.includes("-") ? value.split("-")[1] : value;
-    setValue("satColoniaCode", shortCode);
-  };
-
-  const handleLocalidadChange = (value: string) => {
-    // El catálogo devuelve "AGU-01" → guardar solo el código corto "01"
-    const shortCode = value.includes("-") ? value.split("-")[1] : value;
-    setValue("satLocalidadCode", shortCode);
+  // Handler unificado para AddressFields
+  const handleAddressChange = (changes: SatAddressValues) => {
+    if (changes.estadoCode !== undefined)
+      setValue("satEstadoCode", changes.estadoCode, { shouldValidate: true });
+    if (changes.municipioCode !== undefined)
+      setValue("satMunicipioCode", changes.municipioCode, { shouldValidate: true });
+    if (changes.postalCode !== undefined)
+      setValue("postalCode", changes.postalCode, { shouldValidate: true });
+    if (changes.coloniaCode !== undefined)
+      setValue("satColoniaCode", changes.coloniaCode);
+    if (changes.localidadCode !== undefined)
+      setValue("satLocalidadCode", changes.localidadCode);
   };
 
   // Submit handler
@@ -301,128 +276,24 @@ export const ClientAddressForm = forwardRef<
           3.1
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Estado */}
-          <div className="space-y-2">
-            <Label>
-              Estado <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              name="satEstadoCode"
-              control={control}
-              render={({ field }) => (
-                <EstadoSelect
-                  value={field.value}
-                  onValueChange={handleEstadoChange}
-                  disabled={disabled}
-                  placeholder="Seleccione estado"
-                />
-              )}
-            />
-            {errors.satEstadoCode && (
-              <p className="text-sm text-destructive">
-                {errors.satEstadoCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* Municipio */}
-          <div className="space-y-2">
-            <Label>
-              Municipio <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              name="satMunicipioCode"
-              control={control}
-              render={({ field }) => (
-                <MunicipioSelect
-                  value={field.value ? `${satEstadoCode}-${field.value}` : ""}
-                  onValueChange={handleMunicipioChange}
-                  estadoCode={satEstadoCode}
-                  disabled={disabled || !satEstadoCode}
-                  placeholder={
-                    satEstadoCode
-                      ? "Seleccione municipio"
-                      : "Primero seleccione estado"
-                  }
-                />
-              )}
-            />
-            {errors.satMunicipioCode && (
-              <p className="text-sm text-destructive">
-                {errors.satMunicipioCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* Código Postal */}
-          <div className="space-y-2">
-            <Label htmlFor="postalCode">
-              Código Postal <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="postalCode"
-              placeholder="12345"
-              maxLength={5}
-              disabled={disabled}
-              value={postalCode}
-              onChange={handlePostalCodeChange}
-            />
-            {errors.postalCode && (
-              <p className="text-sm text-destructive">
-                {errors.postalCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* Colonia */}
-          <div className="space-y-2">
-            <Label>Colonia</Label>
-            <Controller
-              name="satColoniaCode"
-              control={control}
-              render={({ field }) => (
-                <ColoniaCombobox
-                  value={field.value ? `${postalCode}-${field.value}` : ""}
-                  onValueChange={(value) => {
-                    handleColoniaChange(value);
-                  }}
-                  codigoPostal={postalCode}
-                  disabled={disabled || !postalCode || postalCode.length !== 5}
-                  placeholder={
-                    postalCode?.length === 5
-                      ? "Buscar colonia..."
-                      : "Ingrese código postal primero"
-                  }
-                />
-              )}
-            />
-          </div>
-
-          {/* Localidad (opcional, para zonas rurales) */}
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Localidad (opcional)</Label>
-            <Controller
-              name="satLocalidadCode"
-              control={control}
-              render={({ field }) => (
-                <LocalidadCombobox
-                  value={field.value ? `${satEstadoCode}-${field.value}` : ""}
-                  onValueChange={(value) => {
-                    handleLocalidadChange(value);
-                  }}
-                  estadoCode={satEstadoCode}
-                  disabled={disabled || !satEstadoCode}
-                  placeholder="Solo para zonas rurales"
-                />
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              La localidad solo es necesaria para zonas rurales o cuando no hay
-              código postal definido
-            </p>
-          </div>
-        </div>
+        <AddressFields
+          values={{
+            estadoCode: satEstadoCode,
+            municipioCode: satMunicipioCode,
+            postalCode,
+            coloniaCode: formValues.satColoniaCode ?? "",
+            localidadCode: formValues.satLocalidadCode ?? "",
+          }}
+          onChange={handleAddressChange}
+          errors={{
+            estado: errors.satEstadoCode?.message,
+            municipio: errors.satMunicipioCode?.message,
+            postalCode: errors.postalCode?.message,
+          }}
+          required={{ estado: true, municipio: true, postalCode: true }}
+          disabled={disabled}
+          showLocalidadHint
+        />
       </div>
 
       <Separator />
@@ -630,6 +501,73 @@ export const ClientAddressForm = forwardRef<
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* COORDENADAS (para cálculo automático de distancias)                    */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-medium">Coordenadas</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Opcionales. Permiten calcular automáticamente las distancias entre paradas al crear un viaje.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="latitude">Latitud</Label>
+            <Controller
+              name="latitude"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="latitude"
+                  type="number"
+                  placeholder="Ej: 19.432608"
+                  step="any"
+                  disabled={disabled}
+                  value={field.value ?? ""}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value !== "" ? parseFloat(e.target.value) : null,
+                    )
+                  }
+                />
+              )}
+            />
+            {errors.latitude && (
+              <p className="text-sm text-destructive">{errors.latitude.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="longitude">Longitud</Label>
+            <Controller
+              name="longitude"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="longitude"
+                  type="number"
+                  placeholder="Ej: -99.133209"
+                  step="any"
+                  disabled={disabled}
+                  value={field.value ?? ""}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value !== "" ? parseFloat(e.target.value) : null,
+                    )
+                  }
+                />
+              )}
+            />
+            {errors.longitude && (
+              <p className="text-sm text-destructive">{errors.longitude.message}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Separator />
 
       {/* Advertencia si faltan campos para Carta Porte */}
       {(!satEstadoCode || !satMunicipioCode || !postalCode) && (

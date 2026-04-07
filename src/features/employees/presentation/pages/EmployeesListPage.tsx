@@ -1,18 +1,16 @@
 /**
- * ClientsListPage
- * Clean Architecture - Presentation Layer
+ * EmployeesListPage
+ * Clean Architecture - Presentation Layer (Pages)
  *
- * Página principal del módulo de clientes.
- * Muestra la lista de clientes con filtros y paginación.
+ * Página principal de listado de empleados.
+ * Patrón homologado con DriversListPage.
  *
- * Ubicación: src/features/clients/presentation/pages/ClientsListPage.tsx
+ * Ubicación: src/features/employees/presentation/pages/EmployeesListPage.tsx
  */
 
 import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useDebounce } from "@shared/hooks/use-debounce";
-import { usePermissions } from "@shared/permissions";
-import { useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import {
@@ -22,32 +20,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { usePermissions } from "@shared/permissions";
+import { useToast } from "@shared/hooks";
 import { generatePageNumbers } from "@shared/lib/utils/generatePageNumbers";
 import {
   Plus,
-  Search,
-  Users,
-  Building2,
-  User,
   LayoutGrid,
   LayoutList,
+  Search,
   RefreshCw,
   X,
 } from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
 
-import { useClients } from "../../application";
-import type { ClientFilters, ClientType, PaymentTerms } from "../../domain";
-import { ClientTable, ClientCard, ClientCardSkeleton } from "../components";
+import { useEmployees } from "../../application/hooks/useEmployees";
+import type { EmployeeStatus, EmploymentType } from "../../domain/entities";
 import {
-  CLIENT_TYPE_OPTIONS,
-  PAYMENT_TERMS_OPTIONS,
-  STATUS_OPTIONS,
-  CLIENT_TYPE_CONFIG,
-  CLIENT_STATUS_CONFIG,
-  PAYMENT_TERMS_CONFIG,
+  EMPLOYEE_STATUS_LABELS,
+  EMPLOYMENT_TYPE_LABELS,
   DEFAULT_PAGE_SIZE,
-} from "../config/clientConfig";
+} from "../config/employeeConfig";
+import {
+  EmployeeTable,
+  EmployeeCard,
+  EmployeeCardSkeleton,
+} from "../components";
 
 // ============================================================================
 // TYPES
@@ -59,7 +55,7 @@ type ViewMode = "table" | "cards";
 // COMPONENT
 // ============================================================================
 
-export function ClientsListPage() {
+export function EmployeesListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -69,43 +65,38 @@ export function ClientsListPage() {
   // Parse URL params
   const page = parseInt(searchParams.get("page") || "1", 10);
   const search = searchParams.get("search") || "";
-  const typeFilter = searchParams.get("type") || "";
-  const paymentTermsFilter = searchParams.get("paymentTerms") || "";
-  const statusFilter = searchParams.get("status") || "";
-  const sortBy = searchParams.get("sortBy") || "legal_name";
-  const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
+  const statusFilter = (searchParams.get("status") || "") as EmployeeStatus | "";
+  const typeFilter = (searchParams.get("type") || "") as EmploymentType | "";
 
-  // Debounce search (solo para el input, la query usa el param de URL)
-  const debouncedSearch = useDebounce(search, 300);
-
-  // Build filters
-  const filters: ClientFilters = {
-    search: debouncedSearch || undefined,
-    type: (typeFilter as ClientType) || undefined,
-    paymentTerms: (paymentTermsFilter as PaymentTerms) || undefined,
-    isActive: statusFilter ? statusFilter === "true" : undefined,
-  };
-
-  // Query
-  const { data, isLoading, isFetching, refetch } = useClients(filters, {
+  const { data, isLoading, isFetching, refetch } = useEmployees({
     page,
     limit: DEFAULT_PAGE_SIZE,
-    sortBy,
-    sortOrder,
+    search: search || undefined,
+    status: statusFilter || undefined,
+    employmentType: typeFilter || undefined,
   });
 
-  const clients = data?.data ?? [];
+  const employees = data?.data ?? [];
   const pagination = data?.pagination;
 
-  // Permisos
-  const canCreate = hasPermission("clients", "create");
+  // Permissions
+  const canCreate = hasPermission("employees", "create");
+  const canEdit = hasPermission("employees", "update");
 
-  // Filtros activos
-  const hasFilters = !!(search || typeFilter || paymentTermsFilter || statusFilter);
+  // Active filters
+  const hasFilters = !!(search || statusFilter || typeFilter);
 
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleView = useCallback(
+    (id: string) => navigate(`/employees/${id}`),
+    [navigate],
+  );
+
+  const handleEdit = useCallback(
+    (id: string) => navigate(`/employees/${id}/edit`),
+    [navigate],
+  );
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -113,32 +104,6 @@ export function ClientsListPage() {
         const params = new URLSearchParams(prev);
         if (value) params.set("search", value);
         else params.delete("search");
-        params.set("page", "1");
-        return params;
-      });
-    },
-    [setSearchParams],
-  );
-
-  const handleTypeChange = useCallback(
-    (value: string) => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (value && value !== "all") params.set("type", value);
-        else params.delete("type");
-        params.set("page", "1");
-        return params;
-      });
-    },
-    [setSearchParams],
-  );
-
-  const handlePaymentTermsChange = useCallback(
-    (value: string) => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (value && value !== "all") params.set("paymentTerms", value);
-        else params.delete("paymentTerms");
         params.set("page", "1");
         return params;
       });
@@ -159,18 +124,12 @@ export function ClientsListPage() {
     [setSearchParams],
   );
 
-  const handleSortChange = useCallback(
-    (field: string) => {
+  const handleTypeChange = useCallback(
+    (value: string) => {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
-        const currentSortBy = params.get("sortBy") || "legal_name";
-        const currentOrder = params.get("sortOrder") || "asc";
-        if (currentSortBy === field) {
-          params.set("sortOrder", currentOrder === "asc" ? "desc" : "asc");
-        } else {
-          params.set("sortBy", field);
-          params.set("sortOrder", "asc");
-        }
+        if (value && value !== "all") params.set("type", value);
+        else params.delete("type");
         params.set("page", "1");
         return params;
       });
@@ -191,41 +150,25 @@ export function ClientsListPage() {
   );
 
   const handleClearFilters = useCallback(() => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      params.delete("search");
-      params.delete("type");
-      params.delete("paymentTerms");
-      params.delete("status");
-      params.set("page", "1");
-      return params;
-    });
+    setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
 
-  const handleRefresh = useCallback(async () => {
-    await refetch();
-    toast({ title: "Lista actualizada", variant: "success" });
-  }, [refetch, toast]);
-
-  // ============================================================================
-  // RENDER
-  // ============================================================================
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Empleados</h1>
           <p className="text-muted-foreground">
-            Gestiona tus clientes y sus direcciones
+            Gestiona el personal de la empresa
           </p>
         </div>
-
         {canCreate && (
-          <Button onClick={() => navigate("/clients/new")}>
+          <Button onClick={() => navigate("/employees/new")}>
             <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
+            Nuevo empleado
           </Button>
         )}
       </div>
@@ -237,62 +180,50 @@ export function ClientsListPage() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, RFC..."
+              placeholder="Buscar por nombre, RFC, CURP..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-8"
             />
           </div>
 
-          {/* Type filter */}
-          <Select value={typeFilter || "all"} onValueChange={handleTypeChange}>
+          {/* Status Filter */}
+          <Select
+            value={statusFilter || "all"}
+            onValueChange={handleStatusChange}
+          >
             <SelectTrigger className="w-44">
-              <div className="flex items-center gap-2">
-                {typeFilter === "company" ? (
-                  <Building2 className="h-4 w-4" />
-                ) : typeFilter === "individual" ? (
-                  <User className="h-4 w-4" />
-                ) : null}
-                <SelectValue placeholder="Tipo de cliente" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              {CLIENT_TYPE_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Payment terms filter */}
-          <Select value={paymentTermsFilter || "all"} onValueChange={handlePaymentTermsChange}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Términos de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {PAYMENT_TERMS_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Status filter */}
-          <Select value={statusFilter || "all"} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
-              {STATUS_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              {(Object.keys(EMPLOYEE_STATUS_LABELS) as EmployeeStatus[]).map(
+                (s) => (
+                  <SelectItem key={s} value={s}>
+                    {EMPLOYEE_STATUS_LABELS[s]}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+
+          {/* Employment Type Filter */}
+          <Select
+            value={typeFilter || "all"}
+            onValueChange={handleTypeChange}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Tipo contrato" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los tipos</SelectItem>
+              {(Object.keys(EMPLOYMENT_TYPE_LABELS) as EmploymentType[]).map(
+                (t) => (
+                  <SelectItem key={t} value={t}>
+                    {EMPLOYMENT_TYPE_LABELS[t]}
+                  </SelectItem>
+                ),
+              )}
             </SelectContent>
           </Select>
 
@@ -307,13 +238,18 @@ export function ClientsListPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={handleRefresh}
+            onClick={async () => {
+              await refetch();
+              toast({ title: "Lista actualizada", variant: "success" });
+            }}
             disabled={isFetching}
           >
-            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+            <RefreshCw
+              className={cn("h-4 w-4", isFetching && "animate-spin")}
+            />
           </Button>
 
-          {/* View mode toggle */}
+          {/* View Toggle */}
           <div className="flex border rounded-md ml-auto">
             <Button
               variant={viewMode === "table" ? "secondary" : "ghost"}
@@ -340,32 +276,33 @@ export function ClientsListPage() {
             <span className="text-muted-foreground">Filtros activos:</span>
             {search && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Búsqueda: &quot;{search}&quot;
-                <button onClick={() => handleSearchChange("")} className="hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {typeFilter && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Tipo: {CLIENT_TYPE_CONFIG[typeFilter as ClientType]?.label || typeFilter}
-                <button onClick={() => handleTypeChange("all")} className="hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {paymentTermsFilter && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Pago: {PAYMENT_TERMS_CONFIG[paymentTermsFilter as PaymentTerms]?.label || paymentTermsFilter}
-                <button onClick={() => handlePaymentTermsChange("all")} className="hover:text-destructive">
+                Búsqueda: &ldquo;{search}&rdquo;
+                <button
+                  onClick={() => handleSearchChange("")}
+                  className="hover:text-destructive"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </span>
             )}
             {statusFilter && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Estado: {CLIENT_STATUS_CONFIG[statusFilter === "true" ? "active" : "inactive"]?.label}
-                <button onClick={() => handleStatusChange("all")} className="hover:text-destructive">
+                Estado: {EMPLOYEE_STATUS_LABELS[statusFilter]}
+                <button
+                  onClick={() => handleStatusChange("all")}
+                  className="hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {typeFilter && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
+                Contrato: {EMPLOYMENT_TYPE_LABELS[typeFilter]}
+                <button
+                  onClick={() => handleTypeChange("all")}
+                  className="hover:text-destructive"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -374,11 +311,11 @@ export function ClientsListPage() {
         )}
       </div>
 
-      {/* Results Summary */}
+      {/* Results summary */}
       {pagination && (
         <div className="text-sm text-muted-foreground">
           {pagination.total === 0 ? (
-            "No se encontraron clientes"
+            "No se encontraron empleados"
           ) : (
             <>
               Mostrando{" "}
@@ -387,7 +324,7 @@ export function ClientsListPage() {
                 {Math.min(page * pagination.limit, pagination.total)}
               </span>{" "}
               de <span className="font-medium">{pagination.total}</span>{" "}
-              clientes
+              empleados
             </>
           )}
         </div>
@@ -395,31 +332,31 @@ export function ClientsListPage() {
 
       {/* Content */}
       {viewMode === "table" ? (
-        <ClientTable
-          clients={clients}
+        <EmployeeTable
+          employees={employees}
           isLoading={isLoading}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSortChange}
+          onView={handleView}
+          onEdit={canEdit ? handleEdit : undefined}
+          onTerminate={undefined}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <ClientCardSkeleton key={i} />
+              <EmployeeCardSkeleton key={i} />
             ))
-          ) : clients.length === 0 ? (
+          ) : employees.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <div className="mx-auto w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Users className="h-10 w-10 text-muted-foreground" />
+                <Search className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium mb-1">
-                No se encontraron clientes
+                No se encontraron empleados
               </h3>
               <p className="text-muted-foreground mb-4">
                 {hasFilters
                   ? "Intenta ajustar los filtros de búsqueda"
-                  : "Comienza agregando tu primer cliente"}
+                  : "Comienza registrando el primer empleado"}
               </p>
               {hasFilters ? (
                 <Button variant="outline" onClick={handleClearFilters}>
@@ -427,19 +364,21 @@ export function ClientsListPage() {
                 </Button>
               ) : (
                 canCreate && (
-                  <Button onClick={() => navigate("/clients/new")}>
+                  <Button onClick={() => navigate("/employees/new")}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Cliente
+                    Nuevo empleado
                   </Button>
                 )
               )}
             </div>
           ) : (
-            clients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onClick={() => navigate(`/clients/${client.id}`)}
+            employees.map((emp) => (
+              <EmployeeCard
+                key={emp.id}
+                employee={emp}
+                onView={handleView}
+                onEdit={canEdit ? handleEdit : undefined}
+                onTerminate={undefined}
               />
             ))
           )}
@@ -454,7 +393,6 @@ export function ClientsListPage() {
           </p>
 
           <div className="flex items-center gap-2">
-            {/* First */}
             <Button
               variant="outline"
               size="sm"
@@ -464,7 +402,6 @@ export function ClientsListPage() {
               Primera
             </Button>
 
-            {/* Previous */}
             <Button
               variant="outline"
               size="sm"
@@ -474,7 +411,6 @@ export function ClientsListPage() {
               Anterior
             </Button>
 
-            {/* Page numbers */}
             <div className="hidden sm:flex items-center gap-1">
               {generatePageNumbers(page, pagination.totalPages).map(
                 (pageNum, idx) =>
@@ -496,7 +432,6 @@ export function ClientsListPage() {
               )}
             </div>
 
-            {/* Next */}
             <Button
               variant="outline"
               size="sm"
@@ -506,7 +441,6 @@ export function ClientsListPage() {
               Siguiente
             </Button>
 
-            {/* Last */}
             <Button
               variant="outline"
               size="sm"
@@ -521,5 +455,3 @@ export function ClientsListPage() {
     </div>
   );
 }
-
-export default ClientsListPage;

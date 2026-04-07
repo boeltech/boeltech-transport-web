@@ -78,7 +78,7 @@ class ClientRepository implements IClientRepository {
         page: number;
         limit: number;
         total: number;
-        totalPages: number;
+        total_pages: number;
       };
     }>(`${BASE_URL}?${params.toString()}`);
 
@@ -126,7 +126,7 @@ class ClientRepository implements IClientRepository {
         page: number;
         limit: number;
         total: number;
-        totalPages: number;
+        total_pages: number;
       };
     }>(`${BASE_URL}?${params.toString()}`);
 

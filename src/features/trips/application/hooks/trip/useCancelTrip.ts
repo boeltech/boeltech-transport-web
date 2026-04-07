@@ -24,10 +24,11 @@ export function useCancelTrip(
       }
       return result.data;
     },
-    onSuccess: (trip) => {
-      queryClient.setQueryData(tripQueryKeys.detail(trip.id), trip);
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-    },
     ...options,
+    onSuccess: (trip, variables, onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      options?.onSuccess?.(trip, variables, onMutateResult, context);
+    },
   });
 }

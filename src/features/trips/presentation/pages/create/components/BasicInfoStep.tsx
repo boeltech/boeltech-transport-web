@@ -37,7 +37,6 @@ import {
   SelectSeparator,
 } from "@shared/ui/select";
 import { Input } from "@shared/ui/input";
-import { Badge } from "@shared/ui/badge";
 import { Separator } from "@shared/ui/separator";
 import { Checkbox } from "@shared/ui/checkbox";
 import {
@@ -47,26 +46,17 @@ import {
   Calendar,
   Loader2,
   AlertTriangle,
-  FileText,
-  Shield,
-  IdCard,
   Globe,
 } from "lucide-react";
-
-// Catálogos SAT
-import {
-  TipoPermisoSelect,
-  ConfigAutotransporteSelect,
-  TipoFiguraSelect,
-} from "@features/catalogs";
-
-// Hook para obtener detalle del vehículo
-import { useVehicle } from "@features/vehicles/application";
+import { Badge } from "@shared/ui/badge";
 
 import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers/domain";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import { isExpiringSoon } from "@shared/utils/dateUtils";
+
+// Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
+import { useVehicle } from "@features/vehicles/application";
 
 // ============================================================================
 // TYPES
@@ -173,18 +163,13 @@ export function BasicInfoStep({
 }: BasicInfoStepProps) {
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
-  const isInternational = form.watch("transpInternac");
 
   // ══════════════════════════════════════════════════════════════════════════
-  // VEHICLE DETAIL QUERY
-  // React Query con enabled: se activa solo cuando hay vehículo seleccionado
+  // VEHICLE DETAIL QUERY — para mostrar indicador de datos Carta Porte
   // ══════════════════════════════════════════════════════════════════════════
-  const { data: vehicle, isLoading: isLoadingVehicleDetail } = useVehicle(
-    selectedVehicleId ?? "",
-    {
-      enabled: !!selectedVehicleId,
-    },
-  );
+  const { data: vehicle } = useVehicle(selectedVehicleId ?? "", {
+    enabled: !!selectedVehicleId,
+  });
 
   const vehicleDetail = vehicle?.data;
 
@@ -213,121 +198,14 @@ export function BasicInfoStep({
   );
 
   // ══════════════════════════════════════════════════════════════════════════
-  // EFFECT: Sincronizar datos del vehículo al formulario
-  // Se ejecuta cuando vehicleDetail cambia (React Query ya tiene los datos)
+  // EFFECT: Precargar kilometraje cuando se selecciona un vehículo
   // ══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (vehicleDetail) {
-      // Datos básicos del vehículo
       form.setValue("vehicleCurrentMileage", vehicleDetail.currentMileage);
       form.setValue("startMileage", vehicleDetail.currentMileage);
-
-      // ── Autotransporte: Identificación Vehicular ──────────────────────────
-      form.setValue("autotransporte.placaVm", vehicleDetail.licensePlate);
-      form.setValue("autotransporte.anioModelo", vehicleDetail.year);
-
-      // ── Autotransporte: Permiso SCT ───────────────────────────────────────
-      if (vehicleDetail.documentation.sctPermitNumber) {
-        form.setValue(
-          "autotransporte.numPermisoSct",
-          vehicleDetail.documentation.sctPermitNumber,
-        );
-      }
-
-      // ── Autotransporte: Seguro ────────────────────────────────────────────
-      // Si el vehículo tiene póliza de seguro, precargar en responsabilidad civil
-      if (vehicleDetail.documentation.insurancePolicy) {
-        form.setValue(
-          "autotransporte.polizaRespCivil",
-          vehicleDetail.documentation.insurancePolicy,
-        );
-      }
-
-      // NOTA: Los siguientes campos requieren que la tabla vehicles
-      // tenga columnas adicionales para Carta Porte. Si no existen,
-      // los valores serán undefined y no se precargarán:
-      //
-      // - satConfigCode → autotransporte.configVehicular
-      // - tipoPermisoSct → autotransporte.tipoPermisoSct
-      // - aseguraRespCivil → autotransporte.aseguraRespCivil
-      // - aseguraCarga → autotransporte.aseguraCarga
-      // - polizaCarga → autotransporte.polizaCarga
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const vehicleData = vehicleDetail as any;
-
-      // Configuración vehicular SAT (si existe en el vehículo)
-      if (vehicleData.cartaPorte.satConfigAutotransporteCode) {
-        form.setValue(
-          "autotransporte.configVehicular",
-          vehicleData.cartaPorte.satConfigAutotransporteCode,
-        );
-      }
-
-      // Tipo de permiso SCT (si existe en el vehículo)
-      if (vehicleData.cartaPorte.satTipoPermisoCode) {
-        form.setValue(
-          "autotransporte.tipoPermisoSct",
-          vehicleData.cartaPorte.satTipoPermisoCode,
-        );
-      }
-
-      // Aseguradora de responsabilidad civil (si existe)
-      if (vehicleData.cartaPorte.insuranceCompany) {
-        form.setValue(
-          "autotransporte.aseguraRespCivil",
-          vehicleData.cartaPorte.insuranceCompany,
-        );
-      }
-
-      // Seguro de carga (si existe)
-      if (vehicleData.aseguraCarga) {
-        form.setValue("autotransporte.aseguraCarga", vehicleData.aseguraCarga);
-      }
-      if (vehicleData.polizaCarga) {
-        form.setValue("autotransporte.polizaCarga", vehicleData.polizaCarga);
-      }
     }
   }, [vehicleDetail, form]);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // EFFECT: Sincronizar datos del conductor al formulario
-  // ══════════════════════════════════════════════════════════════════════════
-  useEffect(() => {
-    if (selectedDriverId && drivers.length > 0) {
-      const driver = drivers.find((d) => d.id === selectedDriverId);
-      if (driver) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const driverData = driver as any;
-
-        // Tipo de figura por defecto: 01 (Operador)
-        if (!form.getValues("figuraTransporte.tipoFigura")) {
-          form.setValue("figuraTransporte.tipoFigura", "01");
-        }
-
-        // Nombre del operador
-        form.setValue(
-          "figuraTransporte.nombreFigura",
-          getDriverDisplayName(driver),
-        );
-
-        // RFC del empleado
-        if (driverData.employee?.rfc) {
-          form.setValue("figuraTransporte.rfcFigura", driverData.employee.rfc);
-        }
-
-        // CURP del empleado
-        if (driverData.employee?.curp) {
-          form.setValue("figuraTransporte.curp", driverData.employee.curp);
-        }
-
-        // Número de licencia
-        if (driver.licenseNumber) {
-          form.setValue("figuraTransporte.numLicencia", driver.licenseNumber);
-        }
-      }
-    }
-  }, [selectedDriverId, drivers, form]);
 
   // ============================================================================
   // RENDER
@@ -569,20 +447,6 @@ export function BasicInfoStep({
 
             <FormField
               control={form.control}
-              name="scheduledArrival"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Llegada Estimada</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="startMileage"
               render={({ field }) => {
                 const vehicleCurrentMileage = form.watch(
@@ -647,510 +511,59 @@ export function BasicInfoStep({
       </Card>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* AUTOTRANSPORTE FEDERAL — CARTA PORTE 3.1                            */}
+      {/* INDICADOR CARTA PORTE — datos derivados del vehículo/conductor      */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" /> Autotransporte Federal
-            <Badge variant="outline" className="ml-2 text-xs">
-              Carta Porte 3.1
-            </Badge>
-            {isLoadingVehicleDetail && (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Indicador de precarga */}
-          {selectedVehicleId && isLoadingVehicleDetail && (
-            <div className="rounded-lg bg-muted/50 p-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Cargando datos del vehículo...
-            </div>
-          )}
-
-          {/* Info del vehículo seleccionado */}
-          {vehicleDetail && !isLoadingVehicleDetail && (
-            <div className="rounded-lg bg-muted/50 p-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                Datos precargados del vehículo seleccionado:
-              </p>
-              <div className="grid gap-2 sm:grid-cols-4 text-sm">
-                <div>
-                  <span className="font-medium">Unidad:</span>{" "}
-                  {vehicleDetail.unitNumber}
-                </div>
-                <div>
-                  <span className="font-medium">Placa:</span>{" "}
-                  {vehicleDetail.licensePlate}
-                </div>
-                <div>
-                  <span className="font-medium">Año:</span> {vehicleDetail.year}
-                </div>
-                <div>
-                  <span className="font-medium">Marca/Modelo:</span>{" "}
-                  {vehicleDetail.brand} {vehicleDetail.model}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Permiso SCT */}
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Permiso SCT
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="autotransporte.tipoPermisoSct"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Permiso *</FormLabel>
-                    <FormControl>
-                      <TipoPermisoSelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Seleccionar tipo de permiso"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Catálogo SAT c_TipoPermiso
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="autotransporte.numPermisoSct"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número de Permiso *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ej: TPAF01-2024-12345"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {vehicleDetail?.documentation?.sctPermitNumber
-                        ? "Precargado del vehículo"
-                        : "Número otorgado por SCT"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Identificación Vehicular */}
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-              <Truck className="h-4 w-4" /> Identificación Vehicular
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="autotransporte.configVehicular"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Configuración Vehicular *</FormLabel>
-                    <FormControl>
-                      <ConfigAutotransporteSelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Seleccionar configuración"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Catálogo SAT c_ConfigAutotransporte
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="autotransporte.placaVm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Placa del Vehículo *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="ABC-123-A"
-                        {...field}
-                        value={field.value ?? ""}
-                        disabled={!!vehicleDetail}
-                        className={vehicleDetail ? "bg-muted" : ""}
-                      />
-                    </FormControl>
-                    {vehicleDetail && (
-                      <FormDescription>
-                        Tomado del vehículo seleccionado
-                      </FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="autotransporte.anioModelo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Año Modelo *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="2024"
-                        min={1990}
-                        max={new Date().getFullYear() + 1}
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                        disabled={!!vehicleDetail}
-                        className={vehicleDetail ? "bg-muted" : ""}
-                      />
-                    </FormControl>
-                    {vehicleDetail && (
-                      <FormDescription>
-                        Tomado del vehículo seleccionado
-                      </FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Seguros */}
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Seguros (Obligatorios para Carta
-              Porte)
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="autotransporte.aseguraRespCivil"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Aseguradora Resp. Civil *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Nombre de la aseguradora"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="autotransporte.polizaRespCivil"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Póliza Resp. Civil *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Número de póliza"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    {vehicleDetail?.documentation?.insurancePolicy && (
-                      <FormDescription>Precargado del vehículo</FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 mt-4">
-              <FormField
-                control={form.control}
-                name="autotransporte.aseguraCarga"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Aseguradora de Carga</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Opcional - seguro de mercancías"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Requerido si el valor de la carga &gt; $0
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="autotransporte.polizaCarga"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Póliza de Carga</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Número de póliza de carga"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* FIGURA DE TRANSPORTE (OPERADOR) — CARTA PORTE 3.1                   */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <IdCard className="h-5 w-5" /> Figura de Transporte
-            <Badge variant="outline" className="ml-2 text-xs">
-              Operador
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Info del conductor seleccionado */}
-          {selectedDriver && (
-            <div className="rounded-lg bg-muted/50 p-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                Datos obtenidos del conductor seleccionado:
-              </p>
-              <div className="grid gap-2 sm:grid-cols-3 text-sm">
-                <div>
-                  <span className="font-medium">Nombre:</span>{" "}
-                  {getDriverDisplayName(selectedDriver)}
-                </div>
-                <div>
-                  <span className="font-medium">Licencia:</span>{" "}
-                  {selectedDriver.licenseNumber}
-                </div>
-                <div>
-                  <span className="font-medium">Tipo:</span>{" "}
-                  {selectedDriver.licenseType}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!selectedDriver && (
-            <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
-              <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">
-                Seleccione un conductor para ver los datos de la Figura de
-                Transporte
-              </p>
-            </div>
-          )}
-
-          {selectedDriver && (
-            <>
-              {/* Tipo de Figura y Licencia */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="figuraTransporte.tipoFigura"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tipo de Figura *</FormLabel>
-                      <FormControl>
-                        <TipoFiguraSelect
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Seleccionar tipo"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Catálogo SAT c_TipoFigura (01 = Operador)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+      {(vehicleDetail || selectedDriver) && (
+        <Card className="border-blue-500/30">
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Truck className="h-3.5 w-3.5" />
+              Los datos de <strong>Autotransporte</strong> y{" "}
+              <strong>Figura de Transporte</strong> para la Carta Porte 3.1 se
+              derivarán automáticamente del vehículo y conductor seleccionados
+              al generar el XML del CFDI.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+              {vehicleDetail && (
+                <div className="space-y-1">
+                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
+                    Vehículo
+                  </p>
+                  <p>
+                    {vehicleDetail.brand} {vehicleDetail.model}{" "}
+                    {vehicleDetail.year} — {vehicleDetail.licensePlate}
+                  </p>
+                  {vehicleDetail.cartaPorte.satTipoPermisoCode && (
+                    <p className="text-muted-foreground">
+                      Permiso: {vehicleDetail.cartaPorte.satTipoPermisoCode} ·{" "}
+                      {vehicleDetail.cartaPorte.satConfigAutotransporteCode}
+                    </p>
                   )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="figuraTransporte.numLicencia"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Número de Licencia *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={
-                            field.value ?? selectedDriver?.licenseNumber ?? ""
-                          }
-                          disabled={!!selectedDriver?.licenseNumber}
-                          className={
-                            selectedDriver?.licenseNumber ? "bg-muted" : ""
-                          }
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Tomado del conductor seleccionado
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  {vehicleDetail.cartaPorte.insuranceCompany && (
+                    <p className="text-muted-foreground">
+                      Seguro RC: {vehicleDetail.cartaPorte.insuranceCompany}
+                    </p>
                   )}
-                />
-              </div>
-
-              {/* Datos Fiscales */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <FormField
-                  control={form.control}
-                  name="figuraTransporte.rfcFigura"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>RFC *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="XXXX000000XXX"
-                          {...field}
-                          value={field.value ?? ""}
-                          className="uppercase"
-                          maxLength={13}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="figuraTransporte.curp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CURP</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="18 caracteres"
-                          {...field}
-                          value={field.value ?? ""}
-                          className="uppercase"
-                          maxLength={18}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="figuraTransporte.nombreFigura"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre Completo *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ""}
-                          disabled={!!selectedDriver}
-                          className={selectedDriver ? "bg-muted" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Datos Internacionales (solo si transpInternac = true) */}
-              {isInternational && (
-                <>
-                  <Separator />
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                      <Globe className="h-4 w-4" /> Datos para Transporte
-                      Internacional
-                    </h4>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="figuraTransporte.residenciaFiscalFigura"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>País de Residencia Fiscal</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Ej: MEX, USA"
-                                {...field}
-                                value={field.value ?? ""}
-                                className="uppercase"
-                                maxLength={3}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Código ISO 3166-1 alpha-3
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="figuraTransporte.numRegIdTribFigura"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>ID Tributario Extranjero</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Tax ID del país de residencia"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Solo si el operador es extranjero
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+              {selectedDriver && (
+                <div className="space-y-1">
+                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
+                    Conductor
+                  </p>
+                  <p>{getDriverDisplayName(selectedDriver)}</p>
+                  {selectedDriver.licenseNumber && (
+                    <p className="text-muted-foreground">
+                      Licencia: {selectedDriver.licenseNumber} (
+                      {selectedDriver.licenseType})
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
   Wrench,
   Fuel,
   Building2,
+  UsersRound,
 } from "lucide-react";
 import type { NavGroup } from "./types";
 
@@ -124,6 +125,23 @@ export const navigationConfig: NavGroup[] = [
         path: "/clients",
         icon: Building2,
         module: "clients",
+      },
+    ],
+  },
+
+  // ============================================
+  // RECURSOS HUMANOS
+  // ============================================
+  {
+    id: "hr",
+    title: "Recursos Humanos",
+    items: [
+      {
+        id: "employees",
+        label: "Empleados",
+        path: "/employees",
+        icon: UsersRound,
+        module: "employees",
       },
     ],
   },

@@ -67,6 +67,21 @@ const billingSettingsSchema = z.object({
     .max(5, "Máximo 5 caracteres"),
   folioInicial: z.number().min(1, "El folio inicial debe ser mayor a 0"),
   testMode: z.boolean(),
+  // Claves SAT por defecto
+  claveProductoServicio: z
+    .string()
+    .min(1, "La clave de producto/servicio es requerida"),
+  claveUnidad: z.string().min(1, "La clave de unidad es requerida"),
+  moneda: z.string().min(1, "La moneda es requerida"),
+  tasaIva: z.number().min(0).max(1),
+  // Foliación Carta Porte
+  serieCartaPorte: z
+    .string()
+    .min(1, "La serie es requerida")
+    .max(5, "Máximo 5 caracteres"),
+  folioInicialCartaPorte: z
+    .number()
+    .min(1, "El folio inicial debe ser mayor a 0"),
 });
 
 type BillingSettingsFormData = z.infer<typeof billingSettingsSchema>;
@@ -100,6 +115,34 @@ const METODO_PAGO_OPTIONS = [
   { code: "PPD", name: "Pago en parcialidades o diferido" },
 ];
 
+// Claves de producto/servicio SAT más comunes para transporte
+const CLAVE_PRODUCTO_OPTIONS = [
+  { code: "78101800", name: "Transporte de carga por carretera" },
+  { code: "78101801", name: "Transporte de carga a granel por carretera" },
+  { code: "78101802", name: "Transporte de materiales peligrosos" },
+  { code: "78101803", name: "Transporte de carga refrigerada" },
+  { code: "78121600", name: "Servicios de mensajería y paquetería" },
+];
+
+const CLAVE_UNIDAD_OPTIONS = [
+  { code: "E48", name: "E48 – Unidad de servicio" },
+  { code: "KGM", name: "KGM – Kilogramo" },
+  { code: "TNE", name: "TNE – Tonelada métrica" },
+  { code: "LTR", name: "LTR – Litro" },
+  { code: "MTQ", name: "MTQ – Metro cúbico" },
+];
+
+const MONEDA_OPTIONS = [
+  { code: "MXN", name: "MXN – Peso mexicano" },
+  { code: "USD", name: "USD – Dólar americano" },
+];
+
+const TASA_IVA_OPTIONS = [
+  { value: 0.16, label: "16% (general)" },
+  { value: 0.08, label: "8% (zona fronteriza)" },
+  { value: 0, label: "0% (tasa 0 / exento)" },
+];
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -125,6 +168,12 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         serieFactura: data.serieFactura,
         folioInicial: data.folioInicial,
         testMode: data.testMode,
+        claveProductoServicio: data.claveProductoServicio,
+        claveUnidad: data.claveUnidad,
+        moneda: data.moneda,
+        tasaIva: data.tasaIva,
+        serieCartaPorte: data.serieCartaPorte,
+        folioInicialCartaPorte: data.folioInicialCartaPorte,
       };
 
       // Solo incluir password si se modificó
@@ -431,6 +480,209 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           </div>
         </SettingsCard>
 
+        {/* Claves SAT por defecto */}
+        <SettingsCard
+          title="Claves SAT por defecto"
+          description="Se aplicarán automáticamente en cada concepto del CFDI de ingreso"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Clave producto/servicio */}
+            <div>
+              <Label htmlFor="claveProductoServicio">
+                Clave producto/servicio{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={form.watch("claveProductoServicio") ?? ""}
+                onValueChange={(v) =>
+                  form.setValue("claveProductoServicio", v, {
+                    shouldDirty: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar clave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLAVE_PRODUCTO_OPTIONS.map((o) => (
+                    <SelectItem key={o.code} value={o.code}>
+                      {o.code} – {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Para transporte de carga por carretera usa{" "}
+                <code className="font-mono">78101800</code>
+              </p>
+              {form.formState.errors.claveProductoServicio && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.claveProductoServicio.message}
+                </p>
+              )}
+            </div>
+
+            {/* Clave unidad */}
+            <div>
+              <Label htmlFor="claveUnidad">
+                Clave de unidad <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={form.watch("claveUnidad") ?? ""}
+                onValueChange={(v) =>
+                  form.setValue("claveUnidad", v, { shouldDirty: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar unidad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLAVE_UNIDAD_OPTIONS.map((o) => (
+                    <SelectItem key={o.code} value={o.code}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Para servicios de transporte usa{" "}
+                <code className="font-mono">E48</code>
+              </p>
+              {form.formState.errors.claveUnidad && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.claveUnidad.message}
+                </p>
+              )}
+            </div>
+
+            {/* Moneda */}
+            <div>
+              <Label htmlFor="moneda">
+                Moneda <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={form.watch("moneda") ?? ""}
+                onValueChange={(v) =>
+                  form.setValue("moneda", v, { shouldDirty: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar moneda" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONEDA_OPTIONS.map((o) => (
+                    <SelectItem key={o.code} value={o.code}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.moneda && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.moneda.message}
+                </p>
+              )}
+            </div>
+
+            {/* Tasa IVA */}
+            <div>
+              <Label htmlFor="tasaIva">
+                Tasa de IVA <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={String(form.watch("tasaIva") ?? "")}
+                onValueChange={(v) =>
+                  form.setValue("tasaIva", parseFloat(v), {
+                    shouldDirty: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tasa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASA_IVA_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.tasaIva && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.tasaIva.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </SettingsCard>
+
+        {/* Foliación Carta Porte 3.1 */}
+        <SettingsCard
+          title="Carta Porte 3.1 — Foliación"
+          description="Serie y numeración exclusiva para CFDI de ingreso con Complemento Carta Porte"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Serie Carta Porte */}
+            <div>
+              <Label htmlFor="serieCartaPorte">
+                Serie <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="serieCartaPorte"
+                {...form.register("serieCartaPorte")}
+                placeholder="CP"
+                maxLength={5}
+                className="uppercase"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Usa una serie diferente a la de tus facturas normales (ej:{" "}
+                <code className="font-mono">CP</code>)
+              </p>
+              {form.formState.errors.serieCartaPorte && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.serieCartaPorte.message}
+                </p>
+              )}
+            </div>
+
+            {/* Folio Inicial Carta Porte */}
+            <div>
+              <Label htmlFor="folioInicialCartaPorte">
+                Folio inicial <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="folioInicialCartaPorte"
+                type="number"
+                min={1}
+                {...form.register("folioInicialCartaPorte", {
+                  valueAsNumber: true,
+                })}
+                placeholder="1"
+              />
+              {form.formState.errors.folioInicialCartaPorte && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.folioInicialCartaPorte.message}
+                </p>
+              )}
+            </div>
+
+            {/* Folio Actual Carta Porte (solo lectura) */}
+            {settings && (
+              <div className="sm:col-span-2 p-4 rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  Último folio emitido:{" "}
+                  <span className="font-medium text-foreground">
+                    {settings.serieCartaPorte
+                      ? `${settings.serieCartaPorte}-${settings.folioActualCartaPorte}`
+                      : "Sin folio emitido aún"}
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+        </SettingsCard>
+
         {/* Actions */}
         <div className="flex justify-end gap-4">
           <Button
@@ -691,5 +943,11 @@ function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
     serieFactura: settings.serieFactura,
     folioInicial: settings.folioInicial,
     testMode: settings.testMode,
+    claveProductoServicio: settings.claveProductoServicio,
+    claveUnidad: settings.claveUnidad,
+    moneda: settings.moneda,
+    tasaIva: settings.tasaIva,
+    serieCartaPorte: settings.serieCartaPorte,
+    folioInicialCartaPorte: settings.folioInicialCartaPorte,
   };
 }

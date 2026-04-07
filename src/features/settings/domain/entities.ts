@@ -27,6 +27,8 @@ export interface CompanySettings {
   readonly website: string | null;
   readonly logoUrl: string | null;
   readonly address: CompanyAddress;
+  /** Código postal del lugar de expedición (atributo LugarExpedicion del CFDI 4.0) */
+  readonly lugarExpedicion: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -66,6 +68,20 @@ export interface BillingSettings {
   readonly folioInicial: number;
   readonly folioActual: number;
   readonly testMode: boolean;
+  // ── Claves SAT por defecto para conceptos del CFDI ────────────────────────
+  /** Clave del producto/servicio SAT (ej. 78101800 = Transporte de carga) */
+  readonly claveProductoServicio: string;
+  /** Clave de unidad SAT (ej. E48 = Unidad de servicio) */
+  readonly claveUnidad: string;
+  /** Moneda por defecto (ej. MXN) */
+  readonly moneda: string;
+  /** Tasa de IVA por defecto (0.16 = 16%, 0 = tasa 0%) */
+  readonly tasaIva: number;
+  // ── Foliación independiente para Complemento Carta Porte ──────────────────
+  /** Serie para documentos con Complemento Carta Porte 3.1 */
+  readonly serieCartaPorte: string;
+  readonly folioInicialCartaPorte: number;
+  readonly folioActualCartaPorte: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

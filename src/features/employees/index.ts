@@ -1,25 +1,40 @@
-/**
- * Employees Module - Public API
- *
- * Módulo mínimo viable para soportar la selección de empleados
- * en el módulo de conductores.
- *
- * TODO: Expandir cuando se implemente el módulo completo de RH.
- */
-
 // Domain
 export type {
+  Employee,
+  EmployeeListItem,
   EmployeeForSelection,
   ApiEmployeeForDriverSelection,
+  EmployeeFilters,
   EmployeeSearchParams,
+  EmployeeStatus,
+  EmploymentType,
+  Gender,
+  MaritalStatus,
+  PaymentMethod,
+  SalaryType,
+  CreateEmployeeDTO,
+  UpdateEmployeeDTO,
+  TerminateEmployeeDTO,
 } from "./domain/entities";
 
 // Application (Hooks)
 export {
+  useEmployees,
+  useEmployee,
+  useCreateEmployee,
+  useUpdateEmployee,
+  useTerminateEmployee,
   useAvailableEmployeesForDriver,
   useEmployeeBasic,
   employeeQueryKeys,
-} from "./application/useAvailableEmployeesForDriver";
+} from "./application/hooks/useEmployees";
 
 // Infrastructure
 export { employeeRepository } from "./infrastructure/employeeRepository";
+
+// Presentation
+export {
+  EmployeesListPage,
+  EmployeeDetailPage,
+  EmployeeFormPage,
+} from "./presentation";

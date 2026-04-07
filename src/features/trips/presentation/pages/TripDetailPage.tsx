@@ -52,6 +52,7 @@ import {
 import {
   useTrip,
   useMarkStopVisited,
+  useUpdateCargo,
   // Nuevos hooks para cargas y gastos
   useTripCargos,
   useTripExpenses,
@@ -73,6 +74,7 @@ import {
   type ExpenseStatusType,
   type CargoStatusType,
   TripStatus,
+  CargoStatus,
   TRIP_STATUS_LABELS,
   STOP_TYPE_LABELS,
   EXPENSE_CATEGORY_LABELS,
@@ -315,6 +317,15 @@ export function TripDetailPage() {
       toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const deliverCargoMutation = useUpdateCargo(tripId, {
+    onSuccess: () => {
+      toast({ title: "Carga marcada como entregada", variant: "success" });
+      refetchCargos();
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE
   // ══════════════════════════════════════════════════════════════════════════
@@ -347,9 +358,22 @@ export function TripDetailPage() {
   const duration = calculateTripDuration(trip);
   const progress = calculateStopsProgress(stops);
 
+  // Stops de referencia para el resumen
+  const originStop = orderedStops.find((s) =>
+    (Array.isArray(s.stopType) ? s.stopType : [s.stopType]).includes("origin"),
+  );
+  const destinationStop = orderedStops.find((s) =>
+    (Array.isArray(s.stopType) ? s.stopType : [s.stopType]).includes(
+      "destination",
+    ),
+  );
+
   // Totales de cargas
   const cargoCount = cargos.length;
-  const totalRevenue = cargos.reduce((sum, c) => sum + (c.rate || 0), 0);
+  const totalDeclaredValue = cargos.reduce(
+    (sum, c) => sum + (c.declaredValue || 0),
+    0,
+  );
   const totalCargoWeight = cargos.reduce((sum, c) => sum + (c.weight || 0), 0);
 
   // Totales de gastos (del summary o calculado)
@@ -557,90 +581,142 @@ export function TripDetailPage() {
 
           {/* ── Origen y Destino ─────────────────────────────────────────── */}
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Origen */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-green-600" /> Origen
+                  <Navigation className="h-4 w-4 text-green-600" /> Origen
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="font-medium">{trip.originAddress}</p>
-                <p className="text-sm text-muted-foreground">
-                  {trip.originCity}
-                  {trip.originState && `, ${trip.originState}`}
-                </p>
+              <CardContent className="space-y-1">
+                {originStop ? (
+                  <>
+                    {originStop.locationName && (
+                      <p className="font-medium">{originStop.locationName}</p>
+                    )}
+                    {originStop.street && (
+                      <p className="text-sm">
+                        {originStop.street}
+                        {originStop.exteriorNumber &&
+                          ` #${originStop.exteriorNumber}`}
+                        {originStop.interiorNumber &&
+                          `, Int. ${originStop.interiorNumber}`}
+                      </p>
+                    )}
+                    {originStop.colonia && (
+                      <p className="text-sm text-muted-foreground">
+                        {originStop.colonia}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {originStop.city}
+                      {originStop.state && `, ${originStop.state}`}
+                      {originStop.postalCode && ` C.P. ${originStop.postalCode}`}
+                    </p>
+                    {originStop.rfcRemitenteDestinatario && (
+                      <p className="text-xs text-muted-foreground">
+                        RFC: {originStop.rfcRemitenteDestinatario}
+                        {originStop.nombreRemitenteDestinatario &&
+                          ` — ${originStop.nombreRemitenteDestinatario}`}
+                      </p>
+                    )}
+                    {originStop.estimatedDeparture && (
+                      <p className="text-xs text-muted-foreground">
+                        Salida est.:{" "}
+                        {formatDateTime(
+                          originStop.estimatedDeparture.toISOString(),
+                        )}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">{trip.originAddress}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {trip.originCity}
+                      {trip.originState && `, ${trip.originState}`}
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
+            {/* Destino */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-red-600" /> Destino
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="font-medium">{trip.destinationAddress}</p>
-                <p className="text-sm text-muted-foreground">
-                  {trip.destinationCity}
-                  {trip.destinationState && `, ${trip.destinationState}`}
-                </p>
+              <CardContent className="space-y-1">
+                {destinationStop ? (
+                  <>
+                    {destinationStop.locationName && (
+                      <p className="font-medium">
+                        {destinationStop.locationName}
+                      </p>
+                    )}
+                    {destinationStop.street && (
+                      <p className="text-sm">
+                        {destinationStop.street}
+                        {destinationStop.exteriorNumber &&
+                          ` #${destinationStop.exteriorNumber}`}
+                        {destinationStop.interiorNumber &&
+                          `, Int. ${destinationStop.interiorNumber}`}
+                      </p>
+                    )}
+                    {destinationStop.colonia && (
+                      <p className="text-sm text-muted-foreground">
+                        {destinationStop.colonia}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {destinationStop.city}
+                      {destinationStop.state && `, ${destinationStop.state}`}
+                      {destinationStop.postalCode &&
+                        ` C.P. ${destinationStop.postalCode}`}
+                    </p>
+                    {destinationStop.rfcRemitenteDestinatario && (
+                      <p className="text-xs text-muted-foreground">
+                        RFC: {destinationStop.rfcRemitenteDestinatario}
+                        {destinationStop.nombreRemitenteDestinatario &&
+                          ` — ${destinationStop.nombreRemitenteDestinatario}`}
+                      </p>
+                    )}
+                    {destinationStop.estimatedArrival && (
+                      <p className="text-xs text-muted-foreground">
+                        Llegada est.:{" "}
+                        {formatDateTime(
+                          destinationStop.estimatedArrival.toISOString(),
+                        )}
+                      </p>
+                    )}
+                    {destinationStop.distanceFromPreviousKm != null && (
+                      <p className="text-xs text-muted-foreground">
+                        Distancia total:{" "}
+                        {destinationStop.distanceFromPreviousKm.toLocaleString(
+                          "es-MX",
+                        )}{" "}
+                        km
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">{trip.destinationAddress}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {trip.destinationCity}
+                      {trip.destinationState && `, ${trip.destinationState}`}
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* ── Resumen de Carga (legacy fields) ────────────────────────── */}
-          {(trip.cargo.description ||
-            trip.cargo.weight ||
-            trip.cargo.volume) && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Información General de Carga
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {trip.cargo.description && (
-                  <p className="mb-2">{trip.cargo.description}</p>
-                )}
-                <div className="flex flex-wrap gap-4 text-sm">
-                  {trip.cargo.weight && (
-                    <span className="text-muted-foreground">
-                      Peso:{" "}
-                      <span className="font-medium">
-                        {trip.cargo.weight} kg
-                      </span>
-                    </span>
-                  )}
-                  {trip.cargo.volume && (
-                    <span className="text-muted-foreground">
-                      Volumen:{" "}
-                      <span className="font-medium">
-                        {trip.cargo.volume} m³
-                      </span>
-                    </span>
-                  )}
-                  {trip.cargo.units && (
-                    <span className="text-muted-foreground">
-                      Unidades:{" "}
-                      <span className="font-medium">{trip.cargo.units}</span>
-                    </span>
-                  )}
-                  {trip.cargo.value && (
-                    <span className="text-muted-foreground">
-                      Valor:{" "}
-                      <span className="font-medium">
-                        {formatCurrency(trip.cargo.value)}
-                      </span>
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* ── Resumen rápido de Cargas y Gastos ───────────────────────── */}
-          {(cargoCount > 0 || expenseCount > 0) && (
-            <div className="grid gap-4 md:grid-cols-2">
+          {/* ── Resumen rápido de Cargas y Costos ───────────────────────── */}
+          {(cargoCount > 0 || expenseCount > 0 || trip.costs.baseRate > 0) && (
+            <div className="grid gap-4 md:grid-cols-3">
               {cargoCount > 0 && (
                 <Card>
                   <CardContent className="pt-4">
@@ -651,15 +727,35 @@ export function TripDetailPage() {
                         </p>
                         <p className="text-2xl font-bold">{cargoCount}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
-                          Ingreso total
-                        </p>
-                        <p className="text-xl font-semibold text-emerald-600">
-                          {formatCurrency(totalRevenue)}
-                        </p>
-                      </div>
+                      {totalCargoWeight > 0 && (
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">
+                            Peso total
+                          </p>
+                          <p className="text-base font-semibold">
+                            {totalCargoWeight.toLocaleString("es-MX")} kg
+                          </p>
+                        </div>
+                      )}
                     </div>
+                    {totalDeclaredValue > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Valor declarado:{" "}
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(totalDeclaredValue)}
+                        </span>
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              {trip.costs.baseRate > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground">Tarifa Base</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {formatCurrency(trip.costs.baseRate)}
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -794,19 +890,43 @@ export function TripDetailPage() {
                                 )}
                               </div>
 
-                              {/* Address */}
-                              <p className="text-sm">{stop.address}</p>
+                              {/* Location name */}
+                              {stop.locationName && (
+                                <p className="text-sm font-medium">
+                                  {stop.locationName}
+                                </p>
+                              )}
+
+                              {/* Address — desglosada si hay campos SAT, legacy si no */}
+                              {stop.street ? (
+                                <p className="text-sm">
+                                  {stop.street}
+                                  {stop.exteriorNumber &&
+                                    ` #${stop.exteriorNumber}`}
+                                  {stop.interiorNumber &&
+                                    `, Int. ${stop.interiorNumber}`}
+                                </p>
+                              ) : (
+                                <p className="text-sm">{stop.address}</p>
+                              )}
+                              {stop.colonia && (
+                                <p className="text-sm text-muted-foreground">
+                                  {stop.colonia}
+                                </p>
+                              )}
                               <p className="text-sm text-muted-foreground">
                                 {stop.city}
                                 {stop.state && `, ${stop.state}`}
-                                {stop.postalCode && ` ${stop.postalCode}`}
+                                {stop.postalCode && ` C.P. ${stop.postalCode}`}
                               </p>
 
-                              {/* Location name */}
-                              {stop.locationName && (
-                                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />{" "}
-                                  {stop.locationName}
+                              {/* RFC / Nombre remitente-destinatario */}
+                              {stop.rfcRemitenteDestinatario && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <FileText className="h-3 w-3" />
+                                  {stop.rfcRemitenteDestinatario}
+                                  {stop.nombreRemitenteDestinatario &&
+                                    ` — ${stop.nombreRemitenteDestinatario}`}
                                 </p>
                               )}
 
@@ -829,6 +949,17 @@ export function TripDetailPage() {
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Package className="h-3 w-3" />{" "}
                                   {stop.cargoActionDescription}
+                                </p>
+                              )}
+
+                              {/* Distancia desde parada anterior (CP 3.1) */}
+                              {stop.distanceFromPreviousKm != null && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Navigation className="h-3 w-3" />
+                                  {stop.distanceFromPreviousKm.toLocaleString(
+                                    "es-MX",
+                                  )}{" "}
+                                  km desde parada anterior
                                 </p>
                               )}
 
@@ -919,7 +1050,7 @@ export function TripDetailPage() {
           ) : (
             <>
               {/* Resumen de cargas */}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -940,17 +1071,14 @@ export function TripDetailPage() {
                         ? `${totalCargoWeight.toLocaleString("es-MX")} kg`
                         : "—"}
                     </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CircleDollarSign className="h-4 w-4" />
-                      <span>Ingreso Total</span>
-                    </div>
-                    <p className="text-2xl font-bold mt-1 text-emerald-600">
-                      {formatCurrency(totalRevenue)}
-                    </p>
+                    {totalDeclaredValue > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Valor declarado:{" "}
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(totalDeclaredValue)}
+                        </span>
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -1070,13 +1198,40 @@ export function TripDetailPage() {
                           )}
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold text-emerald-600">
-                            {formatCurrency(cargo.rate)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {cargo.currency || "MXN"}
-                          </p>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          {cargo.declaredValue != null &&
+                            cargo.declaredValue > 0 && (
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">
+                                  Valor declarado
+                                </p>
+                                <p className="font-semibold">
+                                  {formatCurrency(cargo.declaredValue)}
+                                </p>
+                              </div>
+                            )}
+                          {trip.status === TripStatus.IN_PROGRESS &&
+                            cargo.status !== CargoStatus.DELIVERED &&
+                            cargo.status !== CargoStatus.CANCELLED && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  deliverCargoMutation.mutate({
+                                    cargoId: cargo.id,
+                                    data: { status: CargoStatus.DELIVERED },
+                                  })
+                                }
+                                disabled={deliverCargoMutation.isPending}
+                              >
+                                {deliverCargoMutation.isPending ? (
+                                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="mr-1 h-4 w-4" />
+                                )}
+                                Entregar
+                              </Button>
+                            )}
                         </div>
                       </div>
                     </CardContent>
@@ -1091,41 +1246,44 @@ export function TripDetailPage() {
         {/* TAB: COSTOS                                                      */}
         {/* ================================================================ */}
         <TabsContent value="costs" className="space-y-4 mt-4">
-          {/* Desglose base */}
+          {/* Resumen financiero */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Desglose de Costos
+                <DollarSign className="h-4 w-4" /> Resumen Financiero
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Tarifa Base</span>
+                  <span className="text-muted-foreground">Tarifa base</span>
                   <span className="font-medium">
                     {formatCurrency(trip.costs.baseRate)}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Combustible</span>
-                  <span className="font-medium">
-                    {formatCurrency(trip.costs.fuelCost)}
+                  <span className="text-muted-foreground">Total gastos</span>
+                  <span className="font-medium text-destructive">
+                    -{formatCurrency(totalExpenses)}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Casetas</span>
-                  <span className="font-medium">
-                    {formatCurrency(trip.costs.tollCost)}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Otros Gastos</span>
-                  <span className="font-medium">
-                    {formatCurrency(trip.costs.otherCosts)}
-                  </span>
-                </div>
+                {trip.costs.baseRate > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-muted-foreground">Utilidad</span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        trip.costs.baseRate - totalExpenses >= 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-destructive",
+                      )}
+                    >
+                      {formatCurrency(trip.costs.baseRate - totalExpenses)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between py-3 text-lg font-semibold">
-                  <span>Total</span>
+                  <span>Costo total</span>
                   <span className="text-primary">
                     {formatCurrency(trip.costs.totalCost)}
                   </span>

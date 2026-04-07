@@ -16,197 +16,6 @@
 import { z } from "zod";
 
 // ============================================================================
-// AUTOTRANSPORTE SCHEMA (Carta Porte 3.1)
-// ============================================================================
-
-/**
- * Schema para datos de Autotransporte Federal
- * Nodo: cfdi:Complemento > cartaporte31:CartaPorte > cartaporte31:Autotransporte
- */
-export const autotransporteSchema = z.object({
-  // ── Permiso SCT ─────────────────────────────────────────────────────────
-  /**
-   * Tipo de permiso SCT (c_TipoPermiso)
-   * Ej: "TPAF01" = Carga general
-   */
-  tipoPermisoSct: z
-    .string()
-    .min(1, "El tipo de permiso SCT es requerido para Carta Porte"),
-
-  /**
-   * Número de permiso otorgado por SCT
-   */
-  numPermisoSct: z
-    .string()
-    .min(1, "El número de permiso SCT es requerido")
-    .max(50, "El número de permiso es muy largo"),
-
-  // ── Identificación Vehicular ────────────────────────────────────────────
-  /**
-   * Configuración vehicular SAT (c_ConfigAutotransporte)
-   * Ej: "VL" = Vehículo ligero de carga (menores a 3.5 ton)
-   * Ej: "C2" = Camión Unitario (2 ejes)
-   * Ej: "T3S2R4" = Tractocamión doblemente articulado
-   */
-  configVehicular: z.string().min(1, "La configuración vehicular es requerida"),
-
-  /**
-   * Placa del vehículo motor
-   */
-  placaVm: z
-    .string()
-    .min(1, "La placa del vehículo es requerida")
-    .max(20, "La placa es muy larga"),
-
-  /**
-   * Año modelo del vehículo
-   */
-  anioModelo: z.coerce
-    .number()
-    .min(1990, "Año modelo inválido")
-    .max(new Date().getFullYear() + 1, "Año modelo inválido"),
-
-  // ── Seguros ─────────────────────────────────────────────────────────────
-  /**
-   * Nombre de la aseguradora de responsabilidad civil
-   * OBLIGATORIO para Carta Porte
-   */
-  aseguraRespCivil: z
-    .string()
-    .min(1, "La aseguradora de responsabilidad civil es requerida"),
-
-  /**
-   * Número de póliza de responsabilidad civil
-   * OBLIGATORIO para Carta Porte
-   */
-  polizaRespCivil: z
-    .string()
-    .min(1, "El número de póliza de responsabilidad civil es requerido"),
-
-  /**
-   * Nombre de la aseguradora de carga
-   * Requerido si se declara valor de mercancías
-   */
-  aseguraCarga: z.string().optional(),
-
-  /**
-   * Número de póliza de seguro de carga
-   */
-  polizaCarga: z.string().optional(),
-
-  /**
-   * Aseguradora de daños al medio ambiente
-   * Solo para materiales peligrosos
-   */
-  aseguraMedAmbiente: z.string().optional(),
-
-  /**
-   * Póliza de daños al medio ambiente
-   */
-  polizaMedAmbiente: z.string().optional(),
-
-  // ── Remolques (opcional) ────────────────────────────────────────────────
-  /**
-   * Array de remolques/semirremolques
-   * Solo si la configuración vehicular los incluye
-   */
-  remolques: z
-    .array(
-      z.object({
-        subTipoRem: z.string().min(1, "Subtipo de remolque requerido"), // c_SubTipoRem
-        placa: z.string().min(1, "Placa del remolque requerida"),
-      }),
-    )
-    .optional(),
-});
-
-// ============================================================================
-// FIGURA DE TRANSPORTE SCHEMA (Carta Porte 3.1)
-// ============================================================================
-
-/**
- * Schema para la Figura de Transporte (Operador)
- * Nodo: cfdi:Complemento > cartaporte31:CartaPorte > cartaporte31:FiguraTransporte > cartaporte31:TiposFigura
- *
- * El nodo FiguraTransporte es OBLIGATORIO y debe incluir al menos un operador.
- * Cuando TipoFigura = "01" (Operador), se requieren campos adicionales como NumLicencia.
- */
-export const figuraTransporteSchema = z.object({
-  // ── Identificación de la Figura ────────────────────────────────────────
-  /**
-   * Tipo de figura de transporte (c_TipoFigura)
-   * "01" = Operador (conductor) - Requiere NumLicencia
-   * "02" = Propietario
-   * "03" = Arrendador
-   * "04" = Notificado
-   */
-  tipoFigura: z.string().min(1, "El tipo de figura es requerido"),
-
-  /**
-   * RFC de la figura de transporte
-   * OBLIGATORIO para operadores nacionales
-   */
-  rfcFigura: z
-    .string()
-    .min(12, "RFC inválido")
-    .max(13, "RFC inválido")
-    .regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/, "Formato de RFC inválido")
-    .optional()
-    .or(z.literal("")),
-
-  /**
-   * Número de licencia del operador
-   * OBLIGATORIO cuando TipoFigura = "01" (Operador)
-   */
-  numLicencia: z
-    .string()
-    .min(1, "El número de licencia es requerido para el operador")
-    .max(16, "Número de licencia muy largo"),
-
-  /**
-   * Nombre completo del operador
-   * OBLIGATORIO
-   */
-  nombreFigura: z
-    .string()
-    .min(1, "El nombre del operador es requerido")
-    .max(254, "Nombre muy largo"),
-
-  /**
-   * CURP del operador
-   * Útil para validaciones adicionales
-   */
-  curp: z
-    .string()
-    .length(18, "CURP debe tener 18 caracteres")
-    .regex(/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/, "Formato de CURP inválido")
-    .optional()
-    .or(z.literal("")),
-
-  // ── Datos para Transporte Internacional ────────────────────────────────
-  /**
-   * País de residencia fiscal del operador
-   * Código ISO 3166-1 alpha-3 (ej: "MEX", "USA")
-   * Solo requerido para transporte internacional
-   */
-  residenciaFiscalFigura: z
-    .string()
-    .length(3, "Código de país debe ser de 3 caracteres")
-    .optional()
-    .or(z.literal("")),
-
-  /**
-   * Número de identificación tributaria extranjero
-   * Solo cuando el operador es extranjero
-   */
-  numRegIdTribFigura: z
-    .string()
-    .max(40, "ID tributario muy largo")
-    .optional()
-    .or(z.literal("")),
-});
-
-// ============================================================================
 // STOP SCHEMA (Carta Porte 3.1 - Campos Unificados)
 // ============================================================================
 
@@ -277,10 +86,22 @@ export const tripStopSchema = z.object({
   satLocalidadCode: z.string().optional(),
 
   /**
+   * Nombre del municipio (texto del catálogo SAT)
+   * Se usa como `city` en los campos legacy del viaje
+   */
+  cityName: z.string().max(200).optional(),
+
+  /**
    * Código de Colonia SAT (c_Colonia)
    * OPCIONAL - Ayuda a precisar la ubicación
    */
   satColoniaCode: z.string().optional(),
+
+  /**
+   * Nombre/descripción de la colonia (texto del catálogo SAT)
+   * Se envía al backend como campo `colonia` en la parada
+   */
+  colonia: z.string().max(200, "Nombre de colonia muy largo").optional(),
 
   // ── Dirección desglosada ────────────────────────────────────────────────
   /**
@@ -341,7 +162,7 @@ export const tripStopSchema = z.object({
    * Distancia en kilómetros desde la parada anterior
    * OBLIGATORIO para Carta Porte (excepto en origen)
    */
-  distanceToNextKm: z.coerce
+  distanceFromPreviousKm: z.coerce
     .number()
     .min(0, "La distancia no puede ser negativa")
     .optional(),
@@ -365,35 +186,50 @@ export const cargoMovementSchema = z.object({
 
 /**
  * Schema para una mercancía del viaje
+ * Alineado con los campos que usa CargoStep y con Carta Porte 3.1
  */
 export const tripCargoSchema = z.object({
   id: z.string().optional(),
+
+  // Cliente asociado
+  clientId: z.string().optional(),
+
+  // Clasificación SAT (Carta Porte 3.1)
+  satProductCode: z.string().optional(), // c_ClaveProdServCP
+  satProductDescription: z.string().optional(), // Descripción del catálogo (referencia)
+  satUnitCode: z.string().optional(), // c_ClaveUnidad
+  satUnitName: z.string().optional(), // Nombre de la unidad (referencia)
 
   // Descripción
   description: z.string().min(1, "Descripción requerida"),
 
   // Cantidades
-  quantity: z.coerce.number().min(1, "La cantidad debe ser mayor a 0"),
+  units: z.coerce.number().min(1, "La cantidad debe ser mayor a 0").optional(),
   weight: z.coerce.number().min(0, "El peso no puede ser negativo").optional(),
-  declaredValue: z.coerce
-    .number()
-    .min(0, "El valor no puede ser negativo")
-    .optional(),
+  weightInKg: z.coerce.number().min(0, "El peso no puede ser negativo").optional(), // Carta Porte
 
-  // Catálogos SAT para Carta Porte
-  satClaveProductoServicio: z.string().optional(), // c_ClaveProdServCP
-  satClaveUnidad: z.string().optional(), // c_ClaveUnidad
+  // Seguro de carga
+  // El valor declarado es opcional y solo aplica cuando la mercancía está asegurada.
+  // ValorMercancia en Carta Porte 3.1 — no es obligatorio, solo para efectos del seguro.
+  isInsured: z.boolean().default(false),
+  declaredValue: z.coerce.number().min(0, "El valor no puede ser negativo").optional(),
 
-  // Material peligroso
-  isMaterialPeligroso: z.boolean().default(false),
-  satClaveMaterialPeligroso: z.string().optional(), // c_MaterialPeligroso
-  satTipoEmbalaje: z.string().optional(), // c_TipoEmbalaje
+  // NOTA FUTURA: Los campos `rate` y `currency` fueron eliminados del nivel de carga.
+  // Para implementar viajes consolidados (grupaje/LTL multi-cliente), se deberá agregar
+  // una tabla de prorrateo de tarifa por carga/cliente derivada de la tarifa base del viaje.
+
+  // Material peligroso (Carta Porte 3.1)
+  hazardousMaterial: z.boolean().default(false),
+  hazardousMaterialCode: z.string().optional(), // c_MaterialPeligroso
+  packagingType: z.string().optional(), // c_TipoEmbalaje
+  packagingDescription: z.string().optional(),
 
   // Movimientos en paradas
   movements: z.array(cargoMovementSchema).optional(),
 
   // Notas
   notes: z.string().optional(),
+  specialInstructions: z.string().optional(),
 });
 
 // ============================================================================
@@ -402,6 +238,8 @@ export const tripCargoSchema = z.object({
 
 export const tripExpenseSchema = z.object({
   id: z.string().optional(),
+
+  // Clasificación
   category: z.enum([
     "fuel",
     "tolls",
@@ -414,9 +252,24 @@ export const tripExpenseSchema = z.object({
     "permits",
     "other",
   ]),
+
+  // Descripción y monto
   description: z.string().min(1, "Descripción requerida"),
-  estimatedAmount: z.coerce.number().min(0, "El monto no puede ser negativo"),
+  amount: z.coerce.number().min(0, "El monto no puede ser negativo"),
+  currency: z.string().default("MXN"),
+
+  // Proveedor (opcional, para referencia operativa)
+  vendorName: z.string().optional(),
+
+  // Notas
   notes: z.string().optional(),
+
+  // Flag de planeación
+  isEstimated: z.boolean().default(true),
+
+  // NOTA FUTURA: Los campos de contabilidad (CFDI UUID, RFC del proveedor,
+  // clave SAT, forma de pago, tipo de cambio) deben capturarse en el módulo
+  // de liquidación post-viaje, no durante la planeación.
 });
 
 // ============================================================================
@@ -429,15 +282,10 @@ export const tripWizardSchema = z.object({
   driverId: z.string().min(1, "Conductor requerido"),
   clientId: z.string().optional(),
   scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
+  // Derivado del estimatedArrival de la parada de destino (Paso 2)
   scheduledArrival: z.string().optional(),
   startMileage: z.coerce.number().min(0).optional(),
   vehicleCurrentMileage: z.coerce.number().min(0).optional(),
-
-  // Carta Porte - Autotransporte
-  autotransporte: autotransporteSchema,
-
-  // Carta Porte - Figura de Transporte (Operador)
-  figuraTransporte: figuraTransporteSchema,
 
   // Transporte Internacional
   transpInternac: z.boolean().default(false),
@@ -462,8 +310,6 @@ export const tripWizardSchema = z.object({
 // TYPES INFERRED FROM SCHEMAS
 // ============================================================================
 
-export type AutotransporteFormValues = z.infer<typeof autotransporteSchema>;
-export type FiguraTransporteFormValues = z.infer<typeof figuraTransporteSchema>;
 export type TripStopFormValues = z.infer<typeof tripStopSchema>;
 export type CargoMovementFormValues = z.infer<typeof cargoMovementSchema>;
 export type TripCargoFormValues = z.infer<typeof tripCargoSchema>;
@@ -478,16 +324,13 @@ export const WIZARD_STEPS = [
   {
     id: "basic",
     title: "Información",
-    description: "Asignaciones, autotransporte y operador",
+    description: "Asignaciones y programación",
     fields: [
       "vehicleId",
       "driverId",
       "clientId",
       "scheduledDeparture",
-      "scheduledArrival",
       "startMileage",
-      "autotransporte",
-      "figuraTransporte",
       "transpInternac",
     ],
   },
@@ -529,27 +372,6 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   scheduledArrival: "",
   startMileage: undefined,
   vehicleCurrentMileage: undefined,
-  autotransporte: {
-    tipoPermisoSct: "",
-    numPermisoSct: "",
-    configVehicular: "",
-    placaVm: "",
-    anioModelo: new Date().getFullYear(),
-    aseguraRespCivil: "",
-    polizaRespCivil: "",
-    aseguraCarga: "",
-    polizaCarga: "",
-    remolques: [],
-  },
-  figuraTransporte: {
-    tipoFigura: "01", // Default: Operador
-    rfcFigura: "",
-    numLicencia: "",
-    nombreFigura: "",
-    curp: "",
-    residenciaFiscalFigura: "",
-    numRegIdTribFigura: "",
-  },
   transpInternac: false,
   stops: [],
   cargos: [],
@@ -572,6 +394,8 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   postalCode: "",
   satLocalidadCode: "",
   satColoniaCode: "",
+  cityName: "",
+  colonia: "",
   street: "",
   exteriorNumber: "",
   interiorNumber: "",
@@ -581,7 +405,7 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   contactName: "",
   contactPhone: "",
   notes: "",
-  distanceToNextKm: undefined,
+  distanceFromPreviousKm: undefined,
 };
 
 // ============================================================================
@@ -673,8 +497,21 @@ export function validateRouteStep(
     }
 
     // Distancia obligatoria excepto en origen
-    if (i > 0 && !stop.distanceToNextKm && stop.distanceToNextKm !== 0) {
+    if (i > 0 && !stop.distanceFromPreviousKm && stop.distanceFromPreviousKm !== 0) {
       warnings.push(`"${label}" no tiene distancia desde la parada anterior`);
+    }
+
+    // estimatedArrival obligatorio en destino, recomendado en waypoints
+    const isDestination = stop.stopType.includes("destination");
+    const isWaypoint =
+      stop.stopType.includes("waypoint") &&
+      !stop.stopType.includes("origin") &&
+      !stop.stopType.includes("destination");
+
+    if (isDestination && !stop.estimatedArrival) {
+      errors.push(`"${label}" requiere hora estimada de llegada (FechaHoraSalidaLlegada en Carta Porte)`);
+    } else if (isWaypoint && !stop.estimatedArrival) {
+      warnings.push(`"${label}" no tiene hora estimada de llegada. Se calculará por interpolación al generar la Carta Porte.`);
     }
   }
 
@@ -692,110 +529,3 @@ export function validateRouteStep(
   };
 }
 
-// ============================================================================
-// BASIC INFO STEP VALIDATION HELPER
-// ============================================================================
-
-export interface BasicInfoStepValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-/**
- * Valida el paso de Información Básica
- */
-export function validateBasicInfoStep(
-  data: Partial<TripWizardFormValues>,
-): BasicInfoStepValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  // Validaciones básicas
-  if (!data.vehicleId) {
-    errors.push("Debe seleccionar un vehículo");
-  }
-
-  if (!data.driverId) {
-    errors.push("Debe seleccionar un conductor");
-  }
-
-  if (!data.scheduledDeparture) {
-    errors.push("La fecha de salida programada es requerida");
-  }
-
-  // Validaciones de Autotransporte
-  if (data.autotransporte) {
-    const auto = data.autotransporte;
-
-    if (!auto.tipoPermisoSct) {
-      errors.push("El tipo de permiso SCT es requerido para Carta Porte");
-    }
-
-    if (!auto.numPermisoSct) {
-      errors.push("El número de permiso SCT es requerido");
-    }
-
-    if (!auto.configVehicular) {
-      errors.push("La configuración vehicular es requerida");
-    }
-
-    if (!auto.aseguraRespCivil || !auto.polizaRespCivil) {
-      errors.push("El seguro de responsabilidad civil es obligatorio");
-    }
-
-    // Advertencias
-    if (!auto.aseguraCarga) {
-      warnings.push(
-        "No ha ingresado seguro de carga. Será requerido si declara valor de mercancías.",
-      );
-    }
-  } else {
-    errors.push(
-      "Los datos de Autotransporte Federal son requeridos para Carta Porte",
-    );
-  }
-
-  // Validaciones de Figura de Transporte (Operador)
-  if (data.figuraTransporte) {
-    const figura = data.figuraTransporte;
-
-    if (!figura.tipoFigura) {
-      errors.push("El tipo de figura de transporte es requerido");
-    }
-
-    if (!figura.numLicencia) {
-      errors.push("El número de licencia del operador es requerido");
-    }
-
-    if (!figura.nombreFigura) {
-      errors.push("El nombre del operador es requerido");
-    }
-
-    // RFC es importante pero puede obtenerse del empleado
-    if (!figura.rfcFigura) {
-      warnings.push(
-        "No se ha ingresado el RFC del operador. Verifique que los datos del empleado estén completos.",
-      );
-    }
-
-    // Validaciones para transporte internacional
-    if (data.transpInternac) {
-      if (!figura.residenciaFiscalFigura) {
-        warnings.push(
-          "Para transporte internacional se recomienda ingresar el país de residencia fiscal del operador.",
-        );
-      }
-    }
-  } else {
-    errors.push(
-      "Los datos de la Figura de Transporte (Operador) son requeridos para Carta Porte",
-    );
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-  };
-}

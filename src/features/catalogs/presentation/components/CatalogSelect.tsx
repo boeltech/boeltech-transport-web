@@ -75,6 +75,10 @@ export interface CatalogSelectProps {
    * Formato de display: "name", "code", "code-name", "name-code"
    */
   displayFormat?: "name" | "code" | "code-name" | "name-code";
+  /**
+   * Callback que emite tanto el código como el nombre al seleccionar
+   */
+  onSelectItem?: (code: string, name: string) => void;
 }
 
 // ============================================================================
@@ -88,6 +92,7 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
       parentCode,
       value,
       onValueChange,
+      onSelectItem,
       placeholder = "Seleccione una opción",
       disabled = false,
       className,
@@ -104,7 +109,7 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
       data: options,
       isLoading,
       isError,
-    } = useCatalogOptions(typeCode, { parentCode, enabled: !disabled });
+    } = useCatalogOptions(typeCode, { parentCode, enabled: !disabled || !!value });
 
     // ══════════════════════════════════════════════════════════════════════════
     // Helpers
@@ -146,8 +151,12 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
       <Select
         value={value ?? ""}
         onValueChange={(val) => {
-          if (val && onValueChange) {
-            onValueChange(val);
+          if (val) {
+            onValueChange?.(val);
+            if (onSelectItem) {
+              const item = options?.find((o) => o.code === val);
+              if (item) onSelectItem(item.code, item.name);
+            }
           }
         }}
         disabled={disabled || !options?.length}

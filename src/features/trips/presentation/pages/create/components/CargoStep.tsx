@@ -41,15 +41,6 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@shared/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -66,14 +57,12 @@ import {
   Plus,
   Trash2,
   Edit2,
-  DollarSign,
   MapPin,
+  ShieldCheck,
   Navigation,
   Flag,
   AlertTriangle,
   Truck,
-  ChevronsUpDown,
-  Check,
   AlertCircle,
   ChevronDown,
   Scale,
@@ -89,6 +78,12 @@ import type {
 } from "./validation";
 import { StopType } from "@features/trips";
 import { useVehicle } from "@features/vehicles/application";
+import {
+  ProductoServicioCPSearch,
+  UnidadMedidaSearch,
+  MaterialPeligrosoSearch,
+  TipoEmbalajeSelect,
+} from "@features/catalogs";
 
 // ============================================================================
 // TYPES
@@ -122,297 +117,10 @@ interface DeliveryStopInfo {
   category: "origin" | "waypoint" | "destination";
 }
 
-interface SatProduct {
-  code: string;
-  description: string;
-  requiresHazmat?: boolean;
-}
-
-interface SatUnit {
-  code: string;
-  name: string;
-  symbol?: string;
-}
-
-interface HazardousMaterial {
-  code: string;
-  description: string;
-}
-
-interface PackagingType {
-  code: string;
-  description: string;
-}
-
 // ============================================================================
-// CATÁLOGOS SAT (Datos estáticos temporales - Top productos de transporte)
-// Estos se migrarán a una API de búsqueda en BD posteriormente
+// CATÁLOGOS SAT (Estáticos — solo monedas, los demás son dinámicos)
 // ============================================================================
 
-const SAT_PRODUCTS: SatProduct[] = [
-  // Productos generales de transporte
-  { code: "78101800", description: "Transporte de carga por carretera" },
-  {
-    code: "78101801",
-    description: "Servicios de transporte de carga a granel",
-  },
-  {
-    code: "78101802",
-    description: "Servicios de transporte de carga en contenedor",
-  },
-  {
-    code: "78101803",
-    description: "Servicios de transporte de carga refrigerada",
-  },
-  { code: "78101804", description: "Servicios de transporte de automóviles" },
-  {
-    code: "78101806",
-    description: "Servicios de transporte de productos peligrosos",
-    requiresHazmat: true,
-  },
-
-  // Alimentos y bebidas
-  { code: "50000000", description: "Alimentos, bebidas y tabaco" },
-  { code: "50101500", description: "Frutas frescas" },
-  { code: "50101700", description: "Verduras frescas" },
-  { code: "50112000", description: "Carnes frescas" },
-  { code: "50131600", description: "Productos lácteos" },
-  { code: "50202300", description: "Bebidas no alcohólicas" },
-  { code: "50202200", description: "Bebidas alcohólicas" },
-
-  // Materiales de construcción
-  { code: "30101500", description: "Materiales de construcción" },
-  { code: "30111600", description: "Cemento y cal" },
-  { code: "30111700", description: "Concreto y mortero" },
-  { code: "30121500", description: "Ladrillos y bloques" },
-  { code: "30131500", description: "Varillas y perfiles de acero" },
-  { code: "30141500", description: "Madera aserrada" },
-
-  // Productos químicos
-  {
-    code: "12141900",
-    description: "Productos químicos industriales",
-    requiresHazmat: true,
-  },
-  {
-    code: "12142100",
-    description: "Solventes industriales",
-    requiresHazmat: true,
-  },
-  {
-    code: "15101500",
-    description: "Combustibles y lubricantes",
-    requiresHazmat: true,
-  },
-  { code: "15111500", description: "Aceites lubricantes" },
-
-  // Maquinaria y equipo
-  { code: "20101500", description: "Equipo minero y de perforación" },
-  { code: "23101500", description: "Maquinaria industrial" },
-  { code: "23151500", description: "Maquinaria para construcción" },
-  { code: "24101500", description: "Maquinaria para manejo de materiales" },
-  { code: "25101500", description: "Vehículos de motor" },
-
-  // Electrónica y tecnología
-  { code: "43201500", description: "Computadoras y accesorios" },
-  { code: "43211500", description: "Equipos de comunicación" },
-  { code: "52161500", description: "Electrodomésticos" },
-
-  // Textiles
-  { code: "11121600", description: "Textiles y telas" },
-  { code: "53101500", description: "Ropa y accesorios" },
-  { code: "53102500", description: "Calzado" },
-
-  // Papel y empaques
-  { code: "14111500", description: "Papel y cartón" },
-  { code: "24112400", description: "Empaques y contenedores" },
-
-  // Productos farmacéuticos
-  { code: "51101500", description: "Medicamentos" },
-  { code: "51102700", description: "Productos médicos" },
-
-  // Productos agrícolas
-  { code: "10101500", description: "Plantas y semillas" },
-  { code: "10121500", description: "Animales vivos" },
-  { code: "10151500", description: "Productos agrícolas" },
-  { code: "10171500", description: "Fertilizantes", requiresHazmat: true },
-
-  // Muebles
-  { code: "56101500", description: "Muebles de oficina" },
-  { code: "56111500", description: "Muebles del hogar" },
-
-  // Otros
-  { code: "31162800", description: "Piezas metálicas" },
-  { code: "31211500", description: "Pinturas y recubrimientos" },
-  { code: "40101700", description: "Equipos de calefacción y aire" },
-  { code: "41111500", description: "Equipo de laboratorio" },
-  { code: "44121500", description: "Material de oficina" },
-  { code: "60101200", description: "Libros y publicaciones" },
-];
-
-const SAT_UNITS: SatUnit[] = [
-  // Peso
-  { code: "KGM", name: "Kilogramo", symbol: "kg" },
-  { code: "GRM", name: "Gramo", symbol: "g" },
-  { code: "TNE", name: "Tonelada métrica", symbol: "t" },
-  { code: "LBR", name: "Libra", symbol: "lb" },
-
-  // Volumen
-  { code: "LTR", name: "Litro", symbol: "L" },
-  { code: "MLT", name: "Mililitro", symbol: "mL" },
-  { code: "MTQ", name: "Metro cúbico", symbol: "m³" },
-  { code: "GLL", name: "Galón", symbol: "gal" },
-
-  // Longitud
-  { code: "MTR", name: "Metro", symbol: "m" },
-  { code: "CMT", name: "Centímetro", symbol: "cm" },
-  { code: "FOT", name: "Pie", symbol: "ft" },
-
-  // Unidades contables
-  { code: "H87", name: "Pieza", symbol: "pza" },
-  { code: "EA", name: "Elemento", symbol: "ea" },
-  { code: "XBX", name: "Caja", symbol: "caja" },
-  { code: "XPK", name: "Paquete", symbol: "paq" },
-  { code: "XUN", name: "Unidad", symbol: "u" },
-  { code: "SET", name: "Conjunto", symbol: "set" },
-  { code: "XKI", name: "Kit", symbol: "kit" },
-  { code: "DZN", name: "Docena", symbol: "doz" },
-  { code: "GRS", name: "Gruesa (144)", symbol: "grs" },
-  { code: "MIL", name: "Millar", symbol: "mil" },
-
-  // Contenedores
-  { code: "XPL", name: "Pallet", symbol: "tarima" },
-  { code: "XTB", name: "Tina/Cubeta", symbol: "cubeta" },
-  { code: "XSA", name: "Saco", symbol: "saco" },
-  { code: "XBA", name: "Barril", symbol: "barril" },
-  { code: "XCT", name: "Cartón", symbol: "cartón" },
-  { code: "XBG", name: "Bolsa", symbol: "bolsa" },
-  { code: "XRO", name: "Rollo", symbol: "rollo" },
-  { code: "XCY", name: "Cilindro", symbol: "cilindro" },
-
-  // Área
-  { code: "MTK", name: "Metro cuadrado", symbol: "m²" },
-];
-
-const HAZARDOUS_MATERIALS: HazardousMaterial[] = [
-  // Clase 1: Explosivos
-  { code: "0004", description: "Picrato de amonio" },
-  { code: "0072", description: "Ciclonita" },
-
-  // Clase 2: Gases
-  { code: "1001", description: "Acetileno disuelto" },
-  { code: "1002", description: "Aire comprimido" },
-  { code: "1011", description: "Butano" },
-  { code: "1017", description: "Cloro" },
-  { code: "1049", description: "Hidrógeno comprimido" },
-  { code: "1075", description: "Gas LP (propano/butano)" },
-  { code: "1978", description: "Propano" },
-
-  // Clase 3: Líquidos inflamables
-  { code: "1114", description: "Benceno" },
-  { code: "1170", description: "Etanol (alcohol etílico)" },
-  { code: "1202", description: "Diésel" },
-  { code: "1203", description: "Gasolina" },
-  { code: "1230", description: "Metanol" },
-  { code: "1263", description: "Pintura o productos de pintura" },
-  { code: "1267", description: "Petróleo crudo" },
-  { code: "1294", description: "Tolueno" },
-  { code: "1300", description: "Aguarrás" },
-  { code: "1863", description: "Combustible para avión" },
-  { code: "1993", description: "Líquido inflamable n.e.p." },
-
-  // Clase 4: Sólidos inflamables
-  { code: "1325", description: "Sólido inflamable orgánico n.e.p." },
-  { code: "1350", description: "Azufre" },
-  { code: "2304", description: "Naftaleno fundido" },
-
-  // Clase 5: Sustancias comburentes
-  { code: "1942", description: "Nitrato de amonio" },
-  { code: "2014", description: "Peróxido de hidrógeno" },
-  { code: "2067", description: "Fertilizantes a base de nitrato amónico" },
-
-  // Clase 6: Sustancias tóxicas
-  { code: "1593", description: "Diclorometano" },
-  { code: "1851", description: "Medicamentos líquidos tóxicos" },
-  { code: "2810", description: "Líquido orgánico tóxico n.e.p." },
-
-  // Clase 8: Sustancias corrosivas
-  { code: "1789", description: "Ácido clorhídrico" },
-  { code: "1805", description: "Ácido fosfórico" },
-  { code: "1823", description: "Hidróxido de sodio sólido" },
-  { code: "1824", description: "Hidróxido de sodio en solución" },
-  { code: "1830", description: "Ácido sulfúrico" },
-  { code: "2031", description: "Ácido nítrico" },
-  { code: "2672", description: "Amoníaco en solución" },
-  { code: "2796", description: "Ácido de batería" },
-
-  // Clase 9: Sustancias peligrosas diversas
-  {
-    code: "3077",
-    description: "Sustancia sólida peligrosa para el medio ambiente",
-  },
-  {
-    code: "3082",
-    description: "Sustancia líquida peligrosa para el medio ambiente",
-  },
-  { code: "3480", description: "Baterías de litio" },
-  { code: "3481", description: "Baterías de litio contenidas en equipo" },
-];
-
-const PACKAGING_TYPES: PackagingType[] = [
-  // Tambores/Bidones
-  { code: "1A1", description: "Tambor de acero, tapa no desmontable" },
-  { code: "1A2", description: "Tambor de acero, tapa desmontable" },
-  { code: "1B1", description: "Tambor de aluminio, tapa no desmontable" },
-  { code: "1B2", description: "Tambor de aluminio, tapa desmontable" },
-  { code: "1H1", description: "Tambor de plástico, tapa no desmontable" },
-  { code: "1H2", description: "Tambor de plástico, tapa desmontable" },
-
-  // Barriles
-  { code: "2C1", description: "Barril de madera, con tapa" },
-  { code: "2C2", description: "Barril de madera, tapa desmontable" },
-
-  // Bidones/Jerricanes
-  { code: "3A1", description: "Jerricán de acero, tapa no desmontable" },
-  { code: "3A2", description: "Jerricán de acero, tapa desmontable" },
-  { code: "3H1", description: "Jerricán de plástico, tapa no desmontable" },
-  { code: "3H2", description: "Jerricán de plástico, tapa desmontable" },
-
-  // Cajas
-  { code: "4A", description: "Caja de acero" },
-  { code: "4B", description: "Caja de aluminio" },
-  { code: "4C1", description: "Caja de madera natural, ordinaria" },
-  { code: "4C2", description: "Caja de madera natural, paredes estancas" },
-  { code: "4D", description: "Caja de contrachapado" },
-  { code: "4G", description: "Caja de cartón" },
-  { code: "4H1", description: "Caja de plástico expandido" },
-  { code: "4H2", description: "Caja de plástico rígido" },
-
-  // Sacos
-  { code: "5H1", description: "Saco de película de plástico" },
-  { code: "5H2", description: "Saco de plástico tejido, sin forro" },
-  { code: "5H3", description: "Saco de plástico tejido, estanco" },
-  { code: "5L1", description: "Saco de textil, sin forro" },
-  { code: "5L2", description: "Saco de textil, estanco" },
-  { code: "5M1", description: "Saco de papel multipliegos" },
-  {
-    code: "5M2",
-    description: "Saco de papel multipliegos, resistente al agua",
-  },
-
-  // Embalajes compuestos
-  { code: "6HA1", description: "Recipiente de plástico en tambor de acero" },
-  { code: "6HG1", description: "Recipiente de plástico en caja de cartón" },
-  { code: "6HH1", description: "Recipiente de plástico en caja de plástico" },
-
-  // Otros
-  { code: "0", description: "Sin embalaje/a granel" },
-];
-
-const CURRENCY_OPTIONS = [
-  { value: "MXN", label: "MXN - Peso Mexicano" },
-  { value: "USD", label: "USD - Dólar Americano" },
-];
 
 // ============================================================================
 // COMPONENT
@@ -433,10 +141,6 @@ export function CargoStep({
   const [deliveryAssignments, setDeliveryAssignments] = useState<
     CargoMovementFormValues[]
   >([]);
-
-  // Estado para el combobox de productos SAT
-  const [productSearchOpen, setProductSearchOpen] = useState(false);
-  const [productSearchQuery, setProductSearchQuery] = useState("");
 
   // Estado para sección colapsable de material peligroso
   const [hazmatSectionOpen, setHazmatSectionOpen] = useState(false);
@@ -554,16 +258,6 @@ export function CargoStep({
     return deliveryStops.filter((s) => s.index > pickupStopIndex);
   };
 
-  // Filtrar productos por búsqueda
-  const filteredProducts = useMemo(() => {
-    if (!productSearchQuery) return SAT_PRODUCTS.slice(0, 20);
-    const query = productSearchQuery.toLowerCase();
-    return SAT_PRODUCTS.filter(
-      (p) =>
-        p.code.includes(query) || p.description.toLowerCase().includes(query),
-    ).slice(0, 20);
-  }, [productSearchQuery]);
-
   // ============================================
   // Handlers
   // ============================================
@@ -575,11 +269,9 @@ export function CargoStep({
       clientId,
       description: "",
       weight: undefined,
-      volume: undefined,
       units: undefined,
+      isInsured: false,
       declaredValue: undefined,
-      rate: 0,
-      currency: "MXN",
       movements: [{ stopIndex: pickupStop.index, movementType: "pickup" }],
       notes: "",
       specialInstructions: "",
@@ -588,7 +280,6 @@ export function CargoStep({
       satUnitCode: "H87", // Default: Pieza
       satUnitName: "Pieza",
       weightInKg: undefined,
-      dimensions: "",
       hazardousMaterial: false,
       hazardousMaterialCode: "",
       packagingType: "",
@@ -596,7 +287,6 @@ export function CargoStep({
     });
     setDeliveryAssignments([]);
     setHazmatSectionOpen(false);
-    setProductSearchQuery("");
     setIsCargoDialogOpen(true);
   };
 
@@ -609,7 +299,6 @@ export function CargoStep({
     );
     setDeliveryAssignments(existingDeliveries);
     setHazmatSectionOpen(!!cargo.hazardousMaterial);
-    setProductSearchQuery("");
     setIsCargoDialogOpen(true);
   };
 
@@ -634,30 +323,6 @@ export function CargoStep({
     setDeliveryAssignments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSelectProduct = (product: SatProduct) => {
-    setNewCargo({
-      ...newCargo,
-      satProductCode: product.code,
-      // Auto-llenar descripción con el nombre del catálogo (el usuario puede editarla)
-      description: product.description,
-      // Si el producto requiere material peligroso, abrir la sección
-      hazardousMaterial: product.requiresHazmat || newCargo.hazardousMaterial,
-    });
-    if (product.requiresHazmat) {
-      setHazmatSectionOpen(true);
-    }
-    setProductSearchOpen(false);
-    setProductSearchQuery("");
-  };
-
-  const handleSelectUnit = (unit: SatUnit) => {
-    setNewCargo({
-      ...newCargo,
-      satUnitCode: unit.code,
-      satUnitName: unit.name,
-    });
-  };
-
   const handleHazmatChange = (checked: boolean) => {
     setNewCargo({
       ...newCargo,
@@ -674,7 +339,6 @@ export function CargoStep({
     if (
       !newCargo.clientId ||
       !newCargo.description ||
-      newCargo.rate === undefined ||
       !newCargo.movements ||
       newCargo.movements.length === 0
     ) {
@@ -706,20 +370,18 @@ export function CargoStep({
       clientId: newCargo.clientId,
       description: newCargo.description,
       weight: newCargo.weight,
-      volume: newCargo.volume,
       units: newCargo.units,
-      declaredValue: newCargo.declaredValue,
-      rate: newCargo.rate || 0,
-      currency: newCargo.currency || "MXN",
+      isInsured: newCargo.isInsured,
+      declaredValue: newCargo.isInsured ? newCargo.declaredValue : undefined,
       movements: allMovements,
       notes: newCargo.notes,
       specialInstructions: newCargo.specialInstructions,
       // Campos Carta Porte
       satProductCode: newCargo.satProductCode,
+      satProductDescription: newCargo.satProductDescription,
       satUnitCode: newCargo.satUnitCode,
       satUnitName: newCargo.satUnitName,
       weightInKg: newCargo.weightInKg,
-      dimensions: newCargo.dimensions,
       hazardousMaterial: newCargo.hazardousMaterial,
       hazardousMaterialCode: newCargo.hazardousMaterial
         ? newCargo.hazardousMaterialCode
@@ -758,33 +420,6 @@ export function CargoStep({
     if (!stop) return `Parada #${stopIndex + 1}`;
     return `#${stopIndex + 1} ${stop.locationName || stop.address}`;
   };
-
-  const formatCurrency = (amount: number, currency: string): string => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
-
-  const getSelectedProductDescription = (): string => {
-    if (!newCargo.satProductCode) return "";
-    const product = SAT_PRODUCTS.find(
-      (p) => p.code === newCargo.satProductCode,
-    );
-    return product
-      ? `${product.code} - ${product.description}`
-      : newCargo.satProductCode;
-  };
-
-  const getUnitSymbol = (code: string): string => {
-    const unit = SAT_UNITS.find((u) => u.code === code);
-    return unit?.symbol || code;
-  };
-
-  const totalRevenue = fields.reduce(
-    (sum, cargo) => sum + (cargo.rate || 0),
-    0,
-  );
 
   const totalWeight = fields.reduce(
     (sum, cargo) => sum + (cargo.weightInKg || cargo.weight || 0),
@@ -1096,14 +731,6 @@ export function CargoStep({
           </p>
         </div>
         <div className="text-right space-y-1">
-          {totalCargos > 0 && (
-            <>
-              <p className="text-xs text-muted-foreground">Ingreso Total</p>
-              <p className="text-lg font-bold text-primary">
-                {formatCurrency(totalRevenue, "MXN")}
-              </p>
-            </>
-          )}
           {hasHazmatCargo && (
             <div className="flex items-center gap-1 text-xs text-orange-600">
               <AlertCircle className="h-3.5 w-3.5" />
@@ -1122,10 +749,6 @@ export function CargoStep({
             : pickupStop.category === "destination"
               ? Flag
               : MapPin;
-        const stopTotal = stopCargos.reduce(
-          (sum, { cargo }) => sum + (cargo.rate || 0),
-          0,
-        );
         const hasMissing = stopCargos.length === 0;
 
         return (
@@ -1201,14 +824,6 @@ export function CargoStep({
                     </p>
                   </div>
                 </div>
-                {stopCargos.length > 0 && (
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-muted-foreground">Subtotal</p>
-                    <p className="text-sm font-semibold text-primary">
-                      {formatCurrency(stopTotal, "MXN")}
-                    </p>
-                  </div>
-                )}
               </div>
             </CardHeader>
 
@@ -1250,9 +865,6 @@ export function CargoStep({
                             <h4 className="text-sm font-medium truncate">
                               {cargo.description}
                             </h4>
-                            <span className="text-sm font-semibold text-primary flex-shrink-0">
-                              {formatCurrency(cargo.rate, cargo.currency)}
-                            </span>
                           </div>
 
                           {/* Badges de info */}
@@ -1292,12 +904,6 @@ export function CargoStep({
                                 <Box className="h-3 w-3" />
                                 {cargo.units} {cargo.satUnitName || "uds"}
                               </span>
-                            )}
-                            {cargo.volume && (
-                              <span>Vol: {cargo.volume} m³</span>
-                            )}
-                            {cargo.dimensions && (
-                              <span>Dim: {cargo.dimensions}</span>
                             )}
                           </div>
 
@@ -1366,26 +972,6 @@ export function CargoStep({
         );
       })}
 
-      {/* Total general */}
-      {totalCargos > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium">Ingreso Total Estimado:</span>
-                {totalWeight > 0 && (
-                  <span className="text-sm text-muted-foreground ml-2">
-                    ({totalWeight.toLocaleString()} kg)
-                  </span>
-                )}
-              </div>
-              <span className="text-xl font-bold text-primary">
-                {formatCurrency(totalRevenue, "MXN")}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ============ DIALOG AGREGAR/EDITAR CARGA ============ */}
       <Dialog open={isCargoDialogOpen} onOpenChange={setIsCargoDialogOpen}>
@@ -1454,74 +1040,27 @@ export function CargoStep({
                 Clasificación SAT (Carta Porte)
               </h4>
 
-              {/* Producto SAT - Combobox con búsqueda */}
+              {/* Producto SAT - Búsqueda dinámica en catálogo */}
               <div className="space-y-2">
                 <Label>Clave de Producto SAT *</Label>
-                <Popover
-                  open={productSearchOpen}
-                  onOpenChange={setProductSearchOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={productSearchOpen}
-                      className="w-full justify-between font-normal"
-                    >
-                      {newCargo.satProductCode ? (
-                        <span className="truncate">
-                          {getSelectedProductDescription()}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Buscar producto SAT...
-                        </span>
-                      )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[500px] p-0" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder="Buscar por código o descripción..."
-                        value={productSearchQuery}
-                        onValueChange={setProductSearchQuery}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron productos</CommandEmpty>
-                        <CommandGroup>
-                          {filteredProducts.map((product) => (
-                            <CommandItem
-                              key={product.code}
-                              value={`${product.code} ${product.description}`}
-                              onSelect={() => handleSelectProduct(product)}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newCargo.satProductCode === product.code
-                                    ? "opacity-100"
-                                    : "opacity-0",
-                                )}
-                              />
-                              <div className="flex-1">
-                                <span className="font-mono text-xs bg-muted px-1 rounded mr-2">
-                                  {product.code}
-                                </span>
-                                <span className="text-sm">
-                                  {product.description}
-                                </span>
-                              </div>
-                              {product.requiresHazmat && (
-                                <AlertTriangle className="h-4 w-4 text-orange-500 ml-2" />
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <ProductoServicioCPSearch
+                  value={newCargo.satProductCode || null}
+                  onSelect={(item) =>
+                    setNewCargo((prev) => ({
+                      ...prev,
+                      satProductCode: item.code,
+                      satProductDescription: item.name,
+                      description: prev.description || item.name,
+                    }))
+                  }
+                  onClear={() =>
+                    setNewCargo((prev) => ({
+                      ...prev,
+                      satProductCode: "",
+                      satProductDescription: "",
+                    }))
+                  }
+                />
                 <p className="text-xs text-muted-foreground">
                   Catálogo c_ClaveProdServCP del SAT. Busque por código o
                   descripción.
@@ -1544,35 +1083,26 @@ export function CargoStep({
                 </p>
               </div>
 
-              {/* Unidad SAT */}
+              {/* Unidad SAT - Búsqueda dinámica en catálogo */}
               <div className="space-y-2">
                 <Label>Unidad de Medida SAT *</Label>
-                <Select
-                  value={newCargo.satUnitCode || ""}
-                  onValueChange={(value) => {
-                    const unit = SAT_UNITS.find((u) => u.code === value);
-                    if (unit) handleSelectUnit(unit);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar unidad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SAT_UNITS.map((unit) => (
-                      <SelectItem key={unit.code} value={unit.code}>
-                        <span className="font-mono text-xs bg-muted px-1 rounded mr-2">
-                          {unit.code}
-                        </span>
-                        {unit.name}
-                        {unit.symbol && (
-                          <span className="text-muted-foreground ml-1">
-                            ({unit.symbol})
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <UnidadMedidaSearch
+                  value={newCargo.satUnitCode || null}
+                  onSelect={(item) =>
+                    setNewCargo((prev) => ({
+                      ...prev,
+                      satUnitCode: item.code,
+                      satUnitName: item.name,
+                    }))
+                  }
+                  onClear={() =>
+                    setNewCargo((prev) => ({
+                      ...prev,
+                      satUnitCode: "",
+                      satUnitName: "",
+                    }))
+                  }
+                />
               </div>
             </div>
 
@@ -1700,98 +1230,55 @@ export function CargoStep({
                   ) : null;
                 })()}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Volumen (m³)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newCargo.volume ?? ""}
-                    onChange={(e) =>
-                      setNewCargo({
-                        ...newCargo,
-                        volume: e.target.value
-                          ? Number(e.target.value)
-                          : undefined,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Dimensiones (cm)</Label>
-                  <Input
-                    placeholder="Largo/Alto/Ancho ej: 100/50/30"
-                    value={newCargo.dimensions || ""}
-                    onChange={(e) =>
-                      setNewCargo({ ...newCargo, dimensions: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
             </div>
 
-            {/* ========== SECCIÓN: VALOR Y TARIFA ========== */}
+            {/* ========== SECCIÓN: SEGURO DE CARGA ========== */}
             <div className="space-y-4 border-t pt-4">
               <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Valor y Tarifa
+                <ShieldCheck className="h-4 w-4" />
+                Seguro de Carga
               </h4>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="flex items-center space-x-3">
+                <Checkbox
+                  id="insured-checkbox"
+                  checked={newCargo.isInsured || false}
+                  onCheckedChange={(checked) =>
+                    setNewCargo((prev) => ({
+                      ...prev,
+                      isInsured: !!checked,
+                      declaredValue: checked ? prev.declaredValue : undefined,
+                    }))
+                  }
+                />
+                <Label htmlFor="insured-checkbox" className="cursor-pointer">
+                  Esta mercancía está asegurada
+                </Label>
+              </div>
+
+              {newCargo.isInsured && (
                 <div className="space-y-2">
-                  <Label>Valor Declarado</Label>
+                  <Label>Valor Declarado (MXN)</Label>
                   <Input
                     type="number"
                     placeholder="0.00"
                     value={newCargo.declaredValue ?? ""}
                     onChange={(e) =>
-                      setNewCargo({
-                        ...newCargo,
+                      setNewCargo((prev) => ({
+                        ...prev,
                         declaredValue: e.target.value
                           ? Number(e.target.value)
                           : undefined,
-                      })
+                      }))
                     }
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Corresponde al campo <span className="font-mono">ValorMercancia</span> en
+                    Carta Porte 3.1. Solo requerido cuando la mercancía cuenta
+                    con seguro de carga.
+                  </p>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Tarifa del Servicio *</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newCargo.rate ?? ""}
-                    onChange={(e) =>
-                      setNewCargo({
-                        ...newCargo,
-                        rate: e.target.value ? Number(e.target.value) : 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Moneda</Label>
-                  <Select
-                    value={newCargo.currency || "MXN"}
-                    onValueChange={(value) =>
-                      setNewCargo({ ...newCargo, currency: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* ========== SECCIÓN: MATERIAL PELIGROSO ========== */}
@@ -1836,57 +1323,39 @@ export function CargoStep({
                       catálogo del SAT.
                     </p>
 
-                    {/* Código de material peligroso */}
+                    {/* Código de material peligroso - Búsqueda dinámica */}
                     <div className="space-y-2">
                       <Label>Clave Material Peligroso *</Label>
-                      <Select
-                        value={newCargo.hazardousMaterialCode || ""}
-                        onValueChange={(value) =>
-                          setNewCargo({
-                            ...newCargo,
-                            hazardousMaterialCode: value,
-                          })
+                      <MaterialPeligrosoSearch
+                        value={newCargo.hazardousMaterialCode || null}
+                        onSelect={(item) =>
+                          setNewCargo((prev) => ({
+                            ...prev,
+                            hazardousMaterialCode: item.code,
+                          }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar material peligroso" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HAZARDOUS_MATERIALS.map((mat) => (
-                            <SelectItem key={mat.code} value={mat.code}>
-                              <span className="font-mono text-xs bg-orange-100 px-1 rounded mr-2">
-                                {mat.code}
-                              </span>
-                              {mat.description}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onClear={() =>
+                          setNewCargo((prev) => ({
+                            ...prev,
+                            hazardousMaterialCode: "",
+                          }))
+                        }
+                      />
                     </div>
 
                     {/* Tipo de embalaje */}
                     <div className="space-y-2">
                       <Label>Tipo de Embalaje *</Label>
-                      <Select
+                      <TipoEmbalajeSelect
                         value={newCargo.packagingType || ""}
                         onValueChange={(value) =>
-                          setNewCargo({ ...newCargo, packagingType: value })
+                          setNewCargo((prev) => ({
+                            ...prev,
+                            packagingType: value,
+                          }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo de embalaje" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PACKAGING_TYPES.map((pkg) => (
-                            <SelectItem key={pkg.code} value={pkg.code}>
-                              <span className="font-mono text-xs bg-muted px-1 rounded mr-2">
-                                {pkg.code}
-                              </span>
-                              {pkg.description}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Seleccionar tipo de embalaje"
+                      />
                     </div>
 
                     {/* Descripción del embalaje */}

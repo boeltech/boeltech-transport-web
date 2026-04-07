@@ -75,12 +75,17 @@ export function mapPaginatedClients(response: {
     page: number;
     limit: number;
     total: number;
-    totalPages: number;
+    total_pages: number;
   };
 }): PaginatedResult<ClientListItem> {
   return {
     data: response.data.map(mapClientListItem),
-    pagination: response.pagination,
+    pagination: {
+      page: response.pagination.page,
+      limit: response.pagination.limit,
+      total: response.pagination.total,
+      totalPages: response.pagination.total_pages,
+    },
   };
 }
 
@@ -353,10 +358,8 @@ export function toApiUpdateClientAddress(
   if (dto.nombreRemitenteDestinatario !== undefined)
     result.nombre_remitente_destinatario = dto.nombreRemitenteDestinatario;
   // Coordenadas
-  // if (dto.latitude !== undefined) result.latitude = dto.latitude;
-  // if (dto.longitude !== undefined) result.longitude = dto.longitude;
-  if (dto.latitude !== undefined) result.latitude = 0;
-  if (dto.longitude !== undefined) result.longitude = 0;
+  if (dto.latitude !== undefined) result.latitude = dto.latitude;
+  if (dto.longitude !== undefined) result.longitude = dto.longitude;
   // Contacto
   if (dto.contactName !== undefined) result.contact_name = dto.contactName;
   if (dto.contactPhone !== undefined) result.contact_phone = dto.contactPhone;

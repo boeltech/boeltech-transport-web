@@ -90,7 +90,12 @@ export function mapPaginatedResponse<TRaw>(
 ): MappedPaginatedResult<DeepCamelCase<TRaw>> {
   return {
     data: response.data.map((item) => deepToCamel(item)),
-    pagination: response.pagination,
+    pagination: {
+      page: response.pagination.page,
+      limit: response.pagination.limit,
+      total: response.pagination.total,
+      totalPages: response.pagination.total_pages,
+    },
   };
 }
 

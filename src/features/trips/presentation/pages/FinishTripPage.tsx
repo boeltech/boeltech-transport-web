@@ -3,8 +3,9 @@
  * FSD: Pages Layer - Composition
  *
  * Página dedicada para finalizar un viaje en curso.
- * Muestra resumen del viaje (ruta, paradas, cargas, costos estimados)
- * y formulario para capturar datos de finalización.
+ * Muestra resumen del viaje (ruta, paradas, cargas, gastos) y formulario
+ * para capturar datos de finalización. Los costos operativos se gestionan
+ * exclusivamente a través de TripExpenses (no en campos directos del viaje).
  *
  * Ubicación: src/pages/trips/finish/FinishTripPage.tsx
  *
@@ -14,17 +15,25 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useTrip, useFinishTrip } from "@features/trips/application";
+import {
+  useTrip,
+  useFinishTrip,
+  useTripExpenses,
+  useUpdateExpense,
+} from "@features/trips/application";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import type {
   TripStop,
   TripCargo,
+  TripExpense,
   FinishTripInput,
 } from "@features/trips/domain";
 import {
   STOP_TYPE_LABELS,
   CARGO_STATUS_LABELS,
+  EXPENSE_CATEGORY_LABELS,
+  CargoStatus,
   type StopTypeValue,
 } from "@features/trips/domain";
 
@@ -46,6 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
+import { AlertWithIcon } from "@shared/ui/alert";
 
 // Icons
 import {
@@ -54,14 +64,11 @@ import {
   Loader2,
   Truck,
   User,
-  MapPin,
   Package,
   DollarSign,
   Clock,
   AlertTriangle,
   Navigation,
-  Fuel,
-  CircleDollarSign,
   FileText,
   Building2,
 } from "lucide-react";
@@ -79,18 +86,12 @@ import {
 interface FinishFormState {
   endMileage: string;
   actualArrival: string;
-  fuelCost: string;
-  tollCost: string;
-  otherCosts: string;
   notes: string;
 }
 
 interface FormErrors {
   endMileage?: string;
   actualArrival?: string;
-  fuelCost?: string;
-  tollCost?: string;
-  otherCosts?: string;
 }
 
 // ============================================================================
@@ -110,9 +111,6 @@ function formatCurrency(value: number | null | undefined): string {
   }).format(value);
 }
 
-/**
- * Obtiene las labels de stop type (soporta string y array)
- */
 function getStopTypeLabels(stopType: StopTypeValue | StopTypeValue[]): string {
   if (Array.isArray(stopType)) {
     return stopType.map((t) => STOP_TYPE_LABELS[t] || t).join(" / ");
@@ -260,6 +258,105 @@ function CargoSummary({ cargos }: { cargos?: TripCargo[] }) {
   );
 }
 
+/**
+ * Sección de gastos estimados con inputs para confirmar monto real.
+ * Recibe los gastos con isEstimated:true y el estado de edición.
+ */
+function EstimatedExpensesSection({
+  expenses,
+  isLoading,
+  amounts,
+  onAmountChange,
+}: {
+  expenses: TripExpense[];
+  isLoading: boolean;
+  amounts: Record<string, string>;
+  onAmountChange: (expenseId: string, value: string) => void;
+}) {
+  const totalEstimated = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const totalReal = expenses.reduce((acc, e) => {
+    const override = amounts[e.id];
+    return acc + (override !== undefined ? parseFloat(override) || 0 : e.amount);
+  }, 0);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <DollarSign className="h-4 w-4" />
+          Gastos del Viaje
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Cargando gastos...
+          </div>
+        )}
+
+        {!isLoading && expenses.length === 0 && (
+          <p className="text-sm text-muted-foreground py-2">
+            No hay gastos registrados para este viaje.
+          </p>
+        )}
+
+        {!isLoading && expenses.length > 0 && (
+          <>
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-2 text-xs text-muted-foreground font-medium pb-1 border-b">
+              <span>Gasto</span>
+              <span className="text-right w-20">Estimado</span>
+              <span className="text-right w-24">Real</span>
+            </div>
+            {expenses.map((expense) => (
+              <div
+                key={expense.id}
+                className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-0.5 items-center"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {EXPENSE_CATEGORY_LABELS[expense.category] ??
+                      expense.category}
+                  </p>
+                  {expense.description && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {expense.description}
+                    </p>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground text-right w-20 tabular-nums">
+                  {formatCurrency(expense.amount)}
+                </span>
+                <div className="w-24">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder={String(expense.amount)}
+                    value={amounts[expense.id] ?? ""}
+                    onChange={(e) => onAmountChange(expense.id, e.target.value)}
+                    className="h-7 text-xs text-right"
+                  />
+                </div>
+              </div>
+            ))}
+            <Separator />
+            <div className="flex justify-between text-sm font-semibold">
+              <span>Total</span>
+              <div className="flex items-center gap-3">
+                <span className="text-muted-foreground font-normal text-xs">
+                  Est. {formatCurrency(totalEstimated)}
+                </span>
+                <span>{formatCurrency(totalReal)}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -272,8 +369,11 @@ export function FinishTripPage() {
 
   // Data
   const { data: trip, isLoading, isError } = useTrip(id!);
+  const { data: expenses = [], isLoading: expensesLoading } = useTripExpenses(
+    id!,
+  );
 
-  // Mutation
+  // Mutations
   const finishMutation = useFinishTrip({
     onSuccess: (finishedTrip) => {
       toast({
@@ -292,17 +392,21 @@ export function FinishTripPage() {
     },
   });
 
+  const updateExpenseMutation = useUpdateExpense(id!);
+
   // Form state
   const [form, setForm] = useState<FinishFormState>({
     endMileage: "",
     actualArrival: getTodayString(),
-    fuelCost: "",
-    tollCost: "",
-    otherCosts: "",
     notes: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Expense real amounts: expenseId → string value del input
+  const [expenseAmounts, setExpenseAmounts] = useState<Record<string, string>>(
+    {},
+  );
 
   // Permissions
   const canUpdate = hasPermission("trips", "update");
@@ -317,39 +421,47 @@ export function FinishTripPage() {
     return end - startMileage;
   }, [startMileage, form.endMileage]);
 
-  const estimatedCosts = trip?.costs;
+  // Solo gastos estimados son editables al finalizar
+  const estimatedExpenses = expenses.filter((e) => e.isEstimated);
 
-  const finalCosts = useMemo(() => {
-    const fuel = parseFloat(form.fuelCost) || 0;
-    const tolls = parseFloat(form.tollCost) || 0;
-    const other = parseFloat(form.otherCosts) || 0;
-    const total = fuel + tolls + other;
-    return { fuel, tolls, other, total };
-  }, [form.fuelCost, form.tollCost, form.otherCosts]);
+  // Gastos con monto real diferente al estimado (serán actualizados)
+  const modifiedExpenses = estimatedExpenses.filter((e) => {
+    const override = expenseAmounts[e.id];
+    return override !== undefined && parseFloat(override) !== e.amount;
+  });
+
+  // Pendientes al momento de finalizar
+  const pendingStops = (trip?.stops ?? []).filter((s) => !s.actualArrival);
+  const pendingCargos = (trip?.cargos ?? []).filter(
+    (c) =>
+      c.status !== CargoStatus.DELIVERED && c.status !== CargoStatus.CANCELLED,
+  );
+  const hasPendingItems = pendingStops.length > 0 || pendingCargos.length > 0;
 
   // Handlers
   const updateField = (field: keyof FinishFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    // Clear error on change
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
+  const handleExpenseAmountChange = (expenseId: string, value: string) => {
+    setExpenseAmounts((prev) => ({ ...prev, [expenseId]: value }));
+  };
+
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // End mileage is required
     const endMileage = parseInt(form.endMileage, 10);
     if (!form.endMileage || isNaN(endMileage)) {
       newErrors.endMileage = "El kilometraje final es requerido";
     } else if (endMileage <= 0) {
       newErrors.endMileage = "El kilometraje debe ser mayor a 0";
-    } else if (startMileage !== null && endMileage <= startMileage) {
-      newErrors.endMileage = `Debe ser mayor al kilometraje inicial (${formatNumber(startMileage)} km)`;
+    } else if (startMileage !== null && endMileage < startMileage) {
+      newErrors.endMileage = `Debe ser mayor o igual al kilometraje inicial (${formatNumber(startMileage)} km)`;
     }
 
-    // Actual arrival is required
     if (!form.actualArrival) {
       newErrors.actualArrival = "La hora real de llegada es requerida";
     } else if (trip?.actualDeparture) {
@@ -358,26 +470,6 @@ export function FinishTripPage() {
       if (arrival <= departure) {
         newErrors.actualArrival = "La llegada debe ser posterior a la salida";
       }
-    }
-
-    // Costs validation (optional but must be valid numbers)
-    if (
-      form.fuelCost &&
-      (isNaN(parseFloat(form.fuelCost)) || parseFloat(form.fuelCost) < 0)
-    ) {
-      newErrors.fuelCost = "Ingrese un monto válido";
-    }
-    if (
-      form.tollCost &&
-      (isNaN(parseFloat(form.tollCost)) || parseFloat(form.tollCost) < 0)
-    ) {
-      newErrors.tollCost = "Ingrese un monto válido";
-    }
-    if (
-      form.otherCosts &&
-      (isNaN(parseFloat(form.otherCosts)) || parseFloat(form.otherCosts) < 0)
-    ) {
-      newErrors.otherCosts = "Ingrese un monto válido";
     }
 
     setErrors(newErrors);
@@ -389,15 +481,28 @@ export function FinishTripPage() {
     setShowConfirm(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setShowConfirm(false);
 
+    // 1. Actualizar gastos modificados (estimado → real)
+    if (modifiedExpenses.length > 0) {
+      await Promise.all(
+        modifiedExpenses.map((e) =>
+          updateExpenseMutation.mutateAsync({
+            expenseId: e.id,
+            data: {
+              amount: parseFloat(expenseAmounts[e.id]),
+              isEstimated: false,
+            },
+          }),
+        ),
+      );
+    }
+
+    // 2. Finalizar el viaje
     const data: FinishTripInput = {
       endMileage: parseInt(form.endMileage, 10),
       actualArrival: localInputToUtcIso(form.actualArrival),
-      // fuelCost: form.fuelCost ? parseFloat(form.fuelCost) : undefined,
-      // tollCost: form.tollCost ? parseFloat(form.tollCost) : undefined,
-      // otherCosts: form.otherCosts ? parseFloat(form.otherCosts) : undefined,
       notes: form.notes || undefined,
     };
 
@@ -479,6 +584,9 @@ export function FinishTripPage() {
     );
   }
 
+  const isPending =
+    finishMutation.isPending || updateExpenseMutation.isPending;
+
   // ============================================================================
   // RENDER: Main
   // ============================================================================
@@ -500,9 +608,36 @@ export function FinishTripPage() {
             {trip.tripCode} · {trip.originCity} → {trip.destinationCity}
           </p>
         </div>
-        {/* <TripStatusBadgeAnimated status={trip.status} size="sm" /> */}
         <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
       </div>
+
+      {hasPendingItems && (
+        <AlertWithIcon
+          variant="warning"
+          title="Elementos pendientes de confirmar"
+        >
+          <ul className="mt-1 space-y-0.5 list-disc list-inside">
+            {pendingStops.length > 0 && (
+              <li>
+                {pendingStops.length} parada
+                {pendingStops.length > 1 ? "s" : ""} sin marcar como visitada
+                {pendingStops.length > 1 ? "s" : ""}
+              </li>
+            )}
+            {pendingCargos.length > 0 && (
+              <li>
+                {pendingCargos.length} carga
+                {pendingCargos.length > 1 ? "s" : ""} sin marcar como entregada
+                {pendingCargos.length > 1 ? "s" : ""}
+              </li>
+            )}
+          </ul>
+          <p className="mt-2 text-xs opacity-80">
+            Puedes registrarlos desde la tab Ruta y Cargas del detalle del viaje
+            antes de finalizar.
+          </p>
+        </AlertWithIcon>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ============================== */}
@@ -577,13 +712,13 @@ export function FinishTripPage() {
                     Llegada programada
                   </span>
                   <p className="font-medium">
-                    {formatDateTime(trip.scheduledArrival.toISOString())}
+                    {formatDateTime(trip.scheduledArrival?.toISOString())}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Salida real</span>
                   <p className="font-medium">
-                    {formatDateTime(trip.actualDeparture.toISOString())}
+                    {formatDateTime(trip.actualDeparture?.toISOString())}
                   </p>
                 </div>
                 <div>
@@ -606,45 +741,13 @@ export function FinishTripPage() {
           {/* Cargos */}
           <CargoSummary cargos={trip.cargos} />
 
-          {/* Estimated Costs */}
-          {estimatedCosts && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <DollarSign className="h-4 w-4" />
-                  Costos Estimados (al crear viaje)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Tarifa base</span>
-                    <p className="font-medium">
-                      {formatCurrency(estimatedCosts.baseRate)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Combustible</span>
-                    <p className="font-medium">
-                      {formatCurrency(estimatedCosts.fuelCost)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Casetas</span>
-                    <p className="font-medium">
-                      {formatCurrency(estimatedCosts.tollCost)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Otros</span>
-                    <p className="font-medium">
-                      {formatCurrency(estimatedCosts.otherCosts)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Gastos — editar monto real de estimados */}
+          <EstimatedExpensesSection
+            expenses={estimatedExpenses}
+            isLoading={expensesLoading}
+            amounts={expenseAmounts}
+            onAmountChange={handleExpenseAmountChange}
+          />
         </div>
 
         {/* ============================== */}
@@ -718,111 +821,6 @@ export function FinishTripPage() {
 
               <Separator />
 
-              {/* Costs Section */}
-              <div>
-                <p className="text-sm font-medium mb-3 flex items-center gap-1">
-                  <CircleDollarSign className="h-3.5 w-3.5" />
-                  Costos Reales (opcional)
-                </p>
-
-                {/* Fuel Cost */}
-                <div className="space-y-1.5 mb-3">
-                  <Label
-                    htmlFor="fuelCost"
-                    className="text-xs flex items-center gap-1"
-                  >
-                    <Fuel className="h-3 w-3" />
-                    Combustible
-                  </Label>
-                  <Input
-                    id="fuelCost"
-                    type="number"
-                    step="0.01"
-                    placeholder={
-                      estimatedCosts?.fuelCost
-                        ? `Estimado: ${formatCurrency(estimatedCosts.fuelCost)}`
-                        : "$0.00"
-                    }
-                    value={form.fuelCost}
-                    onChange={(e) => updateField("fuelCost", e.target.value)}
-                    className={errors.fuelCost ? "border-destructive" : ""}
-                  />
-                  {errors.fuelCost && (
-                    <p className="text-xs text-destructive">
-                      {errors.fuelCost}
-                    </p>
-                  )}
-                </div>
-
-                {/* Toll Cost */}
-                <div className="space-y-1.5 mb-3">
-                  <Label
-                    htmlFor="tollCost"
-                    className="text-xs flex items-center gap-1"
-                  >
-                    <MapPin className="h-3 w-3" />
-                    Casetas / Peajes
-                  </Label>
-                  <Input
-                    id="tollCost"
-                    type="number"
-                    step="0.01"
-                    placeholder={
-                      estimatedCosts?.tollCost
-                        ? `Estimado: ${formatCurrency(estimatedCosts.tollCost)}`
-                        : "$0.00"
-                    }
-                    value={form.tollCost}
-                    onChange={(e) => updateField("tollCost", e.target.value)}
-                    className={errors.tollCost ? "border-destructive" : ""}
-                  />
-                  {errors.tollCost && (
-                    <p className="text-xs text-destructive">
-                      {errors.tollCost}
-                    </p>
-                  )}
-                </div>
-
-                {/* Other Costs */}
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="otherCosts"
-                    className="text-xs flex items-center gap-1"
-                  >
-                    <DollarSign className="h-3 w-3" />
-                    Otros gastos
-                  </Label>
-                  <Input
-                    id="otherCosts"
-                    type="number"
-                    step="0.01"
-                    placeholder="$0.00"
-                    value={form.otherCosts}
-                    onChange={(e) => updateField("otherCosts", e.target.value)}
-                    className={errors.otherCosts ? "border-destructive" : ""}
-                  />
-                  {errors.otherCosts && (
-                    <p className="text-xs text-destructive">
-                      {errors.otherCosts}
-                    </p>
-                  )}
-                </div>
-
-                {/* Total */}
-                {finalCosts.total > 0 && (
-                  <div className="flex justify-between items-center mt-3 pt-3 border-t text-sm">
-                    <span className="text-muted-foreground">
-                      Total costos reales
-                    </span>
-                    <span className="font-semibold">
-                      {formatCurrency(finalCosts.total)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
               {/* Notes */}
               <div className="space-y-1.5">
                 <Label htmlFor="notes" className="flex items-center gap-1">
@@ -843,9 +841,9 @@ export function FinishTripPage() {
                 className="w-full"
                 size="lg"
                 onClick={handleSubmit}
-                disabled={finishMutation.isPending}
+                disabled={isPending}
               >
-                {finishMutation.isPending ? (
+                {isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -860,7 +858,7 @@ export function FinishTripPage() {
             <p className="font-medium">Al finalizar el viaje:</p>
             <p>• El vehículo y conductor quedarán disponibles</p>
             <p>• El estado cambiará a "Completado"</p>
-            <p>• Se registrarán los datos finales para reportes</p>
+            <p>• Los gastos modificados se registrarán como reales</p>
             <p>• Esta acción no se puede deshacer</p>
           </div>
         </div>
@@ -897,13 +895,14 @@ export function FinishTripPage() {
                       {formatDateTime(localInputToUtcIso(form.actualArrival))}
                     </span>
                   </p>
-                  {finalCosts.total > 0 && (
+                  {modifiedExpenses.length > 0 && (
                     <p>
                       <span className="text-muted-foreground">
-                        Costos reales:
+                        Gastos a confirmar:
                       </span>{" "}
                       <span className="font-medium">
-                        {formatCurrency(finalCosts.total)}
+                        {modifiedExpenses.length} gasto
+                        {modifiedExpenses.length > 1 ? "s" : ""} con monto real
                       </span>
                     </p>
                   )}
@@ -919,9 +918,9 @@ export function FinishTripPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
-              disabled={finishMutation.isPending}
+              disabled={isPending}
             >
-              {finishMutation.isPending && (
+              {isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               <CheckCircle className="mr-2 h-4 w-4" />

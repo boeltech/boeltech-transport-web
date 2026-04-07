@@ -63,9 +63,9 @@ export interface CreateCargoInput {
   units?: number;
   declaredValue?: number;
 
-  // Tarifa
-  rate: number;
-  currency?: CurrencyType;
+  // NOTA: El campo `rate` fue eliminado del input de creación de carga.
+  // Para viajes consolidados (LTL multi-cliente), se implementará prorrateo
+  // de tarifa por carga en un módulo futuro.
 
   // Movimientos
   movements?: CreateCargoMovementInput[];
@@ -244,7 +244,7 @@ export interface UpdateExpenseInput {
 export interface CreateStopInput {
   // Orden y tipo
   sequenceOrder: number;
-  stopType: StopTypeValue;
+  stopType: StopTypeValue[];
 
   // Dirección simplificada
   address: string;
@@ -298,7 +298,7 @@ export interface CreateStopInput {
 export interface UpdateStopInput {
   // Orden y tipo
   sequenceOrder?: number;
-  stopType?: StopTypeValue;
+  stopType?: StopTypeValue[];
 
   // Dirección simplificada
   address?: string;

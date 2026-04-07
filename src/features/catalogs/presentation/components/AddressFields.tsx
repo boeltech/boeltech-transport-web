@@ -2,64 +2,109 @@
  * AddressFields Component
  * Clean Architecture - Presentation Layer
  *
- * Componente compuesto para captura de dirección con catálogos SAT.
- * Maneja la cascada jerárquica: Estado → Municipio → Colonia/Localidad
+ * Componente unificado para captura de campos geográficos SAT (Carta Porte 3.1).
+ * Punto único de control para: Estado → Municipio | CP → Colonia | Localidad.
+ *
+ * COMPOUND CODES:
+ * Los catálogos SAT devuelven códigos compuestos (ej. "AGU-001", "12345-0001").
+ * Este componente maneja internamente la reconstrucción para los value props
+ * y el split al recibir cambios. El padre siempre recibe/guarda códigos cortos.
+ *
+ * CASCADE INTERNO:
+ * - Estado cambia → limpia municipio + localidad
+ * - CP cambia → limpia colonia
  *
  * @example
+ * // Con estado local (StopFormDialog, etc.)
  * <AddressFields
- *   estadoValue={form.watch("estado")}
- *   municipioValue={form.watch("municipio")}
- *   coloniaValue={form.watch("colonia")}
- *   onEstadoChange={(code) => form.setValue("estado", code)}
- *   onMunicipioChange={(code) => form.setValue("municipio", code)}
- *   onColoniaChange={(code) => form.setValue("colonia", code)}
+ *   values={{ estadoCode, municipioCode, postalCode, coloniaCode, localidadCode }}
+ *   onChange={(changes) => setFormData(prev => ({ ...prev, ...mapToFormFields(changes) }))}
+ *   required={{ estado: true, municipio: true, postalCode: true }}
+ *   displayFormat="code-name"
+ *   showLocalidadHint
  * />
+ *
+ * // Con React Hook Form (ClientAddressForm, etc.)
+ * <AddressFields
+ *   values={{ estadoCode: watch("satEstadoCode"), ... }}
+ *   onChange={(changes) => {
+ *     if (changes.estadoCode !== undefined) setValue("satEstadoCode", changes.estadoCode, { shouldValidate: true });
+ *     // ...
+ *   }}
+ *   errors={{ estado: errors.satEstadoCode?.message, ... }}
+ * />
+ *
+ * Ubicación: src/features/catalogs/presentation/components/AddressFields.tsx
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Label } from "@shared/ui/label";
+import { cn } from "@shared/lib/utils/cn";
 import { EstadoSelect, MunicipioSelect } from "./CatalogSelect";
-import { ColoniaSearch } from "./CatalogSearchInput";
-import type { CatalogItem } from "../../domain";
+import {
+  CodigoPostalCombobox,
+  ColoniaCombobox,
+  LocalidadCombobox,
+} from "./GeographicSelects";
+import { useCatalogOptions } from "../../application/hooks";
+import type { CatalogTypeCodeValue } from "../../domain";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
+/** Valores de dirección SAT. Siempre códigos cortos (sin prefijo de estado/CP). */
+export interface SatAddressValues {
+  estadoCode?: string;
+  municipioCode?: string; // corto: "001" (no "AGU-001")
+  municipioName?: string; // nombre del municipio del catálogo SAT
+  postalCode?: string;
+  coloniaCode?: string;   // corto: "0001" (no "12345-0001")
+  coloniaName?: string;   // nombre/descripción de la colonia del catálogo SAT
+  localidadCode?: string; // corto: "01"   (no "AGU-01")
+}
+
+export interface AddressFieldsErrors {
+  estado?: string;
+  municipio?: string;
+  postalCode?: string;
+  colonia?: string;
+  localidad?: string;
+}
+
+export interface AddressFieldsRequired {
+  estado?: boolean;
+  municipio?: boolean;
+  postalCode?: boolean;
+  colonia?: boolean;
+  localidad?: boolean;
+}
+
 export interface AddressFieldsProps {
-  // Valores actuales
-  estadoValue?: string;
-  municipioValue?: string;
-  coloniaValue?: string;
-  localidadValue?: string;
-
-  // Callbacks de cambio
-  onEstadoChange?: (code: string) => void;
-  onMunicipioChange?: (code: string) => void;
-  onColoniaChange?: (code: string) => void;
-  onLocalidadChange?: (code: string) => void;
-
-  // Callbacks para limpiar campos hijos
-  onMunicipioClear?: () => void;
-  onColoniaClear?: () => void;
-  onLocalidadClear?: () => void;
-
-  // Errores de validación
-  estadoError?: string;
-  municipioError?: string;
-  coloniaError?: string;
-  localidadError?: string;
-
-  // Opciones
+  values: SatAddressValues;
+  /**
+   * Callback con los cambios a aplicar. Incluye cascade clearing:
+   * - Al cambiar estado: también incluye { municipioCode: "", localidadCode: "" }
+   * - Al cambiar CP: también incluye { coloniaCode: "" }
+   */
+  onChange: (changes: Partial<SatAddressValues>) => void;
+  errors?: AddressFieldsErrors;
+  required?: AddressFieldsRequired;
   disabled?: boolean;
-  showLocalidad?: boolean;
-  required?: {
-    estado?: boolean;
-    municipio?: boolean;
-    colonia?: boolean;
-    localidad?: boolean;
-  };
+  /** Formato de display para los selects de catálogo */
+  displayFormat?: "name" | "code" | "code-name" | "name-code";
+  /** Muestra el hint "solo para zonas rurales" bajo Localidad */
+  showLocalidadHint?: boolean;
   className?: string;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Extrae el código corto de un código compuesto SAT (ej. "AGU-001" → "001") */
+function splitCompound(code: string): string {
+  return code.includes("-") ? code.split("-")[1] : code;
 }
 
 // ============================================================================
@@ -67,154 +112,210 @@ export interface AddressFieldsProps {
 // ============================================================================
 
 export function AddressFields({
-  estadoValue,
-  municipioValue,
-  coloniaValue,
-  onEstadoChange,
-  onMunicipioChange,
-  onColoniaChange,
-  onMunicipioClear,
-  onColoniaClear,
-  onLocalidadClear,
-  estadoError,
-  municipioError,
-  coloniaError,
-  localidadError,
+  values,
+  onChange,
+  errors,
+  required,
   disabled = false,
-  showLocalidad = false,
-  required = {},
+  displayFormat,
+  showLocalidadHint = false,
   className,
 }: AddressFieldsProps) {
+  const {
+    estadoCode = "",
+    municipioCode = "",
+    postalCode = "",
+    coloniaCode = "",
+    localidadCode = "",
+  } = values;
+
   // ══════════════════════════════════════════════════════════════════════════
-  // Cascade Logic: Limpiar campos hijos cuando cambia el padre
+  // Auto-emit municipioName for pre-set values (client address pre-fill / edit mode)
+  // The onSelectItem callback on MunicipioSelect only fires on user interaction,
+  // so we look up the name from the catalog when the component loads with existing values.
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Cuando cambia el estado, limpiar municipio y colonia
+  const { data: municipioOptions } = useCatalogOptions(
+    "sat_municipio" as CatalogTypeCodeValue,
+    { parentCode: estadoCode, enabled: !!estadoCode && !!municipioCode },
+  );
+
+  const emittedMunicipioRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!municipioOptions || !municipioCode || !estadoCode) return;
+    const cacheKey = `${estadoCode}-${municipioCode}`;
+    if (emittedMunicipioRef.current === cacheKey) return;
+    const item = municipioOptions.find((o) => o.code === cacheKey);
+    if (item) {
+      emittedMunicipioRef.current = cacheKey;
+      onChange({ municipioName: item.name });
+    }
+  }, [municipioOptions, municipioCode, estadoCode, onChange]);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Cascade Handlers
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Estado → limpia municipio y localidad */
   const handleEstadoChange = useCallback(
     (code: string) => {
-      onEstadoChange?.(code);
-      onMunicipioClear?.();
-      onColoniaClear?.();
-      onLocalidadClear?.();
+      onChange({ estadoCode: code, municipioCode: "", localidadCode: "" });
     },
-    [onEstadoChange, onMunicipioClear, onColoniaClear, onLocalidadClear],
+    [onChange],
   );
 
-  // Cuando cambia el municipio, limpiar colonia y localidad
-  const handleMunicipioChange = useCallback(
+  /** Municipio → split código compuesto "AGU-001" → "001", también emite el nombre */
+  const handleMunicipioSelect = useCallback(
+    (code: string, name: string) => {
+      onChange({ municipioCode: splitCompound(code), municipioName: name });
+    },
+    [onChange],
+  );
+
+  /** CP → limpia colonia */
+  const handlePostalCodeChange = useCallback(
     (code: string) => {
-      onMunicipioChange?.(code);
-      onColoniaClear?.();
-      onLocalidadClear?.();
+      onChange({ postalCode: code, coloniaCode: "", coloniaName: "" });
     },
-    [onMunicipioChange, onColoniaClear, onLocalidadClear],
+    [onChange],
   );
 
-  // Cuando se selecciona una colonia
+  /** Colonia → split código compuesto "12345-0001" → "0001", también emite el nombre */
   const handleColoniaSelect = useCallback(
-    (item: CatalogItem) => {
-      onColoniaChange?.(item.code);
+    (code: string, name: string) => {
+      onChange({ coloniaCode: splitCompound(code), coloniaName: name });
     },
-    [onColoniaChange],
+    [onChange],
   );
 
-  // Cuando se limpia la colonia
-  const handleColoniaClear = useCallback(() => {
-    onColoniaClear?.();
-  }, [onColoniaClear]);
+  /** Localidad → split código compuesto "AGU-01" → "01" */
+  const handleLocalidadChange = useCallback(
+    (code: string) => {
+      onChange({ localidadCode: splitCompound(code) });
+    },
+    [onChange],
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // Render
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className={className}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Estado */}
+    <div className={cn("space-y-4", className)}>
+      {/* Row 1: Estado + Municipio */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="estado">
+          <Label>
             Estado
-            {required.estado && (
+            {required?.estado && (
               <span className="text-destructive ml-1">*</span>
             )}
           </Label>
           <EstadoSelect
-            value={estadoValue}
+            value={estadoCode}
             onValueChange={handleEstadoChange}
             disabled={disabled}
-            placeholder="Seleccione un estado"
+            placeholder="Seleccione estado"
+            displayFormat={displayFormat}
           />
-          {estadoError && (
-            <p className="text-sm text-destructive">{estadoError}</p>
+          {errors?.estado && (
+            <p className="text-sm text-destructive">{errors.estado}</p>
           )}
         </div>
 
-        {/* Municipio */}
         <div className="space-y-2">
-          <Label htmlFor="municipio">
+          <Label>
             Municipio
-            {required.municipio && (
+            {required?.municipio && (
               <span className="text-destructive ml-1">*</span>
             )}
           </Label>
           <MunicipioSelect
-            estadoCode={estadoValue}
-            value={municipioValue}
-            onValueChange={handleMunicipioChange}
-            disabled={disabled || !estadoValue}
+            value={municipioCode ? `${estadoCode}-${municipioCode}` : ""}
+            onSelectItem={handleMunicipioSelect}
+            estadoCode={estadoCode}
+            disabled={disabled || !estadoCode}
             placeholder={
-              estadoValue
-                ? "Seleccione un municipio"
-                : "Primero seleccione un estado"
+              estadoCode ? "Seleccione municipio" : "Primero seleccione estado"
             }
+            displayFormat={displayFormat}
           />
-          {municipioError && (
-            <p className="text-sm text-destructive">{municipioError}</p>
+          {errors?.municipio && (
+            <p className="text-sm text-destructive">{errors.municipio}</p>
           )}
         </div>
+      </div>
 
-        {/* Colonia */}
+      {/* Row 2: Código Postal + Colonia */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="colonia">
-            Colonia
-            {required.colonia && (
+          <Label>
+            Código Postal
+            {required?.postalCode && (
               <span className="text-destructive ml-1">*</span>
             )}
           </Label>
-          <ColoniaSearch
-            municipioCode={municipioValue}
-            value={coloniaValue}
-            onSelect={handleColoniaSelect}
-            onClear={handleColoniaClear}
-            disabled={disabled || !municipioValue}
-            placeholder={
-              municipioValue
-                ? "Buscar colonia..."
-                : "Primero seleccione un municipio"
-            }
+          <CodigoPostalCombobox
+            value={postalCode}
+            onValueChange={handlePostalCodeChange}
+            estadoCode={estadoCode}
+            placeholder="Buscar CP..."
+            disabled={disabled}
           />
-          {coloniaError && (
-            <p className="text-sm text-destructive">{coloniaError}</p>
+          {errors?.postalCode && (
+            <p className="text-sm text-destructive">{errors.postalCode}</p>
           )}
         </div>
 
-        {/* Localidad (opcional) */}
-        {showLocalidad && (
-          <div className="space-y-2">
-            <Label htmlFor="localidad">
-              Localidad
-              {required.localidad && (
-                <span className="text-destructive ml-1">*</span>
-              )}
-            </Label>
-            {/* Para localidad usarías LocalidadSearch similar a ColoniaSearch */}
-            <p className="text-sm text-muted-foreground">
-              Implementar LocalidadSearch similar a ColoniaSearch
-            </p>
-            {localidadError && (
-              <p className="text-sm text-destructive">{localidadError}</p>
+        <div className="space-y-2">
+          <Label>
+            Colonia
+            {required?.colonia && (
+              <span className="text-destructive ml-1">*</span>
             )}
-          </div>
+          </Label>
+          <ColoniaCombobox
+            value={coloniaCode ? `${postalCode}-${coloniaCode}` : ""}
+            onSelectItem={handleColoniaSelect}
+            codigoPostal={postalCode}
+            disabled={disabled || !postalCode || postalCode.length !== 5}
+            placeholder={
+              postalCode?.length === 5
+                ? "Seleccione colonia"
+                : "Ingrese código postal primero"
+            }
+            displayFormat={displayFormat}
+          />
+          {errors?.colonia && (
+            <p className="text-sm text-destructive">{errors.colonia}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Localidad (full width, opcional) */}
+      <div className="space-y-2">
+        <Label>
+          Localidad
+          {required?.localidad && (
+            <span className="text-destructive ml-1">*</span>
+          )}
+        </Label>
+        <LocalidadCombobox
+          value={localidadCode ? `${estadoCode}-${localidadCode}` : ""}
+          onValueChange={handleLocalidadChange}
+          estadoCode={estadoCode}
+          disabled={disabled || !estadoCode}
+          placeholder="Solo para zonas rurales"
+          displayFormat={displayFormat}
+        />
+        {showLocalidadHint && (
+          <p className="text-xs text-muted-foreground">
+            Solo para zonas rurales o cuando no hay código postal definido.
+          </p>
+        )}
+        {errors?.localidad && (
+          <p className="text-sm text-destructive">{errors.localidad}</p>
         )}
       </div>
     </div>

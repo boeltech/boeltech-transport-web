@@ -21,7 +21,7 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/StopFormDialog.tsx
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -57,18 +57,16 @@ import { cn } from "@shared/lib/utils/cn";
 
 // Hooks de clientes
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
-import { useClientAddresses } from "@features/clients/application/hooks/useClientAddresses";
+import {
+  useClientAddresses,
+  useClientAddress,
+} from "@features/clients/application/hooks/useClientAddresses";
 import { ADDRESS_TYPE_LABELS } from "@features/clients/domain/entities";
 
-// Selects de catálogos SAT
+// Componente unificado de campos SAT
 import {
-  EstadoSelect,
-  MunicipioSelect,
-} from "@features/catalogs/presentation/components/CatalogSelect";
-import {
-  LocalidadCombobox,
-  ColoniaCombobox,
-  CodigoPostalCombobox,
+  AddressFields,
+  type SatAddressValues,
 } from "@features/catalogs/presentation/components";
 
 import type { TripStopFormValues } from "./validation";
@@ -93,9 +91,9 @@ export interface StopFormDialogProps {
 
 // Tipos de operación en la parada
 const STOP_OPERATION_OPTIONS = [
-  { value: "pickup", label: "Carga", icon: MapPin, color: "text-blue-600" },
+  { value: "pickup" as const, label: "Carga", icon: MapPin, color: "text-blue-600" },
   {
-    value: "delivery",
+    value: "delivery" as const,
     label: "Descarga",
     icon: MapPin,
     color: "text-orange-600",
@@ -115,6 +113,7 @@ const INITIAL_FORM_DATA: StopFormData = {
   postalCode: "",
   satLocalidadCode: "",
   satColoniaCode: "",
+  colonia: "",
   street: "",
   exteriorNumber: "",
   interiorNumber: "",
@@ -126,8 +125,10 @@ const INITIAL_FORM_DATA: StopFormData = {
   contactName: "",
   contactPhone: "",
   notes: "",
+  // Tiempos
+  estimatedArrival: undefined,
   // Distancia
-  distanceToNextKm: undefined,
+  distanceFromPreviousKm: undefined,
 };
 
 // ============================================================================
@@ -153,6 +154,10 @@ export function StopFormDialog({
 
   const { data: clients = [] } = useActiveClients();
   const { data: addresses = [] } = useClientAddresses(formData.clientId);
+  const { data: selectedAddressFull } = useClientAddress(
+    formData.clientId,
+    formData.clientAddressId,
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // EFFECTS
@@ -161,6 +166,7 @@ export function StopFormDialog({
   // Inicializar formulario cuando se abre el dialog
   useEffect(() => {
     if (open && initialData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         ...INITIAL_FORM_DATA,
         ...initialData,
@@ -172,6 +178,7 @@ export function StopFormDialog({
   // Reset cuando se cierra
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(INITIAL_FORM_DATA);
     }
   }, [open]);
@@ -201,6 +208,8 @@ export function StopFormDialog({
       postalCode: "",
       satLocalidadCode: "",
       satColoniaCode: "",
+      cityName: "",
+      colonia: "",
       street: "",
       exteriorNumber: "",
       interiorNumber: "",
@@ -213,107 +222,83 @@ export function StopFormDialog({
   }, []);
 
   // Handler: Selección de dirección del cliente
-  const handleAddressSelect = useCallback(
-    (addressId: string) => {
-      if (addressId === "manual-entry") {
-        setFormData((prev) => ({
-          ...prev,
-          clientAddressId: "",
-        }));
-        return;
-      }
+  // Solo guarda el ID — el effect de abajo popula los campos cuando llega el detalle completo
+  const handleAddressSelect = useCallback((addressId: string) => {
+    if (addressId === "manual-entry") {
+      setFormData((prev) => ({
+        ...prev,
+        clientAddressId: "",
+        locationName: "",
+        satEstadoCode: "",
+        satMunicipioCode: "",
+        postalCode: "",
+        satLocalidadCode: "",
+        satColoniaCode: "",
+        cityName: "",
+        colonia: "",
+        street: "",
+        exteriorNumber: "",
+        interiorNumber: "",
+        reference: "",
+        rfcRemitenteDestinatario: "",
+        nombreRemitenteDestinatario: "",
+        contactName: "",
+        contactPhone: "",
+      }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, clientAddressId: addressId }));
+  }, []);
 
-      const selectedAddress = addresses.find((addr) => addr.id === addressId);
-      if (selectedAddress) {
-        setFormData((prev) => ({
-          ...prev,
-          clientAddressId: addressId,
-          locationName: selectedAddress.locationName || "",
-          // Precargar campos SAT de la dirección del cliente
-          satEstadoCode: selectedAddress.satEstadoCode || "",
-          satMunicipioCode: selectedAddress.satMunicipioCode || "",
-          postalCode: selectedAddress.postalCode || "",
-          satLocalidadCode: selectedAddress.satLocalidadCode || "",
-          satColoniaCode: selectedAddress.satColoniaCode || "",
-          street: selectedAddress.street || "",
-          exteriorNumber: selectedAddress.exteriorNumber || "",
-          interiorNumber: selectedAddress.interiorNumber || "",
-          reference: selectedAddress.reference || "",
-          // Precargar datos del cliente como remitente/destinatario
-          rfcRemitenteDestinatario:
-            selectedAddress.rfcRemitenteDestinatario || "",
-          nombreRemitenteDestinatario:
-            selectedAddress.nombreRemitenteDestinatario || "",
-          contactName: selectedAddress.contactName || "",
-          contactPhone: selectedAddress.contactPhone || "",
-        }));
-      }
-    },
-    [addresses],
-  );
+  // Datos efectivos del formulario — mezcla el estado manual con los datos
+  // de la dirección del cliente cuando hay una seleccionada.
+  // Normaliza códigos compuestos "AGU-001" → "001" para los selects SAT.
+  const displayFormData = useMemo((): StopFormData => {
+    if (!formData.clientAddressId || !selectedAddressFull) return formData;
+
+    const shortCode = (code: string | undefined) =>
+      code?.includes("-") ? code.split("-")[1] : (code ?? "");
+
+    return {
+      ...formData,
+      locationName: selectedAddressFull.locationName || "",
+      satEstadoCode: selectedAddressFull.satEstadoCode || "",
+      satMunicipioCode: shortCode(selectedAddressFull.satMunicipioCode),
+      postalCode: selectedAddressFull.postalCode || "",
+      satLocalidadCode: shortCode(selectedAddressFull.satLocalidadCode),
+      satColoniaCode: shortCode(selectedAddressFull.satColoniaCode),
+      street: selectedAddressFull.street || "",
+      exteriorNumber: selectedAddressFull.exteriorNumber || "",
+      interiorNumber: selectedAddressFull.interiorNumber || "",
+      reference: selectedAddressFull.reference || "",
+      rfcRemitenteDestinatario:
+        selectedAddressFull.rfcRemitenteDestinatario || "",
+      nombreRemitenteDestinatario:
+        selectedAddressFull.nombreRemitenteDestinatario || "",
+      contactName: selectedAddressFull.contactName || "",
+      contactPhone: selectedAddressFull.contactPhone || "",
+      latitude: selectedAddressFull.latitude ?? undefined,
+      longitude: selectedAddressFull.longitude ?? undefined,
+      // estimatedArrival siempre viene del estado manual (no de la dirección)
+      estimatedArrival: formData.estimatedArrival,
+    };
+  }, [formData, selectedAddressFull]);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CASCADE HANDLERS - Flujo correcto de dependencias
+  // ADDRESS HANDLER
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * CASCADE: Estado
-   * - Habilita: Municipio, Localidad
-   * - Limpia: Municipio, Localidad (Colonia NO porque depende de CP)
-   */
-  const handleEstadoChange = useCallback((estadoCode: string) => {
+  /** Handler unificado para AddressFields — mapea SatAddressValues a campos del form */
+  const handleAddressChange = useCallback((changes: Partial<SatAddressValues>) => {
     setFormData((prev) => ({
       ...prev,
-      satEstadoCode: estadoCode,
-      satMunicipioCode: "", // Limpiar - depende de Estado
-      satLocalidadCode: "", // Limpiar - depende de Estado
-      // satColoniaCode NO se limpia - depende de CP, no de Estado
-    }));
-  }, []);
-
-  /**
-   * CASCADE: Municipio
-   * - No tiene dependientes directos en este formulario
-   */
-  const handleMunicipioChange = useCallback((municipioCode: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      satMunicipioCode: municipioCode,
-    }));
-  }, []);
-
-  /**
-   * CASCADE: Código Postal
-   * - Habilita: Colonia
-   * - Limpia: Colonia
-   */
-  const handleCodigoPostalChange = useCallback((codigoPostal: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      postalCode: codigoPostal,
-      satColoniaCode: "", // Limpiar - depende de CP
-    }));
-  }, []);
-
-  /**
-   * CASCADE: Localidad
-   * - Sin dependientes
-   */
-  const handleLocalidadChange = useCallback((localidadCode: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      satLocalidadCode: localidadCode,
-    }));
-  }, []);
-
-  /**
-   * CASCADE: Colonia
-   * - Sin dependientes
-   */
-  const handleColoniaChange = useCallback((coloniaCode: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      satColoniaCode: coloniaCode,
+      ...(changes.estadoCode !== undefined && { satEstadoCode: changes.estadoCode }),
+      ...(changes.municipioCode !== undefined && { satMunicipioCode: changes.municipioCode }),
+      ...(changes.municipioName !== undefined && { cityName: changes.municipioName }),
+      ...(changes.postalCode !== undefined && { postalCode: changes.postalCode }),
+      ...(changes.coloniaCode !== undefined && { satColoniaCode: changes.coloniaCode }),
+      ...(changes.coloniaName !== undefined && { colonia: changes.coloniaName }),
+      ...(changes.localidadCode !== undefined && { satLocalidadCode: changes.localidadCode }),
     }));
   }, []);
 
@@ -322,14 +307,14 @@ export function StopFormDialog({
   // ══════════════════════════════════════════════════════════════════════════
 
   const handleOperationToggle = useCallback(
-    (operation: string) => {
+    (operation: TripStopFormValues["stopType"][number]) => {
       const currentTypes = formData.stopType || [];
       let newTypes: typeof currentTypes;
 
-      if (currentTypes.includes(operation as any)) {
+      if (currentTypes.includes(operation)) {
         newTypes = currentTypes.filter((t) => t !== operation);
       } else {
-        newTypes = [...currentTypes, operation as any];
+        newTypes = [...currentTypes, operation];
       }
 
       setFormData((prev) => ({
@@ -341,18 +326,18 @@ export function StopFormDialog({
   );
 
   const handleSubmit = useCallback(() => {
-    onSubmit(formData);
+    onSubmit(displayFormData);
     onOpenChange(false);
-  }, [formData, onSubmit, onOpenChange]);
+  }, [displayFormData, onSubmit, onOpenChange]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
   const getAvailableOperations = () => {
-    if (!formData.stopCategory) return [];
+    if (!displayFormData.stopCategory) return [];
 
-    switch (formData.stopCategory) {
+    switch (displayFormData.stopCategory) {
       case "origin":
         return STOP_OPERATION_OPTIONS.filter((opt) => opt.value === "pickup");
       case "destination":
@@ -365,38 +350,46 @@ export function StopFormDialog({
   };
 
   const isFormValid = () => {
-    // Validaciones básicas
-    if (!formData.stopCategory) return false;
+    if (!displayFormData.stopCategory) return false;
 
-    // Waypoints requieren al menos una operación
     if (
-      formData.stopCategory === "waypoint" &&
-      (!formData.stopType || formData.stopType.length === 0)
+      displayFormData.stopCategory === "waypoint" &&
+      (!displayFormData.stopType || displayFormData.stopType.length === 0)
     ) {
       return false;
     }
 
-    // Campos Carta Porte obligatorios
-    if (!formData.satEstadoCode) return false;
-    if (!formData.satMunicipioCode) return false;
-    if (!formData.postalCode) return false;
+    if (!displayFormData.satEstadoCode) return false;
+    if (!displayFormData.satMunicipioCode) return false;
+    if (!displayFormData.postalCode) return false;
+
+    // Llegada estimada obligatoria para destino (FechaHoraSalidaLlegada en CP 3.1)
+    if (
+      displayFormData.stopCategory === "destination" &&
+      !displayFormData.estimatedArrival
+    ) {
+      return false;
+    }
 
     return true;
   };
 
+  const showWaypointArrivalWarning =
+    displayFormData.stopCategory === "waypoint" &&
+    !displayFormData.estimatedArrival;
+
   const dialogTitle =
     mode === "edit"
       ? "Editar Parada"
-      : formData.stopCategory === "origin"
+      : displayFormData.stopCategory === "origin"
         ? "Agregar Parada de Origen"
-        : formData.stopCategory === "waypoint"
+        : displayFormData.stopCategory === "waypoint"
           ? "Agregar Escala"
-          : formData.stopCategory === "destination"
+          : displayFormData.stopCategory === "destination"
             ? "Agregar Parada de Destino"
             : "Agregar Parada";
 
-  // Verificar si los campos de dirección están bloqueados (por selección de dirección de cliente)
-  const isAddressLocked = !!formData.clientAddressId;
+  const isAddressLocked = !!displayFormData.clientAddressId;
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -422,16 +415,16 @@ export function StopFormDialog({
           <div
             className={cn(
               "p-4 border-2 rounded-lg",
-              formData.stopCategory === "origin" &&
+              displayFormData.stopCategory === "origin" &&
                 "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
-              formData.stopCategory === "waypoint" &&
+              displayFormData.stopCategory === "waypoint" &&
                 "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900",
-              formData.stopCategory === "destination" &&
+              displayFormData.stopCategory === "destination" &&
                 "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
             )}
           >
             <div className="flex items-center gap-3">
-              {formData.stopCategory === "origin" && (
+              {displayFormData.stopCategory === "origin" && (
                 <>
                   <Navigation className="h-6 w-6 text-green-600" />
                   <div>
@@ -443,7 +436,7 @@ export function StopFormDialog({
                   </div>
                 </>
               )}
-              {formData.stopCategory === "waypoint" && (
+              {displayFormData.stopCategory === "waypoint" && (
                 <>
                   <MapPin className="h-6 w-6 text-gray-600" />
                   <div>
@@ -454,7 +447,7 @@ export function StopFormDialog({
                   </div>
                 </>
               )}
-              {formData.stopCategory === "destination" && (
+              {displayFormData.stopCategory === "destination" && (
                 <>
                   <Flag className="h-6 w-6 text-red-600" />
                   <div>
@@ -471,14 +464,14 @@ export function StopFormDialog({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* OPERACIONES (solo waypoints)                                    */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {formData.stopCategory === "waypoint" && (
+          {displayFormData.stopCategory === "waypoint" && (
             <div className="space-y-3">
               <Label>Operaciones en esta Parada *</Label>
               <div className="grid grid-cols-2 gap-3">
                 {getAvailableOperations().map((option) => {
                   const OpIcon = option.icon;
                   const isChecked =
-                    formData.stopType?.includes(option.value as any) ?? false;
+                    displayFormData.stopType?.includes(option.value as TripStopFormValues["stopType"][number]) ?? false;
 
                   return (
                     <div
@@ -521,7 +514,7 @@ export function StopFormDialog({
                 Cliente (opcional)
               </Label>
               <Select
-                value={formData.clientId || "no-client"}
+                value={displayFormData.clientId || "no-client"}
                 onValueChange={handleClientChange}
               >
                 <SelectTrigger>
@@ -540,11 +533,11 @@ export function StopFormDialog({
             </div>
 
             {/* Direcciones del cliente */}
-            {formData.clientId && addresses.length > 0 && (
+            {displayFormData.clientId && addresses.length > 0 && (
               <div className="space-y-2">
                 <Label>Dirección del Cliente</Label>
                 <Select
-                  value={formData.clientAddressId || "manual-entry"}
+                  value={displayFormData.clientAddressId || "manual-entry"}
                   onValueChange={handleAddressSelect}
                 >
                   <SelectTrigger>
@@ -579,7 +572,7 @@ export function StopFormDialog({
               </div>
             )}
 
-            {formData.clientId && addresses.length === 0 && (
+            {displayFormData.clientId && addresses.length === 0 && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-center gap-2 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 Este cliente no tiene direcciones registradas. Ingrese la
@@ -607,82 +600,26 @@ export function StopFormDialog({
               <Label>Nombre del Lugar</Label>
               <Input
                 placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
-                value={formData.locationName || ""}
+                value={displayFormData.locationName || ""}
                 onChange={(e) => updateField("locationName", e.target.value)}
                 disabled={isAddressLocked}
               />
             </div>
 
-            {/* Estado + Municipio (Row 1) */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>
-                  Estado <span className="text-destructive">*</span>
-                </Label>
-                <EstadoSelect
-                  value={formData.satEstadoCode}
-                  onValueChange={handleEstadoChange}
-                  displayFormat="code-name"
-                  disabled={isAddressLocked}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Municipio <span className="text-destructive">*</span>
-                </Label>
-                <MunicipioSelect
-                  value={formData.satMunicipioCode}
-                  onValueChange={handleMunicipioChange}
-                  estadoCode={formData.satEstadoCode}
-                  displayFormat="code-name"
-                  disabled={isAddressLocked}
-                />
-              </div>
-            </div>
-
-            {/* Código Postal + Localidad (Row 2) */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>
-                  Código Postal <span className="text-destructive">*</span>
-                </Label>
-                <CodigoPostalCombobox
-                  value={formData.postalCode}
-                  onValueChange={handleCodigoPostalChange}
-                  estadoCode={formData.satEstadoCode}
-                  placeholder="Buscar CP..."
-                  disabled={isAddressLocked}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Localidad</Label>
-                <LocalidadCombobox
-                  value={formData.satLocalidadCode}
-                  onValueChange={handleLocalidadChange}
-                  estadoCode={formData.satEstadoCode}
-                  displayFormat="code-name"
-                  disabled={isAddressLocked}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Opcional. Para zonas rurales.
-                </p>
-              </div>
-            </div>
-
-            {/* Colonia (Row 3) */}
-            <div className="space-y-2">
-              <Label>Colonia</Label>
-              <ColoniaCombobox
-                value={formData.satColoniaCode}
-                onValueChange={handleColoniaChange}
-                codigoPostal={formData.postalCode}
-                displayFormat="code-name"
-                disabled={isAddressLocked}
-              />
-              <p className="text-xs text-muted-foreground">
-                Opcional. Se habilita al ingresar código postal.
-              </p>
-            </div>
+            <AddressFields
+              values={{
+                estadoCode: displayFormData.satEstadoCode,
+                municipioCode: displayFormData.satMunicipioCode,
+                postalCode: displayFormData.postalCode,
+                coloniaCode: displayFormData.satColoniaCode,
+                localidadCode: displayFormData.satLocalidadCode,
+              }}
+              onChange={handleAddressChange}
+              required={{ estado: true, municipio: true, postalCode: true }}
+              displayFormat="code-name"
+              disabled={isAddressLocked}
+              showLocalidadHint
+            />
           </div>
 
           <Separator />
@@ -699,7 +636,7 @@ export function StopFormDialog({
                 <Label>Calle</Label>
                 <Input
                   placeholder="Nombre de la calle"
-                  value={formData.street || ""}
+                  value={displayFormData.street || ""}
                   onChange={(e) => updateField("street", e.target.value)}
                   disabled={isAddressLocked}
                 />
@@ -708,7 +645,7 @@ export function StopFormDialog({
                 <Label>Núm. Exterior</Label>
                 <Input
                   placeholder="123"
-                  value={formData.exteriorNumber || ""}
+                  value={displayFormData.exteriorNumber || ""}
                   onChange={(e) =>
                     updateField("exteriorNumber", e.target.value)
                   }
@@ -723,7 +660,7 @@ export function StopFormDialog({
                 <Label>Núm. Interior</Label>
                 <Input
                   placeholder="A, 1, etc."
-                  value={formData.interiorNumber || ""}
+                  value={displayFormData.interiorNumber || ""}
                   onChange={(e) =>
                     updateField("interiorNumber", e.target.value)
                   }
@@ -734,7 +671,7 @@ export function StopFormDialog({
                 <Label>Referencia</Label>
                 <Input
                   placeholder="Entre calles, cerca de..."
-                  value={formData.reference || ""}
+                  value={displayFormData.reference || ""}
                   onChange={(e) => updateField("reference", e.target.value)}
                   disabled={isAddressLocked}
                 />
@@ -751,8 +688,8 @@ export function StopFormDialog({
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium text-sm">
-                {formData.stopCategory === "origin" ||
-                formData.stopType?.includes("pickup" as any)
+                {displayFormData.stopCategory === "origin" ||
+                displayFormData.stopType?.includes("pickup")
                   ? "Datos del Remitente"
                   : "Datos del Destinatario"}
               </span>
@@ -763,7 +700,7 @@ export function StopFormDialog({
                 <Label>RFC</Label>
                 <Input
                   placeholder="XAXX010101000"
-                  value={formData.rfcRemitenteDestinatario || ""}
+                  value={displayFormData.rfcRemitenteDestinatario || ""}
                   onChange={(e) =>
                     updateField(
                       "rfcRemitenteDestinatario",
@@ -779,7 +716,7 @@ export function StopFormDialog({
                 <Label>Nombre / Razón Social</Label>
                 <Input
                   placeholder="Nombre completo o razón social"
-                  value={formData.nombreRemitenteDestinatario || ""}
+                  value={displayFormData.nombreRemitenteDestinatario || ""}
                   onChange={(e) =>
                     updateField("nombreRemitenteDestinatario", e.target.value)
                   }
@@ -805,7 +742,7 @@ export function StopFormDialog({
                 <Label>Nombre Contacto</Label>
                 <Input
                   placeholder="Nombre del contacto en sitio"
-                  value={formData.contactName || ""}
+                  value={displayFormData.contactName || ""}
                   onChange={(e) => updateField("contactName", e.target.value)}
                 />
               </div>
@@ -813,7 +750,7 @@ export function StopFormDialog({
                 <Label>Teléfono Contacto</Label>
                 <Input
                   placeholder="Teléfono"
-                  value={formData.contactPhone || ""}
+                  value={displayFormData.contactPhone || ""}
                   onChange={(e) => updateField("contactPhone", e.target.value)}
                 />
               </div>
@@ -823,7 +760,7 @@ export function StopFormDialog({
               <Label>Notas / Instrucciones</Label>
               <Textarea
                 placeholder="Instrucciones especiales de entrega, horarios, acceso..."
-                value={formData.notes || ""}
+                value={displayFormData.notes || ""}
                 onChange={(e) => updateField("notes", e.target.value)}
                 rows={3}
               />
@@ -831,9 +768,55 @@ export function StopFormDialog({
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* TIEMPOS (Carta Porte 3.1 - FechaHoraSalidaLlegada)              */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {displayFormData.stopCategory !== "origin" && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label>
+                  {displayFormData.stopCategory === "destination"
+                    ? "Hora Estimada de Llegada"
+                    : "Hora Estimada de Llegada a esta Escala"}
+                  {displayFormData.stopCategory === "destination" && (
+                    <span className="text-destructive ml-1">*</span>
+                  )}
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={
+                    displayFormData.estimatedArrival
+                      ? displayFormData.estimatedArrival.slice(0, 16)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    updateField(
+                      "estimatedArrival",
+                      e.target.value ? `${e.target.value}:00` : undefined,
+                    )
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {displayFormData.stopCategory === "destination"
+                    ? "Requerido para Carta Porte 3.1. Se usará como FechaHoraLlegada del nodo Ubicacion."
+                    : "Opcional. Si se omite, se calculará automáticamente al generar la Carta Porte."}
+                </p>
+                {showWaypointArrivalWarning && (
+                  <div className="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md dark:bg-yellow-950 dark:border-yellow-800">
+                    <AlertCircle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                      Sin hora estimada, el XML de Carta Porte interpolará este tiempo automáticamente. Se recomienda capturarlo para mayor precisión fiscal.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════ */}
           {/* DISTANCIA (solo para no-origen)                                 */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {formData.stopCategory !== "origin" && (
+          {displayFormData.stopCategory !== "origin" && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -846,10 +829,10 @@ export function StopFormDialog({
                   placeholder="0"
                   min={0}
                   step={0.1}
-                  value={formData.distanceToNextKm ?? ""}
+                  value={displayFormData.distanceFromPreviousKm ?? ""}
                   onChange={(e) =>
                     updateField(
-                      "distanceToNextKm",
+                      "distanceFromPreviousKm",
                       e.target.value ? Number(e.target.value) : undefined,
                     )
                   }

@@ -140,8 +140,12 @@ const LocalidadCombobox = forwardRef<HTMLButtonElement, LocalidadComboboxProps>(
           className={cn("w-full justify-between font-normal", className)}
           disabled
         >
-          <span className="text-muted-foreground">
-            {!estadoCode ? "Seleccione primero un estado" : placeholder}
+          <span className={cn("truncate", !selectedItem && "text-muted-foreground")}>
+            {selectedItem
+              ? formatOption(selectedItem.code, selectedItem.name, displayFormat)
+              : !estadoCode
+                ? "Seleccione primero un estado"
+                : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -226,6 +230,8 @@ LocalidadCombobox.displayName = "LocalidadCombobox";
 
 export interface ColoniaComboboxProps extends BaseComboboxProps {
   codigoPostal?: string;
+  /** Emite el código Y el nombre de la colonia seleccionada */
+  onSelectItem?: (code: string, name: string) => void;
 }
 
 const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
@@ -233,6 +239,7 @@ const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
     {
       value,
       onValueChange,
+      onSelectItem,
       codigoPostal,
       placeholder = "Seleccione una colonia (opcional)",
       disabled = false,
@@ -245,12 +252,13 @@ const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
 
     const isDisabled = disabled || !codigoPostal;
 
-    // Para colonias, cargamos todas las del CP (generalmente <50)
+    // Para colonias, cargamos todas las del CP (generalmente <50).
+    // También cargamos cuando disabled pero hay value (para mostrar el nombre seleccionado).
     const { data: options = [], isLoading } = useCatalogOptions(
       "sat_colonia" as CatalogTypeCodeValue,
       {
         parentCode: codigoPostal,
-        enabled: !isDisabled,
+        enabled: !isDisabled || !!value,
       },
     );
 
@@ -260,11 +268,12 @@ const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
     }, [value, options]);
 
     const handleSelect = useCallback(
-      (selectedCode: string) => {
+      (selectedCode: string, selectedName: string) => {
         onValueChange?.(selectedCode);
+        onSelectItem?.(selectedCode, selectedName);
         setOpen(false);
       },
-      [onValueChange],
+      [onValueChange, onSelectItem],
     );
 
     if (isDisabled) {
@@ -276,8 +285,12 @@ const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
           className={cn("w-full justify-between font-normal", className)}
           disabled
         >
-          <span className="text-muted-foreground">
-            {!codigoPostal ? "Ingrese primero el código postal" : placeholder}
+          <span className={cn("truncate", !selectedOption && "text-muted-foreground")}>
+            {selectedOption
+              ? formatOption(selectedOption.code, selectedOption.name, displayFormat)
+              : !codigoPostal
+                ? "Ingrese primero el código postal"
+                : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -327,7 +340,7 @@ const ColoniaCombobox = forwardRef<HTMLButtonElement, ColoniaComboboxProps>(
                     <CommandItem
                       key={option.code}
                       value={`${option.code} ${option.name}`}
-                      onSelect={() => handleSelect(option.code)}
+                      onSelect={() => handleSelect(option.code, option.name)}
                     >
                       <Check
                         className={cn(

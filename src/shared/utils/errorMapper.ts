@@ -8,6 +8,7 @@
  */
 
 import { AxiosError } from "axios";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 
 // ============================================================================
 // ERROR MESSAGES DICTIONARY
@@ -158,7 +159,26 @@ function isAxiosError(error: unknown): error is AxiosError<ApiErrorResponse> {
  * Soporta AxiosError, Error estándar, objetos y strings
  */
 export function mapBackendError(error: unknown): MappedError {
-  // ===== AXIOS ERROR =====
+  // ===== API ERROR (ya procesado por el interceptor de respuesta) =====
+  // El interceptor convierte AxiosError → ApiError antes de que llegue aquí.
+  // ApiError ya tiene el `code` extraído del backend — solo lo mapeamos.
+  if (isApiError(error)) {
+    const code = error.code || "UNKNOWN_ERROR";
+    // Preferimos el mensaje del ApiError porque ya incluye contexto específico
+    // del backend (ej: el trip_code del viaje conflictivo).
+    // Solo caemos al diccionario si el mensaje está vacío.
+    return {
+      code,
+      message:
+        error.message ||
+        BACKEND_ERROR_MESSAGES[code] ||
+        BACKEND_ERROR_MESSAGES.UNKNOWN_ERROR,
+      originalMessage: error.message,
+      statusCode: error.status,
+    };
+  }
+
+  // ===== AXIOS ERROR (sin interceptor activo, ej: tests) =====
   if (isAxiosError(error)) {
     return handleAxiosError(error);
   }

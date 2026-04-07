@@ -97,8 +97,8 @@ function buildLegacyAddress(stop: TripWizardFormValues["stops"][0]): {
     address:
       addressParts.join(", ") ||
       `Ubicación ${stop.satEstadoCode}-${stop.satMunicipioCode}`,
-    city: stop.satMunicipioCode || "", // Código de municipio (idealmente se resolvería el nombre)
-    state: stop.satEstadoCode || "", // Código de estado (idealmente se resolvería el nombre)
+    city: stop.cityName || stop.satMunicipioCode || "",
+    state: stop.satEstadoCode || "",
   };
 }
 
@@ -170,12 +170,13 @@ export function TripFormPage() {
       const mappedStops = (existingTrip.stops || []).map((stop) => ({
         id: stop.id,
         sequenceOrder: stop.sequenceOrder,
-        stopType: stop.stopType as
+        stopType: (Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType]) as (
           | "origin"
           | "pickup"
           | "delivery"
           | "waypoint"
-          | "destination",
+          | "destination"
+        )[],
         // clientId: stop.clientId || undefined,
         // clientAddressId: stop.clientAddressId || undefined,
         locationName: stop.locationName || undefined,
@@ -185,6 +186,7 @@ export function TripFormPage() {
         postalCode: stop.postalCode || "",
         satLocalidadCode: stop.satLocalidadCode || undefined,
         satColoniaCode: stop.satColoniaCode || undefined,
+        colonia: stop.colonia || undefined,
         street: stop.street || undefined,
         exteriorNumber: stop.exteriorNumber || undefined,
         interiorNumber: stop.interiorNumber || undefined,
@@ -210,16 +212,29 @@ export function TripFormPage() {
         id: cargo.id,
         clientId: cargo.clientId,
         description: cargo.description,
-        productType: cargo.productType || undefined,
-        weight: cargo.weight || undefined,
-        volume: cargo.volume || undefined,
-        units: cargo.units || undefined,
-        declaredValue: cargo.declaredValue || undefined,
-        rate: cargo.rate,
-        currency: cargo.currency,
-        movements: cargo.movements || [],
-        notes: cargo.notes || undefined,
-        specialInstructions: cargo.specialInstructions || undefined,
+        weight: cargo.weight ?? undefined,
+        units: cargo.units ?? undefined,
+        weightInKg: cargo.weightInKg ?? undefined,
+        declaredValue: cargo.declaredValue ?? undefined,
+        isInsured: cargo.declaredValue != null && cargo.declaredValue > 0,
+        movements: (cargo.movements || []).map((m) => ({
+          stopIndex: m.stopIndex,
+          movementType: m.movementType,
+          weight: m.weight ?? undefined,
+          units: m.units ?? undefined,
+          notes: m.notes ?? undefined,
+        })),
+        notes: cargo.notes ?? undefined,
+        specialInstructions: cargo.specialInstructions ?? undefined,
+        // Carta Porte
+        satProductCode: cargo.satProductCode ?? undefined,
+        satProductDescription: cargo.satProductDescription ?? undefined,
+        satUnitCode: cargo.satUnitCode ?? undefined,
+        satUnitName: cargo.satUnitName ?? undefined,
+        hazardousMaterial: cargo.hazardousMaterial ?? false,
+        hazardousMaterialCode: cargo.hazardousMaterialCode ?? undefined,
+        packagingType: cargo.packagingType ?? undefined,
+        packagingDescription: cargo.packagingDescription ?? undefined,
       }));
 
       const mappedExpenses = (existingTrip.expenses || []).map((expense) => ({
@@ -569,10 +584,10 @@ export function TripFormPage() {
 
     // Encontrar origen y destino por stopType (no por posición)
     const originStop = data.stops?.find((stop) =>
-      stop.stopType.includes("origin" as any),
+      stop.stopType.includes("origin"),
     );
     const destinationStop = data.stops?.find((stop) =>
-      stop.stopType.includes("destination" as any),
+      stop.stopType.includes("destination"),
     );
 
     // Construir direcciones legacy para el viaje (compatibilidad)
@@ -651,83 +666,82 @@ export function TripFormPage() {
       baseRate: data.baseRate,
       notes: data.notes || undefined,
 
-      // Paradas con campos Carta Porte unificados
-      stops: data.stops?.map((stop) => ({
-        sequence_order: stop.sequenceOrder,
-        stop_type: stop.stopType,
-        client_id: stop.clientId,
-        client_address_id: stop.clientAddressId,
-        location_name: stop.locationName,
-        // Campos Carta Porte (SAT) - snake_case para API
-        sat_estado_code: stop.satEstadoCode,
-        sat_municipio_code: stop.satMunicipioCode,
-        postal_code: stop.postalCode,
-        sat_localidad_code: stop.satLocalidadCode,
-        sat_colonia_code: stop.satColoniaCode,
-        street: stop.street,
-        exterior_number: stop.exteriorNumber,
-        interior_number: stop.interiorNumber,
-        reference: stop.reference,
-        rfc_remitente_destinatario: stop.rfcRemitenteDestinatario,
-        nombre_remitente_destinatario: stop.nombreRemitenteDestinatario,
-        distance_to_next_km: stop.distanceToNextKm,
-        // Contacto
-        contact_name: stop.contactName,
-        contact_phone: stop.contactPhone,
-        notes: stop.notes,
-        // Coordenadas
-        latitude: stop.latitude,
-        longitude: stop.longitude,
-        estimated_arrival: stop.estimatedArrival
-          ? localInputToUtcIso(stop.estimatedArrival)
-          : undefined,
-      })),
+      // Paradas — camelCase, apiClient hace deepToSnake automáticamente
+      stops: data.stops?.map((stop) => {
+        const legacyAddr = buildLegacyAddress(stop);
+        return {
+          sequenceOrder: stop.sequenceOrder,
+          stopType: stop.stopType,
+          // Dirección legacy (requerida por CreateStopInput/validación)
+          address: legacyAddr.address,
+          city: legacyAddr.city,
+          state: legacyAddr.state || undefined,
+          // Campos Carta Porte (SAT)
+          locationName: stop.locationName,
+          postalCode: stop.postalCode,
+          satEstadoCode: stop.satEstadoCode,
+          satMunicipioCode: stop.satMunicipioCode,
+          satLocalidadCode: stop.satLocalidadCode || undefined,
+          satColoniaCode: stop.satColoniaCode || undefined,
+          colonia: stop.colonia || undefined,
+          street: stop.street || undefined,
+          exteriorNumber: stop.exteriorNumber || undefined,
+          interiorNumber: stop.interiorNumber || undefined,
+          reference: stop.reference || undefined,
+          rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
+          nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
+          distanceFromPreviousKm: stop.distanceFromPreviousKm,
+          // Contacto
+          contactName: stop.contactName || undefined,
+          contactPhone: stop.contactPhone || undefined,
+          notes: stop.notes || undefined,
+          // Coordenadas
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+          estimatedArrival: stop.estimatedArrival
+            ? localInputToUtcIso(stop.estimatedArrival)
+            : undefined,
+        };
+      }),
 
-      // Mapear cargos con movements
+      // Cargas — camelCase, apiClient hace deepToSnake automáticamente
+      // NOTA: El campo `rate` fue eliminado; prorrateo por carga pendiente para módulo futuro.
       cargos: data.cargos?.map((cargo) => ({
-        // client_id: cargo.clientId,
+        clientId: cargo.clientId || "",
         description: cargo.description,
-        // product_type: cargo.productType,
         weight: cargo.weight,
-        // volume: cargo.volume,
-        // units: cargo.units,
-        declared_value: cargo.declaredValue,
-        // rate: cargo.rate,
-        // currency: cargo.currency,
-        notes: cargo.notes,
-        // special_instructions: cargo.specialInstructions,
+        units: cargo.units,
+        declaredValue: cargo.declaredValue,
+        notes: cargo.notes || undefined,
+        specialInstructions: cargo.specialInstructions || undefined,
         movements: cargo.movements?.map((m) => ({
-          stop_index: m.stopIndex,
-          movement_type: m.movementType,
+          stopIndex: m.stopIndex,
+          movementType: m.movementType,
           weight: m.weight,
           units: m.units,
           notes: m.notes,
         })),
         // Carta Porte 3.1
-        sat_product_code: cargo.satClaveProductoServicio,
-        sat_unit_code: cargo.satClaveUnidad,
-        // sat_unit_name: cargo.satUnitName,
-        weight_in_kg: cargo.weight,
-        // dimensions: cargo.dimensions,
-        hazardous_material: cargo.isMaterialPeligroso,
-        hazardous_material_code: cargo.satClaveMaterialPeligroso,
-        packaging_type: cargo.satTipoEmbalaje,
-        // packaging_description: cargo.packagingDescription,
+        satProductCode: cargo.satProductCode || undefined,
+        satProductDescription: cargo.satProductDescription || undefined,
+        satUnitCode: cargo.satUnitCode || undefined,
+        satUnitName: cargo.satUnitName || undefined,
+        weightInKg: cargo.weightInKg,
+        hazardousMaterial: cargo.hazardousMaterial,
+        hazardousMaterialCode: cargo.hazardousMaterialCode || undefined,
+        packagingType: cargo.packagingType || undefined,
+        packagingDescription: cargo.packagingDescription || undefined,
       })),
 
-      // Gastos estimados
-      estimated_expenses: data.expenses?.map((expense) => ({
+      // Gastos estimados — camelCase, apiClient hace deepToSnake automáticamente
+      estimatedExpenses: data.expenses?.map((expense) => ({
         category: expense.category,
         description: expense.description,
-        amount: expense.estimatedAmount,
-        // currency: expense.currency,
-        // expense_date: expense.expenseDate
-        // ? localInputToUtcIso(expense.expenseDate)
-        // : undefined,
-        // location: expense.location,
-        // vendor_name: expense.vendorName,
-        notes: expense.notes,
-        is_estimated: true,
+        amount: expense.amount,
+        currency: expense.currency as import("@features/trips/domain").CurrencyType,
+        vendorName: expense.vendorName || undefined,
+        notes: expense.notes || undefined,
+        isEstimated: true,
       })),
     };
 

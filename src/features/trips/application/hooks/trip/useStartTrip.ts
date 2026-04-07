@@ -24,12 +24,11 @@ export function useStartTrip(
       }
       return result.data;
     },
-    onSuccess: (trip) => {
-      // Actualizar el detalle del viaje en cache
-      queryClient.setQueryData(tripQueryKeys.detail(trip.id), trip);
-      // Invalidar todas las listas para forzar refetch
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-    },
     ...options,
+    onSuccess: (trip, variables, onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      options?.onSuccess?.(trip, variables, onMutateResult, context);
+    },
   });
 }

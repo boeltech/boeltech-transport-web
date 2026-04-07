@@ -37,6 +37,8 @@ export interface UpdateCompanySettingsDTO {
     postalCode?: string;
     country?: string;
   };
+  /** Código postal del lugar de expedición para el CFDI 4.0 */
+  lugarExpedicion?: string;
 }
 
 // ============================================================================
@@ -53,6 +55,14 @@ export interface UpdateBillingSettingsDTO {
   serieFactura?: string;
   folioInicial?: number;
   testMode?: boolean;
+  // Claves SAT por defecto
+  claveProductoServicio?: string;
+  claveUnidad?: string;
+  moneda?: string;
+  tasaIva?: number;
+  // Foliación Carta Porte
+  serieCartaPorte?: string;
+  folioInicialCartaPorte?: number;
 }
 
 export interface UploadCertificateDTO {

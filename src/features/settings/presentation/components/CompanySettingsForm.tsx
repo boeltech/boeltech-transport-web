@@ -61,6 +61,10 @@ const companySettingsSchema = z.object({
     .length(5, "El código postal debe tener 5 dígitos")
     .regex(/^\d{5}$/, "Código postal inválido"),
   country: z.string().default("México"),
+  lugarExpedicion: z
+    .string()
+    .length(5, "El código postal debe tener 5 dígitos")
+    .regex(/^\d{5}$/, "Código postal inválido"),
 });
 
 type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
@@ -122,6 +126,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
           postalCode: data.postalCode,
           country: data.country,
         },
+        lugarExpedicion: data.lugarExpedicion,
       };
 
       updateMutation.mutate(dto);
@@ -440,6 +445,32 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
               disabled
             />
           </div>
+
+          {/* Lugar de Expedición */}
+          <div className="sm:col-span-2 pt-2 border-t">
+            <Label htmlFor="lugarExpedicion">
+              Lugar de expedición (CFDI){" "}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="lugarExpedicion"
+              {...form.register("lugarExpedicion")}
+              placeholder="03100"
+              maxLength={5}
+              className="mt-1.5 w-40"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Código postal donde se expiden las facturas. Se incluye como
+              atributo <code className="font-mono">LugarExpedicion</code> en
+              cada CFDI 4.0. Generalmente coincide con el CP del domicilio
+              fiscal.
+            </p>
+            {form.formState.errors.lugarExpedicion && (
+              <p className="text-sm text-destructive mt-1">
+                {form.formState.errors.lugarExpedicion.message}
+              </p>
+            )}
+          </div>
         </div>
       </SettingsCard>
 
@@ -523,5 +554,6 @@ function mapSettingsToForm(settings: CompanySettings): CompanySettingsFormData {
     stateCode: settings.address.stateCode,
     postalCode: settings.address.postalCode,
     country: settings.address.country,
+    lugarExpedicion: settings.lugarExpedicion,
   };
 }

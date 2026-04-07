@@ -8,7 +8,7 @@
  * Ubicación: src/features/trips/presentation/pages/TripsListPage.tsx
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
@@ -22,6 +22,24 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@shared/ui/dialog";
+import { Textarea } from "@shared/ui/text-area";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
@@ -65,6 +83,13 @@ export function TripsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+
+  // Estado para diálogos de confirmación
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingStartId, setPendingStartId] = useState<string | null>(null);
+  const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
 
   // Parse URL params
   const page = parseInt(searchParams.get("page") || "1", 10);
@@ -158,38 +183,44 @@ export function TripsListPage() {
     [navigate],
   );
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (window.confirm("¿Estás seguro de eliminar este viaje?")) {
-        deleteMutation.mutate(id);
-      }
-    },
-    [deleteMutation],
-  );
+  const handleDelete = useCallback((id: string) => {
+    setPendingDeleteId(id);
+  }, []);
 
-  const handleStart = useCallback(
-    (id: string) => {
-      if (window.confirm("¿Iniciar este viaje?")) {
-        startMutation.mutate({ id });
-      }
-    },
-    [startMutation],
-  );
+  const confirmDelete = useCallback(() => {
+    if (pendingDeleteId) deleteMutation.mutate(pendingDeleteId);
+    setPendingDeleteId(null);
+  }, [pendingDeleteId, deleteMutation]);
+
+  const handleStart = useCallback((id: string) => {
+    setPendingStartId(id);
+  }, []);
+
+  const confirmStart = useCallback(() => {
+    if (pendingStartId) startMutation.mutate({ id: pendingStartId });
+    setPendingStartId(null);
+  }, [pendingStartId, startMutation]);
 
   const handleFinish = useCallback(
     (id: string) => navigate(`/trips/${id}/finish`),
     [navigate],
   );
 
-  const handleCancel = useCallback(
-    (id: string) => {
-      const reason = window.prompt("Motivo de cancelación (opcional):");
-      if (reason !== null) {
-        cancelMutation.mutate({ id, reason: reason || undefined });
-      }
-    },
-    [cancelMutation],
-  );
+  const handleCancel = useCallback((id: string) => {
+    setCancelReason("");
+    setCancelDialogId(id);
+  }, []);
+
+  const confirmCancel = useCallback(() => {
+    if (cancelDialogId) {
+      cancelMutation.mutate({
+        id: cancelDialogId,
+        reason: cancelReason || undefined,
+      });
+    }
+    setCancelDialogId(null);
+    setCancelReason("");
+  }, [cancelDialogId, cancelReason, cancelMutation]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -720,6 +751,101 @@ export function TripsListPage() {
           </div>
         </div>
       )}
+
+      {/* ================================================================ */}
+      {/* DIÁLOGO: Confirmar eliminación                                   */}
+      {/* ================================================================ */}
+      <AlertDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => !open && setPendingDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El viaje y todos sus datos
+              asociados (paradas, cargas y gastos) serán eliminados
+              permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ================================================================ */}
+      {/* DIÁLOGO: Confirmar inicio de viaje                               */}
+      {/* ================================================================ */}
+      <AlertDialog
+        open={!!pendingStartId}
+        onOpenChange={(open) => !open && setPendingStartId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Iniciar viaje?</AlertDialogTitle>
+            <AlertDialogDescription>
+              El viaje cambiará a estado "En progreso". Asegúrese de que el
+              vehículo y el conductor estén listos para salir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStart}>
+              Iniciar viaje
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ================================================================ */}
+      {/* DIÁLOGO: Cancelar viaje con motivo                               */}
+      {/* ================================================================ */}
+      <Dialog
+        open={!!cancelDialogId}
+        onOpenChange={(open) => !open && setCancelDialogId(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancelar viaje</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              ¿Está seguro de que desea cancelar este viaje? Esta acción
+              cambiará el estado a "Cancelado".
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Motivo de cancelación{" "}
+                <span className="text-muted-foreground font-normal">
+                  (opcional)
+                </span>
+              </label>
+              <Textarea
+                ref={cancelReasonRef}
+                placeholder="Ej: Cliente solicitó cancelación, condiciones climáticas adversas..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogId(null)}>
+              Volver
+            </Button>
+            <Button variant="destructive" onClick={confirmCancel}>
+              Cancelar viaje
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

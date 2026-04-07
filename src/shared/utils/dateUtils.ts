@@ -71,12 +71,13 @@ export function formatTime(isoString: string | null | undefined): string {
  */
 export function localInputToUtcIso(localDateTimeInput: string): string {
   if (!localDateTimeInput) return "";
-  // Appendamos el offset de México. Para producción considera usar
-  // Intl.DateTimeFormat para detectar el offset actual (respeta DST).
+  // Parseamos el string como UTC puro (sin offset de browser) añadiendo "Z",
+  // luego restamos el offset de México para obtener el UTC real.
+  // Sin "Z", new Date() interpreta el string en la timezone del browser,
+  // lo que causaría una doble corrección.
   const mexicoOffset = getMexicoOffsetMs();
-  const localMs = new Date(localDateTimeInput).getTime();
-  // Restamos el offset para obtener UTC
-  return new Date(localMs - mexicoOffset).toISOString();
+  const naiveUtcMs = new Date(localDateTimeInput + "Z").getTime();
+  return new Date(naiveUtcMs - mexicoOffset).toISOString();
 }
 
 /**

@@ -20,6 +20,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
@@ -244,21 +245,31 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // DIALOG HANDLERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  const openAddDialog = useCallback((category: StopCategory) => {
-    const defaultOperations =
-      category === "origin"
-        ? ["pickup"]
-        : category === "destination"
-          ? ["delivery"]
-          : [];
+  const openAddDialog = useCallback(
+    (category: StopCategory) => {
+      const defaultOperations =
+        category === "origin"
+          ? ["pickup"]
+          : category === "destination"
+            ? ["delivery"]
+            : [];
 
-    setDialogInitialData({
-      stopCategory: category,
-      stopType: defaultOperations as TripStopFormValues["stopType"],
-    });
-    setEditingStopIndex(null);
-    setIsDialogOpen(true);
-  }, []);
+      // Pre-cargar scheduledArrival del form como estimatedArrival del destino
+      const initialEstimatedArrival =
+        category === "destination"
+          ? (form.getValues("scheduledArrival") ?? undefined)
+          : undefined;
+
+      setDialogInitialData({
+        stopCategory: category,
+        stopType: defaultOperations as TripStopFormValues["stopType"],
+        estimatedArrival: initialEstimatedArrival,
+      });
+      setEditingStopIndex(null);
+      setIsDialogOpen(true);
+    },
+    [form],
+  );
 
   const openEditDialog = useCallback(
     (index: number, category: StopCategory) => {
@@ -294,13 +305,50 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         contactName: stop.contactName,
         contactPhone: stop.contactPhone,
         notes: stop.notes,
-        distanceToNextKm: stop.distanceToNextKm,
+        estimatedArrival: stop.estimatedArrival,
+        distanceFromPreviousKm: stop.distanceFromPreviousKm,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
       });
       setEditingStopIndex(index);
       setIsDialogOpen(true);
     },
     [form],
   );
+
+  /**
+   * Recorre las paradas en orden y rellena distanceFromPreviousKm usando Haversine × 1.30
+   * cuando dos paradas consecutivas tienen coordenadas y el campo está vacío.
+   * Si ya existe un valor manual, lo respeta.
+   */
+  const recalculateDistances = useCallback(() => {
+    const stops = form.getValues("stops");
+    if (!stops || stops.length < 2) return;
+
+    let changed = false;
+    const updated = stops.map((stop, i) => {
+      if (i === 0) return stop; // Origen no tiene parada anterior
+
+      const prev = stops[i - 1];
+      const estimated = estimateRoadDistanceKm(
+        prev.latitude,
+        prev.longitude,
+        stop.latitude,
+        stop.longitude,
+      );
+
+      // Solo prellenar si hay coordenadas y el campo está vacío
+      if (estimated !== null && !stop.distanceFromPreviousKm) {
+        changed = true;
+        return { ...stop, distanceFromPreviousKm: estimated };
+      }
+      return stop;
+    });
+
+    if (changed) {
+      form.setValue("stops", updated, { shouldDirty: true });
+    }
+  }, [form]);
 
   const handleDialogSubmit = useCallback(
     (data: StopFormData) => {
@@ -325,7 +373,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         satMunicipioCode: data.satMunicipioCode || "",
         postalCode: data.postalCode || "",
         satLocalidadCode: data.satLocalidadCode,
+        cityName: data.cityName,
         satColoniaCode: data.satColoniaCode,
+        colonia: data.colonia,
         street: data.street,
         exteriorNumber: data.exteriorNumber,
         interiorNumber: data.interiorNumber,
@@ -335,7 +385,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         contactName: data.contactName,
         contactPhone: data.contactPhone,
         notes: data.notes,
-        distanceToNextKm: data.distanceToNextKm,
+        estimatedArrival: data.estimatedArrival,
+        distanceFromPreviousKm: data.distanceFromPreviousKm,
+        latitude: data.latitude,
+        longitude: data.longitude,
       };
 
       if (editingStopIndex !== null) {
@@ -355,10 +408,22 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         });
       }
 
+      // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
+      if (data.stopCategory === "destination" && stopData.estimatedArrival) {
+        form.setValue("scheduledArrival", stopData.estimatedArrival, {
+          shouldDirty: true,
+        });
+      }
+
+      // Recalcular distancias automáticamente tras reordenar
+      requestAnimationFrame(() => {
+        recalculateDistances();
+      });
+
       setIsDialogOpen(false);
       setEditingStopIndex(null);
     },
-    [form, editingStopIndex, reorderStopsArray],
+    [form, editingStopIndex, reorderStopsArray, recalculateDistances],
   );
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -373,9 +438,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
       requestAnimationFrame(() => {
         reorderStopsArray();
+        recalculateDistances();
       });
     },
-    [form, reorderStopsArray],
+    [form, reorderStopsArray, recalculateDistances],
   );
 
   const handleMoveWaypoint = useCallback(
@@ -748,10 +814,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </p>
               )}
 
-              {/* Distancia (si aplica) */}
-              {stop.distanceToNextKm != null && stop.distanceToNextKm > 0 && (
+              {/* Distancia desde parada anterior (solo para escalas y destino) */}
+              {index > 0 && stop.distanceFromPreviousKm != null && stop.distanceFromPreviousKm > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  📍 {stop.distanceToNextKm} km desde parada anterior
+                  📍 {stop.distanceFromPreviousKm} km desde parada anterior
                 </p>
               )}
             </div>

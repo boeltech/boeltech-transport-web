@@ -49,6 +49,7 @@ export interface ApiCompanySettingsResponse {
   website: string | null;
   logo_url: string | null;
   address: ApiCompanyAddressResponse;
+  lugar_expedicion: string;
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +69,13 @@ export interface ApiBillingSettingsResponse {
   folio_inicial: number;
   folio_actual: number;
   test_mode: boolean;
+  clave_producto_servicio: string;
+  clave_unidad: string;
+  moneda: string;
+  tasa_iva: number;
+  serie_carta_porte: string;
+  folio_inicial_carta_porte: number;
+  folio_actual_carta_porte: number;
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +135,7 @@ export function mapCompanySettings(
     website: api.website,
     logoUrl: api.logo_url,
     address: mapCompanyAddress(api.address),
+    lugarExpedicion: api.lugar_expedicion,
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };
@@ -150,6 +159,13 @@ export function mapBillingSettings(
     folioInicial: api.folio_inicial,
     folioActual: api.folio_actual,
     testMode: api.test_mode,
+    claveProductoServicio: api.clave_producto_servicio,
+    claveUnidad: api.clave_unidad,
+    moneda: api.moneda,
+    tasaIva: api.tasa_iva,
+    serieCartaPorte: api.serie_carta_porte,
+    folioInicialCartaPorte: api.folio_inicial_carta_porte,
+    folioActualCartaPorte: api.folio_actual_carta_porte,
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };
@@ -210,6 +226,9 @@ export function toApiUpdateCompanySettings(
     };
   }
 
+  if (dto.lugarExpedicion !== undefined)
+    apiData.lugar_expedicion = dto.lugarExpedicion;
+
   return apiData;
 }
 
@@ -230,6 +249,15 @@ export function toApiUpdateBillingSettings(
   if (dto.serieFactura !== undefined) apiData.serie_factura = dto.serieFactura;
   if (dto.folioInicial !== undefined) apiData.folio_inicial = dto.folioInicial;
   if (dto.testMode !== undefined) apiData.test_mode = dto.testMode;
+  if (dto.claveProductoServicio !== undefined)
+    apiData.clave_producto_servicio = dto.claveProductoServicio;
+  if (dto.claveUnidad !== undefined) apiData.clave_unidad = dto.claveUnidad;
+  if (dto.moneda !== undefined) apiData.moneda = dto.moneda;
+  if (dto.tasaIva !== undefined) apiData.tasa_iva = dto.tasaIva;
+  if (dto.serieCartaPorte !== undefined)
+    apiData.serie_carta_porte = dto.serieCartaPorte;
+  if (dto.folioInicialCartaPorte !== undefined)
+    apiData.folio_inicial_carta_porte = dto.folioInicialCartaPorte;
 
   return apiData;
 }

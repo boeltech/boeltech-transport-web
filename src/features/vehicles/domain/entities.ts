@@ -62,6 +62,10 @@ export interface VehicleCartaPorteData {
   readonly satConfigAutotransporteCode: string | null;
   /** Nombre de la aseguradora de responsabilidad civil */
   readonly insuranceCompany: string | null;
+  /** Nombre de la aseguradora de carga (AseguraCarga) — opcional */
+  readonly aseguraCarga: string | null;
+  /** Número de póliza de seguro de carga (PolizaCarga) — opcional */
+  readonly polizaCarga: string | null;
 }
 
 // ============================================================================
@@ -183,6 +187,8 @@ export interface CreateVehiclePayload {
   readonly satTipoPermisoCode?: string;
   readonly satConfigAutotransporteCode?: string;
   readonly insuranceCompany?: string;
+  readonly aseguraCarga?: string;
+  readonly polizaCarga?: string;
 }
 
 export interface UpdateVehiclePayload extends Partial<

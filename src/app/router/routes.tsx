@@ -155,6 +155,23 @@ const DriverEditPage = lazy(() =>
   })),
 );
 
+// Employees
+const EmployeesListPage = lazy(() =>
+  import("@features/employees").then((m) => ({
+    default: m.EmployeesListPage,
+  })),
+);
+const EmployeeDetailPage = lazy(() =>
+  import("@features/employees").then((m) => ({
+    default: m.EmployeeDetailPage,
+  })),
+);
+const EmployeeFormPage = lazy(() =>
+  import("@features/employees").then((m) => ({
+    default: m.EmployeeFormPage,
+  })),
+);
+
 // Clients
 const ClientsListPage = lazy(() =>
   import("@features/clients").then((m) => ({
@@ -376,6 +393,41 @@ export const router = createBrowserRouter([
               {
                 path: "/drivers/:id/edit",
                 element: withSuspense(DriverEditPage),
+              },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Employees (Empleados)
+          // ========================================
+          {
+            element: <ModuleRoute module="employees" />,
+            children: [
+              {
+                path: "/employees",
+                element: withSuspense(EmployeesListPage),
+              },
+              {
+                path: "/employees/:id",
+                element: withSuspense(EmployeeDetailPage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="employees" action="create" />,
+            children: [
+              {
+                path: "/employees/new",
+                element: withSuspense(EmployeeFormPage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="employees" action="update" />,
+            children: [
+              {
+                path: "/employees/:id/edit",
+                element: withSuspense(EmployeeFormPage),
               },
             ],
           },

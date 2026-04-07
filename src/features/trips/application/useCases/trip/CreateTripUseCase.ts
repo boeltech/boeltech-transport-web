@@ -201,7 +201,7 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     for (let i = 0; i < stops.length; i++) {
       const stop = stops[i];
 
-      if (!stop.stopType) {
+      if (!stop.stopType || stop.stopType.length === 0) {
         return {
           code: "STOP_TYPE_REQUIRED",
           message: `Parada #${i + 1}: El tipo de parada es requerido`,
@@ -246,13 +246,6 @@ export class CreateTripUseCase implements ICreateTripUseCase {
         return {
           code: "CARGO_DESCRIPTION_REQUIRED",
           message: `Carga #${i + 1}: La descripción es requerida`,
-        };
-      }
-
-      if (cargo.rate === undefined || cargo.rate < 0) {
-        return {
-          code: "CARGO_INVALID_RATE",
-          message: `Carga "${cargo.description}": La tarifa debe ser un valor positivo`,
         };
       }
 

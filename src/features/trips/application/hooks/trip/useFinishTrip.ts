@@ -32,10 +32,12 @@ export function useFinishTrip(
       }
       return result.data;
     },
-    onSuccess: (trip) => {
-      queryClient.setQueryData(tripQueryKeys.detail(trip.id), trip);
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-    },
     ...options,
+    onSuccess: (trip, variables, onMutateResult, context) => {
+      // Invalidar detalle para forzar refetch con datos frescos del servidor
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      options?.onSuccess?.(trip, variables, onMutateResult, context);
+    },
   });
 }

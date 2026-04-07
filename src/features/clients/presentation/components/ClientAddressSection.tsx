@@ -251,6 +251,11 @@ export function ClientAddressSection({
 
           <ScrollArea className="max-h-[70vh]">
             <div className="pl-2 pr-4 pb-2">
+              {modalMode === "edit" && !selectedAddressFull ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
               <ClientAddressForm
                 ref={formRef}
                 isBillingAddress={false}
@@ -287,6 +292,7 @@ export function ClientAddressSection({
                 onChange={handleFormChange}
                 disabled={isPending}
               />
+              )}
             </div>
           </ScrollArea>
 

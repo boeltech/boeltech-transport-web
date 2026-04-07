@@ -77,6 +77,8 @@ export interface ApiVehicleResponse {
   sat_tipo_permiso_code: string | null;
   sat_config_autotransporte_code: string | null;
   insurance_company: string | null;
+  asegura_carga: string | null;
+  poliza_carga: string | null;
   // Status
   status: string;
   is_active: boolean;
@@ -125,7 +127,12 @@ export function mapVehicleList(
 ): MappedPaginatedResult<VehicleListItem> {
   return {
     data: raw.data.map(mapVehicleListItem),
-    pagination: raw.pagination,
+    pagination: {
+      page: raw.pagination.page,
+      limit: raw.pagination.limit,
+      total: raw.pagination.total,
+      totalPages: raw.pagination.total_pages,
+    },
   };
 }
 
@@ -176,6 +183,8 @@ export function mapVehicleDetail(
         satTipoPermisoCode: raw.data.sat_tipo_permiso_code,
         satConfigAutotransporteCode: raw.data.sat_config_autotransporte_code,
         insuranceCompany: raw.data.insurance_company,
+        aseguraCarga: raw.data.asegura_carga,
+        polizaCarga: raw.data.poliza_carga,
       },
 
       // Status
@@ -224,6 +233,8 @@ export function toApiCreateVehicle(
     sat_tipo_permiso_code: payload.satTipoPermisoCode,
     sat_config_autotransporte_code: payload.satConfigAutotransporteCode,
     insurance_company: payload.insuranceCompany,
+    asegura_carga: payload.aseguraCarga,
+    poliza_carga: payload.polizaCarga,
   };
 }
 
@@ -268,6 +279,10 @@ export function toApiUpdateVehicle(
     result.sat_config_autotransporte_code = payload.satConfigAutotransporteCode;
   if (payload.insuranceCompany !== undefined)
     result.insurance_company = payload.insuranceCompany;
+  if (payload.aseguraCarga !== undefined)
+    result.asegura_carga = payload.aseguraCarga;
+  if (payload.polizaCarga !== undefined)
+    result.poliza_carga = payload.polizaCarga;
   // Status
   if (payload.status !== undefined) result.status = payload.status;
   if (payload.isActive !== undefined) result.is_active = payload.isActive;
