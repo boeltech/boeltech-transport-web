@@ -54,17 +54,36 @@ export interface VehicleDocumentation {
 
 /**
  * Datos de Carta Porte 3.1 del vehículo
+ * Nodo Autotransporte > IdentificacionVehicular + Seguros
  */
 export interface VehicleCartaPorteData {
-  /** Código de tipo de permiso SCT (catálogo SAT c_TipoPermiso) */
+  // ── Permiso SCT ───────────────────────────────────────────────────────────
+  /** Código de tipo de permiso SCT (catálogo SAT c_TipoPermiso) — PermSCT */
   readonly satTipoPermisoCode: string | null;
-  /** Código de configuración vehicular (catálogo SAT c_ConfigAutotransporte) */
+
+  // ── IdentificacionVehicular ───────────────────────────────────────────────
+  /** Código de configuración vehicular (catálogo SAT c_ConfigAutotransporte) — ConfigVehicular */
   readonly satConfigAutotransporteCode: string | null;
-  /** Nombre de la aseguradora de responsabilidad civil */
+  /** Peso bruto vehicular en toneladas métricas (máx 3 decimales) — PesoBrutoVehicular */
+  readonly pesoBrutoVehicular: number | null;
+  // PlacaVM → se toma de Vehicle.licensePlate (máx 7 chars en SAT)
+  // AnioModeloVM → se toma de Vehicle.year
+
+  // ── Seguros > Responsabilidad Civil (requeridos en Carta Porte) ───────────
+  /** Nombre de la aseguradora de responsabilidad civil — AseguraRespCivil */
   readonly insuranceCompany: string | null;
-  /** Nombre de la aseguradora de carga (AseguraCarga) — opcional */
+  // PolizaRespCivil → se toma de VehicleDocumentation.insurancePolicy
+
+  // ── Seguros > Medio Ambiente (opcionales) ─────────────────────────────────
+  /** Nombre de la aseguradora de daños a medio ambiente — AseguraMedioAmbiente */
+  readonly aseguraMedioAmbiente: string | null;
+  /** Número de póliza de medio ambiente — PolizaMedioAmbiente */
+  readonly polizaMedioAmbiente: string | null;
+
+  // ── Seguros > Carga (opcionales) ──────────────────────────────────────────
+  /** Nombre de la aseguradora de carga — AseguraCarga */
   readonly aseguraCarga: string | null;
-  /** Número de póliza de seguro de carga (PolizaCarga) — opcional */
+  /** Número de póliza de seguro de carga — PolizaCarga */
   readonly polizaCarga: string | null;
 }
 
@@ -183,10 +202,13 @@ export interface CreateVehiclePayload {
   readonly insuranceExpiry?: string;
   readonly sctPermitNumber?: string;
   readonly sctPermitExpiry?: string;
-  // Carta Porte 3.1
+  // Carta Porte 3.1 — Autotransporte
   readonly satTipoPermisoCode?: string;
   readonly satConfigAutotransporteCode?: string;
+  readonly pesoBrutoVehicular?: number;
   readonly insuranceCompany?: string;
+  readonly aseguraMedioAmbiente?: string;
+  readonly polizaMedioAmbiente?: string;
   readonly aseguraCarga?: string;
   readonly polizaCarga?: string;
 }

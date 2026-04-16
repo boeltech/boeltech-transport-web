@@ -73,10 +73,13 @@ export interface ApiVehicleResponse {
   insurance_expiry: string | null;
   sct_permit_number: string | null;
   sct_permit_expiry: string | null;
-  // Carta Porte 3.1
+  // Carta Porte 3.1 — Autotransporte
   sat_tipo_permiso_code: string | null;
   sat_config_autotransporte_code: string | null;
+  peso_bruto_vehicular: number | null;
   insurance_company: string | null;
+  asegura_medio_ambiente: string | null;
+  poliza_medio_ambiente: string | null;
   asegura_carga: string | null;
   poliza_carga: string | null;
   // Status
@@ -182,7 +185,10 @@ export function mapVehicleDetail(
       cartaPorte: {
         satTipoPermisoCode: raw.data.sat_tipo_permiso_code,
         satConfigAutotransporteCode: raw.data.sat_config_autotransporte_code,
+        pesoBrutoVehicular: raw.data.peso_bruto_vehicular,
         insuranceCompany: raw.data.insurance_company,
+        aseguraMedioAmbiente: raw.data.asegura_medio_ambiente,
+        polizaMedioAmbiente: raw.data.poliza_medio_ambiente,
         aseguraCarga: raw.data.asegura_carga,
         polizaCarga: raw.data.poliza_carga,
       },
@@ -229,10 +235,13 @@ export function toApiCreateVehicle(
     insurance_expiry: payload.insuranceExpiry,
     sct_permit_number: payload.sctPermitNumber,
     sct_permit_expiry: payload.sctPermitExpiry,
-    // Carta Porte 3.1
+    // Carta Porte 3.1 — Autotransporte
     sat_tipo_permiso_code: payload.satTipoPermisoCode,
     sat_config_autotransporte_code: payload.satConfigAutotransporteCode,
+    peso_bruto_vehicular: payload.pesoBrutoVehicular,
     insurance_company: payload.insuranceCompany,
+    asegura_medio_ambiente: payload.aseguraMedioAmbiente,
+    poliza_medio_ambiente: payload.polizaMedioAmbiente,
     asegura_carga: payload.aseguraCarga,
     poliza_carga: payload.polizaCarga,
   };
@@ -272,13 +281,19 @@ export function toApiUpdateVehicle(
     result.sct_permit_number = payload.sctPermitNumber;
   if (payload.sctPermitExpiry !== undefined)
     result.sct_permit_expiry = payload.sctPermitExpiry;
-  // Carta Porte 3.1
+  // Carta Porte 3.1 — Autotransporte
   if (payload.satTipoPermisoCode !== undefined)
     result.sat_tipo_permiso_code = payload.satTipoPermisoCode;
   if (payload.satConfigAutotransporteCode !== undefined)
     result.sat_config_autotransporte_code = payload.satConfigAutotransporteCode;
+  if (payload.pesoBrutoVehicular !== undefined)
+    result.peso_bruto_vehicular = payload.pesoBrutoVehicular;
   if (payload.insuranceCompany !== undefined)
     result.insurance_company = payload.insuranceCompany;
+  if (payload.aseguraMedioAmbiente !== undefined)
+    result.asegura_medio_ambiente = payload.aseguraMedioAmbiente;
+  if (payload.polizaMedioAmbiente !== undefined)
+    result.poliza_medio_ambiente = payload.polizaMedioAmbiente;
   if (payload.aseguraCarga !== undefined)
     result.asegura_carga = payload.aseguraCarga;
   if (payload.polizaCarga !== undefined)

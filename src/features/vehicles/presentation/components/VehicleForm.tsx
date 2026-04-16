@@ -106,7 +106,12 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
     satTipoPermisoCode: vehicle.cartaPorte.satTipoPermisoCode ?? "",
     satConfigAutotransporteCode:
       vehicle.cartaPorte.satConfigAutotransporteCode ?? "",
+    pesoBrutoVehicular: vehicle.cartaPorte.pesoBrutoVehicular ?? undefined,
     insuranceCompany: vehicle.cartaPorte.insuranceCompany ?? "",
+    aseguraMedioAmbiente: vehicle.cartaPorte.aseguraMedioAmbiente ?? "",
+    polizaMedioAmbiente: vehicle.cartaPorte.polizaMedioAmbiente ?? "",
+    aseguraCarga: vehicle.cartaPorte.aseguraCarga ?? "",
+    polizaCarga: vehicle.cartaPorte.polizaCarga ?? "",
   };
 }
 
@@ -135,7 +140,12 @@ const defaultValues: CreateVehicleFormData = {
   // Carta Porte 3.1
   satTipoPermisoCode: "",
   satConfigAutotransporteCode: "",
+  pesoBrutoVehicular: undefined,
   insuranceCompany: "",
+  aseguraMedioAmbiente: "",
+  polizaMedioAmbiente: "",
+  aseguraCarga: "",
+  polizaCarga: "",
 };
 
 // ============================================================================
@@ -495,37 +505,45 @@ export function VehicleForm({
           <CardHeader>
             <CardTitle>Documentación y Seguros</CardTitle>
             <CardDescription>
-              Información de pólizas de seguro y permisos
+              Póliza de responsabilidad civil y permiso SCT — requeridos para
+              emitir Carta Porte
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Seguro */}
+            {/* Seguro Responsabilidad Civil */}
             <div className="grid gap-4 sm:grid-cols-3">
-              {/* Aseguradora */}
+              {/* AseguraRespCivil */}
               <FormField
                 control={form.control}
                 name="insuranceCompany"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Aseguradora</FormLabel>
+                    <FormLabel>
+                      Aseguradora Resp. Civil{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        (AseguraRespCivil)
+                      </span>
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="Ej: Qualitas, GNP, HDI" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Nombre de la compañía aseguradora
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Póliza de Seguro */}
+              {/* PolizaRespCivil */}
               <FormField
                 control={form.control}
                 name="insurancePolicy"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número de Póliza</FormLabel>
+                    <FormLabel>
+                      Póliza Resp. Civil{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        (PolizaRespCivil)
+                      </span>
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="Número de póliza" {...field} />
                     </FormControl>
@@ -534,7 +552,7 @@ export function VehicleForm({
                 )}
               />
 
-              {/* Vencimiento Seguro */}
+              {/* Vencimiento — campo administrativo, no es atributo Carta Porte */}
               <FormField
                 control={form.control}
                 name="insuranceExpiry"
@@ -550,15 +568,20 @@ export function VehicleForm({
               />
             </div>
 
-            {/* Permiso SCT */}
+            {/* Permiso SCT — PermSCT + NumPermisoSCT */}
             <div className="grid gap-4 sm:grid-cols-3">
-              {/* Tipo de Permiso SCT (Catálogo SAT) */}
+              {/* PermSCT */}
               <FormField
                 control={form.control}
                 name="satTipoPermisoCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Permiso SCT</FormLabel>
+                    <FormLabel>
+                      Tipo de Permiso SCT{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        (PermSCT)
+                      </span>
+                    </FormLabel>
                     <FormControl>
                       <TipoPermisoSelect
                         value={field.value ?? ""}
@@ -574,13 +597,18 @@ export function VehicleForm({
                 )}
               />
 
-              {/* Número de Permiso SCT */}
+              {/* NumPermisoSCT */}
               <FormField
                 control={form.control}
                 name="sctPermitNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número de Permiso SCT</FormLabel>
+                    <FormLabel>
+                      Número de Permiso SCT{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        (NumPermisoSCT)
+                      </span>
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="Número de permiso" {...field} />
                     </FormControl>
@@ -589,7 +617,7 @@ export function VehicleForm({
                 )}
               />
 
-              {/* Vencimiento Permiso SCT */}
+              {/* Vencimiento — campo administrativo */}
               <FormField
                 control={form.control}
                 name="sctPermitExpiry"
@@ -608,51 +636,206 @@ export function VehicleForm({
         </Card>
 
         {/* ════════════════════════════════════════════════════════════════ */}
-        {/* CARTA PORTE 3.1 */}
+        {/* CARTA PORTE 3.1 — AUTOTRANSPORTE */}
         {/* ════════════════════════════════════════════════════════════════ */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Carta Porte 3.1
+              Carta Porte 3.1 — Autotransporte
               <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
                 SAT
               </span>
             </CardTitle>
             <CardDescription>
-              Datos requeridos para el complemento Carta Porte del CFDI
+              Datos del nodo Autotransporte requeridos para el complemento Carta
+              Porte del CFDI
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Estos campos se utilizarán automáticamente al generar la Carta
-                Porte en los viajes asignados a este vehículo.
+                Estos campos se usan automáticamente al generar la Carta Porte.
+                La placa (PlacaVM) y el año (AnioModeloVM) se toman de los datos
+                del vehículo registrados arriba.
               </AlertDescription>
             </Alert>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Configuración Vehicular SAT */}
-              <FormField
-                control={form.control}
-                name="satConfigAutotransporteCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Configuración Vehicular</FormLabel>
-                    <FormControl>
-                      <ConfigAutotransporteSelect
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                        placeholder="Seleccionar configuración"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Catálogo SAT c_ConfigAutotransporte (ej: C2, T3S2R4)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* ── IdentificacionVehicular ─────────────────────────────────── */}
+            <div>
+              <p className="text-sm font-medium mb-3">
+                Identificación Vehicular
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* ConfigVehicular */}
+                <FormField
+                  control={form.control}
+                  name="satConfigAutotransporteCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Configuración Vehicular{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (ConfigVehicular)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <ConfigAutotransporteSelect
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                          placeholder="Seleccionar configuración"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Catálogo SAT c_ConfigAutotransporte (ej: C2, T3S2R4)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* PesoBrutoVehicular */}
+                <FormField
+                  control={form.control}
+                  name="pesoBrutoVehicular"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Peso Bruto Vehicular (ton){" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (PesoBrutoVehicular)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          min={0}
+                          max={9999.999}
+                          placeholder="Ej: 35.000"
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            field.onChange(
+                              val === "" ? undefined : parseFloat(val),
+                            );
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Peso bruto total en toneladas métricas (máx 3 decimales)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* ── Seguros Opcionales ──────────────────────────────────────── */}
+            <div>
+              <p className="text-sm font-medium mb-1">
+                Seguros Adicionales{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (opcionales)
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Incluir solo si la mercancía cuenta con seguro de carga o de
+                daños a medio ambiente
+              </p>
+
+              {/* Medio Ambiente */}
+              <div className="grid gap-4 sm:grid-cols-2 mb-4">
+                {/* AseguraMedioAmbiente */}
+                <FormField
+                  control={form.control}
+                  name="aseguraMedioAmbiente"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Aseguradora Medio Ambiente{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (AseguraMedioAmbiente)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Nombre de la aseguradora"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* PolizaMedioAmbiente */}
+                <FormField
+                  control={form.control}
+                  name="polizaMedioAmbiente"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Póliza Medio Ambiente{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (PolizaMedioAmbiente)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="Número de póliza" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Carga */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* AseguraCarga */}
+                <FormField
+                  control={form.control}
+                  name="aseguraCarga"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Aseguradora de Carga{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (AseguraCarga)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Nombre de la aseguradora"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* PolizaCarga */}
+                <FormField
+                  control={form.control}
+                  name="polizaCarga"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Póliza de Carga{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (PolizaCarga)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="Número de póliza" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

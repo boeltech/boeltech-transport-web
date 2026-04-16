@@ -110,20 +110,50 @@ export const createVehicleSchema = z.object({
   sctPermitNumber: z.string().max(50).optional().or(z.literal("")),
   sctPermitExpiry: z.string().optional().or(z.literal("")),
 
-  // ── Carta Porte 3.1 ───────────────────────────────────────────────────────
+  // ── Carta Porte 3.1 — Autotransporte ─────────────────────────────────────
+  // PermSCT — en "Documentación y Seguros" (satTipoPermisoCode + sctPermitNumber)
   satTipoPermisoCode: z
     .string()
     .max(10, "Máximo 10 caracteres")
     .optional()
     .or(z.literal("")),
+  // IdentificacionVehicular
   satConfigAutotransporteCode: z
     .string()
     .max(10, "Máximo 10 caracteres")
     .optional()
     .or(z.literal("")),
+  pesoBrutoVehicular: z
+    .number({ invalid_type_error: "Debe ser un número" })
+    .positive("Debe ser mayor a 0")
+    .max(9999.999, "Máximo 9999.999 toneladas")
+    .optional(),
+  // Seguros — Responsabilidad Civil (requeridos para emitir Carta Porte)
   insuranceCompany: z
     .string()
-    .max(100, "Máximo 100 caracteres")
+    .max(50, "Máximo 50 caracteres")
+    .optional()
+    .or(z.literal("")),
+  // Seguros — Medio Ambiente (opcionales)
+  aseguraMedioAmbiente: z
+    .string()
+    .max(50, "Máximo 50 caracteres")
+    .optional()
+    .or(z.literal("")),
+  polizaMedioAmbiente: z
+    .string()
+    .max(30, "Máximo 30 caracteres")
+    .optional()
+    .or(z.literal("")),
+  // Seguros — Carga (opcionales)
+  aseguraCarga: z
+    .string()
+    .max(50, "Máximo 50 caracteres")
+    .optional()
+    .or(z.literal("")),
+  polizaCarga: z
+    .string()
+    .max(30, "Máximo 30 caracteres")
     .optional()
     .or(z.literal("")),
 });
@@ -167,10 +197,15 @@ export const updateVehicleSchema = z.object({
   sctPermitNumber: z.string().max(50).nullable().optional(),
   sctPermitExpiry: z.string().nullable().optional(),
 
-  // Carta Porte 3.1
+  // Carta Porte 3.1 — Autotransporte
   satTipoPermisoCode: z.string().max(10).nullable().optional(),
   satConfigAutotransporteCode: z.string().max(10).nullable().optional(),
-  insuranceCompany: z.string().max(100).nullable().optional(),
+  pesoBrutoVehicular: z.number().positive().max(9999.999).nullable().optional(),
+  insuranceCompany: z.string().max(50).nullable().optional(),
+  aseguraMedioAmbiente: z.string().max(50).nullable().optional(),
+  polizaMedioAmbiente: z.string().max(30).nullable().optional(),
+  aseguraCarga: z.string().max(50).nullable().optional(),
+  polizaCarga: z.string().max(30).nullable().optional(),
 
   // Status
   status: vehicleStatusSchema.optional(),
