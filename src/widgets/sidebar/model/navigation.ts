@@ -101,6 +101,8 @@ export const navigationConfig: NavGroup[] = [
         path: "/maintenance",
         icon: Wrench,
         module: "maintenance",
+        disabled: true,
+        badge: "Próximamente",
       },
       {
         id: "fuel",
@@ -108,6 +110,8 @@ export const navigationConfig: NavGroup[] = [
         path: "/fuel",
         icon: Fuel,
         module: "fuel",
+        disabled: true,
+        badge: "Próximamente",
       },
     ],
   },
@@ -155,8 +159,8 @@ export const navigationConfig: NavGroup[] = [
     items: [
       {
         id: "invoices",
-        label: "Facturación",
-        path: "/invoices",
+        label: "Finanzas",
+        path: "/finance",
         icon: FileText,
         module: "invoices",
       },
@@ -176,6 +180,8 @@ export const navigationConfig: NavGroup[] = [
         path: "/reports",
         icon: BarChart3,
         module: "reports",
+        disabled: true,
+        badge: "Próximamente",
       },
     ],
   },
@@ -193,6 +199,8 @@ export const navigationConfig: NavGroup[] = [
         path: "/users",
         icon: UserCog,
         module: "users",
+        disabled: true,
+        badge: "Próximamente",
       },
       {
         id: "settings",

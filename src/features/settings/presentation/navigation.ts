@@ -49,6 +49,7 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Datos de la empresa, logo y dirección fiscal",
     path: "/settings/general",
     icon: Building2,
+    permission: { module: "settings", action: "update" },
   },
   {
     id: SettingsSection.CATALOGS,
@@ -56,6 +57,7 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Catálogos SAT e internos del sistema",
     path: "/settings/catalogs",
     icon: Database,
+    permission: { module: "settings", action: "update" },
   },
   {
     id: SettingsSection.BILLING,
@@ -63,7 +65,7 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Configuración de CFDI, PAC y certificados",
     path: "/settings/billing",
     icon: FileText,
-    permission: { module: "invoices", action: "manage" },
+    permission: { module: "settings", action: "read" },
   },
   {
     id: SettingsSection.NOTIFICATIONS,
@@ -71,6 +73,7 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Preferencias de alertas y notificaciones",
     path: "/settings/notifications",
     icon: Bell,
+    permission: { module: "settings", action: "update" },
   },
   {
     id: SettingsSection.SECURITY,

@@ -1,7 +1,7 @@
 /**
  * User Roles Constants (Frontend)
  *
- * Defines the 5 official roles for the Boeltech ERP system.
+ * Defines the 7 official roles for the Boeltech ERP system.
  * Must match backend roles exactly.
  *
  * IMPORTANT:
@@ -17,8 +17,10 @@
 export const ROLES = {
   ADMIN: "admin",
   MANAGER: "manager",
+  DISPATCHER: "dispatcher",
   ACCOUNTANT: "accountant",
   OPERATOR: "operator",
+  DRIVER: "driver",
   CLIENT: "client",
 } as const;
 
@@ -31,8 +33,10 @@ export type UserRole = (typeof ROLES)[keyof typeof ROLES];
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrador",
   manager: "Gerente",
+  dispatcher: "Despachador",
   accountant: "Contador",
   operator: "Operador",
+  driver: "Conductor",
   client: "Cliente",
 };
 
@@ -43,8 +47,10 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: "Acceso completo a todos los módulos del sistema",
   manager: "Gestión de viajes, unidades, conductores y mantenimiento",
+  dispatcher: "Coordinación y asignación de viajes a conductores",
   accountant: "Módulos de costos, facturación y nómina",
-  operator: "Registro de viajes, gastos y operación diaria",
+  operator: "Registro de gastos, mantenimiento y operación diaria",
+  driver: "Consulta y actualización de sus propios viajes asignados",
   client: "Consulta de viajes y facturas propias",
 };
 
@@ -53,10 +59,12 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 // ============================================================================
 
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  admin: 5,
-  manager: 4,
-  accountant: 3,
-  operator: 2,
+  admin: 7,
+  manager: 6,
+  dispatcher: 5,
+  accountant: 4,
+  operator: 3,
+  driver: 2,
   client: 1,
 };
 
@@ -67,8 +75,10 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
 export const ROLE_OPTIONS = [
   { value: ROLES.ADMIN, label: ROLE_LABELS.admin },
   { value: ROLES.MANAGER, label: ROLE_LABELS.manager },
+  { value: ROLES.DISPATCHER, label: ROLE_LABELS.dispatcher },
   { value: ROLES.ACCOUNTANT, label: ROLE_LABELS.accountant },
   { value: ROLES.OPERATOR, label: ROLE_LABELS.operator },
+  { value: ROLES.DRIVER, label: ROLE_LABELS.driver },
   { value: ROLES.CLIENT, label: ROLE_LABELS.client },
 ] as const;
 
@@ -121,9 +131,11 @@ export function getRoleColor(role: UserRole): string {
   const colors: Record<UserRole, string> = {
     admin: "red",
     manager: "orange",
+    dispatcher: "purple",
     accountant: "yellow",
     operator: "green",
-    client: "blue",
+    driver: "blue",
+    client: "slate",
   };
   return colors[role];
 }
@@ -135,8 +147,10 @@ export function getRoleIcon(role: UserRole): string {
   const icons: Record<UserRole, string> = {
     admin: "Shield",
     manager: "Briefcase",
+    dispatcher: "Radio",
     accountant: "Calculator",
     operator: "ClipboardList",
+    driver: "Truck",
     client: "User",
   };
   return icons[role];

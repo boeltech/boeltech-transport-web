@@ -25,7 +25,6 @@ import {
   PrivateRoute,
   ModuleRoute,
   PermissionRoute,
-  AdminRoute,
 } from "./guards";
 
 // ============================================
@@ -196,10 +195,16 @@ const ClientEditPage = lazy(() =>
 // const FuelListPage = lazy(() => import("@/pages/fuel"));
 // const FuelCreatePage = lazy(() => import("@/pages/fuel/create"));
 
-// Invoices
-// const InvoicesListPage = lazy(() => import("@/pages/invoices"));
-// const InvoiceDetailPage = lazy(() => import("@/pages/invoices/detail"));
-// const InvoiceCreatePage = lazy(() => import("@/pages/invoices/create"));
+// Finance / Invoices
+const FinancePage = lazy(() =>
+  import("@features/invoicing").then((m) => ({ default: m.FinancePage })),
+);
+const InvoiceDetailPage = lazy(() =>
+  import("@features/invoicing").then((m) => ({ default: m.InvoiceDetailPage })),
+);
+const CreateInvoicePage = lazy(() =>
+  import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
+);
 
 // Reports
 // const ReportsPage = lazy(() => import("@/pages/reports"));
@@ -507,28 +512,37 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // Módulo: Invoices (Facturación)
+          // Módulo: Invoices / Finance (Facturación)
           // ========================================
           {
             element: <ModuleRoute module="invoices" />,
             children: [
-              // {
-              //   path: "/invoices",
-              //   element: withSuspense(InvoicesListPage),
-              // },
-              // {
-              //   path: "/invoices/:id",
-              //   element: withSuspense(InvoiceDetailPage),
-              // },
+              {
+                path: "/finance",
+                element: withSuspense(FinancePage),
+              },
+              {
+                path: "/invoices/:id",
+                element: withSuspense(InvoiceDetailPage),
+              },
             ],
           },
           {
             element: <PermissionRoute module="invoices" action="create" />,
             children: [
-              // {
-              //   path: "/invoices/new",
-              //   element: withSuspense(InvoiceCreatePage),
-              // },
+              {
+                path: "/invoices/new",
+                element: withSuspense(CreateInvoicePage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="invoices" action="update" />,
+            children: [
+              {
+                path: "/invoices/:id/edit",
+                element: withSuspense(CreateInvoicePage),
+              },
             ],
           },
 
@@ -568,10 +582,10 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // Módulo: Settings (Admin)
+          // Módulo: Settings
           // ========================================
           {
-            element: <AdminRoute />,
+            element: <ModuleRoute module="settings" />,
             children: [
               // {
               //   path: "/settings",

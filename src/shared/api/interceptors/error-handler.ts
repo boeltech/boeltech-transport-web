@@ -127,6 +127,12 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   CURP_EXISTS: "El CURP ya está registrado",
   RFC_EMPLOYEE_EXISTS: "El RFC ya está registrado",
 
+  // ── Facturación ────────────────────────────────────────────────────────────
+  TRIP_ALREADY_INVOICED: "El viaje ya está vinculado a una factura activa",
+  COMPANY_SETTINGS_INCOMPLETE: "Configura los datos del emisor en Configuración → Empresa antes de facturar",
+  PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Facturación.",
+  PAC_CONFIG_ERROR: "Error de configuración del PAC. Verifica las variables de entorno del servidor.",
+
   // ── Viajes ─────────────────────────────────────────────────────────────────
   TRIP_NOT_FOUND: "Viaje no encontrado",
   TRIP_CANNOT_BE_MODIFIED:
@@ -339,7 +345,7 @@ function getMessageForError(
   data: ApiErrorResponse | undefined,
   validationErrors: ValidationFieldError[],
 ): string {
-  // 1. Si hay errores de validación
+  // 1. Errores de validación: mostrar detalles de campos
   if (code === "VALIDATION_ERROR" && validationErrors.length > 0) {
     const first = validationErrors[0];
     if (validationErrors.length === 1) {
@@ -348,17 +354,26 @@ function getMessageForError(
     return `${first.label}: ${first.message} (+${validationErrors.length - 1} más)`;
   }
 
-  // 2. Mensaje amigable por código de negocio
+  // 2. Para errores de negocio (4xx): el backend es la fuente de verdad.
+  //    Mostramos data.error directamente porque el mensaje ya viene en español
+  //    y contiene contexto específico (ej: el trip_code del viaje conflictivo).
+  //    El diccionario BUSINESS_ERROR_MESSAGES queda como fallback para backends
+  //    que solo envían un code sin mensaje (o mensajes genéricos en inglés).
+  if (status < 500 && data?.error && typeof data.error === "string") {
+    return data.error;
+  }
+
+  // 3. Diccionario frontend por código (fallback para 4xx sin mensaje, y para 5xx)
   if (code && BUSINESS_ERROR_MESSAGES[code]) {
     return BUSINESS_ERROR_MESSAGES[code];
   }
 
-  // 3. Mensaje del backend
+  // 4. Mensaje del backend como último recurso (ej: 500 sin code conocido)
   if (data?.error && typeof data.error === "string") {
     return data.error;
   }
 
-  // 4. Mensaje por defecto según status
+  // 5. Genérico por status HTTP
   return HTTP_STATUS_MESSAGES[status] || "Ocurrió un error inesperado.";
 }
 

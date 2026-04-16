@@ -10,6 +10,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { PermissionGuard, usePermissions } from "@shared/permissions";
 
 // ============================================================================
 // LAZY LOADED PAGES - Settings
@@ -75,6 +76,13 @@ function SettingsLoadingFallback() {
   );
 }
 
+function SettingsIndexRedirect() {
+  const { hasPermission } = usePermissions();
+  const canEditSettings = hasPermission("settings", "update");
+
+  return <Navigate to={canEditSettings ? "general" : "billing"} replace />;
+}
+
 // ============================================================================
 // ROUTES COMPONENT
 // ============================================================================
@@ -97,20 +105,64 @@ export function SettingsRoutes() {
     <Suspense fallback={<SettingsLoadingFallback />}>
       <Routes>
         {/* Index - redirect to general */}
-        <Route index element={<Navigate to="general" replace />} />
+        <Route index element={<SettingsIndexRedirect />} />
 
         {/* General Settings */}
-        <Route path="general" element={<GeneralSettingsPage />} />
+        <Route
+          path="general"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <GeneralSettingsPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Catalogs - from catalogs feature module */}
-        <Route path="catalogs" element={<CatalogsPage />} />
-        <Route path="catalogs/:typeCode" element={<CatalogDetailPage />} />
+        <Route
+          path="catalogs"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <CatalogsPage />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="catalogs/:typeCode"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <CatalogDetailPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Billing Settings */}
         <Route path="billing" element={<BillingSettingsPage />} />
 
         {/* Notification Settings */}
-        <Route path="notifications" element={<NotificationsSettingsPage />} />
+        <Route
+          path="notifications"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <NotificationsSettingsPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Security Settings (placeholder) */}
         <Route path="security" element={<SecuritySettingsPage />} />

@@ -5,7 +5,7 @@
  * Define los permisos de cada rol del sistema.
  * Esta es la "fuente de verdad" para los permisos.
  *
- * UPDATED: Now uses the 5 official English roles with Spanish labels
+ * UPDATED: Now uses the 7 official English roles with Spanish labels
  *
  * Ubicación: src/shared/auth/domain/rolePermissions.ts
  */
@@ -104,6 +104,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Facturas - Lectura
       "invoices.read",
+      "invoices.create",
+      "invoices.update",
+      "invoices.delete",
+      "invoices.execute",
       "invoices.export",
 
       // Nómina - Lectura
@@ -167,10 +171,12 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "invoices.read",
       "invoices.create",
       "invoices.update",
-      "invoices.delete",
       "invoices.approve",
       "invoices.export",
       "invoices.execute", // Timbrado, envío
+
+      // Configuración - Lectura (incluye settings/billing GET)
+      "settings.read",
 
       // Nómina - Control total
       "payroll.read",
@@ -197,7 +203,45 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
   },
 
   // ==========================================================================
-  // OPERATOR - Operador (operaciones diarias)
+  // DISPATCHER - Despachador (coordinación de viajes)
+  // ==========================================================================
+  dispatcher: {
+    role: ROLES.DISPATCHER,
+    name: ROLE_LABELS.dispatcher,
+    description: ROLE_DESCRIPTIONS.dispatcher,
+    permissions: [
+      // Dashboard
+      "dashboard.read",
+
+      // Viajes - Control total de coordinación
+      "trips.read",
+      "trips.create",
+      "trips.update",
+      "trips.updateStatus",
+      "trips.assign",
+      "trips.export",
+
+      // Vehículos - Lectura y disponibilidad
+      "vehicles.read",
+
+      // Conductores - Lectura, asignación y estado
+      "drivers.read",
+      "drivers.assign",
+      "drivers.updateStatus",
+
+      // Clientes - Lectura para contexto de viajes
+      "clients.read",
+
+      // Facturas - Lectura para prefill y contexto
+      "invoices.read",
+
+      // Reportes - Reportes de viajes
+      "reports.read",
+    ],
+  },
+
+  // ==========================================================================
+  // OPERATOR - Operador (operaciones administrativas diarias)
   // ==========================================================================
   operator: {
     role: ROLES.OPERATOR,
@@ -248,6 +292,29 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
   },
 
   // ==========================================================================
+  // DRIVER - Conductor (app Android, solo sus viajes)
+  // ==========================================================================
+  driver: {
+    role: ROLES.DRIVER,
+    name: ROLE_LABELS.driver,
+    description: ROLE_DESCRIPTIONS.driver,
+    permissions: [
+      // Dashboard - Vista básica
+      "dashboard.read",
+
+      // Viajes - Solo lectura y actualización de estado de sus viajes
+      "trips.read",
+      "trips.updateStatus", // Iniciar y completar su propio viaje
+
+      // Vehículos - Lectura del vehículo asignado
+      "vehicles.read",
+
+      // Reportes - Historial de sus propios viajes
+      "reports.read",
+    ],
+  },
+
+  // ==========================================================================
   // CLIENT - Cliente externo (acceso limitado)
   // ==========================================================================
   client: {
@@ -261,8 +328,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Viajes - Solo lectura de sus propios viajes
       "trips.read",
 
-      // Facturas - Solo lectura de sus propias facturas
-      "invoices.read",
+      // Facturas - Sin acceso en frontend hasta alinear backend para client
 
       // Reportes - Vista limitada de sus propios datos
       "reports.read",

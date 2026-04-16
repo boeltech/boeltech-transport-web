@@ -212,7 +212,11 @@ const NavItemLink = memo(function NavItemLink({
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side="right" className="flex items-center gap-2">
           {item.label}
-          {item.badge !== undefined && <NavBadge value={item.badge} />}
+          {item.disabled && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+              Próximamente
+            </span>
+          )}
         </TooltipContent>
       </Tooltip>
     );
@@ -274,10 +278,19 @@ interface NavBadgeProps {
 }
 
 const NavBadge = memo(function NavBadge({ value }: NavBadgeProps) {
-  const displayValue = typeof value === "number" && value > 99 ? "99+" : value;
-
   if (value === 0 || value === "") return null;
 
+  // Badge de texto (ej: "Próximamente") → pill muted
+  if (typeof value === "string") {
+    return (
+      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+        {value}
+      </span>
+    );
+  }
+
+  // Badge numérico → contador rojo
+  const displayValue = value > 99 ? "99+" : value;
   return (
     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
       {displayValue}
