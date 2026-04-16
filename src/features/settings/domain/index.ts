@@ -10,6 +10,7 @@ export {
   SETTINGS_SECTION_LABELS,
   PacProviders,
   PAC_PROVIDER_LABELS,
+  PAC_USES_CREDENTIALS,
   settingsQueryKeys,
 } from "./entities";
 

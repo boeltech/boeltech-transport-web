@@ -87,19 +87,36 @@ export interface BillingSettings {
 }
 
 export const PacProviders = {
+  PROFACT: "profact",
   FINKOK: "finkok",
   SW_SAPIEN: "sw_sapien",
   DIGISAT: "digisat",
   FACTURAPI: "facturapi",
+  STUB: "stub",
 } as const;
 
 export type PacProvider = (typeof PacProviders)[keyof typeof PacProviders];
 
 export const PAC_PROVIDER_LABELS: Record<PacProvider, string> = {
+  [PacProviders.PROFACT]: "ProFact",
   [PacProviders.FINKOK]: "Finkok",
   [PacProviders.SW_SAPIEN]: "SW Sapien",
   [PacProviders.DIGISAT]: "Digisat",
   [PacProviders.FACTURAPI]: "Facturapi",
+  [PacProviders.STUB]: "Stub (desarrollo)",
+};
+
+/**
+ * PACs que autentican mediante credenciales por tenant (usuario + contraseña).
+ * ProFact y Stub usan configuración a nivel servidor (variables de entorno).
+ */
+export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
+  [PacProviders.PROFACT]: false,
+  [PacProviders.FINKOK]: true,
+  [PacProviders.SW_SAPIEN]: true,
+  [PacProviders.DIGISAT]: true,
+  [PacProviders.FACTURAPI]: true,
+  [PacProviders.STUB]: false,
 };
 
 // ============================================================================

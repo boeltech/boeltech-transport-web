@@ -85,6 +85,7 @@ import {
 } from "@features/trips/domain";
 
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import {
   getTripStatusConfig,
   TripActions,
@@ -262,6 +263,7 @@ export function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const tripId = id || "";
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -418,17 +420,31 @@ export function TripDetailPage() {
           </div>
         </div>
 
-        <TripActions
-          tripId={trip.id}
-          tripCode={trip.tripCode}
-          status={trip.status}
-          variant="buttons"
-          onActionComplete={() => {
-            refetchTrip();
-            refetchCargos();
-            refetchExpenses();
-          }}
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          {trip.status === "completed" &&
+            hasPermission("invoices", "create") && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/invoices/new?trip_id=${trip.id}`)
+                }
+              >
+                <Receipt className="h-4 w-4 mr-2" />
+                Generar factura
+              </Button>
+            )}
+          <TripActions
+            tripId={trip.id}
+            tripCode={trip.tripCode}
+            status={trip.status}
+            variant="buttons"
+            onActionComplete={() => {
+              refetchTrip();
+              refetchCargos();
+              refetchExpenses();
+            }}
+          />
+        </div>
       </div>
 
       {/* ================================================================== */}
