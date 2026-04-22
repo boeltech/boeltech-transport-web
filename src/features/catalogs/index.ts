@@ -101,6 +101,7 @@ export {
   useCatalogSearch,
   useCatalogItem,
   useCatalogChildren,
+  useRegimenFiscalLabel,
 
   // Specialized hooks - Options (catálogos pequeños)
   // useEstadosOptions,
@@ -132,6 +133,8 @@ export {
   useCatalogCurrentVersion,
   useCatalogVersions,
 } from "./application/hooks";
+
+export type { UseRegimenFiscalLabelResult } from "./application/hooks";
 
 // ============================================================================
 // PRESENTATION

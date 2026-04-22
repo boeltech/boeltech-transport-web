@@ -69,3 +69,8 @@ export {
   useCatalogItem,
   useCatalogChildren,
 } from "./useCatalogSearch";
+
+export {
+  useRegimenFiscalLabel,
+  type UseRegimenFiscalLabelResult,
+} from "./useRegimenFiscalLabel";
