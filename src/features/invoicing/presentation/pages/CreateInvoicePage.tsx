@@ -39,6 +39,7 @@ import {
   useInvoicePrefill,
   useUpdateInvoice,
 } from "@features/invoicing/application";
+import { useTrip } from "@features/trips";
 import { useActiveClients } from "@features/clients/application";
 import { useClientBillingAddress } from "@features/clients/application";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -104,6 +105,12 @@ export function CreateInvoicePage() {
     isError: prefillIsError,
     error: prefillError,
   } = useInvoicePrefill(tripId);
+  const {
+    data: tripContext,
+    isLoading: isTripContextLoading,
+  } = useTrip(tripId, {
+    enabled: !isEditMode && hasTripContext,
+  });
 
   const {
     data: editableInvoice,
@@ -117,6 +124,22 @@ export function CreateInvoicePage() {
   const { data: billingAddress } = useClientBillingAddress(
     selectedClientId || undefined,
   );
+
+  const prefillErrorMessage = prefillError ? getErrorMessage(prefillError) : "";
+  const isAlreadyInvoicedByError =
+    !isEditMode &&
+    prefillIsError &&
+    /ya\s+(est[aá]\s+)?(vinculado|facturado)|trip_already_invoiced|already\s+invoiced/i.test(
+      prefillErrorMessage,
+    );
+  const isBlockedByTripContext =
+    !isEditMode && !!tripContext && !tripContext.invoicing.canGenerateInvoice;
+  const linkedInvoiceId = tripContext?.invoicing.invoiceId ?? null;
+  const linkedInvoiceFolio = tripContext?.invoicing.invoiceFolio ?? null;
+  const blockedReason =
+    tripContext?.invoicing.blockReason ??
+    (isAlreadyInvoicedByError ? prefillErrorMessage : null) ??
+    "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.";
 
   // ── Form ─────────────────────────────────────────────────────────────────
 
@@ -149,14 +172,14 @@ export function CreateInvoicePage() {
 
   // Error toast for prefill
   useEffect(() => {
-    if (!isEditMode && prefillIsError && prefillError) {
+    if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError) {
       toast({
         variant: "destructive",
         title: "No se pudo cargar el viaje",
         description: getErrorMessage(prefillError),
       });
     }
-  }, [prefillIsError, prefillError, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prefillIsError, prefillError, isEditMode, isAlreadyInvoicedByError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isEditMode && isEditableInvoiceError && editableInvoiceError) {
@@ -420,6 +443,55 @@ export function CreateInvoicePage() {
               <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
                 Volver a finanzas
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isEditMode && hasTripContext && isTripContextLoading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  if (!isEditMode && (isBlockedByTripContext || isAlreadyInvoicedByError)) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-bold">Nueva Factura</h1>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Este viaje ya está facturado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{blockedReason}</p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => navigate("/trips")}>Volver a viajes</Button>
+              {linkedInvoiceId ? (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/invoices/${linkedInvoiceId}`)}
+                >
+                  Ver factura{linkedInvoiceFolio ? ` (${linkedInvoiceFolio})` : ""}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/finance?tab=invoices")}
+                >
+                  Ir a finanzas
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

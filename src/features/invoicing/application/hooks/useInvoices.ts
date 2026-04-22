@@ -39,6 +39,7 @@ export const invoiceQueryKeys = {
   prefill: (tripId: string) =>
     [...invoiceQueryKeys.finance, "prefill", tripId] as const,
 };
+const invoicePrefillQueriesKey = [...invoiceQueryKeys.finance, "prefill"] as const;
 
 // ============================================================================
 // QUERIES
@@ -117,6 +118,8 @@ export function useCreateInvoice(
     onSuccess: (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -147,6 +150,7 @@ export function useUpdateInvoice(
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
+      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -162,6 +166,7 @@ export function useDeleteInvoice(
     onSuccess: (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -180,6 +185,7 @@ export function useStampInvoice(
         queryKey: invoiceQueryKeys.detail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -211,6 +217,7 @@ export function useCancelInvoice(
         queryKey: invoiceQueryKeys.detail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

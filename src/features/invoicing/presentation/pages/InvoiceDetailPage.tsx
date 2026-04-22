@@ -9,6 +9,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
+import { useRegimenFiscalLabel } from "@features/catalogs";
 import {
   useInvoice,
   useOpenInvoicePdf,
@@ -50,6 +51,13 @@ export function InvoiceDetailPage() {
   };
 
   const { data: invoice, isLoading, isError, error } = useInvoice(id!);
+
+  const { label: issuerTaxRegimeLabel } = useRegimenFiscalLabel(
+    invoice?.issuerTaxRegime,
+  );
+  const { label: receiverTaxRegimeLabel } = useRegimenFiscalLabel(
+    invoice?.receiverTaxRegime,
+  );
 
   const { mutate: openPdf, isPending: openingPdf } = useOpenInvoicePdf({
     onError: (err) =>
@@ -189,7 +197,8 @@ export function InvoiceDetailPage() {
             <p className="font-semibold">{invoice.issuerName}</p>
             <p className="text-muted-foreground">{invoice.issuerRfc}</p>
             <p className="text-muted-foreground">
-              Régimen: {invoice.issuerTaxRegime}
+              Régimen:{" "}
+              {issuerTaxRegimeLabel ?? invoice.issuerTaxRegime}
             </p>
             <p className="text-muted-foreground">
               Lugar expedición: {invoice.issueLocation}
@@ -211,7 +220,8 @@ export function InvoiceDetailPage() {
               Uso CFDI: {invoice.cfdiUsage}
             </p>
             <p className="text-muted-foreground">
-              Régimen: {invoice.receiverTaxRegime}
+              Régimen:{" "}
+              {receiverTaxRegimeLabel ?? invoice.receiverTaxRegime}
             </p>
             <p className="text-muted-foreground">
               C.P.: {invoice.receiverPostalCode}
