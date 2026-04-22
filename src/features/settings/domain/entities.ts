@@ -120,6 +120,31 @@ export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
 };
 
 // ============================================================================
+// PAC TEST CONNECTION
+// ============================================================================
+
+export interface TestPacConnectionPayload {
+  pacProvider?: PacProvider;
+  pacUsername?: string;
+  pacPassword?: string;
+}
+
+export type PacTestErrorType =
+  | "not_implemented"
+  | "config_missing"
+  | "auth"
+  | "network"
+  | "unknown";
+
+export interface TestPacConnectionResult {
+  success: boolean;
+  message: string;
+  provider: PacProvider | null;
+  environment: "production" | "sandbox" | null;
+  errorType: PacTestErrorType | null;
+}
+
+// ============================================================================
 // NOTIFICATION SETTINGS
 // ============================================================================
 

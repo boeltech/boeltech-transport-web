@@ -15,14 +15,9 @@ import { Globe, Loader2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { Skeleton } from "@shared/ui/skeleton";
+
+import { RegimenFiscalSelect } from "@features/catalogs";
 
 import { SettingsCard } from "./SettingsLayout";
 import {
@@ -68,28 +63,6 @@ const companySettingsSchema = z.object({
 });
 
 type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
-
-// ============================================================================
-// REGIMEN FISCAL OPTIONS (simplificado, idealmente viene de catálogos)
-// ============================================================================
-
-const REGIMEN_FISCAL_OPTIONS = [
-  { code: "601", name: "General de Ley Personas Morales" },
-  { code: "603", name: "Personas Morales con Fines no Lucrativos" },
-  { code: "606", name: "Arrendamiento" },
-  {
-    code: "612",
-    name: "Personas Físicas con Actividades Empresariales y Profesionales",
-  },
-  { code: "616", name: "Sin obligaciones fiscales" },
-  { code: "620", name: "Sociedades Cooperativas de Producción" },
-  { code: "621", name: "Incorporación Fiscal" },
-  {
-    code: "622",
-    name: "Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras",
-  },
-  { code: "626", name: "Régimen Simplificado de Confianza" },
-];
 
 // ============================================================================
 // COMPONENT
@@ -199,28 +172,21 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
             )}
           </div>
 
-          {/* Régimen Fiscal */}
+          {/* Régimen Fiscal (catálogo SAT c_RegimenFiscal) */}
           <div>
             <Label htmlFor="regimenFiscal">
               Régimen Fiscal <span className="text-destructive">*</span>
             </Label>
-            <Select
+            <RegimenFiscalSelect
               value={form.watch("regimenFiscal") ?? ""}
               onValueChange={(value) => {
-                if (value) form.setValue("regimenFiscal", value);
+                form.setValue("regimenFiscal", value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar régimen" />
-              </SelectTrigger>
-              <SelectContent>
-                {REGIMEN_FISCAL_OPTIONS.map((option) => (
-                  <SelectItem key={option.code} value={option.code}>
-                    {option.code} - {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar régimen"
+            />
             {form.formState.errors.regimenFiscal && (
               <p className="text-sm text-destructive mt-1">
                 {form.formState.errors.regimenFiscal.message}

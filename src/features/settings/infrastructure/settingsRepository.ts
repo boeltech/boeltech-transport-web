@@ -19,6 +19,8 @@ import type {
   UpdateNotificationSettingsDTO,
   SettingsResult,
   UploadLogoResult,
+  TestPacConnectionPayload,
+  TestPacConnectionResult,
 } from "../domain";
 import {
   mapCompanySettings,
@@ -27,9 +29,12 @@ import {
   toApiUpdateCompanySettings,
   toApiUpdateBillingSettings,
   toApiUpdateNotificationSettings,
+  toApiTestPacConnection,
+  mapTestPacConnection,
   type ApiCompanySettingsResponse,
   type ApiBillingSettingsResponse,
   type ApiNotificationSettingsResponse,
+  type ApiTestPacConnectionResponse,
 } from "./mappers";
 
 // ============================================================================
@@ -141,12 +146,15 @@ export class SettingsRepository implements ISettingsRepository {
     };
   }
 
-  async testPacConnection(): Promise<{ success: boolean; message: string }> {
+  async testPacConnection(
+    payload?: TestPacConnectionPayload,
+  ): Promise<TestPacConnectionResult> {
+    const body = payload ? toApiTestPacConnection(payload) : {};
     const response = await apiClient.post<{
-      data: { success: boolean; message: string };
-    }>(`${SETTINGS_ENDPOINT}/billing/test-connection`);
+      data: ApiTestPacConnectionResponse;
+    }>(`${SETTINGS_ENDPOINT}/billing/test-connection`, body);
 
-    return response.data;
+    return mapTestPacConnection(response.data);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

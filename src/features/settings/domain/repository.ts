@@ -11,6 +11,8 @@ import type {
   CompanySettings,
   BillingSettings,
   NotificationSettings,
+  TestPacConnectionPayload,
+  TestPacConnectionResult,
 } from "./entities";
 
 // ============================================================================
@@ -130,7 +132,9 @@ export interface ISettingsRepository {
   uploadCertificate(
     data: UploadCertificateDTO,
   ): Promise<SettingsResult<BillingSettings>>;
-  testPacConnection(): Promise<{ success: boolean; message: string }>;
+  testPacConnection(
+    payload?: TestPacConnectionPayload,
+  ): Promise<TestPacConnectionResult>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Notification Settings

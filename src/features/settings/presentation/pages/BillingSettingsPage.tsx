@@ -66,6 +66,7 @@ import {
   type BillingSettings,
   type UpdateBillingSettingsDTO,
   type PacProvider,
+  type TestPacConnectionPayload,
 } from "../../domain";
 
 // ============================================================================
@@ -142,6 +143,7 @@ interface PacProviderConfigProps {
   isPending: boolean;
   canTestConnection: boolean;
   onTestConnection: () => void;
+  isDirty: boolean;
 }
 
 /**
@@ -157,6 +159,7 @@ function PacProviderConfig({
   isPending,
   canTestConnection,
   onTestConnection,
+  isDirty,
 }: PacProviderConfigProps) {
   const pacProvider = form.watch("pacProvider") as PacProvider | undefined;
 
@@ -183,7 +186,7 @@ function PacProviderConfig({
           </AlertDescription>
         </Alert>
 
-        <div>
+        <div className="space-y-1">
           <Button
             type="button"
             variant="outline"
@@ -198,6 +201,11 @@ function PacProviderConfig({
             )}
             Verificar conexión con ProFact
           </Button>
+          {isDirty && (
+            <p className="text-xs text-muted-foreground">
+              Estás probando con configuración no guardada.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -286,6 +294,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
+    defaultValues: { pacProvider: PacProviders.PROFACT },
     values: settings ? mapSettingsToForm(settings) : undefined,
   });
 
@@ -324,8 +333,14 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
   const handleTestConnection = useCallback(() => {
     if (!canUpdateSettings) return;
-    testConnectionMutation.mutate();
-  }, [testConnectionMutation, canUpdateSettings]);
+    const values = form.getValues();
+    const payload: TestPacConnectionPayload = {
+      pacProvider: values.pacProvider as PacProvider,
+      pacUsername: values.pacUsername || undefined,
+      pacPassword: values.pacPassword || undefined,
+    };
+    testConnectionMutation.mutate(payload);
+  }, [form, testConnectionMutation, canUpdateSettings]);
 
   if (isLoading) {
     return (
@@ -411,6 +426,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   isPending={testConnectionMutation.isPending}
                   canTestConnection={canUpdateSettings}
                   onTestConnection={handleTestConnection}
+                  isDirty={form.formState.isDirty}
                 />
               </div>
             </SettingsCard>
@@ -987,7 +1003,7 @@ function BillingSettingsPageSkeleton() {
 
 function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
   return {
-    pacProvider: settings.pacProvider,
+    pacProvider: settings.pacProvider || PacProviders.PROFACT,
     pacUsername: settings.pacUsername ?? "",
     pacPassword: "",
     defaultUsoCfdi: settings.defaultUsoCfdi,

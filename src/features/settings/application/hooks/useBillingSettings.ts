@@ -20,6 +20,8 @@ import {
   type UpdateBillingSettingsDTO,
   type UploadCertificateDTO,
   type SettingsResult,
+  type TestPacConnectionPayload,
+  type TestPacConnectionResult,
   settingsQueryKeys,
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
@@ -130,24 +132,38 @@ export function useUploadCertificate(
 }
 
 /**
- * Hook para probar conexión con el PAC
+ * Hook para probar conexión con el PAC — stateless.
+ *
+ * Acepta un payload opcional con el provider del formulario (sin persistir).
+ * Ramifica el toast según `errorType` para mensajes contextuales.
  */
 export function useTestPacConnection(
   options?: Omit<
-    UseMutationOptions<{ success: boolean; message: string }, Error, void>,
+    UseMutationOptions<
+      TestPacConnectionResult,
+      Error,
+      TestPacConnectionPayload | undefined
+    >,
     "mutationFn"
   >,
 ) {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: () => settingsRepository.testPacConnection(),
+    mutationFn: (payload?: TestPacConnectionPayload) =>
+      settingsRepository.testPacConnection(payload),
     onSuccess: (result) => {
       if (result.success) {
         toast({
           title: "Conexión exitosa",
           description:
             result.message ?? "La conexión con el PAC funciona correctamente.",
+        });
+      } else if (result.errorType === "not_implemented") {
+        toast({
+          title: "PAC aún no disponible",
+          description:
+            "Este proveedor está en el roadmap. Configura ProFact para timbrar.",
         });
       } else {
         toast({

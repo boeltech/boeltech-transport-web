@@ -17,6 +17,9 @@ import type {
   UpdateCompanySettingsDTO,
   UpdateBillingSettingsDTO,
   UpdateNotificationSettingsDTO,
+  TestPacConnectionPayload,
+  TestPacConnectionResult,
+  PacTestErrorType,
 } from "../domain";
 
 // ============================================================================
@@ -260,6 +263,42 @@ export function toApiUpdateBillingSettings(
     apiData.folio_inicial_carta_porte = dto.folioInicialCartaPorte;
 
   return apiData;
+}
+
+// ============================================================================
+// TEST PAC CONNECTION
+// ============================================================================
+
+export interface ApiTestPacConnectionResponse {
+  success: boolean;
+  message: string;
+  provider: string | null;
+  environment: "production" | "sandbox" | null;
+  error_type: PacTestErrorType | null;
+}
+
+/** Convierte el payload camelCase del formulario a snake_case para la API */
+export function toApiTestPacConnection(
+  payload: TestPacConnectionPayload,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (payload.pacProvider !== undefined) body.pac_provider = payload.pacProvider;
+  if (payload.pacUsername !== undefined) body.pac_username = payload.pacUsername;
+  if (payload.pacPassword !== undefined) body.pac_password = payload.pacPassword;
+  return body;
+}
+
+/** Convierte la respuesta snake_case de la API a camelCase del dominio */
+export function mapTestPacConnection(
+  api: ApiTestPacConnectionResponse,
+): TestPacConnectionResult {
+  return {
+    success: api.success,
+    message: api.message,
+    provider: (api.provider as PacProvider) ?? null,
+    environment: api.environment,
+    errorType: api.error_type,
+  };
 }
 
 export function toApiUpdateNotificationSettings(
