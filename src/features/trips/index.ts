@@ -142,6 +142,8 @@ export {
   formatWeight,
   getStopStatusConfig,
   getStopTypeConfig,
+  getTripInvoicingBadgeConfig,
+  getTripInvoicingBlockReason,
   getTripStatusConfig,
   getTripStatusLabel,
   tripCargoSchema,

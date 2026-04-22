@@ -114,6 +114,10 @@ export type {
   VehicleRef,
   DriverRef,
   ClientRef,
+  TripInternalStaffRole,
+  TripInternalStaff,
+  TripInvoiceStatus,
+  TripInvoicing,
 
   // Main Entities
   CargoMovement,
@@ -148,6 +152,7 @@ export type {
   // Expense Inputs
   CreateExpenseInput,
   UpdateExpenseInput,
+  CreateTripInternalStaffInput,
 
   // Stop Inputs
   CreateStopInput,

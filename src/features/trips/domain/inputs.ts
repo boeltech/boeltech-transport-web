@@ -22,6 +22,7 @@ import type {
   CurrencyType,
   ExpenseStatusType,
 } from "./enums";
+import type { TripInternalStaffRole } from "./entities";
 
 // ============================================================================
 // CARGO MOVEMENT INPUTS
@@ -186,6 +187,13 @@ export interface CreateExpenseInput {
   notes?: string;
 }
 
+export interface CreateTripInternalStaffInput {
+  employeeId: string;
+  internalRole: TripInternalStaffRole;
+  isPaymentResponsible?: boolean;
+  paymentNotes?: string;
+}
+
 /**
  * Input para actualizar un gasto
  */
@@ -290,6 +298,10 @@ export interface CreateStopInput {
 
   // Distancia desde parada anterior (km)
   distanceFromPreviousKm?: number;
+
+  // Catálogo (opcional; metadato operativo, no fiscal)
+  clientId?: string;
+  clientAddressId?: string;
 }
 
 /**
@@ -344,6 +356,10 @@ export interface UpdateStopInput {
 
   // Distancia
   distanceFromPreviousKm?: number | null;
+
+  // Catálogo (opcional)
+  clientId?: string | null;
+  clientAddressId?: string | null;
 }
 
 // ============================================================================
@@ -401,6 +417,9 @@ export interface CreateTripInput {
   // Gastos estimados
   estimatedExpenses?: CreateExpenseInput[];
 
+  // Equipo de apoyo interno (no se incluye en Carta Porte)
+  internalStaff?: CreateTripInternalStaffInput[];
+
   // Opciones de comportamiento
   options?: {
     scheduleAfterCreate?: boolean;
@@ -448,6 +467,18 @@ export interface UpdateTripInput {
   // ── Carta Porte 3.1 ──────────────────────────────────────────
   transpInternac?: boolean;
   totalDistRec?: number | null;
+
+  // Equipo de apoyo interno (reemplazo completo)
+  internalStaff?: CreateTripInternalStaffInput[];
+
+  /** Reemplazo completo de paradas (si el backend lo soporta en PUT /trips/:id) */
+  stops?: CreateStopInput[];
+
+  /** Reemplazo completo de cargas */
+  cargos?: CreateCargoInput[];
+
+  /** Gastos estimados (reemplazo o merge según API) */
+  estimatedExpenses?: CreateExpenseInput[];
 }
 
 /**

@@ -95,6 +95,37 @@ export interface ClientRef {
   readonly legalName: string;
 }
 
+export type TripInternalStaffRole = "secondary_driver" | "helper";
+
+export interface TripInternalStaff {
+  readonly id: string;
+  readonly tripId: string;
+  readonly employeeId: string;
+  readonly employeeFullName: string;
+  readonly employeeNumber: string | null;
+  readonly employeeStatus: string | null;
+  readonly internalRole: TripInternalStaffRole;
+  readonly isPaymentResponsible: boolean;
+  readonly paymentNotes: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+export type TripInvoiceStatus =
+  | "draft"
+  | "stamped"
+  | "cancellation_pending"
+  | "cancelled";
+
+export interface TripInvoicing {
+  readonly hasActiveInvoice: boolean;
+  readonly canGenerateInvoice: boolean;
+  readonly invoiceId: string | null;
+  readonly invoiceFolio: string | null;
+  readonly invoiceStatus: TripInvoiceStatus | null;
+  readonly blockReason: string | null;
+}
+
 // ============================================================================
 // CARGO MOVEMENT ENTITY
 // ============================================================================
@@ -258,6 +289,10 @@ export interface TripStop {
   readonly sequenceOrder: number;
   readonly stopType: StopTypeValue[];
 
+  // Catálogo de clientes (solo operativo / UI; no Carta Porte)
+  readonly clientId: string | null;
+  readonly clientAddressId: string | null;
+
   // Dirección simplificada (texto libre)
   readonly address: string;
   readonly city: string;
@@ -382,6 +417,7 @@ export interface Trip {
   readonly status: TripStatusType;
   readonly notes: string | null;
   readonly cancellationReason: string | null;
+  readonly invoicing: TripInvoicing;
 
   // ── Carta Porte 3.1 — Datos del complemento ──────────────────
   readonly transpInternac: boolean; // ¿Transporte internacional?
@@ -398,6 +434,7 @@ export interface Trip {
   readonly vehicle?: VehicleRef;
   readonly driver?: DriverRef;
   readonly client?: ClientRef;
+  readonly internalStaff?: TripInternalStaff[];
   readonly stops?: TripStop[];
   readonly cargos?: TripCargo[];
   readonly expenses?: TripExpense[];
@@ -425,6 +462,7 @@ export interface TripListItem {
   readonly estimatedProfit: number;
   readonly cargoCount: number;
   readonly clientCount: number;
+  readonly invoicing: TripInvoicing;
   readonly createdAt: Date;
 }
 

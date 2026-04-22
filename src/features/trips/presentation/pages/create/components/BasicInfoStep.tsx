@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo } from "react";
-import type { UseFormReturn } from "react-hook-form";
+import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   FormControl,
@@ -37,16 +37,20 @@ import {
   SelectSeparator,
 } from "@shared/ui/select";
 import { Input } from "@shared/ui/input";
+import { Button } from "@shared/ui/button";
 import { Separator } from "@shared/ui/separator";
 import { Checkbox } from "@shared/ui/checkbox";
 import {
   Truck,
   User,
+  Users,
   Building2,
   Calendar,
   Loader2,
   AlertTriangle,
   Globe,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 
@@ -57,6 +61,8 @@ import { isExpiringSoon } from "@shared/utils/dateUtils";
 
 // Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
 import { useVehicle } from "@features/vehicles/application";
+import { useEmployees } from "@features/employees";
+import type { EmployeeListItem } from "@features/employees";
 
 // ============================================================================
 // TYPES
@@ -66,6 +72,19 @@ interface AssignableDriverItem extends DriverListItem {
   canBeAssigned: boolean;
   blockReason?: string;
   displayName: string;
+}
+
+interface VehicleMileageSource {
+  currentMileage: number;
+}
+
+const INTERNAL_ROLE_LABELS = {
+  secondary_driver: "Conductor adicional",
+  helper: "Ayudante general",
+} as const;
+
+function isEmployeeActive(employee: EmployeeListItem): boolean {
+  return employee.isActive && employee.status === "active";
 }
 
 // ============================================================================
@@ -133,6 +152,21 @@ function processDriversForAssignment(
   });
 }
 
+function extractVehicleDetail(
+  source: unknown,
+): VehicleMileageSource | undefined {
+  if (!source || typeof source !== "object") return undefined;
+
+  if ("data" in source) {
+    const data = (source as { data?: unknown }).data;
+    if (data && typeof data === "object") {
+      return data as VehicleMileageSource;
+    }
+  }
+
+  return source as VehicleMileageSource;
+}
+
 // ============================================================================
 // COMPONENT PROPS
 // ============================================================================
@@ -163,15 +197,24 @@ export function BasicInfoStep({
 }: BasicInfoStepProps) {
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
+  const internalStaffValues = form.watch("internalStaff") ?? [];
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // VEHICLE DETAIL QUERY — para mostrar indicador de datos Carta Porte
-  // ══════════════════════════════════════════════════════════════════════════
-  const { data: vehicle } = useVehicle(selectedVehicleId ?? "", {
-    enabled: !!selectedVehicleId,
+  const internalStaffFieldArray = useFieldArray({
+    control: form.control,
+    name: "internalStaff",
   });
 
-  const vehicleDetail = vehicle?.data;
+  // Usado para precargar kilometraje inicial al seleccionar vehículo.
+  const { data: vehicleResponse } = useVehicle(selectedVehicleId ?? "", {
+    enabled: !!selectedVehicleId,
+  });
+  const vehicleDetail = extractVehicleDetail(vehicleResponse);
+  const { data: employeesResult, isLoading: isLoadingEmployees } = useEmployees({
+    page: 1,
+    limit: 100,
+    sortBy: "created_at",
+    sortOrder: "desc",
+  });
 
   // ── Procesar vehículos ────────────────────────────────────────────────────
   const assignableVehicles = vehicles.filter((v) => v.canBeAssigned);
@@ -184,18 +227,26 @@ export function BasicInfoStep({
   );
   const assignableDrivers = processedDrivers.filter((d) => d.canBeAssigned);
   const blockedDrivers = processedDrivers.filter((d) => !d.canBeAssigned);
+  const activeEmployees = useMemo(
+    () => (employeesResult?.data ?? []).filter(isEmployeeActive),
+    [employeesResult?.data],
+  );
+  const selectedDriverEmployeeId = useMemo(
+    () =>
+      processedDrivers.find((driver) => driver.id === selectedDriverId)
+        ?.employeeId ?? null,
+    [processedDrivers, selectedDriverId],
+  );
+  const driverEmployeeIds = useMemo(
+    () => new Set(processedDrivers.map((driver) => driver.employeeId)),
+    [processedDrivers],
+  );
 
   // ── Obtener vehículo de la lista (para datos básicos) ─────────────────────
   // const selectedVehicleFromList = useMemo(
   //   () => vehicles.find((v) => v.id === selectedVehicleId),
   //   [vehicles, selectedVehicleId],
   // );
-
-  // ── Obtener conductor seleccionado ────────────────────────────────────────
-  const selectedDriver = useMemo(
-    () => drivers.find((d) => d.id === selectedDriverId),
-    [drivers, selectedDriverId],
-  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // EFFECT: Precargar kilometraje cuando se selecciona un vehículo
@@ -384,7 +435,7 @@ export function BasicInfoStep({
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente Principal</FormLabel>
+                  <FormLabel>Cliente Principal *</FormLabel>
                   <Select
                     onValueChange={(value) => value && field.onChange(value)}
                     value={field.value ?? ""}
@@ -401,7 +452,6 @@ export function BasicInfoStep({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="no-client">Sin cliente</SelectItem>
                       {clients.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.legalName}
@@ -410,13 +460,215 @@ export function BasicInfoStep({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Opcional. Puede asignar clientes por carga en el paso 3.
+                    Requerido para facturacion del viaje.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* EQUIPO DE APOYO (INTERNO)                                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5" /> Equipo de Apoyo (Interno)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            No se incluye en Carta Porte. Solo para control interno y nomina.
+          </p>
+
+          {internalStaffFieldArray.fields.length === 0 ? (
+            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              Agrega personal de apoyo cuando el viaje requiera conductor adicional
+              o ayudante general.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {internalStaffFieldArray.fields.map((field, index) => {
+                const currentRow = internalStaffValues[index];
+                const selectedRole = currentRow?.internalRole;
+                const selectedEmployeeId = currentRow?.employeeId;
+                const duplicateByRole = internalStaffValues.some(
+                  (item, itemIndex) =>
+                    itemIndex !== index &&
+                    item.employeeId &&
+                    item.employeeId === selectedEmployeeId &&
+                    item.internalRole === selectedRole,
+                );
+                const isPrincipalDriverConflict =
+                  selectedRole === "secondary_driver" &&
+                  !!selectedDriverEmployeeId &&
+                  selectedEmployeeId === selectedDriverEmployeeId;
+                const isSecondaryDriverWithoutProfile =
+                  selectedRole === "secondary_driver" &&
+                  !!selectedEmployeeId &&
+                  !driverEmployeeIds.has(selectedEmployeeId);
+
+                return (
+                  <div key={field.id} className="rounded-md border p-3 space-y-3">
+                    <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+                      <FormField
+                        control={form.control}
+                        name={`internalStaff.${index}.employeeId`}
+                        render={({ field: employeeField }) => (
+                          <FormItem>
+                            <FormLabel>Empleado</FormLabel>
+                            <Select
+                              value={employeeField.value ?? ""}
+                              onValueChange={employeeField.onChange}
+                              disabled={isLoadingEmployees}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  {isLoadingEmployees ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  <SelectValue placeholder="Seleccionar empleado" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {activeEmployees.map((employee) => (
+                                  <SelectItem key={employee.id} value={employee.id}>
+                                    {employee.fullName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`internalStaff.${index}.internalRole`}
+                        render={({ field: roleField }) => (
+                          <FormItem>
+                            <FormLabel>Rol interno</FormLabel>
+                            <Select
+                              value={roleField.value ?? ""}
+                              onValueChange={roleField.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar rol" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(INTERNAL_ROLE_LABELS).map(
+                                  ([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                      {label}
+                                    </SelectItem>
+                                  ),
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => internalStaffFieldArray.remove(index)}
+                          aria-label="Quitar colaborador"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+                      <FormField
+                        control={form.control}
+                        name={`internalStaff.${index}.isPaymentResponsible`}
+                        render={({ field: paymentField }) => (
+                          <FormItem className="flex items-center gap-2 rounded-md border px-3 py-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={!!paymentField.value}
+                                onCheckedChange={(checked) =>
+                                  paymentField.onChange(Boolean(checked))
+                                }
+                              />
+                            </FormControl>
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-sm">
+                                Responsable de pago
+                              </FormLabel>
+                              <FormDescription className="text-xs">
+                                Marca si este colaborador requiere control
+                                especial.
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`internalStaff.${index}.paymentNotes`}
+                        render={({ field: notesField }) => (
+                          <FormItem>
+                            <FormLabel>Notas de pago (opcional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...notesField}
+                                value={notesField.value ?? ""}
+                                placeholder="Ej. pago por apoyo en turno nocturno"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {(duplicateByRole ||
+                      isPrincipalDriverConflict ||
+                      isSecondaryDriverWithoutProfile) && (
+                      <p className="text-xs text-destructive">
+                        {isPrincipalDriverConflict
+                          ? "El conductor principal no puede asignarse como conductor adicional."
+                          : isSecondaryDriverWithoutProfile
+                            ? "Este empleado no tiene perfil de conductor activo."
+                            : "Este empleado ya tiene el mismo rol en el viaje."}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              internalStaffFieldArray.append({
+                employeeId: "",
+                internalRole: "helper",
+                isPaymentResponsible: false,
+                paymentNotes: "",
+              })
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar colaborador
+          </Button>
         </CardContent>
       </Card>
 
@@ -440,6 +692,24 @@ export function BasicInfoStep({
                   <FormControl>
                     <Input type="datetime-local" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="scheduledArrival"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Llegada Estimada</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Sincronizado con la parada de destino del paso Ruta. Si se
+                    modifica en cualquiera de los dos puntos, se actualiza el otro.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -510,60 +780,6 @@ export function BasicInfoStep({
         </CardContent>
       </Card>
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* INDICADOR CARTA PORTE — datos derivados del vehículo/conductor      */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {(vehicleDetail || selectedDriver) && (
-        <Card className="border-blue-500/30">
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Truck className="h-3.5 w-3.5" />
-              Los datos de <strong>Autotransporte</strong> y{" "}
-              <strong>Figura de Transporte</strong> para la Carta Porte 3.1 se
-              derivarán automáticamente del vehículo y conductor seleccionados
-              al generar el XML del CFDI.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 text-sm">
-              {vehicleDetail && (
-                <div className="space-y-1">
-                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                    Vehículo
-                  </p>
-                  <p>
-                    {vehicleDetail.brand} {vehicleDetail.model}{" "}
-                    {vehicleDetail.year} — {vehicleDetail.licensePlate}
-                  </p>
-                  {vehicleDetail.cartaPorte.satTipoPermisoCode && (
-                    <p className="text-muted-foreground">
-                      Permiso: {vehicleDetail.cartaPorte.satTipoPermisoCode} ·{" "}
-                      {vehicleDetail.cartaPorte.satConfigAutotransporteCode}
-                    </p>
-                  )}
-                  {vehicleDetail.cartaPorte.insuranceCompany && (
-                    <p className="text-muted-foreground">
-                      Seguro RC: {vehicleDetail.cartaPorte.insuranceCompany}
-                    </p>
-                  )}
-                </div>
-              )}
-              {selectedDriver && (
-                <div className="space-y-1">
-                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                    Conductor
-                  </p>
-                  <p>{getDriverDisplayName(selectedDriver)}</p>
-                  {selectedDriver.licenseNumber && (
-                    <p className="text-muted-foreground">
-                      Licencia: {selectedDriver.licenseNumber} (
-                      {selectedDriver.licenseType})
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

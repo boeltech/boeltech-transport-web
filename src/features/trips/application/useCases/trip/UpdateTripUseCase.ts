@@ -1,5 +1,6 @@
 import {
   canEditTrip,
+  type CreateStopInput,
   type Trip,
   type ITripRepository,
   type UpdateTripInput,
@@ -56,6 +57,13 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
         return { success: false, error: validationError };
       }
 
+      if (data.stops?.length) {
+        const stopsError = this.validateStopsPayload(data.stops);
+        if (stopsError) {
+          return { success: false, error: stopsError };
+        }
+      }
+
       // Actualizar
       const updatedTrip = await this.repository.update(id, data);
 
@@ -104,6 +112,37 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
         code: "INVALID_BASE_RATE",
         message: "La tarifa base no puede ser negativa",
       };
+    }
+
+    return null;
+  }
+
+  private validateStopsPayload(
+    stops: CreateStopInput[],
+  ): { code: string; message: string } | null {
+    for (let i = 0; i < stops.length; i++) {
+      const stop = stops[i];
+
+      if (!stop.stopType || stop.stopType.length === 0) {
+        return {
+          code: "STOP_TYPE_REQUIRED",
+          message: `Parada #${i + 1}: El tipo de parada es requerido`,
+        };
+      }
+
+      if (!stop.address) {
+        return {
+          code: "STOP_ADDRESS_REQUIRED",
+          message: `Parada #${i + 1}: La dirección es requerida`,
+        };
+      }
+
+      if (!stop.city) {
+        return {
+          code: "STOP_CITY_REQUIRED",
+          message: `Parada #${i + 1}: La ciudad es requerida`,
+        };
+      }
     }
 
     return null;

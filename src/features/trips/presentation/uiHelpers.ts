@@ -16,10 +16,13 @@ import {
 import {
   type StopTypeValue,
   type StopStatusValue,
+  type TripInvoicing,
   StopType,
   StopStatus,
   STOP_TYPE_LABELS,
   STOP_STATUS_LABELS,
+  type TripListItem,
+  TripStatus,
 } from "../domain";
 
 // ============================================================================
@@ -47,6 +50,11 @@ interface StopStatusConfig {
   label: string;
   color: string;
   bgColor: string;
+}
+
+interface InvoicingBadgeConfig {
+  label: string;
+  variant: "default" | "secondary" | "outline" | "destructive";
 }
 
 /**
@@ -284,4 +292,51 @@ export function formatRoute(
 ): string {
   if (!originCity && !destinationCity) return "—";
   return `${originCity || "?"} → ${destinationCity || "?"}`;
+}
+
+export function getTripInvoicingBadgeConfig(
+  tripItem: TripListItem,
+): InvoicingBadgeConfig {
+
+  if(tripItem.status === TripStatus.COMPLETED) {
+    const invoicing = tripItem.invoicing;
+    const hasLinkedInvoiceEvidence =
+    !!invoicing.invoiceId ||
+    !!invoicing.invoiceFolio ||
+    invoicing.invoiceStatus !== null;
+
+    // Prioritize explicit invoice status from backend.
+    // This avoids showing "Disponible" when a draft/cancelled invoice exists
+    // but hasActiveInvoice is false due to backend business semantics.
+    switch (invoicing.invoiceStatus) {
+      case "draft":
+        return { label: "Borrador", variant: "secondary" };
+      case "stamped":
+        return { label: "Facturado", variant: "default" };
+      case "cancellation_pending":
+        return { label: "Pend. cancelación", variant: "destructive" };
+      case "cancelled":
+        return { label: "Cancelado", variant: "outline" };
+      default:
+        if (invoicing.hasActiveInvoice) {
+          return { label: "Facturado", variant: "default" };
+        }
+
+        if (hasLinkedInvoiceEvidence) {
+          return { label: "Borrador", variant: "secondary" };
+        }
+
+        return { label: "Disponible", variant: "outline" };
+    }
+  } else {
+    return { label: "No Disponible", variant: "outline" };
+  }
+}
+
+export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | null {
+  if (invoicing.canGenerateInvoice) return null;
+  return (
+    invoicing.blockReason ??
+    "Este viaje ya tiene una factura activa y no se puede facturar nuevamente."
+  );
 }

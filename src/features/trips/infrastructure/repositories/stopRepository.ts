@@ -17,6 +17,7 @@ import {
   type TripStop,
   type IStopRepository,
   type CreateStopInput,
+  type UpdateStopInput,
 } from "@features/trips/domain";
 import type { ApiStopResponse } from "../api/api-types";
 import { mapStopResponse, mapStopsResponse } from "../api/mappers";
@@ -85,7 +86,7 @@ export class StopRepository implements IStopRepository {
   async update(
     tripId: string,
     stopId: string,
-    input: Partial<CreateStopInput>,
+    input: UpdateStopInput,
   ): Promise<MappedSingleResult<TripStop>> {
     // Solo enviar campos que tienen valor
     const updateData: Record<string, unknown> = {};
@@ -115,6 +116,9 @@ export class StopRepository implements IStopRepository {
     // if (input.cargoUnits !== undefined)
     //   updateData.cargoUnits = input.cargoUnits;
     if (input.notes !== undefined) updateData.notes = input.notes;
+    if (input.clientId !== undefined) updateData.clientId = input.clientId;
+    if (input.clientAddressId !== undefined)
+      updateData.clientAddressId = input.clientAddressId;
 
     const response = await apiClient.put<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,

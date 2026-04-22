@@ -75,8 +75,8 @@ import {
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import {
   formatDateTime,
-  getTodayString,
   localInputToUtcIso,
+  utcIsoToLocalInput,
 } from "@shared/utils/dateUtils";
 
 // ============================================================================
@@ -202,7 +202,6 @@ function CargoSummary({ cargos }: { cargos?: TripCargo[] }) {
 
   const totalWeight = cargos.reduce((acc, c) => acc + (c.weight || 0), 0);
   const totalUnits = cargos.reduce((acc, c) => acc + (c.units || 0), 0);
-  const totalRevenue = cargos.reduce((acc, c) => acc + (c.rate || 0), 0);
 
   return (
     <Card>
@@ -238,20 +237,16 @@ function CargoSummary({ cargos }: { cargos?: TripCargo[] }) {
               >
                 {CARGO_STATUS_LABELS[cargo.status] || cargo.status}
               </Badge>
-              <p className="text-xs font-medium mt-0.5">
-                {formatCurrency(cargo.rate)}
-              </p>
             </div>
           </div>
         ))}
         <Separator />
-        <div className="flex justify-between text-sm">
+        <div className="text-sm">
           <span className="text-muted-foreground">
             {totalWeight > 0 && `${formatNumber(totalWeight)} kg total`}
             {totalWeight > 0 && totalUnits > 0 && " · "}
             {totalUnits > 0 && `${totalUnits} unidades total`}
           </span>
-          <span className="font-semibold">{formatCurrency(totalRevenue)}</span>
         </div>
       </CardContent>
     </Card>
@@ -397,7 +392,7 @@ export function FinishTripPage() {
   // Form state
   const [form, setForm] = useState<FinishFormState>({
     endMileage: "",
-    actualArrival: getTodayString(),
+    actualArrival: utcIsoToLocalInput(new Date().toISOString()),
     notes: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -484,19 +479,31 @@ export function FinishTripPage() {
   const handleConfirm = async () => {
     setShowConfirm(false);
 
-    // 1. Actualizar gastos modificados (estimado → real)
-    if (modifiedExpenses.length > 0) {
-      await Promise.all(
-        modifiedExpenses.map((e) =>
-          updateExpenseMutation.mutateAsync({
-            expenseId: e.id,
-            data: {
-              amount: parseFloat(expenseAmounts[e.id]),
-              isEstimated: false,
-            },
-          }),
-        ),
-      );
+    try {
+      // 1. Actualizar gastos modificados (estimado → real)
+      if (modifiedExpenses.length > 0) {
+        await Promise.all(
+          modifiedExpenses.map((e) =>
+            updateExpenseMutation.mutateAsync({
+              expenseId: e.id,
+              data: {
+                amount: parseFloat(expenseAmounts[e.id]),
+                isEstimated: false,
+              },
+            }),
+          ),
+        );
+      }
+    } catch (error) {
+      toast({
+        title: "Error al confirmar gastos",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No fue posible actualizar los gastos estimados.",
+        variant: "destructive",
+      });
+      return;
     }
 
     // 2. Finalizar el viaje

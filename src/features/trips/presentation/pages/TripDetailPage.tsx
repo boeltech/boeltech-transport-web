@@ -27,6 +27,7 @@ import {
   Building2,
   Truck,
   User,
+  Users,
   Calendar,
   Clock,
   Gauge,
@@ -64,6 +65,7 @@ import {
   formatMileage,
   formatCurrency,
   getStopTypeConfig,
+  getTripInvoicingBadgeConfig,
 } from "@/features/trips";
 
 // ── Domain Types ───────────────────────────────────────────────────────────
@@ -384,6 +386,20 @@ export function TripDetailPage() {
     expensesSummary?.total ??
     expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
+  const canCreateInvoices = hasPermission("invoices", "create");
+  const canReadInvoices = hasPermission("invoices", "read");
+  const isCompletedTrip = trip.status === "completed";
+  const canViewLinkedInvoice =
+    (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
+  const canShowCreateInvoiceAction =
+    isCompletedTrip &&
+    canCreateInvoices &&
+    trip.invoicing.canGenerateInvoice;
+  const canShowLinkedInvoiceState =
+    isCompletedTrip &&
+    !trip.invoicing.canGenerateInvoice &&
+    (canViewLinkedInvoice || canCreateInvoices);
+  const tripInvoicingConfig = getTripInvoicingBadgeConfig(trip.invoicing);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -421,8 +437,8 @@ export function TripDetailPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {trip.status === "completed" &&
-            hasPermission("invoices", "create") && (
+          {(canShowCreateInvoiceAction || canShowLinkedInvoiceState) &&
+            (canShowCreateInvoiceAction ? (
               <Button
                 variant="outline"
                 onClick={() =>
@@ -432,7 +448,31 @@ export function TripDetailPage() {
                 <Receipt className="h-4 w-4 mr-2" />
                 Generar factura
               </Button>
-            )}
+            ) : (
+              <>
+                <div className="rounded-md border px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={tripInvoicingConfig.variant}>
+                      {tripInvoicingConfig.label}
+                    </Badge>
+                    {trip.invoicing.invoiceFolio && (
+                      <span className="text-xs text-muted-foreground">
+                        {trip.invoicing.invoiceFolio}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {canViewLinkedInvoice && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Ver factura
+                  </Button>
+                )}
+              </>
+            ))}
           <TripActions
             tripId={trip.id}
             tripCode={trip.tripCode}
@@ -563,6 +603,36 @@ export function TripDetailPage() {
                   <p className="text-sm text-muted-foreground">
                     Sin conductor asignado
                   </p>
+                )}
+
+                {trip.internalStaff && trip.internalStaff.length > 0 && (
+                  <>
+                    <Separator className="my-2" />
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5" />
+                        Equipo de apoyo (interno)
+                      </p>
+                      {trip.internalStaff.map((member) => (
+                        <div key={member.id} className="text-xs rounded-md border p-2">
+                          <p className="font-medium">{member.employeeFullName}</p>
+                          <p className="text-muted-foreground">
+                            {member.internalRole === "secondary_driver"
+                              ? "Conductor adicional"
+                              : "Ayudante general"}
+                            {member.isPaymentResponsible
+                              ? " - Responsable de pago"
+                              : ""}
+                          </p>
+                          {member.paymentNotes && (
+                            <p className="text-muted-foreground italic mt-1">
+                              {member.paymentNotes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

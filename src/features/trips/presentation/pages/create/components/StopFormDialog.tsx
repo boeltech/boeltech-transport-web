@@ -21,7 +21,7 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/StopFormDialog.tsx
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ import {
 import { Checkbox } from "@shared/ui/checkbox";
 import { Separator } from "@shared/ui/separator";
 import { Badge } from "@shared/ui/badge";
+import { Switch } from "@shared/ui/switch";
 import {
   MapPin,
   Navigation,
@@ -147,6 +148,8 @@ export function StopFormDialog({
   // ══════════════════════════════════════════════════════════════════════════
 
   const [formData, setFormData] = useState<StopFormData>(INITIAL_FORM_DATA);
+  const [useAddressFiscalData, setUseAddressFiscalData] = useState(true);
+  const hasInitializedFiscalModeRef = useRef(false);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DATA FETCHING
@@ -180,8 +183,73 @@ export function StopFormDialog({
     if (!open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(INITIAL_FORM_DATA);
+      setUseAddressFiscalData(true);
+      hasInitializedFiscalModeRef.current = false;
     }
   }, [open]);
+
+  // En modo edición, si la parada ya tiene override manual de RFC/Nombre,
+  // iniciamos en modo manual para no sobrescribir historial.
+  useEffect(() => {
+    if (
+      !open ||
+      mode !== "edit" ||
+      !formData.clientAddressId ||
+      !selectedAddressFull ||
+      hasInitializedFiscalModeRef.current
+    ) {
+      return;
+    }
+
+    const normalizeRfc = (value?: string | null) =>
+      (value ?? "")
+        .trim()
+        .toUpperCase();
+    const normalizeName = (value?: string | null) =>
+      (value ?? "")
+        .trim()
+        .toLowerCase();
+
+    const currentRfc = normalizeRfc(formData.rfcRemitenteDestinatario);
+    const currentName = normalizeName(formData.nombreRemitenteDestinatario);
+    const addressRfc = normalizeRfc(selectedAddressFull.rfcRemitenteDestinatario);
+    const addressName = normalizeName(
+      selectedAddressFull.nombreRemitenteDestinatario,
+    );
+
+    const hasCurrentValues = Boolean(currentRfc || currentName);
+    const matchesAddressData =
+      (!addressRfc || currentRfc === addressRfc) &&
+      (!addressName || currentName === addressName);
+
+    setUseAddressFiscalData(!hasCurrentValues || matchesAddressData);
+    hasInitializedFiscalModeRef.current = true;
+  }, [
+    formData.clientAddressId,
+    formData.nombreRemitenteDestinatario,
+    formData.rfcRemitenteDestinatario,
+    mode,
+    open,
+    selectedAddressFull,
+  ]);
+
+  // Cuando está activo, sincroniza RFC/Nombre con la dirección seleccionada.
+  useEffect(() => {
+    if (mode === "edit" && !hasInitializedFiscalModeRef.current) {
+      return;
+    }
+    if (!useAddressFiscalData || !formData.clientAddressId || !selectedAddressFull) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      rfcRemitenteDestinatario:
+        selectedAddressFull.rfcRemitenteDestinatario || "",
+      nombreRemitenteDestinatario:
+        selectedAddressFull.nombreRemitenteDestinatario || "",
+    }));
+  }, [formData.clientAddressId, mode, selectedAddressFull, useAddressFiscalData]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // HANDLERS
@@ -197,6 +265,8 @@ export function StopFormDialog({
   // Handler: Cambio de cliente
   const handleClientChange = useCallback((clientId: string) => {
     const actualClientId = clientId === "no-client" ? "" : clientId;
+    hasInitializedFiscalModeRef.current = false;
+    setUseAddressFiscalData(true);
     setFormData((prev) => ({
       ...prev,
       clientId: actualClientId,
@@ -224,7 +294,10 @@ export function StopFormDialog({
   // Handler: Selección de dirección del cliente
   // Solo guarda el ID — el effect de abajo popula los campos cuando llega el detalle completo
   const handleAddressSelect = useCallback((addressId: string) => {
+    hasInitializedFiscalModeRef.current = false;
+
     if (addressId === "manual-entry") {
+      setUseAddressFiscalData(false);
       setFormData((prev) => ({
         ...prev,
         clientAddressId: "",
@@ -271,10 +344,12 @@ export function StopFormDialog({
       exteriorNumber: selectedAddressFull.exteriorNumber || "",
       interiorNumber: selectedAddressFull.interiorNumber || "",
       reference: selectedAddressFull.reference || "",
-      rfcRemitenteDestinatario:
-        selectedAddressFull.rfcRemitenteDestinatario || "",
-      nombreRemitenteDestinatario:
-        selectedAddressFull.nombreRemitenteDestinatario || "",
+      rfcRemitenteDestinatario: useAddressFiscalData
+        ? selectedAddressFull.rfcRemitenteDestinatario || ""
+        : formData.rfcRemitenteDestinatario || "",
+      nombreRemitenteDestinatario: useAddressFiscalData
+        ? selectedAddressFull.nombreRemitenteDestinatario || ""
+        : formData.nombreRemitenteDestinatario || "",
       contactName: selectedAddressFull.contactName || "",
       contactPhone: selectedAddressFull.contactPhone || "",
       latitude: selectedAddressFull.latitude ?? undefined,
@@ -282,7 +357,7 @@ export function StopFormDialog({
       // estimatedArrival siempre viene del estado manual (no de la dirección)
       estimatedArrival: formData.estimatedArrival,
     };
-  }, [formData, selectedAddressFull]);
+  }, [formData, selectedAddressFull, useAddressFiscalData]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // ADDRESS HANDLER
@@ -349,30 +424,38 @@ export function StopFormDialog({
     }
   };
 
-  const isFormValid = () => {
-    if (!displayFormData.stopCategory) return false;
+  const getMissingRequiredFields = (): string[] => {
+    const missing: string[] = [];
+
+    if (!displayFormData.stopCategory) {
+      missing.push("Tipo de parada");
+      return missing;
+    }
 
     if (
       displayFormData.stopCategory === "waypoint" &&
       (!displayFormData.stopType || displayFormData.stopType.length === 0)
     ) {
-      return false;
+      missing.push("Operación de escala");
     }
 
-    if (!displayFormData.satEstadoCode) return false;
-    if (!displayFormData.satMunicipioCode) return false;
-    if (!displayFormData.postalCode) return false;
+    if (!displayFormData.satEstadoCode) missing.push("Estado SAT");
+    if (!displayFormData.satMunicipioCode) missing.push("Municipio SAT");
+    if (!displayFormData.postalCode) missing.push("Código postal");
 
     // Llegada estimada obligatoria para destino (FechaHoraSalidaLlegada en CP 3.1)
     if (
       displayFormData.stopCategory === "destination" &&
       !displayFormData.estimatedArrival
     ) {
-      return false;
+      missing.push("Hora estimada de llegada");
     }
 
-    return true;
+    return missing;
   };
+
+  const missingRequiredFields = getMissingRequiredFields();
+  const isFormValid = missingRequiredFields.length === 0;
 
   const showWaypointArrivalWarning =
     displayFormData.stopCategory === "waypoint" &&
@@ -390,6 +473,7 @@ export function StopFormDialog({
             : "Agregar Parada";
 
   const isAddressLocked = !!displayFormData.clientAddressId;
+  const isFiscalDataLocked = isAddressLocked && useAddressFiscalData;
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -565,8 +649,8 @@ export function StopFormDialog({
                 </Select>
                 {isAddressLocked && (
                   <p className="text-xs text-muted-foreground">
-                    Los campos de dirección están precargados. Seleccione
-                    "Ingresar manualmente" para editarlos.
+                    Los campos de ubicacion SAT se precargan desde la direccion
+                    seleccionada. Usa "Ingresar manualmente" para editarlos.
                   </p>
                 )}
               </div>
@@ -695,6 +779,26 @@ export function StopFormDialog({
               </span>
             </div>
 
+            {isAddressLocked && (
+              <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="useAddressFiscalData" className="cursor-pointer">
+                    Usar datos fiscales de la direccion seleccionada
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Activo: RFC y razon social se heredan de la direccion del
+                    cliente. Desactiva esta opcion para capturar un
+                    remitente/destinatario distinto para esta parada.
+                  </p>
+                </div>
+                <Switch
+                  id="useAddressFiscalData"
+                  checked={useAddressFiscalData}
+                  onCheckedChange={setUseAddressFiscalData}
+                />
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>RFC</Label>
@@ -709,7 +813,7 @@ export function StopFormDialog({
                   }
                   className="uppercase"
                   maxLength={13}
-                  disabled={isAddressLocked}
+                  disabled={isFiscalDataLocked}
                 />
               </div>
               <div className="space-y-2">
@@ -720,7 +824,7 @@ export function StopFormDialog({
                   onChange={(e) =>
                     updateField("nombreRemitenteDestinatario", e.target.value)
                   }
-                  disabled={isAddressLocked}
+                  disabled={isFiscalDataLocked}
                 />
               </div>
             </div>
@@ -857,14 +961,15 @@ export function StopFormDialog({
           >
             Cancelar
           </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isFormValid()}
-          >
+          <Button type="button" onClick={handleSubmit} disabled={!isFormValid}>
             {mode === "edit" ? "Guardar Cambios" : "Agregar Parada"}
           </Button>
         </DialogFooter>
+        {!isFormValid && (
+          <p className="mt-2 text-xs text-destructive">
+            Completa los campos requeridos: {missingRequiredFields.join(", ")}.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

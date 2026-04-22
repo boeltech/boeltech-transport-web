@@ -42,7 +42,7 @@ export const tripStopSchema = z.object({
     .min(1, "Debe seleccionar al menos un tipo de parada"),
 
   // ── Asociación con cliente (opcional) ───────────────────────────────────
-  clientId: z.string().optional(),
+  clientId: z.string().optional().or(z.literal("")),
   clientAddressId: z.string().optional(),
 
   // ── Identificación del lugar ────────────────────────────────────────────
@@ -272,6 +272,17 @@ export const tripExpenseSchema = z.object({
   // de liquidación post-viaje, no durante la planeación.
 });
 
+export const internalStaffSchema = z.object({
+  employeeId: z.string().min(1, "Empleado requerido"),
+  internalRole: z.enum(["secondary_driver", "helper"]),
+  isPaymentResponsible: z.boolean().default(false),
+  paymentNotes: z
+    .string()
+    .max(300, "Notas de pago muy largas")
+    .optional()
+    .or(z.literal("")),
+});
+
 // ============================================================================
 // FULL WIZARD SCHEMA
 // ============================================================================
@@ -301,9 +312,28 @@ export const tripWizardSchema = z.object({
   // Paso 4: Costos
   expenses: z.array(tripExpenseSchema),
   baseRate: z.coerce.number().min(0).optional(),
+  internalStaff: z.array(internalStaffSchema).default([]),
 
   // Paso 5: Notas
   notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const assigned = new Set<string>();
+
+  for (let index = 0; index < data.internalStaff.length; index++) {
+    const member = data.internalStaff[index];
+    const uniqueKey = `${member.employeeId}:${member.internalRole}`;
+
+    if (assigned.has(uniqueKey)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["internalStaff", index, "employeeId"],
+        message: "Este empleado ya fue agregado con el mismo rol",
+      });
+    } else {
+      assigned.add(uniqueKey);
+    }
+
+  }
 });
 
 // ============================================================================
@@ -314,6 +344,7 @@ export type TripStopFormValues = z.infer<typeof tripStopSchema>;
 export type CargoMovementFormValues = z.infer<typeof cargoMovementSchema>;
 export type TripCargoFormValues = z.infer<typeof tripCargoSchema>;
 export type TripExpenseFormValues = z.infer<typeof tripExpenseSchema>;
+export type InternalStaffFormValues = z.infer<typeof internalStaffSchema>;
 export type TripWizardFormValues = z.infer<typeof tripWizardSchema>;
 
 // ============================================================================
@@ -332,6 +363,7 @@ export const WIZARD_STEPS = [
       "scheduledDeparture",
       "startMileage",
       "transpInternac",
+      "internalStaff",
     ],
   },
   {
@@ -376,6 +408,7 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   stops: [],
   cargos: [],
   expenses: [],
+  internalStaff: [],
   baseRate: undefined,
   notes: "",
 };

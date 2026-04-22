@@ -3,7 +3,7 @@ import {
   type TripStop,
   type IStopRepository,
   type ITripRepository,
-  type CreateStopInput,
+  type UpdateStopInput,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
@@ -11,7 +11,7 @@ export interface IUpdateStopUseCase {
   execute(
     tripId: string,
     stopId: string,
-    data: Partial<CreateStopInput>,
+    data: UpdateStopInput,
   ): Promise<UseCaseResult<TripStop>>;
 }
 
@@ -30,7 +30,7 @@ export class UpdateStopUseCase implements IUpdateStopUseCase {
   async execute(
     tripId: string,
     stopId: string,
-    data: Partial<CreateStopInput>,
+    data: UpdateStopInput,
   ): Promise<UseCaseResult<TripStop>> {
     try {
       // Verificar que el viaje existe

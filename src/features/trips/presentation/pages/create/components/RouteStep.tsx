@@ -19,7 +19,7 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/RouteStep.tsx
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -53,7 +53,8 @@ import {
 // ============================================================================
 
 interface RouteStepProps {
-  form: UseFormReturn<TripWizardFormValues>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  form: UseFormReturn<TripWizardFormValues, any, any>;
   stopsFieldArray: UseFieldArrayReturn<TripWizardFormValues, "stops">;
 }
 
@@ -130,6 +131,7 @@ function hasCartaPorteData(stop: TripStopFormValues): boolean {
 
 export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const { fields } = stopsFieldArray;
+  const scheduledArrival = form.watch("scheduledArrival");
 
   // ══════════════════════════════════════════════════════════════════════════
   // STATE
@@ -240,6 +242,29 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const hasOrigin = originIndex !== -1;
   const hasDestination = destinationIndex !== -1;
   const hasWaypoints = waypointIndices.length > 0;
+
+  // Mantener sincronizada la llegada estimada del destino con el valor del Paso 1.
+  useEffect(() => {
+    if (destinationIndex === -1) return;
+
+    const normalizedScheduledArrival = scheduledArrival?.trim()
+      ? scheduledArrival
+      : undefined;
+    const currentDestinationArrival = form.getValues(
+      `stops.${destinationIndex}.estimatedArrival`,
+    );
+
+    if (currentDestinationArrival === normalizedScheduledArrival) return;
+
+    form.setValue(
+      `stops.${destinationIndex}.estimatedArrival`,
+      normalizedScheduledArrival,
+      {
+        shouldDirty: true,
+        shouldValidate: false,
+      },
+    );
+  }, [destinationIndex, form, scheduledArrival]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DIALOG HANDLERS
@@ -409,8 +434,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       }
 
       // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
-      if (data.stopCategory === "destination" && stopData.estimatedArrival) {
-        form.setValue("scheduledArrival", stopData.estimatedArrival, {
+      if (data.stopCategory === "destination") {
+        form.setValue("scheduledArrival", stopData.estimatedArrival ?? "", {
           shouldDirty: true,
         });
       }

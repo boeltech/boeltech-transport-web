@@ -16,6 +16,7 @@ import type { ApiPaginatedResponse, MappedSingleResult } from "@shared/api";
 import type {
   Trip,
   TripListItem,
+  TripInternalStaff,
   TripStop,
   TripCargo,
   TripExpense,
@@ -28,6 +29,8 @@ import type {
 import type {
   ApiTripResponse,
   ApiTripListItemResponse,
+  ApiTripInvoicingResponse,
+  ApiTripInternalStaffResponse,
   ApiStopResponse,
   ApiCargoResponse,
   ApiCargoMovementResponse,
@@ -75,6 +78,48 @@ function toDateOrNull(value: string | null | undefined): Date | null {
  */
 function toDate(value: string): Date {
   return new Date(value);
+}
+
+function mapApiTripInvoicing(
+  api: ApiTripInvoicingResponse | undefined,
+  tripStatus: Trip["status"],
+): Trip["invoicing"] {
+  const invoiceId = api?.invoice_id ?? null;
+  const invoiceFolio = api?.invoice_folio ?? null;
+  const invoiceStatus = api?.invoice_status ?? null;
+  const hasActiveInvoice = api?.has_active_invoice ?? false;
+  const hasLinkedInvoice =
+    !!invoiceId || !!invoiceFolio || invoiceStatus !== null;
+  const canGenerateInvoice =
+    api?.can_generate_invoice ??
+    (tripStatus === "completed" && !hasActiveInvoice && !hasLinkedInvoice);
+
+  return {
+    hasActiveInvoice,
+    canGenerateInvoice,
+    invoiceId,
+    invoiceFolio,
+    invoiceStatus,
+    blockReason: api?.block_reason ?? null,
+  };
+}
+
+function mapApiTripInternalStaff(
+  api: ApiTripInternalStaffResponse,
+): TripInternalStaff {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    employeeId: api.employee_id,
+    employeeFullName: api.employee_full_name,
+    employeeNumber: api.employee_number,
+    employeeStatus: api.employee_status,
+    internalRole: api.internal_role,
+    isPaymentResponsible: api.is_payment_responsible,
+    paymentNotes: api.payment_notes,
+    createdAt: toDate(api.created_at),
+    updatedAt: toDate(api.updated_at),
+  };
 }
 
 // ============================================================================
@@ -250,6 +295,9 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     sequenceOrder: api.sequence_order,
     stopType: api.stop_type,
 
+    clientId: api.client_id ?? null,
+    clientAddressId: api.client_address_id ?? null,
+
     // Dirección
     address: api.address,
     city: api.city,
@@ -389,6 +437,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     status: api.status,
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
+    invoicing: mapApiTripInvoicing(api.invoicing, api.status),
 
     // Carta Porte 3.1
     transpInternac: api.transp_internac ?? false,
@@ -421,6 +470,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
           legalName: api.client.legal_name,
         }
       : undefined,
+    internalStaff: api.internal_staff?.map(mapApiTripInternalStaff) ?? [],
     stops: api.stops?.map(mapApiStop),
     cargos: api.cargos?.map(mapApiCargo),
     expenses: api.expenses?.map(mapApiExpense),
@@ -465,6 +515,7 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     estimatedProfit: toNumberOrDefault(api.estimated_profit),
     cargoCount: api.cargo_count ?? 0,
     clientCount: api.client_count ?? 0,
+    invoicing: mapApiTripInvoicing(api.invoicing, api.status),
     createdAt: toDate(api.created_at),
   };
 }

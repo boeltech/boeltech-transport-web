@@ -19,6 +19,7 @@ import type {
   ExpenseStatusType,
   CargoStatusType,
   CargoMovementTypeValue,
+  TripInternalStaffRole,
 } from "@features/trips/domain";
 
 // ============================================================================
@@ -39,6 +40,29 @@ export interface ApiDriverRefResponse {
 export interface ApiClientRefResponse {
   id: string;
   legal_name: string;
+}
+
+export interface ApiTripInvoicingResponse {
+  has_active_invoice?: boolean;
+  can_generate_invoice?: boolean;
+  invoice_id?: string | null;
+  invoice_folio?: string | null;
+  invoice_status?: "draft" | "stamped" | "cancellation_pending" | "cancelled" | null;
+  block_reason?: string | null;
+}
+
+export interface ApiTripInternalStaffResponse {
+  id: string;
+  trip_id: string;
+  employee_id: string;
+  employee_full_name: string;
+  employee_number: string | null;
+  employee_status: string | null;
+  internal_role: TripInternalStaffRole;
+  is_payment_responsible: boolean;
+  payment_notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -190,6 +214,11 @@ export interface ApiStopResponse {
   sequence_order: number;
   stop_type: StopTypeValue[];
 
+  /** Metadato UI: cliente para precargar direcciones */
+  client_id?: string | null;
+  /** Metadato UI: fila de client_addresses seleccionada */
+  client_address_id?: string | null;
+
   // Dirección
   address: string;
   city: string;
@@ -307,6 +336,7 @@ export interface ApiTripResponse {
   status: TripStatusType;
   notes: string | null;
   cancellation_reason: string | null;
+  invoicing?: ApiTripInvoicingResponse;
 
   // Carta Porte 3.1
   transp_internac: boolean;
@@ -323,6 +353,7 @@ export interface ApiTripResponse {
   vehicle?: ApiVehicleRefResponse;
   driver?: ApiDriverRefResponse;
   client?: ApiClientRefResponse | null;
+  internal_staff?: ApiTripInternalStaffResponse[];
   stops?: ApiStopResponse[];
   cargos?: ApiCargoResponse[];
   expenses?: ApiExpenseResponse[];
@@ -354,6 +385,8 @@ export interface ApiTripListItemResponse {
   estimated_profit: string | number;
   cargo_count: number;
   client_count: number;
+  internal_staff_count?: number;
+  invoicing?: ApiTripInvoicingResponse;
   created_at: string;
 }
 

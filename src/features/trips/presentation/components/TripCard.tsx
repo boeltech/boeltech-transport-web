@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { TripStatus, type Trip } from "@features/trips/domain";
+import { TripStatus, type TripListItem } from "@features/trips/domain";
 import { canDeleteTrip, canEditTrip } from "../../domain/rules";
 import {
   MoreVertical,
@@ -37,9 +38,12 @@ import {
 } from "lucide-react";
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import {
+  getTripInvoicingBadgeConfig,
+} from "../uiHelpers";
 
 interface TripCardProps {
-  trip: Trip;
+  trip: TripListItem;
   onView?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -73,6 +77,7 @@ export const TripCard = memo(function TripCard({
 
   const originCity = trip.originCity || "Origen";
   const destCity = trip.destinationCity || "Destino";
+  const invoicingConfig = getTripInvoicingBadgeConfig(trip.invoicing);
 
   return (
     <Card
@@ -109,6 +114,7 @@ export const TripCard = memo(function TripCard({
                 {trip.tripCode}
               </Link>
               <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
+              <Badge variant={invoicingConfig.variant}>{invoicingConfig.label}</Badge>
             </div>
             {trip.client && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

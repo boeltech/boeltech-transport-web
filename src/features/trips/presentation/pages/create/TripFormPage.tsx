@@ -36,6 +36,7 @@ import {
   StopType,
   TripCreationError,
 } from "@/features/trips";
+import type { CreateStopInput, CurrencyType } from "@features/trips/domain";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
@@ -100,6 +101,78 @@ function buildLegacyAddress(stop: TripWizardFormValues["stops"][0]): {
     city: stop.cityName || stop.satMunicipioCode || "",
     state: stop.satEstadoCode || "",
   };
+}
+
+function getRouteValidationMessages(formValues: TripWizardFormValues): string[] {
+  const messages: string[] = [];
+
+  formValues.stops.forEach((stop, index) => {
+    const missing: string[] = [];
+
+    if (!stop.satEstadoCode) missing.push("estado SAT");
+    if (!stop.satMunicipioCode) missing.push("municipio SAT");
+    if (!stop.postalCode) missing.push("codigo postal");
+
+    const isDestination = stop.stopType.includes("destination");
+    if (isDestination && !stop.estimatedArrival) {
+      missing.push("hora estimada de llegada");
+    }
+
+    const isOrigin = stop.stopType.includes("origin");
+    if (!isOrigin && (stop.distanceFromPreviousKm ?? null) === null) {
+      missing.push("distancia desde parada anterior");
+    }
+
+    if (missing.length > 0) {
+      const stopLabel = stop.locationName || `Parada ${index + 1}`;
+      messages.push(`${stopLabel}: ${missing.join(", ")}`);
+    }
+  });
+
+  return messages;
+}
+
+/**
+ * Paradas del wizard → payload de API (incl. metadatos de cliente/dirección de catálogo).
+ */
+function mapWizardStopsToCreateInput(
+  stops: TripWizardFormValues["stops"] | undefined,
+): CreateStopInput[] | undefined {
+  if (!stops?.length) return undefined;
+  return stops.map((stop) => {
+    const legacyAddr = buildLegacyAddress(stop);
+    return {
+      sequenceOrder: stop.sequenceOrder,
+      stopType: stop.stopType,
+      address: legacyAddr.address,
+      city: legacyAddr.city,
+      state: legacyAddr.state || undefined,
+      locationName: stop.locationName,
+      postalCode: stop.postalCode,
+      satEstadoCode: stop.satEstadoCode,
+      satMunicipioCode: stop.satMunicipioCode,
+      satLocalidadCode: stop.satLocalidadCode || undefined,
+      satColoniaCode: stop.satColoniaCode || undefined,
+      colonia: stop.colonia || undefined,
+      street: stop.street || undefined,
+      exteriorNumber: stop.exteriorNumber || undefined,
+      interiorNumber: stop.interiorNumber || undefined,
+      reference: stop.reference || undefined,
+      rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
+      nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
+      distanceFromPreviousKm: stop.distanceFromPreviousKm,
+      contactName: stop.contactName || undefined,
+      contactPhone: stop.contactPhone || undefined,
+      notes: stop.notes || undefined,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      estimatedArrival: stop.estimatedArrival
+        ? localInputToUtcIso(stop.estimatedArrival)
+        : undefined,
+      clientId: stop.clientId || undefined,
+      clientAddressId: stop.clientAddressId || undefined,
+    };
+  });
 }
 
 // ============================================================================
@@ -177,8 +250,8 @@ export function TripFormPage() {
           | "waypoint"
           | "destination"
         )[],
-        // clientId: stop.clientId || undefined,
-        // clientAddressId: stop.clientAddressId || undefined,
+        clientId: stop.clientId ?? "",
+        clientAddressId: stop.clientAddressId ?? "",
         locationName: stop.locationName || undefined,
         // Campos Carta Porte (SAT)
         satEstadoCode: stop.satEstadoCode || "",
@@ -194,7 +267,7 @@ export function TripFormPage() {
         rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
         nombreRemitenteDestinatario:
           stop.nombreRemitenteDestinatario || undefined,
-        distanceToNextKm: stop.distanceFromPreviousKm || undefined,
+        distanceFromPreviousKm: stop.distanceFromPreviousKm || undefined,
         // Contacto
         contactName: stop.contactName || undefined,
         contactPhone: stop.contactPhone || undefined,
@@ -261,6 +334,14 @@ export function TripFormPage() {
         notes: expense.notes || undefined,
         isEstimated: true,
       }));
+      const mappedInternalStaff = (existingTrip.internalStaff || []).map(
+        (member) => ({
+          employeeId: member.employeeId,
+          internalRole: member.internalRole,
+          isPaymentResponsible: member.isPaymentResponsible ?? false,
+          paymentNotes: member.paymentNotes ?? undefined,
+        }),
+      );
 
       form.reset({
         vehicleId: existingTrip.vehicleId,
@@ -276,6 +357,7 @@ export function TripFormPage() {
         stops: mappedStops,
         cargos: mappedCargos,
         expenses: mappedExpenses,
+        internalStaff: mappedInternalStaff,
         baseRate: existingTrip.costs.baseRate ?? undefined,
         notes: existingTrip.notes || "",
       });
@@ -499,6 +581,84 @@ export function TripFormPage() {
       fieldsToValidate as (keyof TripWizardFormValues)[],
     );
 
+    // Regla de negocio: el cliente principal siempre es obligatorio.
+    if (currentStep === 0) {
+      const selectedClientId = form.getValues("clientId");
+      if (!selectedClientId || selectedClientId === "no-client") {
+        form.setError("clientId", {
+          type: "manual",
+          message: "Cliente principal requerido",
+        });
+        toast({
+          title: "Cliente requerido",
+          description:
+            "Debe seleccionar un cliente principal antes de continuar.",
+          variant: "error",
+        });
+        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        return false;
+      }
+
+      const selectedDriverId = form.getValues("driverId");
+      const availableDrivers = drivers?.data ?? [];
+      const primaryDriverEmployeeId =
+        availableDrivers.find((driver) => driver.id === selectedDriverId)
+          ?.employeeId ?? null;
+      const driverEmployeeIds = new Set(
+        availableDrivers.map((driver) => driver.employeeId),
+      );
+      const internalStaffRows = form.getValues("internalStaff") ?? [];
+
+      const duplicateAssignments = new Set<string>();
+      for (let index = 0; index < internalStaffRows.length; index++) {
+        const row = internalStaffRows[index];
+        const rowKey = `${row.employeeId}:${row.internalRole}`;
+
+        if (duplicateAssignments.has(rowKey)) {
+          toast({
+            title: "Equipo de apoyo inválido",
+            description:
+              "No puedes repetir el mismo empleado con el mismo rol interno.",
+            variant: "error",
+          });
+          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+          return false;
+        }
+        duplicateAssignments.add(rowKey);
+
+        if (
+          row.internalRole === "secondary_driver" &&
+          row.employeeId &&
+          primaryDriverEmployeeId &&
+          row.employeeId === primaryDriverEmployeeId
+        ) {
+          toast({
+            title: "Equipo de apoyo inválido",
+            description:
+              "El conductor principal no puede asignarse como conductor adicional.",
+            variant: "error",
+          });
+          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+          return false;
+        }
+
+        if (
+          row.internalRole === "secondary_driver" &&
+          row.employeeId &&
+          !driverEmployeeIds.has(row.employeeId)
+        ) {
+          toast({
+            title: "Equipo de apoyo inválido",
+            description:
+              "El conductor adicional debe tener un perfil de conductor activo.",
+            variant: "error",
+          });
+          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+          return false;
+        }
+      }
+    }
+
     // Validación adicional para el paso de RUTA (step 1)
     if (currentStep === 1) {
       const routeValidation = validateRouteStepHandler();
@@ -507,6 +667,20 @@ export function TripFormPage() {
         toast({
           title: "Ruta incompleta",
           description: routeValidation.message,
+          variant: "error",
+        });
+        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        return false;
+      }
+
+      if (!result) {
+        const routeMessages = getRouteValidationMessages(form.getValues());
+        toast({
+          title: "Campos pendientes en Ruta",
+          description:
+            routeMessages.length > 0
+              ? routeMessages.slice(0, 2).join(". ")
+              : "Hay campos requeridos sin completar en las paradas.",
           variant: "error",
         });
         setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
@@ -603,7 +777,7 @@ export function TripFormPage() {
       const preparedData = {
         vehicleId: data.vehicleId,
         driverId: data.driverId,
-        clientId: data.clientId || undefined,
+        clientId: data.clientId,
         scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
         scheduledArrival: data.scheduledArrival
           ? localInputToUtcIso(data.scheduledArrival)
@@ -625,8 +799,48 @@ export function TripFormPage() {
           0,
         ),
         baseRate: data.baseRate,
+        internalStaff: data.internalStaff?.map((member) => ({
+          employeeId: member.employeeId,
+          internalRole: member.internalRole,
+          isPaymentResponsible: member.isPaymentResponsible ?? false,
+          paymentNotes: member.paymentNotes || undefined,
+        })),
         notes: data.notes || undefined,
-        // TODO: Implementar update de stops, cargos y expenses
+        stops: mapWizardStopsToCreateInput(data.stops),
+        cargos: data.cargos?.map((cargo) => ({
+          clientId: cargo.clientId || "",
+          description: cargo.description,
+          weight: cargo.weight,
+          units: cargo.units,
+          declaredValue: cargo.declaredValue,
+          notes: cargo.notes || undefined,
+          specialInstructions: cargo.specialInstructions || undefined,
+          movements: cargo.movements?.map((m) => ({
+            stopIndex: m.stopIndex,
+            movementType: m.movementType,
+            weight: m.weight,
+            units: m.units,
+            notes: m.notes,
+          })),
+          satProductCode: cargo.satProductCode || undefined,
+          satProductDescription: cargo.satProductDescription || undefined,
+          satUnitCode: cargo.satUnitCode || undefined,
+          satUnitName: cargo.satUnitName || undefined,
+          weightInKg: cargo.weightInKg,
+          hazardousMaterial: cargo.hazardousMaterial,
+          hazardousMaterialCode: cargo.hazardousMaterialCode || undefined,
+          packagingType: cargo.packagingType || undefined,
+          packagingDescription: cargo.packagingDescription || undefined,
+        })),
+        estimatedExpenses: data.expenses?.map((expense) => ({
+          category: expense.category,
+          description: expense.description,
+          amount: expense.amount,
+          currency: expense.currency as CurrencyType,
+          vendorName: expense.vendorName || undefined,
+          notes: expense.notes || undefined,
+          isEstimated: true,
+        })),
       };
 
       updateMutation.mutate({ id, data: preparedData });
@@ -641,7 +855,7 @@ export function TripFormPage() {
       // Datos del viaje
       vehicleId: data.vehicleId,
       driverId: data.driverId,
-      clientId: data.clientId || undefined,
+      clientId: data.clientId,
       scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
       scheduledArrival: data.scheduledArrival
         ? localInputToUtcIso(data.scheduledArrival)
@@ -664,45 +878,16 @@ export function TripFormPage() {
         0,
       ),
       baseRate: data.baseRate,
+      internalStaff: data.internalStaff?.map((member) => ({
+        employeeId: member.employeeId,
+        internalRole: member.internalRole,
+        isPaymentResponsible: member.isPaymentResponsible ?? false,
+        paymentNotes: member.paymentNotes || undefined,
+      })),
       notes: data.notes || undefined,
 
       // Paradas — camelCase, apiClient hace deepToSnake automáticamente
-      stops: data.stops?.map((stop) => {
-        const legacyAddr = buildLegacyAddress(stop);
-        return {
-          sequenceOrder: stop.sequenceOrder,
-          stopType: stop.stopType,
-          // Dirección legacy (requerida por CreateStopInput/validación)
-          address: legacyAddr.address,
-          city: legacyAddr.city,
-          state: legacyAddr.state || undefined,
-          // Campos Carta Porte (SAT)
-          locationName: stop.locationName,
-          postalCode: stop.postalCode,
-          satEstadoCode: stop.satEstadoCode,
-          satMunicipioCode: stop.satMunicipioCode,
-          satLocalidadCode: stop.satLocalidadCode || undefined,
-          satColoniaCode: stop.satColoniaCode || undefined,
-          colonia: stop.colonia || undefined,
-          street: stop.street || undefined,
-          exteriorNumber: stop.exteriorNumber || undefined,
-          interiorNumber: stop.interiorNumber || undefined,
-          reference: stop.reference || undefined,
-          rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
-          nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
-          distanceFromPreviousKm: stop.distanceFromPreviousKm,
-          // Contacto
-          contactName: stop.contactName || undefined,
-          contactPhone: stop.contactPhone || undefined,
-          notes: stop.notes || undefined,
-          // Coordenadas
-          latitude: stop.latitude,
-          longitude: stop.longitude,
-          estimatedArrival: stop.estimatedArrival
-            ? localInputToUtcIso(stop.estimatedArrival)
-            : undefined,
-        };
-      }),
+      stops: mapWizardStopsToCreateInput(data.stops),
 
       // Cargas — camelCase, apiClient hace deepToSnake automáticamente
       // NOTA: El campo `rate` fue eliminado; prorrateo por carga pendiente para módulo futuro.
@@ -824,7 +1009,12 @@ export function TripFormPage() {
         );
       case 3:
         return (
-          <CostsStep form={form} expensesFieldArray={expensesFieldArray} />
+          <CostsStep
+            // NOTE: resolver typing yields incompatible transformed-value generic here.
+            // Keep explicit cast consistent with other wizard step integrations.
+            form={form as any}
+            expensesFieldArray={expensesFieldArray}
+          />
         );
       case 4:
         return (

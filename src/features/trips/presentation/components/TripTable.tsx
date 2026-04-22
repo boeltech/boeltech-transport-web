@@ -16,9 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import type { TripListItem } from "../../domain";
 import { TripStatusBadge } from "../config/tripStatusConfig";
+import {
+  getTripInvoicingBadgeConfig,
+} from "../uiHelpers";
 import { TripActions } from "./TripActions";
 import { formatDate, formatTime } from "@shared/utils/dateUtils";
 
@@ -49,6 +53,7 @@ const TABLE_HEADERS = [
   { key: "driver", label: "Conductor" },
   { key: "departure", label: "Salida" },
   { key: "status", label: "Estado" },
+  { key: "invoicing", label: "Facturación" },
   { key: "actions", label: "", className: "w-12" },
 ];
 
@@ -98,6 +103,9 @@ function LoadingSkeleton() {
           </TableCell>
           <TableCell>
             <Skeleton className="h-6 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-6 w-24" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-8 w-8" />
@@ -165,12 +173,15 @@ export function TripTable({
       <Table>
         <TableHeaderRow />
         <TableBody>
-          {trips.map((trip) => (
-            <TableRow
-              key={trip.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onView(trip.id)}
-            >
+          {trips.map((trip) => {
+            const invoicingConfig = getTripInvoicingBadgeConfig(trip);
+
+            return (
+              <TableRow
+                key={trip.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => onView(trip.id)}
+              >
               {/* Código */}
               <TableCell className="font-medium font-mono">
                 {trip.tripCode}
@@ -211,6 +222,15 @@ export function TripTable({
                 <TripStatusBadge status={trip.status} size="sm" showIcon />
               </TableCell>
 
+              {/* Facturación */}
+              <TableCell>
+                <div className="space-y-1">
+                  <Badge variant={invoicingConfig.variant}>
+                    {invoicingConfig.label}
+                  </Badge>
+                </div>
+              </TableCell>
+
               {/* Acciones */}
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <TripActions
@@ -224,8 +244,9 @@ export function TripTable({
                   onCancel={onCancel}
                 />
               </TableCell>
-            </TableRow>
-          ))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

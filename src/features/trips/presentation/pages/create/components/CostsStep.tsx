@@ -71,7 +71,8 @@ import { useVehicle } from "@features/vehicles/application";
 // ============================================================================
 
 interface CostsStepProps {
-  form: UseFormReturn<TripWizardFormValues, unknown, undefined>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  form: UseFormReturn<TripWizardFormValues, any, any>;
   expensesFieldArray: UseFieldArrayReturn<TripWizardFormValues, "expenses">;
 }
 
