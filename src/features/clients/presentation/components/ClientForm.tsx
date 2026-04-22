@@ -10,8 +10,8 @@
  * Ubicación: src/features/clients/presentation/components/ClientForm.tsx
  */
 
-import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useRef } from "react";
+import { useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -27,11 +27,9 @@ import { Separator } from "@shared/ui/separator";
 import { Building2, User, Phone, CreditCard } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
-import {
-  CLIENT_TYPE_LABELS,
-  PAYMENT_TERMS_LABELS,
-  TAX_REGIME_OPTIONS,
-} from "../../domain";
+import { RegimenFiscalSelect } from "@features/catalogs";
+
+import { CLIENT_TYPE_LABELS, PAYMENT_TERMS_LABELS } from "../../domain";
 import {
   clientFormSchema,
   defaultClientFormValues,
@@ -61,8 +59,8 @@ export function ClientForm({
   disabled = false,
   className,
 }: ClientFormProps) {
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
+  const form = useForm<ClientFormData, unknown, ClientFormData>({
+    resolver: zodResolver(clientFormSchema) as Resolver<ClientFormData>,
     defaultValues: {
       ...defaultClientFormValues,
       ...defaultValues,
@@ -82,13 +80,18 @@ export function ClientForm({
   const clientType = watch("type");
   const paymentTerms = watch("paymentTerms");
 
-  // Notificar cambios al padre
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const isValidRef = useRef(isValid);
+  isValidRef.current = isValid;
+
+  // Notificar cambios al padre (onChange/isValid por ref: evita re-suscribir watch en cada render del padre)
   useEffect(() => {
     const subscription = watch((data) => {
-      onChange?.(data as ClientFormData, isValid);
+      onChangeRef.current?.(data as ClientFormData, isValidRef.current);
     });
     return () => subscription.unsubscribe();
-  }, [watch, onChange, isValid]);
+  }, [watch]);
 
   // Submit handler interno
   const handleFormSubmit = (data: ClientFormData) => {
@@ -227,22 +230,12 @@ export function ClientForm({
               name="taxRegime"
               control={control}
               render={({ field }) => (
-                <Select
+                <RegimenFiscalSelect
                   value={field.value || ""}
                   onValueChange={field.onChange}
                   disabled={disabled}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione régimen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TAX_REGIME_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Seleccione régimen"
+                />
               )}
             />
             {errors.taxRegime && (

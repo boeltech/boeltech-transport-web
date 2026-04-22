@@ -9,7 +9,7 @@
  * Ubicación: src/features/clients/presentation/pages/ClientCreatePage.tsx
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -67,25 +67,29 @@ export function ClientCreatePage() {
   );
   const progress = ((currentStepIndex + 1) / CLIENT_WIZARD_STEPS.length) * 100;
 
-  // Handlers
-  const handleClientChange = (data: ClientFormData, isValid: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      clientData: data,
-      isClientValid: isValid,
-    }));
-  };
+  // Handlers (useCallback evita bucles: los formularios sincronizan vía useEffect/useWatch
+  // y una función nueva en cada render re-dispara esos efectos → Maximum update depth exceeded)
+  const handleClientChange = useCallback(
+    (data: ClientFormData, isValid: boolean) => {
+      setState((prev) => ({
+        ...prev,
+        clientData: data,
+        isClientValid: isValid,
+      }));
+    },
+    [],
+  );
 
-  const handleAddressChange = (
-    data: ClientAddressFormData,
-    isValid: boolean,
-  ) => {
-    setState((prev) => ({
-      ...prev,
-      addressData: data,
-      isAddressValid: isValid,
-    }));
-  };
+  const handleAddressChange = useCallback(
+    (data: ClientAddressFormData, isValid: boolean) => {
+      setState((prev) => ({
+        ...prev,
+        addressData: data,
+        isAddressValid: isValid,
+      }));
+    },
+    [],
+  );
 
   const handleNext = () => {
     if (state.currentStep === "info" && state.isClientValid) {

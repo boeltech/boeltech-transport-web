@@ -8,7 +8,7 @@
  * Ubicación: src/features/clients/presentation/pages/ClientsListPage.tsx
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDebounce } from "@shared/hooks/use-debounce";
 import { usePermissions } from "@shared/permissions";
@@ -75,8 +75,29 @@ export function ClientsListPage() {
   const sortBy = searchParams.get("sortBy") || "legal_name";
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
 
-  // Debounce search (solo para el input, la query usa el param de URL)
-  const debouncedSearch = useDebounce(search, 300);
+  const [searchInput, setSearchInput] = useState(search);
+
+  // Debounce search para evitar updates de URL en cada tecla
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    if (debouncedSearch === search) return;
+
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (debouncedSearch) params.set("search", debouncedSearch);
+        else params.delete("search");
+        params.set("page", "1");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [debouncedSearch, search, setSearchParams]);
 
   // Build filters
   const filters: ClientFilters = {
@@ -109,15 +130,9 @@ export function ClientsListPage() {
 
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (value) params.set("search", value);
-        else params.delete("search");
-        params.set("page", "1");
-        return params;
-      });
+      setSearchInput(value);
     },
-    [setSearchParams],
+    [],
   );
 
   const handleTypeChange = useCallback(
@@ -191,6 +206,7 @@ export function ClientsListPage() {
   );
 
   const handleClearFilters = useCallback(() => {
+    setSearchInput("");
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       params.delete("search");
@@ -238,7 +254,7 @@ export function ClientsListPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nombre, RFC..."
-              value={search}
+              value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-8"
             />
@@ -435,13 +451,7 @@ export function ClientsListPage() {
               )}
             </div>
           ) : (
-            clients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onClick={() => navigate(`/clients/${client.id}`)}
-              />
-            ))
+            clients.map((client) => <ClientCard key={client.id} client={client} />)
           )}
         </div>
       )}

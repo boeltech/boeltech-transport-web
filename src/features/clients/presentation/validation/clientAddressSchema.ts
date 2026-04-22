@@ -14,12 +14,14 @@ import { z } from "zod";
 // ENUMS
 // ============================================================================
 
-export const addressTypeSchema = z.enum(
-  ["billing", "shipping", "pickup", "warehouse", "office", "other"],
-  {
-    required_error: "Seleccione el tipo de dirección",
-  },
-);
+export const addressTypeSchema = z.enum([
+  "billing",
+  "shipping",
+  "pickup",
+  "warehouse",
+  "office",
+  "other",
+]);
 
 // ============================================================================
 // CLIENT ADDRESS FORM SCHEMA

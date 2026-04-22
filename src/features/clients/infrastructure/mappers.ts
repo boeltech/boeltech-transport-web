@@ -39,6 +39,34 @@ import type {
 } from "../domain";
 
 // ============================================================================
+// Helpers: contrato Zod del API (boeltech-transport-api)
+// - `.optional()` no acepta `null` (solo ausente o undefined tras JSON).
+// - `z.string().email().optional()` falla con "".
+// - `z.number().optional()` falla con `null`.
+// ============================================================================
+
+function apiOptionalTrimmedString(
+  value: string | null | undefined,
+): string | undefined {
+  if (value == null) return undefined;
+  const t = value.trim();
+  return t === "" ? undefined : t;
+}
+
+function apiOptionalEmail(
+  value: string | null | undefined,
+): string | undefined {
+  return apiOptionalTrimmedString(value);
+}
+
+function apiOptionalNumber(
+  value: number | null | undefined,
+): number | undefined {
+  if (value == null || Number.isNaN(value)) return undefined;
+  return value;
+}
+
+// ============================================================================
 // CLIENT MAPPERS: API → DOMAIN
 // ============================================================================
 
@@ -226,26 +254,43 @@ export function mapClientAddresses(
 export function toApiCreateClient(
   dto: CreateClientDTO,
 ): Record<string, unknown> {
-  return {
+  const payload: Record<string, unknown> = {
     type: dto.type,
     legal_name: dto.legalName,
-    trade_name: dto.tradeName ?? null,
     tax_id: dto.taxId.toUpperCase(),
-    tax_regime: dto.taxRegime ?? null,
-    // Contacto
-    contact_name: dto.contactName ?? null,
-    contact_position: dto.contactPosition ?? null,
-    phone: dto.phone ?? null,
-    secondary_phone: dto.secondaryPhone ?? null,
-    email: dto.email ?? null,
-    billing_email: dto.billingEmail ?? null,
-    // Términos comerciales
     payment_terms: dto.paymentTerms,
     credit_days: dto.creditDays ?? 0,
     credit_limit: dto.creditLimit ?? 0,
-    // Notas
-    notes: dto.notes ?? null,
   };
+
+  const tradeName = apiOptionalTrimmedString(dto.tradeName);
+  if (tradeName !== undefined) payload.trade_name = tradeName;
+
+  const taxRegime = apiOptionalTrimmedString(dto.taxRegime);
+  if (taxRegime !== undefined) payload.tax_regime = taxRegime;
+
+  const contactName = apiOptionalTrimmedString(dto.contactName);
+  if (contactName !== undefined) payload.contact_name = contactName;
+
+  const contactPosition = apiOptionalTrimmedString(dto.contactPosition);
+  if (contactPosition !== undefined) payload.contact_position = contactPosition;
+
+  const phone = apiOptionalTrimmedString(dto.phone);
+  if (phone !== undefined) payload.phone = phone;
+
+  const secondaryPhone = apiOptionalTrimmedString(dto.secondaryPhone);
+  if (secondaryPhone !== undefined) payload.secondary_phone = secondaryPhone;
+
+  const email = apiOptionalEmail(dto.email);
+  if (email !== undefined) payload.email = email;
+
+  const billingEmail = apiOptionalEmail(dto.billingEmail);
+  if (billingEmail !== undefined) payload.billing_email = billingEmail;
+
+  const notes = apiOptionalTrimmedString(dto.notes);
+  if (notes !== undefined) payload.notes = notes;
+
+  return payload;
 }
 
 /**
@@ -293,37 +338,72 @@ export function toApiUpdateClient(
 export function toApiCreateClientAddress(
   dto: CreateClientAddressDTO,
 ): Record<string, unknown> {
-  return {
+  const payload: Record<string, unknown> = {
     address_type: dto.addressType,
     is_primary: dto.isPrimary ?? false,
-    location_name: dto.locationName ?? null,
-    // Campos Carta Porte 3.1
     sat_estado_code: dto.satEstadoCode,
     sat_municipio_code: dto.satMunicipioCode,
-    sat_localidad_code: dto.satLocalidadCode ?? null,
-    sat_colonia_code: dto.satColoniaCode ?? null,
     postal_code: dto.postalCode,
-    street: dto.street ?? null,
-    exterior_number: dto.exteriorNumber ?? null,
-    interior_number: dto.interiorNumber ?? null,
-    reference: dto.reference ?? null,
-    rfc_remitente_destinatario: dto.rfcRemitenteDestinatario ?? null,
-    nombre_remitente_destinatario: dto.nombreRemitenteDestinatario ?? null,
-    // Campos legacy (construir address a partir de campos desglosados)
     address: buildLegacyAddress(dto),
-    city: "", // Se ignora, pero el backend puede requerirlo
-    // Coordenadas
-    latitude: dto.latitude ?? null,
-    longitude: dto.longitude ?? null,
-    // Contacto
-    contact_name: dto.contactName ?? null,
-    contact_phone: dto.contactPhone ?? null,
-    contact_email: dto.contactEmail ?? null,
-    // Operación
-    business_hours: dto.businessHours ?? null,
-    notes: dto.notes ?? null,
-    special_instructions: dto.specialInstructions ?? null,
+    city: "",
   };
+
+  const locationName = apiOptionalTrimmedString(dto.locationName);
+  if (locationName !== undefined) payload.location_name = locationName;
+
+  const satLocalidad = apiOptionalTrimmedString(dto.satLocalidadCode);
+  if (satLocalidad !== undefined) payload.sat_localidad_code = satLocalidad;
+
+  const satColonia = apiOptionalTrimmedString(dto.satColoniaCode);
+  if (satColonia !== undefined) payload.sat_colonia_code = satColonia;
+
+  const street = apiOptionalTrimmedString(dto.street);
+  if (street !== undefined) payload.street = street;
+
+  const exteriorNumber = apiOptionalTrimmedString(dto.exteriorNumber);
+  if (exteriorNumber !== undefined) payload.exterior_number = exteriorNumber;
+
+  const interiorNumber = apiOptionalTrimmedString(dto.interiorNumber);
+  if (interiorNumber !== undefined) payload.interior_number = interiorNumber;
+
+  const reference = apiOptionalTrimmedString(dto.reference);
+  if (reference !== undefined) payload.reference = reference;
+
+  const rfcRem = apiOptionalTrimmedString(dto.rfcRemitenteDestinatario);
+  if (rfcRem !== undefined) payload.rfc_remitente_destinatario = rfcRem;
+
+  const nombreRem = apiOptionalTrimmedString(dto.nombreRemitenteDestinatario);
+  if (nombreRem !== undefined)
+    payload.nombre_remitente_destinatario = nombreRem;
+
+  const latitude = apiOptionalNumber(dto.latitude);
+  if (latitude !== undefined) payload.latitude = latitude;
+
+  const longitude = apiOptionalNumber(dto.longitude);
+  if (longitude !== undefined) payload.longitude = longitude;
+
+  const contactName = apiOptionalTrimmedString(dto.contactName);
+  if (contactName !== undefined) payload.contact_name = contactName;
+
+  const contactPhone = apiOptionalTrimmedString(dto.contactPhone);
+  if (contactPhone !== undefined) payload.contact_phone = contactPhone;
+
+  const contactEmail = apiOptionalEmail(dto.contactEmail);
+  if (contactEmail !== undefined) payload.contact_email = contactEmail;
+
+  const businessHours = apiOptionalTrimmedString(dto.businessHours);
+  if (businessHours !== undefined) payload.business_hours = businessHours;
+
+  const notes = apiOptionalTrimmedString(dto.notes);
+  if (notes !== undefined) payload.notes = notes;
+
+  const specialInstructions = apiOptionalTrimmedString(
+    dto.specialInstructions,
+  );
+  if (specialInstructions !== undefined)
+    payload.special_instructions = specialInstructions;
+
+  return payload;
 }
 
 /**

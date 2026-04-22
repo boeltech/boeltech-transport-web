@@ -3,20 +3,20 @@
  * Clean Architecture - Presentation Layer
  *
  * Página de detalle de un cliente.
- * Muestra información del cliente y sus direcciones.
+ * Layout homologado con VehicleDetailPage / DriverDetailPage: cabecera + pestañas.
  *
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
 
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Separator } from "@shared/ui/separator";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 import {
   ArrowLeft,
-  Edit,
   Building2,
   User,
   Phone,
@@ -25,24 +25,276 @@ import {
   FileText,
   Calendar,
   Hash,
-  //   MapPin,
   AlertCircle,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
+import { useRegimenFiscalLabel } from "@features/catalogs";
+
 import { useClient } from "../../application";
-import {
-  //   CLIENT_TYPE_LABELS,
-  //   PAYMENT_TERMS_LABELS,
-  TAX_REGIME_OPTIONS,
-  getClientDisplayName,
-} from "../../domain";
+import type { Client } from "../../domain";
+import { getClientDisplayName } from "../../domain";
 import { ClientActions, ClientAddressSection } from "../components";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
   getStatusConfig,
 } from "../config/clientConfig";
+
+// ============================================================================
+// SUB-COMPONENTS (patrón InfoRow como VehicleDetailPage)
+// ============================================================================
+
+interface InfoRowProps {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}
+
+function InfoRow({ icon, label, value, className }: InfoRowProps) {
+  return (
+    <div className={cn("flex items-start gap-3", className)}>
+      <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <div className="text-sm font-medium">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function ClientDataTabContent({
+  client,
+  taxRegimeLabel,
+  paymentConfig,
+  PaymentIcon,
+}: {
+  client: Client;
+  taxRegimeLabel: string | null;
+  paymentConfig: ReturnType<typeof getPaymentTermsConfig>;
+  PaymentIcon: React.ComponentType<{ className?: string }>;
+}) {
+  const hasContact =
+    client.contactName ||
+    client.contactPosition ||
+    client.phone ||
+    client.secondaryPhone ||
+    client.email ||
+    client.billingEmail;
+
+  return (
+    <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4" />
+            Información fiscal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <InfoRow
+            icon={<Building2 className="h-4 w-4" />}
+            label="Razón social"
+            value={client.legalName}
+          />
+          {client.tradeName ? (
+            <InfoRow
+              icon={<Building2 className="h-4 w-4" />}
+              label="Nombre comercial"
+              value={client.tradeName}
+            />
+          ) : null}
+          <InfoRow
+            icon={<Hash className="h-4 w-4" />}
+            label="RFC"
+            value={<span className="font-mono">{client.taxId}</span>}
+          />
+          {taxRegimeLabel ? (
+            <InfoRow
+              icon={<FileText className="h-4 w-4" />}
+              label="Régimen fiscal"
+              value={taxRegimeLabel}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4" />
+            Contacto principal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {hasContact ? (
+            <>
+              {client.contactName ? (
+                <InfoRow
+                  icon={<User className="h-4 w-4" />}
+                  label="Nombre"
+                  value={client.contactName}
+                />
+              ) : null}
+              {client.contactPosition ? (
+                <InfoRow
+                  icon={<User className="h-4 w-4" />}
+                  label="Puesto"
+                  value={client.contactPosition}
+                />
+              ) : null}
+              {client.phone ? (
+                <InfoRow
+                  icon={<Phone className="h-4 w-4" />}
+                  label="Teléfono"
+                  value={
+                    <a
+                      href={`tel:${client.phone}`}
+                      className="text-primary hover:underline"
+                    >
+                      {client.phone}
+                    </a>
+                  }
+                />
+              ) : null}
+              {client.secondaryPhone ? (
+                <InfoRow
+                  icon={<Phone className="h-4 w-4" />}
+                  label="Teléfono secundario"
+                  value={
+                    <a
+                      href={`tel:${client.secondaryPhone}`}
+                      className="text-primary hover:underline"
+                    >
+                      {client.secondaryPhone}
+                    </a>
+                  }
+                />
+              ) : null}
+              {client.email ? (
+                <InfoRow
+                  icon={<Mail className="h-4 w-4" />}
+                  label="Correo"
+                  value={
+                    <a
+                      href={`mailto:${client.email}`}
+                      className="text-primary hover:underline"
+                    >
+                      {client.email}
+                    </a>
+                  }
+                />
+              ) : null}
+              {client.billingEmail ? (
+                <InfoRow
+                  icon={<Mail className="h-4 w-4" />}
+                  label="Correo de facturación"
+                  value={
+                    <a
+                      href={`mailto:${client.billingEmail}`}
+                      className="text-primary hover:underline"
+                    >
+                      {client.billingEmail}
+                    </a>
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No hay información de contacto registrada.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4" />
+            Términos comerciales
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <InfoRow
+            icon={<CreditCard className="h-4 w-4" />}
+            label="Forma de pago"
+            value={
+              <Badge variant={paymentConfig.variant}>
+                <PaymentIcon className="mr-1 h-3 w-3" />
+                {paymentConfig.label}
+              </Badge>
+            }
+          />
+          {client.paymentTerms === "credit" ? (
+            <>
+              <Separator />
+              <InfoRow
+                icon={<Calendar className="h-4 w-4" />}
+                label="Días de crédito"
+                value={`${client.creditDays} días`}
+              />
+              {client.creditLimit !== undefined && client.creditLimit > 0 ? (
+                <InfoRow
+                  icon={<CreditCard className="h-4 w-4" />}
+                  label="Límite de crédito"
+                  value={`$${client.creditLimit.toLocaleString("es-MX")}`}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4" />
+            Notas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {client.notes ? (
+            <p className="whitespace-pre-wrap text-sm">{client.notes}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin notas</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="md:col-span-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calendar className="h-4 w-4" />
+            Registro
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <InfoRow
+            icon={<Calendar className="h-4 w-4" />}
+            label="Creado"
+            value={new Date(client.createdAt).toLocaleDateString("es-MX", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
+          />
+          <InfoRow
+            icon={<Calendar className="h-4 w-4" />}
+            label="Actualizado"
+            value={new Date(client.updatedAt).toLocaleDateString("es-MX", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 // ============================================================================
 // COMPONENT
@@ -53,34 +305,28 @@ export function ClientDetailPage() {
   const navigate = useNavigate();
 
   const { data: client, isLoading, isError } = useClient(id);
+  const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime);
 
-  // Loading state
   if (isLoading) {
     return <ClientDetailSkeleton />;
   }
 
-  // Error state
   if (isError || !client) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-            <p className="text-lg font-medium">Cliente no encontrado</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              El cliente que buscas no existe o fue eliminado.
-            </p>
-            <Button variant="outline" onClick={() => navigate("/clients")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver a clientes
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center justify-center gap-4 px-6 py-12">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg font-medium">Cliente no encontrado</p>
+        <p className="text-center text-sm text-muted-foreground">
+          El cliente que buscas no existe o fue eliminado.
+        </p>
+        <Button variant="outline" onClick={() => navigate("/clients")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver a clientes
+        </Button>
       </div>
     );
   }
 
-  // Config
   const typeConfig = getClientTypeConfig(client.type);
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
   const statusConfig = getStatusConfig(client.isActive);
@@ -88,355 +334,120 @@ export function ClientDetailPage() {
   const PaymentIcon = paymentConfig.icon;
   const StatusIcon = statusConfig.icon;
 
-  // Obtener label del régimen fiscal
-  const taxRegimeLabel = client.taxRegime
-    ? TAX_REGIME_OPTIONS.find((r) => r.value === client.taxRegime)?.label ||
-      client.taxRegime
-    : null;
-
   return (
-    <div className="container mx-auto space-y-6 p-6">
-      {/* Header */}
+    <div className="space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/clients")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-
-          <div className="flex items-start gap-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/clients")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <div
               className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-lg",
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
                 typeConfig.bgColor,
               )}
             >
               <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight">
-                  {getClientDisplayName(client)}
-                </h1>
-                <Badge variant={statusConfig.variant}>
-                  <StatusIcon className="mr-1 h-3 w-3" />
-                  {statusConfig.label}
-                </Badge>
-              </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold">
+                {getClientDisplayName(client)}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 {client.clientCode} · {typeConfig.label}
               </p>
             </div>
+            <Badge variant={statusConfig.variant} className="shrink-0">
+              <StatusIcon className="mr-1 h-3 w-3" />
+              {statusConfig.label}
+            </Badge>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link to={`/clients/${client.id}/edit`}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </Link>
-          </Button>
-          <ClientActions client={client} />
-        </div>
+        <ClientActions client={client} variant="buttons" />
       </div>
 
-      {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main info - 2 columns */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Información Fiscal */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Información Fiscal</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <InfoItem
-                  label="Razón Social"
-                  value={client.legalName}
-                  icon={Building2}
-                />
-                {client.tradeName && (
-                  <InfoItem
-                    label="Nombre Comercial"
-                    value={client.tradeName}
-                    icon={Building2}
-                  />
-                )}
-                <InfoItem label="RFC" value={client.taxId} icon={Hash} />
-                {taxRegimeLabel && (
-                  <InfoItem
-                    label="Régimen Fiscal"
-                    value={taxRegimeLabel}
-                    icon={FileText}
-                    className="sm:col-span-2"
-                  />
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="data">
+        <TabsList>
+          <TabsTrigger value="data">Datos</TabsTrigger>
+          <TabsTrigger value="addresses" className="gap-1.5">
+            <MapPin className="h-3.5 w-3.5" />
+            Direcciones
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Contacto */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Contacto Principal</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {client.contactName && (
-                  <InfoItem
-                    label="Nombre"
-                    value={client.contactName}
-                    icon={User}
-                  />
-                )}
-                {client.contactPosition && (
-                  <InfoItem
-                    label="Puesto"
-                    value={client.contactPosition}
-                    icon={User}
-                  />
-                )}
-                {client.phone && (
-                  <InfoItem
-                    label="Teléfono"
-                    value={client.phone}
-                    icon={Phone}
-                    href={`tel:${client.phone}`}
-                  />
-                )}
-                {client.secondaryPhone && (
-                  <InfoItem
-                    label="Teléfono Secundario"
-                    value={client.secondaryPhone}
-                    icon={Phone}
-                    href={`tel:${client.secondaryPhone}`}
-                  />
-                )}
-                {client.email && (
-                  <InfoItem
-                    label="Email"
-                    value={client.email}
-                    icon={Mail}
-                    href={`mailto:${client.email}`}
-                  />
-                )}
-                {client.billingEmail && (
-                  <InfoItem
-                    label="Email Facturación"
-                    value={client.billingEmail}
-                    icon={Mail}
-                    href={`mailto:${client.billingEmail}`}
-                  />
-                )}
-              </div>
-              {!client.contactName && !client.phone && !client.email && (
-                <p className="text-sm text-muted-foreground">
-                  No hay información de contacto registrada.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="data">
+          <ClientDataTabContent
+            client={client}
+            taxRegimeLabel={taxRegimeLabel}
+            paymentConfig={paymentConfig}
+            PaymentIcon={PaymentIcon}
+          />
+        </TabsContent>
 
-          {/* Direcciones */}
+        <TabsContent value="addresses" className="mt-4">
           <ClientAddressSection
             clientId={client.id}
             clientRfc={client.taxId}
             clientName={client.legalName}
           />
-        </div>
-
-        {/* Sidebar - 1 column */}
-        <div className="space-y-6">
-          {/* Términos Comerciales */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Términos Comerciales</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Forma de pago
-                </span>
-                <Badge variant={paymentConfig.variant}>
-                  <PaymentIcon className="mr-1 h-3 w-3" />
-                  {paymentConfig.label}
-                </Badge>
-              </div>
-
-              {client.paymentTerms === "credit" && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Días de crédito
-                      </span>
-                      <span className="font-medium">
-                        {client.creditDays} días
-                      </span>
-                    </div>
-                    {client.creditLimit !== undefined &&
-                      client.creditLimit > 0 && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Límite de crédito
-                          </span>
-                          <span className="font-medium">
-                            ${client.creditLimit.toLocaleString("es-MX")}
-                          </span>
-                        </div>
-                      )}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Notas */}
-          {client.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Notas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Información del registro */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">Registro</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Creado</span>
-                <span>
-                  {new Date(client.createdAt).toLocaleDateString("es-MX", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Actualizado</span>
-                <span>
-                  {new Date(client.updatedAt).toLocaleDateString("es-MX", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
 // ============================================================================
-// SUB-COMPONENTS
+// SKELETON
 // ============================================================================
-
-interface InfoItemProps {
-  label: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href?: string;
-  className?: string;
-}
-
-function InfoItem({
-  label,
-  value,
-  icon: Icon,
-  href,
-  className,
-}: InfoItemProps) {
-  const content = (
-    <div className={cn("space-y-1", className)}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <span className={cn("text-sm", href && "text-primary hover:underline")}>
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-
-  if (href) {
-    return (
-      <a href={href} className="block">
-        {content}
-      </a>
-    );
-  }
-
-  return content;
-}
 
 function ClientDetailSkeleton() {
   return (
-    <div className="container mx-auto space-y-6 p-6">
-      {/* Header skeleton */}
-      <div className="flex items-start gap-4">
-        <Skeleton className="h-10 w-10" />
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-32" />
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <Skeleton className="h-12 w-12 rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-28" />
         </div>
       </div>
-
-      {/* Content skeleton */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-24 w-full" />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-36" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

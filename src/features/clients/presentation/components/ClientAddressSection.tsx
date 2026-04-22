@@ -2,7 +2,7 @@
  * ClientAddressSection Component
  * Clean Architecture - Presentation Layer
  *
- * Sección que muestra las direcciones del cliente en ClientDetailPage.
+ * Sección de direcciones del cliente (detalle y edición en pestaña).
  * Permite agregar, editar y eliminar direcciones.
  *
  * Ubicación: src/features/clients/presentation/components/ClientAddressSection.tsx
@@ -154,11 +154,17 @@ export function ClientAddressSection({
         },
       );
     } else if (modalMode === "edit" && selectedAddress) {
+      const updateData = {
+        ...formData,
+        latitude: formData.latitude ?? undefined,
+        longitude: formData.longitude ?? undefined,
+      };
+
       updateMutation.mutate(
         {
           clientId,
           addressId: selectedAddress.id,
-          data: formData,
+          data: updateData,
         },
         {
           onSuccess: () => handleCloseModal(),

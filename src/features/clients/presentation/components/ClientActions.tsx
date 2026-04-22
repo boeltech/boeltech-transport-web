@@ -202,11 +202,15 @@ export function ClientActions({
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Buttons variant (para detalle)
+  // RENDER: Buttons variant (para detalle — alineado con DriverActions / Employee)
   // ══════════════════════════════════════════════════════════════════════════
+  if (!canEdit && !canDelete && !showView) {
+    return null;
+  }
+
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
         {showView && (
           <Button variant="outline" size="sm" onClick={handleView}>
             <Eye className="mr-2 h-4 w-4" />

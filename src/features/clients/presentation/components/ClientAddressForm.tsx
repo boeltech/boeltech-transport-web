@@ -10,8 +10,15 @@
  * Ubicación: src/features/clients/presentation/components/ClientAddressForm.tsx
  */
 
-import { useEffect, forwardRef, useImperativeHandle } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -38,7 +45,6 @@ import {
 import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
 import {
   clientAddressFormSchema,
-  billingAddressFormSchema,
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,
   type ClientAddressFormData,
@@ -93,16 +99,20 @@ export const ClientAddressForm = forwardRef<
   },
   ref,
 ) {
-  // Seleccionar schema y defaults según tipo
-  const schema = isBillingAddress
-    ? billingAddressFormSchema
-    : clientAddressFormSchema;
+  const hasClientFiscalData = Boolean(clientRfc || clientName);
+  const [useClientFiscalData, setUseClientFiscalData] = useState(
+    hasClientFiscalData,
+  );
+  const hasInitializedFiscalModeRef = useRef(false);
+
+  // Se usa un único schema para evitar incompatibilidades de tipos entre variantes.
+  // Para dirección fiscal, se fuerzan valores en runtime.
   const defaults = isBillingAddress
     ? defaultBillingAddressFormValues
     : defaultClientAddressFormValues;
 
-  const form = useForm<ClientAddressFormData>({
-    resolver: zodResolver(schema),
+  const form = useForm<ClientAddressFormData, unknown, ClientAddressFormData>({
+    resolver: zodResolver(clientAddressFormSchema) as Resolver<ClientAddressFormData>,
     defaultValues: {
       ...defaults,
       ...defaultValues,
@@ -128,6 +138,17 @@ export const ClientAddressForm = forwardRef<
     triggerValidation: () => trigger(),
   }));
 
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const lastParentNotifyKey = useRef<string>("");
+
+  useEffect(() => {
+    if (!isBillingAddress) return;
+
+    setValue("addressType", "billing");
+    setValue("isPrimary", true);
+  }, [isBillingAddress, setValue]);
+
   // Observar todos los valores reactivamente (compatible con React Compiler)
   const formValues = useWatch({ control });
 
@@ -136,24 +157,83 @@ export const ClientAddressForm = forwardRef<
   const satMunicipioCode = formValues.satMunicipioCode ?? "";
   const postalCode = formValues.postalCode ?? "";
 
-  // Notificar cambios al padre
+  // Inicializar modo de uso de datos fiscales con base en valores existentes.
+  // Si la dirección ya tenía un remitente/destinatario diferente al cliente,
+  // mantenemos el modo manual para no sobreescribir datos históricos.
   useEffect(() => {
-    onChange?.(formValues as ClientAddressFormData, isValid);
-  }, [formValues, isValid, onChange]);
+    if (!hasClientFiscalData || hasInitializedFiscalModeRef.current) return;
+
+    const normalizeRfc = (value?: string) =>
+      (value ?? "")
+        .trim()
+        .toUpperCase();
+    const normalizeName = (value?: string) =>
+      (value ?? "")
+        .trim()
+        .toLowerCase();
+
+    const currentRfc = normalizeRfc(formValues.rfcRemitenteDestinatario);
+    const currentName = normalizeName(formValues.nombreRemitenteDestinatario);
+    const clientRfcNormalized = normalizeRfc(clientRfc);
+    const clientNameNormalized = normalizeName(clientName);
+
+    const hasCurrentValues = Boolean(currentRfc || currentName);
+    const matchesClientData =
+      (!clientRfcNormalized || currentRfc === clientRfcNormalized) &&
+      (!clientNameNormalized || currentName === clientNameNormalized);
+
+    setUseClientFiscalData(!hasCurrentValues || matchesClientData);
+    hasInitializedFiscalModeRef.current = true;
+  }, [
+    clientName,
+    clientRfc,
+    formValues.nombreRemitenteDestinatario,
+    formValues.rfcRemitenteDestinatario,
+    hasClientFiscalData,
+  ]);
+
+  useEffect(() => {
+    if (!useClientFiscalData || !hasClientFiscalData) return;
+
+    if (clientRfc) {
+      setValue("rfcRemitenteDestinatario", clientRfc.toUpperCase(), {
+        shouldValidate: true,
+      });
+    }
+    if (clientName) {
+      setValue("nombreRemitenteDestinatario", clientName, {
+        shouldValidate: true,
+      });
+    }
+  }, [clientName, clientRfc, hasClientFiscalData, setValue, useClientFiscalData]);
+
+  // Notificar cambios al padre (onChange no va en deps: identidad inestable → bucle infinito con setState del padre).
+  // Dedup por contenido: useWatch puede entregar nueva referencia en renders sin cambios reales de valores.
+  useEffect(() => {
+    const key = JSON.stringify(formValues) + "|" + String(isValid);
+    if (key === lastParentNotifyKey.current) return;
+    lastParentNotifyKey.current = key;
+    onChangeRef.current?.(formValues as ClientAddressFormData, isValid);
+  }, [formValues, isValid]);
 
   // Handler unificado para AddressFields
-  const handleAddressChange = (changes: SatAddressValues) => {
-    if (changes.estadoCode !== undefined)
-      setValue("satEstadoCode", changes.estadoCode, { shouldValidate: true });
-    if (changes.municipioCode !== undefined)
-      setValue("satMunicipioCode", changes.municipioCode, { shouldValidate: true });
-    if (changes.postalCode !== undefined)
-      setValue("postalCode", changes.postalCode, { shouldValidate: true });
-    if (changes.coloniaCode !== undefined)
-      setValue("satColoniaCode", changes.coloniaCode);
-    if (changes.localidadCode !== undefined)
-      setValue("satLocalidadCode", changes.localidadCode);
-  };
+  const handleAddressChange = useCallback(
+    (changes: SatAddressValues) => {
+      if (changes.estadoCode !== undefined)
+        setValue("satEstadoCode", changes.estadoCode, { shouldValidate: true });
+      if (changes.municipioCode !== undefined)
+        setValue("satMunicipioCode", changes.municipioCode, {
+          shouldValidate: true,
+        });
+      if (changes.postalCode !== undefined)
+        setValue("postalCode", changes.postalCode, { shouldValidate: true });
+      if (changes.coloniaCode !== undefined)
+        setValue("satColoniaCode", changes.coloniaCode);
+      if (changes.localidadCode !== undefined)
+        setValue("satLocalidadCode", changes.localidadCode);
+    },
+    [setValue],
+  );
 
   // Submit handler
   const handleFormSubmit = (data: ClientAddressFormData) => {
@@ -366,6 +446,24 @@ export const ClientAddressForm = forwardRef<
           Estos datos se usarán en el complemento Carta Porte del CFDI
         </p>
 
+        <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
+          <div className="space-y-1">
+            <Label htmlFor="useClientFiscalData" className="cursor-pointer">
+              Usar datos fiscales del cliente
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Recomendado para la mayoría de los casos. Desactiva esta opción
+              solo si esta ubicación maneja remitente/destinatario distinto.
+            </p>
+          </div>
+          <Switch
+            id="useClientFiscalData"
+            checked={useClientFiscalData}
+            onCheckedChange={setUseClientFiscalData}
+            disabled={disabled || !hasClientFiscalData}
+          />
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           {/* RFC Remitente/Destinatario */}
           <div className="space-y-2">
@@ -377,7 +475,7 @@ export const ClientAddressForm = forwardRef<
               placeholder="RFC del remitente o destinatario"
               className="uppercase"
               maxLength={13}
-              disabled={disabled}
+              disabled={disabled || useClientFiscalData}
               {...register("rfcRemitenteDestinatario", {
                 onChange: (e) => {
                   e.target.value = e.target.value.toUpperCase();
@@ -397,7 +495,7 @@ export const ClientAddressForm = forwardRef<
             <Input
               id="nombreRemitenteDestinatario"
               placeholder="Nombre o razón social"
-              disabled={disabled}
+              disabled={disabled || useClientFiscalData}
               {...register("nombreRemitenteDestinatario")}
             />
           </div>

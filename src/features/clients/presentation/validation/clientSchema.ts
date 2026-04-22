@@ -16,13 +16,9 @@ import { z } from "zod";
 // ENUMS
 // ============================================================================
 
-export const clientTypeSchema = z.enum(["individual", "company"], {
-  required_error: "Seleccione el tipo de cliente",
-});
+export const clientTypeSchema = z.enum(["individual", "company"]);
 
-export const paymentTermsSchema = z.enum(["cash", "credit"], {
-  required_error: "Seleccione los términos de pago",
-});
+export const paymentTermsSchema = z.enum(["cash", "credit"]);
 
 // ============================================================================
 // CLIENT FORM SCHEMA (Paso 1 del Wizard)
@@ -121,8 +117,7 @@ export const clientFormSchema = z
     creditLimit: z
       .number()
       .min(0, "El límite de crédito no puede ser negativo")
-      .optional()
-      .or(z.literal(0)),
+      .optional(),
 
     // ═══════════════════════════════════════════════════════════════════════
     // NOTAS
@@ -189,7 +184,7 @@ export const defaultClientFormValues: ClientFormData = {
   billingEmail: "",
   paymentTerms: "cash",
   creditDays: 0,
-  creditLimit: 0,
+  creditLimit: undefined,
   notes: "",
 };
 
