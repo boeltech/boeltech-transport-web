@@ -325,6 +325,12 @@ export const router = createBrowserRouter([
                 path: "/trips/new",
                 element: withSuspense(TripFormPage),
               },
+            ],
+          },
+          // Trips - Finish / Edit (requiere permiso)
+          {
+            element: <PermissionRoute module="trips" action="update" />,
+            children: [
               {
                 path: "/trips/:id/finish",
                 element: withSuspense(FinishTripPage),
