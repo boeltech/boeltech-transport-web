@@ -124,6 +124,10 @@ In `src/app/providers/` — must always follow this exact order:
 6. `SidebarProvider`
 7. `LayoutShell`
 
+## Database Column Naming
+
+**All PostgreSQL column names must be English snake_case** — never Spanish, even for CFDI/SAT domain fields. Use `issuer_rfc` not `emisor_rfc`, `payment_form` not `forma_pago`, `issued_at` not `fecha_emision`, etc. SAT catalog *values* (`PUE`, `PPD`, `S01`, `MXN`) stay as-is — they are external identifiers. When a migration with Spanish names exists, create a new numbered migration with `RENAME COLUMN` — never edit past migrations.
+
 ## Critical Pitfalls
 
 **Timezone**: Always use ISO 8601 strings for dates — never convert to `new Date()` before sending to the API.
