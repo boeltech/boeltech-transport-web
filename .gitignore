@@ -29,5 +29,5 @@ dist-ssr
 .claude
 skills-lock.json
 
-# Local AI guidance file
-CLAUDE.md
+# Cursor IDE (plans, local state — do not version)
+.cursor/
