@@ -17,7 +17,7 @@
  * <Route path="configuracion/catalogos/*" element={<CatalogRoutes />} />
  *
  * // Componentes reutilizables
- * import { CatalogSelect, CatalogSearchInput, AddressFields } from "@modules/catalogs";
+ * import { CatalogSelect, CatalogSearchInput } from "@modules/catalogs";
  *
  * // Hooks
  * import { useCatalogOptions, useCatalogSearch } from "@modules/catalogs";
@@ -163,7 +163,6 @@ export {
   // Generic components
   CatalogSelect,
   CatalogSearchInput,
-  AddressFields,
 
   // Specialized Select components
   EstadoSelect,
@@ -188,5 +187,4 @@ export {
 export type {
   CatalogSelectProps,
   CatalogSearchInputProps,
-  AddressFieldsProps,
 } from "./presentation/components";

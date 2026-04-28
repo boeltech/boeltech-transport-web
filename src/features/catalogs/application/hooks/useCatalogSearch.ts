@@ -177,15 +177,15 @@ export function useCatalogSearch(
  */
 export function useCatalogItem(
   typeCode: CatalogTypeCodeValue,
-  code: string | undefined,
+  code: string | undefined | null,
 ) {
   return useQuery({
-    queryKey: ["catalog-item", typeCode, code],
+    queryKey: ["catalog-item", typeCode, code ?? ""],
     queryFn: async (): Promise<CatalogItem | null> => {
-      if (!code) return null;
+      if (code == null || code === "") return null;
       return catalogRepository.findByCode(typeCode, code);
     },
-    enabled: !!code,
+    enabled: code != null && code !== "",
     staleTime: 10 * 60_000, // 10 minutos
     gcTime: 60 * 60_000, // 1 hora
   });

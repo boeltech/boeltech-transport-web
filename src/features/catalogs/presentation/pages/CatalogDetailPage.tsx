@@ -679,3 +679,5 @@ function CatalogDetailSkeleton() {
     </div>
   );
 }
+
+export default CatalogDetailPage;

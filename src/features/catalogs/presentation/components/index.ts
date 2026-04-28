@@ -12,14 +12,6 @@ export { CatalogImportWizard } from "./CatalogImportWizard";
 export type { CatalogImportWizardProps } from "./CatalogImportWizard";
 
 export {
-  AddressFields,
-  type AddressFieldsProps,
-  type SatAddressValues,
-  type AddressFieldsErrors,
-  type AddressFieldsRequired,
-} from "./AddressFields";
-
-export {
   type CatalogSearchInputProps,
   type ColoniaSearchProps,
   type LocalidadSearchProps,

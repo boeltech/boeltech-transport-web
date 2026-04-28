@@ -368,3 +368,5 @@ function formatNumber(num: number): string {
   }
   return num.toLocaleString("es-MX");
 }
+
+export default CatalogsPage;

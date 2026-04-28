@@ -132,7 +132,7 @@ export function CatalogSearchInput({
   // Cargar item seleccionado (para mostrar nombre)
   const { data: selectedItem, isLoading: isLoadingSelected } = useCatalogItem(
     typeCode,
-    value,
+    value ?? undefined,
   );
 
   // ══════════════════════════════════════════════════════════════════════════
