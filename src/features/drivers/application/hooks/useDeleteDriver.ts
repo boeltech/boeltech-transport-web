@@ -58,7 +58,7 @@ export function useDeleteDriver(
       }
       return result.data;
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       // Invalidar detalle del conductor eliminado
       queryClient.invalidateQueries({
         queryKey: driverQueryKeys.detail(variables),
@@ -68,7 +68,7 @@ export function useDeleteDriver(
       // Invalidar lista de disponibles
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
       // Llamar callback personalizado
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     ...options,
   });

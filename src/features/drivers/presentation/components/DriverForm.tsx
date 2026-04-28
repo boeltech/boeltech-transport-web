@@ -14,7 +14,7 @@
  * - Notas
  */
 
-import { useEffect } from "react";
+import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
@@ -29,13 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
+import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
   Loader2,
@@ -48,12 +42,15 @@ import {
   FileText,
   Info,
   ExternalLink,
+  ClipboardCheck,
 } from "lucide-react";
 
+import { cn } from "@shared/lib/utils/cn";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
 import {
   driverSchema,
+  DRIVER_CREATE_WIZARD_STEP_FIELDS,
   type DriverFormData,
   defaultDriverFormValues,
   LICENSE_TYPES,
@@ -66,6 +63,11 @@ import {
 // Types
 // ============================================================================
 
+export type DriverFormRef = {
+  triggerStepValidation: (stepIndex: number) => Promise<boolean>;
+  requestSubmit: () => void;
+};
+
 interface DriverFormProps {
   /** Driver existente para edición (undefined para creación) */
   driver?: Driver;
@@ -77,6 +79,9 @@ interface DriverFormProps {
   isSubmitting?: boolean;
   /** Modo del formulario */
   mode: "create" | "edit";
+  /** Wizard de alta (solo creación) */
+  wizardMode?: boolean;
+  wizardStepIndex?: number;
 }
 
 // ============================================================================
@@ -114,28 +119,84 @@ function FormField({
   );
 }
 
+function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData }) {
+  const v = getValues();
+  const licenseLabel =
+    LICENSE_TYPES.find((t) => t.value === v.licenseType)?.label ?? v.licenseType;
+  return (
+    <FormSectionCard
+      title="Revisión"
+      icon={<ClipboardCheck className="h-4 w-4" />}
+      description="Confirma los datos antes de registrar al conductor"
+      contentClassName="space-y-3 text-sm"
+    >
+        <div>
+          <p className="text-muted-foreground">Empleado (ID)</p>
+          <p className="font-mono text-xs font-medium">{v.employeeId || "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Licencia</p>
+          <p className="font-medium">
+            {v.licenseNumber} · {licenseLabel}
+          </p>
+          <p className="text-muted-foreground">Vence: {v.licenseExpiry || "—"}</p>
+        </div>
+    </FormSectionCard>
+  );
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
 
-export function DriverForm({
-  driver,
-  onSubmit,
-  onCancel,
-  isSubmitting = false,
-  mode,
-}: DriverFormProps) {
+export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
+  function DriverForm(
+    {
+      driver,
+      onSubmit,
+      onCancel,
+      isSubmitting = false,
+      mode,
+      wizardMode = false,
+      wizardStepIndex = 0,
+    },
+    ref,
+  ) {
+  const wizardActive = Boolean(wizardMode && mode === "create");
+  const ws = wizardStepIndex;
+
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    getValues,
+    trigger,
     formState: { errors, isDirty },
     reset,
   } = useForm<DriverFormData>({
     resolver: zodResolver(driverSchema),
     defaultValues: defaultDriverFormValues,
   });
+
+  const handleFormSubmit = (data: DriverFormData) => {
+    onSubmit(data);
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      triggerStepValidation: async (stepIndex: number) => {
+        const fields = DRIVER_CREATE_WIZARD_STEP_FIELDS[stepIndex];
+        if (!fields?.length) return true;
+        return trigger(fields);
+      },
+      requestSubmit: () => {
+        void handleSubmit(handleFormSubmit)();
+      },
+    }),
+    [trigger, handleSubmit],
+  );
 
   // Watch values for controlled components
   const watchedEmployeeId = watch("employeeId");
@@ -189,10 +250,6 @@ export function DriverForm({
     }
   }, [driver, mode, reset]);
 
-  const handleFormSubmit = (data: DriverFormData) => {
-    onSubmit(data);
-  };
-
   // Handler para Select que maneja el valor vacío
   const handleSelectChange = (field: keyof DriverFormData, value: string) => {
     setValue(field, value as any, { shouldValidate: true, shouldDirty: true });
@@ -200,6 +257,10 @@ export function DriverForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <div
+        className={cn("space-y-6", wizardActive && ws !== 0 && "hidden")}
+        data-wizard-panel="0"
+      >
       {/* ================================================================== */}
       {/* INFO BANNER - Solo en modo crear                                   */}
       {/* ================================================================== */}
@@ -222,16 +283,11 @@ export function DriverForm({
       {/* ================================================================== */}
       {/* SECCIÓN: EMPLEADO                                                  */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <User className="h-5 w-5" /> Empleado
-          </CardTitle>
-          <CardDescription>
-            Seleccione el empleado que será registrado como conductor
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <FormSectionCard
+        title="Empleado"
+        icon={<User className="h-4 w-4" />}
+        description="Seleccione el empleado que será registrado como conductor"
+      >
           <EmployeeSelector
             value={watchedEmployeeId || ""}
             onChange={(value) =>
@@ -240,22 +296,22 @@ export function DriverForm({
             error={errors.employeeId?.message}
             disabled={mode === "edit"}
           />
-        </CardContent>
-      </Card>
+      </FormSectionCard>
+      </div>
 
+      <div
+        className={cn("space-y-6", wizardActive && ws !== 1 && "hidden")}
+        data-wizard-panel="1"
+      >
       {/* ================================================================== */}
       {/* SECCIÓN: LICENCIA                                                  */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <CreditCard className="h-5 w-5" /> Licencia de Conducir
-          </CardTitle>
-          <CardDescription>
-            Información de la licencia federal de conducir
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSectionCard
+        title="Licencia de Conducir"
+        icon={<CreditCard className="h-4 w-4" />}
+        description="Información de la licencia federal de conducir"
+        contentClassName="space-y-4"
+      >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Número de licencia */}
             <FormField
@@ -344,22 +400,17 @@ export function DriverForm({
               </Select>
             </FormField>
           </div>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
 
       {/* ================================================================== */}
       {/* SECCIÓN: CERTIFICADO MÉDICO                                        */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Stethoscope className="h-5 w-5" /> Certificado Médico
-          </CardTitle>
-          <CardDescription>
-            Certificado de aptitud médica para conducir
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSectionCard
+        title="Certificado Médico"
+        icon={<Stethoscope className="h-4 w-4" />}
+        description="Certificado de aptitud médica para conducir"
+        contentClassName="space-y-4"
+      >
           <div className="grid gap-4 md:grid-cols-3">
             {/* Número de certificado */}
             <FormField
@@ -400,22 +451,22 @@ export function DriverForm({
               />
             </FormField>
           </div>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
+      </div>
 
+      <div
+        className={cn("space-y-6", wizardActive && ws !== 2 && "hidden")}
+        data-wizard-panel="2"
+      >
       {/* ================================================================== */}
       {/* SECCIÓN: EXAMEN PSICOMÉTRICO                                       */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-5 w-5" /> Examen Psicométrico
-          </CardTitle>
-          <CardDescription>
-            Evaluación psicológica y de aptitudes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSectionCard
+        title="Examen Psicométrico"
+        icon={<Brain className="h-4 w-4" />}
+        description="Evaluación psicológica y de aptitudes"
+        contentClassName="space-y-4"
+      >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Fecha del examen */}
             <FormField
@@ -457,22 +508,17 @@ export function DriverForm({
               </Select>
             </FormField>
           </div>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
 
       {/* ================================================================== */}
       {/* SECCIÓN: EXAMEN ANTIDOPING                                         */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FlaskConical className="h-5 w-5" /> Examen Antidoping
-          </CardTitle>
-          <CardDescription>
-            Prueba de detección de sustancias prohibidas
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSectionCard
+        title="Examen Antidoping"
+        icon={<FlaskConical className="h-4 w-4" />}
+        description="Prueba de detección de sustancias prohibidas"
+        contentClassName="space-y-4"
+      >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Fecha del examen */}
             <FormField
@@ -514,22 +560,16 @@ export function DriverForm({
               </Select>
             </FormField>
           </div>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
 
       {/* ================================================================== */}
       {/* SECCIÓN: DISPOSITIVO GPS/TELEMETRÍA                                */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Cpu className="h-5 w-5" /> Dispositivo GPS / Telemetría
-          </CardTitle>
-          <CardDescription>
-            Dispositivo de rastreo asignado al conductor
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <FormSectionCard
+        title="Dispositivo GPS / Telemetría"
+        icon={<Cpu className="h-4 w-4" />}
+        description="Dispositivo de rastreo asignado al conductor"
+      >
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               label="ID del dispositivo"
@@ -544,19 +584,15 @@ export function DriverForm({
               />
             </FormField>
           </div>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
 
       {/* ================================================================== */}
       {/* SECCIÓN: NOTAS                                                     */}
       {/* ================================================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5" /> Notas Adicionales
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <FormSectionCard
+        title="Notas Adicionales"
+        icon={<FileText className="h-4 w-4" />}
+      >
           <FormField
             label="Notas"
             htmlFor="notes"
@@ -570,31 +606,43 @@ export function DriverForm({
               rows={4}
             />
           </FormField>
-        </CardContent>
-      </Card>
+      </FormSectionCard>
+      </div>
+
+      <div
+        className={cn(!wizardActive || ws !== 3 ? "hidden" : undefined)}
+        data-wizard-panel="3"
+      >
+        <DriverReviewSummary getValues={getValues} />
+      </div>
 
       {/* ================================================================== */}
       {/* ACCIONES                                                           */}
       {/* ================================================================== */}
-      <div className="flex items-center justify-end gap-4 border-t pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          disabled={isSubmitting || (!isDirty && mode === "edit")}
-        >
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {mode === "create" ? "Registrar Conductor" : "Guardar Cambios"}
-        </Button>
-      </div>
+      {!wizardActive && (
+        <div className="flex items-center justify-end gap-4 border-t pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting || (!isDirty && mode === "edit")}
+          >
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mode === "create" ? "Registrar Conductor" : "Guardar Cambios"}
+          </Button>
+        </div>
+      )}
     </form>
   );
-}
+  },
+);
+
+DriverForm.displayName = "DriverForm";
 
 export default DriverForm;

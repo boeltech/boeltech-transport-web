@@ -71,8 +71,9 @@ export function useDriverTripsInfinite(
   return useInfiniteQuery({
     queryKey: driverQueryKeys.trips(driverId),
     queryFn: async ({ pageParam }) => {
+      const page = typeof pageParam === "number" ? pageParam : 1;
       const result = await getDriverTripsUseCase.execute(driverId, {
-        page: pageParam,
+        page,
         limit,
       });
 

@@ -7,9 +7,20 @@
  * Ubicación: src/features/vehicles/presentation/components/VehicleForm.tsx
  */
 
-import { useForm } from "react-hook-form";
+import { forwardRef, useImperativeHandle } from "react";
+import { useForm, useFormContext, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save, Loader2, Info } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  Info,
+  Truck,
+  Settings,
+  Gauge,
+  ShieldCheck,
+  FileText,
+  ClipboardCheck,
+} from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -29,16 +40,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
+import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 
-import { createVehicleSchema, type CreateVehicleFormData } from "../validation";
+import {
+  createVehicleSchema,
+  VEHICLE_CREATE_WIZARD_STEP_FIELDS,
+  type CreateVehicleFormData,
+} from "../validation";
 import {
   VEHICLE_TYPE_LABELS,
   VehicleType,
@@ -50,10 +59,16 @@ import {
   TipoPermisoSelect,
   ConfigAutotransporteSelect,
 } from "@features/catalogs";
+import { cn } from "@shared/lib/utils/cn";
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export type VehicleFormRef = {
+  triggerStepValidation: (stepIndex: number) => Promise<boolean>;
+  requestSubmit: () => void;
+};
 
 interface VehicleFormProps {
   /** Vehículo existente (para modo edición) */
@@ -62,6 +77,10 @@ interface VehicleFormProps {
   onSubmit: (data: CreateVehicleFormData) => void;
   /** Estado de carga del submit */
   isSubmitting?: boolean;
+  /** Wizard de alta (solo creación); mantiene campos montados con `hidden` */
+  wizardMode?: boolean;
+  /** Índice de paso visible (0–3). El 3 es revisión. */
+  wizardStepIndex?: number;
 }
 
 // ============================================================================
@@ -119,6 +138,47 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
 // DEFAULT VALUES
 // ============================================================================
 
+function VehicleCreateWizardSummary() {
+  const form = useFormContext<CreateVehicleFormData>();
+  const v = form.getValues();
+  return (
+    <FormSectionCard
+      title="Revisión"
+      icon={<ClipboardCheck className="h-4 w-4" />}
+      description="Confirma los datos antes de registrar el vehículo en la flota"
+      contentClassName="grid gap-4 text-sm sm:grid-cols-2"
+    >
+        <div>
+          <p className="text-muted-foreground">Número de unidad</p>
+          <p className="font-medium">{v.unitNumber || "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Placa</p>
+          <p className="font-medium">{v.licensePlate || "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Marca / Modelo / Año</p>
+          <p className="font-medium">
+            {[v.brand, v.model, v.year].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Tipo</p>
+          <p className="font-medium">
+            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleType] : "—"}
+          </p>
+        </div>
+        <div className="sm:col-span-2">
+          <p className="text-muted-foreground">Permiso SCT / Número</p>
+          <p className="font-medium">
+            {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
+              "—"}
+          </p>
+        </div>
+    </FormSectionCard>
+  );
+}
+
 const defaultValues: CreateVehicleFormData = {
   unitNumber: "",
   licensePlate: "",
@@ -152,36 +212,64 @@ const defaultValues: CreateVehicleFormData = {
 // COMPONENT
 // ============================================================================
 
-export function VehicleForm({
-  vehicle,
-  onSubmit,
-  isSubmitting = false,
-}: VehicleFormProps) {
-  const isEditMode = !!vehicle;
+export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
+  function VehicleForm(
+    {
+      vehicle,
+      onSubmit,
+      isSubmitting = false,
+      wizardMode = false,
+      wizardStepIndex = 0,
+    },
+    ref,
+  ) {
+    const isEditMode = !!vehicle;
+    const wizardActive = Boolean(wizardMode && !isEditMode);
+    const ws = wizardStepIndex;
 
-  const form = useForm<CreateVehicleFormData>({
-    resolver: zodResolver(createVehicleSchema),
-    defaultValues: vehicle ? formDataFromVehicle(vehicle) : defaultValues,
-  });
+    const form = useForm<CreateVehicleFormData, unknown, CreateVehicleFormData>({
+      resolver: zodResolver(createVehicleSchema) as Resolver<CreateVehicleFormData>,
+      defaultValues: vehicle ? formDataFromVehicle(vehicle) : defaultValues,
+    });
 
-  const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
-  });
+    const handleSubmit = form.handleSubmit((data) => {
+      onSubmit(data);
+    });
 
-  return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6">
+    useImperativeHandle(
+      ref,
+      () => ({
+        triggerStepValidation: async (stepIndex: number) => {
+          const fields = VEHICLE_CREATE_WIZARD_STEP_FIELDS[stepIndex];
+          if (!fields?.length) return true;
+          return form.trigger(fields);
+        },
+        requestSubmit: () => {
+          void form.handleSubmit(onSubmit)();
+        },
+      }),
+      [form, onSubmit],
+    );
+
+    return (
+      <Form {...form}>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div
+            className={cn(
+              "space-y-6",
+              wizardActive && ws !== 0 && "hidden",
+            )}
+            data-wizard-panel="0"
+          >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* IDENTIFICACIÓN */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Identificación</CardTitle>
-            <CardDescription>
-              Datos básicos de identificación del vehículo
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <FormSectionCard
+          title="Identificación"
+          icon={<Truck className="h-4 w-4" />}
+          description="Datos básicos de identificación del vehículo"
+          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
             {/* Número de Unidad */}
             <FormField
               control={form.control}
@@ -233,18 +321,17 @@ export function VehicleForm({
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
+        </FormSectionCard>
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CARACTERÍSTICAS */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Características</CardTitle>
-            <CardDescription>Especificaciones del vehículo</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FormSectionCard
+          title="Características"
+          icon={<Settings className="h-4 w-4" />}
+          description="Especificaciones del vehículo"
+          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        >
             {/* Marca */}
             <FormField
               control={form.control}
@@ -319,7 +406,7 @@ export function VehicleForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(VehicleType).map(([key, value]) => (
+                      {Object.entries(VehicleType).map(([, value]) => (
                         <SelectItem key={value} value={value}>
                           {VEHICLE_TYPE_LABELS[value]}
                         </SelectItem>
@@ -374,20 +461,25 @@ export function VehicleForm({
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
+        </FormSectionCard>
+          </div>
 
+          <div
+            className={cn(
+              "space-y-6",
+              wizardActive && ws !== 1 && "hidden",
+            )}
+            data-wizard-panel="1"
+          >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CAPACIDADES */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Capacidades</CardTitle>
-            <CardDescription>
-              Capacidad de carga y consumo de combustible
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FormSectionCard
+          title="Capacidades"
+          icon={<Gauge className="h-4 w-4" />}
+          description="Capacidad de carga y consumo de combustible"
+          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        >
             {/* Capacidad de Carga */}
             <FormField
               control={form.control}
@@ -495,21 +587,17 @@ export function VehicleForm({
                 </FormItem>
               )}
             />
-          </CardContent>
-        </Card>
+        </FormSectionCard>
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* DOCUMENTACIÓN Y SEGUROS */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Documentación y Seguros</CardTitle>
-            <CardDescription>
-              Póliza de responsabilidad civil y permiso SCT — requeridos para
-              emitir Carta Porte
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <FormSectionCard
+          title="Documentación y Seguros"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          description="Póliza de responsabilidad civil y permiso SCT — requeridos para emitir Carta Porte"
+          contentClassName="space-y-4"
+        >
             {/* Seguro Responsabilidad Civil */}
             <div className="grid gap-4 sm:grid-cols-3">
               {/* AseguraRespCivil */}
@@ -632,26 +720,32 @@ export function VehicleForm({
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+        </FormSectionCard>
+          </div>
 
+          <div
+            className={cn(
+              "space-y-6",
+              wizardActive && ws !== 2 && "hidden",
+            )}
+            data-wizard-panel="2"
+          >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CARTA PORTE 3.1 — AUTOTRANSPORTE */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <FormSectionCard
+          title={
+            <>
               Carta Porte 3.1 — Autotransporte
               <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
                 SAT
               </span>
-            </CardTitle>
-            <CardDescription>
-              Datos del nodo Autotransporte requeridos para el complemento Carta
-              Porte del CFDI
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            </>
+          }
+          icon={<FileText className="h-4 w-4" />}
+          description="Datos del nodo Autotransporte requeridos para el complemento Carta Porte del CFDI"
+          contentClassName="space-y-6"
+        >
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
@@ -837,28 +931,42 @@ export function VehicleForm({
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </FormSectionCard>
+          </div>
+
+          <div
+            className={cn(!wizardActive || ws !== 3 ? "hidden" : undefined)}
+            data-wizard-panel="3"
+          >
+            <VehicleCreateWizardSummary />
+          </div>
 
         {/* ════════════════════════════════════════════════════════════════ */}
-        {/* SUBMIT */}
+        {/* SUBMIT (solo edición o formulario completo sin wizard) */}
         {/* ════════════════════════════════════════════════════════════════ */}
-        <div className="flex justify-end gap-4">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                {isEditMode ? "Guardar Cambios" : "Crear Vehículo"}
-              </>
-            )}
-          </Button>
-        </div>
+        {!wizardActive && (
+          <div className="flex justify-end gap-4">
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isEditMode ? "Guardar Cambios" : "Crear Vehículo"}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );
-}
+  },
+);
+
+VehicleForm.displayName = "VehicleForm";
+
+export default VehicleForm;

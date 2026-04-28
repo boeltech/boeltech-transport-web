@@ -100,7 +100,7 @@ export const createVehicleSchema = z.object({
 
   // Mileage
   currentMileage: z
-    .number({ required_error: "El kilometraje actual es requerido" })
+    .number({ message: "El kilometraje actual es requerido" })
     .int("Debe ser un número entero")
     .nonnegative("No puede ser negativo"),
 
@@ -124,7 +124,7 @@ export const createVehicleSchema = z.object({
     .optional()
     .or(z.literal("")),
   pesoBrutoVehicular: z
-    .number({ invalid_type_error: "Debe ser un número" })
+    .number({ message: "Debe ser un número" })
     .positive("Debe ser mayor a 0")
     .max(9999.999, "Máximo 9999.999 toneladas")
     .optional(),
@@ -187,7 +187,7 @@ export const updateVehicleSchema = z.object({
 
   // Mileage
   currentMileage: z
-    .number({ required_error: "El kilometraje actual es requerido" })
+    .number({ message: "El kilometraje actual es requerido" })
     .int("Debe ser un número entero")
     .nonnegative("No puede ser negativo"),
 
@@ -218,3 +218,40 @@ export const updateVehicleSchema = z.object({
 
 export type CreateVehicleFormData = z.infer<typeof createVehicleSchema>;
 export type UpdateVehicleFormData = z.infer<typeof updateVehicleSchema>;
+
+/** Campos por paso del wizard de alta (índices 0–2); el paso 3 es solo revisión. */
+export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: [
+  keyof CreateVehicleFormData,
+][][] = [
+  [
+    "unitNumber",
+    "licensePlate",
+    "vin",
+    "brand",
+    "model",
+    "year",
+    "type",
+    "color",
+    "currentMileage",
+  ],
+  [
+    "loadCapacity",
+    "volumeCapacity",
+    "fuelTankCapacity",
+    "expectedFuelEfficiency",
+    "insuranceCompany",
+    "insurancePolicy",
+    "insuranceExpiry",
+    "satTipoPermisoCode",
+    "sctPermitNumber",
+    "sctPermitExpiry",
+  ],
+  [
+    "satConfigAutotransporteCode",
+    "pesoBrutoVehicular",
+    "aseguraMedioAmbiente",
+    "polizaMedioAmbiente",
+    "aseguraCarga",
+    "polizaCarga",
+  ],
+];

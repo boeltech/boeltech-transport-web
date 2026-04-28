@@ -78,7 +78,13 @@ export const useVehicle = (
 ) => {
   return useQuery({
     queryKey: vehicleQueryKeys.detail(id),
-    queryFn: () => vehiclesApi.getById(id),
+    queryFn: async () => {
+      const result = await vehiclesApi.getById(id);
+      if (!result.data) {
+        throw new Error(result.message ?? "No se encontró el vehículo");
+      }
+      return result.data;
+    },
     enabled: !!id && (options?.enabled ?? true),
     staleTime: 30_000,
     ...options,

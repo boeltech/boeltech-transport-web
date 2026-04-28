@@ -18,4 +18,4 @@ export { DriverCardSkeleton } from "./DriverCardSkeleton";
 export { DriverActions } from "./DriverActions";
 
 // Form Components
-export { DriverForm } from "./DriverForm";
+export { DriverForm, type DriverFormRef } from "./DriverForm";

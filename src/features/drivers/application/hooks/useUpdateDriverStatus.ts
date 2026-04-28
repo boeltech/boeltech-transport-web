@@ -72,7 +72,7 @@ export function useUpdateDriverStatus(
       }
       return result.data;
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       // Invalidar detalle del conductor
       queryClient.invalidateQueries({
         queryKey: driverQueryKeys.detail(variables.id),
@@ -82,7 +82,7 @@ export function useUpdateDriverStatus(
       // Invalidar lista de disponibles (el estado afecta disponibilidad)
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
       // Llamar callback personalizado
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     ...options,
   });

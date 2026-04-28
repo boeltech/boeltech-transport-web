@@ -63,11 +63,11 @@ function formatNumber(num: number | null): string {
 
 function getExpirationVariant(
   date: string | null,
-): "destructive" | "warning" | "secondary" | "default" {
+): "destructive" | "outline" | "secondary" | "default" {
   const days = getDaysUntilDateString(date);
   if (days === null) return "secondary";
   if (days <= 0) return "destructive";
-  if (days <= 30) return "warning";
+  if (days <= 30) return "outline";
   if (days <= 90) return "secondary";
   return "default";
 }
@@ -168,7 +168,14 @@ function DocumentRow({
           {formatDate(expirationDate)}
         </p>
         {expirationDate && (
-          <Badge variant={variant} className="text-xs">
+          <Badge
+            variant={variant}
+            className={cn(
+              "text-xs",
+              variant === "outline" &&
+                "border-amber-500 text-amber-800 dark:text-amber-200",
+            )}
+          >
             {expired
               ? "Vencido"
               : expiringSoon
@@ -201,7 +208,7 @@ export function VehicleDetailPage() {
     refetch: refetchVehicle,
   } = useVehicle(vehicleId);
 
-  const vehicle = vehicleResponse?.data;
+  const vehicle = vehicleResponse;
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE

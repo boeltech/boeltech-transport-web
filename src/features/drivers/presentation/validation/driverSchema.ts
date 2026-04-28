@@ -99,7 +99,7 @@ export const driverSchema = z.object({
     .max(30, "El número de licencia es muy largo"),
 
   licenseType: z.enum(["A", "B", "C", "D", "E", "F"], {
-    required_error: "El tipo de licencia es requerido",
+    message: "El tipo de licencia es requerido",
   }),
 
   licenseExpiry: z.string().min(1, "La fecha de vencimiento es requerida"),
@@ -157,6 +157,28 @@ export const driverSchema = z.object({
 // ============================================================================
 
 export type DriverFormData = z.infer<typeof driverSchema>;
+
+/** Campos por paso del wizard de alta (0–2); el paso 3 es revisión. */
+export const DRIVER_CREATE_WIZARD_STEP_FIELDS: [keyof DriverFormData][][] = [
+  ["employeeId"],
+  [
+    "licenseNumber",
+    "licenseType",
+    "licenseExpiry",
+    "licenseState",
+    "medicalCertificateNumber",
+    "medicalCertificateExpiry",
+    "medicalCertificateIssuer",
+  ],
+  [
+    "psychometricTestDate",
+    "psychometricTestResult",
+    "lastDrugTestDate",
+    "drugTestResult",
+    "assignedDeviceId",
+    "notes",
+  ],
+];
 
 // ============================================================================
 // Default Values

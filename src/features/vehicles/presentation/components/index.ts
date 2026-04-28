@@ -20,4 +20,4 @@ export { VehicleActions } from "./VehicleActions";
 // Filters (si existe)
 // export { VehicleFilters } from "./VehicleFilters";
 export { VehicleFilters } from "./VehicleFilters";
-export { VehicleForm } from "./VehicleForm";
+export { VehicleForm, type VehicleFormRef } from "./VehicleForm";

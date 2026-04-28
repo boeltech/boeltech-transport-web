@@ -88,7 +88,7 @@ export class UpdateDriverUseCase {
    * Valida los datos antes de actualizar
    */
   private async validate(
-    id: string,
+    _id: string,
     data: UpdateDriverDTO,
     existingDriver: Driver,
   ): Promise<UseCaseResult<Driver>> {

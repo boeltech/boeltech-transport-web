@@ -11,8 +11,15 @@
 import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
+import { useDebouncedSearchParam } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
+import {
+  ActiveFilterChips,
+  ListingPagination,
+  ListingResultsSummary,
+  ListingSearchInput,
+  ViewModeToggle,
+} from "@shared/ui/listing";
 import {
   Select,
   SelectContent,
@@ -24,20 +31,13 @@ import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
   Plus,
-  LayoutGrid,
-  LayoutList,
   Search,
   RefreshCw,
-  X,
   AlertTriangle,
 } from "lucide-react";
 
 // Feature imports
-import {
-  useDrivers,
-  useDeleteDriver,
-  useUpdateDriverStatus,
-} from "../../application";
+import { useDrivers, useDeleteDriver } from "../../application";
 import {
   DriverStatus,
   type DriverStatusType,
@@ -45,7 +45,6 @@ import {
 } from "../../domain";
 import { DriverTable, DriverCard, DriverCardSkeleton } from "../components";
 // import { DRIVER_STATUS_CONFIG } from "../config";
-import { generatePageNumbers } from "@shared/lib/utils/generatePageNumbers";
 import { DRIVER_STATUS_CONFIG } from "../index";
 
 // ============================================================================
@@ -70,6 +69,10 @@ export function DriversListPage() {
   const status = searchParams.get("status") as DriverStatusType | null;
   const search = searchParams.get("search") || "";
   const licenseExpiring = searchParams.get("licenseExpiring") === "true";
+  const { searchInput, setSearchInput } = useDebouncedSearchParam(
+    search,
+    setSearchParams,
+  );
 
   // Fetch drivers
   const { data, isLoading, isFetching, refetch } = useDrivers({
@@ -92,20 +95,6 @@ export function DriversListPage() {
     onError: (error) => {
       toast({
         title: "Error al eliminar",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateStatusMutation = useUpdateDriverStatus({
-    onSuccess: () => {
-      toast({ title: "Estado actualizado", variant: "success" });
-      refetch();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al actualizar estado",
         description: error.message,
         variant: "destructive",
       });
@@ -144,24 +133,11 @@ export function DriversListPage() {
     [deleteMutation],
   );
 
-  const handleChangeStatus = useCallback(
-    (id: string, newStatus: DriverStatusType) => {
-      updateStatusMutation.mutate({ id, data: { status: newStatus } });
-    },
-    [updateStatusMutation],
-  );
-
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (value) params.set("search", value);
-        else params.delete("search");
-        params.set("page", "1");
-        return params;
-      });
+      setSearchInput(value);
     },
-    [setSearchParams],
+    [setSearchInput],
   );
 
   const handleStatusChange = useCallback(
@@ -225,15 +201,11 @@ export function DriversListPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar conductor..."
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-8"
-            />
-          </div>
+          <ListingSearchInput
+            placeholder="Buscar conductor..."
+            value={searchInput}
+            onChange={handleSearchChange}
+          />
 
           {/* Status Filter */}
           <Select value={status || "all"} onValueChange={handleStatusChange}>
@@ -287,84 +259,51 @@ export function DriversListPage() {
           </Button>
 
           {/* View Toggle */}
-          <div className="flex border rounded-md ml-auto">
-            <Button
-              variant={viewMode === "table" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => setViewMode("table")}
-              title="Vista de tabla"
-            >
-              <LayoutList className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "cards" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => setViewMode("cards")}
-              title="Vista de tarjetas"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-          </div>
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
         </div>
 
         {/* Active filters summary */}
-        {hasFilters && (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Filtros activos:</span>
-            {search && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Búsqueda: "{search}"
-                <button
-                  onClick={() => handleSearchChange("")}
-                  className="hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {status && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                Estado: {DRIVER_STATUS_CONFIG[status]?.label || status}
-                <button
-                  onClick={() => handleStatusChange("all")}
-                  className="hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {licenseExpiring && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 rounded-md">
-                Licencias por vencer
-                <button
-                  onClick={handleLicenseExpiringToggle}
-                  className="hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-          </div>
-        )}
+        <ActiveFilterChips
+          chips={[
+            ...(search
+              ? [
+                  {
+                    id: "search",
+                    label: `Búsqueda: "${search}"`,
+                    onRemove: () => handleSearchChange(""),
+                  },
+                ]
+              : []),
+            ...(status
+              ? [
+                  {
+                    id: "status",
+                    label: `Estado: ${DRIVER_STATUS_CONFIG[status]?.label || status}`,
+                    onRemove: () => handleStatusChange("all"),
+                  },
+                ]
+              : []),
+            ...(licenseExpiring
+              ? [
+                  {
+                    id: "licenseExpiring",
+                    label: "Licencias por vencer",
+                    onRemove: handleLicenseExpiringToggle,
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       {/* Results Summary */}
       {pagination && (
-        <div className="text-sm text-muted-foreground">
-          {pagination.total === 0 ? (
-            "No se encontraron conductores"
-          ) : (
-            <>
-              Mostrando{" "}
-              <span className="font-medium">
-                {(page - 1) * pagination.limit + 1}-
-                {Math.min(page * pagination.limit, pagination.total)}
-              </span>{" "}
-              de <span className="font-medium">{pagination.total}</span>{" "}
-              conductores
-            </>
-          )}
-        </div>
+        <ListingResultsSummary
+          entityLabelPlural="conductores"
+          total={pagination.total}
+          page={page}
+          limit={pagination.limit}
+        />
       )}
 
       {/* Content */}
@@ -422,76 +361,12 @@ export function DriversListPage() {
       )}
 
       {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
-          <p className="text-sm text-muted-foreground">
-            Página {page} de {pagination.totalPages}
-          </p>
-
-          <div className="flex items-center gap-2">
-            {/* First page */}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => handlePageChange(1)}
-            >
-              Primera
-            </Button>
-
-            {/* Previous */}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => handlePageChange(page - 1)}
-            >
-              Anterior
-            </Button>
-
-            {/* Page numbers */}
-            <div className="hidden sm:flex items-center gap-1">
-              {generatePageNumbers(page, pagination.totalPages).map(
-                (pageNum, idx) =>
-                  pageNum === "..." ? (
-                    <span key={`ellipsis-${idx}`} className="px-2">
-                      ...
-                    </span>
-                  ) : (
-                    <Button
-                      key={pageNum}
-                      variant={page === pageNum ? "default" : "outline"}
-                      size="sm"
-                      className="w-9"
-                      onClick={() => handlePageChange(pageNum as number)}
-                    >
-                      {pageNum}
-                    </Button>
-                  ),
-              )}
-            </div>
-
-            {/* Next */}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => handlePageChange(page + 1)}
-            >
-              Siguiente
-            </Button>
-
-            {/* Last page */}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => handlePageChange(pagination.totalPages)}
-            >
-              Última
-            </Button>
-          </div>
-        </div>
+      {pagination && (
+        <ListingPagination
+          page={page}
+          totalPages={pagination.totalPages}
+          onPageChange={handlePageChange}
+        />
       )}
     </div>
   );

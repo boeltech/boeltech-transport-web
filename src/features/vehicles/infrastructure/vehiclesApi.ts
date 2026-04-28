@@ -14,11 +14,19 @@
 import {
   apiClient,
   mapActionResponse,
+  type ApiActionResponse,
+  type ApiPaginatedResponse,
+  type ApiSingleResponse,
   type MappedActionResult,
   type MappedPaginatedResult,
   type MappedSingleResult,
 } from "@shared/api";
-import { mapVehicleList, mapVehicleDetail } from "./mappers";
+import {
+  mapVehicleList,
+  mapVehicleDetail,
+  type ApiVehicleListItemResponse,
+  type ApiVehicleResponse,
+} from "./mappers";
 import type {
   Vehicle,
   VehicleListItem,
@@ -98,7 +106,9 @@ export const vehiclesApi = {
     const url = `${VEHICLE_ENDPOINT}${query ? `?${query}` : ""}`;
 
     const response = await apiClient.get(url);
-    return mapVehicleList(response);
+    return mapVehicleList(
+      response as unknown as ApiPaginatedResponse<ApiVehicleListItemResponse>,
+    );
   },
 
   /**
@@ -107,7 +117,7 @@ export const vehiclesApi = {
    */
   getById: async (id: string): Promise<MappedSingleResult<Vehicle>> => {
     const response = await apiClient.get(`${VEHICLE_ENDPOINT}/${id}`);
-    return mapVehicleDetail(response);
+    return mapVehicleDetail(response as unknown as ApiSingleResponse<ApiVehicleResponse>);
   },
 
   /**
@@ -140,7 +150,7 @@ export const vehiclesApi = {
     payload: UpdateVehiclePayload,
   ): Promise<MappedSingleResult<Vehicle>> => {
     const response = await apiClient.put(`${VEHICLE_ENDPOINT}/${id}`, payload);
-    return mapVehicleDetail(response);
+    return mapVehicleDetail(response as unknown as ApiSingleResponse<ApiVehicleResponse>);
   },
 
   /**
@@ -154,7 +164,7 @@ export const vehiclesApi = {
     const response = await apiClient.patch(`${VEHICLE_ENDPOINT}/${id}/status`, {
       status,
     });
-    return mapVehicleDetail(response);
+    return mapVehicleDetail(response as unknown as ApiSingleResponse<ApiVehicleResponse>);
   },
 
   /**
@@ -163,6 +173,6 @@ export const vehiclesApi = {
    */
   delete: async (id: string): Promise<MappedActionResult> => {
     const response = await apiClient.delete(`${VEHICLE_ENDPOINT}/${id}`);
-    return mapActionResponse(response);
+    return mapActionResponse(response as unknown as ApiActionResponse);
   },
 };

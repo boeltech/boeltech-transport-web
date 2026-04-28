@@ -113,8 +113,9 @@ export function getDriverStatusLabel(status: DriverStatusType): string {
  * Determina el color del badge de licencia según días restantes
  */
 export function getLicenseExpirationVariant(
-  daysRemaining: number,
+  daysRemaining: number | null,
 ): "destructive" | "warning" | "secondary" | "default" {
+  if (daysRemaining == null) return "default";
   if (daysRemaining <= 0) return "destructive";
   if (daysRemaining <= 30) return "warning";
   if (daysRemaining <= 90) return "secondary";

@@ -226,9 +226,20 @@ export function DriverDetailPage() {
   const licenseVariant = getLicenseExpirationVariant(
     daysUntilLicenseExpiration,
   );
-  const isLicenseExpired = daysUntilLicenseExpiration <= 0;
+  const licenseBadgeVariant =
+    licenseVariant === "warning"
+      ? "outline"
+      : licenseVariant === "destructive"
+        ? "destructive"
+        : licenseVariant === "secondary"
+          ? "secondary"
+          : "default";
+  const isLicenseExpired =
+    daysUntilLicenseExpiration !== null && daysUntilLicenseExpiration <= 0;
   const isLicenseExpiringSoon =
-    daysUntilLicenseExpiration > 0 && daysUntilLicenseExpiration <= 30;
+    daysUntilLicenseExpiration !== null &&
+    daysUntilLicenseExpiration > 0 &&
+    daysUntilLicenseExpiration <= 30;
 
   const daysUntilMedicalExpiration = getDaysUntilDateString(
     driver.medicalCertificateExpiry,
@@ -538,7 +549,14 @@ export function DriverDetailPage() {
                       >
                         {formatDate(driver.licenseExpiry)}
                       </span>
-                      <Badge variant={licenseVariant}>
+                      <Badge
+                        variant={licenseBadgeVariant}
+                        className={
+                          licenseVariant === "warning"
+                            ? "border-amber-500 text-amber-800 dark:text-amber-200"
+                            : undefined
+                        }
+                      >
                         {isLicenseExpired
                           ? "Vencida"
                           : isLicenseExpiringSoon

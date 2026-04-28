@@ -69,7 +69,7 @@ export function useUpdateDriver(
       }
       return result.data;
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       // Actualizar el cache del detalle directamente con los datos devueltos
       // Esto es inmediato y permite que la navegación sea instantánea
       queryClient.setQueryData(driverQueryKeys.detail(variables.id), data);
@@ -89,7 +89,7 @@ export function useUpdateDriver(
       });
 
       // Llamar callback personalizado inmediatamente
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     onError: options?.onError,
     onSettled: options?.onSettled,

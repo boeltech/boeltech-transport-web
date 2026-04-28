@@ -26,7 +26,7 @@ export function EditVehiclePage() {
   const { toast } = useToast();
   const { data, isLoading } = useVehicle(id!);
 
-  const vehicle = data?.data;
+  const vehicle = data;
 
   const updateVehicle = useUpdateVehicle({
     onSuccess: () => {
