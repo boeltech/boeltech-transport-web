@@ -111,13 +111,6 @@ export class AddCargoUseCase implements IAddCargoUseCase {
       };
     }
 
-    if (input.rate === undefined || input.rate < 0) {
-      return {
-        code: "INVALID_RATE",
-        message: "La tarifa debe ser un valor positivo",
-      };
-    }
-
     // Validar movimientos si se proporcionan
     if (input.movements && input.movements.length > 0) {
       const hasPickup = input.movements.some(

@@ -253,6 +253,7 @@ export interface CreateStopInput {
   // Orden y tipo
   sequenceOrder: number;
   stopType: StopTypeValue[];
+  addressId?: string;
 
   // Dirección simplificada
   address: string;
@@ -287,10 +288,15 @@ export interface CreateStopInput {
   reference?: string;
 
   // Claves SAT (catálogos oficiales)
-  satEstadoCode?: string; // c_Estado (ej: "MEX", "NLE")
-  satMunicipioCode?: string; // c_Municipio (ej: "028")
-  satLocalidadCode?: string; // c_Localidad
-  satColoniaCode?: string; // c_Colonia
+  satStateCode?: string; // c_Estado (ej: "MEX", "NLE")
+  satMunicipalityCode?: string; // c_Municipio (ej: "028")
+  satLocalityCode?: string; // c_Localidad
+  satNeighborhoodCode?: string; // c_Colonia
+  // Backward-compat aliases.
+  satEstadoCode?: string;
+  satMunicipioCode?: string;
+  satLocalidadCode?: string;
+  satColoniaCode?: string;
 
   // Datos del remitente/destinatario
   rfcRemitenteDestinatario?: string;
@@ -311,6 +317,7 @@ export interface UpdateStopInput {
   // Orden y tipo
   sequenceOrder?: number;
   stopType?: StopTypeValue[];
+  addressId?: string | null;
 
   // Dirección simplificada
   address?: string;
@@ -345,6 +352,11 @@ export interface UpdateStopInput {
   reference?: string | null;
 
   // Claves SAT
+  satStateCode?: string | null;
+  satMunicipalityCode?: string | null;
+  satLocalityCode?: string | null;
+  satNeighborhoodCode?: string | null;
+  // Backward-compat aliases.
   satEstadoCode?: string | null;
   satMunicipioCode?: string | null;
   satLocalidadCode?: string | null;

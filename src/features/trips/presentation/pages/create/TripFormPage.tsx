@@ -24,6 +24,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { WizardNavigationBar, WizardProgressCard, WizardSteps } from "@shared/ui/wizard";
 import { Form } from "@shared/ui/form";
 import { Skeleton } from "@shared/ui/skeleton";
 import { AlertWithIcon } from "@shared/ui/alert";
@@ -36,17 +37,16 @@ import {
   StopType,
   TripCreationError,
 } from "@/features/trips";
-import type { CreateStopInput, CurrencyType } from "@features/trips/domain";
+import type { CurrencyType } from "@features/trips/domain";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
-import { ArrowLeft, ArrowRight, RefreshCw, CheckCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, CheckCircle } from "lucide-react";
 
 // Wizard components
 import {
-  WizardSteps,
   tripWizardSchema,
   WIZARD_STEPS,
   defaultWizardFormValues,
@@ -56,6 +56,7 @@ import {
   CostsStep,
   SummaryStep,
   validateRouteStep,
+  stopHasUnifiedAddressId,
 } from "./components";
 import type { TripWizardFormValues } from "./components";
 import {
@@ -63,45 +64,14 @@ import {
   utcIsoToLocalInput,
 } from "@shared/utils/dateUtils";
 
+import {
+  buildLegacyAddress,
+  mapWizardStopsToCreateInput,
+} from "./wizardStopPayload";
+
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-/**
- * Construye una dirección legible a partir de campos SAT
- * Usado para campos legacy del viaje (originAddress, destinationAddress)
- */
-function buildLegacyAddress(stop: TripWizardFormValues["stops"][0]): {
-  address: string;
-  city: string;
-  state: string;
-} {
-  // Construir dirección a partir de campos desglosados
-  const addressParts: string[] = [];
-
-  if (stop.street) {
-    let streetLine = stop.street;
-    if (stop.exteriorNumber) {
-      streetLine += ` #${stop.exteriorNumber}`;
-    }
-    if (stop.interiorNumber) {
-      streetLine += `, Int. ${stop.interiorNumber}`;
-    }
-    addressParts.push(streetLine);
-  }
-
-  if (stop.postalCode) {
-    addressParts.push(`C.P. ${stop.postalCode}`);
-  }
-
-  return {
-    address:
-      addressParts.join(", ") ||
-      `Ubicación ${stop.satEstadoCode}-${stop.satMunicipioCode}`,
-    city: stop.cityName || stop.satMunicipioCode || "",
-    state: stop.satEstadoCode || "",
-  };
-}
 
 function getRouteValidationMessages(formValues: TripWizardFormValues): string[] {
   const messages: string[] = [];
@@ -109,9 +79,13 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
   formValues.stops.forEach((stop, index) => {
     const missing: string[] = [];
 
-    if (!stop.satEstadoCode) missing.push("estado SAT");
-    if (!stop.satMunicipioCode) missing.push("municipio SAT");
-    if (!stop.postalCode) missing.push("codigo postal");
+    if (!stopHasUnifiedAddressId(stop)) {
+      if (!stop.satEstadoCode?.trim()) missing.push("estado SAT");
+      if (!stop.satMunicipioCode?.trim()) missing.push("municipio SAT");
+      if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
+        missing.push("codigo postal");
+      }
+    }
 
     const isDestination = stop.stopType.includes("destination");
     if (isDestination && !stop.estimatedArrival) {
@@ -130,49 +104,6 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
   });
 
   return messages;
-}
-
-/**
- * Paradas del wizard → payload de API (incl. metadatos de cliente/dirección de catálogo).
- */
-function mapWizardStopsToCreateInput(
-  stops: TripWizardFormValues["stops"] | undefined,
-): CreateStopInput[] | undefined {
-  if (!stops?.length) return undefined;
-  return stops.map((stop) => {
-    const legacyAddr = buildLegacyAddress(stop);
-    return {
-      sequenceOrder: stop.sequenceOrder,
-      stopType: stop.stopType,
-      address: legacyAddr.address,
-      city: legacyAddr.city,
-      state: legacyAddr.state || undefined,
-      locationName: stop.locationName,
-      postalCode: stop.postalCode,
-      satEstadoCode: stop.satEstadoCode,
-      satMunicipioCode: stop.satMunicipioCode,
-      satLocalidadCode: stop.satLocalidadCode || undefined,
-      satColoniaCode: stop.satColoniaCode || undefined,
-      colonia: stop.colonia || undefined,
-      street: stop.street || undefined,
-      exteriorNumber: stop.exteriorNumber || undefined,
-      interiorNumber: stop.interiorNumber || undefined,
-      reference: stop.reference || undefined,
-      rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
-      nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
-      distanceFromPreviousKm: stop.distanceFromPreviousKm,
-      contactName: stop.contactName || undefined,
-      contactPhone: stop.contactPhone || undefined,
-      notes: stop.notes || undefined,
-      latitude: stop.latitude,
-      longitude: stop.longitude,
-      estimatedArrival: stop.estimatedArrival
-        ? localInputToUtcIso(stop.estimatedArrival)
-        : undefined,
-      clientId: stop.clientId || undefined,
-      clientAddressId: stop.clientAddressId || undefined,
-    };
-  });
 }
 
 // ============================================================================
@@ -251,7 +182,8 @@ export function TripFormPage() {
           | "destination"
         )[],
         clientId: stop.clientId ?? "",
-        clientAddressId: stop.clientAddressId ?? "",
+        clientAddressId: stop.clientAddressId ?? stop.addressId ?? "",
+        addressId: stop.addressId ?? "",
         locationName: stop.locationName || undefined,
         // Campos Carta Porte (SAT)
         satEstadoCode: stop.satEstadoCode || "",
@@ -1050,20 +982,19 @@ export function TripFormPage() {
       </div>
 
       {/* Wizard Steps Indicator */}
-      <Card>
-        <CardContent className="pt-6">
-          <WizardSteps
-            steps={WIZARD_STEPS.map((step) => ({
-              id: step.id,
-              title: step.title,
-              description: step.description,
-            }))}
-            currentStep={currentStep}
-            onStepClick={handleStepClick}
-            allowNavigation={true}
-          />
-        </CardContent>
-      </Card>
+      <WizardProgressCard>
+        <WizardSteps
+          steps={WIZARD_STEPS.map((step) => ({
+            id: step.id,
+            title: step.title,
+            description: step.description,
+          }))}
+          currentStep={currentStep}
+          onStepClick={handleStepClick}
+          allowNavigation={true}
+          ariaLabel="Pasos para crear o editar un viaje"
+        />
+      </WizardProgressCard>
 
       {/* Form */}
       <Form {...form}>
@@ -1076,47 +1007,18 @@ export function TripFormPage() {
             </AlertWithIcon>
           )}
 
-          <div className="flex items-center justify-between pt-6 mt-6 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentStep === 0}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Anterior
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate(-1)}
-              >
-                Cancelar
-              </Button>
-
-              {isLastStep ? (
-                <Button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                  )}
-                  {isEditMode ? "Guardar Cambios" : "Crear Viaje"}
-                </Button>
-              ) : (
-                <Button type="button" onClick={handleNext}>
-                  Siguiente
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
+          <WizardNavigationBar
+            canGoBack={currentStep > 0}
+            isLastStep={isLastStep}
+            onPrevious={handlePrevious}
+            onCancel={() => navigate(-1)}
+            onNext={handleNext}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isEditMode ? "Guardar Cambios" : "Crear Viaje"}
+            submittingContent={<RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+            submitIcon={<CheckCircle className="mr-2 h-4 w-4" />}
+          />
         </form>
       </Form>
     </div>

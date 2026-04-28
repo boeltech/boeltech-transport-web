@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+
+import { buildLegacyAddress, mapWizardStopsToCreateInput } from "./wizardStopPayload";
+import type { WizardStopRow } from "./wizardStopPayload";
+
+function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
+  return {
+    sequenceOrder: 0,
+    stopType: ["origin", "pickup"],
+    clientId: "",
+    clientAddressId: "",
+    addressId: "",
+    locationName: "",
+    satEstadoCode: "",
+    satMunicipioCode: "",
+    postalCode: "",
+    satLocalidadCode: "",
+    satColoniaCode: "",
+    cityName: "",
+    colonia: "",
+    street: "",
+    exteriorNumber: "",
+    interiorNumber: "",
+    reference: "",
+    rfcRemitenteDestinatario: "",
+    nombreRemitenteDestinatario: "",
+    contactName: "",
+    contactPhone: "",
+    notes: "",
+    distanceFromPreviousKm: undefined,
+    ...over,
+  };
+}
+
+describe("buildLegacyAddress", () => {
+  it("uses catalog label when addressId is unified UUID", () => {
+    const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
+    const r = buildLegacyAddress(
+      baseStop({
+        addressId: id,
+        locationName: "CEDIS Norte",
+        satEstadoCode: "",
+        satMunicipioCode: "",
+      }),
+    );
+    expect(r.address).toBe("CEDIS Norte");
+    expect(r.city).toBe("CEDIS Norte");
+  });
+
+  it("builds street line when manual", () => {
+    const r = buildLegacyAddress(
+      baseStop({
+        street: "Av. Siempre Viva",
+        exteriorNumber: "742",
+        postalCode: "44100",
+        satEstadoCode: "JAL",
+        satMunicipioCode: "039",
+        cityName: "Guadalajara",
+      }),
+    );
+    expect(r.address).toContain("Av. Siempre Viva");
+    expect(r.address).toContain("C.P. 44100");
+    expect(r.city).toBe("Guadalajara");
+    expect(r.state).toBe("JAL");
+  });
+});
+
+describe("mapWizardStopsToCreateInput", () => {
+  it("includes addressId when stop is linked to unified address", () => {
+    const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
+    const rows = [
+      baseStop({
+        sequenceOrder: 0,
+        addressId: id,
+        clientAddressId: id,
+        locationName: "Origen",
+      }),
+    ];
+    const out = mapWizardStopsToCreateInput(rows);
+    expect(out).toHaveLength(1);
+    expect(out![0].addressId).toBe(id);
+    expect(out![0].address).toBeTruthy();
+  });
+
+  it("omits addressId when not a valid unified id", () => {
+    const rows = [
+      baseStop({
+        sequenceOrder: 0,
+        addressId: "not-a-uuid",
+        satEstadoCode: "JAL",
+        satMunicipioCode: "039",
+        postalCode: "44100",
+        street: "Calle",
+        exteriorNumber: "1",
+        cityName: "GDL",
+      }),
+    ];
+    const out = mapWizardStopsToCreateInput(rows);
+    expect(out![0].addressId).toBeUndefined();
+    expect(out![0].satStateCode).toBe("JAL");
+  });
+});

@@ -11,28 +11,37 @@ import {
 import { createUpdateTripStatusUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 
+type UpdateTripStatusVariables = { id: string; status: TripStatusType };
+type UpdateTripStatusContext = { previous: Trip | undefined };
+
 /**
- * Hook para actualizar estado
- */
-/**
- * Hook para actualizar estado
+ * Hook para actualizar estado del viaje (optimistic update en detalle).
  */
 export function useUpdateTripStatus(
-  options?: UseMutationOptions<
-    Trip,
-    Error,
-    // { id: string; status: TripStatusType; notes?: string }
-    { id: string; status: TripStatusType }
+  options?: Omit<
+    UseMutationOptions<
+      Trip,
+      Error,
+      UpdateTripStatusVariables,
+      UpdateTripStatusContext
+    >,
+    "mutationFn" | "onMutate"
   >,
 ) {
   const queryClient = useQueryClient();
   const updateStatusUseCase = createUpdateTripStatusUseCase(tripRepository);
 
+  const {
+    onError: userOnError,
+    onSettled: userOnSettled,
+    onSuccess: userOnSuccess,
+    ...rest
+  } = options ?? {};
+
   return useMutation({
-    // mutationFn: async ({ id, status, notes }) => {
-    mutationFn: async ({ id, status }) => {
-      // const result = await updateStatusUseCase.execute(id, status, notes);
-      const result = await updateStatusUseCase.execute(id, status);
+    ...rest,
+    mutationFn: async ({ id, status }: UpdateTripStatusVariables) => {
+      const result = await updateStatusUseCase.execute(id, { status });
       if (!result.success) {
         throw new Error(result.error.message);
       }
@@ -41,12 +50,12 @@ export function useUpdateTripStatus(
     onMutate: async ({
       id,
       status,
-    }): Promise<{ previous: Trip | undefined }> => {
+    }): Promise<UpdateTripStatusContext> => {
       await queryClient.cancelQueries({ queryKey: tripQueryKeys.detail(id) });
       const previous = queryClient.getQueryData<Trip>(tripQueryKeys.detail(id));
 
       if (previous) {
-        queryClient.setQueryData(tripQueryKeys.detail(id), {
+        queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), {
           ...previous,
           status,
         });
@@ -54,15 +63,24 @@ export function useUpdateTripStatus(
 
       return { previous };
     },
-    onError: (_, { id }, context) => {
+    onError: (err, variables, context, mutation) => {
       if (context?.previous) {
-        queryClient.setQueryData(tripQueryKeys.detail(id), context.previous);
+        queryClient.setQueryData(
+          tripQueryKeys.detail(variables.id),
+          context.previous,
+        );
       }
+      userOnError?.(err, variables, context, mutation);
     },
-    onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(id) });
+    onSettled: (data, err, variables, context, mutation) => {
+      queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(variables.id),
+      });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      userOnSettled?.(data, err, variables, context, mutation);
     },
-    ...options,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      userOnSuccess?.(data, variables, onMutateResult, context);
+    },
   });
 }

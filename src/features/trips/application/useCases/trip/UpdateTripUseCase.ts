@@ -4,6 +4,7 @@ import {
   type Trip,
   type ITripRepository,
   type UpdateTripInput,
+  isUnifiedAddressId,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
@@ -130,18 +131,21 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
         };
       }
 
-      if (!stop.address) {
-        return {
-          code: "STOP_ADDRESS_REQUIRED",
-          message: `Parada #${i + 1}: La dirección es requerida`,
-        };
-      }
+      const linked = isUnifiedAddressId(stop.addressId);
+      if (!linked) {
+        if (!stop.address?.trim()) {
+          return {
+            code: "STOP_ADDRESS_REQUIRED",
+            message: `Parada #${i + 1}: La dirección es requerida`,
+          };
+        }
 
-      if (!stop.city) {
-        return {
-          code: "STOP_CITY_REQUIRED",
-          message: `Parada #${i + 1}: La ciudad es requerida`,
-        };
+        if (!stop.city?.trim()) {
+          return {
+            code: "STOP_CITY_REQUIRED",
+            message: `Parada #${i + 1}: La ciudad es requerida`,
+          };
+        }
       }
     }
 

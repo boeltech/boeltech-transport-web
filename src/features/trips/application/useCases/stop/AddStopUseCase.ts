@@ -71,12 +71,18 @@ export class AddStopUseCase implements IAddStopUseCase {
       const currentStops = await this.stopRepository.findByTripId(tripId);
 
       // Verificar si se puede agregar este tipo de parada
-      if (!canAddStopType(currentStops.data, input.stopType)) {
+      const stopTypes = Array.isArray(input.stopType)
+        ? input.stopType
+        : [input.stopType];
+      const canAdd = stopTypes.every((st) =>
+        canAddStopType(currentStops.data, st),
+      );
+      if (!canAdd) {
         return {
           success: false,
           error: {
             code: "DUPLICATE_STOP_TYPE",
-            message: `Ya existe una parada de tipo ${input.stopType}`,
+            message: `Ya existe una parada de tipo ${stopTypes.join(", ")}`,
           },
         };
       }

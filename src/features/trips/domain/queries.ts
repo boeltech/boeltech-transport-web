@@ -155,18 +155,15 @@ export const stopQueryKeys = {
 // HELPER TYPES
 // ============================================================================
 
+/** Union de retornos solo de las funciones-factory (excluye keys estáticas como `all`). */
+type QueryKeyReturn<T> = {
+  [K in keyof T]: T[K] extends (...args: never[]) => infer R ? R : never;
+}[keyof T];
+
 /**
  * Tipo para extraer el tipo de query key
  */
-export type TripQueryKey = ReturnType<
-  (typeof tripQueryKeys)[keyof typeof tripQueryKeys]
->;
-export type CargoQueryKey = ReturnType<
-  (typeof cargoQueryKeys)[keyof typeof cargoQueryKeys]
->;
-export type ExpenseQueryKey = ReturnType<
-  (typeof expenseQueryKeys)[keyof typeof expenseQueryKeys]
->;
-export type StopQueryKey = ReturnType<
-  (typeof stopQueryKeys)[keyof typeof stopQueryKeys]
->;
+export type TripQueryKey = QueryKeyReturn<typeof tripQueryKeys>;
+export type CargoQueryKey = QueryKeyReturn<typeof cargoQueryKeys>;
+export type ExpenseQueryKey = QueryKeyReturn<typeof expenseQueryKeys>;
+export type StopQueryKey = QueryKeyReturn<typeof stopQueryKeys>;

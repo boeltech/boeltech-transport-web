@@ -125,7 +125,7 @@ export class ExpenseRepository implements IExpenseRepository {
    * Elimina un gasto
    */
   async delete(tripId: string, expenseId: string): Promise<MappedActionResult> {
-    const response = await apiClient.delete(
+    await apiClient.delete(
       `${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}`,
     );
 

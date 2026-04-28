@@ -15,6 +15,13 @@
 
 import { z } from "zod";
 
+import { isUnifiedAddressId } from "@features/trips/domain";
+
+/** Parada vinculada a fila `addresses` (Fase 4) — el backend puede omitir captura manual SAT. */
+export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
+  return isUnifiedAddressId(stop.addressId);
+}
+
 // ============================================================================
 // STOP SCHEMA (Carta Porte 3.1 - Campos Unificados)
 // ============================================================================
@@ -25,7 +32,7 @@ import { z } from "zod";
  * IMPORTANTE: Los campos de dirección están unificados con los requerimientos
  * de Carta Porte 3.1. NO hay campos duplicados.
  *
- * Campos geográficos SAT obligatorios:
+ * Campos geográficos SAT obligatorios **solo si no hay `addressId`** (dirección nueva):
  * - satEstadoCode (c_Estado)
  * - satMunicipioCode (c_Municipio)
  * - postalCode (c_CodigoPostal)
@@ -34,7 +41,8 @@ import { z } from "zod";
  * - satLocalidadCode (c_Localidad)
  * - satColoniaCode (c_Colonia)
  */
-export const tripStopSchema = z.object({
+export const tripStopSchema = z
+  .object({
   id: z.string().optional(),
   sequenceOrder: z.number().min(0),
   stopType: z
@@ -44,6 +52,8 @@ export const tripStopSchema = z.object({
   // ── Asociación con cliente (opcional) ───────────────────────────────────
   clientId: z.string().optional().or(z.literal("")),
   clientAddressId: z.string().optional(),
+  /** FK → `addresses` cuando la parada reutiliza un domicilio guardado (Fase 4). */
+  addressId: z.union([z.literal(""), z.string().uuid()]).optional(),
 
   // ── Identificación del lugar ────────────────────────────────────────────
   locationName: z.string().optional(), // Nombre del lugar (ej: "Bodega Central")
@@ -51,33 +61,29 @@ export const tripStopSchema = z.object({
   // ── Ubicación SAT (Carta Porte 3.1) ─────────────────────────────────────
   /**
    * Código de Estado SAT (c_Estado)
-   * OBLIGATORIO para Carta Porte
+   * Obligatorio si no hay `addressId`.
    */
-  satEstadoCode: z
-    .string()
-    .min(1, "El estado es requerido")
-    .max(3, "Código de estado inválido"),
+  satEstadoCode: z.string().max(3, "Código de estado inválido").optional().or(z.literal("")),
 
   /**
    * Código de Municipio SAT (c_Municipio)
-   * OBLIGATORIO para Carta Porte
-   * Formato: código estado + código municipio (ej: "001" para Aguascalientes)
+   * Obligatorio si no hay `addressId`.
    */
   satMunicipioCode: z
     .string()
-    .min(1, "El municipio es requerido")
-    .max(5, "Código de municipio inválido"),
+    .max(5, "Código de municipio inválido")
+    .optional()
+    .or(z.literal("")),
 
   /**
    * Código Postal (c_CodigoPostal)
-   * OBLIGATORIO para Carta Porte
-   * 5 dígitos
+   * Obligatorio si no hay `addressId` (5 dígitos).
    */
   postalCode: z
     .string()
-    .min(5, "Código postal debe tener 5 dígitos")
     .max(5, "Código postal debe tener 5 dígitos")
-    .regex(/^\d{5}$/, "Código postal inválido"),
+    .optional()
+    .or(z.literal("")),
 
   /**
    * Código de Localidad SAT (c_Localidad)
@@ -166,7 +172,36 @@ export const tripStopSchema = z.object({
     .number()
     .min(0, "La distancia no puede ser negativa")
     .optional(),
-});
+})
+  .superRefine((val, ctx) => {
+    if (stopHasUnifiedAddressId(val)) {
+      return;
+    }
+    const estado = val.satEstadoCode?.trim();
+    if (!estado) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El estado es requerido",
+        path: ["satEstadoCode"],
+      });
+    }
+    const municipio = val.satMunicipioCode?.trim();
+    if (!municipio) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El municipio es requerido",
+        path: ["satMunicipioCode"],
+      });
+    }
+    const cp = val.postalCode?.trim() ?? "";
+    if (!/^\d{5}$/.test(cp)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Código postal inválido (5 dígitos)",
+        path: ["postalCode"],
+      });
+    }
+  });
 
 // ============================================================================
 // CARGO MOVEMENT SCHEMA
@@ -421,6 +456,7 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   stopType: [],
   clientId: "",
   clientAddressId: "",
+  addressId: "",
   locationName: "",
   satEstadoCode: "",
   satMunicipioCode: "",
@@ -519,14 +555,16 @@ export function validateRouteStep(
     const stop = stops[i];
     const label = stop.locationName || `Parada ${i + 1}`;
 
-    if (!stop.satEstadoCode) {
-      errors.push(`"${label}" no tiene estado SAT`);
-    }
-    if (!stop.satMunicipioCode) {
-      errors.push(`"${label}" no tiene municipio SAT`);
-    }
-    if (!stop.postalCode) {
-      errors.push(`"${label}" no tiene código postal`);
+    if (!stopHasUnifiedAddressId(stop)) {
+      if (!stop.satEstadoCode?.trim()) {
+        errors.push(`"${label}" no tiene estado SAT`);
+      }
+      if (!stop.satMunicipioCode?.trim()) {
+        errors.push(`"${label}" no tiene municipio SAT`);
+      }
+      if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
+        errors.push(`"${label}" no tiene código postal válido`);
+      }
     }
 
     // Distancia obligatoria excepto en origen

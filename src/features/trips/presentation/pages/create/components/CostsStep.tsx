@@ -156,7 +156,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   // ── Vehicle: rendimiento del combustible ──────────────────────────────────
   const { data: vehicle } = useVehicle(vehicleId);
   const expectedFuelEfficiency =
-    vehicle?.data.capacities?.expectedFuelEfficiency ?? null;
+    vehicle?.capacities?.expectedFuelEfficiency ?? null;
 
   // ── Distancia total (suma de distanceFromPreviousKm de todas las paradas) ─
   const totalDistanceKm = useMemo(() => {

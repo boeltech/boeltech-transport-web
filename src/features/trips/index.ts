@@ -133,6 +133,8 @@ export {
   defaultWizardFormValues,
   formatAddress,
   formatCurrency,
+  formatStopDisplayLocalityLine,
+  formatStopDisplayPrimaryLine,
   formatDuration,
   formatMileage,
   formatNumber,

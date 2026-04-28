@@ -77,7 +77,10 @@ export const TripCard = memo(function TripCard({
 
   const originCity = trip.originCity || "Origen";
   const destCity = trip.destinationCity || "Destino";
-  const invoicingConfig = getTripInvoicingBadgeConfig(trip.invoicing);
+  const invoicingConfig = getTripInvoicingBadgeConfig({
+    status: trip.status,
+    invoicing: trip.invoicing,
+  });
 
   return (
     <Card

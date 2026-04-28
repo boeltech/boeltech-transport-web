@@ -2,8 +2,8 @@
  * Trip Wizard Components - Barrel Export
  */
 
-export { WizardSteps } from "./WizardSteps";
-export type { WizardStep } from "./WizardSteps";
+export { WizardSteps } from "@shared/ui/wizard";
+export type { WizardStep } from "@shared/ui/wizard";
 
 export {
   tripWizardSchema,
@@ -13,6 +13,7 @@ export {
   WIZARD_STEPS,
   defaultWizardFormValues,
   validateRouteStep,
+  stopHasUnifiedAddressId,
 } from "./validation";
 
 export type {

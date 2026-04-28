@@ -113,7 +113,7 @@ export class CargoRepository implements ICargoRepository {
    * Elimina una carga
    */
   async delete(tripId: string, cargoId: string): Promise<MappedActionResult> {
-    const response = await apiClient.delete(
+    await apiClient.delete(
       `${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}`,
     );
 

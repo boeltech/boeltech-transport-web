@@ -17,12 +17,14 @@ import {
   type StopTypeValue,
   type StopStatusValue,
   type TripInvoicing,
+  type TripStop,
   StopType,
   StopStatus,
   STOP_TYPE_LABELS,
   STOP_STATUS_LABELS,
   type TripListItem,
   TripStatus,
+  isUnifiedAddressId,
 } from "../domain";
 
 // ============================================================================
@@ -295,10 +297,9 @@ export function formatRoute(
 }
 
 export function getTripInvoicingBadgeConfig(
-  tripItem: TripListItem,
+  tripItem: Pick<TripListItem, "status" | "invoicing">,
 ): InvoicingBadgeConfig {
-
-  if(tripItem.status === TripStatus.COMPLETED) {
+  if (tripItem.status === TripStatus.COMPLETED) {
     const invoicing = tripItem.invoicing;
     const hasLinkedInvoiceEvidence =
     !!invoicing.invoiceId ||
@@ -339,4 +340,45 @@ export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | 
     invoicing.blockReason ??
     "Este viaje ya tiene una factura activa y no se puede facturar nuevamente."
   );
+}
+
+// ============================================================================
+// STOP DISPLAY (Fase 4 — lectura; `address`/`city` pueden venir del join con `addresses`)
+// ============================================================================
+
+/** Línea principal: lugar, calle desglosada o texto legacy. */
+export function formatStopDisplayPrimaryLine(stop: TripStop): string {
+  const name = stop.locationName?.trim();
+  if (name) return name;
+
+  const street = stop.street?.trim();
+  if (street) {
+    let line = street;
+    if (stop.exteriorNumber?.trim()) line += ` #${stop.exteriorNumber.trim()}`;
+    if (stop.interiorNumber?.trim()) line += `, Int. ${stop.interiorNumber.trim()}`;
+    return line;
+  }
+
+  const addr = stop.address?.trim();
+  if (addr) return addr;
+
+  if (isUnifiedAddressId(stop.addressId)) {
+    return "Domicilio en catálogo";
+  }
+
+  return "Sin dirección";
+}
+
+/** Línea secundaria: ciudad, estado, CP (o mensaje cuando solo hay `address_id`). */
+export function formatStopDisplayLocalityLine(stop: TripStop): string {
+  const parts: string[] = [];
+  if (stop.city?.trim()) parts.push(stop.city.trim());
+  if (stop.state?.trim()) parts.push(stop.state.trim());
+  if (stop.postalCode?.trim()) parts.push(`C.P. ${stop.postalCode.trim()}`);
+  const line = parts.join(", ");
+  if (line) return line;
+  if (isUnifiedAddressId(stop.addressId)) {
+    return "Ubicación resuelta desde domicilio guardado";
+  }
+  return "";
 }

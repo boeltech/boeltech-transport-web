@@ -28,6 +28,44 @@ import { mapStopResponse, mapStopsResponse } from "../api/mappers";
 
 const TRIPS_ENDPOINT = "/trips";
 
+type StopPayload = Record<string, unknown>;
+
+function normalizeStopPayload(input: StopPayload): StopPayload {
+  const payload = { ...input };
+
+  if (payload.satStateCode === undefined && payload.satEstadoCode !== undefined) {
+    payload.satStateCode = payload.satEstadoCode;
+  }
+  if (
+    payload.satMunicipalityCode === undefined &&
+    payload.satMunicipioCode !== undefined
+  ) {
+    payload.satMunicipalityCode = payload.satMunicipioCode;
+  }
+  if (
+    payload.satLocalityCode === undefined &&
+    payload.satLocalidadCode !== undefined
+  ) {
+    payload.satLocalityCode = payload.satLocalidadCode;
+  }
+  if (
+    payload.satNeighborhoodCode === undefined &&
+    payload.satColoniaCode !== undefined
+  ) {
+    payload.satNeighborhoodCode = payload.satColoniaCode;
+  }
+  if (payload.addressId === undefined && payload.clientAddressId !== undefined) {
+    payload.addressId = payload.clientAddressId;
+  }
+
+  delete payload.satEstadoCode;
+  delete payload.satMunicipioCode;
+  delete payload.satLocalidadCode;
+  delete payload.satColoniaCode;
+
+  return payload;
+}
+
 // ============================================================================
 // STOP REPOSITORY IMPLEMENTATION
 // ============================================================================
@@ -74,7 +112,7 @@ export class StopRepository implements IStopRepository {
   ): Promise<MappedSingleResult<TripStop>> {
     const response = await apiClient.post<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops`,
-      input,
+      normalizeStopPayload(input as unknown as StopPayload),
     );
 
     return mapStopResponse(response);
@@ -119,10 +157,42 @@ export class StopRepository implements IStopRepository {
     if (input.clientId !== undefined) updateData.clientId = input.clientId;
     if (input.clientAddressId !== undefined)
       updateData.clientAddressId = input.clientAddressId;
+    if (input.addressId !== undefined) updateData.addressId = input.addressId;
+
+    if (input.idUbicacion !== undefined) updateData.idUbicacion = input.idUbicacion;
+    if (input.street !== undefined) updateData.street = input.street;
+    if (input.exteriorNumber !== undefined)
+      updateData.exteriorNumber = input.exteriorNumber;
+    if (input.interiorNumber !== undefined)
+      updateData.interiorNumber = input.interiorNumber;
+    if (input.colonia !== undefined) updateData.colonia = input.colonia;
+    if (input.reference !== undefined) updateData.reference = input.reference;
+    if (input.satStateCode !== undefined) updateData.satStateCode = input.satStateCode;
+    if (input.satMunicipalityCode !== undefined)
+      updateData.satMunicipalityCode = input.satMunicipalityCode;
+    if (input.satLocalityCode !== undefined)
+      updateData.satLocalityCode = input.satLocalityCode;
+    if (input.satNeighborhoodCode !== undefined)
+      updateData.satNeighborhoodCode = input.satNeighborhoodCode;
+    if (input.satEstadoCode !== undefined) updateData.satEstadoCode = input.satEstadoCode;
+    if (input.satMunicipioCode !== undefined)
+      updateData.satMunicipioCode = input.satMunicipioCode;
+    if (input.satLocalidadCode !== undefined)
+      updateData.satLocalidadCode = input.satLocalidadCode;
+    if (input.satColoniaCode !== undefined)
+      updateData.satColoniaCode = input.satColoniaCode;
+    if (input.rfcRemitenteDestinatario !== undefined)
+      updateData.rfcRemitenteDestinatario = input.rfcRemitenteDestinatario;
+    if (input.nombreRemitenteDestinatario !== undefined)
+      updateData.nombreRemitenteDestinatario = input.nombreRemitenteDestinatario;
+    if (input.distanceFromPreviousKm !== undefined)
+      updateData.distanceFromPreviousKm = input.distanceFromPreviousKm;
+
+    const normalizedData = normalizeStopPayload(updateData);
 
     const response = await apiClient.put<ApiSingleResponse<ApiStopResponse>>(
       `${TRIPS_ENDPOINT}/${tripId}/stops/${stopId}`,
-      updateData,
+      normalizedData,
     );
 
     return mapStopResponse(response);

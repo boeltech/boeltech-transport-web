@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
+import { stopHasUnifiedAddressId } from "./validation";
 import { StopType, type StopTypeValue } from "@features/trips";
 import {
   StopFormDialog,
@@ -118,11 +119,13 @@ function formatStopAddress(stop: TripStopFormValues): {
   };
 }
 
-/**
- * Verifica si una parada tiene datos Carta Porte completos
- */
-function hasCartaPorteData(stop: TripStopFormValues): boolean {
-  return !!(stop.satEstadoCode && stop.satMunicipioCode && stop.postalCode);
+/** Datos SAT capturados a mano (sin `addressId` de catálogo unificado). */
+function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
+  return !!(
+    stop.satEstadoCode?.trim() &&
+    stop.satMunicipioCode?.trim() &&
+    /^\d{5}$/.test(stop.postalCode?.trim() ?? "")
+  );
 }
 
 // ============================================================================
@@ -314,6 +317,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         stopType: operations as TripStopFormValues["stopType"],
         clientId: stop.clientId,
         clientAddressId: stop.clientAddressId,
+        addressId: stop.addressId,
         locationName: stop.locationName,
         // Campos Carta Porte
         satEstadoCode: stop.satEstadoCode,
@@ -381,6 +385,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         return;
       }
 
+      const previousStop =
+        editingStopIndex !== null
+          ? form.getValues(`stops.${editingStopIndex}`)
+          : undefined;
+
       // Construir stopTypes incluyendo la categoría
       const stopTypes: TripStopFormValues["stopType"] = [
         data.stopCategory as StopTypeValue,
@@ -388,10 +397,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       ];
 
       const stopData: TripStopFormValues = {
+        ...(previousStop?.id ? { id: previousStop.id } : {}),
         sequenceOrder: editingStopIndex ?? 999, // Se recalculará si es nuevo
         stopType: stopTypes,
         clientId: data.clientId || undefined,
         clientAddressId: data.clientAddressId || undefined,
+        addressId: data.addressId?.trim() || "",
         locationName: data.locationName,
         // Campos Carta Porte (unificados - sin campos legacy)
         satEstadoCode: data.satEstadoCode || "",
@@ -648,7 +659,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     // Formatear dirección usando campos SAT
     const { primary: addressPrimary, secondary: addressSecondary } =
       formatStopAddress(stop);
-    const hasCP = hasCartaPorteData(stop);
+    const linkedCatalog = stopHasUnifiedAddressId(stop);
+    const hasManualCp = hasManualSatPostalComplete(stop);
 
     return (
       <div
@@ -721,8 +733,18 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                     );
                   })}
 
-                {/* Indicador Carta Porte */}
-                {hasCP && (
+                {/* Carta Porte: domicilio en catálogo vs captura manual */}
+                {linkedCatalog && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-emerald-300 text-emerald-800 dark:border-emerald-700 dark:text-emerald-200"
+                    title="Ubicación ligada a un domicilio guardado; el SAT se resuelve desde ese registro."
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    Domicilio guardado
+                  </Badge>
+                )}
+                {!linkedCatalog && hasManualCp && (
                   <Badge
                     variant="outline"
                     className="text-xs border-blue-300 text-blue-600"
@@ -831,8 +853,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </p>
               )}
 
-              {/* Códigos SAT */}
-              {hasCP && (
+              {/* Códigos SAT (manual o precargados desde domicilio guardado) */}
+              {(linkedCatalog || hasManualCp) && (
                 <p className="text-xs text-blue-600 mt-1">
                   SAT: {stop.satEstadoCode}-{stop.satMunicipioCode}
                   {stop.postalCode && ` · CP ${stop.postalCode}`}

@@ -294,6 +294,7 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     tripId: api.trip_id,
     sequenceOrder: api.sequence_order,
     stopType: api.stop_type,
+    addressId: api.address_id ?? null,
 
     clientId: api.client_id ?? null,
     clientAddressId: api.client_address_id ?? null,
@@ -332,10 +333,12 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     reference: api.reference,
 
     // Claves SAT
-    satEstadoCode: api.sat_estado_code,
-    satMunicipioCode: api.sat_municipio_code,
-    satLocalidadCode: api.sat_localidad_code,
-    satColoniaCode: api.sat_colonia_code,
+    satEstadoCode: api.sat_state_code ?? api.sat_estado_code ?? null,
+    satMunicipioCode:
+      api.sat_municipality_code ?? api.sat_municipio_code ?? null,
+    satLocalidadCode: api.sat_locality_code ?? api.sat_localidad_code ?? null,
+    satColoniaCode:
+      api.sat_neighborhood_code ?? api.sat_colonia_code ?? null,
 
     // Remitente/Destinatario
     rfcRemitenteDestinatario: api.rfc_remitente_destinatario,

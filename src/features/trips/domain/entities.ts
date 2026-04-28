@@ -288,6 +288,7 @@ export interface TripStop {
   readonly tripId: string;
   readonly sequenceOrder: number;
   readonly stopType: StopTypeValue[];
+  readonly addressId: string | null;
 
   // Catálogo de clientes (solo operativo / UI; no Carta Porte)
   readonly clientId: string | null;
@@ -341,6 +342,9 @@ export interface TripStop {
 
   // Distancia (obligatorio para destinos en CP)
   readonly distanceFromPreviousKm: number | null;
+
+  /** Resumen UI de acción de carga en la parada (opcional, backend) */
+  readonly cargoActionDescription?: string | null;
 
   // Cargas en esta parada (opcional, para vistas)
   readonly cargos?: TripCargo[];

@@ -42,7 +42,6 @@ import {
   Phone,
   Weight,
   Box,
-  CircleDollarSign,
   RefreshCw,
   Plus,
   CheckCircle2,
@@ -64,6 +63,8 @@ import {
   formatDuration,
   formatMileage,
   formatCurrency,
+  formatStopDisplayLocalityLine,
+  formatStopDisplayPrimaryLine,
   getStopTypeConfig,
   getTripInvoicingBadgeConfig,
 } from "@/features/trips";
@@ -399,7 +400,10 @@ export function TripDetailPage() {
     isCompletedTrip &&
     !trip.invoicing.canGenerateInvoice &&
     (canViewLinkedInvoice || canCreateInvoices);
-  const tripInvoicingConfig = getTripInvoicingBadgeConfig(trip.invoicing);
+  const tripInvoicingConfig = getTripInvoicingBadgeConfig({
+    status: trip.status,
+    invoicing: trip.invoicing,
+  });
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -977,34 +981,26 @@ export function TripDetailPage() {
                               </div>
 
                               {/* Location name */}
-                              {stop.locationName && (
-                                <p className="text-sm font-medium">
-                                  {stop.locationName}
-                                </p>
-                              )}
+                              <p className="text-sm font-medium">
+                                {formatStopDisplayPrimaryLine(stop)}
+                              </p>
 
-                              {/* Address — desglosada si hay campos SAT, legacy si no */}
-                              {stop.street ? (
-                                <p className="text-sm">
-                                  {stop.street}
-                                  {stop.exteriorNumber &&
-                                    ` #${stop.exteriorNumber}`}
-                                  {stop.interiorNumber &&
-                                    `, Int. ${stop.interiorNumber}`}
-                                </p>
-                              ) : (
-                                <p className="text-sm">{stop.address}</p>
-                              )}
                               {stop.colonia && (
                                 <p className="text-sm text-muted-foreground">
                                   {stop.colonia}
                                 </p>
                               )}
                               <p className="text-sm text-muted-foreground">
-                                {stop.city}
-                                {stop.state && `, ${stop.state}`}
-                                {stop.postalCode && ` C.P. ${stop.postalCode}`}
+                                {formatStopDisplayLocalityLine(stop)}
                               </p>
+                              {import.meta.env.DEV && stop.addressId && (
+                                <p
+                                  className="text-[10px] font-mono text-muted-foreground/80"
+                                  title="address_id (solo en desarrollo)"
+                                >
+                                  address_id: {stop.addressId}
+                                </p>
+                              )}
 
                               {/* RFC / Nombre remitente-destinatario */}
                               {stop.rfcRemitenteDestinatario && (

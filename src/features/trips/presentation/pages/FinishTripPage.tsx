@@ -36,6 +36,10 @@ import {
   CargoStatus,
   type StopTypeValue,
 } from "@features/trips/domain";
+import {
+  formatStopDisplayLocalityLine,
+  formatStopDisplayPrimaryLine,
+} from "../uiHelpers";
 
 // shadcn/ui
 import { Button } from "@shared/ui/button";
@@ -181,11 +185,10 @@ function RouteSummary({ stops }: { stops?: TripStop[] }) {
                     </Badge>
                   </div>
                   <p className="text-sm font-medium mt-1 truncate">
-                    {stop.locationName || stop.address}
+                    {formatStopDisplayPrimaryLine(stop)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {stop.city}
-                    {stop.state ? `, ${stop.state}` : ""}
+                    {formatStopDisplayLocalityLine(stop)}
                   </p>
                 </div>
               </div>

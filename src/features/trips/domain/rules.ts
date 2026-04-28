@@ -337,7 +337,7 @@ export function canMarkStopVisited(tripStatus: TripStatusType): boolean {
 export function validateFinishTripData(
   trip: Trip,
   endMileage: number,
-  actualArrival: Date | string,
+  actualArrival?: Date | string,
 ): ValidationResult {
   // Verificar que el viaje esté en curso
   if (trip.status !== TripStatus.IN_PROGRESS) {

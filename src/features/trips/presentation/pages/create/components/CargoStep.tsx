@@ -75,6 +75,7 @@ import type {
   TripWizardFormValues,
   TripCargoFormValues,
   CargoMovementFormValues,
+  TripStopFormValues,
 } from "./validation";
 import { StopType } from "@features/trips";
 import { useVehicle } from "@features/vehicles/application";
@@ -117,6 +118,22 @@ interface DeliveryStopInfo {
   category: "origin" | "waypoint" | "destination";
 }
 
+function formatWizardStopAddressLine(stop: TripStopFormValues): string {
+  const streetLine = [stop.street, stop.exteriorNumber]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (streetLine)
+    return [streetLine, stop.reference].filter(Boolean).join(" · ");
+  return stop.postalCode ? `CP ${stop.postalCode}` : "—";
+}
+
+function formatWizardStopCityLine(stop: TripStopFormValues): string {
+  const line = [stop.cityName, stop.colonia].filter(Boolean).join(" · ");
+  if (line) return line;
+  return stop.postalCode ?? "—";
+}
+
 // ============================================================================
 // CATÁLOGOS SAT (Estáticos — solo monedas, los demás son dinámicos)
 // ============================================================================
@@ -154,8 +171,9 @@ export function CargoStep({
 
   // Capacidad del vehículo en kg (loadCapacity viene en toneladas)
   const vehicleCapacityKg = useMemo(() => {
-    if (!vehicle?.data.capacities?.loadCapacity) return null;
-    return vehicle.data.capacities.loadCapacity * 1000; // Convertir toneladas a kg
+    const tons = vehicle?.capacities?.loadCapacity;
+    if (tons == null) return null;
+    return tons * 1000;
   }, [vehicle]);
 
   // ============================================
@@ -168,65 +186,63 @@ export function CargoStep({
   const pickupStops: PickupStopInfo[] = useMemo(() => {
     if (!stops || stops.length === 0) return [];
 
-    return stops
-      .map((stop, index) => {
-        if (!stop.stopType.includes(StopType.PICKUP)) return null;
+    return stops.flatMap((stop, index) => {
+      if (!stop.stopType.includes(StopType.PICKUP)) return [];
 
-        const hasOrigin = stop.stopType.includes(StopType.ORIGIN);
-        const hasDestination = stop.stopType.includes(StopType.DESTINATION);
+      const hasOrigin = stop.stopType.includes(StopType.ORIGIN);
+      const hasDestination = stop.stopType.includes(StopType.DESTINATION);
 
-        let category: "origin" | "waypoint" | "destination" = "waypoint";
-        if (hasOrigin) category = "origin";
-        else if (hasDestination) category = "destination";
+      let category: "origin" | "waypoint" | "destination" = "waypoint";
+      if (hasOrigin) category = "origin";
+      else if (hasDestination) category = "destination";
 
-        const client = stop.clientId
-          ? clients.find((c) => c.id === stop.clientId)
-          : undefined;
+      const client = stop.clientId
+        ? clients.find((c) => c.id === stop.clientId)
+        : undefined;
 
-        return {
-          index,
-          address: stop.address,
-          city: stop.city,
-          state: stop.state,
-          clientId: stop.clientId,
-          clientName: client?.legalName,
-          locationName: stop.locationName,
-          category,
-        } satisfies PickupStopInfo;
-      })
-      .filter((s): s is PickupStopInfo => s !== null);
+      const info: PickupStopInfo = {
+        index,
+        address: formatWizardStopAddressLine(stop),
+        city: formatWizardStopCityLine(stop),
+        state: stop.satEstadoCode,
+        clientId: stop.clientId || undefined,
+        clientName: client?.legalName,
+        locationName: stop.locationName,
+        category,
+      };
+      return [info];
+    });
   }, [stops, clients]);
 
   /** Paradas con operación de descarga (delivery) */
   const deliveryStops: DeliveryStopInfo[] = useMemo(() => {
     if (!stops || stops.length === 0) return [];
 
-    return stops
-      .map((stop, index) => {
-        if (!stop.stopType.includes(StopType.DELIVERY)) return null;
+    return stops.flatMap((stop, index) => {
+      if (!stop.stopType.includes(StopType.DELIVERY)) return [];
 
-        const hasOrigin = stop.stopType.includes(StopType.ORIGIN);
-        const hasDestination = stop.stopType.includes(StopType.DESTINATION);
+      const hasOrigin = stop.stopType.includes(StopType.ORIGIN);
+      const hasDestination = stop.stopType.includes(StopType.DESTINATION);
 
-        let category: "origin" | "waypoint" | "destination" = "waypoint";
-        if (hasDestination) category = "destination";
-        else if (hasOrigin) category = "origin";
+      let category: "origin" | "waypoint" | "destination" = "waypoint";
+      if (hasDestination) category = "destination";
+      else if (hasOrigin) category = "origin";
 
-        const client = stop.clientId
-          ? clients.find((c) => c.id === stop.clientId)
-          : undefined;
+      const client = stop.clientId
+        ? clients.find((c) => c.id === stop.clientId)
+        : undefined;
 
-        return {
-          index,
-          address: stop.address,
-          city: stop.city,
-          locationName: stop.locationName,
-          clientId: stop.clientId,
-          clientName: client?.legalName,
-          category,
-        } satisfies DeliveryStopInfo;
-      })
-      .filter((s): s is DeliveryStopInfo => s !== null);
+      const info: DeliveryStopInfo = {
+        index,
+        address: formatWizardStopAddressLine(stop),
+        city: formatWizardStopCityLine(stop),
+        locationName: stop.locationName,
+        clientId: stop.clientId || undefined,
+        clientName: client?.legalName,
+        category,
+      };
+      return [info];
+    });
   }, [stops, clients]);
 
   /** Cargas cuyo primer movimiento pickup coincide con la parada */
@@ -371,7 +387,7 @@ export function CargoStep({
       description: newCargo.description,
       weight: newCargo.weight,
       units: newCargo.units,
-      isInsured: newCargo.isInsured,
+      isInsured: newCargo.isInsured ?? false,
       declaredValue: newCargo.isInsured ? newCargo.declaredValue : undefined,
       movements: allMovements,
       notes: newCargo.notes,
@@ -382,7 +398,7 @@ export function CargoStep({
       satUnitCode: newCargo.satUnitCode,
       satUnitName: newCargo.satUnitName,
       weightInKg: newCargo.weightInKg,
-      hazardousMaterial: newCargo.hazardousMaterial,
+      hazardousMaterial: newCargo.hazardousMaterial ?? false,
       hazardousMaterialCode: newCargo.hazardousMaterial
         ? newCargo.hazardousMaterialCode
         : undefined,
@@ -418,7 +434,7 @@ export function CargoStep({
   const getStopLabel = (stopIndex: number): string => {
     const stop = stops?.[stopIndex];
     if (!stop) return `Parada #${stopIndex + 1}`;
-    return `#${stopIndex + 1} ${stop.locationName || stop.address}`;
+    return `#${stopIndex + 1} ${stop.locationName || formatWizardStopAddressLine(stop)}`;
   };
 
   const totalWeight = fields.reduce(
@@ -571,8 +587,7 @@ export function CargoStep({
                       Capacidad del Vehículo
                       {vehicle && (
                         <span className="text-xs font-normal text-muted-foreground">
-                          ({vehicle.data.unitNumber} - {vehicle.data.brand}{" "}
-                          {vehicle.data.model})
+                          ({vehicle.unitNumber} - {vehicle.brand} {vehicle.model})
                         </span>
                       )}
                     </h4>
@@ -883,11 +898,12 @@ export function CargoStep({
                             )}
                           </div>
 
-                          {cargo.clientId !== pickupStop.clientId && (
-                            <p className="text-xs text-muted-foreground">
-                              Cliente: {getClientName(cargo.clientId)}
-                            </p>
-                          )}
+                          {cargo.clientId &&
+                            cargo.clientId !== pickupStop.clientId && (
+                              <p className="text-xs text-muted-foreground">
+                                Cliente: {getClientName(cargo.clientId)}
+                              </p>
+                            )}
 
                           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                             {cargo.weightInKg && (

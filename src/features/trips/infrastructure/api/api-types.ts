@@ -213,6 +213,7 @@ export interface ApiStopResponse {
   trip_id: string;
   sequence_order: number;
   stop_type: StopTypeValue[];
+  address_id?: string | null;
 
   /** Metadato UI: cliente para precargar direcciones */
   client_id?: string | null;
@@ -253,10 +254,15 @@ export interface ApiStopResponse {
   reference: string | null;
 
   // Claves SAT
-  sat_estado_code: string | null;
-  sat_municipio_code: string | null;
-  sat_localidad_code: string | null;
-  sat_colonia_code: string | null;
+  sat_state_code?: string | null;
+  sat_municipality_code?: string | null;
+  sat_locality_code?: string | null;
+  sat_neighborhood_code?: string | null;
+  // Backward-compat aliases during rollout.
+  sat_estado_code?: string | null;
+  sat_municipio_code?: string | null;
+  sat_localidad_code?: string | null;
+  sat_colonia_code?: string | null;
 
   // Remitente/Destinatario
   rfc_remitente_destinatario: string | null;
