@@ -31,3 +31,6 @@ skills-lock.json
 
 # Cursor IDE (plans, local state — do not version)
 .cursor/
+
+# Local-only dev/demo routes (manual testing)
+src/pages/dev/
