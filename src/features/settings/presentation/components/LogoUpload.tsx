@@ -6,7 +6,7 @@
  * Ubicación: src/features/settings/ui/components/LogoUpload.tsx
  */
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ImagePlus, Trash2, Loader2, Upload } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
@@ -51,6 +51,14 @@ export const LogoUpload = memo(function LogoUpload() {
 
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  const logoSrc = useMemo(() => {
+    if (!settings?.logoUrl) return null;
+    const version = settings.updatedAt?.getTime?.() ?? Date.now();
+    const separator = settings.logoUrl.includes("?") ? "&" : "?";
+    return `${settings.logoUrl}${separator}v=${version}`;
+  }, [settings?.logoUrl, settings?.updatedAt]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -75,6 +83,7 @@ export const LogoUpload = memo(function LogoUpload() {
   const handleFile = useCallback(
     (file: File) => {
       setError(null);
+      setImageFailed(false);
       const validationError = validateFile(file);
       if (validationError) {
         setError(validationError);
@@ -112,6 +121,7 @@ export const LogoUpload = memo(function LogoUpload() {
   );
 
   const handleDelete = useCallback(() => {
+    setImageFailed(false);
     deleteMutation.mutate();
   }, [deleteMutation]);
 
@@ -140,14 +150,27 @@ export const LogoUpload = memo(function LogoUpload() {
           >
             {isProcessing ? (
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            ) : settings?.logoUrl ? (
+            ) : settings?.logoUrl && logoSrc && !imageFailed ? (
               <img
-                src={settings.logoUrl}
+                src={logoSrc}
                 alt="Logo de la empresa"
                 className="w-full h-full object-contain p-2"
+                onError={() => {
+                  setImageFailed(true);
+                  setError(
+                    "No se pudo cargar el logo. Intenta subirlo nuevamente.",
+                  );
+                }}
               />
             ) : (
-              <ImagePlus className="h-8 w-8 text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center gap-2 p-2 text-center">
+                <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                {settings?.logoUrl && imageFailed && (
+                  <span className="text-[11px] leading-tight text-muted-foreground">
+                    Logo no disponible
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -7,6 +7,8 @@
  * Ubicación: src/features/settings/domain/entities.ts
  */
 
+import type { ClientAddress } from "@features/clients/domain";
+
 // ============================================================================
 // COMPANY SETTINGS
 // ============================================================================
@@ -26,7 +28,13 @@ export interface CompanySettings {
   readonly phone: string | null;
   readonly website: string | null;
   readonly logoUrl: string | null;
-  readonly address: CompanyAddress;
+  /** Domicilio fiscal en tabla unificada `addresses` (owner tenant) */
+  readonly fiscalAddress: ClientAddress | null;
+  /**
+   * Domicilio embebido legacy en `/settings/company` (texto libre).
+   * Se usa solo para prellenar el formulario si aún no hay `fiscalAddress`.
+   */
+  readonly legacyCompanyAddress: CompanyAddress | null;
   /** Código postal del lugar de expedición (atributo LugarExpedicion del CFDI 4.0) */
   readonly lugarExpedicion: string;
   readonly createdAt: Date;

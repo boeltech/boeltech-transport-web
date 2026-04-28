@@ -21,6 +21,10 @@ import type {
   TestPacConnectionResult,
   PacTestErrorType,
 } from "../domain";
+import { config } from "@shared/config";
+import type { ClientAddress } from "@features/clients/domain";
+import type { ClientAddressApiResponse } from "@features/clients/domain";
+import { mapClientAddress } from "@features/clients/infrastructure/mappers";
 
 // ============================================================================
 // API RESPONSE TYPES (snake_case from backend)
@@ -51,10 +55,22 @@ export interface ApiCompanySettingsResponse {
   phone: string | null;
   website: string | null;
   logo_url: string | null;
-  address: ApiCompanyAddressResponse;
+  /** Legacy (texto libre); opcional si el API ya migró a `addresses` */
+  address?: ApiCompanyAddressResponse | null;
+  /** Domicilio fiscal unificado embebido (si el API lo incluye) */
+  company_address?: ClientAddressApiResponse | null;
   lugar_expedicion: string;
   created_at: string;
   updated_at: string;
+}
+
+function resolvePublicAssetUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (!url.startsWith("/")) return url;
+
+  const base = new URL(config.api.baseUrl);
+  return `${base.origin}${url}`;
 }
 
 export interface ApiBillingSettingsResponse {
@@ -75,7 +91,7 @@ export interface ApiBillingSettingsResponse {
   clave_producto_servicio: string;
   clave_unidad: string;
   moneda: string;
-  tasa_iva: number;
+  tasa_iva: number | string;
   serie_carta_porte: string;
   folio_inicial_carta_porte: number;
   folio_actual_carta_porte: number;
@@ -124,7 +140,11 @@ export function mapCompanyAddress(
 
 export function mapCompanySettings(
   api: ApiCompanySettingsResponse,
+  fiscalAddress: ClientAddress | null,
 ): CompanySettings {
+  const legacyCompanyAddress =
+    api.address != null ? mapCompanyAddress(api.address) : null;
+
   return {
     id: api.id,
     tenantId: api.tenant_id,
@@ -136,17 +156,32 @@ export function mapCompanySettings(
     email: api.email,
     phone: api.phone,
     website: api.website,
-    logoUrl: api.logo_url,
-    address: mapCompanyAddress(api.address),
+    logoUrl: resolvePublicAssetUrl(api.logo_url),
+    fiscalAddress,
+    legacyCompanyAddress,
     lugarExpedicion: api.lugar_expedicion,
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };
 }
 
+/** Si el API devuelve `company_address` embebido, mapearlo a dominio */
+export function mapEmbeddedCompanyAddress(
+  api: ApiCompanySettingsResponse,
+): ClientAddress | null {
+  if (!api.company_address) return null;
+  return mapClientAddress(api.company_address);
+}
+
 export function mapBillingSettings(
   api: ApiBillingSettingsResponse,
 ): BillingSettings {
+  const normalizedMoneda = String(api.moneda ?? "")
+    .trim()
+    .toUpperCase();
+  const rawTasaIva =
+    typeof api.tasa_iva === "number" ? api.tasa_iva : Number.parseFloat(api.tasa_iva);
+
   return {
     id: api.id,
     tenantId: api.tenant_id,
@@ -164,8 +199,8 @@ export function mapBillingSettings(
     testMode: api.test_mode,
     claveProductoServicio: api.clave_producto_servicio,
     claveUnidad: api.clave_unidad,
-    moneda: api.moneda,
-    tasaIva: api.tasa_iva,
+    moneda: normalizedMoneda,
+    tasaIva: Number.isFinite(rawTasaIva) ? rawTasaIva : 0.16,
     serieCartaPorte: api.serie_carta_porte,
     folioInicialCartaPorte: api.folio_inicial_carta_porte,
     folioActualCartaPorte: api.folio_actual_carta_porte,
@@ -213,21 +248,6 @@ export function toApiUpdateCompanySettings(
   if (dto.email !== undefined) apiData.email = dto.email;
   if (dto.phone !== undefined) apiData.phone = dto.phone;
   if (dto.website !== undefined) apiData.website = dto.website;
-
-  if (dto.address) {
-    apiData.address = {
-      street: dto.address.street,
-      exterior_number: dto.address.exteriorNumber,
-      interior_number: dto.address.interiorNumber,
-      neighborhood: dto.address.neighborhood,
-      city: dto.address.city,
-      municipality: dto.address.municipality,
-      state: dto.address.state,
-      state_code: dto.address.stateCode,
-      postal_code: dto.address.postalCode,
-      country: dto.address.country,
-    };
-  }
 
   if (dto.lugarExpedicion !== undefined)
     apiData.lugar_expedicion = dto.lugarExpedicion;

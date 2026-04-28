@@ -21,6 +21,9 @@ export type {
   BillingSettings,
   PacProvider,
   NotificationSettings,
+  TestPacConnectionPayload,
+  TestPacConnectionResult,
+  PacTestErrorType,
 } from "./entities";
 
 // Repository interface & DTOs

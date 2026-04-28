@@ -24,6 +24,7 @@ import type {
 } from "../domain";
 import {
   mapCompanySettings,
+  mapEmbeddedCompanyAddress,
   mapBillingSettings,
   mapNotificationSettings,
   toApiUpdateCompanySettings,
@@ -36,6 +37,10 @@ import {
   type ApiNotificationSettingsResponse,
   type ApiTestPacConnectionResponse,
 } from "./mappers";
+import {
+  fetchTenantAddresses,
+  pickTenantFiscalAddress,
+} from "./tenantFiscalAddressApi";
 
 // ============================================================================
 // CONSTANTS
@@ -56,21 +61,34 @@ export class SettingsRepository implements ISettingsRepository {
     const response = await apiClient.get<{ data: ApiCompanySettingsResponse }>(
       `${SETTINGS_ENDPOINT}/company`,
     );
-    return mapCompanySettings(response.data);
+    const api = response.data;
+
+    let fiscal = mapEmbeddedCompanyAddress(api);
+    if (!fiscal) {
+      try {
+        const list = await fetchTenantAddresses(api.tenant_id);
+        fiscal = pickTenantFiscalAddress(list);
+      } catch {
+        fiscal = null;
+      }
+    }
+
+    return mapCompanySettings(api, fiscal);
   }
 
   async updateCompanySettings(
     data: UpdateCompanySettingsDTO,
   ): Promise<SettingsResult<CompanySettings>> {
     const apiData = toApiUpdateCompanySettings(data);
-    const response = await apiClient.put<{
+    const putResponse = await apiClient.put<{
       data: ApiCompanySettingsResponse;
       message?: string;
     }>(`${SETTINGS_ENDPOINT}/company`, apiData);
 
+    const fresh = await this.getCompanySettings();
     return {
-      data: mapCompanySettings(response.data),
-      message: response.message,
+      data: fresh,
+      message: putResponse.message,
     };
   }
 

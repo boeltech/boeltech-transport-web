@@ -9,7 +9,6 @@
 import { memo } from "react";
 import { Shield, Lock, Key, Smartphone } from "lucide-react";
 import { SettingsLayout } from "../components/SettingsLayout";
-import { SettingsCard } from "../components/SettingsLayout";
 import { Badge } from "@shared/ui/badge";
 
 // ============================================================================

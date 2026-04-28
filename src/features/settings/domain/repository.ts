@@ -27,18 +27,6 @@ export interface UpdateCompanySettingsDTO {
   email?: string;
   phone?: string | null;
   website?: string | null;
-  address?: {
-    street?: string;
-    exteriorNumber?: string;
-    interiorNumber?: string | null;
-    neighborhood?: string;
-    city?: string;
-    municipality?: string;
-    state?: string;
-    stateCode?: string;
-    postalCode?: string;
-    country?: string;
-  };
   /** Código postal del lugar de expedición para el CFDI 4.0 */
   lugarExpedicion?: string;
 }

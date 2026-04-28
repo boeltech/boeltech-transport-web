@@ -7,60 +7,75 @@
  */
 
 import { memo, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Globe, Loader2 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Alert, AlertDescription } from "@shared/ui/alert";
+import AddressInput from "@shared/ui/address-input/AddressInput";
+import { addressSchema } from "@shared/validation/addressSchema";
+import { useToast } from "@shared/hooks/useToast";
 
 import { RegimenFiscalSelect } from "@features/catalogs";
+import { useAuth } from "@features/auth";
+import type { ClientAddress } from "@features/clients/domain";
+import {
+  clientAddressFormDataToCreateDto,
+  defaultClientAddressFormValues,
+  type ClientAddressFormData,
+} from "@features/clients/presentation/validation/clientAddressSchema";
+import {
+  createTenantAddress,
+  updateTenantAddress,
+} from "../../infrastructure/tenantFiscalAddressApi";
 
 import { SettingsCard } from "./SettingsLayout";
 import {
   useCompanySettings,
   useUpdateCompanySettings,
 } from "../../application/hooks";
-import type { CompanySettings, UpdateCompanySettingsDTO } from "../../domain";
+import type {
+  CompanyAddress,
+  CompanySettings,
+  UpdateCompanySettingsDTO,
+} from "../../domain";
+import { settingsQueryKeys } from "../../domain/entities";
 
 // ============================================================================
 // VALIDATION SCHEMA
 // ============================================================================
 
-const companySettingsSchema = z.object({
-  legalName: z.string().min(1, "La razón social es requerida"),
-  tradeName: z.string().optional(),
-  rfc: z
-    .string()
-    .min(12, "El RFC debe tener al menos 12 caracteres")
-    .max(13, "El RFC no puede tener más de 13 caracteres")
-    .regex(/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/, "RFC inválido"),
-  regimenFiscal: z.string().min(1, "El régimen fiscal es requerido"),
-  email: z.string().email("Email inválido"),
-  phone: z.string().optional(),
-  website: z.string().url("URL inválida").optional().or(z.literal("")),
-  // Address
-  street: z.string().min(1, "La calle es requerida"),
-  exteriorNumber: z.string().min(1, "El número exterior es requerido"),
-  interiorNumber: z.string().optional(),
-  neighborhood: z.string().min(1, "La colonia es requerida"),
-  city: z.string().min(1, "La ciudad es requerida"),
-  municipality: z.string().min(1, "El municipio es requerido"),
-  state: z.string().min(1, "El estado es requerido"),
-  stateCode: z.string().min(1, "El código de estado es requerido"),
-  postalCode: z
-    .string()
-    .length(5, "El código postal debe tener 5 dígitos")
-    .regex(/^\d{5}$/, "Código postal inválido"),
-  country: z.string().default("México"),
-  lugarExpedicion: z
-    .string()
-    .length(5, "El código postal debe tener 5 dígitos")
-    .regex(/^\d{5}$/, "Código postal inválido"),
+const companyFiscalSchema = addressSchema.safeExtend({
+  addressType: z.literal("company"),
+  isPrimary: z.literal(true),
+  id: z.string().optional(),
 });
+
+const companySettingsSchema = z
+  .object({
+    legalName: z.string().min(1, "La razón social es requerida"),
+    tradeName: z.string().optional(),
+    rfc: z
+      .string()
+      .min(12, "El RFC debe tener al menos 12 caracteres")
+      .max(13, "El RFC no puede tener más de 13 caracteres")
+      .regex(/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/, "RFC inválido"),
+    regimenFiscal: z.string().min(1, "El régimen fiscal es requerido"),
+    email: z.string().email("Email inválido"),
+    phone: z.string().optional(),
+    website: z.string().url("URL inválida").optional().or(z.literal("")),
+    lugarExpedicion: z
+      .string()
+      .length(5, "El código postal debe tener 5 dígitos")
+      .regex(/^\d{5}$/, "Código postal inválido"),
+  })
+  .merge(z.object({ fiscal: companyFiscalSchema }));
 
 type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
 
@@ -70,15 +85,31 @@ type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
 
 export const CompanySettingsForm = memo(function CompanySettingsForm() {
   const { data: settings, isLoading, isError } = useCompanySettings();
-  const updateMutation = useUpdateCompanySettings();
+  const queryClient = useQueryClient();
+  const updateMutation = useUpdateCompanySettings({
+    onSuccess: (result) => {
+      queryClient.setQueryData(settingsQueryKeys.company(), result.data);
+    },
+  });
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const form = useForm<CompanySettingsFormData>({
-    resolver: zodResolver(companySettingsSchema),
+  const form = useForm<CompanySettingsFormData, unknown, CompanySettingsFormData>({
+    resolver: zodResolver(companySettingsSchema) as Resolver<CompanySettingsFormData>,
     values: settings ? mapSettingsToForm(settings) : undefined,
   });
 
   const onSubmit = useCallback(
-    (data: CompanySettingsFormData) => {
+    async (data: CompanySettingsFormData) => {
+      if (!user?.tenant.id) {
+        toast({
+          title: "Sesión incompleta",
+          description: "No se pudo determinar el tenant.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const dto: UpdateCompanySettingsDTO = {
         legalName: data.legalName,
         tradeName: data.tradeName || null,
@@ -87,24 +118,55 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
         email: data.email,
         phone: data.phone || null,
         website: data.website || null,
-        address: {
-          street: data.street,
-          exteriorNumber: data.exteriorNumber,
-          interiorNumber: data.interiorNumber || null,
-          neighborhood: data.neighborhood,
-          city: data.city,
-          municipality: data.municipality,
-          state: data.state,
-          stateCode: data.stateCode,
-          postalCode: data.postalCode,
-          country: data.country,
-        },
         lugarExpedicion: data.lugarExpedicion,
       };
 
-      updateMutation.mutate(dto);
+      try {
+        await updateMutation.mutateAsync(dto);
+      } catch {
+        return;
+      }
+
+      const fiscalPayload = clientAddressFormDataToCreateDto({
+        ...defaultClientAddressFormValues,
+        ...data.fiscal,
+        addressType: "company",
+        isPrimary: true,
+      } as ClientAddressFormData);
+
+      const existingId = settings?.fiscalAddress?.id;
+      try {
+        if (existingId) {
+          await updateTenantAddress(existingId, fiscalPayload);
+        } else {
+          await createTenantAddress(user.tenant.id, fiscalPayload);
+        }
+
+        await queryClient.invalidateQueries({
+          queryKey: settingsQueryKeys.company(),
+        });
+
+        toast({
+          title: "Configuración actualizada",
+          description:
+            "Los datos de la empresa y el domicilio fiscal se guardaron correctamente.",
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        toast({
+          title: "Error al guardar domicilio fiscal",
+          description: message,
+          variant: "destructive",
+        });
+      }
     },
-    [updateMutation],
+    [
+      queryClient,
+      settings?.fiscalAddress?.id,
+      toast,
+      updateMutation,
+      user?.tenant.id,
+    ],
   );
 
   if (isLoading) {
@@ -118,6 +180,11 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
       </div>
     );
   }
+
+  const showLegacyHint =
+    settings &&
+    settings.legacyCompanyAddress &&
+    !settings.fiscalAddress;
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -246,197 +313,53 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
       {/* Dirección Fiscal */}
       <SettingsCard
         title="Dirección Fiscal"
-        description="Domicilio fiscal registrado ante el SAT"
+        description="Domicilio fiscal con catálogos SAT (tabla unificada de direcciones)"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Calle */}
-          <div className="sm:col-span-2">
-            <Label htmlFor="street">
-              Calle <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="street"
-              {...form.register("street")}
-              placeholder="Av. Insurgentes Sur"
-            />
-            {form.formState.errors.street && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.street.message}
-              </p>
-            )}
-          </div>
+        {showLegacyHint && (
+          <Alert className="mb-4">
+            <AlertDescription>
+              Detectamos un domicilio fiscal en formato anterior. Completa estado,
+              municipio y colonia SAT usando el código postal para guardar la
+              nueva dirección unificada.
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {/* Número Exterior */}
-          <div>
-            <Label htmlFor="exteriorNumber">
-              Número Exterior <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="exteriorNumber"
-              {...form.register("exteriorNumber")}
-              placeholder="1234"
-            />
-            {form.formState.errors.exteriorNumber && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.exteriorNumber.message}
-              </p>
-            )}
-          </div>
+        <AddressInput<CompanySettingsFormData>
+          mode="cfdi"
+          control={form.control}
+          namePrefix="fiscal"
+          layout="compact"
+          showLatLng
+          showPrimaryToggle={false}
+        />
+        {form.formState.errors.fiscal && (
+          <p className="text-sm text-destructive mt-2">
+            Revisa los campos de domicilio fiscal.
+          </p>
+        )}
 
-          {/* Número Interior */}
-          <div>
-            <Label htmlFor="interiorNumber">Número Interior</Label>
-            <Input
-              id="interiorNumber"
-              {...form.register("interiorNumber")}
-              placeholder="Piso 5, Of. 501"
-            />
-          </div>
-
-          {/* Colonia */}
-          <div>
-            <Label htmlFor="neighborhood">
-              Colonia <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="neighborhood"
-              {...form.register("neighborhood")}
-              placeholder="Del Valle"
-            />
-            {form.formState.errors.neighborhood && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.neighborhood.message}
-              </p>
-            )}
-          </div>
-
-          {/* Código Postal */}
-          <div>
-            <Label htmlFor="postalCode">
-              Código Postal <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="postalCode"
-              {...form.register("postalCode")}
-              placeholder="03100"
-              maxLength={5}
-            />
-            {form.formState.errors.postalCode && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.postalCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* Ciudad */}
-          <div>
-            <Label htmlFor="city">
-              Ciudad <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="city"
-              {...form.register("city")}
-              placeholder="Ciudad de México"
-            />
-            {form.formState.errors.city && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.city.message}
-              </p>
-            )}
-          </div>
-
-          {/* Municipio/Alcaldía */}
-          <div>
-            <Label htmlFor="municipality">
-              Municipio/Alcaldía <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="municipality"
-              {...form.register("municipality")}
-              placeholder="Benito Juárez"
-            />
-            {form.formState.errors.municipality && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.municipality.message}
-              </p>
-            )}
-          </div>
-
-          {/* Estado */}
-          <div>
-            <Label htmlFor="state">
-              Estado <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="state"
-              {...form.register("state")}
-              placeholder="Ciudad de México"
-            />
-            {form.formState.errors.state && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.state.message}
-              </p>
-            )}
-          </div>
-
-          {/* Código Estado (oculto pero requerido para CFDI) */}
-          <div>
-            <Label htmlFor="stateCode">
-              Código Estado <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="stateCode"
-              {...form.register("stateCode")}
-              placeholder="CMX"
-              maxLength={3}
-              className="uppercase"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Código SAT del estado (ej: CMX, JAL, NLE)
+        <div className="mt-6 pt-4 border-t">
+          <Label htmlFor="lugarExpedicion">
+            Lugar de expedición (CFDI){" "}
+            <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="lugarExpedicion"
+            {...form.register("lugarExpedicion")}
+            placeholder="03100"
+            maxLength={5}
+            className="mt-1.5 w-40"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Código postal donde se expiden las facturas (atributo{" "}
+            <code className="font-mono">LugarExpedicion</code> en CFDI 4.0).
+          </p>
+          {form.formState.errors.lugarExpedicion && (
+            <p className="text-sm text-destructive mt-1">
+              {form.formState.errors.lugarExpedicion.message}
             </p>
-            {form.formState.errors.stateCode && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.stateCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* País */}
-          <div>
-            <Label htmlFor="country">País</Label>
-            <Input
-              id="country"
-              {...form.register("country")}
-              placeholder="México"
-              disabled
-            />
-          </div>
-
-          {/* Lugar de Expedición */}
-          <div className="sm:col-span-2 pt-2 border-t">
-            <Label htmlFor="lugarExpedicion">
-              Lugar de expedición (CFDI){" "}
-              <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="lugarExpedicion"
-              {...form.register("lugarExpedicion")}
-              placeholder="03100"
-              maxLength={5}
-              className="mt-1.5 w-40"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Código postal donde se expiden las facturas. Se incluye como
-              atributo <code className="font-mono">LugarExpedicion</code> en
-              cada CFDI 4.0. Generalmente coincide con el CP del domicilio
-              fiscal.
-            </p>
-            {form.formState.errors.lugarExpedicion && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.lugarExpedicion.message}
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </SettingsCard>
 
@@ -446,15 +369,15 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
           type="button"
           variant="outline"
           onClick={() => form.reset()}
-          disabled={!form.formState.isDirty || updateMutation.isPending}
+          disabled={!form.formState.isDirty || form.formState.isSubmitting}
         >
           Cancelar
         </Button>
         <Button
           type="submit"
-          disabled={!form.formState.isDirty || updateMutation.isPending}
+          disabled={!form.formState.isDirty || form.formState.isSubmitting}
         >
-          {updateMutation.isPending && (
+          {(form.formState.isSubmitting || updateMutation.isPending) && (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           )}
           Guardar cambios
@@ -501,7 +424,77 @@ function CompanySettingsFormSkeleton() {
 // HELPERS
 // ============================================================================
 
+function defaultFiscalForm(): CompanySettingsFormData["fiscal"] {
+  return {
+    addressType: "company",
+    isPrimary: true,
+    street: "",
+    exteriorNumber: "",
+    interiorNumber: null,
+    reference: null,
+    postalCode: "",
+    satCountryCode: "MEX",
+    satStateCode: "",
+    satMunicipalityCode: "",
+    satLocalityCode: null,
+    satNeighborhoodCode: null,
+    neighborhoodName: null,
+    latitude: null,
+    longitude: null,
+  };
+}
+
+function clientAddressToFiscalForm(
+  ca: ClientAddress,
+): CompanySettingsFormData["fiscal"] {
+  return {
+    id: ca.id,
+    addressType: "company",
+    isPrimary: true,
+    street: ca.street ?? "",
+    exteriorNumber: ca.exteriorNumber ?? "",
+    interiorNumber: ca.interiorNumber ?? null,
+    reference: ca.reference ?? null,
+    postalCode: ca.postalCode ?? "",
+    satCountryCode: ca.satCountryCode ?? "MEX",
+    satStateCode: ca.satStateCode ?? "",
+    satMunicipalityCode: ca.satMunicipalityCode ?? "",
+    satLocalityCode: ca.satLocalityCode ?? null,
+    satNeighborhoodCode: ca.satNeighborhoodCode ?? null,
+    neighborhoodName: ca.neighborhoodName ?? null,
+    latitude: ca.latitude ?? null,
+    longitude: ca.longitude ?? null,
+  };
+}
+
+function legacyToFiscalForm(
+  legacy: CompanyAddress,
+): CompanySettingsFormData["fiscal"] {
+  const refParts = [legacy.municipality, legacy.city, legacy.state].filter(
+    Boolean,
+  );
+  return {
+    ...defaultFiscalForm(),
+    street: legacy.street,
+    exteriorNumber: legacy.exteriorNumber,
+    interiorNumber: legacy.interiorNumber,
+    postalCode: legacy.postalCode,
+    neighborhoodName: legacy.neighborhood,
+    satStateCode: legacy.stateCode || "",
+    reference: refParts.length ? refParts.join(", ") : null,
+  };
+}
+
 function mapSettingsToForm(settings: CompanySettings): CompanySettingsFormData {
+  let fiscal: CompanySettingsFormData["fiscal"];
+  if (settings.fiscalAddress) {
+    fiscal = clientAddressToFiscalForm(settings.fiscalAddress);
+  } else if (settings.legacyCompanyAddress) {
+    fiscal = legacyToFiscalForm(settings.legacyCompanyAddress);
+  } else {
+    fiscal = defaultFiscalForm();
+  }
+
   return {
     legalName: settings.legalName,
     tradeName: settings.tradeName ?? "",
@@ -510,16 +503,7 @@ function mapSettingsToForm(settings: CompanySettings): CompanySettingsFormData {
     email: settings.email,
     phone: settings.phone ?? "",
     website: settings.website ?? "",
-    street: settings.address.street,
-    exteriorNumber: settings.address.exteriorNumber,
-    interiorNumber: settings.address.interiorNumber ?? "",
-    neighborhood: settings.address.neighborhood,
-    city: settings.address.city,
-    municipality: settings.address.municipality,
-    state: settings.address.state,
-    stateCode: settings.address.stateCode,
-    postalCode: settings.address.postalCode,
-    country: settings.address.country,
+    fiscal,
     lugarExpedicion: settings.lugarExpedicion,
   };
 }

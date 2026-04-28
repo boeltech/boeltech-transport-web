@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
+import type { Module, Action } from "@shared/permissions/domain/entities";
 
 // ============================================================================
 // TYPES
@@ -29,8 +30,8 @@ export interface SettingsNavItem {
   icon: LucideIcon;
   /** Módulo de permisos requerido (si aplica) */
   permission?: {
-    module: string;
-    action: string;
+    module: Module;
+    action: Action;
   };
   /** Si está deshabilitado temporalmente */
   disabled?: boolean;

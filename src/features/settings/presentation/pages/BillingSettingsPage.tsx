@@ -70,6 +70,30 @@ import {
 } from "../../domain";
 
 // ============================================================================
+// SAT CATALOG CONSTANTS / NORMALIZERS
+// ============================================================================
+
+const ALLOWED_MONEDA = ["MXN", "USD"] as const;
+const ALLOWED_TASA_IVA = [0, 0.08, 0.16] as const;
+
+function normalizeMoneda(value: unknown): (typeof ALLOWED_MONEDA)[number] | null {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  return ALLOWED_MONEDA.includes(normalized as (typeof ALLOWED_MONEDA)[number])
+    ? (normalized as (typeof ALLOWED_MONEDA)[number])
+    : null;
+}
+
+function normalizeTasaIva(value: unknown): (typeof ALLOWED_TASA_IVA)[number] | null {
+  const parsed =
+    typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
+  if (!Number.isFinite(parsed)) return null;
+  const matched = ALLOWED_TASA_IVA.find((allowed) => Math.abs(allowed - parsed) < 0.000001);
+  return matched ?? null;
+}
+
+// ============================================================================
 // VALIDATION SCHEMA
 // ============================================================================
 
@@ -93,8 +117,14 @@ const billingSettingsSchema = z
       .string()
       .min(1, "La clave de producto/servicio es requerida"),
     claveUnidad: z.string().min(1, "La clave de unidad es requerida"),
-    moneda: z.string().min(1, "La moneda es requerida"),
-    tasaIva: z.number().min(0).max(1),
+    moneda: z.enum(ALLOWED_MONEDA, {
+      errorMap: () => ({ message: "Moneda SAT inválida. Usa MXN o USD." }),
+    }),
+    tasaIva: z
+      .number()
+      .refine((value) => ALLOWED_TASA_IVA.includes(value as (typeof ALLOWED_TASA_IVA)[number]), {
+        message: "Tasa de IVA inválida. Usa 0%, 8% o 16%.",
+      }),
     serieCartaPorte: z
       .string()
       .min(1, "La serie es requerida")
@@ -614,9 +644,9 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Moneda <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={form.watch("moneda") ?? ""}
+                value={normalizeMoneda(form.watch("moneda")) ?? "MXN"}
                 onValueChange={(v) =>
-                  form.setValue("moneda", v, { shouldDirty: true })
+                  form.setValue("moneda", v.toUpperCase(), { shouldDirty: true })
                 }
               >
                 <SelectTrigger>
@@ -643,7 +673,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Tasa de IVA <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={String(form.watch("tasaIva") ?? "")}
+                value={String(normalizeTasaIva(form.watch("tasaIva")) ?? 0.16)}
                 onValueChange={(v) =>
                   form.setValue("tasaIva", parseFloat(v), {
                     shouldDirty: true,
@@ -821,8 +851,12 @@ const CertificateCard = memo(function CertificateCard({
       actions={
         settings.certificateConfigured ? (
           <Badge
-            variant={isExpiringSoon ? "warning" : "success"}
-            className="shrink-0"
+            variant={isExpiringSoon ? "outline" : "secondary"}
+            className={
+              isExpiringSoon
+                ? "shrink-0 border-amber-500 text-amber-800 dark:text-amber-200"
+                : "shrink-0 bg-emerald-600 text-white hover:bg-emerald-600/90"
+            }
           >
             {settings.certificateConfigured ? (
               <>
@@ -1002,6 +1036,9 @@ function BillingSettingsPageSkeleton() {
 // ============================================================================
 
 function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
+  const allowedMoneda = normalizeMoneda(settings.moneda) ?? "MXN";
+  const allowedTasa = normalizeTasaIva(settings.tasaIva) ?? 0.16;
+
   return {
     pacProvider: settings.pacProvider || PacProviders.PROFACT,
     pacUsername: settings.pacUsername ?? "",
@@ -1014,8 +1051,8 @@ function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
     testMode: settings.testMode,
     claveProductoServicio: settings.claveProductoServicio,
     claveUnidad: settings.claveUnidad,
-    moneda: settings.moneda,
-    tasaIva: settings.tasaIva,
+    moneda: allowedMoneda,
+    tasaIva: allowedTasa,
     serieCartaPorte: settings.serieCartaPorte,
     folioInicialCartaPorte: settings.folioInicialCartaPorte,
   };
