@@ -82,11 +82,56 @@ Never import from a feature's internal paths. Always use the top-level `@feature
 - **UI/auth state:** React Context (`AuthContext`, `ThemeProvider`, `SidebarProvider`)
 - **Forms:** React Hook Form + Zod via `@hookform/resolvers`
 
+### Formularios: datos persistidos, Radix Select y empleados (patrón estable)
+
+Resumen del problema que se corrigió y de la implementación final (empleados + dirección SAT).
+
+#### Síntoma
+
+En **edición de empleado**, los `Select` de Radix del formulario (género, estado civil, compensación, catálogos de puesto, etc.) a veces quedaban **sin etiqueta** aunque el estado de RHF tuviera el valor correcto. En cambio, los campos dentro de **`AddressInput`** (que usa `useController` por campo) sí se hidrataban bien.
+
+#### Causa raíz (combinada)
+
+1. **`values` de React Hook Form + `Controller` + Radix Select controlado**  
+   En esta pantalla, sincronizar el formulario solo con la prop `values` (post-mount) podía dejar los selects en un estado visual inconsistente: Radix exige que `Select.value` coincida **exactamente** con un `SelectItem.value` en el render donde el control ya está montado.
+
+2. **Valores vacíos inconsistentes**  
+   Usar `""` en campos opcionales de select hace que el `value` no exista en la lista de ítems → el trigger se ve “vacío”. Para opcionales se normaliza a **`undefined`** y en UI se usa un sentinela (`__none__` → “Sin especificar”) vía `RHFSelect`.
+
+3. **Municipio SAT: corto en BD vs compuesto en catálogo**  
+   En BD conviene persistir el código **corto** del municipio (ej. `039`, Carta Porte). El catálogo SAT en UI expone códigos **compuestos** (ej. `JAL-039`). El `Select` debe recibir el compuesto para pintar; el formulario debe seguir guardando el corto. Ver `AddressInput.tsx` (`resolveMunicipalityCatalogCode`, `toShortSatCode`, ref de respaldo ante carrera CP/estado/municipios).
+
+#### Patrón recomendado (alineado con `CompanySettingsForm`)
+
+| Aspecto | Qué hacer |
+|--------|-----------|
+| Montaje en edición | En la **página contenedora**, no montar el formulario hasta tener la data (`useEmployee` + skeleton). Así el primer `useForm` ya recibe el objeto completo. |
+| Hidratación inicial | Usar **`defaultValues`** con el resultado de `employeeToFormValues(existing)` (o equivalente). **No** depender de `values` solo para esta pantalla si los selects son Radix controlados vía `Controller`. |
+| Remount al cambiar entidad | `key={id ?? "new"}` en el componente interno del formulario para forzar `defaultValues` frescos al cambiar de empleado. |
+| Selects genéricos | Componente compartido [`RHFSelect`](src/shared/ui/form/RHFSelect.tsx): `Controller` + mapeo sentinela + normalización `trim` / `""` → sentinela; opcionalmente `key` en el `Select` raíz para forzar sincronía con Radix. |
+| Dirección | [`AddressInput`](src/shared/ui/address-input/AddressInput.tsx): un `useController` por campo; lookup por CP + catálogos SAT en cascada. |
+
+#### Archivos de referencia
+
+- Contenedor + carga: [`EmployeeFormPage.tsx`](src/features/employees/presentation/pages/EmployeeFormPage.tsx) (skeleton en edición, `key` en el inner).
+- Formulario: [`EmployeeFormInner.tsx`](src/features/employees/presentation/components/EmployeeFormInner.tsx) (`initialFormValues` → `defaultValues` únicamente; mapeo `employeeToFormValues`).
+- Defaults y opcionales: [`employeeSchema.ts`](src/features/employees/presentation/validation/employeeSchema.ts) (`defaultEmployeeFormValues`, opcionales de select como `undefined`).
+- Género desde API: [`mappers.ts`](src/features/employees/infrastructure/mappers.ts) (`parseGenderFromApi`).
+
 ### RBAC / Permissions
 
 Defined in `src/shared/permissions/`. Modules include `trips`, `vehicles`, `drivers`, `clients`, `employees`, etc. Actions include `read`, `create`, `update`, `delete`, `updateStatus`, `approve`, etc.
 
 Route guards: `PrivateRoute`, `PermissionRoute`, `ModuleRoute`, `RoleRoute`, `AdminRoute` — all in `src/app/router/`.
+
+### Creación de entidades (patrón wizard)
+
+Las pantallas de **alta** de entidades deben seguir el mismo patrón que el wizard de viajes (`TripFormPage`):
+
+- **Indicador compartido**: [`WizardSteps`](src/shared/ui/wizard/WizardSteps.tsx) dentro de [`WizardProgressCard`](src/shared/ui/wizard/WizardProgressCard.tsx) (Card + padding).
+- **Navegación**: Anterior / Siguiente (validar el paso actual antes de avanzar); en el último paso antes del envío, **Revisión** con datos en solo lectura y botón **Crear** / **Registrar** / **Guardar**.
+- **Clic en pasos** (opcional): igual que viajes — `allowNavigation` + `onStepClick`: se puede volver a pasos ya visitados o al actual; hacia adelante solo si la validación del paso actual pasa.
+- **Atomicidad API**: no es obligatorio un solo POST; clientes y empleados pueden seguir con varias llamadas si el dominio lo requiere; la homologación es de **UX** (shell, pasos, copy de acciones).
 
 ### UI Components
 
@@ -99,6 +144,19 @@ Dark mode is class-based (`dark:` prefix, toggled on `<html>`). Theme uses CSS v
 - `src/shared/utils/dateUtils.ts` — `formatDate`, `formatDateTime`, `isExpired`, `isExpiringSoon`
 - `src/shared/utils/errorMapper.ts` — API error → user message
 - `src/shared/hooks/` — `useAuth`, `usePermissions`, `useRole`, `useTheme`, `useToast`, `useMediaQuery`
+
+### Address model — design source & implementation
+
+**Plan y contrato (fuente de verdad fuera de este repo):** antes de tocar paradas, payloads o el flujo de dirección en viajes, leer el documento de diseño y fases:
+
+- `D:\cowork\boeltech\erp-transport\design\address-reusable-2026-04-21.md`
+
+Ahí está la migración unificada (`address_id` / `addresses`, SAT en JSON, reducción de campos duplicados en `trip_stops`, checklist por fase). En este frontend ya encaja: contrato `ApiStopResponse` + mappers, entidad `TripStop`, wizard de creación (`TripFormPage`, `StopFormDialog`, `validation` / `wizardStopPayload`), actualización de paradas (`stopRepository`, `UpdateTripUseCase`), y lectura (`TripDetailPage`, `FinishTripPage`, `uiHelpers`).
+
+**Código compartido en este repo:**
+
+- `src/shared/validation/addressSchema.ts` — contrato canónico (`addressSchema`, `cartaPorteReadyAddressSchema`).
+- `src/shared/ui/address-input/` — `AddressInput`, `AddressPreview` y hooks; CP vía `GET /api/v1/catalogs/sat/by-postal-code/:cp` (`use-postal-code-lookup.ts`).
 
 ## API Response Standard
 
