@@ -8,10 +8,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { employeeRepository } from "../infrastructure/employeeRepository";
-import {
-  mapApiToEmployeeList,
-  type EmployeeForSelection,
-  type EmployeeSearchParams,
+import { mapApiToEmployeeList } from "../infrastructure/mappers";
+import type {
+  EmployeeForSelection,
+  EmployeeSearchParams,
 } from "../domain/entities";
 
 // ============================================================================

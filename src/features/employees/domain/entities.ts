@@ -3,6 +3,8 @@
  * Clean Architecture - Domain Layer
  */
 
+import type { ClientAddress } from "@features/clients/domain";
+
 // ============================================================================
 // ENUMS / VALUE TYPES
 // ============================================================================
@@ -164,6 +166,9 @@ export interface Employee {
   email: string | null;
   phone: string | null;
   mobilePhone: string | null;
+  /** Dirección personal en `addresses` (si existe) */
+  personalAddress: ClientAddress | null;
+  /** Campos legacy del API de empleado (texto libre) */
   street: string | null;
   exteriorNumber: string | null;
   interiorNumber: string | null;
@@ -251,14 +256,6 @@ export interface CreateEmployeeDTO {
   email?: string;
   phone?: string;
   mobile_phone?: string;
-  street?: string;
-  exterior_number?: string;
-  interior_number?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  country?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;

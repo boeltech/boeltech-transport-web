@@ -23,14 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@shared/ui/dialog";
 import { Label } from "@shared/ui/label";
 import { Input } from "@shared/ui/input";
 import { Textarea } from "@shared/ui/text-area";

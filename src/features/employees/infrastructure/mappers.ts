@@ -12,6 +12,7 @@ import type {
   EmployeeListItem,
   Employee,
   EmployeeForSelection,
+  Gender,
 } from "../domain/entities";
 import type {
   MappedPaginatedResult,
@@ -24,6 +25,36 @@ import type {
 // API → DOMAIN
 // ============================================================================
 
+/**
+ * Normaliza género desde API a valores del dominio ("M" | "F").
+ * En BD suele persistirse como una sola letra **M** o **F** (también acepta `m`/`f`).
+ * El UI (`GENDER_OPTIONS`) y Zod solo reconocen esos dos códigos; otras cadenas legacy
+ * se mapean cuando es posible; si no, retorna `null` (equivalente a “sin especificar”).
+ */
+function parseGenderFromApi(raw: Gender | string | null | undefined): Gender | null {
+  if (raw == null) return null;
+  const v = String(raw).trim();
+  if (!v) return null;
+  const u = v.toUpperCase();
+  const lower = v.toLowerCase();
+
+  if (u === "M") return "M";
+  if (u === "F") return "F";
+
+  if (
+    u === "H" ||
+    lower === "male" ||
+    lower === "masculino" ||
+    lower === "hombre"
+  ) {
+    return "M";
+  }
+  if (lower === "female" || lower === "femenino" || lower === "mujer") {
+    return "F";
+  }
+  return null;
+}
+
 function mapListItemToDomain(raw: ApiEmployeeListItem): EmployeeListItem {
   return {
     id: raw.id,
@@ -32,7 +63,7 @@ function mapListItemToDomain(raw: ApiEmployeeListItem): EmployeeListItem {
     lastName: raw.last_name,
     secondLastName: raw.second_last_name,
     fullName: raw.full_name,
-    gender: raw.gender,
+    gender: parseGenderFromApi(raw.gender),
     department: raw.department,
     position: raw.position,
     employmentType: raw.employment_type,
@@ -54,7 +85,7 @@ function mapEmployeeToDomain(raw: ApiEmployeeResponse): Employee {
     secondLastName: raw.second_last_name,
     fullName: raw.full_name,
     birthDate: raw.birth_date,
-    gender: raw.gender,
+    gender: parseGenderFromApi(raw.gender),
     maritalStatus: raw.marital_status,
     nationality: raw.nationality,
     birthPlace: raw.birth_place,
@@ -65,6 +96,7 @@ function mapEmployeeToDomain(raw: ApiEmployeeResponse): Employee {
     email: raw.email,
     phone: raw.phone,
     mobilePhone: raw.mobile_phone,
+    personalAddress: null,
     street: raw.street,
     exteriorNumber: raw.exterior_number,
     interiorNumber: raw.interior_number,

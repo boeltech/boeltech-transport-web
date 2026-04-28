@@ -10,6 +10,10 @@ import {
   type EmployeeListParams,
 } from "../../infrastructure/employeeRepository";
 import {
+  fetchEmployeeAddresses,
+  pickEmployeePersonalAddress,
+} from "../../infrastructure/employeeAddressRepository";
+import {
   mapPaginatedEmployees,
   mapEmployee,
   mapApiToEmployeeForSelection,
@@ -66,7 +70,18 @@ export function useEmployee(id: string, enabled = true) {
     queryKey: employeeQueryKeys.detail(id),
     queryFn: async () => {
       const raw = await fetchEmployee(id);
-      return mapEmployee(raw);
+      const mapped = mapEmployee(raw);
+      let personalAddress = mapped.data.personalAddress;
+      try {
+        const addresses = await fetchEmployeeAddresses(id);
+        personalAddress = pickEmployeePersonalAddress(addresses);
+      } catch {
+        personalAddress = null;
+      }
+      return {
+        data: { ...mapped.data, personalAddress },
+        message: mapped.message,
+      };
     },
     enabled: enabled && !!id,
     staleTime: 5 * 60 * 1000,

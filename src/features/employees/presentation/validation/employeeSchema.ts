@@ -13,6 +13,7 @@
  */
 
 import { z } from "zod";
+import { addressSchema } from "@shared/validation/addressSchema";
 
 // ============================================================================
 // Constants
@@ -63,6 +64,17 @@ export const BLOOD_TYPE_VALUES = [
 // ============================================================================
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const curpRegex = /^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/;
+const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+const digits11Regex = /^\d{11}$/;
+const digits18Regex = /^\d{18}$/;
+
+const employeeDomicilioSchema = addressSchema.safeExtend({
+  addressType: z.literal("personal"),
+  isPrimary: z.literal(true),
+  /** API puede usar UUID u otro identificador */
+  id: z.string().optional(),
+});
 
 export const employeeSchema = z.object({
   // ========================================
@@ -108,6 +120,7 @@ export const employeeSchema = z.object({
   curp: z
     .string()
     .length(18, "La CURP debe tener exactamente 18 caracteres")
+    .regex(curpRegex, "La CURP no tiene un formato válido")
     .optional()
     .or(z.literal("")),
 
@@ -115,12 +128,14 @@ export const employeeSchema = z.object({
     .string()
     .min(12, "El RFC debe tener al menos 12 caracteres")
     .max(13, "El RFC debe tener máximo 13 caracteres")
+    .regex(rfcRegex, "El RFC no tiene un formato válido")
     .optional()
     .or(z.literal("")),
 
   nss: z
     .string()
     .length(11, "El NSS debe tener exactamente 11 dígitos")
+    .regex(digits11Regex, "El NSS solo debe contener dígitos")
     .optional()
     .or(z.literal("")),
 
@@ -143,29 +158,9 @@ export const employeeSchema = z.object({
   mobile_phone: z.string().max(20, "El celular es muy largo").optional(),
 
   // ========================================
-  // Domicilio (OPCIONAL)
+  // Domicilio (SAT + calle, recurso addresses)
   // ========================================
-  street: z.string().max(200, "La calle es muy larga").optional(),
-
-  exterior_number: z
-    .string()
-    .max(20, "El número exterior es muy largo")
-    .optional(),
-
-  interior_number: z
-    .string()
-    .max(20, "El número interior es muy largo")
-    .optional(),
-
-  neighborhood: z.string().max(100, "La colonia es muy larga").optional(),
-
-  city: z.string().max(100, "La ciudad es muy larga").optional(),
-
-  state: z.string().max(50, "El estado es muy largo").optional(),
-
-  postal_code: z.string().max(10, "El código postal es muy largo").optional(),
-
-  country: z.string().max(50, "El país es muy largo").optional(),
+  domicilio: employeeDomicilioSchema,
 
   // ========================================
   // Contacto de emergencia (OPCIONAL)
@@ -195,6 +190,9 @@ export const employeeSchema = z.object({
 
   employment_type: z.enum(EMPLOYMENT_TYPE_VALUES),
 
+  // Phase 1 catalog rollout:
+  // keep as free string for backward compatibility with legacy records.
+  // In phase 2 these can be upgraded to tenant-backed catalog validation.
   department: z.string().max(100, "El departamento es muy largo").optional(),
 
   position: z.string().max(100, "El puesto es muy largo").optional(),
@@ -228,6 +226,7 @@ export const employeeSchema = z.object({
   bank_clabe: z
     .string()
     .length(18, "La CLABE debe tener exactamente 18 dígitos")
+    .regex(digits18Regex, "La CLABE solo debe contener dígitos")
     .optional()
     .or(z.literal("")),
 
@@ -252,11 +251,35 @@ export type EmployeeFormData = z.infer<typeof employeeSchema>;
 // Default Values
 // ============================================================================
 
+export const defaultEmployeeDomicilio: EmployeeFormData["domicilio"] = {
+  addressType: "personal",
+  isPrimary: true,
+  street: "",
+  exteriorNumber: "",
+  interiorNumber: null,
+  reference: null,
+  postalCode: "",
+  satCountryCode: "MEX",
+  satStateCode: "",
+  satMunicipalityCode: "",
+  satLocalityCode: null,
+  satNeighborhoodCode: null,
+  neighborhoodName: null,
+  latitude: null,
+  longitude: null,
+};
+
 export const defaultEmployeeFormValues: EmployeeFormData = {
   first_name: "",
   last_name: "",
   second_last_name: "",
   birth_date: "",
+  // Campos opcionales declarados explícitamente para que RHF los conozca
+  // desde el primer render. En selects opcionales usamos `undefined`
+  // (no string vacío) para evitar value inválido en Radix Select.
+  gender: undefined,
+  marital_status: undefined,
+  blood_type: undefined,
   nationality: "",
   birth_place: "",
   curp: "",
@@ -266,23 +289,19 @@ export const defaultEmployeeFormValues: EmployeeFormData = {
   email: "",
   phone: "",
   mobile_phone: "",
-  street: "",
-  exterior_number: "",
-  interior_number: "",
-  neighborhood: "",
-  city: "",
-  state: "",
-  postal_code: "",
-  country: "México",
+  domicilio: defaultEmployeeDomicilio,
   emergency_contact_name: "",
   emergency_contact_phone: "",
-  emergency_contact_relationship: "",
+  emergency_contact_relationship: undefined,
   hire_date: "",
   employment_type: "permanent",
-  department: "",
-  position: "",
+  department: undefined,
+  position: undefined,
   job_title: "",
-  work_location: "",
+  work_location: undefined,
+  base_salary: undefined,
+  salary_type: undefined,
+  payment_method: undefined,
   bank_name: "",
   bank_account_number: "",
   bank_clabe: "",
