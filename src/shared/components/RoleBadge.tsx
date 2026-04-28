@@ -12,6 +12,8 @@ import {
   Calculator,
   ClipboardList,
   User,
+  Radio,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 import { ROLE_LABELS, type UserRole } from "@/shared/constants/roles";
@@ -29,8 +31,10 @@ interface RoleBadgeProps {
 const ROLE_ICONS: Record<UserRole, LucideIcon> = {
   admin: Shield,
   manager: Briefcase,
+  dispatcher: Radio,
   accountant: Calculator,
   operator: ClipboardList,
+  driver: Truck,
   client: User,
 };
 
@@ -38,9 +42,12 @@ const ROLE_COLORS: Record<UserRole, string> = {
   admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   manager:
     "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  dispatcher:
+    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
   accountant:
     "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   operator: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  driver: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
   client: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
 };
 

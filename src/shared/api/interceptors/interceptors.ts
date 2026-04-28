@@ -133,10 +133,13 @@ export const setupInterceptors = (
             // Llamar al endpoint de refresh (sin usar la instancia con interceptores)
             const response = await axios.post(
               `${instance.defaults.baseURL}${refreshEndpoint}`,
-              { refreshToken }
+              { refresh_token: refreshToken }
             );
 
-            const newToken = response.data.accessToken;
+            const newToken = response.data?.data?.access_token as string | undefined;
+            if (!newToken) {
+              throw new Error("Refresh response missing access_token");
+            }
 
             // Guardar nuevo token
             tokenStorage.setToken(newToken);

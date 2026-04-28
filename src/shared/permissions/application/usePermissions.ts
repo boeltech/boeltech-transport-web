@@ -83,7 +83,7 @@ export function usePermissions(): UsePermissionsReturn {
 
   // En desarrollo, permitir todo si no hay provider
   if (!context) {
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.warn(
         "[usePermissions] No PermissionProvider found. " +
           "Using development fallback with full permissions.",

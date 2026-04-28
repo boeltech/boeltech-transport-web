@@ -47,7 +47,7 @@ export function RoleGuard({
   fallback = null,
   requireAll = false,
 }: RoleGuardProps) {
-  const { hasRole, role: currentRole } = useRole();
+  const { hasRole } = useRole();
 
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
 

@@ -16,6 +16,7 @@ import { usePermissions } from "@/shared/permissions";
 import { navigationConfig } from "./navigation";
 import type { NavGroup, NavItem } from "./types";
 import { ROLES } from "@shared/constants/roles";
+import type { Module, Action } from "@shared/permissions/domain/entities";
 
 // ============================================================================
 // TYPES
@@ -70,7 +71,7 @@ function checkPathActive(currentPath: string, targetPath: string): boolean {
  */
 function filterNavItems(
   items: NavItem[],
-  hasPermission: (module: string, action: string) => boolean,
+  hasPermission: (module: Module, action: Action) => boolean,
 ): NavItem[] {
   return items.filter((item) => {
     // Si no requiere módulo, mostrar siempre
@@ -87,7 +88,7 @@ function filterNavItems(
  */
 function filterNavigation(
   config: NavGroup[],
-  hasPermission: (module: string, action: string) => boolean,
+  hasPermission: (module: Module, action: Action) => boolean,
   isAdmin: boolean,
 ): NavGroup[] {
   // Si es admin, mostrar todo

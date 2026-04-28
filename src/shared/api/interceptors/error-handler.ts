@@ -193,8 +193,11 @@ export class ApiError extends Error {
     this.isNetworkError = status === 0;
     this.isTimeout = code === "TIMEOUT";
 
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, ApiError);
+    const Capture = Error as unknown as {
+      captureStackTrace?: (err: Error, ctor: unknown) => void;
+    };
+    if (typeof Capture.captureStackTrace === "function") {
+      Capture.captureStackTrace(this, ApiError);
     }
   }
 

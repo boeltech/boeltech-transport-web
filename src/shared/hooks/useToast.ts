@@ -109,7 +109,8 @@ export function useToast(): UseToastReturn {
       promiseToResolve: Promise<T>,
       messages: ToastPromiseMessages<T>,
     ): Promise<T> => {
-      return sonnerToast.promise(promiseToResolve, messages);
+      void sonnerToast.promise(promiseToResolve, messages);
+      return promiseToResolve;
     },
     [],
   );
@@ -202,7 +203,8 @@ export function toastPromise<T>(
   promise: Promise<T>,
   messages: ToastPromiseMessages<T>,
 ): Promise<T> {
-  return sonnerToast.promise(promise, messages);
+  void sonnerToast.promise(promise, messages);
+  return promise;
 }
 
 /**

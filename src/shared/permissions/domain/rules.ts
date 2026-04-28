@@ -174,8 +174,10 @@ export function getRoleHierarchy(role: UserRole): UserRole[] {
   const hierarchy: Record<UserRole, UserRole[]> = {
     admin: [], // Admin no hereda de nadie
     manager: [], // Manager no hereda (tiene permisos propios)
+    dispatcher: [],
     accountant: [], // Accountant no hereda
     operator: [], // Operator no hereda
+    driver: [],
     client: [], // Client no hereda
   };
 
@@ -191,10 +193,12 @@ export function isRoleAbove(userRole: UserRole, targetRole: UserRole): boolean {
 
   // Jerarquía simple: manager > accountant/operator > client
   const levels: Record<UserRole, number> = {
-    admin: 5,
-    manager: 4,
+    admin: 6,
+    manager: 5,
+    dispatcher: 4,
     accountant: 3,
-    operator: 2,
+    operator: 3,
+    driver: 2,
     client: 1,
   };
 

@@ -111,7 +111,15 @@ export interface ApiErrorResponse {
   code?: string;
   errorCode?: string;
   message?: string;
-  error?: string;
+  /** Plano (string) o objeto anidado según backend */
+  error?:
+    | string
+    | {
+        code?: string;
+        errorCode?: string;
+        message?: string;
+        statusCode?: number;
+      };
   details?: unknown;
 }
 
@@ -121,17 +129,18 @@ export interface DomainError {
   readonly field?: string;
 }
 
-/**
- * Estructura de error anidada: error.response.data.error = { code, message, statusCode }
- * Esta es la estructura que usa tu backend
- */
-export interface ApiErrorResponseWithNested extends ApiErrorResponse {
-  error?: {
-    code?: string;
-    errorCode?: string;
-    message?: string;
-    statusCode?: number;
-  };
+/** @deprecated Usar `ApiErrorResponse.error` (unión string | objeto) */
+export type ApiErrorResponseWithNested = ApiErrorResponse;
+
+function pickStringMessage(...candidates: unknown[]): string | undefined {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+    if (typeof c === "object" && c !== null && "message" in c) {
+      const m = (c as { message?: unknown }).message;
+      if (typeof m === "string" && m.trim()) return m;
+    }
+  }
+  return undefined;
 }
 
 // ============================================================================
@@ -257,10 +266,13 @@ function handleAxiosError(error: AxiosError<ApiErrorResponse>): MappedError {
 
     // Estructura 2: error.response.data = { code, message } (estructura plana)
     const code =
-      responseData.code ||
-      responseData.errorCode ||
+      (typeof responseData.code === "string" && responseData.code) ||
+      (typeof responseData.errorCode === "string" && responseData.errorCode) ||
       getCodeFromStatus(statusCode);
-    const originalMessage = responseData.message || responseData.error;
+    const originalMessage = pickStringMessage(
+      responseData.message,
+      responseData.error,
+    );
 
     return {
       code,
@@ -286,7 +298,7 @@ function handleAxiosError(error: AxiosError<ApiErrorResponse>): MappedError {
  */
 function handleObjectError(error: ApiErrorResponse): MappedError {
   const code = error.code || error.errorCode || "UNKNOWN_ERROR";
-  const originalMessage = error.message || error.error;
+  const originalMessage = pickStringMessage(error.message, error.error);
 
   return {
     code,
