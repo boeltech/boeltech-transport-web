@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -29,8 +29,9 @@ import type { Invoice } from "@features/invoicing/domain";
 // ============================================================================
 
 const schema = z.object({
-  amount: z
-    .number({ invalid_type_error: "Monto requerido" })
+  amount: z.coerce
+    .number()
+    .refine((n) => !Number.isNaN(n), { message: "Monto requerido" })
     .positive("El monto debe ser mayor a 0"),
   payment_date: z
     .string()
@@ -57,8 +58,8 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
   const remainingBalance = Number(invoice.balanceDue.toFixed(2));
   const hasPendingBalance = remainingBalance > 0;
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<FormValues, unknown, FormValues>({
+    resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       amount: invoice.balanceDue > 0 ? Number(invoice.balanceDue.toFixed(2)) : 0,
       payment_date: new Date().toISOString().split("T")[0],

@@ -9,7 +9,6 @@
 import { apiClient } from "@shared/api";
 import type {
   Invoice,
-  InvoiceListItem,
   Payment,
   FinanceSummary,
   AccountStatementItem,
@@ -24,7 +23,7 @@ import type {
 import {
   mapInvoice,
   mapInvoiceListItem,
-  mapPayment as _mapPayment,
+  mapPayment,
   mapFinanceSummary,
   mapAccountStatementItem,
   mapInvoicePrefill,
@@ -135,21 +134,7 @@ export const invoicingApi = {
     const response = await apiClient.get<{ data: unknown[] }>(
       `${INVOICES}/${invoiceId}/payments`,
     );
-    return (response.data as any[]).map((p: any) => ({
-      id: p.id,
-      invoiceId: p.invoice_id,
-      amount: p.amount,
-      currency: p.currency,
-      exchangeRate: p.exchange_rate,
-      amountMxn: p.amount_mxn,
-      paymentDate: p.payment_date,
-      paymentForm: p.payment_form,
-      paymentFormName: p.payment_form_name,
-      reference: p.reference,
-      notes: p.notes,
-      createdAt: p.created_at,
-      createdByName: p.created_by_name,
-    }));
+    return (response.data as any[]).map((p: any) => mapPayment(p));
   },
 
   registerPayment: async (
@@ -160,22 +145,7 @@ export const invoicingApi = {
       `${INVOICES}/${invoiceId}/payments`,
       toApiCreatePayment(payload),
     );
-    const p = response.data as any;
-    return {
-      id: p.id,
-      invoiceId: p.invoice_id,
-      amount: p.amount,
-      currency: p.currency,
-      exchangeRate: p.exchange_rate,
-      amountMxn: p.amount_mxn,
-      paymentDate: p.payment_date,
-      paymentForm: p.payment_form,
-      paymentFormName: p.payment_form_name,
-      reference: p.reference,
-      notes: p.notes,
-      createdAt: p.created_at,
-      createdByName: p.created_by_name,
-    };
+    return mapPayment(response.data as any);
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -186,7 +156,7 @@ export const invoicingApi = {
    * Abre el PDF de la factura en una nueva pestaña.
    * Usa el endpoint autenticado GET /invoices/:id/pdf (genera on-demand si no existe).
    */
-  openPdf: async (id: string, serieFolio: string): Promise<void> => {
+  openPdf: async (id: string, _serieFolio: string): Promise<void> => {
     const axios = apiClient.getAxiosInstance();
     const response = await axios.get<Blob>(`${INVOICES}/${id}/pdf`, {
       responseType: "blob",

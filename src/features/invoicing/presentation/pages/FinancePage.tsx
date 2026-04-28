@@ -523,7 +523,6 @@ function InvoicesTab({
 // ============================================================================
 
 export function FinancePage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = searchParams.get("tab") ?? "summary";

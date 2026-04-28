@@ -13,7 +13,6 @@ import type {
   FinanceSummary,
   AccountStatementItem,
   InvoicePrefill,
-  PaginatedInvoices,
   CreateInvoicePayload,
   UpdateInvoicePayload,
   CancelInvoicePayload,
@@ -177,7 +176,7 @@ interface ApiInvoicePrefill {
 // MAPPERS — API → Domain
 // ============================================================================
 
-function mapPayment(raw: ApiPayment): Payment {
+export function mapPayment(raw: ApiPayment): Payment {
   return {
     id: raw.id,
     invoiceId: raw.invoice_id,

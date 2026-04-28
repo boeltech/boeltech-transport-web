@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -65,12 +65,12 @@ interface Props {
 export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
   const { toast } = useToast();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<FormValues, unknown, FormValues>({
+    resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       cancellation_reason: "",
       cancellation_code: "02",
-      replacement_cfdi_uuid: "",
+      replacement_cfdi_uuid: undefined,
     },
   });
 
