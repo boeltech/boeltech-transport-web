@@ -8,7 +8,26 @@
  */
 
 import { apiClient } from "@/shared/api";
-import type { AuthResponse, RefreshResponse, UserJSON } from "../../domain";
+import type {
+  ApiEnvelope,
+  AuthResponse,
+  LoginApiData,
+  RefreshApiData,
+  RefreshResponse,
+  UserApi,
+  UserJSON,
+} from "../../domain";
+
+const mapUserApiToJson = (user: UserApi): UserJSON => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.first_name,
+  lastName: user.last_name,
+  role: user.role,
+  tenant: user.tenant,
+  lastLogin: user.last_login,
+  permissions: user.permissions,
+});
 
 /**
  * API de Autenticación
@@ -28,14 +47,30 @@ export const authApi = {
     password: string;
     subdomain: string;
   }): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>("/auth/login", credentials);
+    const response = await apiClient.post<ApiEnvelope<LoginApiData>>(
+      "/auth/login",
+      credentials,
+    );
+
+    return {
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+      user: mapUserApiToJson(response.data.user),
+    };
   },
 
   /**
    * Renovar token de acceso
    */
   refresh: async (refreshToken: string): Promise<RefreshResponse> => {
-    return apiClient.post<RefreshResponse>("/auth/refresh", { refreshToken });
+    const response = await apiClient.post<ApiEnvelope<RefreshApiData>>(
+      "/auth/refresh",
+      { refreshToken },
+    );
+
+    return {
+      accessToken: response.data.access_token,
+    };
   },
 
   /**
@@ -49,6 +84,7 @@ export const authApi = {
    * Obtener perfil del usuario autenticado
    */
   getProfile: async (): Promise<UserJSON> => {
-    return apiClient.get<UserJSON>("/auth/profile");
+    const response = await apiClient.get<ApiEnvelope<UserApi>>("/auth/profile");
+    return mapUserApiToJson(response.data);
   },
 };

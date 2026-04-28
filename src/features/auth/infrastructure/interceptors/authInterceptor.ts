@@ -91,10 +91,15 @@ export function setupAuthInterceptor(
 
           // Intentar refrescar el token
           const response = await apiClient.post("/auth/refresh", {
-            refreshToken,
+            refresh_token: refreshToken,
           });
 
-          const newToken = response.data.accessToken;
+          const newToken = response?.data?.data?.access_token as
+            | string
+            | undefined;
+          if (!newToken) {
+            throw new Error("Refresh response missing access_token");
+          }
 
           // Guardar el nuevo token
           tokenStorage.setToken(newToken);

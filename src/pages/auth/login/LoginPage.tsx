@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Truck, LogIn, Building2 } from "lucide-react";
@@ -51,8 +51,8 @@ const LoginPage = () => {
     formState: { errors },
     setValue,
     watch,
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<LoginFormData, unknown, LoginFormData>({
+    resolver: zodResolver(loginSchema) as Resolver<LoginFormData>,
     defaultValues: {
       email: "",
       password: "",

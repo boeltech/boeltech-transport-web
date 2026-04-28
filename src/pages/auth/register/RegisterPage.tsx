@@ -78,13 +78,16 @@ const RegisterPage = () => {
     setIsCheckingSubdomain(true);
     try {
       const response = await apiClient.get<{
-        available: boolean;
-        subdomain: string;
-        suggestion?: string;
+        message: string;
+        data: {
+          available: boolean;
+          subdomain: string;
+          suggestion?: string;
+        };
       }>(`/onboarding/check-subdomain?subdomain=${subdomain}`);
 
-      setSubdomainAvailable(response.available);
-      setSubdomainSuggestion(response.suggestion || null);
+      setSubdomainAvailable(response.data.available);
+      setSubdomainSuggestion(response.data.suggestion || null);
     } catch (err) {
       setSubdomainAvailable(null);
     } finally {
@@ -131,9 +134,12 @@ const RegisterPage = () => {
 
     try {
       const response = await apiClient.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: any;
+        message: string;
+        data: {
+          access_token: string;
+          refresh_token: string;
+          user: any;
+        };
       }>("/onboarding/register", {
         company: {
           name: data.companyName,
@@ -149,9 +155,16 @@ const RegisterPage = () => {
       });
 
       // Guardar tokens
-      tokenStorage.setToken(response.accessToken);
-      tokenStorage.setRefreshToken(response.refreshToken);
-      tokenStorage.setUser(response.user);
+      tokenStorage.setToken(response.data.access_token);
+      tokenStorage.setRefreshToken(response.data.refresh_token);
+      tokenStorage.setUser({
+        id: response.data.user.id,
+        email: response.data.user.email,
+        firstName: response.data.user.first_name,
+        lastName: response.data.user.last_name,
+        role: response.data.user.role,
+        tenant: response.data.user.tenant,
+      });
       tokenStorage.setSubdomain(data.subdomain);
 
       // Ir al dashboard
@@ -167,8 +180,8 @@ const RegisterPage = () => {
         errorMsg.includes("subdomain")
       ) {
         setStep("company");
-        if (err?.response?.data?.suggestion) {
-          setSubdomainSuggestion(err.response.data.suggestion);
+        if (err?.response?.data?.details?.suggestion) {
+          setSubdomainSuggestion(err.response.data.details.suggestion);
         }
       }
     } finally {

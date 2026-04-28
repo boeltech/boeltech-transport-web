@@ -29,6 +29,36 @@ export interface RefreshResponse {
   accessToken: string;
 }
 
+export interface ApiEnvelope<T> {
+  message?: string;
+  data: T;
+}
+
+export interface UserApi {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: UserJSON["role"];
+  tenant: {
+    id: string;
+    name: string;
+    subdomain: string;
+  };
+  last_login?: string;
+  permissions?: string[];
+}
+
+export interface LoginApiData {
+  access_token: string;
+  refresh_token: string;
+  user: UserApi;
+}
+
+export interface RefreshApiData {
+  access_token: string;
+}
+
 // ============================================
 // STATE TYPES
 // ============================================

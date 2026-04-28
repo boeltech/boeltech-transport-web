@@ -61,14 +61,17 @@ const ResetPasswordPage = () => {
 
       try {
         const response = await apiClient.get<{
-          valid: boolean;
-          error?: string;
+          message: string;
+          data: {
+            valid: boolean;
+            error?: string;
+          };
         }>(`/auth/verify-reset-token/${token}`);
 
-        if (response.valid) {
+        if (response.data.valid) {
           setPageState("valid");
         } else {
-          setTokenError(response.error || "Token inválido");
+          setTokenError(response.data.error || "Token inválido");
           setPageState("invalid");
         }
       } catch (err: any) {
