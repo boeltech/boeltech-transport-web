@@ -225,6 +225,16 @@ const ForbiddenPage = lazy(() => import("@/pages/errors/forbidden"));
 const ServerErrorPage = lazy(() => import("@/pages/errors/server-error"));
 const MaintenancePage = lazy(() => import("@/pages/errors/maintenance"));
 
+/** Routes backed by gitignored `src/pages/dev/` — only registered in Vite dev */
+const devOnlyAppChildRoutes = import.meta.env.DEV
+  ? ([
+      {
+        path: "/dev/address-input",
+        element: withSuspense(lazy(() => import("@/pages/dev/address-input"))),
+      },
+    ] as const)
+  : [];
+
 // ============================================
 // Router Configuration
 // ============================================
@@ -292,6 +302,7 @@ export const router = createBrowserRouter([
             path: "/dashboard",
             element: withSuspense(DashboardPage),
           },
+          ...devOnlyAppChildRoutes,
 
           // ========================================
           // Profile (todos los autenticados)

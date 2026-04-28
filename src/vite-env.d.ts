@@ -12,3 +12,13 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Local-only pages under `src/pages/dev/` (gitignored).
+ * Keeps `tsc` happy when those files are absent in CI clones.
+ */
+declare module "@/pages/dev/address-input" {
+  import type { FC } from "react";
+  const Page: FC;
+  export default Page;
+}
