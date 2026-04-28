@@ -25,6 +25,33 @@ import type {
 } from "../../domain";
 
 // ============================================================================
+// ERRORS
+// ============================================================================
+
+/**
+ * El cliente ya se persistió pero falló la creación de la dirección fiscal.
+ * Permite al UI ofrecer ir al detalle a completar la dirección.
+ */
+export class CreateClientAddressFailedError extends Error {
+  readonly clientId: string;
+  readonly clientCode: string;
+  readonly causeError: unknown;
+
+  constructor(
+    message: string,
+    clientId: string,
+    clientCode: string,
+    causeError?: unknown,
+  ) {
+    super(message);
+    this.name = "CreateClientAddressFailedError";
+    this.clientId = clientId;
+    this.clientCode = clientCode;
+    this.causeError = causeError;
+  }
+}
+
+// ============================================================================
 // USE CASE
 // ============================================================================
 
@@ -70,14 +97,20 @@ export class CreateClientUseCase {
         addressId: address.id,
       };
     } catch (error) {
-      // Si falla la creación de la dirección, podríamos querer
-      // eliminar el cliente creado. Por ahora, propagamos el error.
-      // TODO: Implementar rollback o transacción distribuida
       console.error(
         `Error creating billing address for client ${clientId}:`,
         error,
       );
-      throw error;
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la dirección fiscal.";
+      throw new CreateClientAddressFailedError(
+        message,
+        clientId,
+        clientCode,
+        error,
+      );
     }
   }
 

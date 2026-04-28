@@ -66,6 +66,7 @@ export type {
   ClientListItemApiResponse,
   ClientApiResponse,
   ClientAddressApiResponse,
+  ClientAddressCartaPorteApiResponse,
   CreateClientApiResponse,
   UpdateClientApiResponse,
 } from "./repository";

@@ -1,40 +1,19 @@
-/**
- * ClientCreatePage
- * Clean Architecture - Presentation Layer
- *
- * Página de creación de cliente usando un wizard de 2 pasos:
- * 1. Información del cliente (ClientForm)
- * 2. Dirección fiscal (ClientAddressForm)
- *
- * Ubicación: src/features/clients/presentation/pages/ClientCreatePage.tsx
- */
-
-import { useCallback, useState } from "react";
+﻿import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Progress } from "@shared/ui/progress";
-import { ScrollArea } from "@shared/ui/scroll-area";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  Building2,
-  MapPin,
-  Users,
-} from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
+  WizardNavigationBar,
+  WizardProgressCard,
+  WizardSteps,
+} from "@shared/ui/wizard";
+import type { WizardStep } from "@shared/ui/wizard";
+import { ArrowLeft, Check, Loader2, Users, Info } from "lucide-react";
 
 import { useCreateClient } from "../../application";
-import { CLIENT_WIZARD_STEPS, type ClientWizardStep } from "../../domain";
+import { CLIENT_TYPE_LABELS, CLIENT_WIZARD_STEPS, type ClientWizardStep } from "../../domain";
 import { ClientForm, ClientAddressForm } from "../components";
 import type { ClientFormData } from "../validation/clientSchema";
-import type { ClientAddressFormData } from "../validation/clientAddressSchema";
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { clientAddressFormDataToCreateDto, type ClientAddressFormData } from "../validation/clientAddressSchema";
 
 interface WizardState {
   currentStep: ClientWizardStep;
@@ -44,292 +23,147 @@ interface WizardState {
   isAddressValid: boolean;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function clientStepToIndex(step: ClientWizardStep): number { return step === "info" ? 0 : 1; }
+function indexToClientStep(index: number): ClientWizardStep { return index <= 0 ? "info" : "address"; }
+
+const ClientCreateWizardProgress = memo(function ClientCreateWizardProgress({ currentStep, onStepClick }: { currentStep: ClientWizardStep; onStepClick: (index: number) => void; }) {
+  const steps: WizardStep[] = useMemo(() => CLIENT_WIZARD_STEPS.map((s) => ({ id: s.id, title: s.title, description: s.description })), []);
+  return (
+    <WizardProgressCard>
+      <WizardSteps steps={steps} currentStep={clientStepToIndex(currentStep)} onStepClick={onStepClick} allowNavigation ariaLabel="Pasos para dar de alta un cliente" />
+    </WizardProgressCard>
+  );
+});
 
 export function ClientCreatePage() {
   const navigate = useNavigate();
   const createClientMutation = useCreateClient();
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const prevWizardStepRef = useRef<ClientWizardStep | null>(null);
+  const nextStepHelpId = useId();
+  const submitHelpId = useId();
 
-  // Wizard state
-  const [state, setState] = useState<WizardState>({
-    currentStep: "info",
-    clientData: null,
-    addressData: null,
-    isClientValid: false,
-    isAddressValid: false,
-  });
+  const [state, setState] = useState<WizardState>({ currentStep: "info", clientData: null, addressData: null, isClientValid: false, isAddressValid: false });
 
-  // Current step index
-  const currentStepIndex = CLIENT_WIZARD_STEPS.findIndex(
-    (s) => s.id === state.currentStep,
-  );
-  const progress = ((currentStepIndex + 1) / CLIENT_WIZARD_STEPS.length) * 100;
+  useEffect(() => {
+    const prev = prevWizardStepRef.current;
+    prevWizardStepRef.current = state.currentStep;
+    if (prev && prev !== state.currentStep) requestAnimationFrame(() => stepHeadingRef.current?.focus({ preventScroll: true }));
+  }, [state.currentStep]);
 
-  // Handlers (useCallback evita bucles: los formularios sincronizan vía useEffect/useWatch
-  // y una función nueva en cada render re-dispara esos efectos → Maximum update depth exceeded)
-  const handleClientChange = useCallback(
-    (data: ClientFormData, isValid: boolean) => {
-      setState((prev) => ({
-        ...prev,
-        clientData: data,
-        isClientValid: isValid,
-      }));
-    },
-    [],
-  );
+  const handleClientChange = useCallback((data: ClientFormData, isValid: boolean) => setState((prev) => ({ ...prev, clientData: data, isClientValid: isValid })), []);
+  const handleAddressChange = useCallback((data: ClientAddressFormData, isValid: boolean) => setState((prev) => ({ ...prev, addressData: data, isAddressValid: isValid })), []);
 
-  const handleAddressChange = useCallback(
-    (data: ClientAddressFormData, isValid: boolean) => {
-      setState((prev) => ({
-        ...prev,
-        addressData: data,
-        isAddressValid: isValid,
-      }));
-    },
-    [],
-  );
+  const handleStepClick = useCallback((stepIndex: number) => {
+    const target = indexToClientStep(stepIndex);
+    const currentIdx = clientStepToIndex(state.currentStep);
+    if (stepIndex <= currentIdx) return setState((prev) => ({ ...prev, currentStep: target }));
+    if (state.currentStep === "info" && state.isClientValid) setState((prev) => ({ ...prev, currentStep: "address" }));
+  }, [state.currentStep, state.isClientValid]);
 
-  const handleNext = () => {
-    if (state.currentStep === "info" && state.isClientValid) {
-      setState((prev) => ({ ...prev, currentStep: "address" }));
-    }
-  };
-
-  const handleBack = () => {
+  const handleNext = () => { if (state.currentStep === "info" && state.isClientValid) setState((prev) => ({ ...prev, currentStep: "address" })); };
+  const handleBack = () => { if (state.currentStep === "address") setState((prev) => ({ ...prev, currentStep: "info" })); else navigate("/clients"); };
+  const handlePrevious = () => {
     if (state.currentStep === "address") {
       setState((prev) => ({ ...prev, currentStep: "info" }));
-    } else {
-      navigate("/clients");
     }
   };
 
-  const handleSubmit = async () => {
-    if (!state.clientData || !state.addressData) return;
-    if (!state.isClientValid || !state.isAddressValid) return;
-
-    createClientMutation.mutate(
-      {
-        client: {
-          type: state.clientData.type,
-          legalName: state.clientData.legalName,
-          tradeName: state.clientData.tradeName || undefined,
-          taxId: state.clientData.taxId,
-          taxRegime: state.clientData.taxRegime || undefined,
-          contactName: state.clientData.contactName || undefined,
-          contactPosition: state.clientData.contactPosition || undefined,
-          phone: state.clientData.phone || undefined,
-          secondaryPhone: state.clientData.secondaryPhone || undefined,
-          email: state.clientData.email || undefined,
-          billingEmail: state.clientData.billingEmail || undefined,
-          paymentTerms: state.clientData.paymentTerms,
-          creditDays: state.clientData.creditDays,
-          creditLimit: state.clientData.creditLimit,
-          notes: state.clientData.notes || undefined,
-        },
-        billingAddress: {
-          addressType: "billing",
-          isPrimary: true,
-          locationName: state.addressData.locationName || undefined,
-          satEstadoCode: state.addressData.satEstadoCode,
-          satMunicipioCode: state.addressData.satMunicipioCode,
-          postalCode: state.addressData.postalCode,
-          satLocalidadCode: state.addressData.satLocalidadCode || undefined,
-          satColoniaCode: state.addressData.satColoniaCode || undefined,
-          street: state.addressData.street || undefined,
-          exteriorNumber: state.addressData.exteriorNumber || undefined,
-          interiorNumber: state.addressData.interiorNumber || undefined,
-          reference: state.addressData.reference || undefined,
-          rfcRemitenteDestinatario:
-            state.addressData.rfcRemitenteDestinatario ||
-            state.clientData.taxId,
-          nombreRemitenteDestinatario:
-            state.addressData.nombreRemitenteDestinatario ||
-            state.clientData.legalName,
-          latitude: state.addressData.latitude ?? undefined,
-          longitude: state.addressData.longitude ?? undefined,
-          contactName: state.addressData.contactName || undefined,
-          contactPhone: state.addressData.contactPhone || undefined,
-          contactEmail: state.addressData.contactEmail || undefined,
-          businessHours: state.addressData.businessHours || undefined,
-          notes: state.addressData.notes || undefined,
-          specialInstructions:
-            state.addressData.specialInstructions || undefined,
-        },
+  const handleSubmit = () => {
+    if (!state.clientData || !state.addressData || !state.isClientValid || !state.isAddressValid) return;
+    createClientMutation.mutate({
+      client: {
+        type: state.clientData.type,
+        legalName: state.clientData.legalName,
+        tradeName: state.clientData.tradeName || undefined,
+        taxId: state.clientData.taxId,
+        taxRegime: state.clientData.taxRegime || undefined,
+        contactName: state.clientData.contactName || undefined,
+        contactPosition: state.clientData.contactPosition || undefined,
+        phone: state.clientData.phone || undefined,
+        secondaryPhone: state.clientData.secondaryPhone || undefined,
+        email: state.clientData.email || undefined,
+        billingEmail: state.clientData.billingEmail || undefined,
+        paymentTerms: state.clientData.paymentTerms,
+        creditDays: state.clientData.creditDays,
+        creditLimit: state.clientData.creditLimit,
+        notes: state.clientData.notes || undefined,
       },
-      {
-        onSuccess: (result) => {
-          navigate(`/clients/${result.clientId}`);
-        },
-      },
-    );
+      billingAddress: clientAddressFormDataToCreateDto(state.addressData),
+    }, { onSuccess: (result) => navigate(`/clients/${result.clientId}`) });
   };
 
   const isSubmitting = createClientMutation.isPending;
   const canGoNext = state.currentStep === "info" && state.isClientValid;
-  const canSubmit =
-    state.currentStep === "address" &&
-    state.isClientValid &&
-    state.isAddressValid;
+  const canSubmit = state.currentStep === "address" && state.isClientValid && state.isAddressValid;
 
   return (
     <div className="container mx-auto max-w-4xl space-y-6 p-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={handleBack}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <Button type="button" variant="ghost" size="icon" onClick={handleBack} disabled={isSubmitting}><ArrowLeft className="h-5 w-5" /></Button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Nuevo Cliente</h1>
-            <p className="text-sm text-muted-foreground">
-              Completa la información para crear un nuevo cliente
-            </p>
-          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div>
+          <div><h1 className="text-2xl font-bold tracking-tight">Nuevo Cliente</h1><p className="text-sm text-muted-foreground">Completa la información para crear un nuevo cliente</p></div>
         </div>
       </div>
 
-      {/* Progress */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Progress bar */}
-            <Progress value={progress} className="h-2" />
+      <ClientCreateWizardProgress currentStep={state.currentStep} onStepClick={handleStepClick} />
 
-            {/* Steps */}
-            <div className="flex justify-between">
-              {CLIENT_WIZARD_STEPS.map((step, index) => {
-                const isCurrent = step.id === state.currentStep;
-                const isCompleted = index < currentStepIndex;
-                const StepIcon = index === 0 ? Building2 : MapPin;
-
-                return (
-                  <div
-                    key={step.id}
-                    className={cn(
-                      "flex items-center gap-2",
-                      index > 0 && "flex-1 justify-end",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
-                        isCompleted &&
-                          "border-primary bg-primary text-primary-foreground",
-                        isCurrent && "border-primary text-primary",
-                        !isCurrent &&
-                          !isCompleted &&
-                          "border-muted text-muted-foreground",
-                      )}
-                    >
-                      {isCompleted ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <StepIcon className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="hidden sm:block">
-                      <p
-                        className={cn(
-                          "text-sm font-medium",
-                          isCurrent && "text-primary",
-                          !isCurrent && "text-muted-foreground",
-                        )}
-                      >
-                        {step.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+      <section
+        ref={stepHeadingRef}
+        tabIndex={-1}
+        className="space-y-4 outline-none"
+        aria-label={state.currentStep === "info" ? "Información del cliente" : "Dirección fiscal"}
+      >
+        {state.currentStep === "address" && state.clientData && (
+          <div className="flex gap-3 rounded-lg border bg-muted/30 p-4 text-sm" role="status" aria-live="polite">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <span className="font-medium text-foreground">Cliente: {state.clientData.legalName}</span>
+              {state.clientData.tradeName?.trim() ? <span className="text-muted-foreground"> · {state.clientData.tradeName}</span> : null}
+              <span className="mt-1 block text-muted-foreground">RFC {state.clientData.taxId.toUpperCase()} · {CLIENT_TYPE_LABELS[state.clientData.type]}</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Step Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {state.currentStep === "info" ? (
-              <>
-                <Building2 className="h-5 w-5" />
-                Información del Cliente
-              </>
-            ) : (
-              <>
-                <MapPin className="h-5 w-5" />
-                Dirección Fiscal
-              </>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[60vh]">
-            <div className="pr-4">
-              {state.currentStep === "info" ? (
-                <ClientForm
-                  defaultValues={state.clientData ?? undefined}
-                  onChange={handleClientChange}
-                  disabled={isSubmitting}
-                />
-              ) : (
-                <ClientAddressForm
-                  isBillingAddress
-                  defaultValues={state.addressData ?? undefined}
-                  clientRfc={state.clientData?.taxId}
-                  clientName={state.clientData?.legalName}
-                  onChange={handleAddressChange}
-                  disabled={isSubmitting}
-                />
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+        {state.currentStep === "info" ? (
+          <ClientForm defaultValues={state.clientData ?? undefined} onChange={handleClientChange} disabled={isSubmitting} />
+        ) : (
+          <ClientAddressForm
+            isBillingAddress
+            hideLocationSectionTitle
+            defaultValues={state.addressData ?? undefined}
+            clientRfc={state.clientData?.taxId}
+            clientName={state.clientData?.legalName}
+            onChange={handleAddressChange}
+            disabled={isSubmitting}
+          />
+        )}
+      </section>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {state.currentStep === "info" ? "Cancelar" : "Anterior"}
-        </Button>
-
-        <div className="flex items-center gap-2">
-          {state.currentStep === "info" ? (
-            <Button onClick={handleNext} disabled={!canGoNext || isSubmitting}>
-              Siguiente
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={!canSubmit || isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Crear Cliente
-                </>
-              )}
-            </Button>
-          )}
+      <div className="space-y-2">
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          {state.currentStep === "info" && !canGoNext && <p id={nextStepHelpId} className="max-w-md text-right text-sm text-muted-foreground">Completa los campos obligatorios (RFC según tipo de persona y términos de pago si aplica) para continuar.</p>}
+          {state.currentStep === "address" && !canSubmit && <p id={submitHelpId} className="max-w-md text-right text-sm text-muted-foreground">Completa la dirección fiscal y corrige los errores indicados para crear el cliente.</p>}
         </div>
+        <WizardNavigationBar
+          canGoBack={state.currentStep === "address" && !isSubmitting}
+          isLastStep={state.currentStep === "address"}
+          onPrevious={handlePrevious}
+          onCancel={() => navigate("/clients")}
+          onNext={handleNext}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          disableNext={!canGoNext}
+          disableSubmit={!canSubmit}
+          submitLabel="Crear Cliente"
+          submittingContent={<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando...</>}
+          submitIcon={<Check className="mr-2 h-4 w-4" />}
+        />
       </div>
     </div>
   );
 }
 
 export default ClientCreatePage;
+

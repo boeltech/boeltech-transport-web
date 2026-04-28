@@ -39,16 +39,17 @@ import {
   useUpdateClientAddress,
   useDeleteClientAddress,
 } from "../../application";
-import type {
-  ClientAddressListItem,
-  CreateClientAddressDTO,
-} from "../../domain";
+import type { ClientAddressListItem } from "../../domain";
 import { ClientAddressCard } from "./ClientAddressCard";
 import {
   ClientAddressForm,
   type ClientAddressFormRef,
 } from "./ClientAddressForm";
-import type { ClientAddressFormData } from "../validation/clientAddressSchema";
+import {
+  clientAddressFormDataToCreateDto,
+  clientAddressFormDataToUpdateDto,
+  type ClientAddressFormData,
+} from "../validation/clientAddressSchema";
 
 // ============================================================================
 // TYPES
@@ -120,51 +121,21 @@ export function ClientAddressSection({
     if (!valid || !formData) return;
 
     if (modalMode === "create") {
-      const createData: CreateClientAddressDTO = {
-        addressType: formData.addressType,
-        isPrimary: formData.isPrimary,
-        locationName: formData.locationName || undefined,
-        satEstadoCode: formData.satEstadoCode,
-        satMunicipioCode: formData.satMunicipioCode,
-        postalCode: formData.postalCode,
-        satLocalidadCode: formData.satLocalidadCode || undefined,
-        satColoniaCode: formData.satColoniaCode || undefined,
-        street: formData.street || undefined,
-        exteriorNumber: formData.exteriorNumber || undefined,
-        interiorNumber: formData.interiorNumber || undefined,
-        reference: formData.reference || undefined,
-        rfcRemitenteDestinatario:
-          formData.rfcRemitenteDestinatario || undefined,
-        nombreRemitenteDestinatario:
-          formData.nombreRemitenteDestinatario || undefined,
-        latitude: formData.latitude ?? undefined,
-        longitude: formData.longitude ?? undefined,
-        contactName: formData.contactName || undefined,
-        contactPhone: formData.contactPhone || undefined,
-        contactEmail: formData.contactEmail || undefined,
-        businessHours: formData.businessHours || undefined,
-        notes: formData.notes || undefined,
-        specialInstructions: formData.specialInstructions || undefined,
-      };
-
       createMutation.mutate(
-        { clientId, data: createData },
+        {
+          clientId,
+          data: clientAddressFormDataToCreateDto(formData),
+        },
         {
           onSuccess: () => handleCloseModal(),
         },
       );
     } else if (modalMode === "edit" && selectedAddress) {
-      const updateData = {
-        ...formData,
-        latitude: formData.latitude ?? undefined,
-        longitude: formData.longitude ?? undefined,
-      };
-
       updateMutation.mutate(
         {
           clientId,
           addressId: selectedAddress.id,
-          data: updateData,
+          data: clientAddressFormDataToUpdateDto(formData),
         },
         {
           onSuccess: () => handleCloseModal(),
@@ -271,17 +242,35 @@ export function ClientAddressSection({
                         addressType: selectedAddressFull.addressType,
                         isPrimary: selectedAddressFull.isPrimary,
                         locationName: selectedAddressFull.locationName ?? "",
-                        satEstadoCode: selectedAddressFull.satEstadoCode ?? "",
-                        satMunicipioCode: selectedAddressFull.satMunicipioCode ?? "",
-                        satLocalidadCode: selectedAddressFull.satLocalidadCode ?? "",
-                        satColoniaCode: selectedAddressFull.satColoniaCode ?? "",
+                        satCountryCode:
+                          selectedAddressFull.satCountryCode ?? "MEX",
+                        satStateCode: selectedAddressFull.satStateCode ?? "",
+                        satMunicipalityCode:
+                          selectedAddressFull.satMunicipalityCode ?? "",
+                        satLocalityCode:
+                          selectedAddressFull.satLocalityCode ?? null,
+                        satNeighborhoodCode:
+                          selectedAddressFull.satNeighborhoodCode ?? null,
+                        neighborhoodName:
+                          selectedAddressFull.neighborhoodName ?? null,
                         postalCode: selectedAddressFull.postalCode ?? "",
                         street: selectedAddressFull.street ?? "",
                         exteriorNumber: selectedAddressFull.exteriorNumber ?? "",
-                        interiorNumber: selectedAddressFull.interiorNumber ?? "",
-                        reference: selectedAddressFull.reference ?? "",
-                        rfcRemitenteDestinatario: selectedAddressFull.rfcRemitenteDestinatario ?? "",
-                        nombreRemitenteDestinatario: selectedAddressFull.nombreRemitenteDestinatario ?? "",
+                        interiorNumber:
+                          selectedAddressFull.interiorNumber != null &&
+                          selectedAddressFull.interiorNumber !== ""
+                            ? selectedAddressFull.interiorNumber
+                            : null,
+                        reference:
+                          selectedAddressFull.reference != null &&
+                          selectedAddressFull.reference !== ""
+                            ? selectedAddressFull.reference
+                            : null,
+                        rfcRemitenteDestinatario:
+                          selectedAddressFull.rfcRemitenteDestinatario ?? "",
+                        nombreRemitenteDestinatario:
+                          selectedAddressFull.nombreRemitenteDestinatario ??
+                          "",
                         latitude: selectedAddressFull.latitude ?? null,
                         longitude: selectedAddressFull.longitude ?? null,
                         contactName: selectedAddressFull.contactName ?? "",
@@ -289,7 +278,8 @@ export function ClientAddressSection({
                         contactEmail: selectedAddressFull.contactEmail ?? "",
                         businessHours: selectedAddressFull.businessHours ?? "",
                         notes: selectedAddressFull.notes ?? "",
-                        specialInstructions: selectedAddressFull.specialInstructions ?? "",
+                        specialInstructions:
+                          selectedAddressFull.specialInstructions ?? "",
                       }
                     : undefined
                 }

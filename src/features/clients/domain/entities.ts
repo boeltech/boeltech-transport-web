@@ -7,8 +7,9 @@
  *
  * IMPORTANTE:
  * - Los campos de dirección fiscal en la tabla `clients` son LEGACY
- * - Todas las direcciones (incluyendo fiscal) se manejan en `client_addresses`
- * - Las direcciones usan campos Carta Porte 3.1 (códigos SAT)
+ * - Las direcciones del cliente persisten en la tabla unificada `addresses`
+ *   (`owner_type = 'client'`) expuestas por `/clients/:id/addresses*`
+ * - Códigos SAT en API y dominio usan nombres en inglés (satStateCode, etc.)
  *
  * Ubicación: src/features/clients/domain/entities.ts
  */
@@ -32,15 +33,21 @@ export type ClientType = "individual" | "company";
 export type PaymentTerms = "cash" | "credit";
 
 /**
- * Tipo de dirección del cliente
+ * Tipo de dirección (tabla unificada `addresses`, alineado a addressSchema SAT).
  */
 export type AddressType =
-  | "billing" // Facturación (dirección fiscal)
-  | "shipping" // Envío/Entrega
-  | "pickup" // Recolección
-  | "warehouse" // Almacén/Bodega
-  | "office" // Oficina
-  | "other"; // Otro
+  | "billing"
+  | "shipping"
+  | "pickup"
+  | "warehouse"
+  | "office"
+  | "personal"
+  | "trip_origin"
+  | "trip_destination"
+  | "trip_stop"
+  | "company"
+  | "branch"
+  | "other";
 
 // ============================================================================
 // CLIENT ENTITIES
@@ -137,13 +144,15 @@ export interface ClientAddress {
   locationName?: string;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CAMPOS CARTA PORTE 3.1 (códigos SAT)
+  // Códigos SAT (inglés, alineado a `addresses` / CFDI)
   // ═══════════════════════════════════════════════════════════════════════════
-  satEstadoCode?: string; // c_Estado (ej: "JAL", "NLE")
-  satMunicipioCode?: string; // c_Municipio (ej: "JAL-001")
-  satLocalidadCode?: string; // c_Localidad (opcional, zonas rurales)
-  satColoniaCode?: string; // c_Colonia (filtrada por CP)
-  postalCode?: string; // Código postal
+  satCountryCode?: string;
+  satStateCode?: string;
+  satMunicipalityCode?: string;
+  satLocalityCode?: string;
+  satNeighborhoodCode?: string;
+  neighborhoodName?: string;
+  postalCode?: string;
 
   // Dirección desglosada
   street?: string;
@@ -194,9 +203,12 @@ export interface ClientAddressListItem {
   isActive: boolean;
   locationName?: string;
 
-  // Campos SAT para mostrar
-  satEstadoCode?: string;
-  satMunicipioCode?: string;
+  // Campos SAT para mostrar (listado; el API puede omitir parte del detalle)
+  satStateCode?: string;
+  satMunicipalityCode?: string;
+  satLocalityCode?: string;
+  satNeighborhoodCode?: string;
+  neighborhoodName?: string;
   postalCode?: string;
 
   // Campos legacy para display (si no hay SAT)
@@ -238,6 +250,12 @@ export const ADDRESS_TYPE_LABELS: Record<AddressType, string> = {
   pickup: "Recolección",
   warehouse: "Almacén/Bodega",
   office: "Oficina",
+  personal: "Personal",
+  trip_origin: "Origen de viaje",
+  trip_destination: "Destino de viaje",
+  trip_stop: "Parada de viaje",
+  company: "Empresa / fiscal",
+  branch: "Sucursal",
   other: "Otro",
 };
 
@@ -253,6 +271,12 @@ export const ADDRESS_TYPE_VARIANTS: Record<
   pickup: "outline",
   warehouse: "outline",
   office: "secondary",
+  personal: "secondary",
+  trip_origin: "outline",
+  trip_destination: "outline",
+  trip_stop: "outline",
+  company: "default",
+  branch: "outline",
   other: "outline",
 };
 
@@ -334,15 +358,23 @@ export function isPaymentTerms(value: unknown): value is PaymentTerms {
 /**
  * Verifica si un valor es un AddressType válido
  */
+const ADDRESS_TYPE_SET = new Set<string>([
+  "billing",
+  "shipping",
+  "pickup",
+  "warehouse",
+  "office",
+  "personal",
+  "trip_origin",
+  "trip_destination",
+  "trip_stop",
+  "company",
+  "branch",
+  "other",
+]);
+
 export function isAddressType(value: unknown): value is AddressType {
-  return [
-    "billing",
-    "shipping",
-    "pickup",
-    "warehouse",
-    "office",
-    "other",
-  ].includes(value as string);
+  return typeof value === "string" && ADDRESS_TYPE_SET.has(value);
 }
 
 // ============================================================================
@@ -381,10 +413,10 @@ export function formatClientAddress(address: ClientAddress): string {
   }
 
   // Si no hay campos SAT, usar legacy
-  if (!address.satEstadoCode && address.city) {
+  if (!address.satStateCode && address.city) {
     parts.push(address.city);
   }
-  if (!address.satEstadoCode && address.state) {
+  if (!address.satStateCode && address.state) {
     parts.push(address.state);
   }
 
@@ -396,9 +428,11 @@ export function formatClientAddress(address: ClientAddress): string {
  */
 export function isCartaPorteReady(address: ClientAddress): boolean {
   return !!(
-    address.satEstadoCode &&
-    address.satMunicipioCode &&
-    address.postalCode
+    address.satStateCode &&
+    address.satMunicipalityCode &&
+    address.postalCode &&
+    address.satLocalityCode &&
+    address.satNeighborhoodCode
   );
 }
 
@@ -408,9 +442,11 @@ export function isCartaPorteReady(address: ClientAddress): boolean {
 export function getCartaPorteMissingFields(address: ClientAddress): string[] {
   const missing: string[] = [];
 
-  if (!address.satEstadoCode) missing.push("Estado");
-  if (!address.satMunicipioCode) missing.push("Municipio");
+  if (!address.satStateCode) missing.push("Estado");
+  if (!address.satMunicipalityCode) missing.push("Municipio");
   if (!address.postalCode) missing.push("Código Postal");
+  if (!address.satLocalityCode) missing.push("Localidad");
+  if (!address.satNeighborhoodCode) missing.push("Colonia SAT");
 
   return missing;
 }

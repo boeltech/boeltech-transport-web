@@ -18,6 +18,7 @@ export {
 export {
   createClientUseCase,
   CreateClientUseCase,
+  CreateClientAddressFailedError,
 } from "./useCases/CreateClientUseCase";
 export {
   updateClientUseCase,

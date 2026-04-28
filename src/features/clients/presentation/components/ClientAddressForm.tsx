@@ -11,14 +11,19 @@
  */
 
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+import {
+  useForm,
+  Controller,
+  useWatch,
+  type Control,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -30,17 +35,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { Separator } from "@shared/ui/separator";
+import { Card, CardContent } from "@shared/ui/card";
+import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Switch } from "@shared/ui/switch";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { MapPin, User, Clock, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-
-// Importar componente unificado de campos SAT
-import {
-  AddressFields,
-  type SatAddressValues,
-} from "@features/catalogs/presentation/components";
+import AddressInput from "@shared/ui/address-input/AddressInput";
 
 import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
 import {
@@ -63,6 +64,8 @@ export interface ClientAddressFormRef {
 export interface ClientAddressFormProps {
   /** Si es true, se usa el schema de dirección fiscal (billing obligatorio) */
   isBillingAddress?: boolean;
+  /** Wizard de alta: oculta el título de la sección de ubicación (el paso ya lo indica) */
+  hideLocationSectionTitle?: boolean;
   /** Valores iniciales del formulario */
   defaultValues?: Partial<ClientAddressFormData>;
   /** Pre-llenar RFC del cliente */
@@ -79,6 +82,35 @@ export interface ClientAddressFormProps {
   className?: string;
 }
 
+function LocationAddressFields({
+  isBillingAddress,
+  control,
+  disabled,
+}: {
+  isBillingAddress: boolean;
+  control: Control<ClientAddressFormData>;
+  disabled: boolean;
+}) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {isBillingAddress
+          ? "Captura la dirección fiscal con catálogos SAT (requerido para CFDI y Carta Porte)."
+          : "Selecciona estado, municipio, código postal y colonia según los catálogos del SAT."}
+      </p>
+      <AddressInput<ClientAddressFormData>
+        mode={isBillingAddress ? "carta-porte" : "cfdi"}
+        control={control}
+        namePrefix=""
+        layout="compact"
+        showLatLng
+        showPrimaryToggle={false}
+        disabled={disabled}
+      />
+    </>
+  );
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -89,6 +121,7 @@ export const ClientAddressForm = forwardRef<
 >(function ClientAddressForm(
   {
     isBillingAddress = false,
+    hideLocationSectionTitle = false,
     defaultValues,
     clientRfc,
     clientName,
@@ -152,9 +185,8 @@ export const ClientAddressForm = forwardRef<
   // Observar todos los valores reactivamente (compatible con React Compiler)
   const formValues = useWatch({ control });
 
-  // Watch valores que afectan cascadas
-  const satEstadoCode = formValues.satEstadoCode ?? "";
-  const satMunicipioCode = formValues.satMunicipioCode ?? "";
+  const satStateCode = formValues.satStateCode ?? "";
+  const satMunicipalityCode = formValues.satMunicipalityCode ?? "";
   const postalCode = formValues.postalCode ?? "";
 
   // Inicializar modo de uso de datos fiscales con base en valores existentes.
@@ -216,25 +248,6 @@ export const ClientAddressForm = forwardRef<
     onChangeRef.current?.(formValues as ClientAddressFormData, isValid);
   }, [formValues, isValid]);
 
-  // Handler unificado para AddressFields
-  const handleAddressChange = useCallback(
-    (changes: SatAddressValues) => {
-      if (changes.estadoCode !== undefined)
-        setValue("satEstadoCode", changes.estadoCode, { shouldValidate: true });
-      if (changes.municipioCode !== undefined)
-        setValue("satMunicipioCode", changes.municipioCode, {
-          shouldValidate: true,
-        });
-      if (changes.postalCode !== undefined)
-        setValue("postalCode", changes.postalCode, { shouldValidate: true });
-      if (changes.coloniaCode !== undefined)
-        setValue("satColoniaCode", changes.coloniaCode);
-      if (changes.localidadCode !== undefined)
-        setValue("satLocalidadCode", changes.localidadCode);
-    },
-    [setValue],
-  );
-
   // Submit handler
   const handleFormSubmit = (data: ClientAddressFormData) => {
     onSubmit?.(data);
@@ -249,12 +262,11 @@ export const ClientAddressForm = forwardRef<
       {/* TIPO Y CONFIGURACIÓN                                                    */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {!isBillingAddress && (
-        <>
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-medium">Tipo de Dirección</h3>
-            </div>
+        <FormSectionCard
+          title="Tipo de Dirección"
+          icon={<MapPin className="h-4 w-4" />}
+          contentClassName="space-y-4"
+        >
 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Tipo de dirección */}
@@ -325,10 +337,7 @@ export const ClientAddressForm = forwardRef<
                 Dirección principal
               </Label>
             </div>
-          </div>
-
-          <Separator />
-        </>
+        </FormSectionCard>
       )}
 
       {/* Info para dirección fiscal */}
@@ -343,104 +352,40 @@ export const ClientAddressForm = forwardRef<
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* UBICACIÓN SAT (Carta Porte 3.1)                                         */}
+      {/* Dirección (SAT + calle + CP + coordenadas vía AddressInput)            */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Ubicación SAT</h3>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Seleccione la ubicación usando los catálogos del SAT para Carta Porte
-          3.1
-        </p>
-
-        <AddressFields
-          values={{
-            estadoCode: satEstadoCode,
-            municipioCode: satMunicipioCode,
-            postalCode,
-            coloniaCode: formValues.satColoniaCode ?? "",
-            localidadCode: formValues.satLocalidadCode ?? "",
-          }}
-          onChange={handleAddressChange}
-          errors={{
-            estado: errors.satEstadoCode?.message,
-            municipio: errors.satMunicipioCode?.message,
-            postalCode: errors.postalCode?.message,
-          }}
-          required={{ estado: true, municipio: true, postalCode: true }}
-          disabled={disabled}
-          showLocalidadHint
-        />
-      </div>
-
-      <Separator />
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* DIRECCIÓN DESGLOSADA                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <h3 className="font-medium">Dirección</h3>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          {/* Calle */}
-          <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="street">Calle</Label>
-            <Input
-              id="street"
-              placeholder="Nombre de la calle"
+      {hideLocationSectionTitle ? (
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <LocationAddressFields
+              isBillingAddress={isBillingAddress}
+              control={control}
               disabled={disabled}
-              {...register("street")}
             />
-          </div>
-
-          {/* Número exterior */}
-          <div className="space-y-2">
-            <Label htmlFor="exteriorNumber">Número Exterior</Label>
-            <Input
-              id="exteriorNumber"
-              placeholder="123"
-              disabled={disabled}
-              {...register("exteriorNumber")}
-            />
-          </div>
-
-          {/* Número interior */}
-          <div className="space-y-2">
-            <Label htmlFor="interiorNumber">Número Interior</Label>
-            <Input
-              id="interiorNumber"
-              placeholder="A, 101, etc."
-              disabled={disabled}
-              {...register("interiorNumber")}
-            />
-          </div>
-
-          {/* Referencia */}
-          <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="reference">Referencia</Label>
-            <Input
-              id="reference"
-              placeholder="Ej: Entre calle A y calle B, frente al parque"
-              disabled={disabled}
-              {...register("reference")}
-            />
-          </div>
-        </div>
-      </div>
-
-      <Separator />
+          </CardContent>
+        </Card>
+      ) : (
+        <FormSectionCard
+          title="Ubicación y domicilio"
+          icon={<MapPin className="h-4 w-4" />}
+          contentClassName="space-y-4"
+        >
+          <LocationAddressFields
+            isBillingAddress={isBillingAddress}
+            control={control}
+            disabled={disabled}
+          />
+        </FormSectionCard>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* DATOS REMITENTE/DESTINATARIO (Carta Porte)                              */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Datos para Carta Porte</h3>
-        </div>
+      <FormSectionCard
+        title="Datos para Carta Porte"
+        icon={<User className="h-4 w-4" />}
+        contentClassName="space-y-4"
+      >
 
         <p className="text-sm text-muted-foreground">
           Estos datos se usarán en el complemento Carta Porte del CFDI
@@ -500,18 +445,16 @@ export const ClientAddressForm = forwardRef<
             />
           </div>
         </div>
-      </div>
-
-      <Separator />
+      </FormSectionCard>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* CONTACTO EN ESTA DIRECCIÓN                                              */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Contacto en esta Dirección</h3>
-        </div>
+      <FormSectionCard
+        title="Contacto en esta Dirección"
+        icon={<User className="h-4 w-4" />}
+        contentClassName="space-y-4"
+      >
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
@@ -550,18 +493,16 @@ export const ClientAddressForm = forwardRef<
             )}
           </div>
         </div>
-      </div>
-
-      <Separator />
+      </FormSectionCard>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* OPERACIÓN                                                               */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Operación</h3>
-        </div>
+      <FormSectionCard
+        title="Operación"
+        icon={<Clock className="h-4 w-4" />}
+        contentClassName="space-y-4"
+      >
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -598,77 +539,10 @@ export const ClientAddressForm = forwardRef<
             />
           </div>
         </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* COORDENADAS (para cálculo automático de distancias)                    */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Coordenadas</h3>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Opcionales. Permiten calcular automáticamente las distancias entre paradas al crear un viaje.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="latitude">Latitud</Label>
-            <Controller
-              name="latitude"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  id="latitude"
-                  type="number"
-                  placeholder="Ej: 19.432608"
-                  step="any"
-                  disabled={disabled}
-                  value={field.value ?? ""}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value !== "" ? parseFloat(e.target.value) : null,
-                    )
-                  }
-                />
-              )}
-            />
-            {errors.latitude && (
-              <p className="text-sm text-destructive">{errors.latitude.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="longitude">Longitud</Label>
-            <Controller
-              name="longitude"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  id="longitude"
-                  type="number"
-                  placeholder="Ej: -99.133209"
-                  step="any"
-                  disabled={disabled}
-                  value={field.value ?? ""}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value !== "" ? parseFloat(e.target.value) : null,
-                    )
-                  }
-                />
-              )}
-            />
-            {errors.longitude && (
-              <p className="text-sm text-destructive">{errors.longitude.message}</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Separator />
+      </FormSectionCard>
 
       {/* Advertencia si faltan campos para Carta Porte */}
-      {(!satEstadoCode || !satMunicipioCode || !postalCode) && (
+      {(!satStateCode || !satMunicipalityCode || !postalCode) && (
         <Alert
           variant="default"
           className="border-amber-500 bg-amber-50 dark:bg-amber-950"
@@ -685,3 +559,9 @@ export const ClientAddressForm = forwardRef<
 });
 
 export default ClientAddressForm;
+
+
+
+
+
+

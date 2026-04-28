@@ -90,12 +90,10 @@ class ClientRepository implements IClientRepository {
    */
   async findById(id: string): Promise<Client | null> {
     try {
-      // El backend devuelve directamente el cliente (sin wrapper { data })
-      // según client.controller.ts línea 62
-      const response = await apiClient.get<ClientApiResponse>(
+      const response = await apiClient.get<{ data: ClientApiResponse }>(
         `${BASE_URL}/${id}`,
       );
-      return mapClient(response);
+      return mapClient(response.data);
     } catch (error: unknown) {
       // Si es 404, retornar null
       if (
@@ -147,8 +145,8 @@ class ClientRepository implements IClientRepository {
     );
 
     return {
-      id: response.id,
-      clientCode: response.client_code,
+      id: response.data.id,
+      clientCode: response.data.client_code,
     };
   }
 
@@ -158,13 +156,12 @@ class ClientRepository implements IClientRepository {
   async update(id: string, data: UpdateClientDTO): Promise<Client> {
     const payload = toApiUpdateClient(data);
 
-    // El backend devuelve { message, client } según client.controller.ts
     const response = await apiClient.put<UpdateClientApiResponse>(
       `${BASE_URL}/${id}`,
       payload,
     );
 
-    return mapClient(response.client);
+    return mapClient(response.data);
   }
 
   /**

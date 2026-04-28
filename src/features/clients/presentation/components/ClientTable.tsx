@@ -100,8 +100,28 @@ export function ClientTable({
   // Empty state
   if (clients.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground">No se encontraron clientes.</p>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {renderSortableHeader("client_code", "Código", "w-24")}
+              {renderSortableHeader("legal_name", "Razón Social")}
+              <TableHead className="w-32">RFC</TableHead>
+              {renderSortableHeader("type", "Tipo", "w-28")}
+              <TableHead className="w-24">Pago</TableHead>
+              <TableHead className="w-36">Contacto</TableHead>
+              <TableHead className="w-24">Estado</TableHead>
+              <TableHead className="w-16"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center">
+                No se encontraron clientes.
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     );
   }

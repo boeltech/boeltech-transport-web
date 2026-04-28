@@ -151,14 +151,14 @@ export function ClientAddressCard({
           </div>
 
           {/* Códigos SAT (si existen) */}
-          {address.satEstadoCode && (
+          {address.satStateCode && (
             <div className="flex flex-wrap gap-1 ml-6">
               <Badge variant="outline" className="text-xs font-mono">
-                {address.satEstadoCode}
+                {address.satStateCode}
               </Badge>
-              {address.satMunicipioCode && (
+              {address.satMunicipalityCode && (
                 <Badge variant="outline" className="text-xs font-mono">
-                  {address.satMunicipioCode}
+                  {address.satMunicipalityCode}
                 </Badge>
               )}
               {address.postalCode && (
