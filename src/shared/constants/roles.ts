@@ -125,6 +125,44 @@ export function getAllRoles(): UserRole[] {
 }
 
 /**
+ * Roles that `actorRole` may assign when creating or editing tenant users (Fase 2).
+ * `admin` may assign any role. Other roles may only assign roles strictly below their level.
+ */
+export function getAssignableRolesForUserManagement(actorRole: UserRole): UserRole[] {
+  if (actorRole === ROLES.ADMIN) {
+    return getAllRoles();
+  }
+  return getAllRoles().filter((r) => ROLE_HIERARCHY[r] < ROLE_HIERARCHY[actorRole]);
+}
+
+/**
+ * Options for role `<Select>` in user management forms.
+ * On edit, always includes `targetUserRole` so the current value remains a valid item.
+ */
+export function getRoleOptionsForUserManagementForm(
+  actorRole: UserRole,
+  mode: "create" | "edit",
+  targetUserRole?: UserRole,
+): { value: UserRole; label: string }[] {
+  const assignable = new Set(getAssignableRolesForUserManagement(actorRole));
+  if (mode === "edit" && targetUserRole) {
+    assignable.add(targetUserRole);
+  }
+  return ROLE_OPTIONS.filter((o) => assignable.has(o.value));
+}
+
+/** Rol por defecto en alta de usuario: el más alto que el actor aún puede asignar. */
+export function getDefaultAssignableRoleForUserCreate(actorRole: UserRole): UserRole {
+  const assignable = getAssignableRolesForUserManagement(actorRole);
+  if (assignable.length === 0) {
+    return ROLES.CLIENT;
+  }
+  return assignable.reduce((best, r) =>
+    ROLE_HIERARCHY[r] > ROLE_HIERARCHY[best] ? r : best,
+  assignable[0]!);
+}
+
+/**
  * Get role color for badges/chips
  */
 export function getRoleColor(role: UserRole): string {

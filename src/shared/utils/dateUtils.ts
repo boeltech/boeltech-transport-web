@@ -7,18 +7,65 @@
 
 const MEXICO_TIMEZONE = "America/Mexico_City";
 
+/**
+ * Indica si el string ya trae zona explícita (Z o ±offset) para `Date`.
+ */
+function hasExplicitTimeZoneOffset(s: string): boolean {
+  if (/Z$/i.test(s)) return true;
+  if (/[+-]\d{2}:\d{2}$/.test(s)) return true;
+  if (/[+-]\d{4}$/.test(s)) return true; // ej. +0530
+  return false;
+}
+
+/**
+ * Normaliza un instantáneo del API para que `new Date()` lo interprete como **UTC**
+ * cuando viene sin `Z` ni offset (p. ej. `2025-05-01T18:30:00` o con espacio ISO).
+ * Sin esto, muchos motores tratan el valor como hora **local del navegador** y al
+ * formatear con `timeZone: America/Mexico_City` la hora queda desfasada.
+ */
+export function toUtcIsoInstantForParse(value: string): string {
+  const s = value.trim();
+  if (!s) return s;
+  const unified = s.includes(" ") && !s.includes("T") ? s.replace(" ", "T") : s;
+  if (hasExplicitTimeZoneOffset(unified)) return unified;
+  // Solo fecha calendario (DATE)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(unified)) {
+    return `${unified}T12:00:00Z`;
+  }
+  // Fecha-hora sin zona → UTC (TIMESTAMPTZ u omitido Z en JSON)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(unified)) {
+    return /Z$/i.test(unified) ? unified : `${unified}Z`;
+  }
+  return unified;
+}
+
 // ──────────────────────────────────────────────
 // DISPLAY (conversión a string legible)
 // ──────────────────────────────────────────────
 
 /**
- * Formatea un string "YYYY-MM-DD" para mostrar al usuario.
- * Ejemplo: "2025-03-10" → "10 mar 2025"
+ * Formatea una fecha calendario para mostrar al usuario (solo día, hora México).
+ *
+ * Acepta:
+ * - `"YYYY-MM-DD"` (DATE o input type="date")
+ * - ISO / instantáneo del API (`TIMESTAMPTZ`, con o sin `Z`) — se muestra el día civil en México
+ *
+ * Ejemplos: `"2025-03-10"` → "10 mar 2025"; `"2025-03-10T18:00:00.000Z"` → "10 mar 2025"
  */
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "—";
-  // Construir a mediodía UTC para evitar drift
-  const d = new Date(dateString + "T12:00:00Z");
+  const trimmed = dateString.trim();
+  if (!trimmed) return "—";
+
+  let d: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    d = new Date(`${trimmed}T12:00:00Z`);
+  } else {
+    d = new Date(toUtcIsoInstantForParse(trimmed));
+  }
+
+  if (Number.isNaN(d.getTime())) return "—";
+
   return d.toLocaleDateString("es-MX", {
     day: "2-digit",
     month: "short",
@@ -28,12 +75,15 @@ export function formatDate(dateString: string | null | undefined): string {
 }
 
 /**
- * Formatea un ISO timestamp UTC para mostrar al usuario en hora México.
+ * Formatea un instantáneo del API para mostrar al usuario en **hora México**
+ * (`America/Mexico_City`). Acepta ISO con `Z`, con offset, o sin zona (se asume UTC).
  * Ejemplo: "2025-03-10T18:00:00.000Z" → "10 mar 2025, 12:00 p.m."
  */
 export function formatDateTime(isoString: string | null | undefined): string {
   if (!isoString) return "—";
-  const d = new Date(isoString);
+  const normalized = toUtcIsoInstantForParse(isoString);
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("es-MX", {
     day: "2-digit",
     month: "short",
@@ -50,7 +100,9 @@ export function formatDateTime(isoString: string | null | undefined): string {
  */
 export function formatTime(isoString: string | null | undefined): string {
   if (!isoString) return "—";
-  const d = new Date(isoString);
+  const normalized = toUtcIsoInstantForParse(isoString);
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
@@ -88,7 +140,7 @@ export function utcIsoToLocalInput(
   isoString: string | null | undefined,
 ): string {
   if (!isoString) return "";
-  const d = new Date(isoString);
+  const d = new Date(toUtcIsoInstantForParse(isoString));
   const mexicoOffset = getMexicoOffsetMs();
   const localMs = d.getTime() + mexicoOffset;
   const local = new Date(localMs);

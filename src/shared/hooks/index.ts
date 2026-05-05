@@ -2,6 +2,14 @@
 export { useDebounce } from "./use-debounce";
 export { useDebouncedSearchParam } from "./useDebouncedSearchParam";
 
+// Hook que centraliza filtros + paginación + viewMode para list pages
+export { useListingFilters } from "./useListingFilters";
+export type {
+  FilterDefinition,
+  UseListingFiltersOptions,
+  UseListingFiltersResult,
+} from "./useListingFilters";
+
 // Hook para detectar media queries
 export { useMediaQuery } from "./useMediaQuery";
 

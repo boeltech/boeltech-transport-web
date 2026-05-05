@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * StatusBadge
  * Clean Architecture - Shared Layer (Components)

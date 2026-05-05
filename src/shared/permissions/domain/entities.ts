@@ -20,6 +20,7 @@ export const MODULES = [
   "vehicles",
   "drivers",
   "clients",
+  "branches",
   "employees",
   "maintenance",
   "fuel",

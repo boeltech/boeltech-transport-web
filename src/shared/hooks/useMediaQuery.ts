@@ -21,9 +21,6 @@ export const useMediaQuery = (query: string): boolean => {
 
     const mediaQuery = window.matchMedia(query);
 
-    // Actualizar estado inicial
-    setMatches(mediaQuery.matches);
-
     // Listener para cambios
     const handleChange = (event: MediaQueryListEvent) => {
       setMatches(event.matches);

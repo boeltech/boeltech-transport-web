@@ -79,8 +79,14 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   GET_FAILED: "Error al obtener los datos",
 
   // ===== AUTENTICACIÓN Y AUTORIZACIÓN =====
+  INVALID_CREDENTIALS:
+    "Credenciales incorrectas. Verifica tu correo y contraseña.",
+  TENANT_NOT_FOUND: "Empresa no encontrada. Verifica el identificador.",
+  USER_INACTIVE: "Tu cuenta de usuario está inactiva.",
+  TENANT_SUSPENDED: "La cuenta de esta empresa está suspendida.",
   UNAUTHORIZED: "No tiene permisos para realizar esta acción",
   FORBIDDEN: "Acceso denegado",
+  TOO_MANY_REQUESTS: "Demasiados intentos. Espera unos minutos.",
   TOKEN_EXPIRED: "Su sesión ha expirado. Por favor inicie sesión nuevamente.",
   INVALID_TOKEN: "Token de autenticación inválido",
 
@@ -360,6 +366,8 @@ function getCodeFromStatus(status?: number): string {
       return "NOT_FOUND";
     case 408:
       return "TIMEOUT";
+    case 429:
+      return "TOO_MANY_REQUESTS";
     case 500:
       return "INTERNAL_SERVER_ERROR";
     case 503:

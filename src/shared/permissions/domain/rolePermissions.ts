@@ -76,6 +76,13 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "clients.delete",
       "clients.export",
 
+      // Sucursales - Control total
+      "branches.read",
+      "branches.create",
+      "branches.update",
+      "branches.delete",
+      "branches.export",
+
       // Empleados - Gestión
       "employees.read",
       "employees.create",
@@ -119,9 +126,6 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "reports.export",
       "reports.execute",
 
-      // Usuarios - Lectura
-      "users.read",
-
       // Configuración - Lectura y actualización limitada
       "settings.read",
       "settings.update",
@@ -149,6 +153,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Clientes - Lectura para facturación
       "clients.read",
+
+      // Sucursales - Lectura para contexto administrativo
+      "branches.read",
 
       // Empleados - Lectura para nómina
       "employees.read",
@@ -232,6 +239,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Clientes - Lectura para contexto de viajes
       "clients.read",
 
+      // Sucursales - Lectura para coordinación operativa
+      "branches.read",
+
       // Facturas - Lectura para prefill y contexto
       "invoices.read",
 
@@ -267,6 +277,11 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Clientes - Lectura
       "clients.read",
+
+      // Sucursales - Gestión operativa
+      "branches.read",
+      "branches.create",
+      "branches.update",
 
       // Mantenimiento - CRUD
       "maintenance.read",

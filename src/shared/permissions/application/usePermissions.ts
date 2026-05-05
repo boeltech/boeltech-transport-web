@@ -31,7 +31,7 @@ import { ROLES, type UserRole } from "@shared/constants/roles";
 // Return Type
 // ============================================
 
-export interface UsePermissionsReturn extends PermissionContextValue {}
+export type UsePermissionsReturn = PermissionContextValue;
 
 // ============================================
 // Development Fallback
@@ -64,6 +64,7 @@ function createDevFallback(): PermissionContextValue {
       "vehicles",
       "drivers",
       "clients",
+      "branches",
       "maintenance",
       "fuel",
       "invoices",
