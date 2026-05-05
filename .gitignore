@@ -34,3 +34,6 @@ skills-lock.json
 
 # Local-only dev/demo routes (manual testing)
 src/pages/dev/
+
+# Operational manuals and notes (not product source)
+docs/
