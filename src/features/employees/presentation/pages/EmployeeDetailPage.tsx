@@ -1,112 +1,270 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Button } from "@shared/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@shared/ui/tabs";
-import { usePermissions } from "@shared/permissions";
-import { AlertCircle } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
+import { useParams } from "react-router-dom";
+import {
+  User,
+  AlertCircle,
+  AlertTriangle,
+  BadgeCheck,
+  CalendarClock,
+  DollarSign,
+  FileWarning,
+  Info,
+  Shield,
+} from "lucide-react";
+import { DetailPageShell } from "@shared/ui/page-shells";
+import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 
 import { useEmployee } from "../../application/hooks/useEmployees";
+import { EMPLOYMENT_TYPE_LABELS } from "../config/employeeConfig";
+
 import {
   EmployeeCompensationTab,
   EmployeeContactTab,
-  EmployeeDetailHeader,
   EmployeeEmploymentTab,
   EmployeePersonalTab,
-  TerminateEmployeeDialog,
 } from "../components/detail";
+import { EmployeeActions } from "../components/EmployeeActions";
+import { EmployeeStatusBadge } from "../config/employeeStatusConfig";
+import { formatMxCurrency } from "../helpers/employeeDetailFormatters";
+import {
+  daysUntilTermination,
+  formatEmployeeTenure,
+  isNssMissing,
+  shouldHintEventualContract,
+} from "../helpers/employeeDetailKpis";
 
 // ============================================================================
-// COMPONENT
+// PAGE
 // ============================================================================
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { hasPermission } = usePermissions();
+  const employeeId = id ?? "";
+  const {
+    data: result,
+    isLoading,
+    isError,
+    refetch,
+  } = useEmployee(employeeId, !!employeeId);
+  const employee = result?.data;
 
-  const { data, isLoading, isError } = useEmployee(id!);
-  const employee = data?.data;
+  const refetchEmployee = () => {
+    void refetch();
+  };
 
-  const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [comparisonNowMs, setComparisonNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setComparisonNowMs(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
-  const canUpdate = hasPermission("employees", "update");
-  const canDelete = hasPermission("employees", "delete");
+  const employeeStats = useMemo((): StatCardProps[] => {
+    if (!employee) return [];
 
-  // --------------------------------------------------------------------------
+    const isTerm = employee.status === "terminated";
+    const nssRegistered = !!employee.nss?.trim();
+    const imssLabel = nssRegistered ? "Con registro NSS" : "Sin NSS";
+    const imssDescription = nssRegistered
+      ? "Declarado en nómina"
+      : "Sin número de seguridad social";
 
-  if (isLoading) return <DetailSkeleton />;
+    return [
+      {
+        title: "Antigüedad",
+        value: formatEmployeeTenure(
+          employee.hireDate,
+          employee.terminationDate,
+          comparisonNowMs,
+        ),
+        icon: <CalendarClock className="h-5 w-5 text-primary" />,
+        description: isTerm ? "Hasta fecha de baja" : undefined,
+      },
+      {
+        title: "Salario base",
+        value: formatMxCurrency(employee.baseSalary) ?? "—",
+        icon: <DollarSign className="h-5 w-5 text-emerald-500" />,
+      },
+      {
+        title: "Tipo de contrato",
+        value: EMPLOYMENT_TYPE_LABELS[employee.employmentType],
+        icon: <BadgeCheck className="h-5 w-5 text-blue-500" />,
+      },
+      {
+        title: "Estatus IMSS",
+        value: imssLabel,
+        icon: <Shield className="h-5 w-5 text-amber-500" />,
+        description: imssDescription,
+      },
+    ];
+  }, [employee, comparisonNowMs]);
+
+  const employeeAlerts = useMemo(() => {
+    if (!employee) return undefined;
+
+    const terminated = employee.status === "terminated";
+    const cards: ReactElement[] = [];
+
+    if (!terminated && isNssMissing(employee)) {
+      cards.push(
+        <DetailAlertCard
+          key="nss-missing"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="NSS sin registrar"
+          items={[
+            {
+              text: "No hay número de seguridad social capturado. Es obligatorio para nómina e IMSS.",
+            },
+          ]}
+        />,
+      );
+    }
+
+    const untilTerm = daysUntilTermination(
+      employee.terminationDate,
+      comparisonNowMs,
+    );
+    if (!terminated && untilTerm !== null && untilTerm <= 60) {
+      cards.push(
+        <DetailAlertCard
+          key="termination-planned"
+          severity="warning"
+          icon={<FileWarning className="h-5 w-5" />}
+          title="Baja programada próxima"
+          items={[
+            {
+              text: `La fecha de baja registrada es en ${untilTerm} día${untilTerm === 1 ? "" : "s"}. Verifica fechas y documentación.`,
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (shouldHintEventualContract(employee)) {
+      cards.push(
+        <DetailAlertCard
+          key="eventual-contract"
+          severity="info"
+          icon={<Info className="h-5 w-5" />}
+          title="Contrato eventual"
+          items={[
+            {
+              text: "Controla vigencia y renovaciones según política interna y registro ante IMSS.",
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (cards.length === 0) return undefined;
+    return <div className="space-y-3">{cards}</div>;
+  }, [employee, comparisonNowMs]);
+
+  if (isLoading) {
+    return (
+      <DetailPageShell
+        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+        isLoading
+        header={{
+          backHref: "/employees",
+          backLabel: "Volver al listado",
+          icon: <User className="h-6 w-6" />,
+          iconShape: "circle",
+          title: "Empleado",
+        }}
+      />
+    );
+  }
 
   if (isError || !employee) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-lg font-medium">Empleado no encontrado</p>
-        <Button variant="outline" onClick={() => navigate("/employees")}>
-          Volver al listado
-        </Button>
-      </div>
+      <DetailPageShell
+        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: "Empleado no encontrado",
+          description: "El empleado no existe o no está disponible.",
+          backHref: "/employees",
+          backLabel: "Volver al listado",
+        }}
+        header={{
+          backHref: "/employees",
+          icon: <User className="h-6 w-6" />,
+          iconShape: "circle",
+          title: "Empleado",
+        }}
+      />
     );
   }
 
   const isTerminated = employee.status === "terminated";
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6">
-      <EmployeeDetailHeader
-        employee={employee}
-        employeeId={id!}
-        canUpdate={canUpdate}
-        canDelete={canDelete}
-        onTerminateClick={() => setShowTerminateDialog(true)}
-      />
-
-      {/* Tabs */}
-      <Tabs defaultValue="personal" className="space-y-2">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 md:w-fit md:grid-cols-4">
-          <TabsTrigger value="personal">Datos personales</TabsTrigger>
-          <TabsTrigger value="contact">Contacto</TabsTrigger>
-          <TabsTrigger value="employment">Laboral</TabsTrigger>
-          <TabsTrigger value="compensation">Compensación</TabsTrigger>
-        </TabsList>
-
-        <EmployeePersonalTab employee={employee} />
-        <EmployeeContactTab employee={employee} />
-        <EmployeeEmploymentTab employee={employee} />
-        <EmployeeCompensationTab employee={employee} />
-      </Tabs>
-
-      {!isTerminated && (
-        <TerminateEmployeeDialog
-          employeeId={id!}
-          employeeName={employee.fullName}
-          open={showTerminateDialog}
-          onOpenChange={setShowTerminateDialog}
-        />
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function DetailSkeleton() {
-  return (
-    <div className="flex animate-pulse flex-col gap-6 p-4 sm:p-6">
-      <div className="flex items-center gap-4">
-        <div className="h-9 w-9 bg-muted rounded-md" />
-        <div className="h-14 w-14 bg-muted rounded-full" />
-        <div className="space-y-2">
-          <div className="h-6 w-48 bg-muted rounded" />
-          <div className="h-4 w-32 bg-muted rounded" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-48 bg-muted rounded-lg" />
-        ))}
-      </div>
-    </div>
+    <DetailPageShell
+      className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+      isLoading={false}
+      header={{
+        backHref: "/employees",
+        backLabel: "Volver al listado",
+        icon: <User className="h-6 w-6" />,
+        iconVariant: isTerminated ? "muted" : "primary",
+        iconShape: "circle",
+        title: employee.fullName,
+        subtitle: `${employee.employeeNumber}${
+          employee.position ? ` · ${employee.position}` : ""
+        }${employee.department ? ` · ${employee.department}` : ""}`,
+        statusBadge: (
+          <EmployeeStatusBadge status={employee.status} showIcon size="sm" />
+        ),
+        actions: !isTerminated ? (
+          <EmployeeActions
+            variant="buttons"
+            employee={employee}
+            onActionComplete={refetchEmployee}
+          />
+        ) : null,
+      }}
+      alerts={employeeAlerts}
+      stats={employeeStats}
+      tabs={{
+        defaultValue: "personal",
+        items: [
+          {
+            value: "personal",
+            label: "Información",
+            content: <EmployeePersonalTab employee={employee} />,
+          },
+          {
+            value: "contact",
+            label: "Contacto",
+            content: <EmployeeContactTab employee={employee} />,
+          },
+          {
+            value: "employment",
+            label: "Laboral",
+            content: <EmployeeEmploymentTab employee={employee} />,
+          },
+          {
+            value: "compensation",
+            label: "Compensación",
+            content: <EmployeeCompensationTab employee={employee} />,
+          },
+        ],
+      }}
+      metadata={{
+        createdAt: employee.createdAt,
+        updatedAt: employee.updatedAt,
+        createdBy: employee.createdBy ?? undefined,
+      }}
+    />
   );
 }

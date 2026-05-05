@@ -25,6 +25,7 @@ export const DEPARTMENT_OPTIONS: EmployeeCatalogOption[] = [
 export const POSITION_OPTIONS: EmployeeCatalogOption[] = [
   { value: "Conductor", label: "Conductor" },
   { value: "Despachador", label: "Despachador" },
+  { value: "Ayudante general", label: "Ayudante general" },
   { value: "Auxiliar de trafico", label: "Auxiliar de trafico" },
   { value: "Coordinador de logistica", label: "Coordinador de logistica" },
   { value: "Supervisor operativo", label: "Supervisor operativo" },

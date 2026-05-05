@@ -29,7 +29,6 @@ import {
   User,
   ShieldCheck,
   Phone,
-  MapPin,
   HeartHandshake,
   Briefcase,
   FileText,
@@ -52,7 +51,7 @@ import {
   createEmployeeAddress,
   updateEmployeeAddress,
 } from "../../infrastructure/employeeAddressRepository";
-import AddressInput from "@shared/ui/address-input/AddressInput";
+import { AddressInput, EntityAddressForm } from "@shared/ui/address-input";
 import {
   clientAddressFormDataToCreateDto,
   defaultClientAddressFormValues,
@@ -244,6 +243,7 @@ export function EmployeeFormInner({
     resolver: zodResolver(employeeSchema) as Resolver<EmployeeFormValues>,
     defaultValues: initialFormValues,
   });
+  const watchedFormValues = useWatch({ control: form.control });
 
   const watchedDepartment = useWatch({ control: form.control, name: "department" });
   const watchedPosition = useWatch({ control: form.control, name: "position" });
@@ -251,6 +251,18 @@ export function EmployeeFormInner({
   const watchedEmergencyRelationship = useWatch({
     control: form.control,
     name: "emergency_contact_relationship",
+  });
+  const domicilioSatStateCode = useWatch({
+    control: form.control,
+    name: "domicilio.satStateCode",
+  });
+  const domicilioSatMunicipalityCode = useWatch({
+    control: form.control,
+    name: "domicilio.satMunicipalityCode",
+  });
+  const domicilioPostalCode = useWatch({
+    control: form.control,
+    name: "domicilio.postalCode",
   });
   const departmentOptions = useMemo(
     () => withLegacyCatalogOption(DEPARTMENT_OPTIONS, watchedDepartment),
@@ -612,16 +624,27 @@ export function EmployeeFormInner({
             </FormField>
           </FormSectionCard>
 
-          <FormSectionCard title="Domicilio" icon={<MapPin className="h-4 w-4" />}>
-            <AddressInput<EmployeeFormValues>
-              mode="personal"
-              control={form.control}
-              namePrefix="domicilio"
-              layout="compact"
-              showLatLng
-              showPrimaryToggle={false}
-            />
-          </FormSectionCard>
+          <EntityAddressForm
+            asForm={false}
+            className="space-y-4"
+            formContext="additional"
+            infoMessage="Captura el domicilio personal del empleado."
+            satStateCode={domicilioSatStateCode}
+            satMunicipalityCode={domicilioSatMunicipalityCode}
+            postalCode={domicilioPostalCode}
+            showGlobalNotice
+            locationSectionTitle="Domicilio"
+            addressInputSection={
+              <AddressInput<EmployeeFormValues>
+                mode="personal"
+                control={form.control}
+                namePrefix="domicilio"
+                layout="compact"
+                showLatLng
+                showPrimaryToggle={false}
+              />
+            }
+          />
 
           <FormSectionCard
             title="Contacto de emergencia"
@@ -790,7 +813,7 @@ export function EmployeeFormInner({
 
         {!isEditing && (
           <div className={cn(stepPanelClass(EMPLOYEE_REVIEW_STEP_INDEX))}>
-            <EmployeeWizardReview values={form.watch()} />
+            <EmployeeWizardReview values={watchedFormValues} />
           </div>
         )}
 

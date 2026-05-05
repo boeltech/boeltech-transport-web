@@ -54,8 +54,10 @@ export function EmployeeCard({
   onEdit,
   onTerminate,
 }: EmployeeCardProps) {
-  const hasActions = onEdit || onTerminate;
   const isTerminated = employee.status === "terminated";
+  const canEdit = Boolean(onEdit) && !isTerminated;
+  const canTerminate = Boolean(onTerminate) && !isTerminated;
+  const hasActions = canEdit || canTerminate;
 
   return (
     <Card
@@ -100,25 +102,25 @@ export function EmployeeCard({
                   <Eye className="mr-2 h-4 w-4" />
                   Ver detalles
                 </DropdownMenuItem>
-                {onEdit && (
+                {canEdit && (
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(employee.id);
+                      onEdit?.(employee.id);
                     }}
                   >
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
                 )}
-                {onTerminate && !isTerminated && (
+                {canTerminate && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onTerminate(employee.id);
+                        onTerminate?.(employee.id);
                       }}
                     >
                       <UserX className="mr-2 h-4 w-4" />

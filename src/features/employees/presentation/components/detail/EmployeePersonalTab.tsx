@@ -1,11 +1,10 @@
 import { memo } from "react";
 import { Hash, Heart, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { TabsContent } from "@shared/ui/tabs";
+import { InfoRow } from "@shared/ui/data-display";
 import type { Employee } from "../../../domain/entities";
 import { GENDER_LABELS, MARITAL_STATUS_LABELS } from "../../config/employeeConfig";
 import { formatDate } from "@shared/utils/dateUtils";
-import { DetailInfoRow } from "./DetailInfoRow";
 
 export const EmployeePersonalTab = memo(function EmployeePersonalTab({
   employee,
@@ -13,7 +12,7 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
   employee: Employee;
 }) {
   return (
-    <TabsContent value="personal" className="mt-4 space-y-4">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
@@ -22,22 +21,25 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <DetailInfoRow label="Nombre completo" value={employee.fullName} />
-            <DetailInfoRow
+            <InfoRow variant="inline" label="Nombre completo" value={employee.fullName} />
+            <InfoRow
+              variant="inline"
               label="Fecha de nacimiento"
               value={employee.birthDate ? formatDate(employee.birthDate) : null}
             />
-            <DetailInfoRow
+            <InfoRow
+              variant="inline"
               label="Género"
               value={employee.gender ? GENDER_LABELS[employee.gender] : null}
             />
-            <DetailInfoRow
+            <InfoRow
+              variant="inline"
               label="Estado civil"
               value={employee.maritalStatus ? MARITAL_STATUS_LABELS[employee.maritalStatus] : null}
             />
-            <DetailInfoRow label="Nacionalidad" value={employee.nationality} />
-            <DetailInfoRow label="Lugar de nacimiento" value={employee.birthPlace} />
-            <DetailInfoRow label="Tipo de sangre" value={employee.bloodType} />
+            <InfoRow variant="inline" label="Nacionalidad" value={employee.nationality} />
+            <InfoRow variant="inline" label="Lugar de nacimiento" value={employee.birthPlace} />
+            <InfoRow variant="inline" label="Tipo de sangre" value={employee.bloodType} />
           </CardContent>
         </Card>
 
@@ -48,10 +50,10 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <DetailInfoRow label="CURP" value={employee.curp} mono copyable />
-            <DetailInfoRow label="RFC" value={employee.rfc} mono copyable />
-            <DetailInfoRow label="NSS" value={employee.nss} mono copyable />
-            <DetailInfoRow label="Infonavit" value={employee.infonavitNumber} mono />
+            <InfoRow variant="inline" label="CURP" value={employee.curp} mono copyable />
+            <InfoRow variant="inline" label="RFC" value={employee.rfc} mono copyable />
+            <InfoRow variant="inline" label="NSS" value={employee.nss} mono copyable />
+            <InfoRow variant="inline" label="Infonavit" value={employee.infonavitNumber} mono />
           </CardContent>
         </Card>
       </div>
@@ -68,7 +70,7 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
           </CardContent>
         </Card>
       )}
-    </TabsContent>
+    </div>
   );
 });
 

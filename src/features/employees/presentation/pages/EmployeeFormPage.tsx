@@ -15,27 +15,10 @@
  */
 
 import { useParams } from "react-router-dom";
+import { AlertCircle, User } from "lucide-react";
+import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { EmployeeFormInner } from "../components/EmployeeFormInner";
 import { useEmployee } from "../../application/hooks/useEmployees";
-
-function FormSkeleton() {
-  return (
-    <div className="flex flex-col gap-6 p-6 animate-pulse">
-      <div className="flex items-center gap-4">
-        <div className="h-9 w-9 bg-muted rounded-md" />
-        <div className="h-7 w-48 bg-muted rounded" />
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <div className="h-4 w-24 bg-muted rounded" />
-            <div className="h-9 bg-muted rounded" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ============================================================================
 // COMPONENT
@@ -44,16 +27,46 @@ function FormSkeleton() {
 export function EmployeeFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
-  const { data: existingData, isLoading: isLoadingEmployee } = useEmployee(
-    id!,
-    isEditing,
-  );
+  const {
+    data: existingData,
+    isLoading: isLoadingEmployee,
+    isError: isEmployeeError,
+  } = useEmployee(id!, isEditing);
   const existing = existingData?.data;
 
-  // Montar el formulario solo cuando la data de edición ya está lista.
-  // Evita carreras de hidratación entre RHF + values + selects controlados.
+  const editShellHeader = {
+    backHref: id ? `/employees/${id}` : "/employees",
+    icon: <User className="h-5 w-5" />,
+    title: "Editar empleado",
+  };
+
   if (isEditing && isLoadingEmployee) {
-    return <FormSkeleton />;
+    return (
+      <FormPageShell isLoading header={editShellHeader} className="p-6">
+        <></>
+      </FormPageShell>
+    );
+  }
+
+  if (isEditing && (isEmployeeError || !existing)) {
+    return (
+      <FormPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: "Empleado no encontrado",
+          description:
+            "El empleado que intentas editar no existe o fue eliminado.",
+          backHref: "/employees",
+          backLabel: "Volver al listado",
+        }}
+        header={editShellHeader}
+        className="p-6"
+      >
+        <></>
+      </FormPageShell>
+    );
   }
 
   return (

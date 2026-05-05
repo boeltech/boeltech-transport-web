@@ -3,6 +3,7 @@
  */
 
 import { apiClient } from "@shared/api";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import type {
   ClientAddress,
   ClientAddressApiResponse,
@@ -30,10 +31,29 @@ export function pickEmployeePersonalAddress(
 export async function fetchEmployeeAddresses(
   employeeId: string,
 ): Promise<ClientAddress[]> {
-  const res = await apiClient.get<{ data: ClientAddressApiResponse[] }>(
-    base(employeeId),
+  try {
+    const res = await apiClient.get<{ data: ClientAddressApiResponse[] }>(
+      base(employeeId),
+    );
+    return res.data.map(mapClientAddress);
+  } catch (error) {
+    // Algunos despliegues devuelven 404 para este sub-recurso (p. ej. empleado dado de baja
+    // o sin filas en `addresses`). Un listado vacío es el comportamiento esperado en UI.
+    if (isApiError(error) && error.isNotFound()) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export async function fetchEmployeeAddressById(
+  employeeId: string,
+  addressId: string,
+): Promise<ClientAddress> {
+  const res = await apiClient.get<{ data: ClientAddressApiResponse }>(
+    `${base(employeeId)}/${addressId}`,
   );
-  return res.data.map(mapClientAddress);
+  return mapClientAddress(res.data);
 }
 
 export async function createEmployeeAddress(

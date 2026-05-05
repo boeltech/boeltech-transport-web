@@ -100,10 +100,11 @@ export function EmployeeActions({
       setTerminationReason("");
       onActionComplete?.();
       onTerminate?.(id);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Error desconocido";
       toast({
         title: "Error al dar de baja",
-        description: error?.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -129,7 +130,7 @@ export function EmployeeActions({
               </DropdownMenuItem>
             )}
 
-            {canUpdate && onEdit && (
+            {canUpdate && onEdit && !isAlreadyTerminated && (
               <DropdownMenuItem onClick={() => onEdit(id)}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar
@@ -168,13 +169,13 @@ export function EmployeeActions({
 
   // ── BUTTONS MODE ────────────────────────────────────────────────────────
 
-  const hasNoActions = !canUpdate && !canTerminate;
+  const hasNoActions = isAlreadyTerminated || (!canUpdate && !canTerminate);
   if (hasNoActions) return null;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {canUpdate && (
+        {canUpdate && !isAlreadyTerminated && (
           <Button
             variant="outline"
             size="sm"

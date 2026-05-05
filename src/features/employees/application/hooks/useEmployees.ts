@@ -11,6 +11,7 @@ import {
 } from "../../infrastructure/employeeRepository";
 import {
   fetchEmployeeAddresses,
+  fetchEmployeeAddressById,
   pickEmployeePersonalAddress,
 } from "../../infrastructure/employeeAddressRepository";
 import {
@@ -74,7 +75,20 @@ export function useEmployee(id: string, enabled = true) {
       let personalAddress = mapped.data.personalAddress;
       try {
         const addresses = await fetchEmployeeAddresses(id);
-        personalAddress = pickEmployeePersonalAddress(addresses);
+        const selectedAddress = pickEmployeePersonalAddress(addresses);
+        if (selectedAddress?.id) {
+          try {
+            personalAddress = await fetchEmployeeAddressById(
+              id,
+              selectedAddress.id,
+            );
+          } catch {
+            // Fallback al item de listado si falla el detalle.
+            personalAddress = selectedAddress;
+          }
+        } else {
+          personalAddress = null;
+        }
       } catch {
         personalAddress = null;
       }

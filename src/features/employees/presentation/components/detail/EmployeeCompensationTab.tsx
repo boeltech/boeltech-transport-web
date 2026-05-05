@@ -1,11 +1,10 @@
 import { memo } from "react";
 import { Building2, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { TabsContent } from "@shared/ui/tabs";
+import { InfoRow } from "@shared/ui/data-display";
 import type { Employee } from "../../../domain/entities";
 import { PAYMENT_METHOD_LABELS, SALARY_TYPE_LABELS } from "../../config/employeeConfig";
 import { formatMxCurrency } from "../../helpers/employeeDetailFormatters";
-import { DetailInfoRow } from "./DetailInfoRow";
 
 export const EmployeeCompensationTab = memo(function EmployeeCompensationTab({
   employee,
@@ -13,7 +12,7 @@ export const EmployeeCompensationTab = memo(function EmployeeCompensationTab({
   employee: Employee;
 }) {
   return (
-    <TabsContent value="compensation" className="mt-4 space-y-4">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
@@ -22,12 +21,14 @@ export const EmployeeCompensationTab = memo(function EmployeeCompensationTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <DetailInfoRow label="Salario base" value={formatMxCurrency(employee.baseSalary)} />
-            <DetailInfoRow
+            <InfoRow variant="inline" label="Salario base" value={formatMxCurrency(employee.baseSalary)} />
+            <InfoRow
+              variant="inline"
               label="Frecuencia de pago"
               value={employee.salaryType ? SALARY_TYPE_LABELS[employee.salaryType] : null}
             />
-            <DetailInfoRow
+            <InfoRow
+              variant="inline"
               label="Método de pago"
               value={
                 employee.paymentMethod ? PAYMENT_METHOD_LABELS[employee.paymentMethod] : null
@@ -43,18 +44,19 @@ export const EmployeeCompensationTab = memo(function EmployeeCompensationTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <DetailInfoRow label="Banco" value={employee.bankName} />
-            <DetailInfoRow
+            <InfoRow variant="inline" label="Banco" value={employee.bankName} />
+            <InfoRow
+              variant="inline"
               label="No. de cuenta"
               value={employee.bankAccountNumber}
               mono
               copyable
             />
-            <DetailInfoRow label="CLABE" value={employee.bankClabe} mono copyable />
+            <InfoRow variant="inline" label="CLABE" value={employee.bankClabe} mono copyable />
           </CardContent>
         </Card>
       </div>
-    </TabsContent>
+    </div>
   );
 });
 
