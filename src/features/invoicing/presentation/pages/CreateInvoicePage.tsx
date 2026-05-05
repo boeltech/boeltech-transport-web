@@ -92,11 +92,6 @@ export function CreateInvoicePage() {
   // Client selector state — independent of trip prefill
   const [selectedClientId, setSelectedClientId] = useState<string>("");
 
-  // Tax rate from prefill (defaults to 16%)
-  const [taxRate, setTaxRate] = useState<number>(0.16);
-  // Whether the selected client is persona moral (auto-detected, user can override)
-  const [isPersonaMoral, setIsPersonaMoral] = useState<boolean>(false);
-
   // ── Data fetching ────────────────────────────────────────────────────────
 
   const {
@@ -167,6 +162,8 @@ export function CreateInvoicePage() {
   const subtotal = useWatch({ control: form.control, name: "subtotal" });
   const discount = useWatch({ control: form.control, name: "discount" });
   const applyRetainedTax = useWatch({ control: form.control, name: "apply_retained_tax" });
+  const taxRate = prefill?.taxRate ?? 0.16;
+  const isPersonaMoral = !!applyRetainedTax;
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -195,8 +192,6 @@ export function CreateInvoicePage() {
   useEffect(() => {
     if (!isEditMode && prefill) {
       const personaMoral = prefill.clientType === "company";
-      setTaxRate(prefill.taxRate);
-      setIsPersonaMoral(personaMoral);
       form.reset({
         receiver_rfc: prefill.receiverRfc,
         receiver_name: prefill.receiverName,
@@ -235,7 +230,6 @@ export function CreateInvoicePage() {
       total: editableInvoice.total,
       notes: editableInvoice.notes ?? "",
     });
-    setIsPersonaMoral(editableInvoice.retainedTax > 0);
   }, [isEditMode, editableInvoice, form]);
 
   // Auto-fill receiver fields when a client is selected (only if no trip prefill)
@@ -245,7 +239,6 @@ export function CreateInvoicePage() {
     const client = clients.find((c) => c.id === selectedClientId);
     if (!client) return;
     const personaMoral = client.type === "company";
-    setIsPersonaMoral(personaMoral);
     form.setValue("receiver_rfc", client.taxId);
     form.setValue("receiver_name", client.legalName);
     form.setValue("apply_retained_tax", personaMoral);
@@ -854,7 +847,6 @@ export function CreateInvoicePage() {
                           checked={field.value}
                           onCheckedChange={(checked) => {
                             field.onChange(checked);
-                            setIsPersonaMoral(!!checked);
                           }}
                         />
                       </FormControl>

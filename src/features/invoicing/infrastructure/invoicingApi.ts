@@ -61,7 +61,9 @@ export const invoicingApi = {
     }>(`${INVOICES}${qs ? `?${qs}` : ""}`);
 
     return {
-      data: (response.data as any[]).map(mapInvoiceListItem),
+      data: (response.data as unknown[]).map((item) =>
+        mapInvoiceListItem(item as Record<string, unknown>),
+      ),
       pagination: response.pagination as PaginatedInvoices["pagination"],
     };
   },
@@ -74,7 +76,7 @@ export const invoicingApi = {
     const response = await apiClient.get<{ data: unknown }>(
       `${INVOICES}/${id}`,
     );
-    return mapInvoice(response.data as any);
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -86,7 +88,7 @@ export const invoicingApi = {
       INVOICES,
       toApiCreateInvoice(payload),
     );
-    return mapInvoice(response.data as any);
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   update: async (
@@ -97,7 +99,7 @@ export const invoicingApi = {
       `${INVOICES}/${id}`,
       toApiUpdateInvoice(payload),
     );
-    return mapInvoice(response.data as any);
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   delete: async (id: string): Promise<void> => {
@@ -112,7 +114,7 @@ export const invoicingApi = {
     const response = await apiClient.post<{ data: unknown }>(
       `${INVOICES}/${id}/stamp`,
     );
-    return mapInvoice(response.data as any);
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   cancel: async (
@@ -123,7 +125,7 @@ export const invoicingApi = {
       `${INVOICES}/${id}/cancel`,
       toApiCancelInvoice(payload),
     );
-    return mapInvoice(response.data as any);
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -134,7 +136,9 @@ export const invoicingApi = {
     const response = await apiClient.get<{ data: unknown[] }>(
       `${INVOICES}/${invoiceId}/payments`,
     );
-    return (response.data as any[]).map((p: any) => mapPayment(p));
+    return (response.data as unknown[]).map((payment) =>
+      mapPayment(payment as Record<string, unknown>),
+    );
   },
 
   registerPayment: async (
@@ -145,7 +149,7 @@ export const invoicingApi = {
       `${INVOICES}/${invoiceId}/payments`,
       toApiCreatePayment(payload),
     );
-    return mapPayment(response.data as any);
+    return mapPayment(response.data as Record<string, unknown>);
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -156,7 +160,7 @@ export const invoicingApi = {
    * Abre el PDF de la factura en una nueva pestaña.
    * Usa el endpoint autenticado GET /invoices/:id/pdf (genera on-demand si no existe).
    */
-  openPdf: async (id: string, _serieFolio: string): Promise<void> => {
+  openPdf: async (id: string, serieFolio: string): Promise<void> => {
     const axios = apiClient.getAxiosInstance();
     const response = await axios.get<Blob>(`${INVOICES}/${id}/pdf`, {
       responseType: "blob",
@@ -168,6 +172,7 @@ export const invoicingApi = {
     link.href = url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
+    link.download = `${serieFolio}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -198,14 +203,16 @@ export const invoicingApi = {
     const response = await apiClient.get<{ data: unknown }>(
       `${FINANCE}/summary`,
     );
-    return mapFinanceSummary(response.data as any);
+    return mapFinanceSummary(response.data as Record<string, unknown>);
   },
 
   getAccountStatement: async (): Promise<AccountStatementItem[]> => {
     const response = await apiClient.get<{ data: unknown[] }>(
       `${FINANCE}/account-statement`,
     );
-    return (response.data as any[]).map(mapAccountStatementItem);
+    return (response.data as unknown[]).map((item) =>
+      mapAccountStatementItem(item as Record<string, unknown>),
+    );
   },
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -216,6 +223,6 @@ export const invoicingApi = {
     const response = await apiClient.get<{ data: unknown }>(
       `${FINANCE}/prefill/${tripId}`,
     );
-    return mapInvoicePrefill(response.data as any);
+    return mapInvoicePrefill(response.data as Record<string, unknown>);
   },
 };

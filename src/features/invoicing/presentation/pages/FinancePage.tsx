@@ -319,13 +319,11 @@ function InvoicesTab({
 }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<InvoiceStatus | "">("");
-  useEffect(() => {
-    setStatus(initialStatus ?? "");
-    setPage(1);
-  }, [initialStatus]);
-
+  const [statusOverride, setStatusOverride] = useState<InvoiceStatus | "" | null>(
+    null,
+  );
   const [page, setPage] = useState(1);
+  const status = statusOverride ?? (initialStatus ?? "");
 
   const filters: InvoiceFilters = {
     search: search || undefined,
@@ -352,8 +350,9 @@ function InvoicesTab({
   }, [isError, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFilterStatus = (s: InvoiceStatus) => {
-    setStatus((prev) => {
-      const next = prev === s ? "" : s;
+    setStatusOverride((prev) => {
+      const current = prev ?? (initialStatus ?? "");
+      const next = current === s ? "" : s;
       onStatusChange?.(next || undefined);
       return next;
     });
@@ -394,7 +393,7 @@ function InvoicesTab({
             value={status || "all"}
             onValueChange={(v) => {
               const next = v === "all" ? "" : (v as InvoiceStatus);
-              setStatus(next);
+              setStatusOverride(next);
               onStatusChange?.(next || undefined);
               setPage(1);
             }}
@@ -421,7 +420,7 @@ function InvoicesTab({
               variant="secondary"
               className="gap-1 cursor-pointer"
               onClick={() => {
-                setStatus("");
+                setStatusOverride("");
                 setSearch("");
                 onStatusChange?.(undefined);
                 setPage(1);

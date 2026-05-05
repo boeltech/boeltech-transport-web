@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, FileText, FileCode, Loader2 } from "lucide-react";
+import { Download, FileText, FileCode, Loader2, Receipt, AlertCircle } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Separator } from "@shared/ui/separator";
-import { Skeleton } from "@shared/ui/skeleton";
+import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
@@ -15,11 +15,21 @@ import {
   useOpenInvoicePdf,
   downloadInvoiceXml,
 } from "@features/invoicing/application";
+import type { Invoice } from "@features/invoicing/domain";
 import { InvoiceStatusBadge, InvoiceActions } from "../components";
 
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+function resolveInvoiceBackHref(
+  from: string | undefined,
+  invoice: Invoice | undefined,
+): string {
+  if (from && !from.startsWith("/invoices/new")) return from;
+  if (invoice?.trips?.length) return `/trips/${invoice.trips[0].tripId}`;
+  return "/finance?tab=invoices";
+}
 
 function formatMXN(amount: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -38,19 +48,13 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-
-  const handleBack = () => {
-    const from = location.state?.from as string | undefined;
-    if (from && !from.startsWith("/invoices/new")) {
-      navigate(from);
-    } else if (invoice?.trips?.length) {
-      navigate(`/trips/${invoice.trips[0].tripId}`);
-    } else {
-      navigate("/finance?tab=invoices");
-    }
-  };
+  const fromState = location.state?.from as string | undefined;
 
   const { data: invoice, isLoading, isError, error } = useInvoice(id!);
+
+  const handleBack = () => {
+    navigate(resolveInvoiceBackHref(fromState, invoice));
+  };
 
   const { label: issuerTaxRegimeLabel } = useRegimenFiscalLabel(
     invoice?.issuerTaxRegime,
@@ -82,109 +86,116 @@ export function InvoiceDetailPage() {
     }
   }, [isError, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const shellHeaderPlaceholder = {
+    backHref: resolveInvoiceBackHref(fromState, undefined),
+    icon: <Receipt className="h-6 w-6" />,
+    title: "Factura",
+  };
+
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <DetailPageShell
+        isLoading
+        header={shellHeaderPlaceholder}
+        className="p-6 max-w-4xl mx-auto"
+      />
     );
   }
 
   if (isError || !invoice) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">
-          {error ? getErrorMessage(error) : "Factura no encontrada"}
-        </p>
-        <Button variant="link" onClick={handleBack}>
-          Regresar
-        </Button>
-      </div>
+      <DetailPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: "Factura no encontrada",
+          description: error ? getErrorMessage(error) : undefined,
+          onBackClick: handleBack,
+          backLabel: "Regresar",
+        }}
+        header={shellHeaderPlaceholder}
+        className="p-6 max-w-4xl mx-auto"
+      />
     );
   }
 
   const isStampedLike =
     invoice.status === "stamped" || invoice.status === "cancellation_pending";
 
+  const backHref = resolveInvoiceBackHref(fromState, invoice);
+
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">
-                {invoice.serie}-{invoice.folio}
-              </h1>
-              <InvoiceStatusBadge status={invoice.status} />
-            </div>
-            {invoice.cfdiUuid && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                UUID: {invoice.cfdiUuid}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <InvoiceActions
-            variant="buttons"
-            invoiceId={invoice.id}
-            invoiceSerie={invoice.serie}
-            invoiceFolio={invoice.folio}
-            invoiceStatus={invoice.status}
-            fullInvoice={invoice}
-          />
-          {isStampedLike && (
-            <>
-              {/* Descargar / ver PDF — usa endpoint autenticado */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  openPdf({
-                    id: invoice.id,
-                    serieFolio: `${invoice.serie}-${invoice.folio}`,
-                  })
-                }
-                disabled={openingPdf}
-                title="Ver PDF"
-              >
-                {openingPdf ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                {openingPdf ? "Generando..." : "PDF"}
-              </Button>
-
-              {/* Descargar XML timbrado */}
-              {invoice.xmlContent && (
+    <DetailPageShell
+      isLoading={false}
+      header={{
+        backHref,
+        backLabel: "Volver",
+        icon: <Receipt className="h-6 w-6" />,
+        title: `${invoice.serie}-${invoice.folio}`,
+        subtitle: invoice.cfdiUuid
+          ? `UUID: ${invoice.cfdiUuid}`
+          : `${invoice.receiverName} · ${invoice.receiverRfc}`,
+        statusBadge: <InvoiceStatusBadge status={invoice.status} />,
+        actions: (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+            />
+            {isStampedLike && (
+              <>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    downloadInvoiceXml(
-                      invoice.xmlContent!,
-                      `${invoice.serie}-${invoice.folio}`,
-                    )
+                    openPdf({
+                      id: invoice.id,
+                      serieFolio: `${invoice.serie}-${invoice.folio}`,
+                    })
                   }
-                  title="Descargar XML timbrado"
+                  disabled={openingPdf}
+                  title="Ver PDF"
                 >
-                  <FileCode className="mr-2 h-4 w-4" />
-                  XML
+                  {openingPdf ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  {openingPdf ? "Generando..." : "PDF"}
                 </Button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
+                {invoice.xmlContent ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      downloadInvoiceXml(
+                        invoice.xmlContent!,
+                        `${invoice.serie}-${invoice.folio}`,
+                      )
+                    }
+                    title="Descargar XML timbrado"
+                  >
+                    <FileCode className="mr-2 h-4 w-4" />
+                    XML
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </div>
+        ),
+      }}
+      metadata={{
+        createdAt: invoice.createdAt,
+        updatedAt: invoice.updatedAt,
+        createdBy: invoice.createdBy ?? undefined,
+      }}
+      className="p-6 max-w-4xl mx-auto"
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Emisor */}
         <Card>
@@ -424,6 +435,6 @@ export function InvoiceDetailPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </DetailPageShell>
   );
 }

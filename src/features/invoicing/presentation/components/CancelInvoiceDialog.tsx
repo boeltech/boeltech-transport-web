@@ -1,4 +1,4 @@
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -74,7 +74,10 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
     },
   });
 
-  const cancellationCode = form.watch("cancellation_code");
+  const cancellationCode = useWatch({
+    control: form.control,
+    name: "cancellation_code",
+  });
 
   const { mutate, isPending } = useCancelInvoice({
     onSuccess: (invoice) => {
