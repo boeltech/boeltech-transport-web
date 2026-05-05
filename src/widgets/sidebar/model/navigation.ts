@@ -25,6 +25,7 @@ import {
   Wrench,
   Fuel,
   Building2,
+  GitBranch,
   UsersRound,
 } from "lucide-react";
 import type { NavGroup } from "./types";
@@ -70,6 +71,13 @@ export const navigationConfig: NavGroup[] = [
         path: "/trips",
         icon: Route,
         module: "trips",
+      },
+      {
+        id: "branches",
+        label: "Sucursales",
+        path: "/branches",
+        icon: GitBranch,
+        module: "branches",
       },
     ],
   },
@@ -199,8 +207,6 @@ export const navigationConfig: NavGroup[] = [
         path: "/users",
         icon: UserCog,
         module: "users",
-        disabled: true,
-        badge: "Próximamente",
       },
       {
         id: "settings",

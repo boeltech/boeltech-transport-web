@@ -230,7 +230,7 @@ const UserMenu = memo(function UserMenu({
         <DropdownMenuItem asChild>
           <Link to="/profile">
             <User className="mr-2 h-4 w-4" />
-            Mi Perfil
+            Mi cuenta
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

@@ -1,5 +1,6 @@
 import { QueryProvider } from "@app/providers/QueryProvider";
 import { AuthProvider } from "@features/auth";
+import { ProductOnboardingGate } from "@app/router/guards/ProductOnboardingGate";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
 import { ThemeProvider } from "@app/providers/ThemeProvider";
 import { ToastProvider } from "@app/providers/ToastProvider";
@@ -40,15 +41,17 @@ export const AppLayout = () => {
   return (
     <QueryProvider>
       <AuthProvider>
-        <PermissionProvider>
-          <ThemeProvider defaultMode="system">
-            <ToastProvider>
-              <SidebarProvider>
-                <LayoutShell />
-              </SidebarProvider>
-            </ToastProvider>
-          </ThemeProvider>
-        </PermissionProvider>
+        <ProductOnboardingGate>
+          <PermissionProvider>
+            <ThemeProvider defaultMode="system">
+              <ToastProvider>
+                <SidebarProvider>
+                  <LayoutShell />
+                </SidebarProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </PermissionProvider>
+        </ProductOnboardingGate>
       </AuthProvider>
     </QueryProvider>
   );

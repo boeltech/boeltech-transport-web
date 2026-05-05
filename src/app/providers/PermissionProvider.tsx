@@ -17,7 +17,7 @@
  * 7. LayoutShell
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useAuth } from "@features/auth";
 import {
   PermissionContext,
@@ -63,8 +63,6 @@ export function PermissionProvider({
 }: PermissionProviderProps) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(true);
-
   // Casos de uso
   const checkPermissionUseCase = useMemo(
     () => createCheckPermissionUseCase(),
@@ -107,13 +105,6 @@ export function PermissionProvider({
     initializePermissionStateUseCase,
   ]);
 
-  // Actualizar loading cuando auth termine
-  useEffect(() => {
-    if (!authLoading) {
-      setIsLoading(false);
-    }
-  }, [authLoading]);
-
   // ============================================================================
   // Context Value Implementation
   // ============================================================================
@@ -123,7 +114,7 @@ export function PermissionProvider({
       // State
       role: permissionState.role,
       permissions: permissionState.permissions,
-      isLoading,
+      isLoading: authLoading,
       isAuthenticated: permissionState.isAuthenticated,
 
       // Permission checks
@@ -203,7 +194,7 @@ export function PermissionProvider({
     }),
     [
       permissionState,
-      isLoading,
+      authLoading,
       customPermissions,
       deniedPermissions,
       checkPermissionUseCase,

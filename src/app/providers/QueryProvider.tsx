@@ -10,6 +10,11 @@ interface QueryProviderProps {
   children: ReactNode;
 }
 
+type QueryErrorLike = {
+  response?: { status?: number };
+  status?: number;
+};
+
 // ============================================
 // Provider
 // ============================================
@@ -34,7 +39,7 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
             gcTime: 10 * 60 * 1000, // 10 minutos
 
             // Reintentos en caso de error
-            retry: (failureCount, error: any) => {
+            retry: (failureCount, error: QueryErrorLike) => {
               // No reintentar errores 4xx (cliente)
               const status = error?.response?.status || error?.status;
               if (status >= 400 && status < 500) {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import {
   // useNavigate,
