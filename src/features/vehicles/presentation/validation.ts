@@ -41,6 +41,71 @@ const vehicleStatusSchema = z.enum([
  * - Valida que sea positivo si tiene valor
  * - Retorna: number | undefined
  */
+/** Entrada desde input numérico: vacío/null/NaN → undefined (no capturado). */
+function preprocessVehicleCurrentMileage(val: unknown): unknown {
+  if (val === "" || val === undefined || val === null) return undefined;
+  if (typeof val === "number") {
+    if (Number.isNaN(val)) return undefined;
+    return val;
+  }
+  if (typeof val === "string") {
+    const t = val.trim();
+    if (t === "") return undefined;
+    const parsed = Number(t);
+    if (Number.isNaN(parsed)) return val;
+    return parsed;
+  }
+  return val;
+}
+
+/** Kilometraje: opcional en formulario · si viene valor debe ser entero ≥ 0. */
+const vehicleFormCurrentMileageSchema = z.preprocess(
+  preprocessVehicleCurrentMileage,
+  z
+    .number()
+    .int("Debe ser un número entero")
+    .nonnegative("No puede ser negativo")
+    .optional(),
+);
+
+/**
+ * Peso bruto vehicular (ton) desde API o input: acepta number o string numérico.
+ * `Number("10.200")` es NaN en JS; `parseFloat("10.200")` → 10.2.
+ */
+export function parsePesoBrutoVehicularFormInput(
+  val: unknown,
+): number | undefined {
+  if (val === "" || val === undefined || val === null) return undefined;
+  if (typeof val === "number") {
+    if (Number.isNaN(val)) return undefined;
+    return val;
+  }
+  if (typeof val === "string") {
+    const t = val.trim().replace(/\s/g, "").replace(",", ".");
+    if (t === "") return undefined;
+    const parsed = parseFloat(t);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+}
+
+function preprocessPesoBrutoVehicular(val: unknown): unknown {
+  const n = parsePesoBrutoVehicularFormInput(val);
+  if (n !== undefined) return n;
+  if (val === "" || val === undefined || val === null) return undefined;
+  if (typeof val === "string" && val.trim() !== "") return val;
+  return undefined;
+}
+
+const vehicleFormPesoBrutoSchema = z.preprocess(
+  preprocessPesoBrutoVehicular,
+  z
+    .number()
+    .positive("Debe ser mayor a 0")
+    .max(9999.999, "Máximo 9999.999 toneladas")
+    .optional(),
+);
+
 const optionalPositiveNumber = z.preprocess(
   (val) => {
     // // null o undefined → undefined
@@ -98,11 +163,8 @@ export const createVehicleSchema = z.object({
   fuelTankCapacity: optionalPositiveNumber,
   expectedFuelEfficiency: optionalPositiveNumber,
 
-  // Mileage
-  currentMileage: z
-    .number({ message: "El kilometraje actual es requerido" })
-    .int("Debe ser un número entero")
-    .nonnegative("No puede ser negativo"),
+  // Mileage (opcional en UI; POST normaliza falta como 0)
+  currentMileage: vehicleFormCurrentMileageSchema,
 
   // ── Documentation ─────────────────────────────────────────────────────────
   insurancePolicy: z.string().max(50).optional().or(z.literal("")),
@@ -123,11 +185,7 @@ export const createVehicleSchema = z.object({
     .max(10, "Máximo 10 caracteres")
     .optional()
     .or(z.literal("")),
-  pesoBrutoVehicular: z
-    .number({ message: "Debe ser un número" })
-    .positive("Debe ser mayor a 0")
-    .max(9999.999, "Máximo 9999.999 toneladas")
-    .optional(),
+  pesoBrutoVehicular: vehicleFormPesoBrutoSchema,
   // Seguros — Responsabilidad Civil (requeridos para emitir Carta Porte)
   insuranceCompany: z
     .string()
@@ -186,10 +244,7 @@ export const updateVehicleSchema = z.object({
   expectedFuelEfficiency: z.number().positive().nullable().optional(),
 
   // Mileage
-  currentMileage: z
-    .number({ message: "El kilometraje actual es requerido" })
-    .int("Debe ser un número entero")
-    .nonnegative("No puede ser negativo"),
+  currentMileage: vehicleFormCurrentMileageSchema,
 
   // Documentation
   insurancePolicy: z.string().max(50).nullable().optional(),
@@ -200,7 +255,10 @@ export const updateVehicleSchema = z.object({
   // Carta Porte 3.1 — Autotransporte
   satTipoPermisoCode: z.string().max(10).nullable().optional(),
   satConfigAutotransporteCode: z.string().max(10).nullable().optional(),
-  pesoBrutoVehicular: z.number().positive().max(9999.999).nullable().optional(),
+  pesoBrutoVehicular: z.preprocess(
+    preprocessPesoBrutoVehicular,
+    z.number().positive().max(9999.999).nullable().optional(),
+  ),
   insuranceCompany: z.string().max(50).nullable().optional(),
   aseguraMedioAmbiente: z.string().max(50).nullable().optional(),
   polizaMedioAmbiente: z.string().max(30).nullable().optional(),
@@ -220,9 +278,7 @@ export type CreateVehicleFormData = z.infer<typeof createVehicleSchema>;
 export type UpdateVehicleFormData = z.infer<typeof updateVehicleSchema>;
 
 /** Campos por paso del wizard de alta (índices 0–2); el paso 3 es solo revisión. */
-export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: [
-  keyof CreateVehicleFormData,
-][][] = [
+export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: (keyof CreateVehicleFormData)[][] = [
   [
     "unitNumber",
     "licensePlate",

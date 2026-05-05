@@ -107,7 +107,10 @@ export interface VehicleListItem {
   readonly status: VehicleStatusType;
   readonly currentMileage: number;
   readonly isActive: boolean;
+  /** Póliza responsabilidad civil — listado (si la API lo incluye) */
+  readonly insurancePolicy: string | null;
   readonly insuranceExpiry: string | null;
+  readonly sctPermitNumber: string | null;
   readonly sctPermitExpiry: string | null;
   // Carta Porte 3.1 (útil para filtros y validaciones)
   readonly satTipoPermisoCode: string | null;

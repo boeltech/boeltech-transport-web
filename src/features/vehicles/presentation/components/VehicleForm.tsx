@@ -23,11 +23,11 @@ import {
 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -42,15 +42,18 @@ import {
 } from "@shared/ui/select";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
+import { SatFieldLabel } from "@shared/ui/data-display";
 
 import {
   createVehicleSchema,
+  parsePesoBrutoVehicularFormInput,
   VEHICLE_CREATE_WIZARD_STEP_FIELDS,
   type CreateVehicleFormData,
 } from "../validation";
 import {
   VEHICLE_TYPE_LABELS,
   VehicleType,
+  type VehicleTypeValue,
   type Vehicle,
 } from "@features/vehicles/domain";
 
@@ -81,6 +84,8 @@ interface VehicleFormProps {
   wizardMode?: boolean;
   /** Índice de paso visible (0–3). El 3 es revisión. */
   wizardStepIndex?: number;
+  /** Muestra u oculta las claves SAT en las etiquetas del formulario. */
+  showSatCodes?: boolean;
 }
 
 // ============================================================================
@@ -125,7 +130,8 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
     satTipoPermisoCode: vehicle.cartaPorte.satTipoPermisoCode ?? "",
     satConfigAutotransporteCode:
       vehicle.cartaPorte.satConfigAutotransporteCode ?? "",
-    pesoBrutoVehicular: vehicle.cartaPorte.pesoBrutoVehicular ?? undefined,
+    pesoBrutoVehicular:
+      parsePesoBrutoVehicularFormInput(vehicle.cartaPorte.pesoBrutoVehicular),
     insuranceCompany: vehicle.cartaPorte.insuranceCompany ?? "",
     aseguraMedioAmbiente: vehicle.cartaPorte.aseguraMedioAmbiente ?? "",
     polizaMedioAmbiente: vehicle.cartaPorte.polizaMedioAmbiente ?? "",
@@ -165,7 +171,15 @@ function VehicleCreateWizardSummary() {
         <div>
           <p className="text-muted-foreground">Tipo</p>
           <p className="font-medium">
-            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleType] : "—"}
+            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Kilometraje actual</p>
+          <p className="font-medium">
+            {typeof v.currentMileage === "number"
+              ? `${new Intl.NumberFormat("es-MX").format(v.currentMileage)} km`
+              : "Sin captura (se registrará 0 km)"}
           </p>
         </div>
         <div className="sm:col-span-2">
@@ -192,7 +206,7 @@ const defaultValues: CreateVehicleFormData = {
   volumeCapacity: undefined,
   fuelTankCapacity: undefined,
   expectedFuelEfficiency: undefined,
-  currentMileage: 0,
+  currentMileage: undefined,
   insurancePolicy: "",
   insuranceExpiry: "",
   sctPermitNumber: "",
@@ -208,6 +222,16 @@ const defaultValues: CreateVehicleFormData = {
   polizaCarga: "",
 };
 
+/** Celdas de grid: sin `h-full` para que, con `items-start` en el grid, no se estire la fila al mostrar errores. */
+const FORM_GRID_ITEM_CLASS =
+  "flex min-h-0 flex-col gap-2 space-y-0";
+
+function FormGridGrowSpacer() {
+  return (
+    <div className="min-h-0 min-w-0 flex-1 shrink basis-0" aria-hidden />
+  );
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -220,6 +244,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       isSubmitting = false,
       wizardMode = false,
       wizardStepIndex = 0,
+      showSatCodes = true,
     },
     ref,
   ) {
@@ -268,15 +293,16 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           title="Identificación"
           icon={<Truck className="h-4 w-4" />}
           description="Datos básicos de identificación del vehículo"
-          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
             {/* Número de Unidad */}
             <FormField
               control={form.control}
               name="unitNumber"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Número de Unidad *</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       placeholder="Ej: U-001"
@@ -294,8 +320,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="licensePlate"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Placa *</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input placeholder="Ej: ABC-123-A" {...field} />
                   </FormControl>
@@ -309,8 +336,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="vin"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>VIN / Serie</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       placeholder="Número de serie del vehículo"
@@ -330,15 +358,16 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           title="Características"
           icon={<Settings className="h-4 w-4" />}
           description="Especificaciones del vehículo"
-          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
             {/* Marca */}
             <FormField
               control={form.control}
               name="brand"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Marca *</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input placeholder="Ej: Kenworth" {...field} />
                   </FormControl>
@@ -352,8 +381,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="model"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Modelo *</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input placeholder="Ej: T680" {...field} />
                   </FormControl>
@@ -367,8 +397,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="year"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Año *</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
@@ -392,8 +423,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="type"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Tipo *</FormLabel>
+                  <FormGridGrowSpacer />
                   <Select
                     onValueChange={(value) => {
                       if (value) field.onChange(value);
@@ -406,11 +438,13 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(VehicleType).map(([, value]) => (
-                        <SelectItem key={value} value={value}>
-                          {VEHICLE_TYPE_LABELS[value]}
-                        </SelectItem>
-                      ))}
+                      {(Object.values(VehicleType) as VehicleTypeValue[]).map(
+                        (value) => (
+                          <SelectItem key={value} value={value}>
+                            {VEHICLE_TYPE_LABELS[value]}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -423,8 +457,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="color"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
                   <FormLabel>Color</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input placeholder="Ej: Blanco" {...field} />
                   </FormControl>
@@ -438,16 +473,14 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="currentMileage"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Kilometraje Actual{" "}
-                    <span className="text-destructive">*</span>
-                  </FormLabel>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
+                  <FormLabel>Kilometraje actual</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
                       min={0}
-                      placeholder="0"
+                      placeholder="Opcional — 0 si nuevo"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) =>
@@ -478,21 +511,22 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           title="Capacidades"
           icon={<Gauge className="h-4 w-4" />}
           description="Capacidad de carga y consumo de combustible"
-          contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
             {/* Capacidad de Carga */}
             <FormField
               control={form.control}
               name="loadCapacity"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Capacidad de Carga (ton)</FormLabel>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
+                  <FormLabel>Carga (ton)</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
                       min={0}
-                      placeholder="0.00"
+                      placeholder="Ej: 28.5"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -512,14 +546,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="volumeCapacity"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Capacidad de Volumen (m³)</FormLabel>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
+                  <FormLabel>Volumen (m3)</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
                       min={0}
-                      placeholder="0.00"
+                      placeholder="Ej: 120"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -539,14 +574,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="fuelTankCapacity"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tanque de Combustible (L)</FormLabel>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
+                  <FormLabel>Tanque (L)</FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
                       min={0}
-                      placeholder="0.00"
+                      placeholder="Ej: 750"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -566,14 +602,17 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               control={form.control}
               name="expectedFuelEfficiency"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rendimiento (km/L)</FormLabel>
+                <FormItem className={FORM_GRID_ITEM_CLASS}>
+                  <FormLabel>
+                    Rendimiento (km/L)
+                  </FormLabel>
+                  <FormGridGrowSpacer />
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
                       min={0}
-                      placeholder="0.00"
+                      placeholder="Ej: 2.8"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -595,23 +634,28 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         <FormSectionCard
           title="Documentación y Seguros"
           icon={<ShieldCheck className="h-4 w-4" />}
-          description="Póliza de responsabilidad civil y permiso SCT — requeridos para emitir Carta Porte"
+          description="Datos administrativos para operación y Carta Porte"
           contentClassName="space-y-4"
         >
             {/* Seguro Responsabilidad Civil */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Responsabilidad civil
+            </p>
+            <div className="grid items-start gap-4 sm:grid-cols-3">
               {/* AseguraRespCivil */}
               <FormField
                 control={form.control}
                 name="insuranceCompany"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
                     <FormLabel>
-                      Aseguradora Resp. Civil{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        (AseguraRespCivil)
-                      </span>
+                      <SatFieldLabel
+                        label="Aseguradora Resp. Civil"
+                        satCode="AseguraRespCivil"
+                        showSatCode={showSatCodes}
+                      />
                     </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <Input placeholder="Ej: Qualitas, GNP, HDI" {...field} />
                     </FormControl>
@@ -625,13 +669,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 control={form.control}
                 name="insurancePolicy"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
                     <FormLabel>
-                      Póliza Resp. Civil{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        (PolizaRespCivil)
-                      </span>
+                      <SatFieldLabel
+                        label="Póliza Resp. Civil"
+                        satCode="PolizaRespCivil"
+                        showSatCode={showSatCodes}
+                      />
                     </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <Input placeholder="Número de póliza" {...field} />
                     </FormControl>
@@ -645,8 +691,14 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 control={form.control}
                 name="insuranceExpiry"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vencimiento del Seguro</FormLabel>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
+                    <FormLabel>
+                      <SatFieldLabel
+                        label="Vencimiento del Seguro"
+                        showSatCode={showSatCodes}
+                      />
+                    </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -657,19 +709,24 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             </div>
 
             {/* Permiso SCT — PermSCT + NumPermisoSCT */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Permiso SCT
+            </p>
+            <div className="grid items-start gap-4 sm:grid-cols-3">
               {/* PermSCT */}
               <FormField
                 control={form.control}
                 name="satTipoPermisoCode"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
                     <FormLabel>
-                      Tipo de Permiso SCT{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        (PermSCT)
-                      </span>
+                      <SatFieldLabel
+                        label="Tipo de Permiso SCT"
+                        satCode="PermSCT"
+                        showSatCode={showSatCodes}
+                      />
                     </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <TipoPermisoSelect
                         value={field.value ?? ""}
@@ -677,9 +734,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                         placeholder="Seleccionar tipo de permiso"
                       />
                     </FormControl>
-                    <FormDescription>
-                      Catálogo SAT c_TipoPermiso
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -690,13 +744,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 control={form.control}
                 name="sctPermitNumber"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
                     <FormLabel>
-                      Número de Permiso SCT{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        (NumPermisoSCT)
-                      </span>
+                      <SatFieldLabel
+                        label="Número de Permiso SCT"
+                        satCode="NumPermisoSCT"
+                        showSatCode={showSatCodes}
+                      />
                     </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <Input placeholder="Número de permiso" {...field} />
                     </FormControl>
@@ -710,8 +766,14 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 control={form.control}
                 name="sctPermitExpiry"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vencimiento del Permiso</FormLabel>
+                  <FormItem className={FORM_GRID_ITEM_CLASS}>
+                    <FormLabel>
+                      <SatFieldLabel
+                        label="Vencimiento del Permiso"
+                        showSatCode={showSatCodes}
+                      />
+                    </FormLabel>
+                    <FormGridGrowSpacer />
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -735,23 +797,22 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* ════════════════════════════════════════════════════════════════ */}
         <FormSectionCard
           title={
-            <>
+            <span className="inline-flex items-center gap-2">
               Carta Porte 3.1 — Autotransporte
-              <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+              <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
                 SAT
-              </span>
-            </>
+              </Badge>
+            </span>
           }
           icon={<FileText className="h-4 w-4" />}
-          description="Datos del nodo Autotransporte requeridos para el complemento Carta Porte del CFDI"
+          description="Datos SAT base del vehículo (se pueden complementar por viaje/carga)"
           contentClassName="space-y-6"
         >
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Estos campos se usan automáticamente al generar la Carta Porte.
-                La placa (PlacaVM) y el año (AnioModeloVM) se toman de los datos
-                del vehículo registrados arriba.
+                Se usa automáticamente al generar Carta Porte. Placa y año se
+                toman del vehículo.
               </AlertDescription>
             </Alert>
 
@@ -760,19 +821,21 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               <p className="text-sm font-medium mb-3">
                 Identificación Vehicular
               </p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid items-start gap-4 sm:grid-cols-2">
                 {/* ConfigVehicular */}
                 <FormField
                   control={form.control}
                   name="satConfigAutotransporteCode"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={FORM_GRID_ITEM_CLASS}>
                       <FormLabel>
-                        Configuración Vehicular{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (ConfigVehicular)
-                        </span>
+                        <SatFieldLabel
+                          label="Configuración Vehicular"
+                          satCode="ConfigVehicular"
+                          showSatCode={showSatCodes}
+                        />
                       </FormLabel>
+                      <FormGridGrowSpacer />
                       <FormControl>
                         <ConfigAutotransporteSelect
                           value={field.value ?? ""}
@@ -780,9 +843,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                           placeholder="Seleccionar configuración"
                         />
                       </FormControl>
-                      <FormDescription>
-                        Catálogo SAT c_ConfigAutotransporte (ej: C2, T3S2R4)
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -793,32 +853,36 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   control={form.control}
                   name="pesoBrutoVehicular"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={FORM_GRID_ITEM_CLASS}>
                       <FormLabel>
-                        Peso Bruto Vehicular (ton){" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (PesoBrutoVehicular)
-                        </span>
+                        <SatFieldLabel
+                          label="Peso Bruto Vehicular (ton)"
+                          satCode="PesoBrutoVehicular"
+                          showSatCode={showSatCodes}
+                        />
                       </FormLabel>
+                      <FormGridGrowSpacer />
                       <FormControl>
                         <Input
                           type="number"
                           step="0.001"
                           min={0}
                           max={9999.999}
-                          placeholder="Ej: 35.000"
+                          placeholder="Ej: 35"
                           value={field.value ?? ""}
                           onChange={(e) => {
                             const val = e.target.value;
+                            if (val === "") {
+                              field.onChange(undefined);
+                              return;
+                            }
+                            const n = parsePesoBrutoVehicularFormInput(val);
                             field.onChange(
-                              val === "" ? undefined : parseFloat(val),
+                              n === undefined ? undefined : n,
                             );
                           }}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Peso bruto total en toneladas métricas (máx 3 decimales)
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -828,34 +892,33 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
 
             {/* ── Seguros Opcionales ──────────────────────────────────────── */}
             <div>
-              <p className="text-sm font-medium mb-1">
-                Seguros Adicionales{" "}
-                <span className="text-xs text-muted-foreground font-normal">
-                  (opcionales)
-                </span>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Seguros adicionales predeterminados (opcionales)
               </p>
-              <p className="text-xs text-muted-foreground mb-3">
-                Incluir solo si la mercancía cuenta con seguro de carga o de
-                daños a medio ambiente
+              <p className="mb-4 text-xs text-muted-foreground">
+                Estos datos funcionan como base para Carta Porte; si un viaje o
+                carga requiere un seguro distinto, se captura en ese flujo.
               </p>
 
               {/* Medio Ambiente */}
-              <div className="grid gap-4 sm:grid-cols-2 mb-4">
+              <div className="grid items-start gap-4 sm:grid-cols-2 mb-4">
                 {/* AseguraMedioAmbiente */}
                 <FormField
                   control={form.control}
                   name="aseguraMedioAmbiente"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={FORM_GRID_ITEM_CLASS}>
                       <FormLabel>
-                        Aseguradora Medio Ambiente{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (AseguraMedioAmbiente)
-                        </span>
+                        <SatFieldLabel
+                          label="Aseguradora Medio Ambiente"
+                          satCode="AseguraMedioAmbiente"
+                          showSatCode={showSatCodes}
+                        />
                       </FormLabel>
+                      <FormGridGrowSpacer />
                       <FormControl>
                         <Input
-                          placeholder="Nombre de la aseguradora"
+                          placeholder="Aseguradora por defecto"
                           {...field}
                         />
                       </FormControl>
@@ -869,15 +932,17 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   control={form.control}
                   name="polizaMedioAmbiente"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={FORM_GRID_ITEM_CLASS}>
                       <FormLabel>
-                        Póliza Medio Ambiente{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (PolizaMedioAmbiente)
-                        </span>
+                        <SatFieldLabel
+                          label="Póliza Medio Ambiente"
+                          satCode="PolizaMedioAmbiente"
+                          showSatCode={showSatCodes}
+                        />
                       </FormLabel>
+                      <FormGridGrowSpacer />
                       <FormControl>
-                        <Input placeholder="Número de póliza" {...field} />
+                        <Input placeholder="Póliza por defecto" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -885,50 +950,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 />
               </div>
 
-              {/* Carga */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* AseguraCarga */}
-                <FormField
-                  control={form.control}
-                  name="aseguraCarga"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Aseguradora de Carga{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (AseguraCarga)
-                        </span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Nombre de la aseguradora"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* PolizaCarga */}
-                <FormField
-                  control={form.control}
-                  name="polizaCarga"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Póliza de Carga{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          (PolizaCarga)
-                        </span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="Número de póliza" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                El seguro de carga (aseguradora y póliza) se captura por
+                mercancía en el wizard de viajes, no a nivel de vehículo.
               </div>
             </div>
         </FormSectionCard>

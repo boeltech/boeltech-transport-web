@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { ListPageShell } from "@shared/ui/page-shells";
+import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
 import {
   Plus,

@@ -30,6 +30,7 @@ import {
   type CreateVehiclePayload,
   type UpdateVehiclePayload,
 } from "@features/vehicles/domain";
+import { isExpired } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // MUTATION CALLBACKS
@@ -94,7 +95,7 @@ export const useVehicle = (
 /**
  * Hook para obtener vehículos clasificados por asignabilidad.
  * Retorna TODOS los vehículos activos + disponibles, clasificados como
- * asignables o bloqueados (seguro vencido, permiso SCT vencido).
+ * asignables o bloqueados (documentación faltante/incompleta o vencida).
  *
  * Los bloqueados se muestran en el select pero deshabilitados con la razón.
  *
@@ -130,18 +131,34 @@ export function useAssignableVehicles(
 
 /**
  * Clasifica un vehículo como asignable o bloqueado.
- * Reglas de negocio evaluadas en frontend (complemento al backend):
- * - Seguro vencido → bloqueado
- * - Permiso SCT vencido → bloqueado
+ * Reglas en frontend (complemento al backend):
+ * - Seguro / SCT sin registrar o incompleto → bloqueado
+ * - Seguro / SCT vencido → bloqueado
+ * Si el listado no trae póliza o número SCT pero sí vigencia, no se bloquea solo por ese campo
+ * (compatibilidad con APIs que omiten esos campos en GET /vehicles).
  */
+function hasDocText(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function classifyVehicleForAssignment(
   vehicle: VehicleListItem,
 ): AssignableVehicleItem {
-  // Seguro vencido
-  if (
-    vehicle.insuranceExpiry &&
-    new Date(vehicle.insuranceExpiry) < new Date()
-  ) {
+  const hasInsurancePolicy = hasDocText(vehicle.insurancePolicy);
+  const hasInsuranceExpiry = hasDocText(vehicle.insuranceExpiry);
+  const hasSctNumber = hasDocText(vehicle.sctPermitNumber);
+  const hasSctExpiry = hasDocText(vehicle.sctPermitExpiry);
+
+  // ── Seguro ─────────────────────────────────────────────────────────────
+  if (!hasInsurancePolicy && !hasInsuranceExpiry) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Seguro no registrado",
+    };
+  }
+
+  if (hasInsuranceExpiry && isExpired(vehicle.insuranceExpiry)) {
     return {
       ...vehicle,
       canBeAssigned: false,
@@ -149,17 +166,42 @@ function classifyVehicleForAssignment(
     };
   }
 
-  // Permiso SCT vencido
-  if (
-    vehicle.sctPermitExpiry &&
-    new Date(vehicle.sctPermitExpiry) < new Date()
-  ) {
+  if (hasInsurancePolicy && !hasInsuranceExpiry) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de seguro",
+    };
+  }
+
+  // Vigencia sin póliza en listado: se permite (API puede omitir `insurance_policy`).
+
+  // ── Permiso SCT ─────────────────────────────────────────────────────────
+  if (!hasSctNumber && !hasSctExpiry) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Permiso SCT no registrado",
+    };
+  }
+
+  if (hasSctExpiry && isExpired(vehicle.sctPermitExpiry)) {
     return {
       ...vehicle,
       canBeAssigned: false,
       blockReason: "Permiso SCT vencido",
     };
   }
+
+  if (hasSctNumber && !hasSctExpiry) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de permiso SCT",
+    };
+  }
+
+  // Vigencia sin número en listado: se permite (API puede omitir `sct_permit_number`).
 
   return { ...vehicle, canBeAssigned: true };
 }

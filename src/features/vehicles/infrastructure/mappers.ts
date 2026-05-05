@@ -45,7 +45,9 @@ export interface ApiVehicleListItemResponse {
   status: string;
   current_mileage: number;
   is_active: boolean;
+  insurance_policy?: string | null;
   insurance_expiry: string | null;
+  sct_permit_number?: string | null;
   sct_permit_expiry: string | null;
   // Carta Porte 3.1
   sat_tipo_permiso_code: string | null;
@@ -114,7 +116,9 @@ export function mapVehicleListItem(
     status: raw.status as VehicleStatusType,
     currentMileage: raw.current_mileage,
     isActive: raw.is_active,
+    insurancePolicy: raw.insurance_policy ?? null,
     insuranceExpiry: raw.insurance_expiry,
+    sctPermitNumber: raw.sct_permit_number ?? null,
     sctPermitExpiry: raw.sct_permit_expiry,
     // Carta Porte 3.1
     satTipoPermisoCode: raw.sat_tipo_permiso_code,
