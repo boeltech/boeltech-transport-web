@@ -11,19 +11,23 @@
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
  */
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
+import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
+import {
+  InfoRow,
+  DetailTimeline,
+  DetailAlertCard,
+} from "@shared/ui/data-display";
 import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Separator } from "@shared/ui/separator";
 import {
   AlertCircle,
-  ArrowLeft,
-  Play,
   Building2,
   Truck,
   User,
@@ -46,6 +50,7 @@ import {
   Plus,
   CheckCircle2,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
@@ -66,7 +71,6 @@ import {
   formatStopDisplayLocalityLine,
   formatStopDisplayPrimaryLine,
   getStopTypeConfig,
-  getTripInvoicingBadgeConfig,
 } from "@/features/trips";
 
 // ── Domain Types ───────────────────────────────────────────────────────────
@@ -88,10 +92,10 @@ import {
 } from "@features/trips/domain";
 
 import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
 import {
   getTripStatusConfig,
   TripActions,
+  TripInvoiceActions,
   TripStatusBadge,
 } from "@features/trips/presentation";
 import { formatDateTime } from "@shared/utils/dateUtils";
@@ -158,24 +162,6 @@ function getCargoStatusVariant(
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
-
-interface InfoRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}
-
-function InfoRow({ icon, label, value }: InfoRowProps) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-muted-foreground shrink-0">{icon}</span>
-      <span className="text-sm text-muted-foreground min-w-[80px]">
-        {label}
-      </span>
-      <span className="text-sm font-medium truncate">{value}</span>
-    </div>
-  );
-}
 
 /**
  * Skeleton para la sección de cargas
@@ -264,9 +250,7 @@ function ErrorCard({
 
 export function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
   const tripId = id || "";
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -331,11 +315,117 @@ export function TripDetailPage() {
       toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const [comparisonNowMs, setComparisonNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setComparisonNowMs(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const tripAlerts = useMemo(() => {
+    if (!trip) return undefined;
+
+    const cards: ReactElement[] = [];
+
+    if (trip.status === TripStatus.SCHEDULED) {
+      const missing: { label?: string; text: string }[] = [];
+      if (!trip.vehicle) {
+        missing.push({ label: "Vehículo", text: "Sin unidad asignada." });
+      }
+      if (!trip.driver) {
+        missing.push({
+          label: "Conductor",
+          text: "Sin conductor asignado.",
+        });
+      }
+      if (missing.length > 0) {
+        cards.push(
+          <DetailAlertCard
+            key="assignment-incomplete"
+            severity="warning"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title="Viaje programado sin asignación completa"
+            items={missing}
+          />,
+        );
+      }
+    }
+
+    if (
+      (trip.status === TripStatus.SCHEDULED ||
+        trip.status === TripStatus.IN_PROGRESS) &&
+      trip.scheduledArrival &&
+      !trip.actualArrival &&
+      trip.scheduledArrival.getTime() < comparisonNowMs
+    ) {
+      cards.push(
+        <DetailAlertCard
+          key="eta-passed"
+          severity="warning"
+          icon={<Clock className="h-5 w-5" />}
+          title="Tiempo de llegada estimado superado"
+          items={[
+            {
+              label: "Llegada estimada",
+              text: formatDateTime(trip.scheduledArrival.toISOString()),
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (
+      trip.status === TripStatus.IN_PROGRESS &&
+      (!trip.vehicle || !trip.driver)
+    ) {
+      const missing: { label?: string; text: string }[] = [];
+      if (!trip.vehicle) {
+        missing.push({
+          label: "Vehículo",
+          text: "Sin datos de unidad en el viaje.",
+        });
+      }
+      if (!trip.driver) {
+        missing.push({
+          label: "Conductor",
+          text: "Sin datos de conductor en el viaje.",
+        });
+      }
+      if (missing.length > 0) {
+        cards.push(
+          <DetailAlertCard
+            key="operation-missing"
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title="Datos de operación incompletos"
+            items={missing}
+          />,
+        );
+      }
+    }
+
+    if (cards.length === 0) return undefined;
+    return <div className="space-y-3">{cards}</div>;
+  }, [trip, comparisonNowMs]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE
   // ══════════════════════════════════════════════════════════════════════════
 
-  if (isLoadingTrip) return <TripDetailSkeleton />;
+  if (isLoadingTrip) {
+    return (
+      <DetailPageShell
+        isLoading
+        header={{
+          backHref: "/trips",
+          icon: <Truck className="h-6 w-6" />,
+          title: "Viaje",
+        }}
+      />
+    );
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // NOT FOUND STATE
@@ -343,15 +433,22 @@ export function TripDetailPage() {
 
   if (!trip) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <h2 className="text-xl font-semibold mb-2">Viaje no encontrado</h2>
-        <p className="text-muted-foreground mb-4">
-          El viaje que buscas no existe o fue eliminado.
-        </p>
-        <Button onClick={() => navigate("/trips")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Viajes
-        </Button>
-      </div>
+      <DetailPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: "Viaje no encontrado",
+          description: "El viaje que buscas no existe o fue eliminado.",
+          backHref: "/trips",
+          backLabel: "Volver a Viajes",
+        }}
+        header={{
+          backHref: "/trips",
+          icon: <Truck className="h-6 w-6" />,
+          title: "Viaje",
+        }}
+      />
     );
   }
 
@@ -387,226 +484,134 @@ export function TripDetailPage() {
     expensesSummary?.total ??
     expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
-  const canCreateInvoices = hasPermission("invoices", "create");
-  const canReadInvoices = hasPermission("invoices", "read");
-  const isCompletedTrip = trip.status === "completed";
-  const canViewLinkedInvoice =
-    (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
-  const canShowCreateInvoiceAction =
-    isCompletedTrip &&
-    canCreateInvoices &&
-    trip.invoicing.canGenerateInvoice;
-  const canShowLinkedInvoiceState =
-    isCompletedTrip &&
-    !trip.invoicing.canGenerateInvoice &&
-    (canViewLinkedInvoice || canCreateInvoices);
-  const tripInvoicingConfig = getTripInvoicingBadgeConfig({
-    status: trip.status,
-    invoicing: trip.invoicing,
-  });
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className="space-y-6">
-      {/* ================================================================== */}
-      {/* HEADER                                                             */}
-      {/* ================================================================== */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/trips")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold">{trip.tripCode}</h1>
-            {/* <TripStatusBadgeAnimated status={trip.status} size="sm" /> */}
-            <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
+    <DetailPageShell
+      isLoading={false}
+      header={{
+        backHref: "/trips",
+        icon: <Truck className="h-6 w-6" />,
+        iconVariant:
+          trip.status === TripStatus.CANCELLED ? "muted" : "primary",
+        title: trip.tripCode,
+        subtitle: `${trip.originCity} → ${trip.destinationCity}`,
+        statusBadge: <TripStatusBadge status={trip.status} size="sm" showIcon={true} />,
+        actions: (
+          <div className="flex items-center gap-2 flex-wrap">
+            <TripInvoiceActions trip={trip} />
+            <TripActions
+              tripId={trip.id}
+              tripCode={trip.tripCode}
+              status={trip.status}
+              variant="buttons"
+              onActionComplete={() => {
+                refetchTrip();
+                refetchCargos();
+                refetchExpenses();
+              }}
+            />
           </div>
-          <div className="pl-12 space-y-1">
-            {trip.client && (
-              <p className="text-muted-foreground flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> {trip.client.legalName}
-              </p>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {trip.originCity} → {trip.destinationCity}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {(canShowCreateInvoiceAction || canShowLinkedInvoiceState) &&
-            (canShowCreateInvoiceAction ? (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  navigate(`/invoices/new?trip_id=${trip.id}`)
-                }
-              >
-                <Receipt className="h-4 w-4 mr-2" />
-                Generar factura
-              </Button>
-            ) : (
+        ),
+      }}
+      alerts={tripAlerts}
+      stats={[
+        {
+          title: "Distancia",
+          value: distance > 0 ? `${distance.toLocaleString("es-MX")} km` : "—",
+          icon: <Navigation className="h-5 w-5 text-primary" />,
+        },
+        {
+          title: "Duración",
+          value: duration ? formatDuration(duration) : "—",
+          icon: <Clock className="h-5 w-5 text-blue-500" />,
+        },
+        {
+          title: "Cargas",
+          value: cargoCount,
+          icon: <Package className="h-5 w-5 text-amber-500" />,
+          description:
+            totalCargoWeight > 0
+              ? `${totalCargoWeight.toLocaleString("es-MX")} kg total`
+              : undefined,
+        },
+        {
+          title: "Tarifa base",
+          value: trip.costs.baseRate > 0 ? formatCurrency(trip.costs.baseRate) : "—",
+          icon: <DollarSign className="h-5 w-5 text-emerald-500" />,
+        },
+      ]}
+      tabs={{
+        defaultValue: "overview",
+        items: [
+          {
+            value: "overview",
+            label: "Resumen",
+            content: (
               <>
-                <div className="rounded-md border px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={tripInvoicingConfig.variant}>
-                      {tripInvoicingConfig.label}
-                    </Badge>
-                    {trip.invoicing.invoiceFolio && (
-                      <span className="text-xs text-muted-foreground">
-                        {trip.invoicing.invoiceFolio}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {canViewLinkedInvoice && (
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Ver factura
-                  </Button>
-                )}
-              </>
-            ))}
-          <TripActions
-            tripId={trip.id}
-            tripCode={trip.tripCode}
-            status={trip.status}
-            variant="buttons"
-            onActionComplete={() => {
-              refetchTrip();
-              refetchCargos();
-              refetchExpenses();
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ================================================================== */}
-      {/* TABS                                                               */}
-      {/* ================================================================== */}
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="route">
-            Ruta {orderedStops.length > 0 && `(${orderedStops.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="cargo" className="flex items-center gap-1">
-            Cargas
-            {isLoadingCargos ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              cargoCount > 0 && (
-                <Badge variant="secondary" className="ml-1 text-xs">
-                  {cargoCount}
-                </Badge>
-              )
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="costs" className="flex items-center gap-1">
-            Costos
-            {pendingExpenses > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs">
-                {pendingExpenses}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="history">Historial</TabsTrigger>
-        </TabsList>
-
-        {/* ================================================================ */}
-        {/* TAB: RESUMEN                                                     */}
-        {/* ================================================================ */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {/* ── Información del Viaje ──────────────────────────────────── */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4" /> Información del Viaje
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Calendar className="h-4 w-4" /> Información del viaje
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="pt-0">
                 <InfoRow
-                  icon={<Calendar className="h-4 w-4" />}
+                  variant="inline"
                   label="Salida"
                   value={formatDateTime(trip.scheduledDeparture.toISOString())}
                 />
                 <InfoRow
-                  icon={<Clock className="h-4 w-4" />}
-                  label="Llegada Est."
+                  variant="inline"
+                  label="Llegada est."
                   value={formatDateTime(trip.scheduledArrival?.toISOString())}
                 />
-                {trip.actualDeparture && (
+                {trip.actualDeparture ? (
                   <InfoRow
-                    icon={<Play className="h-4 w-4 text-blue-500" />}
-                    label="Salida Real"
+                    variant="inline"
+                    label="Salida real"
                     value={formatDateTime(trip.actualDeparture.toISOString())}
                   />
-                )}
-                {trip.actualArrival && (
+                ) : null}
+                {trip.actualArrival ? (
                   <InfoRow
-                    icon={<Check className="h-4 w-4 text-emerald-500" />}
-                    label="Llegada Real"
+                    variant="inline"
+                    label="Llegada real"
                     value={formatDateTime(trip.actualArrival.toISOString())}
                   />
-                )}
-                <InfoRow
-                  icon={<Clock className="h-4 w-4" />}
-                  label="Duración"
-                  value={formatDuration(duration)}
-                />
+                ) : null}
+                <InfoRow variant="inline" label="Duración" value={formatDuration(duration)} />
               </CardContent>
             </Card>
 
             {/* ── Unidad y Conductor ─────────────────────────────────────── */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Truck className="h-4 w-4" /> Unidad y Conductor
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Truck className="h-4 w-4" /> Unidad y conductor
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="pt-0">
                 {trip.vehicle ? (
                   <>
-                    <InfoRow
-                      icon={<Truck className="h-4 w-4" />}
-                      label="Unidad"
-                      value={trip.vehicle.unitNumber}
-                    />
-                    <InfoRow
-                      icon={<Truck className="h-4 w-4" />}
-                      label="Placa"
-                      value={trip.vehicle.licensePlate}
-                    />
+                    <InfoRow variant="inline" label="Unidad" value={trip.vehicle.unitNumber} />
+                    <InfoRow variant="inline" label="Placa" value={trip.vehicle.licensePlate} />
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Sin vehículo asignado
-                  </p>
+                  <p className="py-2 text-sm text-muted-foreground">Sin vehículo asignado</p>
                 )}
 
                 <Separator className="my-2" />
 
                 {trip.driver ? (
-                  <InfoRow
-                    icon={<User className="h-4 w-4" />}
-                    label="Conductor"
-                    value={trip.driver.fullName}
-                  />
+                  <InfoRow variant="inline" label="Conductor" value={trip.driver.fullName} />
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Sin conductor asignado
-                  </p>
+                  <p className="text-sm text-muted-foreground">Sin conductor asignado</p>
                 )}
 
                 {trip.internalStaff && trip.internalStaff.length > 0 && (
@@ -620,14 +625,11 @@ export function TripDetailPage() {
                       {trip.internalStaff.map((member) => (
                         <div key={member.id} className="text-xs rounded-md border p-2">
                           <p className="font-medium">{member.employeeFullName}</p>
-                          <p className="text-muted-foreground">
-                            {member.internalRole === "secondary_driver"
-                              ? "Conductor adicional"
-                              : "Ayudante general"}
-                            {member.isPaymentResponsible
-                              ? " - Responsable de pago"
-                              : ""}
-                          </p>
+                          {member.isPaymentResponsible && (
+                            <p className="text-muted-foreground">
+                              Responsable de pago
+                            </p>
+                          )}
                           {member.paymentNotes && (
                             <p className="text-muted-foreground italic mt-1">
                               {member.paymentNotes}
@@ -643,89 +645,117 @@ export function TripDetailPage() {
 
             {/* ── Kilometraje ─────────────────────────────────────────────── */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <Gauge className="h-4 w-4" /> Kilometraje
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <InfoRow
-                  icon={<Gauge className="h-4 w-4" />}
-                  label="Inicial"
-                  value={formatMileage(trip.mileage.start)}
-                />
-                <InfoRow
-                  icon={<Gauge className="h-4 w-4" />}
-                  label="Final"
-                  value={formatMileage(trip.mileage.end)}
-                />
+              <CardContent className="pt-0">
+                <InfoRow variant="inline" label="Inicial" value={formatMileage(trip.mileage.start)} />
+                <InfoRow variant="inline" label="Final" value={formatMileage(trip.mileage.end)} />
                 <Separator className="my-2" />
-                <InfoRow
-                  icon={<Navigation className="h-4 w-4" />}
-                  label="Distancia"
-                  value={formatMileage(distance)}
-                />
+                <InfoRow variant="inline" label="Distancia" value={formatMileage(distance)} />
               </CardContent>
             </Card>
           </div>
 
           {/* ── Origen y Destino ─────────────────────────────────────────── */}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Origen */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <Navigation className="h-4 w-4 text-green-600" /> Origen
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="pt-0">
                 {originStop ? (
                   <>
-                    {originStop.locationName && (
-                      <p className="font-medium">{originStop.locationName}</p>
-                    )}
-                    {originStop.street && (
-                      <p className="text-sm">
-                        {originStop.street}
-                        {originStop.exteriorNumber &&
-                          ` #${originStop.exteriorNumber}`}
-                        {originStop.interiorNumber &&
-                          `, Int. ${originStop.interiorNumber}`}
-                      </p>
-                    )}
-                    {originStop.colonia && (
-                      <p className="text-sm text-muted-foreground">
-                        {originStop.colonia}
-                      </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {originStop.city}
-                      {originStop.state && `, ${originStop.state}`}
-                      {originStop.postalCode && ` C.P. ${originStop.postalCode}`}
-                    </p>
-                    {originStop.rfcRemitenteDestinatario && (
-                      <p className="text-xs text-muted-foreground">
-                        RFC: {originStop.rfcRemitenteDestinatario}
-                        {originStop.nombreRemitenteDestinatario &&
-                          ` — ${originStop.nombreRemitenteDestinatario}`}
-                      </p>
-                    )}
-                    {originStop.estimatedDeparture && (
-                      <p className="text-xs text-muted-foreground">
-                        Salida est.:{" "}
-                        {formatDateTime(
+                    <InfoRow
+                      variant="inline"
+                      label="Ubicación"
+                      value={originStop.locationName?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Calle y número"
+                      value={
+                        [
+                          originStop.street,
+                          originStop.exteriorNumber
+                            ? `#${originStop.exteriorNumber}`
+                            : null,
+                          originStop.interiorNumber
+                            ? `Int. ${originStop.interiorNumber}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() || "—"
+                      }
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Colonia"
+                      value={originStop.colonia?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Ciudad / Estado / C.P."
+                      value={
+                        [
+                          originStop.city,
+                          originStop.state,
+                          originStop.postalCode
+                            ? `C.P. ${originStop.postalCode}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "—"
+                      }
+                    />
+                    {originStop.rfcRemitenteDestinatario ? (
+                      <InfoRow
+                        variant="inline"
+                        label="RFC"
+                        value={originStop.rfcRemitenteDestinatario}
+                        mono
+                        copyable
+                      />
+                    ) : null}
+                    {originStop.nombreRemitenteDestinatario ? (
+                      <InfoRow
+                        variant="inline"
+                        label="Razón social (CP)"
+                        value={originStop.nombreRemitenteDestinatario}
+                      />
+                    ) : null}
+                    {originStop.estimatedDeparture ? (
+                      <InfoRow
+                        variant="inline"
+                        label="Salida programada"
+                        value={formatDateTime(
                           originStop.estimatedDeparture.toISOString(),
                         )}
-                      </p>
-                    )}
+                      />
+                    ) : null}
                   </>
                 ) : (
                   <>
-                    <p className="font-medium">{trip.originAddress}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {trip.originCity}
-                      {trip.originState && `, ${trip.originState}`}
-                    </p>
+                    <InfoRow
+                      variant="inline"
+                      label="Dirección"
+                      value={trip.originAddress?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Ciudad / Estado"
+                      value={
+                        [trip.originCity, trip.originState]
+                          .filter(Boolean)
+                          .join(", ") || "—"
+                      }
+                    />
                   </>
                 )}
               </CardContent>
@@ -733,146 +763,111 @@ export function TripDetailPage() {
 
             {/* Destino */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-red-600" /> Destino
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="pt-0">
                 {destinationStop ? (
                   <>
-                    {destinationStop.locationName && (
-                      <p className="font-medium">
-                        {destinationStop.locationName}
-                      </p>
-                    )}
-                    {destinationStop.street && (
-                      <p className="text-sm">
-                        {destinationStop.street}
-                        {destinationStop.exteriorNumber &&
-                          ` #${destinationStop.exteriorNumber}`}
-                        {destinationStop.interiorNumber &&
-                          `, Int. ${destinationStop.interiorNumber}`}
-                      </p>
-                    )}
-                    {destinationStop.colonia && (
-                      <p className="text-sm text-muted-foreground">
-                        {destinationStop.colonia}
-                      </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {destinationStop.city}
-                      {destinationStop.state && `, ${destinationStop.state}`}
-                      {destinationStop.postalCode &&
-                        ` C.P. ${destinationStop.postalCode}`}
-                    </p>
-                    {destinationStop.rfcRemitenteDestinatario && (
-                      <p className="text-xs text-muted-foreground">
-                        RFC: {destinationStop.rfcRemitenteDestinatario}
-                        {destinationStop.nombreRemitenteDestinatario &&
-                          ` — ${destinationStop.nombreRemitenteDestinatario}`}
-                      </p>
-                    )}
-                    {destinationStop.estimatedArrival && (
-                      <p className="text-xs text-muted-foreground">
-                        Llegada est.:{" "}
-                        {formatDateTime(
+                    <InfoRow
+                      variant="inline"
+                      label="Ubicación"
+                      value={destinationStop.locationName?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Calle y número"
+                      value={
+                        [
+                          destinationStop.street,
+                          destinationStop.exteriorNumber
+                            ? `#${destinationStop.exteriorNumber}`
+                            : null,
+                          destinationStop.interiorNumber
+                            ? `Int. ${destinationStop.interiorNumber}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() || "—"
+                      }
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Colonia"
+                      value={destinationStop.colonia?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Ciudad / Estado / C.P."
+                      value={
+                        [
+                          destinationStop.city,
+                          destinationStop.state,
+                          destinationStop.postalCode
+                            ? `C.P. ${destinationStop.postalCode}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "—"
+                      }
+                    />
+                    {destinationStop.rfcRemitenteDestinatario ? (
+                      <InfoRow
+                        variant="inline"
+                        label="RFC"
+                        value={destinationStop.rfcRemitenteDestinatario}
+                        mono
+                        copyable
+                      />
+                    ) : null}
+                    {destinationStop.nombreRemitenteDestinatario ? (
+                      <InfoRow
+                        variant="inline"
+                        label="Razón social (CP)"
+                        value={destinationStop.nombreRemitenteDestinatario}
+                      />
+                    ) : null}
+                    {destinationStop.estimatedArrival ? (
+                      <InfoRow
+                        variant="inline"
+                        label="Llegada programada"
+                        value={formatDateTime(
                           destinationStop.estimatedArrival.toISOString(),
                         )}
-                      </p>
-                    )}
-                    {destinationStop.distanceFromPreviousKm != null && (
-                      <p className="text-xs text-muted-foreground">
-                        Distancia total:{" "}
-                        {destinationStop.distanceFromPreviousKm.toLocaleString(
-                          "es-MX",
-                        )}{" "}
-                        km
-                      </p>
-                    )}
+                      />
+                    ) : null}
+                    {destinationStop.distanceFromPreviousKm != null ? (
+                      <InfoRow
+                        variant="inline"
+                        label="Distancia (tramo)"
+                        value={`${destinationStop.distanceFromPreviousKm.toLocaleString("es-MX")} km`}
+                      />
+                    ) : null}
                   </>
                 ) : (
                   <>
-                    <p className="font-medium">{trip.destinationAddress}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {trip.destinationCity}
-                      {trip.destinationState && `, ${trip.destinationState}`}
-                    </p>
+                    <InfoRow
+                      variant="inline"
+                      label="Dirección"
+                      value={trip.destinationAddress?.trim() || "—"}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label="Ciudad / Estado"
+                      value={
+                        [trip.destinationCity, trip.destinationState]
+                          .filter(Boolean)
+                          .join(", ") || "—"
+                      }
+                    />
                   </>
                 )}
               </CardContent>
             </Card>
           </div>
-
-          {/* ── Resumen rápido de Cargas y Costos ───────────────────────── */}
-          {(cargoCount > 0 || expenseCount > 0 || trip.costs.baseRate > 0) && (
-            <div className="grid gap-4 md:grid-cols-3">
-              {cargoCount > 0 && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Cargas registradas
-                        </p>
-                        <p className="text-2xl font-bold">{cargoCount}</p>
-                      </div>
-                      {totalCargoWeight > 0 && (
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
-                            Peso total
-                          </p>
-                          <p className="text-base font-semibold">
-                            {totalCargoWeight.toLocaleString("es-MX")} kg
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    {totalDeclaredValue > 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Valor declarado:{" "}
-                        <span className="font-medium text-foreground">
-                          {formatCurrency(totalDeclaredValue)}
-                        </span>
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-              {trip.costs.baseRate > 0 && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">Tarifa Base</p>
-                    <p className="text-2xl font-bold text-emerald-600">
-                      {formatCurrency(trip.costs.baseRate)}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-              {expenseCount > 0 && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Gastos registrados
-                        </p>
-                        <p className="text-2xl font-bold">{expenseCount}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
-                          Total gastos
-                        </p>
-                        <p className="text-xl font-semibold text-red-600">
-                          {formatCurrency(totalExpenses)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
 
           {/* ── Notas ───────────────────────────────────────────────────── */}
           {trip.notes && (
@@ -887,12 +882,17 @@ export function TripDetailPage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        {/* ================================================================ */}
-        {/* TAB: RUTA                                                        */}
-        {/* ================================================================ */}
-        <TabsContent value="route" className="space-y-4 mt-4">
+              </>
+            ),
+          },
+          {
+            value: "route",
+            label:
+              orderedStops.length > 0
+                ? `Ruta (${orderedStops.length})`
+                : "Ruta",
+            content: (
+              <>
           {orderedStops.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
@@ -917,48 +917,22 @@ export function TripDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Timeline */}
-              <div className="relative">
-                {orderedStops.map((stop, index) => {
+              <DetailTimeline
+                items={orderedStops.map((stop) => {
                   const config = getStopDisplayConfig(stop.stopType);
                   const StopIcon = config.icon;
                   const isVisited = !!stop.actualArrival;
-                  const isLast = index === orderedStops.length - 1;
                   const canMarkVisited =
                     trip.status === TripStatus.IN_PROGRESS && !isVisited;
 
-                  return (
-                    <div key={stop.id} className="flex gap-4">
-                      {/* Timeline line + dot */}
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={cn(
-                            "h-10 w-10 rounded-full flex items-center justify-center border-2 shrink-0",
-                            isVisited
-                              ? "bg-emerald-100 border-emerald-500 dark:bg-emerald-900/30"
-                              : config.bgColor + " " + config.color,
-                          )}
-                        >
-                          {isVisited ? (
-                            <Check className="h-5 w-5 text-emerald-600" />
-                          ) : (
-                            <StopIcon className={cn("h-5 w-5", config.color)} />
-                          )}
-                        </div>
-                        {!isLast && (
-                          <div
-                            className={cn(
-                              "w-0.5 flex-1 min-h-[80px]",
-                              isVisited
-                                ? "bg-emerald-500"
-                                : "bg-muted-foreground/20",
-                            )}
-                          />
-                        )}
-                      </div>
-
-                      {/* Stop content */}
-                      <Card className="flex-1 mb-4">
+                  return {
+                    id: stop.id,
+                    icon: <StopIcon className={cn("h-5 w-5", config.color)} />,
+                    completed: isVisited,
+                    dotBgClassName: config.bgColor,
+                    dotIconClassName: config.color,
+                    content: (
+                      <Card className="mb-4">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="space-y-1 flex-1">
@@ -1095,18 +1069,32 @@ export function TripDetailPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    </div>
-                  );
+                    ),
+                  };
                 })}
-              </div>
+              />
             </div>
           )}
-        </TabsContent>
-
-        {/* ================================================================ */}
-        {/* TAB: CARGAS                                                      */}
-        {/* ================================================================ */}
-        <TabsContent value="cargo" className="space-y-4 mt-4">
+              </>
+            ),
+          },
+          {
+            value: "cargo",
+            label: (
+              <span className="inline-flex items-center gap-1">
+                Cargas
+                {isLoadingCargos ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : null}
+                {!isLoadingCargos && cargoCount > 0 ? (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {cargoCount}
+                  </Badge>
+                ) : null}
+              </span>
+            ),
+            content: (
+              <>
           {isLoadingCargos ? (
             <CargosSkeleton />
           ) : isErrorCargos ? (
@@ -1132,7 +1120,7 @@ export function TripDetailPage() {
           ) : (
             <>
               {/* Resumen de cargas */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1205,6 +1193,14 @@ export function TripDetailPage() {
                             {cargo.declaredValue && (
                               <span>
                                 Valor: {formatCurrency(cargo.declaredValue)}
+                              </span>
+                            )}
+                            {cargo.aseguraCarga && (
+                              <span>Seguro: {cargo.aseguraCarga}</span>
+                            )}
+                            {cargo.polizaCarga && (
+                              <span className="font-mono">
+                                Poliza: {cargo.polizaCarga}
                               </span>
                             )}
                           </div>
@@ -1322,12 +1318,23 @@ export function TripDetailPage() {
               </div>
             </>
           )}
-        </TabsContent>
-
-        {/* ================================================================ */}
-        {/* TAB: COSTOS                                                      */}
-        {/* ================================================================ */}
-        <TabsContent value="costs" className="space-y-4 mt-4">
+              </>
+            ),
+          },
+          {
+            value: "costs",
+            label: (
+              <span className="inline-flex items-center gap-1">
+                Costos
+                {pendingExpenses > 0 ? (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {pendingExpenses}
+                  </Badge>
+                ) : null}
+              </span>
+            ),
+            content: (
+              <>
           {/* Resumen financiero */}
           <Card>
             <CardHeader className="pb-2">
@@ -1504,12 +1511,14 @@ export function TripDetailPage() {
                 </CardContent>
               </Card>
             )}
-        </TabsContent>
-
-        {/* ================================================================ */}
-        {/* TAB: HISTORIAL                                                   */}
-        {/* ================================================================ */}
-        <TabsContent value="history" className="space-y-4 mt-4">
+              </>
+            ),
+          },
+          {
+            value: "history",
+            label: "Historial",
+            content: (
+              <>
           {!trip.statusHistory || trip.statusHistory.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
@@ -1527,43 +1536,29 @@ export function TripDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="relative">
-                  {trip.statusHistory.map((entry, index) => {
-                    const isLast = index === trip.statusHistory!.length - 1;
-                    // const statusConfig = getStatusConfig(
-                    //   entry.newStatus as TripStatusType,
-                    // );
+                <DetailTimeline
+                  dotSize="sm"
+                  items={trip.statusHistory.map((entry) => {
                     const statusConfig = getTripStatusConfig(
                       entry.newStatus as TripStatusType,
                     );
                     const StatusIcon = statusConfig?.icon || FileText;
 
-                    return (
-                      <div key={entry.id} className="flex gap-4">
-                        {/* Timeline dot */}
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={cn(
-                              "h-8 w-8 rounded-full flex items-center justify-center border-2",
-                              statusConfig?.bgColor ||
-                                "bg-gray-100 dark:bg-gray-800",
-                              statusConfig?.borderColor || "border-gray-300",
-                            )}
-                          >
-                            <StatusIcon
-                              className={cn(
-                                "h-4 w-4",
-                                statusConfig?.textColor || "text-gray-500",
-                              )}
-                            />
-                          </div>
-                          {!isLast && (
-                            <div className="w-0.5 flex-1 min-h-[24px] bg-muted-foreground/20" />
+                    return {
+                      id: entry.id,
+                      icon: (
+                        <StatusIcon
+                          className={cn(
+                            "h-4 w-4",
+                            statusConfig?.textColor || "text-gray-500",
                           )}
-                        </div>
-
-                        {/* Entry content */}
-                        <div className="pb-4 flex-1">
+                        />
+                      ),
+                      dotBgClassName:
+                        statusConfig?.bgColor ||
+                        "bg-gray-100 dark:bg-gray-800",
+                      content: (
+                        <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">
                               {TRIP_STATUS_LABELS[
@@ -1582,7 +1577,8 @@ export function TripDetailPage() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {formatDateTime(entry.changedAt.toISOString())}
-                            {entry.changedByName && ` • ${entry.changedByName}`}
+                            {entry.changedByName &&
+                              ` • ${entry.changedByName}`}
                           </p>
                           {entry.reason && (
                             <p className="text-xs text-muted-foreground mt-1 italic">
@@ -1595,51 +1591,23 @@ export function TripDetailPage() {
                             </p>
                           )}
                         </div>
-                      </div>
-                    );
+                      ),
+                    };
                   })}
-                </div>
+                />
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function TripDetailSkeleton() {
-  return (
-    <div className="space-y-6">
-      {/* Header skeleton */}
-      <div className="flex items-center gap-4">
-        <Skeleton className="h-10 w-10" />
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-24" />
-      </div>
-
-      {/* Tabs skeleton */}
-      <Skeleton className="h-10 w-96" />
-
-      {/* Cards skeleton */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-5 w-32" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+              </>
+            ),
+          },
+        ],
+      }}
+      metadata={{
+        createdAt: trip.createdAt,
+        updatedAt: trip.updatedAt,
+        createdBy: trip.createdBy ?? undefined,
+      }}
+    />
   );
 }

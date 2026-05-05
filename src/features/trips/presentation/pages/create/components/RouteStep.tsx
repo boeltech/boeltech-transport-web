@@ -19,7 +19,7 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/RouteStep.tsx
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -38,6 +38,8 @@ import {
   Pencil,
   Plus,
   FileText,
+  CircleDashed,
+  CircleCheck,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
@@ -273,36 +275,32 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // DIALOG HANDLERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  const openAddDialog = useCallback(
-    (category: StopCategory) => {
-      const defaultOperations =
-        category === "origin"
-          ? ["pickup"]
-          : category === "destination"
-            ? ["delivery"]
-            : [];
+  const openAddDialog = (category: StopCategory) => {
+    const defaultOperations =
+      category === "origin"
+        ? ["pickup"]
+        : category === "destination"
+          ? ["delivery"]
+          : [];
 
-      // Pre-cargar scheduledArrival del form como estimatedArrival del destino
-      const initialEstimatedArrival =
-        category === "destination"
-          ? (form.getValues("scheduledArrival") ?? undefined)
-          : undefined;
+    // Pre-cargar scheduledArrival del form como estimatedArrival del destino
+    const initialEstimatedArrival =
+      category === "destination"
+        ? (form.getValues("scheduledArrival") ?? undefined)
+        : undefined;
 
-      setDialogInitialData({
-        stopCategory: category,
-        stopType: defaultOperations as TripStopFormValues["stopType"],
-        estimatedArrival: initialEstimatedArrival,
-      });
-      setEditingStopIndex(null);
-      setIsDialogOpen(true);
-    },
-    [form],
-  );
+    setDialogInitialData({
+      stopCategory: category,
+      stopType: defaultOperations as TripStopFormValues["stopType"],
+      estimatedArrival: initialEstimatedArrival,
+    });
+    setEditingStopIndex(null);
+    setIsDialogOpen(true);
+  };
 
-  const openEditDialog = useCallback(
-    (index: number, category: StopCategory) => {
-      const stop = form.getValues(`stops.${index}`);
-      if (!stop) return;
+  const openEditDialog = (index: number, category: StopCategory) => {
+    const stop = form.getValues(`stops.${index}`);
+    if (!stop) return;
 
       // Extraer operaciones (sin la categoría)
       const operations = stop.stopType.filter(
@@ -339,11 +337,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         latitude: stop.latitude,
         longitude: stop.longitude,
       });
-      setEditingStopIndex(index);
-      setIsDialogOpen(true);
-    },
-    [form],
-  );
+    setEditingStopIndex(index);
+    setIsDialogOpen(true);
+  };
 
   /**
    * Recorre las paradas en orden y rellena distanceFromPreviousKm usando Haversine × 1.30
@@ -379,11 +375,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     }
   }, [form]);
 
-  const handleDialogSubmit = useCallback(
-    (data: StopFormData) => {
-      if (!data.stopCategory || !data.stopType || data.stopType.length === 0) {
-        return;
-      }
+  const handleDialogSubmit = (data: StopFormData) => {
+    if (!data.stopCategory || !data.stopType || data.stopType.length === 0) {
+      return;
+    }
 
       const previousStop =
         editingStopIndex !== null
@@ -456,11 +451,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         recalculateDistances();
       });
 
-      setIsDialogOpen(false);
-      setEditingStopIndex(null);
-    },
-    [form, editingStopIndex, reorderStopsArray, recalculateDistances],
-  );
+    setIsDialogOpen(false);
+    setEditingStopIndex(null);
+  };
 
   // ══════════════════════════════════════════════════════════════════════════
   // STOP HANDLERS
@@ -536,22 +529,18 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // DRAG & DROP
   // ══════════════════════════════════════════════════════════════════════════
 
-  const handleDragStart = useCallback(
-    (index: number) => {
-      if (waypointIndices.includes(index)) {
-        setDraggedIndex(index);
-      }
-    },
-    [waypointIndices],
-  );
+  const handleDragStart = (index: number) => {
+    if (waypointIndices.includes(index)) {
+      setDraggedIndex(index);
+    }
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, dropIndex: number) => {
-      e.preventDefault();
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
 
       if (
         draggedIndex === null ||
@@ -578,10 +567,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         shouldDirty: true,
       });
 
-      setDraggedIndex(null);
-    },
-    [draggedIndex, waypointIndices, form],
-  );
+    setDraggedIndex(null);
+  };
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
@@ -638,6 +625,77 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     return labels[type] || { label: type, color: "bg-gray-100 text-gray-700" };
   };
 
+  const getStopMissingFields = useCallback(
+    (
+      stop: TripStopFormValues,
+      type: "origin" | "waypoint" | "destination",
+      index: number,
+    ): string[] => {
+      const missing: string[] = [];
+
+      if (
+        type === "waypoint" &&
+        !(
+          stop.stopType.includes(StopType.PICKUP) ||
+          stop.stopType.includes(StopType.DELIVERY)
+        )
+      ) {
+        missing.push("operacion");
+      }
+
+      if (!stopHasUnifiedAddressId(stop)) {
+        if (!stop.satEstadoCode?.trim()) missing.push("estado SAT");
+        if (!stop.satMunicipioCode?.trim()) missing.push("municipio SAT");
+        if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) missing.push("CP");
+      }
+
+      if (type === "destination" && !stop.estimatedArrival) {
+        missing.push("hora llegada");
+      }
+
+      if (index > 0 && (stop.distanceFromPreviousKm ?? null) === null) {
+        missing.push("distancia");
+      }
+
+      return missing;
+    },
+    [],
+  );
+
+  const guidanceSummary = useMemo(() => {
+    const stops = form.getValues("stops") || [];
+    const pendingActions: string[] = [];
+
+    if (!hasOrigin) pendingActions.push("Agregar origen");
+    if (!hasDestination) pendingActions.push("Agregar destino");
+    if (!hasWaypoints) pendingActions.push("Evaluar si requiere escalas");
+
+    const incompleteCount = stops.reduce((count, stop, index) => {
+      const stopType = stop.stopType ?? [];
+      const type = stopType.includes(StopType.ORIGIN)
+        ? "origin"
+        : stopType.includes(StopType.DESTINATION)
+          ? "destination"
+          : "waypoint";
+      const missing = getStopMissingFields(stop, type, index);
+      if (missing.length > 0) {
+        const label = stop.locationName || `Parada #${index + 1}`;
+        pendingActions.push(`Completar ${label} (${missing.join(", ")})`);
+        return count + 1;
+      }
+      return count;
+    }, 0);
+
+    const nextAction =
+      pendingActions[0] ?? "Ruta lista. Ya puedes avanzar a Cargas.";
+
+    return {
+      totalStops: stops.length,
+      incompleteCount,
+      nextAction,
+    };
+  }, [form, getStopMissingFields, hasDestination, hasOrigin, hasWaypoints]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER STOP CARD
   // ══════════════════════════════════════════════════════════════════════════
@@ -661,6 +719,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       formatStopAddress(stop);
     const linkedCatalog = stopHasUnifiedAddressId(stop);
     const hasManualCp = hasManualSatPostalComplete(stop);
+    const missingFields = getStopMissingFields(stop, type, index);
+    const isComplete = missingFields.length === 0;
+    const primaryCtaLabel = isComplete ? "Editar" : "Completar";
 
     return (
       <div
@@ -732,6 +793,22 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                       </span>
                     );
                   })}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    isComplete
+                      ? "border-emerald-300 text-emerald-700"
+                      : "border-amber-300 text-amber-700",
+                  )}
+                >
+                  {isComplete ? (
+                    <CircleCheck className="mr-1 h-3 w-3" />
+                  ) : (
+                    <CircleDashed className="mr-1 h-3 w-3" />
+                  )}
+                  {isComplete ? "Completa" : "Pendiente"}
+                </Badge>
 
                 {/* Carta Porte: domicilio en catálogo vs captura manual */}
                 {linkedCatalog && (
@@ -867,19 +944,34 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   📍 {stop.distanceFromPreviousKm} km desde parada anterior
                 </p>
               )}
+              {!isComplete && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Falta: {missingFields.join(", ")}.
+                </p>
+              )}
             </div>
 
-            {/* Edit Button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 flex-shrink-0"
-              onClick={() => openEditDialog(index, type)}
-              title="Editar parada"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant={isComplete ? "outline" : "default"}
+                size="sm"
+                className="h-8"
+                onClick={() => openEditDialog(index, type)}
+              >
+                {primaryCtaLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => openEditDialog(index, type)}
+                title="Editar parada"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Contact Info */}
@@ -1002,6 +1094,34 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
   return (
     <div className="space-y-4">
+      <Card className="border-dashed">
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Guía rápida de ruta</p>
+              <p className="text-sm text-muted-foreground">
+                Siguiente acción: {guidanceSummary.nextAction}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{guidanceSummary.totalStops} paradas</Badge>
+              <Badge
+                variant="outline"
+                className={cn(
+                  guidanceSummary.incompleteCount > 0
+                    ? "border-amber-300 text-amber-700"
+                    : "border-emerald-300 text-emerald-700",
+                )}
+              >
+                {guidanceSummary.incompleteCount > 0
+                  ? `${guidanceSummary.incompleteCount} pendientes`
+                  : "Todo completo"}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Bloque ORIGEN */}
       <Card>
         <CardHeader className="pb-3">

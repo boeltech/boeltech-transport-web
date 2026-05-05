@@ -52,6 +52,24 @@ function shortSatCode(code: string | undefined): string {
   return code.includes("-") ? (code.split("-").pop() ?? code) : code;
 }
 
+/** RFC / razón social Carta Porte: primero la dirección; si vienen vacíos en API, cliente titular. */
+export type ClientFiscalFallback = { taxId: string; legalName: string };
+
+export function resolveRemitenteFiscalFromClientAddress(
+  address: ClientAddress | undefined,
+  client?: ClientFiscalFallback | null,
+): { rfcRemitenteDestinatario: string; nombreRemitenteDestinatario: string } {
+  const fromAddrRfc = (address?.rfcRemitenteDestinatario ?? "").trim();
+  const fromAddrName = (address?.nombreRemitenteDestinatario ?? "").trim();
+  const fromClientRfc = (client?.taxId ?? "").trim();
+  const fromClientName = (client?.legalName ?? "").trim();
+
+  return {
+    rfcRemitenteDestinatario: fromAddrRfc || fromClientRfc,
+    nombreRemitenteDestinatario: fromAddrName || fromClientName,
+  };
+}
+
 export function getEmptyStopDialogValues(): StopDialogFormValues {
   return {
     stopCategory: undefined,
@@ -184,20 +202,22 @@ export function mergeDialogWithClientCatalog(
   w: StopDialogFormValues,
   selected: ClientAddress | undefined,
   useAddressFiscalData: boolean,
+  clientFiscalFallback?: ClientFiscalFallback | null,
 ): StopFormData {
   if (!w.clientAddressId || !selected) {
     return dialogToStopFormData(w);
   }
 
   const slice = clientAddressToDialogSlice(selected);
+  const fiscal = resolveRemitenteFiscalFromClientAddress(selected, clientFiscalFallback);
   const merged: StopDialogFormValues = {
     ...w,
     ...slice,
     rfcRemitenteDestinatario: useAddressFiscalData
-      ? (selected.rfcRemitenteDestinatario ?? "")
+      ? fiscal.rfcRemitenteDestinatario
       : w.rfcRemitenteDestinatario,
     nombreRemitenteDestinatario: useAddressFiscalData
-      ? (selected.nombreRemitenteDestinatario ?? "")
+      ? fiscal.nombreRemitenteDestinatario
       : w.nombreRemitenteDestinatario,
     estimatedArrival: w.estimatedArrival,
     distanceFromPreviousKm: w.distanceFromPreviousKm,

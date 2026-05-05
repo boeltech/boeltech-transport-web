@@ -13,8 +13,6 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogFooter,
 } from "@shared/ui/dialog";
 import { Button } from "@shared/ui/button";
@@ -32,13 +30,13 @@ import { Checkbox } from "@shared/ui/checkbox";
 import { Separator } from "@shared/ui/separator";
 import { Badge } from "@shared/ui/badge";
 import { Switch } from "@shared/ui/switch";
+import { EntityAddressForm } from "@shared/ui/address-input";
 import {
   MapPin,
   Navigation,
   Flag,
   Building2,
   AlertCircle,
-  FileText,
   User,
   Phone,
 } from "lucide-react";
@@ -61,6 +59,7 @@ import {
   tripStopToDialogValues,
   mergeDialogWithClientCatalog,
   clientAddressToDialogSlice,
+  resolveRemitenteFiscalFromClientAddress,
 } from "./stopDialogAddressMapper";
 
 export type {
@@ -103,6 +102,7 @@ export function StopFormDialog({
   mode = "create",
 }: StopFormDialogProps) {
   const [useAddressFiscalData, setUseAddressFiscalData] = useState(true);
+  const [useClientAddressPrefill, setUseClientAddressPrefill] = useState(false);
   const hasInitializedFiscalModeRef = useRef(false);
   const wasDialogOpenRef = useRef(false);
   const lastSyncedCatalogIdRef = useRef<string | null>(null);
@@ -123,6 +123,13 @@ export function StopFormDialog({
   const { data: selectedAddressFull } = useClientAddress(clientId, clientAddressId);
   const selectedAddress = selectedAddressFull ?? undefined;
 
+  const clientFiscalFallback = useMemo(() => {
+    if (!clientId) return null;
+    const c = clients.find((item) => item.id === clientId);
+    if (!c) return null;
+    return { taxId: c.taxId, legalName: c.legalName };
+  }, [clientId, clients]);
+
   // Al abrir el diálogo: hidratar desde initialData (cada apertura, no solo el primer mount)
   useEffect(() => {
     if (!open) {
@@ -141,7 +148,8 @@ export function StopFormDialog({
       : getEmptyStopDialogValues();
 
     reset(next);
-    setUseAddressFiscalData(true);
+    setUseClientAddressPrefill(Boolean(next.clientId || next.clientAddressId));
+    queueMicrotask(() => setUseAddressFiscalData(true));
     hasInitializedFiscalModeRef.current = false;
     lastSyncedCatalogIdRef.current = null;
   }, [open, initialData, reset]);
@@ -169,20 +177,25 @@ export function StopFormDialog({
 
     const currentRfc = normalizeRfc(getValues("rfcRemitenteDestinatario"));
     const currentName = normalizeName(getValues("nombreRemitenteDestinatario"));
-    const addressRfc = normalizeRfc(selectedAddress.rfcRemitenteDestinatario);
-    const addressName = normalizeName(
-      selectedAddress.nombreRemitenteDestinatario,
+    const catalogFiscal = resolveRemitenteFiscalFromClientAddress(
+      selectedAddress,
+      clientFiscalFallback,
     );
+    const addressRfc = normalizeRfc(catalogFiscal.rfcRemitenteDestinatario);
+    const addressName = normalizeName(catalogFiscal.nombreRemitenteDestinatario);
 
     const hasCurrentValues = Boolean(currentRfc || currentName);
     const matchesAddressData =
       (!addressRfc || currentRfc === addressRfc) &&
       (!addressName || currentName === addressName);
 
-    setUseAddressFiscalData(!hasCurrentValues || matchesAddressData);
+    queueMicrotask(() =>
+      setUseAddressFiscalData(!hasCurrentValues || matchesAddressData),
+    );
     hasInitializedFiscalModeRef.current = true;
   }, [
     clientAddressId,
+    clientFiscalFallback,
     getValues,
     mode,
     open,
@@ -198,15 +211,24 @@ export function StopFormDialog({
       return;
     }
 
-    setValue("rfcRemitenteDestinatario", selectedAddress.rfcRemitenteDestinatario || "", {
+    const fiscal = resolveRemitenteFiscalFromClientAddress(
+      selectedAddress,
+      clientFiscalFallback,
+    );
+    setValue("rfcRemitenteDestinatario", fiscal.rfcRemitenteDestinatario, {
       shouldValidate: true,
     });
-    setValue(
-      "nombreRemitenteDestinatario",
-      selectedAddress.nombreRemitenteDestinatario || "",
-      { shouldValidate: true },
-    );
-  }, [clientAddressId, mode, selectedAddress, setValue, useAddressFiscalData]);
+    setValue("nombreRemitenteDestinatario", fiscal.nombreRemitenteDestinatario, {
+      shouldValidate: true,
+    });
+  }, [
+    clientAddressId,
+    clientFiscalFallback,
+    mode,
+    selectedAddress,
+    setValue,
+    useAddressFiscalData,
+  ]);
 
   // Volcar dirección del catálogo al formulario (inglés) cuando llega el detalle
   useEffect(() => {
@@ -228,6 +250,9 @@ export function StopFormDialog({
   }, [clientAddressId, selectedAddress, setValue]);
 
   const watched = useWatch({ control });
+  const noticeSatStateCode = watched?.satStateCode ?? "";
+  const noticeSatMunicipalityCode = watched?.satMunicipalityCode ?? "";
+  const noticePostalCode = watched?.postalCode ?? "";
 
   const displayStop = useMemo(
     () =>
@@ -235,8 +260,9 @@ export function StopFormDialog({
         (watched ?? getEmptyStopDialogValues()) as StopDialogFormValues,
         selectedAddress,
         useAddressFiscalData,
+        clientFiscalFallback,
       ),
-    [watched, selectedAddress, useAddressFiscalData],
+    [clientFiscalFallback, watched, selectedAddress, useAddressFiscalData],
   );
 
   const handleClientChange = useCallback(
@@ -296,8 +322,27 @@ export function StopFormDialog({
         setValue("contactPhone", "");
         return;
       }
+      setUseAddressFiscalData(true);
       setValue("clientAddressId", selectedCatalogId, { shouldDirty: true });
       setValue("addressId", selectedCatalogId, { shouldDirty: true });
+    },
+    [setUseAddressFiscalData, setValue],
+  );
+
+  const handleClientAddressPrefillToggle = useCallback(
+    (checked: boolean) => {
+      setUseClientAddressPrefill(checked);
+
+      if (checked) {
+        return;
+      }
+
+      hasInitializedFiscalModeRef.current = false;
+      lastSyncedCatalogIdRef.current = null;
+      setUseAddressFiscalData(false);
+      setValue("clientId", "", { shouldDirty: true, shouldValidate: true });
+      setValue("clientAddressId", "", { shouldDirty: true, shouldValidate: true });
+      setValue("addressId", "", { shouldDirty: true, shouldValidate: true });
     },
     [setValue],
   );
@@ -317,7 +362,14 @@ export function StopFormDialog({
   );
 
   const submitDialog = handleSubmit((values) => {
-    onSubmit(mergeDialogWithClientCatalog(values, selectedAddress, useAddressFiscalData));
+    onSubmit(
+      mergeDialogWithClientCatalog(
+        values,
+        selectedAddress,
+        useAddressFiscalData,
+        clientFiscalFallback,
+      ),
+    );
     onOpenChange(false);
   });
 
@@ -370,18 +422,7 @@ export function StopFormDialog({
   const showWaypointArrivalWarning =
     displayStop.stopCategory === "waypoint" && !displayStop.estimatedArrival;
 
-  const dialogTitle =
-    mode === "edit"
-      ? "Editar Parada"
-      : displayStop.stopCategory === "origin"
-        ? "Agregar Parada de Origen"
-        : displayStop.stopCategory === "waypoint"
-          ? "Agregar Escala"
-          : displayStop.stopCategory === "destination"
-            ? "Agregar Parada de Destino"
-            : "Agregar Parada";
-
-  const isAddressLocked = !!displayStop.clientAddressId;
+  const isAddressLocked = useClientAddressPrefill && !!displayStop.clientAddressId;
   const isFiscalDataLocked = isAddressLocked && useAddressFiscalData;
 
   const addressInputMode = stopHasUnifiedAddressId({ addressId }) ? "cfdi" : "carta-porte";
@@ -389,16 +430,6 @@ export function StopFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {dialogTitle}
-            <Badge variant="outline" className="text-xs">
-              <FileText className="h-3 w-3 mr-1" />
-              Carta Porte 3.1
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
         <div className="space-y-6">
           <div
             className={cn(
@@ -450,6 +481,9 @@ export function StopFormDialog({
 
           {displayStop.stopCategory === "waypoint" && (
             <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Operaciones en esta escala
+              </p>
               <Label>Operaciones en esta Parada *</Label>
               <div className="grid grid-cols-2 gap-3">
                 {getAvailableOperations().map((option) => {
@@ -489,113 +523,155 @@ export function StopFormDialog({
           )}
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Cliente (opcional)
+            <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
+              <Label htmlFor="useClientAddressPrefill" className="cursor-pointer">
+                Precargar dirección del cliente
               </Label>
-              <Select value={displayStop.clientId || "no-client"} onValueChange={handleClientChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar cliente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no-client">Sin cliente</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.legalName}
-                      {client.tradeName && ` (${client.tradeName})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Switch
+                id="useClientAddressPrefill"
+                checked={useClientAddressPrefill}
+                onCheckedChange={handleClientAddressPrefillToggle}
+              />
             </div>
 
-            {displayStop.clientId && addresses.length > 0 && (
-              <div className="space-y-2">
-                <Label>Dirección del Cliente</Label>
-                <Select
-                  value={displayStop.clientAddressId || "manual-entry"}
-                  onValueChange={handleAddressSelect}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar dirección..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual-entry">Ingresar manualmente</SelectItem>
-                    {addresses.map((address) => (
-                      <SelectItem key={address.id} value={address.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {address.locationName || address.address}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {address.city}
-                            {address.state && `, ${address.state}`} -{" "}
-                            {ADDRESS_TYPE_LABELS[address.addressType]}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {isAddressLocked && (
-                  <p className="text-xs text-muted-foreground">
-                    Los campos de ubicacion SAT se precargan desde la direccion seleccionada. Usa
-                    &quot;Ingresar manualmente&quot; para editarlos.
-                  </p>
-                )}
-              </div>
-            )}
+            {useClientAddressPrefill && (
+              <div className="space-y-4 rounded-md border bg-muted/10 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Cliente y domicilio
+                </p>
 
-            {displayStop.clientId && addresses.length === 0 && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-center gap-2 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                Este cliente no tiene direcciones registradas. Ingrese la dirección manualmente.
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Cliente (opcional)
+                  </Label>
+                  <Select
+                    value={displayStop.clientId || "no-client"}
+                    onValueChange={handleClientChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cliente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-client">Sin cliente</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.legalName}
+                          {client.tradeName && ` (${client.tradeName})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {displayStop.clientId && addresses.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Dirección del Cliente</Label>
+                    <Select
+                      value={displayStop.clientAddressId || "manual-entry"}
+                      onValueChange={handleAddressSelect}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar dirección..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual-entry">Ingresar manualmente</SelectItem>
+                        {addresses.map((address) => (
+                          <SelectItem key={address.id} value={address.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {address.locationName || address.address}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {address.city}
+                                {address.state && `, ${address.state}`} -{" "}
+                                {ADDRESS_TYPE_LABELS[address.addressType]}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isAddressLocked && (
+                      <p className="text-xs text-muted-foreground">
+                        Los campos de ubicacion SAT se precargan desde la direccion seleccionada.
+                        Usa &quot;Ingresar manualmente&quot; para editarlos.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {displayStop.clientId && addresses.length === 0 && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-center gap-2 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    Este cliente no tiene direcciones registradas. Ingrese la dirección manualmente.
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           <Separator />
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Ubicación</span>
-              <Badge variant="secondary" className="text-xs">
-                SAT
-              </Badge>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Nombre del Lugar</Label>
-              <Controller
-                name="locationName"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
-                    disabled={isAddressLocked}
-                    {...field}
-                  />
+          <EntityAddressForm
+            asForm={false}
+            className="space-y-4"
+            formContext="additional"
+            infoMessage="Define la ubicacion SAT de la parada para Carta Porte."
+            satStateCode={noticeSatStateCode}
+            satMunicipalityCode={noticeSatMunicipalityCode}
+            postalCode={noticePostalCode}
+            showGlobalNotice={!isAddressLocked}
+            locationSectionTitle="Ubicacion"
+            preAddressSections={[
+              {
+                id: "stop-location-context",
+                title: (
+                  <span className="inline-flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Contexto de direccion
+                    <Badge variant="secondary" className="text-xs">
+                      SAT
+                    </Badge>
+                  </span>
+                ),
+                content: (
+                  <div className="space-y-2">
+                    <Label>Nombre del Lugar</Label>
+                    <Controller
+                      name="locationName"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
+                          disabled={isAddressLocked}
+                          {...field}
+                        />
+                      )}
+                    />
+                  </div>
+                ),
+              },
+            ]}
+            addressInputSection={
+              <>
+                <AddressInput<StopDialogFormValues>
+                  mode={addressInputMode}
+                  control={control}
+                  namePrefix=""
+                  layout="compact"
+                  showLatLng
+                  disabled={isAddressLocked}
+                  hideInformativeAlerts={isAddressLocked}
+                />
+                {stopHasUnifiedAddressId({ addressId }) && (
+                  <p className="text-xs text-muted-foreground">
+                    Ubicación ligada a un domicilio del cliente: el SAT se toma
+                    de ese registro; no hace falta capturarlo de nuevo aquí.
+                  </p>
                 )}
-              />
-            </div>
-
-            <AddressInput<StopDialogFormValues>
-              mode={addressInputMode}
-              control={control}
-              namePrefix=""
-              layout="compact"
-              showLatLng
-              disabled={isAddressLocked}
-            />
-            {stopHasUnifiedAddressId({ addressId }) && (
-              <p className="text-xs text-muted-foreground">
-                Ubicación ligada a un domicilio del cliente: el SAT se toma de ese registro; no hace
-                falta capturarlo de nuevo aquí.
-              </p>
-            )}
-          </div>
+              </>
+            }
+          />
 
           <Separator />
 
@@ -791,11 +867,6 @@ export function StopFormDialog({
             {mode === "edit" ? "Guardar Cambios" : "Agregar Parada"}
           </Button>
         </DialogFooter>
-        {!isFormValid && (
-          <p className="mt-2 text-xs text-destructive">
-            Completa los campos requeridos: {missingRequiredFields.join(", ")}.
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );

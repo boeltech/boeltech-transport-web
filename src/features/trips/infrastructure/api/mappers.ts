@@ -114,7 +114,6 @@ function mapApiTripInternalStaff(
     employeeFullName: api.employee_full_name,
     employeeNumber: api.employee_number,
     employeeStatus: api.employee_status,
-    internalRole: api.internal_role,
     isPaymentResponsible: api.is_payment_responsible,
     paymentNotes: api.payment_notes,
     createdAt: toDate(api.created_at),
@@ -172,6 +171,8 @@ export function mapApiCargo(api: ApiCargoResponse): TripCargo {
     volume: api.volume,
     units: api.units,
     declaredValue: api.declared_value,
+    aseguraCarga: api.asegura_carga ?? null,
+    polizaCarga: api.poliza_carga ?? null,
 
     // Tarifa
     rate: api.rate,
@@ -443,7 +444,6 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
 
     // Carta Porte 3.1
-    transpInternac: api.transp_internac ?? false,
     totalDistRec: api.total_dist_rec,
     idCcp: api.id_ccp,
 

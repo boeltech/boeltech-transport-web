@@ -111,6 +111,9 @@ export function SummaryStep({
   const cargos = values.cargos ?? [];
   const totalWeightKg = cargos.reduce((sum, c) => sum + (c.weightInKg || 0), 0);
   const hasHazmat = cargos.some((c) => c.hazardousMaterial);
+  const insuredCargos = cargos.filter(
+    (c) => (c.declaredValue ?? 0) > 0 || !!c.aseguraCarga || !!c.polizaCarga,
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -314,6 +317,16 @@ export function SummaryStep({
                         <span>{getClientName(cargo.clientId)}</span>
                       )}
                     </div>
+                    {(cargo.aseguraCarga || cargo.polizaCarga) && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {cargo.aseguraCarga ? (
+                          <span>Seguro: {cargo.aseguraCarga}</span>
+                        ) : null}
+                        {cargo.polizaCarga ? (
+                          <span className="font-mono">Poliza: {cargo.polizaCarga}</span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -333,6 +346,15 @@ export function SummaryStep({
                   <div className="flex items-center gap-2 mt-2 p-2 rounded bg-destructive/10 text-destructive text-xs">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                     <span>Este viaje incluye materiales peligrosos. Verifique documentación.</span>
+                  </div>
+                )}
+                {insuredCargos > 0 && (
+                  <div className="flex items-center gap-2 mt-2 p-2 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs">
+                    <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {insuredCargos} carga{insuredCargos !== 1 ? "s" : ""} con datos de
+                      seguro de carga.
+                    </span>
                   </div>
                 )}
               </div>

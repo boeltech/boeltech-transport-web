@@ -95,8 +95,6 @@ export interface ClientRef {
   readonly legalName: string;
 }
 
-export type TripInternalStaffRole = "secondary_driver" | "helper";
-
 export interface TripInternalStaff {
   readonly id: string;
   readonly tripId: string;
@@ -104,7 +102,6 @@ export interface TripInternalStaff {
   readonly employeeFullName: string;
   readonly employeeNumber: string | null;
   readonly employeeStatus: string | null;
-  readonly internalRole: TripInternalStaffRole;
   readonly isPaymentResponsible: boolean;
   readonly paymentNotes: string | null;
   readonly createdAt: Date;
@@ -170,6 +167,10 @@ export interface TripCargo {
   readonly volume: number | null;
   readonly units: number | null;
   readonly declaredValue: number | null;
+  /** Aseguradora de la carga (SAT: AseguraCarga) */
+  readonly aseguraCarga: string | null;
+  /** Póliza del seguro de la carga (SAT: PolizaCarga) */
+  readonly polizaCarga: string | null;
 
   // Tarifa
   readonly rate: number;
@@ -424,7 +425,6 @@ export interface Trip {
   readonly invoicing: TripInvoicing;
 
   // ── Carta Porte 3.1 — Datos del complemento ──────────────────
-  readonly transpInternac: boolean; // ¿Transporte internacional?
   readonly totalDistRec: number | null; // Distancia total recorrida (km)
   readonly idCcp: string | null; // UUID del complemento (auto-generado)
 

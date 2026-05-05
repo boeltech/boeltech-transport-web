@@ -43,6 +43,7 @@ export {
 
   // Enums
   TripStatus,
+  TRIP_STATUS_LABELS,
   StopType,
   type TripStatusType,
   type StopTypeValue,

@@ -37,7 +37,11 @@ export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
  * - satMunicipioCode (c_Municipio)
  * - postalCode (c_CodigoPostal)
  *
- * Campos geográficos SAT opcionales:
+ * En el complemento Carta Porte 3.1, municipio/localidad/colonia en domicilio son
+ * opcionales si no se envían; el wizard sigue pidiendo estado/municipio/CP para
+ * coherencia operativa y catálogos.
+ *
+ * Opcionales en esquema SAT (recomendables para precisión):
  * - satLocalidadCode (c_Localidad)
  * - satColoniaCode (c_Colonia)
  */
@@ -181,7 +185,7 @@ export const tripStopSchema = z
     if (!estado) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "El estado es requerido",
+        message: "Selecciona el estado SAT de esta parada",
         path: ["satEstadoCode"],
       });
     }
@@ -189,7 +193,7 @@ export const tripStopSchema = z
     if (!municipio) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "El municipio es requerido",
+        message: "Selecciona el municipio SAT de esta parada",
         path: ["satMunicipioCode"],
       });
     }
@@ -197,7 +201,7 @@ export const tripStopSchema = z
     if (!/^\d{5}$/.test(cp)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Código postal inválido (5 dígitos)",
+        message: "Captura un codigo postal valido de 5 digitos",
         path: ["postalCode"],
       });
     }
@@ -244,10 +248,11 @@ export const tripCargoSchema = z.object({
   weightInKg: z.coerce.number().min(0, "El peso no puede ser negativo").optional(), // Carta Porte
 
   // Seguro de carga
-  // El valor declarado es opcional y solo aplica cuando la mercancía está asegurada.
-  // ValorMercancia en Carta Porte 3.1 — no es obligatorio, solo para efectos del seguro.
+  // Si isInsured, se exigen valor declarado, aseguradora y póliza (ver superRefine).
   isInsured: z.boolean().default(false),
   declaredValue: z.coerce.number().min(0, "El valor no puede ser negativo").optional(),
+  aseguraCarga: z.string().max(80, "Aseguradora demasiado larga").optional(),
+  polizaCarga: z.string().max(40, "Póliza demasiado larga").optional(),
 
   // NOTA FUTURA: Los campos `rate` y `currency` fueron eliminados del nivel de carga.
   // Para implementar viajes consolidados (grupaje/LTL multi-cliente), se deberá agregar
@@ -265,7 +270,45 @@ export const tripCargoSchema = z.object({
   // Notas
   notes: z.string().optional(),
   specialInstructions: z.string().optional(),
-});
+})
+  .superRefine((cargo, ctx) => {
+    if (!cargo.isInsured) return;
+
+    const dv = cargo.declaredValue;
+    if (
+      dv === undefined ||
+      dv === null ||
+      Number.isNaN(Number(dv)) ||
+      Number(dv) <= 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "El valor declarado es obligatorio cuando la mercancía está asegurada",
+        path: ["declaredValue"],
+      });
+    }
+
+    const aseg = cargo.aseguraCarga?.trim() ?? "";
+    if (!aseg) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "La aseguradora de la carga es obligatoria cuando la mercancía está asegurada",
+        path: ["aseguraCarga"],
+      });
+    }
+
+    const pol = cargo.polizaCarga?.trim() ?? "";
+    if (!pol) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "La póliza de la carga es obligatoria cuando la mercancía está asegurada",
+        path: ["polizaCarga"],
+      });
+    }
+  });
 
 // ============================================================================
 // EXPENSE SCHEMA
@@ -309,7 +352,6 @@ export const tripExpenseSchema = z.object({
 
 export const internalStaffSchema = z.object({
   employeeId: z.string().min(1, "Empleado requerido"),
-  internalRole: z.enum(["secondary_driver", "helper"]),
   isPaymentResponsible: z.boolean().default(false),
   paymentNotes: z
     .string()
@@ -333,11 +375,6 @@ export const tripWizardSchema = z.object({
   startMileage: z.coerce.number().min(0).optional(),
   vehicleCurrentMileage: z.coerce.number().min(0).optional(),
 
-  // Transporte Internacional
-  transpInternac: z.boolean().default(false),
-  entradaSalidaMerc: z.enum(["Entrada", "Salida"]).optional(),
-  paisOrigenDestino: z.string().optional(), // c_Pais
-
   // Paso 2: Ruta
   stops: z.array(tripStopSchema).min(2, "Se requieren al menos 2 paradas"),
 
@@ -356,18 +393,17 @@ export const tripWizardSchema = z.object({
 
   for (let index = 0; index < data.internalStaff.length; index++) {
     const member = data.internalStaff[index];
-    const uniqueKey = `${member.employeeId}:${member.internalRole}`;
+    const id = member.employeeId;
 
-    if (assigned.has(uniqueKey)) {
+    if (assigned.has(id)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["internalStaff", index, "employeeId"],
-        message: "Este empleado ya fue agregado con el mismo rol",
+        message: "Este empleado ya fue agregado",
       });
     } else {
-      assigned.add(uniqueKey);
+      assigned.add(id);
     }
-
   }
 });
 
@@ -397,7 +433,6 @@ export const WIZARD_STEPS = [
       "clientId",
       "scheduledDeparture",
       "startMileage",
-      "transpInternac",
       "internalStaff",
     ],
   },
@@ -439,7 +474,6 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   scheduledArrival: "",
   startMileage: undefined,
   vehicleCurrentMileage: undefined,
-  transpInternac: false,
   stops: [],
   cargos: [],
   expenses: [],
@@ -509,23 +543,23 @@ export function validateRouteStep(
 
   // Validar origen
   if (originStops.length === 0) {
-    errors.push("Falta agregar la parada de origen");
+    errors.push("Agrega la parada de origen para iniciar la ruta");
   } else if (originStops.length > 1) {
-    errors.push("Solo puede existir una parada de origen");
+    errors.push("Deja solo una parada de origen");
   }
 
   // Validar destino
   if (destinationStops.length === 0) {
-    errors.push("Falta agregar la parada de destino");
+    errors.push("Agrega la parada de destino para cerrar la ruta");
   } else if (destinationStops.length > 1) {
-    errors.push("Solo puede existir una parada de destino");
+    errors.push("Deja solo una parada de destino");
   }
 
   // Validar que origen tenga pickup
   if (originStops.length === 1) {
     const origin = originStops[0];
     if (!origin.stopType.includes("pickup")) {
-      errors.push("La parada de origen debe tener operación de carga");
+      errors.push("Configura la parada de origen con operacion de carga");
     }
   }
 
@@ -533,7 +567,7 @@ export function validateRouteStep(
   if (destinationStops.length === 1) {
     const destination = destinationStops[0];
     if (!destination.stopType.includes("delivery")) {
-      errors.push("La parada de destino debe tener operación de descarga");
+      errors.push("Configura la parada de destino con operacion de descarga");
     }
   }
 
@@ -546,7 +580,7 @@ export function validateRouteStep(
 
     if (!hasOperation) {
       const label = waypoint.locationName || `Escala ${i + 1}`;
-      errors.push(`La escala "${label}" no tiene operación asignada`);
+      errors.push(`Completa "${label}" con al menos una operacion`);
     }
   }
 
@@ -557,19 +591,19 @@ export function validateRouteStep(
 
     if (!stopHasUnifiedAddressId(stop)) {
       if (!stop.satEstadoCode?.trim()) {
-        errors.push(`"${label}" no tiene estado SAT`);
+        errors.push(`Completa "${label}" con estado SAT`);
       }
       if (!stop.satMunicipioCode?.trim()) {
-        errors.push(`"${label}" no tiene municipio SAT`);
+        errors.push(`Completa "${label}" con municipio SAT`);
       }
       if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
-        errors.push(`"${label}" no tiene código postal válido`);
+        errors.push(`Completa "${label}" con codigo postal valido`);
       }
     }
 
     // Distancia obligatoria excepto en origen
     if (i > 0 && !stop.distanceFromPreviousKm && stop.distanceFromPreviousKm !== 0) {
-      warnings.push(`"${label}" no tiene distancia desde la parada anterior`);
+      warnings.push(`Captura la distancia en "${label}" para cerrar el tramo`);
     }
 
     // estimatedArrival obligatorio en destino, recomendado en waypoints
@@ -580,16 +614,16 @@ export function validateRouteStep(
       !stop.stopType.includes("destination");
 
     if (isDestination && !stop.estimatedArrival) {
-      errors.push(`"${label}" requiere hora estimada de llegada (FechaHoraSalidaLlegada en Carta Porte)`);
+      errors.push(`Completa "${label}" con hora estimada de llegada`);
     } else if (isWaypoint && !stop.estimatedArrival) {
-      warnings.push(`"${label}" no tiene hora estimada de llegada. Se calculará por interpolación al generar la Carta Porte.`);
+      warnings.push(`"${label}" no tiene hora estimada. Se interpolara al generar Carta Porte.`);
     }
   }
 
   // Advertencias
   if (waypointStops.length === 0 && errors.length === 0) {
     warnings.push(
-      "El viaje no tiene escalas intermedias. Esto es válido pero puede agregar escalas si necesita paradas adicionales.",
+      "No hay escalas intermedias. Es valido; agrega una solo si la operacion lo requiere.",
     );
   }
 

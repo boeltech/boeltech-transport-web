@@ -53,7 +53,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
       }
 
       // Validar datos de actualización
-      const validationError = this.validateUpdateData(data, currentTrip.data);
+      const validationError = this.validateUpdateData(data);
       if (validationError) {
         return { success: false, error: validationError };
       }
@@ -83,10 +83,10 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
     }
   }
 
-  private validateUpdateData(
-    data: UpdateTripInput,
-    _currentTrip: Trip,
-  ): { code: string; message: string } | null {
+  private validateUpdateData(data: UpdateTripInput): {
+    code: string;
+    message: string;
+  } | null {
     // Validar fechas si se proporcionan
     if (data.scheduledDeparture && data.scheduledArrival) {
       const departure = new Date(data.scheduledDeparture);

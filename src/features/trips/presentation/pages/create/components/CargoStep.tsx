@@ -26,6 +26,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { useToast } from "@shared/hooks";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Input } from "@shared/ui/input";
@@ -91,7 +92,7 @@ import {
 // ============================================================================
 
 interface CargoStepProps {
-  form: UseFormReturn<TripWizardFormValues, any, any>;
+  form: UseFormReturn<TripWizardFormValues>;
   cargosFieldArray: UseFieldArrayReturn<TripWizardFormValues, "cargos">;
   clients: Array<{ id: string; legalName: string }>;
   isLoadingClients: boolean;
@@ -161,6 +162,28 @@ export function CargoStep({
 
   // Estado para sección colapsable de material peligroso
   const [hazmatSectionOpen, setHazmatSectionOpen] = useState(false);
+  const { error: showErrorToast } = useToast();
+
+  const insuredCargoComplete = useMemo(() => {
+    if (!newCargo.isInsured) return true;
+    const dv = newCargo.declaredValue;
+    if (
+      dv === undefined ||
+      dv === null ||
+      Number.isNaN(Number(dv)) ||
+      Number(dv) <= 0
+    ) {
+      return false;
+    }
+    if (!(newCargo.aseguraCarga?.trim())) return false;
+    if (!(newCargo.polizaCarga?.trim())) return false;
+    return true;
+  }, [
+    newCargo.isInsured,
+    newCargo.declaredValue,
+    newCargo.aseguraCarga,
+    newCargo.polizaCarga,
+  ]);
 
   // ============================================
   // Obtener vehículo seleccionado para validar capacidad
@@ -288,6 +311,8 @@ export function CargoStep({
       units: undefined,
       isInsured: false,
       declaredValue: undefined,
+      aseguraCarga: undefined,
+      polizaCarga: undefined,
       movements: [{ stopIndex: pickupStop.index, movementType: "pickup" }],
       notes: "",
       specialInstructions: "",
@@ -366,6 +391,14 @@ export function CargoStep({
     );
     if (!pickupMovement) return;
 
+    if (newCargo.isInsured && !insuredCargoComplete) {
+      showErrorToast(
+        "Datos de seguro incompletos",
+        "Si la mercancía está asegurada, indica valor declarado mayor a cero, aseguradora y póliza.",
+      );
+      return;
+    }
+
     const validDeliveries: CargoMovementFormValues[] = deliveryAssignments
       .filter((d) => d.stopIndex >= 0)
       .map((d) => ({
@@ -389,6 +422,8 @@ export function CargoStep({
       units: newCargo.units,
       isInsured: newCargo.isInsured ?? false,
       declaredValue: newCargo.isInsured ? newCargo.declaredValue : undefined,
+      aseguraCarga: newCargo.isInsured ? newCargo.aseguraCarga : undefined,
+      polizaCarga: newCargo.isInsured ? newCargo.polizaCarga : undefined,
       movements: allMovements,
       notes: newCargo.notes,
       specialInstructions: newCargo.specialInstructions,
@@ -923,6 +958,19 @@ export function CargoStep({
                             )}
                           </div>
 
+                          {(cargo.aseguraCarga || cargo.polizaCarga) && (
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              {cargo.aseguraCarga ? (
+                                <span>Seguro: {cargo.aseguraCarga}</span>
+                              ) : null}
+                              {cargo.polizaCarga ? (
+                                <span className="font-mono">
+                                  Poliza: {cargo.polizaCarga}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+
                           {/* Entregas asignadas */}
                           {deliveries.length > 0 && (
                             <div className="mt-1.5 space-y-1">
@@ -1264,6 +1312,8 @@ export function CargoStep({
                       ...prev,
                       isInsured: !!checked,
                       declaredValue: checked ? prev.declaredValue : undefined,
+                      aseguraCarga: checked ? prev.aseguraCarga : undefined,
+                      polizaCarga: checked ? prev.polizaCarga : undefined,
                     }))
                   }
                 />
@@ -1273,25 +1323,59 @@ export function CargoStep({
               </div>
 
               {newCargo.isInsured && (
-                <div className="space-y-2">
-                  <Label>Valor Declarado (MXN)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newCargo.declaredValue ?? ""}
-                    onChange={(e) =>
-                      setNewCargo((prev) => ({
-                        ...prev,
-                        declaredValue: e.target.value
-                          ? Number(e.target.value)
-                          : undefined,
-                      }))
-                    }
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Valor declarado (MXN) *</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={newCargo.declaredValue ?? ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          declaredValue: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Aseguradora de la carga *</Label>
+                      <Input
+                        placeholder="Ej: Qualitas"
+                        value={newCargo.aseguraCarga ?? ""}
+                        onChange={(e) =>
+                          setNewCargo((prev) => ({
+                            ...prev,
+                            aseguraCarga: e.target.value || undefined,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Póliza de la carga *</Label>
+                      <Input
+                        placeholder="Ej: CARGA-123456"
+                        value={newCargo.polizaCarga ?? ""}
+                        onChange={(e) =>
+                          setNewCargo((prev) => ({
+                            ...prev,
+                            polizaCarga: e.target.value || undefined,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Corresponde al campo <span className="font-mono">ValorMercancia</span> en
-                    Carta Porte 3.1. Solo requerido cuando la mercancía cuenta
-                    con seguro de carga.
+                    Carta Porte 3.1. Con mercancía asegurada, valor declarado,
+                    aseguradora y póliza son obligatorios.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Captura la aseguradora y póliza específicas de esta mercancía
+                    para el viaje.
                   </p>
                 </div>
               )}
@@ -1469,7 +1553,7 @@ export function CargoStep({
                                   "weight",
                                   e.target.value
                                     ? Number(e.target.value)
-                                    : (undefined as any),
+                                    : undefined,
                                 )
                               }
                             />
@@ -1484,7 +1568,7 @@ export function CargoStep({
                                   "units",
                                   e.target.value
                                     ? Number(e.target.value)
-                                    : (undefined as any),
+                                    : undefined,
                                 )
                               }
                             />
@@ -1561,7 +1645,8 @@ export function CargoStep({
                 newCargo.weightInKg <= 0 ||
                 !newCargo.movements ||
                 newCargo.movements.length === 0 ||
-                (newCargo.hazardousMaterial && !newCargo.hazardousMaterialCode)
+                (newCargo.hazardousMaterial && !newCargo.hazardousMaterialCode) ||
+                (newCargo.isInsured && !insuredCargoComplete)
               }
             >
               {editingIndex !== null ? "Guardar Cambios" : "Agregar"}

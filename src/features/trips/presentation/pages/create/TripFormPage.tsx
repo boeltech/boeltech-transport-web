@@ -18,13 +18,15 @@
  * Ubicación: src/pages/trips/create/TripFormPage.tsx
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
-import { WizardNavigationBar, WizardProgressCard, WizardSteps } from "@shared/ui/wizard";
+import {
+  WizardPageShell,
+  type WizardFormRef,
+} from "@shared/ui/page-shells/WizardPageShell";
 import { Form } from "@shared/ui/form";
 import { Skeleton } from "@shared/ui/skeleton";
 import { AlertWithIcon } from "@shared/ui/alert";
@@ -43,7 +45,7 @@ import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { useToast } from "@shared/hooks";
-import { ArrowLeft, RefreshCw, CheckCircle } from "lucide-react";
+import { Route } from "lucide-react";
 
 // Wizard components
 import {
@@ -99,7 +101,7 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
 
     if (missing.length > 0) {
       const stopLabel = stop.locationName || `Parada ${index + 1}`;
-      messages.push(`${stopLabel}: ${missing.join(", ")}`);
+      messages.push(`${stopLabel}: completa ${missing.join(", ")}`);
     }
   });
 
@@ -115,9 +117,9 @@ export function TripFormPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isEditMode = !!id;
+  const formRef = useRef<WizardFormRef | null>(null);
 
   // Estado del wizard
-  const [currentStep, setCurrentStep] = useState(0);
   const [stepErrors, setStepErrors] = useState<Record<number, boolean>>({});
 
   // ============================================
@@ -127,6 +129,7 @@ export function TripFormPage() {
     useAssignableVehicles();
 
   const { data: drivers, isLoading: isLoadingDrivers } = useDrivers();
+  const availableDrivers = useMemo(() => drivers?.data ?? [], [drivers?.data]);
 
   const { data: clients = [], isLoading: isLoadingClients } =
     useActiveClients();
@@ -221,7 +224,12 @@ export function TripFormPage() {
         units: cargo.units ?? undefined,
         weightInKg: cargo.weightInKg ?? undefined,
         declaredValue: cargo.declaredValue ?? undefined,
-        isInsured: cargo.declaredValue != null && cargo.declaredValue > 0,
+        isInsured:
+          (cargo.declaredValue ?? 0) > 0 ||
+          !!cargo.aseguraCarga ||
+          !!cargo.polizaCarga,
+        aseguraCarga: cargo.aseguraCarga ?? undefined,
+        polizaCarga: cargo.polizaCarga ?? undefined,
         movements: (cargo.movements || []).map((m) => ({
           stopIndex: m.stopIndex,
           movementType: m.movementType,
@@ -269,7 +277,6 @@ export function TripFormPage() {
       const mappedInternalStaff = (existingTrip.internalStaff || []).map(
         (member) => ({
           employeeId: member.employeeId,
-          internalRole: member.internalRole,
           isPaymentResponsible: member.isPaymentResponsible ?? false,
           paymentNotes: member.paymentNotes ?? undefined,
         }),
@@ -504,8 +511,8 @@ export function TripFormPage() {
   // Validación general por paso
   // ============================================
 
-  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    const currentStepConfig = WIZARD_STEPS[currentStep];
+  const validateCurrentStep = useCallback(async (stepIndex: number): Promise<boolean> => {
+    const currentStepConfig = WIZARD_STEPS[stepIndex];
     const fieldsToValidate = currentStepConfig.fields;
 
     // Validación de campos del schema
@@ -514,7 +521,7 @@ export function TripFormPage() {
     );
 
     // Regla de negocio: el cliente principal siempre es obligatorio.
-    if (currentStep === 0) {
+    if (stepIndex === 0) {
       const selectedClientId = form.getValues("clientId");
       if (!selectedClientId || selectedClientId === "no-client") {
         form.setError("clientId", {
@@ -527,101 +534,80 @@ export function TripFormPage() {
             "Debe seleccionar un cliente principal antes de continuar.",
           variant: "error",
         });
-        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
         return false;
       }
 
       const selectedDriverId = form.getValues("driverId");
-      const availableDrivers = drivers?.data ?? [];
       const primaryDriverEmployeeId =
         availableDrivers.find((driver) => driver.id === selectedDriverId)
           ?.employeeId ?? null;
-      const driverEmployeeIds = new Set(
-        availableDrivers.map((driver) => driver.employeeId),
-      );
       const internalStaffRows = form.getValues("internalStaff") ?? [];
 
-      const duplicateAssignments = new Set<string>();
-      for (let index = 0; index < internalStaffRows.length; index++) {
-        const row = internalStaffRows[index];
-        const rowKey = `${row.employeeId}:${row.internalRole}`;
+      const seenEmployeeIds = new Set<string>();
+      for (const row of internalStaffRows) {
+        const empId = row.employeeId?.trim();
+        if (!empId) continue;
 
-        if (duplicateAssignments.has(rowKey)) {
+        if (seenEmployeeIds.has(empId)) {
           toast({
             title: "Equipo de apoyo inválido",
             description:
-              "No puedes repetir el mismo empleado con el mismo rol interno.",
+              "No puedes agregar el mismo empleado dos veces en el equipo de apoyo.",
             variant: "error",
           });
-          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+          setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
           return false;
         }
-        duplicateAssignments.add(rowKey);
+        seenEmployeeIds.add(empId);
 
         if (
-          row.internalRole === "secondary_driver" &&
-          row.employeeId &&
           primaryDriverEmployeeId &&
-          row.employeeId === primaryDriverEmployeeId
+          empId === primaryDriverEmployeeId
         ) {
           toast({
             title: "Equipo de apoyo inválido",
             description:
-              "El conductor principal no puede asignarse como conductor adicional.",
+              "El conductor principal no puede figurar también en el equipo de apoyo.",
             variant: "error",
           });
-          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
-          return false;
-        }
-
-        if (
-          row.internalRole === "secondary_driver" &&
-          row.employeeId &&
-          !driverEmployeeIds.has(row.employeeId)
-        ) {
-          toast({
-            title: "Equipo de apoyo inválido",
-            description:
-              "El conductor adicional debe tener un perfil de conductor activo.",
-            variant: "error",
-          });
-          setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+          setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
           return false;
         }
       }
     }
 
     // Validación adicional para el paso de RUTA (step 1)
-    if (currentStep === 1) {
+    if (stepIndex === 1) {
       const routeValidation = validateRouteStepHandler();
 
       if (!routeValidation.isValid) {
         toast({
-          title: "Ruta incompleta",
+          title: "Ruta pendiente",
           description: routeValidation.message,
           variant: "error",
         });
-        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
         return false;
       }
 
       if (!result) {
         const routeMessages = getRouteValidationMessages(form.getValues());
         toast({
-          title: "Campos pendientes en Ruta",
+          title: "Completa las paradas para continuar",
           description:
             routeMessages.length > 0
-              ? routeMessages.slice(0, 2).join(". ")
-              : "Hay campos requeridos sin completar en las paradas.",
+              ? `${routeMessages.slice(0, 2).join(". ")}. Abre cada parada con el boton Completar.`
+              : "Hay campos requeridos sin completar. Abre cada parada con el boton Completar.",
           variant: "error",
         });
-        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
         return false;
       }
     }
 
     // Validación adicional para el paso de CARGAS (step 2)
-    if (currentStep === 2) {
+    if (stepIndex === 2) {
       const cargoValidation = validateCargoStep();
 
       if (!cargoValidation.isValid) {
@@ -630,7 +616,7 @@ export function TripFormPage() {
           description: cargoValidation.message,
           variant: "error",
         });
-        setStepErrors((prev) => ({ ...prev, [currentStep]: true }));
+        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
         return false;
       }
 
@@ -645,45 +631,17 @@ export function TripFormPage() {
 
     setStepErrors((prev) => ({
       ...prev,
-      [currentStep]: !result,
+      [stepIndex]: !result,
     }));
 
     return result;
-  }, [currentStep, form, validateRouteStepHandler, validateCargoStep, toast]);
-
-  // ============================================
-  // Navegación del wizard
-  // ============================================
-
-  const handleNext = async () => {
-    const isValid = await validateCurrentStep();
-    if (isValid && currentStep < WIZARD_STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
-
-  const handleStepClick = async (stepIndex: number) => {
-    if (stepIndex <= currentStep) {
-      setCurrentStep(stepIndex);
-    } else {
-      const isValid = await validateCurrentStep();
-      if (isValid) {
-        setCurrentStep(stepIndex);
-      }
-    }
-  };
+  }, [form, validateRouteStepHandler, validateCargoStep, toast, availableDrivers]);
 
   // ============================================
   // Submit handler
   // ============================================
 
-  const onSubmit = async (data: TripWizardFormValues) => {
+  const onSubmit = useCallback(async (data: TripWizardFormValues) => {
     if (createMutation.isPending || updateMutation.isPending) {
       return;
     }
@@ -733,7 +691,6 @@ export function TripFormPage() {
         baseRate: data.baseRate,
         internalStaff: data.internalStaff?.map((member) => ({
           employeeId: member.employeeId,
-          internalRole: member.internalRole,
           isPaymentResponsible: member.isPaymentResponsible ?? false,
           paymentNotes: member.paymentNotes || undefined,
         })),
@@ -745,6 +702,8 @@ export function TripFormPage() {
           weight: cargo.weight,
           units: cargo.units,
           declaredValue: cargo.declaredValue,
+          aseguraCarga: cargo.aseguraCarga || undefined,
+          polizaCarga: cargo.polizaCarga || undefined,
           notes: cargo.notes || undefined,
           specialInstructions: cargo.specialInstructions || undefined,
           movements: cargo.movements?.map((m) => ({
@@ -812,7 +771,6 @@ export function TripFormPage() {
       baseRate: data.baseRate,
       internalStaff: data.internalStaff?.map((member) => ({
         employeeId: member.employeeId,
-        internalRole: member.internalRole,
         isPaymentResponsible: member.isPaymentResponsible ?? false,
         paymentNotes: member.paymentNotes || undefined,
       })),
@@ -829,6 +787,8 @@ export function TripFormPage() {
         weight: cargo.weight,
         units: cargo.units,
         declaredValue: cargo.declaredValue,
+        aseguraCarga: cargo.aseguraCarga || undefined,
+        polizaCarga: cargo.polizaCarga || undefined,
         notes: cargo.notes || undefined,
         specialInstructions: cargo.specialInstructions || undefined,
         movements: cargo.movements?.map((m) => ({
@@ -887,9 +847,16 @@ export function TripFormPage() {
         });
       }
     }
-  };
+  }, [
+    createMutation,
+    updateMutation,
+    isEditMode,
+    id,
+    toast,
+    navigate,
+  ]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const isValid = await form.trigger();
     if (isValid) {
       const data = form.getValues();
@@ -901,10 +868,43 @@ export function TripFormPage() {
         variant: "error",
       });
     }
-  };
+  }, [form, onSubmit, toast]);
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
-  const isLastStep = currentStep === WIZARD_STEPS.length - 1;
+  const shellSteps = useMemo(
+    () =>
+      WIZARD_STEPS.map((step) => ({
+        id: step.id,
+        title: step.title,
+        description: step.description,
+      })),
+    [],
+  );
+
+  const shellHeader = useMemo(
+    () => ({
+      backHref: "/trips",
+      backLabel: "Volver",
+      icon: <Route className="h-5 w-5" />,
+      title: isEditMode ? "Editar Viaje" : "Nuevo Viaje",
+      subtitle: isEditMode
+        ? `Editando ${existingTrip?.tripCode ?? ""}`.trim()
+        : "Complete los pasos para crear un viaje",
+    }),
+    [isEditMode, existingTrip?.tripCode],
+  );
+
+  useLayoutEffect(() => {
+    formRef.current = {
+      triggerStepValidation: validateCurrentStep,
+      requestSubmit: () => {
+        void handleSubmit();
+      },
+    };
+    return () => {
+      formRef.current = null;
+    };
+  }, [validateCurrentStep, handleSubmit]);
 
   if (isEditMode && isLoadingTrip) {
     return <TripFormSkeleton />;
@@ -914,14 +914,14 @@ export function TripFormPage() {
   // Render step content
   // ============================================
 
-  const renderStepContent = () => {
+  const renderStepContent = (currentStep: number) => {
     switch (currentStep) {
       case 0:
         return (
           <BasicInfoStep
             form={form}
             vehicles={vehicles}
-            drivers={drivers?.data ? drivers.data : []}
+            drivers={availableDrivers}
             clients={clients}
             isLoadingVehicles={isLoadingVehicles}
             isLoadingDrivers={isLoadingDrivers}
@@ -942,9 +942,7 @@ export function TripFormPage() {
       case 3:
         return (
           <CostsStep
-            // NOTE: resolver typing yields incompatible transformed-value generic here.
-            // Keep explicit cast consistent with other wizard step integrations.
-            form={form as any}
+            form={form as UseFormReturn<TripWizardFormValues, unknown, TripWizardFormValues>}
             expensesFieldArray={expensesFieldArray}
           />
         );
@@ -953,7 +951,7 @@ export function TripFormPage() {
           <SummaryStep
             form={form}
             vehicles={vehicles}
-            drivers={drivers?.data ? drivers.data : []}
+            drivers={availableDrivers}
             clients={clients}
           />
         );
@@ -962,66 +960,35 @@ export function TripFormPage() {
     }
   };
 
+  const renderStep = (currentStep: number) => (
+    <Form {...form}>
+      <form onSubmit={(e) => e.preventDefault()}>
+        <div className="min-h-[400px]">{renderStepContent(currentStep)}</div>
+
+        {stepErrors[currentStep] ? (
+          <AlertWithIcon variant="destructive" className="mt-4">
+            Aun hay paradas con datos pendientes. Usa el boton Completar en cada una para continuar.
+          </AlertWithIcon>
+        ) : null}
+      </form>
+    </Form>
+  );
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? "Editar Viaje" : "Nuevo Viaje"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isEditMode
-              ? `Editando ${existingTrip?.tripCode}`
-              : "Complete los pasos para crear un viaje"}
-          </p>
-        </div>
-      </div>
-
-      {/* Wizard Steps Indicator */}
-      <WizardProgressCard>
-        <WizardSteps
-          steps={WIZARD_STEPS.map((step) => ({
-            id: step.id,
-            title: step.title,
-            description: step.description,
-          }))}
-          currentStep={currentStep}
-          onStepClick={handleStepClick}
-          allowNavigation={true}
-          ariaLabel="Pasos para crear o editar un viaje"
-        />
-      </WizardProgressCard>
-
-      {/* Form */}
-      <Form {...form}>
-        <form onSubmit={(e) => e.preventDefault()}>
-          <div className="min-h-[400px]">{renderStepContent()}</div>
-
-          {stepErrors[currentStep] && (
-            <AlertWithIcon variant="destructive" className="mt-4">
-              Por favor complete todos los campos requeridos antes de continuar.
-            </AlertWithIcon>
-          )}
-
-          <WizardNavigationBar
-            canGoBack={currentStep > 0}
-            isLastStep={isLastStep}
-            onPrevious={handlePrevious}
-            onCancel={() => navigate(-1)}
-            onNext={handleNext}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            submitLabel={isEditMode ? "Guardar Cambios" : "Crear Viaje"}
-            submittingContent={<RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            submitIcon={<CheckCircle className="mr-2 h-4 w-4" />}
-          />
-        </form>
-      </Form>
-    </div>
+    <WizardPageShell
+      steps={shellSteps}
+      formRef={formRef}
+      header={shellHeader}
+      renderStep={renderStep}
+      isSubmitting={isSubmitting}
+      submitLabel={isEditMode ? "Guardar Cambios" : "Crear Viaje"}
+      submittingLabel={isEditMode ? "Guardando..." : "Creando..."}
+      stepsAriaLabel="Pasos para crear o editar un viaje"
+      onCancel={() => navigate(-1)}
+      onHeaderBack={() => navigate(-1)}
+      headerBackMode="exit"
+      className="pb-8"
+    />
   );
 }
 

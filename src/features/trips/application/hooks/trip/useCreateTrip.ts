@@ -45,7 +45,7 @@ export class TripCreationError extends Error {
 /**
  * Hook para crear un viaje completo con todos sus detalles.
  *
- * Usa el endpoint transaccional POST /api/v1/trips/with-details
+ * Usa POST al recurso de viajes (body completo); el `apiClient` serializa a snake_case.
  * que garantiza atomicidad (todo o nada).
  *
  * @example

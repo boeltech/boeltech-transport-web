@@ -15,7 +15,7 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/steps/BasicInfoStep.tsx
  */
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
@@ -38,7 +38,6 @@ import {
 } from "@shared/ui/select";
 import { Input } from "@shared/ui/input";
 import { Button } from "@shared/ui/button";
-import { Separator } from "@shared/ui/separator";
 import { Checkbox } from "@shared/ui/checkbox";
 import {
   Truck,
@@ -48,11 +47,19 @@ import {
   Calendar,
   Loader2,
   AlertTriangle,
-  Globe,
   Plus,
   Trash2,
 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
+import { Label } from "@shared/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@shared/ui/table";
 
 import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers/domain";
@@ -78,10 +85,37 @@ interface VehicleMileageSource {
   currentMileage: number;
 }
 
-const INTERNAL_ROLE_LABELS = {
-  secondary_driver: "Conductor adicional",
-  helper: "Ayudante general",
-} as const;
+/** Valores alineados a `POSITION_OPTIONS` en empleados (catálogo local). */
+const SUPPORT_STAFF_POSITION_FILTER_OPTIONS = [
+  { value: "Conductor", label: "Conductores" },
+  { value: "Ayudante general", label: "Ayudantes generales" },
+] as const;
+
+type SupportStaffPositionFilterValue =
+  (typeof SUPPORT_STAFF_POSITION_FILTER_OPTIONS)[number]["value"];
+
+function employeePositionMatchesFilter(
+  employee: EmployeeListItem,
+  filter: SupportStaffPositionFilterValue,
+): boolean {
+  const pos = (employee.position ?? "").trim().toLowerCase();
+  return pos === filter.trim().toLowerCase();
+}
+
+/**
+ * Opciones del combo Empleado en equipo de apoyo: filtro por puesto y exclusión de
+ * empleados ya en la tabla o ya asignados como conductor principal.
+ */
+function buildSupportStaffEmployeeOptions(
+  allActive: EmployeeListItem[],
+  filter: SupportStaffPositionFilterValue,
+  excludeEmployeeIds: ReadonlySet<string>,
+): EmployeeListItem[] {
+  return allActive
+    .filter((e) => employeePositionMatchesFilter(e, filter))
+    .filter((e) => !excludeEmployeeIds.has(e.id))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+}
 
 function isEmployeeActive(employee: EmployeeListItem): boolean {
   return employee.isActive && employee.status === "active";
@@ -204,6 +238,13 @@ export function BasicInfoStep({
     name: "internalStaff",
   });
 
+  const [supportStaffPositionFilter, setSupportStaffPositionFilter] =
+    useState<SupportStaffPositionFilterValue>("Conductor");
+  const [draftEmployeeId, setDraftEmployeeId] = useState("");
+  const [draftPaymentResponsible, setDraftPaymentResponsible] = useState(false);
+  const [draftPaymentNotes, setDraftPaymentNotes] = useState("");
+  const [addStaffError, setAddStaffError] = useState<string | null>(null);
+
   // Usado para precargar kilometraje inicial al seleccionar vehículo.
   const { data: vehicleResponse } = useVehicle(selectedVehicleId ?? "", {
     enabled: !!selectedVehicleId,
@@ -225,22 +266,53 @@ export function BasicInfoStep({
     () => processDriversForAssignment(drivers),
     [drivers],
   );
-  const assignableDrivers = processedDrivers.filter((d) => d.canBeAssigned);
-  const blockedDrivers = processedDrivers.filter((d) => !d.canBeAssigned);
   const activeEmployees = useMemo(
     () => (employeesResult?.data ?? []).filter(isEmployeeActive),
     [employeesResult?.data],
   );
+
   const selectedDriverEmployeeId = useMemo(
     () =>
       processedDrivers.find((driver) => driver.id === selectedDriverId)
         ?.employeeId ?? null,
     [processedDrivers, selectedDriverId],
   );
-  const driverEmployeeIds = useMemo(
-    () => new Set(processedDrivers.map((driver) => driver.employeeId)),
-    [processedDrivers],
-  );
+
+  /** Empleados ya listados como equipo de apoyo (evita mismo conductor principal). */
+  const supportStaffEmployeeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of internalStaffValues) {
+      const id = row.employeeId?.trim();
+      if (id) ids.add(id);
+    }
+    return ids;
+  }, [internalStaffValues]);
+
+  const { assignableDriversForConductorSelect, blockedDriversForConductorSelect } =
+    useMemo(() => {
+      const keepInDriverSelect = (d: AssignableDriverItem) => {
+        if (d.id === selectedDriverId) return true;
+        return !supportStaffEmployeeIds.has(d.employeeId);
+      };
+      const assignable = processedDrivers.filter(
+        (d) => d.canBeAssigned && keepInDriverSelect(d),
+      );
+      const blocked = processedDrivers.filter(
+        (d) => !d.canBeAssigned && keepInDriverSelect(d),
+      );
+      return {
+        assignableDriversForConductorSelect: assignable,
+        blockedDriversForConductorSelect: blocked,
+      };
+    }, [processedDrivers, supportStaffEmployeeIds, selectedDriverId]);
+
+  /** No listar como apoyo: ya en tabla + conductor principal actual. */
+  const excludeEmployeeIdsForSupportDraft = useMemo(() => {
+    const ids = new Set<string>(supportStaffEmployeeIds);
+    const primaryEmp = selectedDriverEmployeeId?.trim();
+    if (primaryEmp) ids.add(primaryEmp);
+    return ids;
+  }, [supportStaffEmployeeIds, selectedDriverEmployeeId]);
 
   // ── Obtener vehículo de la lista (para datos básicos) ─────────────────────
   // const selectedVehicleFromList = useMemo(
@@ -257,6 +329,78 @@ export function BasicInfoStep({
       form.setValue("startMileage", vehicleDetail.currentMileage);
     }
   }, [vehicleDetail, form]);
+
+  useEffect(() => {
+    if (
+      draftEmployeeId &&
+      excludeEmployeeIdsForSupportDraft.has(draftEmployeeId)
+    ) {
+      setDraftEmployeeId("");
+      setAddStaffError(null);
+    }
+  }, [draftEmployeeId, excludeEmployeeIdsForSupportDraft]);
+
+  const employeeNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of activeEmployees) {
+      m.set(e.id, e.fullName);
+    }
+    return m;
+  }, [activeEmployees]);
+
+  const draftEmployeeOptions = useMemo(
+    () =>
+      buildSupportStaffEmployeeOptions(
+        activeEmployees,
+        supportStaffPositionFilter,
+        excludeEmployeeIdsForSupportDraft,
+      ),
+    [
+      activeEmployees,
+      supportStaffPositionFilter,
+      excludeEmployeeIdsForSupportDraft,
+    ],
+  );
+
+  const handleAddSupportStaff = useCallback(() => {
+    const empId = draftEmployeeId.trim();
+    if (!empId) {
+      setAddStaffError("Selecciona un empleado.");
+      return;
+    }
+    if (
+      internalStaffValues.some(
+        (row) => row.employeeId && row.employeeId === empId,
+      )
+    ) {
+      setAddStaffError("Este empleado ya está en el equipo de apoyo.");
+      return;
+    }
+    if (selectedDriverEmployeeId && empId === selectedDriverEmployeeId) {
+      setAddStaffError(
+        "El conductor principal no puede figurar en el equipo de apoyo.",
+      );
+      return;
+    }
+    internalStaffFieldArray.append({
+      employeeId: empId,
+      isPaymentResponsible: draftPaymentResponsible,
+      paymentNotes: draftPaymentNotes.trim() || "",
+    });
+    setDraftEmployeeId("");
+    setDraftPaymentResponsible(false);
+    setDraftPaymentNotes("");
+    setAddStaffError(null);
+    void form.trigger("internalStaff");
+  }, [
+    draftEmployeeId,
+    draftPaymentResponsible,
+    draftPaymentNotes,
+    internalStaffValues,
+    selectedDriverEmployeeId,
+    internalStaffFieldArray,
+    form,
+  ]);
 
   // ============================================================================
   // RENDER
@@ -380,27 +524,36 @@ export function BasicInfoStep({
                         <SelectItem value="no-drivers" disabled>
                           No hay conductores disponibles
                         </SelectItem>
+                      ) : assignableDriversForConductorSelect.length === 0 &&
+                        blockedDriversForConductorSelect.length === 0 ? (
+                        <SelectItem value="no-drivers-available" disabled>
+                          No hay conductores fuera del equipo de apoyo. Quita
+                          colaboradores de apoyo para poder asignarlos como
+                          conductor principal.
+                        </SelectItem>
                       ) : (
                         <>
-                          {assignableDrivers.length > 0 && (
+                          {assignableDriversForConductorSelect.length > 0 && (
                             <SelectGroup>
                               <SelectLabel>Disponibles</SelectLabel>
-                              {assignableDrivers.map((d) => (
+                              {assignableDriversForConductorSelect.map((d) => (
                                 <SelectItem key={d.id} value={d.id}>
                                   {d.displayName}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
                           )}
-                          {blockedDrivers.length > 0 &&
-                            assignableDrivers.length > 0 && <SelectSeparator />}
-                          {blockedDrivers.length > 0 && (
+                          {blockedDriversForConductorSelect.length > 0 &&
+                            assignableDriversForConductorSelect.length > 0 && (
+                              <SelectSeparator />
+                            )}
+                          {blockedDriversForConductorSelect.length > 0 && (
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-1.5 text-yellow-600">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                                 No asignables
                               </SelectLabel>
-                              {blockedDrivers.map((d) => (
+                              {blockedDriversForConductorSelect.map((d) => (
                                 <SelectItem
                                   key={d.id}
                                   value={d.id}
@@ -476,199 +629,193 @@ export function BasicInfoStep({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Users className="h-5 w-5" /> Equipo de Apoyo (Interno)
+            <Users className="h-5 w-5" /> Equipo de Apoyo
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            No se incluye en Carta Porte. Solo para control interno y nomina.
-          </p>
+          
 
-          {internalStaffFieldArray.fields.length === 0 ? (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              Agrega personal de apoyo cuando el viaje requiera conductor adicional
-              o ayudante general.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {internalStaffFieldArray.fields.map((field, index) => {
-                const currentRow = internalStaffValues[index];
-                const selectedRole = currentRow?.internalRole;
-                const selectedEmployeeId = currentRow?.employeeId;
-                const duplicateByRole = internalStaffValues.some(
-                  (item, itemIndex) =>
-                    itemIndex !== index &&
-                    item.employeeId &&
-                    item.employeeId === selectedEmployeeId &&
-                    item.internalRole === selectedRole,
-                );
-                const isPrincipalDriverConflict =
-                  selectedRole === "secondary_driver" &&
-                  !!selectedDriverEmployeeId &&
-                  selectedEmployeeId === selectedDriverEmployeeId;
-                const isSecondaryDriverWithoutProfile =
-                  selectedRole === "secondary_driver" &&
-                  !!selectedEmployeeId &&
-                  !driverEmployeeIds.has(selectedEmployeeId);
+          <div className="rounded-md border p-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="support-staff-position-filter">
+                  Filtrar empleados por puesto
+                </Label>
+                <Select
+                  value={supportStaffPositionFilter}
+                  onValueChange={(v) => {
+                    setAddStaffError(null);
+                    setSupportStaffPositionFilter(
+                      v as SupportStaffPositionFilterValue,
+                    );
+                  }}
+                  disabled={isLoadingEmployees}
+                >
+                  <SelectTrigger id="support-staff-position-filter">
+                    <SelectValue placeholder="Puesto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORT_STAFF_POSITION_FILTER_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                return (
-                  <div key={field.id} className="rounded-md border p-3 space-y-3">
-                    <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
-                      <FormField
-                        control={form.control}
-                        name={`internalStaff.${index}.employeeId`}
-                        render={({ field: employeeField }) => (
-                          <FormItem>
-                            <FormLabel>Empleado</FormLabel>
-                            <Select
-                              value={employeeField.value ?? ""}
-                              onValueChange={employeeField.onChange}
-                              disabled={isLoadingEmployees}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  {isLoadingEmployees ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  )}
-                                  <SelectValue placeholder="Seleccionar empleado" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {activeEmployees.map((employee) => (
-                                  <SelectItem key={employee.id} value={employee.id}>
-                                    {employee.fullName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`internalStaff.${index}.internalRole`}
-                        render={({ field: roleField }) => (
-                          <FormItem>
-                            <FormLabel>Rol interno</FormLabel>
-                            <Select
-                              value={roleField.value ?? ""}
-                              onValueChange={roleField.onChange}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar rol" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {Object.entries(INTERNAL_ROLE_LABELS).map(
-                                  ([value, label]) => (
-                                    <SelectItem key={value} value={value}>
-                                      {label}
-                                    </SelectItem>
-                                  ),
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => internalStaffFieldArray.remove(index)}
-                          aria-label="Quitar colaborador"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-                      <FormField
-                        control={form.control}
-                        name={`internalStaff.${index}.isPaymentResponsible`}
-                        render={({ field: paymentField }) => (
-                          <FormItem className="flex items-center gap-2 rounded-md border px-3 py-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={!!paymentField.value}
-                                onCheckedChange={(checked) =>
-                                  paymentField.onChange(Boolean(checked))
-                                }
-                              />
-                            </FormControl>
-                            <div className="space-y-0.5">
-                              <FormLabel className="text-sm">
-                                Responsable de pago
-                              </FormLabel>
-                              <FormDescription className="text-xs">
-                                Marca si este colaborador requiere control
-                                especial.
-                              </FormDescription>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`internalStaff.${index}.paymentNotes`}
-                        render={({ field: notesField }) => (
-                          <FormItem>
-                            <FormLabel>Notas de pago (opcional)</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...notesField}
-                                value={notesField.value ?? ""}
-                                placeholder="Ej. pago por apoyo en turno nocturno"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {(duplicateByRole ||
-                      isPrincipalDriverConflict ||
-                      isSecondaryDriverWithoutProfile) && (
-                      <p className="text-xs text-destructive">
-                        {isPrincipalDriverConflict
-                          ? "El conductor principal no puede asignarse como conductor adicional."
-                          : isSecondaryDriverWithoutProfile
-                            ? "Este empleado no tiene perfil de conductor activo."
-                            : "Este empleado ya tiene el mismo rol en el viaje."}
-                      </p>
+              <div className="space-y-2">
+                <Label htmlFor="support-staff-employee">Empleado</Label>
+                <Select
+                  value={draftEmployeeId}
+                  onValueChange={(v) => {
+                    setAddStaffError(null);
+                    setDraftEmployeeId(v);
+                  }}
+                  disabled={isLoadingEmployees}
+                >
+                  <SelectTrigger id="support-staff-employee">
+                    {isLoadingEmployees ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                     )}
-                  </div>
-                );
-              })}
+                    <SelectValue placeholder="Seleccionar empleado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {draftEmployeeOptions.length === 0 ? (
+                      <SelectItem value="__none__" disabled>
+                        No hay empleados activos con este puesto
+                      </SelectItem>
+                    ) : (
+                      draftEmployeeOptions.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.fullName}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          )}
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              internalStaffFieldArray.append({
-                employeeId: "",
-                internalRole: "helper",
-                isPaymentResponsible: false,
-                paymentNotes: "",
-              })
-            }
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar colaborador
-          </Button>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-3">
+              <div className="flex items-center gap-2 rounded-md border px-3 py-2 lg:shrink-0">
+                <Checkbox
+                  id="support-staff-payment"
+                  checked={draftPaymentResponsible}
+                  onCheckedChange={(checked) => {
+                    setAddStaffError(null);
+                    setDraftPaymentResponsible(Boolean(checked));
+                  }}
+                />
+                <Label
+                  htmlFor="support-staff-payment"
+                  className="cursor-pointer font-normal"
+                >
+                  Responsable de pago
+                </Label>
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label htmlFor="support-staff-notes">Notas (opcional)</Label>
+                <Input
+                  id="support-staff-notes"
+                  value={draftPaymentNotes}
+                  onChange={(e) => {
+                    setAddStaffError(null);
+                    setDraftPaymentNotes(e.target.value);
+                  }}
+                  placeholder="Ej. pago por apoyo en turno nocturno"
+                />
+              </div>
+
+              <Button
+                type="button"
+                className="lg:shrink-0"
+                variant="secondary"
+                onClick={handleAddSupportStaff}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar
+              </Button>
+            </div>
+
+            {addStaffError && (
+              <p className="text-sm text-destructive" role="alert">
+                {addStaffError}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empleado</TableHead>
+                  <TableHead className="w-[120px] whitespace-normal">
+                    Resp. pago
+                  </TableHead>
+                  <TableHead>Notas</TableHead>
+                  <TableHead className="w-[52px] text-right">
+                    <span className="sr-only">Quitar</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {internalStaffFieldArray.fields.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Completa el formulario superior y pulsa Agregar para
+                      listar colaboradores aquí.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  internalStaffFieldArray.fields.map((field, index) => {
+                    const row = internalStaffValues[index];
+                    const empId = row?.employeeId ?? "";
+                    const displayName =
+                      (employeeNameById.get(empId) ?? empId) || "—";
+                    const notes = (row?.paymentNotes ?? "").trim();
+
+                    return (
+                      <TableRow key={field.id}>
+                        <TableCell className="font-medium">
+                          {displayName}
+                        </TableCell>
+                        <TableCell>
+                          {row?.isPaymentResponsible ? "Sí" : "—"}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[240px] truncate text-muted-foreground"
+                          title={notes ? notes : undefined}
+                        >
+                          {notes || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              internalStaffFieldArray.remove(index);
+                              void form.trigger("internalStaff");
+                            }}
+                            aria-label="Quitar colaborador"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -750,33 +897,6 @@ export function BasicInfoStep({
               }}
             />
           </div>
-
-          <Separator />
-
-          {/* Transporte Internacional */}
-          <FormField
-            control={form.control}
-            name="transpInternac"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value ?? false}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Transporte Internacional
-                  </FormLabel>
-                  <FormDescription>
-                    Marcar si el viaje cruza fronteras internacionales
-                  </FormDescription>
-                </div>
-              </FormItem>
-            )}
-          />
         </CardContent>
       </Card>
 

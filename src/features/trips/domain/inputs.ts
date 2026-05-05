@@ -22,7 +22,6 @@ import type {
   CurrencyType,
   ExpenseStatusType,
 } from "./enums";
-import type { TripInternalStaffRole } from "./entities";
 
 // ============================================================================
 // CARGO MOVEMENT INPUTS
@@ -63,6 +62,10 @@ export interface CreateCargoInput {
   volume?: number;
   units?: number;
   declaredValue?: number;
+  /** SAT: AseguraCarga */
+  aseguraCarga?: string;
+  /** SAT: PolizaCarga */
+  polizaCarga?: string;
 
   // NOTA: El campo `rate` fue eliminado del input de creación de carga.
   // Para viajes consolidados (LTL multi-cliente), se implementará prorrateo
@@ -105,6 +108,8 @@ export interface UpdateCargoInput {
   volume?: number | null;
   units?: number | null;
   declaredValue?: number | null;
+  aseguraCarga?: string | null;
+  polizaCarga?: string | null;
 
   // Tarifa
   rate?: number;
@@ -189,7 +194,6 @@ export interface CreateExpenseInput {
 
 export interface CreateTripInternalStaffInput {
   employeeId: string;
-  internalRole: TripInternalStaffRole;
   isPaymentResponsible?: boolean;
   paymentNotes?: string;
 }
@@ -418,7 +422,6 @@ export interface CreateTripInput {
   notes?: string;
 
   // ── Carta Porte 3.1 ──────────────────────────────────────────
-  transpInternac?: boolean; // ¿Transporte internacional?
 
   // Paradas
   stops?: CreateStopInput[];
@@ -477,7 +480,6 @@ export interface UpdateTripInput {
   notes?: string | null;
 
   // ── Carta Porte 3.1 ──────────────────────────────────────────
-  transpInternac?: boolean;
   totalDistRec?: number | null;
 
   // Equipo de apoyo interno (reemplazo completo)

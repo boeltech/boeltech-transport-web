@@ -8,6 +8,7 @@ export {
   TripCard,
   TripCardSkeleton,
   TripActions,
+  TripInvoiceActions,
   TripTable,
 } from "./components";
 

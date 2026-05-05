@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   stopHasUnifiedAddressId,
   tripStopSchema,
+  tripCargoSchema,
   validateRouteStep,
   type TripStopFormValues,
 } from "./validation";
@@ -64,6 +65,40 @@ describe("trip stop address validation", () => {
       }),
     );
 
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("tripCargoSchema — seguro de carga", () => {
+  it("allows uninsured cargo without insurance fields", () => {
+    const result = tripCargoSchema.safeParse({
+      description: "Carga de prueba",
+      isInsured: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects insured cargo without declared value, insurer, or policy", () => {
+    const result = tripCargoSchema.safeParse({
+      description: "Carga de prueba",
+      isInsured: true,
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const paths = result.error.issues.map((i) => i.path[0]);
+    expect(paths).toEqual(
+      expect.arrayContaining(["declaredValue", "aseguraCarga", "polizaCarga"]),
+    );
+  });
+
+  it("accepts insured cargo with complete insurance data", () => {
+    const result = tripCargoSchema.safeParse({
+      description: "Carga de prueba",
+      isInsured: true,
+      declaredValue: 15000,
+      aseguraCarga: "Qualitas",
+      polizaCarga: "CARGA-001",
+    });
     expect(result.success).toBe(true);
   });
 });

@@ -114,7 +114,6 @@ export type {
   VehicleRef,
   DriverRef,
   ClientRef,
-  TripInternalStaffRole,
   TripInternalStaff,
   TripInvoiceStatus,
   TripInvoicing,

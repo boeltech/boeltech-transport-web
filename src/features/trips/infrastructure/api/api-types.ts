@@ -19,7 +19,6 @@ import type {
   ExpenseStatusType,
   CargoStatusType,
   CargoMovementTypeValue,
-  TripInternalStaffRole,
 } from "@features/trips/domain";
 
 // ============================================================================
@@ -58,7 +57,8 @@ export interface ApiTripInternalStaffResponse {
   employee_full_name: string;
   employee_number: string | null;
   employee_status: string | null;
-  internal_role: TripInternalStaffRole;
+  /** Legacy: el front ya no persiste rol; el API puede seguir enviandolo. */
+  internal_role?: string | null;
   is_payment_responsible: boolean;
   payment_notes: string | null;
   created_at: string;
@@ -101,6 +101,8 @@ export interface ApiCargoResponse {
   volume: number | null;
   units: number | null;
   declared_value: number | null;
+  asegura_carga?: string | null;
+  poliza_carga?: string | null;
 
   // Tarifa
   rate: number;
@@ -344,8 +346,7 @@ export interface ApiTripResponse {
   cancellation_reason: string | null;
   invoicing?: ApiTripInvoicingResponse;
 
-  // Carta Porte 3.1
-  transp_internac: boolean;
+  // Carta Porte 3.1 — distancia registrada / id complemento (cuando aplique)
   total_dist_rec: number | null;
   id_ccp: string | null;
 
