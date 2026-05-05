@@ -5,7 +5,6 @@
 
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@shared/ui/card";
-import { cn } from "@shared/lib/utils/cn";
 
 export interface WizardProgressCardProps {
   children: ReactNode;
