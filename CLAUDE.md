@@ -9,9 +9,11 @@ npm run dev        # Start development server (Vite HMR)
 npm run build      # TypeScript check + production build (tsc -b && vite build)
 npm run lint       # ESLint static analysis
 npm run preview    # Preview production build
+npm run test       # Vitest single run
+npm run test:watch # Vitest watch mode
 ```
 
-There is no test runner configured.
+Example env: `env/.env.example`. Runtime config is centralized in `src/shared/config/env.ts`.
 
 ## Architecture
 
@@ -74,12 +76,12 @@ Never import from a feature's internal paths. Always use the top-level `@feature
 - Single Axios instance at `src/shared/api/client/apiClient.ts`
 - Requests: auto-converts camelCase body → snake_case (except `FormData`)
 - Responses: raw snake_case — callers use `mapSingleResponse`, `mapPaginatedResponse`, or `mapActionResponse` from `src/shared/api/mappers/response-mapper.ts` which apply `deepToCamel`
-- Base URL: `VITE_API_URL444444` env var (defaults to `http://localhost:3000/api/v1`)
+- Base URL: **`VITE_API_URL`** (see `import.meta.env` / `src/shared/config/env.ts`; defaults to `http://localhost:3000/api/v1`). Optional **`VITE_API_TIMEOUT`** (ms, default 30000).
 
 ### State Management
 
 - **Server state:** TanStack React Query v5 — staleTime 5 min, gcTime 10 min, no retry on 4xx
-- **UI/auth state:** React Context (`AuthContext`, `ThemeProvider`, `SidebarProvider`)
+- **UI/auth state:** `ThemeProvider`, `SidebarProvider`, `ToastProvider` (`src/app/providers/`); authentication via **`AuthProvider`** / `AuthContext` from **`@features/auth`** (composed in `AppLayout`, not only `App.tsx`).
 - **Forms:** React Hook Form + Zod via `@hookform/resolvers`
 
 ### Formularios: datos persistidos, Radix Select y empleados (patrón estable)
@@ -120,7 +122,7 @@ En **edición de empleado**, los `Select` de Radix del formulario (género, esta
 
 ### RBAC / Permissions
 
-Defined in `src/shared/permissions/`. Modules include `trips`, `vehicles`, `drivers`, `clients`, `employees`, etc. Actions include `read`, `create`, `update`, `delete`, `updateStatus`, `approve`, etc.
+Defined in `src/shared/permissions/`. Module keys include `trips`, `vehicles`, `drivers`, `clients`, `branches`, `employees`, `catalogs`, `invoices`, `settings`, etc. (`MODULES` in `domain/entities.ts`). Actions include `read`, `create`, `update`, `delete`, `updateStatus`, `approve`, etc.
 
 Route guards: `PrivateRoute`, `PermissionRoute`, `ModuleRoute`, `RoleRoute`, `AdminRoute` — all in `src/app/router/`.
 
@@ -132,6 +134,45 @@ Las pantallas de **alta** de entidades deben seguir el mismo patrón que el wiza
 - **Navegación**: Anterior / Siguiente (validar el paso actual antes de avanzar); en el último paso antes del envío, **Revisión** con datos en solo lectura y botón **Crear** / **Registrar** / **Guardar**.
 - **Clic en pasos** (opcional): igual que viajes — `allowNavigation` + `onStepClick`: se puede volver a pasos ya visitados o al actual; hacia adelante solo si la validación del paso actual pasa.
 - **Atomicidad API**: no es obligatorio un solo POST; clientes y empleados pueden seguir con varias llamadas si el dominio lo requiere; la homologación es de **UX** (shell, pasos, copy de acciones).
+
+### Page Shells (estandar Fase 3)
+
+Todas las nuevas pantallas en `presentation/pages` deben usar shells de `@shared/ui/page-shells`.
+
+#### Cuándo usar cada shell
+
+- **`ListPageShell`**: pantallas de listado con toolbar (búsqueda/filtros/acciones), grid/lista y paginación.
+- **`DetailPageShell`**: detalle de entidad con header (back, icono, título, estado, acciones), tabs y metadata.
+- **`FormPageShell`**: formularios de edición simple (sin pasos).
+- **`WizardPageShell`**: altas/flows por pasos con validación por paso y confirmación final.
+- **`SettingsPageShell`**: pantallas de configuración sobre el layout de settings.
+
+**Variante canónica — detalle con Sheet y sub-recursos master-detail:** cuando el registro principal se edita en un **Sheet** contextual (sin página `/edit` dedicada) y los hijos tienen **CRUD propio** en un tab (lista + panel), ver el skill [`.agents/skills/detail-sheet-master-detail/SKILL.md`](.agents/skills/detail-sheet-master-detail/SKILL.md). Referencia: [`ClientDetailPage.tsx`](src/features/clients/presentation/pages/ClientDetailPage.tsx) + [`ClientAddressMasterDetail.tsx`](src/features/clients/presentation/components/ClientAddressMasterDetail.tsx).
+
+#### Guardrails de arquitectura
+
+- En `presentation/pages`, **no importar** primitivas wizard desde `@shared/ui/wizard`; usar `WizardPageShell`.
+- Priorizar `ListPageShell` para listas y `WizardPageShell` para altas en pasos.
+- Excepciones permitidas solo con justificación explícita en PR (ej. UX especializada que el shell aún no soporta).
+
+#### Patrón de migración recomendado
+
+1. Mantener hooks y lógica de dominio tal cual (`useXxx`, mappers, mutaciones).
+2. Mover únicamente layout/navegación de página al shell correspondiente.
+3. Reusar el contenido actual como `children`/`renderStep` del shell.
+4. Conectar estados:
+   - loading/notFound en `FormPageShell`/`DetailPageShell`
+   - `triggerStepValidation` + `requestSubmit` en `WizardPageShell`
+5. Verificar:
+   - `npx tsc --noEmit`
+   - `npm run lint`
+
+#### Ejemplos mínimos por shell
+
+- **Lista**: `features/vehicles/presentation/pages/VehicleListPage.tsx`
+- **Detalle**: `features/invoicing/presentation/pages/InvoiceDetailPage.tsx`
+- **Formulario (simple)**: `features/employees/presentation/pages/EmployeeFormPage.tsx` · **Detalle + Sheet (padre) + master-detail (hijos)**: `features/clients/presentation/pages/ClientDetailPage.tsx` (patrón en [`.agents/skills/detail-sheet-master-detail/SKILL.md`](.agents/skills/detail-sheet-master-detail/SKILL.md))
+- **Wizard**: `features/trips/presentation/pages/create/TripFormPage.tsx`
 
 ### UI Components
 
@@ -168,19 +209,21 @@ Every endpoint returns one of three structures. **Always use `data` as the key �
 | Paginated list | 200 | `{ data: [...], pagination: { page, limit, total, totalPages } }` |
 | Action only | 200 | `{ message: string }` |
 
-Backend responds in `snake_case` always. Frontend transforms to `camelCase` via mappers.
+Backend responds in `snake_case` always. Frontend transforms to `camelCase` via mappers. Successful **mutations** (`POST`/`PUT`/`PATCH`/`DELETE`) should include a **`message`** in the JSON body per backend conventions.
 
 ## Provider Order (Critical)
 
-In `src/app/providers/` — must always follow this exact order:
+For **authenticated** routes, preserve this nesting order in **`src/widgets/layout/ui/AppLayout.tsx`** (outer → inner):
 
-1. `QueryProvider`
-2. `AuthProvider`
-3. `PermissionProvider`
-4. `ThemeProvider`
-5. `ToastProvider`
-6. `SidebarProvider`
-7. `LayoutShell`
+1. `QueryProvider` — `src/app/providers/QueryProvider.tsx`
+2. `AuthProvider` — `@features/auth` (`src/features/auth/presentation/ui/AuthProvider.tsx`)
+3. `PermissionProvider` — `src/app/providers/PermissionProvider.tsx`
+4. `ThemeProvider` — `src/app/providers/ThemeProvider.tsx`
+5. `ToastProvider` — `src/app/providers/ToastProvider.tsx`
+6. `SidebarProvider` — `src/app/providers/SidebarProvider.tsx`
+7. `LayoutShell` — `src/widgets/layout/ui/LayoutShell.tsx`
+
+Other provider files remain under `src/app/providers/`; **`AuthProvider` is not defined there** — import from `@features/auth` only.
 
 ## Database Column Naming
 
@@ -192,7 +235,7 @@ In `src/app/providers/` — must always follow this exact order:
 
 **Trip overlap detection**: When checking vehicle/driver availability, always use the SQL `OVERLAPS` operator on `(scheduled_departure, scheduled_arrival)` against active statuses (`scheduled`, `in_progress`). Check both vehicle AND driver in the same validation.
 
-**Permissions**: Never scatter `can('module', 'action')` checks individually — centralize them in a dedicated `<ModuleActions />` component.
+**Permissions**: Avoid scattering `hasPermission(module, action)` / `can('module.action')` checks across cells — centralize them in a dedicated `*Actions` component (for example `TripActions`).
 
 ## Naming Conventions
 
@@ -209,9 +252,25 @@ In `src/app/providers/` — must always follow this exact order:
 
 ## RBAC Roles
 
-9 roles: `admin`, `manager`, `dispatcher`, `driver`, `mechanic`, `accountant`, `client`, `viewer`, `guest`.
+**Canonical source:** [`src/shared/constants/roles.ts`](src/shared/constants/roles.ts) — must stay in lockstep with `boeltech-transport-api/src/shared/constants/roles.ts`.
 
-`driver` and `client` roles have restricted access (own resources only). Check ownership separately from permission when rendering actions for these roles.
+There are **7** official role values (JWT / DB). Labels are Spanish for UI only.
+
+| Code (`UserRole`) | UI label (ES) | Hierarchy |
+|---|---|---|
+| `admin` | Administrador | 7 |
+| `manager` | Gerente | 6 |
+| `dispatcher` | Despachador | 5 |
+| `accountant` | Contador | 4 |
+| `operator` | Operador | 3 |
+| `driver` | Conductor | 2 |
+| `client` | Cliente | 1 |
+
+**Not in the codebase:** `mechanic`, `viewer`, `guest` (legacy doc only — do not use).
+
+**Permission matrix (intent):** [`src/shared/permissions/domain/rolePermissions.ts`](src/shared/permissions/domain/rolePermissions.ts). **`admin`** is treated as full access in rules (often bypass), not an exhaustive string list.
+
+`driver` and `client` need **row-level / ownership** checks in addition to module permissions.
 
 ## Reference Files
 
@@ -224,11 +283,16 @@ Detailed guidelines in `D:\boeltech\dev\workspace\clients\transporte\skills\boel
 - `references/clean-architecture.md` — Layer responsibilities, DI container, data flow
 - `references/database-schema.md` — PostgreSQL schema, views, functions, indexes
 
-## Installed Skills (`.claude/skills/`)
+## Installed Skills (`.agents/skills/`)
 
-Skills en esta carpeta son cargados automáticamente por Claude Code. No es necesario referenciarlos explícitamente, pero se documentan aquí para tener visibilidad de las guías activas.
+**Dentro del repo:** `.agents/skills/` (raíz del frontend) cuando exista contenido. **Guía compartida transporte (fuera del web):** `D:\boeltech\dev\workspace\clients\transporte\skills\boeltech-erp-development\` — `SKILL.md` + `references/` (API, RBAC, DB, patrones). Usar la ruta que corresponda al clone local.
+
+Si existe `.claude/skills/` en el disco del desarrollador, puede duplicar o enlazar skills del IDE; para documentación de producto priorizar `.agents/skills/` o la carpeta `transporte/skills` anterior.
+
+Skills en esta carpeta suelen cargarse automáticamente en Claude Code cuando está configurado para este repo. No es necesario referenciarlos explícitamente en cada tarea, pero se documentan aquí para visibilidad de las guías activas.
 
 | Skill | Cuándo aplicar |
 |---|---|
 | `vercel-react-best-practices` | Al escribir, revisar o refactorizar componentes React: re-renders, bundle size, async patterns, rendering performance |
 | `frontend-design` | Al construir nuevos componentes, páginas o interfaces: diseño visual, tipografía, color, animaciones, composición espacial |
+| `detail-sheet-master-detail` | Detalle con `DetailPageShell`, edición del padre en Sheet y sub-recursos con master-detail / CRUD inmediato (evitar doble modelo de guardado) |
