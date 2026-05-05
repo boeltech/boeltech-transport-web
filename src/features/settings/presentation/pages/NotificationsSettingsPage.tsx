@@ -7,7 +7,7 @@
  */
 
 import { memo } from "react";
-import { SettingsLayout } from "../components/SettingsLayout";
+import { SettingsPageShell } from "@shared/ui/page-shells/SettingsPageShell";
 import { NotificationSettingsForm } from "../components/NotificationSettingsForm";
 
 // ============================================================================
@@ -17,9 +17,9 @@ import { NotificationSettingsForm } from "../components/NotificationSettingsForm
 export const NotificationsSettingsPage = memo(
   function NotificationsSettingsPage() {
     return (
-      <SettingsLayout sectionTitle="Notificaciones">
+      <SettingsPageShell sectionTitle="Notificaciones">
         <NotificationSettingsForm />
-      </SettingsLayout>
+      </SettingsPageShell>
     );
   },
 );

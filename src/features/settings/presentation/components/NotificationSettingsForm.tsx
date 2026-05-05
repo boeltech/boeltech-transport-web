@@ -7,7 +7,7 @@
  */
 
 import { memo, useCallback, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, Bell, Mail, MessageSquare, Smartphone } from "lucide-react";
@@ -74,6 +74,28 @@ export const NotificationSettingsForm = memo(
         digestTime: "08:00",
       },
     });
+  const emailNotifications = useWatch({
+    control: form.control,
+    name: "emailNotifications",
+  });
+  const pushNotifications = useWatch({
+    control: form.control,
+    name: "pushNotifications",
+  });
+  const smsNotifications = useWatch({
+    control: form.control,
+    name: "smsNotifications",
+  });
+  const tripReminders = useWatch({ control: form.control, name: "tripReminders" });
+  const maintenanceAlerts = useWatch({
+    control: form.control,
+    name: "maintenanceAlerts",
+  });
+  const documentExpiryAlerts = useWatch({
+    control: form.control,
+    name: "documentExpiryAlerts",
+  });
+  const dailyDigest = useWatch({ control: form.control, name: "dailyDigest" });
 
     // Sincronizar con datos del servidor
     useEffect(() => {
@@ -127,7 +149,7 @@ export const NotificationSettingsForm = memo(
               icon={Mail}
               label="Notificaciones por email"
               description="Recibe alertas y resúmenes en tu correo"
-              checked={form.watch("emailNotifications")}
+              checked={emailNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("emailNotifications", checked, {
                   shouldDirty: true,
@@ -141,7 +163,7 @@ export const NotificationSettingsForm = memo(
               icon={Smartphone}
               label="Notificaciones push"
               description="Alertas en tiempo real en tu dispositivo"
-              checked={form.watch("pushNotifications")}
+              checked={pushNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("pushNotifications", checked, {
                   shouldDirty: true,
@@ -155,7 +177,7 @@ export const NotificationSettingsForm = memo(
               icon={MessageSquare}
               label="Notificaciones por SMS"
               description="Alertas críticas vía mensaje de texto"
-              checked={form.watch("smsNotifications")}
+              checked={smsNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("smsNotifications", checked, {
                   shouldDirty: true,
@@ -178,7 +200,7 @@ export const NotificationSettingsForm = memo(
                   icon={Bell}
                   label="Recordatorios de viajes"
                   description="Notifica antes de la hora de salida programada"
-                  checked={form.watch("tripReminders")}
+                  checked={tripReminders}
                   onCheckedChange={(checked) =>
                     form.setValue("tripReminders", checked, {
                       shouldDirty: true,
@@ -186,7 +208,7 @@ export const NotificationSettingsForm = memo(
                   }
                 />
               </div>
-              {form.watch("tripReminders") && (
+              {tripReminders && (
                 <div className="sm:w-32">
                   <Label htmlFor="tripReminderHours">Horas antes</Label>
                   <Input
@@ -211,7 +233,7 @@ export const NotificationSettingsForm = memo(
                   icon={Bell}
                   label="Alertas de mantenimiento"
                   description="Avisa cuando un vehículo requiere servicio"
-                  checked={form.watch("maintenanceAlerts")}
+                  checked={maintenanceAlerts}
                   onCheckedChange={(checked) =>
                     form.setValue("maintenanceAlerts", checked, {
                       shouldDirty: true,
@@ -219,7 +241,7 @@ export const NotificationSettingsForm = memo(
                   }
                 />
               </div>
-              {form.watch("maintenanceAlerts") && (
+              {maintenanceAlerts && (
                 <div className="sm:w-32">
                   <Label htmlFor="maintenanceAlertDays">Días antes</Label>
                   <Input
@@ -244,7 +266,7 @@ export const NotificationSettingsForm = memo(
                   icon={Bell}
                   label="Vencimiento de documentos"
                   description="Alerta cuando licencias o permisos están por vencer"
-                  checked={form.watch("documentExpiryAlerts")}
+                  checked={documentExpiryAlerts}
                   onCheckedChange={(checked) =>
                     form.setValue("documentExpiryAlerts", checked, {
                       shouldDirty: true,
@@ -252,7 +274,7 @@ export const NotificationSettingsForm = memo(
                   }
                 />
               </div>
-              {form.watch("documentExpiryAlerts") && (
+              {documentExpiryAlerts && (
                 <div className="sm:w-32">
                   <Label htmlFor="documentExpiryDays">Días antes</Label>
                   <Input
@@ -281,13 +303,13 @@ export const NotificationSettingsForm = memo(
                 icon={Mail}
                 label="Enviar resumen diario"
                 description="Un email con el resumen de viajes, alertas y pendientes"
-                checked={form.watch("dailyDigest")}
+                checked={dailyDigest}
                 onCheckedChange={(checked) =>
                   form.setValue("dailyDigest", checked, { shouldDirty: true })
                 }
               />
             </div>
-            {form.watch("dailyDigest") && (
+            {dailyDigest && (
               <div className="sm:w-32">
                 <Label htmlFor="digestTime">Hora de envío</Label>
                 <Input

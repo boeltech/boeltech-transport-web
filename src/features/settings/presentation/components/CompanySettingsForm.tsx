@@ -7,7 +7,7 @@
  */
 
 import { memo, useCallback } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Alert, AlertDescription } from "@shared/ui/alert";
-import AddressInput from "@shared/ui/address-input/AddressInput";
+import { AddressInput, EntityAddressForm } from "@shared/ui/address-input";
 import { addressSchema } from "@shared/validation/addressSchema";
 import { useToast } from "@shared/hooks/useToast";
 
@@ -93,15 +93,23 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
   });
   const { user } = useAuth();
   const { toast } = useToast();
+  const tenantId = user?.tenant.id;
 
   const form = useForm<CompanySettingsFormData, unknown, CompanySettingsFormData>({
     resolver: zodResolver(companySettingsSchema) as Resolver<CompanySettingsFormData>,
     values: settings ? mapSettingsToForm(settings) : undefined,
   });
+  const regimenFiscal = useWatch({ control: form.control, name: "regimenFiscal" });
+  const fiscalStateCode = useWatch({ control: form.control, name: "fiscal.satStateCode" });
+  const fiscalMunicipalityCode = useWatch({
+    control: form.control,
+    name: "fiscal.satMunicipalityCode",
+  });
+  const fiscalPostalCode = useWatch({ control: form.control, name: "fiscal.postalCode" });
 
   const onSubmit = useCallback(
     async (data: CompanySettingsFormData) => {
-      if (!user?.tenant.id) {
+      if (!tenantId) {
         toast({
           title: "Sesión incompleta",
           description: "No se pudo determinar el tenant.",
@@ -139,7 +147,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
         if (existingId) {
           await updateTenantAddress(existingId, fiscalPayload);
         } else {
-          await createTenantAddress(user.tenant.id, fiscalPayload);
+          await createTenantAddress(tenantId, fiscalPayload);
         }
 
         await queryClient.invalidateQueries({
@@ -165,7 +173,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
       settings?.fiscalAddress?.id,
       toast,
       updateMutation,
-      user?.tenant.id,
+      tenantId,
     ],
   );
 
@@ -245,7 +253,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
               Régimen Fiscal <span className="text-destructive">*</span>
             </Label>
             <RegimenFiscalSelect
-              value={form.watch("regimenFiscal") ?? ""}
+              value={regimenFiscal ?? ""}
               onValueChange={(value) => {
                 form.setValue("regimenFiscal", value, {
                   shouldDirty: true,
@@ -315,52 +323,85 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
         title="Dirección Fiscal"
         description="Domicilio fiscal con catálogos SAT (tabla unificada de direcciones)"
       >
-        {showLegacyHint && (
-          <Alert className="mb-4">
-            <AlertDescription>
-              Detectamos un domicilio fiscal en formato anterior. Completa estado,
-              municipio y colonia SAT usando el código postal para guardar la
-              nueva dirección unificada.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <AddressInput<CompanySettingsFormData>
-          mode="cfdi"
-          control={form.control}
-          namePrefix="fiscal"
-          layout="compact"
-          showLatLng
-          showPrimaryToggle={false}
+        <EntityAddressForm
+          asForm={false}
+          className="space-y-4"
+          formContext="billingOnCreate"
+          infoMessage="Esta direccion se usara para CFDI y operaciones fiscales."
+          satStateCode={fiscalStateCode}
+          satMunicipalityCode={fiscalMunicipalityCode}
+          postalCode={fiscalPostalCode}
+          showGlobalNotice
+          hideLocationSectionTitle
+          preAddressSections={
+            showLegacyHint
+              ? [
+                  {
+                    id: "legacy-fiscal-hint",
+                    title: "Contexto fiscal",
+                    content: (
+                      <Alert>
+                        <AlertDescription>
+                          Detectamos un domicilio fiscal en formato anterior.
+                          Completa estado, municipio y colonia SAT usando el
+                          código postal para guardar la nueva dirección
+                          unificada.
+                        </AlertDescription>
+                      </Alert>
+                    ),
+                  },
+                ]
+              : []
+          }
+          addressInputSection={
+            <>
+              <AddressInput<CompanySettingsFormData>
+                mode="cfdi"
+                control={form.control}
+                namePrefix="fiscal"
+                layout="compact"
+                showLatLng
+                showPrimaryToggle={false}
+              />
+              {form.formState.errors.fiscal && (
+                <p className="text-sm text-destructive mt-2">
+                  Revisa los campos de domicilio fiscal.
+                </p>
+              )}
+            </>
+          }
+          postAddressSections={[
+            {
+              id: "lugar-expedicion",
+              title: "Lugar de expedicion",
+              content: (
+                <>
+                  <Label htmlFor="lugarExpedicion">
+                    Lugar de expedición (CFDI){" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="lugarExpedicion"
+                    {...form.register("lugarExpedicion")}
+                    placeholder="03100"
+                    maxLength={5}
+                    className="mt-1.5 w-40"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Código postal donde se expiden las facturas (atributo{" "}
+                    <code className="font-mono">LugarExpedicion</code> en CFDI
+                    4.0).
+                  </p>
+                  {form.formState.errors.lugarExpedicion && (
+                    <p className="text-sm text-destructive mt-1">
+                      {form.formState.errors.lugarExpedicion.message}
+                    </p>
+                  )}
+                </>
+              ),
+            },
+          ]}
         />
-        {form.formState.errors.fiscal && (
-          <p className="text-sm text-destructive mt-2">
-            Revisa los campos de domicilio fiscal.
-          </p>
-        )}
-
-        <div className="mt-6 pt-4 border-t">
-          <Label htmlFor="lugarExpedicion">
-            Lugar de expedición (CFDI){" "}
-            <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="lugarExpedicion"
-            {...form.register("lugarExpedicion")}
-            placeholder="03100"
-            maxLength={5}
-            className="mt-1.5 w-40"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Código postal donde se expiden las facturas (atributo{" "}
-            <code className="font-mono">LugarExpedicion</code> en CFDI 4.0).
-          </p>
-          {form.formState.errors.lugarExpedicion && (
-            <p className="text-sm text-destructive mt-1">
-              {form.formState.errors.lugarExpedicion.message}
-            </p>
-          )}
-        </div>
       </SettingsCard>
 
       {/* Actions */}

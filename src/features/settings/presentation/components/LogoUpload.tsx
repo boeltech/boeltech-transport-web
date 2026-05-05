@@ -6,7 +6,7 @@
  * Ubicación: src/features/settings/ui/components/LogoUpload.tsx
  */
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { ImagePlus, Trash2, Loader2, Upload } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
@@ -52,13 +52,11 @@ export const LogoUpload = memo(function LogoUpload() {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
+  const [cacheBustTs] = useState(() => Date.now());
 
-  const logoSrc = useMemo(() => {
-    if (!settings?.logoUrl) return null;
-    const version = settings.updatedAt?.getTime?.() ?? Date.now();
-    const separator = settings.logoUrl.includes("?") ? "&" : "?";
-    return `${settings.logoUrl}${separator}v=${version}`;
-  }, [settings?.logoUrl, settings?.updatedAt]);
+  const logoSrc = !settings?.logoUrl
+    ? null
+    : `${settings.logoUrl}${settings.logoUrl.includes("?") ? "&" : "?"}v=${settings.updatedAt?.getTime?.() ?? cacheBustTs}`;
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();

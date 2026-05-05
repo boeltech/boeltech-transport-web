@@ -11,7 +11,7 @@
  */
 
 import { memo, useCallback, useState } from "react";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -118,7 +118,7 @@ const billingSettingsSchema = z
       .min(1, "La clave de producto/servicio es requerida"),
     claveUnidad: z.string().min(1, "La clave de unidad es requerida"),
     moneda: z.enum(ALLOWED_MONEDA, {
-      errorMap: () => ({ message: "Moneda SAT inválida. Usa MXN o USD." }),
+      message: "Moneda SAT inválida. Usa MXN o USD.",
     }),
     tasaIva: z
       .number()
@@ -191,7 +191,10 @@ function PacProviderConfig({
   onTestConnection,
   isDirty,
 }: PacProviderConfigProps) {
-  const pacProvider = form.watch("pacProvider") as PacProvider | undefined;
+  const pacProvider =
+    useWatch({ control: form.control, name: "pacProvider" }) as
+      | PacProvider
+      | undefined;
 
   if (!pacProvider) return null;
 
@@ -327,6 +330,32 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     defaultValues: { pacProvider: PacProviders.PROFACT },
     values: settings ? mapSettingsToForm(settings) : undefined,
   });
+  const pacProvider =
+    useWatch({ control: form.control, name: "pacProvider" }) as
+      | PacProvider
+      | undefined;
+  const defaultUsoCfdi = useWatch({
+    control: form.control,
+    name: "defaultUsoCfdi",
+  });
+  const defaultFormaPago = useWatch({
+    control: form.control,
+    name: "defaultFormaPago",
+  });
+  const defaultMetodoPago = useWatch({
+    control: form.control,
+    name: "defaultMetodoPago",
+  });
+  const claveProductoServicio = useWatch({
+    control: form.control,
+    name: "claveProductoServicio",
+  });
+  const claveUnidad = useWatch({
+    control: form.control,
+    name: "claveUnidad",
+  });
+  const watchedMoneda = useWatch({ control: form.control, name: "moneda" });
+  const watchedTasaIva = useWatch({ control: form.control, name: "tasaIva" });
 
   const onSubmit = useCallback(
     (data: BillingSettingsFormData) => {
@@ -422,7 +451,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                     Proveedor PAC <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={form.watch("pacProvider") ?? ""}
+                    value={pacProvider ?? ""}
                     onValueChange={(value) => {
                       if (!value) return;
                       form.setValue("pacProvider", value, { shouldDirty: true });
@@ -473,7 +502,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Uso de CFDI <span className="text-destructive">*</span>
               </Label>
               <UsoCfdiSelect
-                value={form.watch("defaultUsoCfdi")}
+                value={defaultUsoCfdi}
                 onValueChange={(value) =>
                   form.setValue("defaultUsoCfdi", value, { shouldDirty: true })
                 }
@@ -491,7 +520,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Forma de Pago <span className="text-destructive">*</span>
               </Label>
               <FormaPagoSelect
-                value={form.watch("defaultFormaPago")}
+                value={defaultFormaPago}
                 onValueChange={(value) =>
                   form.setValue("defaultFormaPago", value, {
                     shouldDirty: true,
@@ -511,7 +540,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Método de Pago <span className="text-destructive">*</span>
               </Label>
               <MetodoPagoSelect
-                value={form.watch("defaultMetodoPago")}
+                value={defaultMetodoPago}
                 onValueChange={(value) =>
                   form.setValue("defaultMetodoPago", value, {
                     shouldDirty: true,
@@ -588,7 +617,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 <span className="text-destructive">*</span>
               </Label>
               <ProductoServicioCPSearch
-                value={form.watch("claveProductoServicio")}
+                value={claveProductoServicio}
                 onSelect={(item: CatalogItem) =>
                   form.setValue("claveProductoServicio", item.code, {
                     shouldDirty: true,
@@ -617,7 +646,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Clave de unidad <span className="text-destructive">*</span>
               </Label>
               <UnidadMedidaSearch
-                value={form.watch("claveUnidad")}
+                value={claveUnidad}
                 onSelect={(item: CatalogItem) =>
                   form.setValue("claveUnidad", item.code, {
                     shouldDirty: true,
@@ -644,9 +673,15 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Moneda <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={normalizeMoneda(form.watch("moneda")) ?? "MXN"}
+                value={normalizeMoneda(watchedMoneda) ?? "MXN"}
                 onValueChange={(v) =>
-                  form.setValue("moneda", v.toUpperCase(), { shouldDirty: true })
+                  form.setValue(
+                    "moneda",
+                    v.toUpperCase() as (typeof ALLOWED_MONEDA)[number],
+                    {
+                    shouldDirty: true,
+                    },
+                  )
                 }
               >
                 <SelectTrigger>
@@ -673,7 +708,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Tasa de IVA <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={String(normalizeTasaIva(form.watch("tasaIva")) ?? 0.16)}
+                value={String(normalizeTasaIva(watchedTasaIva) ?? 0.16)}
                 onValueChange={(v) =>
                   form.setValue("tasaIva", parseFloat(v), {
                     shouldDirty: true,
@@ -838,11 +873,12 @@ const CertificateCard = memo(function CertificateCard({
       password: files.password,
     });
   }, [files, uploadMutation, canUpload]);
+  const [nowTs] = useState(() => Date.now());
 
   const isExpiringSoon =
     settings.certificateExpiry &&
     new Date(settings.certificateExpiry) <
-      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      new Date(nowTs + 30 * 24 * 60 * 60 * 1000);
 
   return (
     <SettingsCard
