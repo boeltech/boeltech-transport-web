@@ -84,6 +84,8 @@ export {
   AuthException,
   type IAuthRepository,
   type ITokenStorage,
+  type UpdateMyProfilePayload,
+  type ChangePasswordPayload,
 } from "./domain";
 
 // ============================================================================
@@ -122,6 +124,8 @@ export {
   useCurrentUser,
   useIsAuthenticated,
   useAuthLoading,
+  useUpdateMyProfile,
+  useChangePassword,
 } from "./infrastructure";
 
 // ============================================================================
@@ -143,4 +147,8 @@ export {
   type ForgotPasswordFormData,
   type ResetPasswordFormData,
   type RegisterFormData,
+  myProfileSchema,
+  changePasswordFormSchema,
+  type MyProfileFormData,
+  type ChangePasswordFormData,
 } from "./presentation/ui";

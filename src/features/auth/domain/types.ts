@@ -47,6 +47,7 @@ export interface UserApi {
   };
   last_login?: string;
   permissions?: string[];
+  onboarding_completed_at?: string | null;
 }
 
 export interface LoginApiData {
@@ -119,6 +120,26 @@ export class AuthException extends Error {
 /**
  * Interface del repositorio de autenticación
  */
+/** Payload para actualizar el perfil del usuario autenticado (PATCH /auth/profile). */
+export interface UpdateMyProfilePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+/** Respuesta de PATCH /auth/profile: usuario + access token opcional (claims renovados). */
+export interface UpdateProfileResult {
+  user: UserJSON;
+  accessToken?: string;
+}
+
+/** Cambio de contraseña con sesión activa (POST /auth/change-password). */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
 export interface IAuthRepository {
   login(credentials: {
     email: string;
@@ -127,7 +148,10 @@ export interface IAuthRepository {
   }): Promise<AuthResponse>;
   logout(refreshToken?: string): Promise<void>;
   getProfile(): Promise<UserJSON>;
+  updateProfile(payload: UpdateMyProfilePayload): Promise<UpdateProfileResult>;
+  changePassword(payload: ChangePasswordPayload): Promise<void>;
   refreshToken(refreshToken: string): Promise<RefreshResponse>;
+  completeProductOnboarding(): Promise<void>;
 }
 
 /**

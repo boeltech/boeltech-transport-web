@@ -74,9 +74,12 @@ const ResetPasswordPage = () => {
           setTokenError(response.data.error || "Token inválido");
           setPageState("invalid");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const apiError = err as
+          | { response?: { data?: { error?: string } } }
+          | undefined;
         setTokenError(
-          err?.response?.data?.error || "Token inválido o expirado",
+          apiError?.response?.data?.error || "Token inválido o expirado",
         );
         setPageState("invalid");
       }
@@ -97,9 +100,12 @@ const ResetPasswordPage = () => {
       });
 
       setPageState("success");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiError = err as
+        | { response?: { data?: { error?: string } } }
+        | undefined;
       setError(
-        err?.response?.data?.error || "Error al actualizar la contraseña",
+        apiError?.response?.data?.error || "Error al actualizar la contraseña",
       );
     } finally {
       setIsSubmitting(false);

@@ -21,10 +21,17 @@ export { Token, Credentials, type LoginCredentials } from "./valueObjects";
 export {
   type AuthResponse,
   type RefreshResponse,
+  type ApiEnvelope,
+  type LoginApiData,
+  type RefreshApiData,
+  type UserApi,
   type AuthState,
   type AuthErrorCode,
   type AuthError,
   AuthException,
   type IAuthRepository,
   type ITokenStorage,
+  type UpdateMyProfilePayload,
+  type UpdateProfileResult,
+  type ChangePasswordPayload,
 } from "./types";

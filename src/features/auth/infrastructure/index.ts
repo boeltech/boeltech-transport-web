@@ -27,4 +27,6 @@ export {
   useCurrentUser,
   useIsAuthenticated,
   useAuthLoading,
+  useUpdateMyProfile,
+  useChangePassword,
 } from "../application/hooks";

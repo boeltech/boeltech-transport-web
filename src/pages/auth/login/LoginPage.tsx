@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Truck, LogIn, Building2 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { Checkbox } from "@shared/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -19,6 +18,7 @@ import { AlertWithIcon } from "@shared/ui/alert";
 
 import { authApi, tokenStorage } from "@features/auth/infrastructure";
 import { loginSchema, type LoginFormData } from "@features/auth";
+import { mapBackendError } from "@shared/utils/errorMapper";
 
 /**
  * LoginPage
@@ -30,6 +30,7 @@ import { loginSchema, type LoginFormData } from "@features/auth";
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   // Estado local
   const [showPassword, setShowPassword] = useState(false);
@@ -41,27 +42,35 @@ const LoginPage = () => {
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
     "/dashboard";
 
-  // Recuperar subdomain guardado
+  const inviteEmail =
+    (location.state as { inviteEmail?: string } | null)?.inviteEmail ?? "";
+
+  // Recuperar subdomain guardado o desde query (p. ej. post /accept-invitation)
   const savedSubdomain = tokenStorage.getSubdomain() || "";
+  const subdomainFromQuery = searchParams.get("subdomain")?.trim() || "";
 
   // Configurar React Hook Form con Zod
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
-    setValue,
-    watch,
   } = useForm<LoginFormData, unknown, LoginFormData>({
     resolver: zodResolver(loginSchema) as Resolver<LoginFormData>,
     defaultValues: {
       email: "",
       password: "",
       subdomain: savedSubdomain,
-      rememberMe: false,
     },
   });
 
-  const rememberMe = watch("rememberMe");
+  useEffect(() => {
+    reset({
+      email: inviteEmail,
+      password: "",
+      subdomain: subdomainFromQuery || savedSubdomain,
+    });
+  }, [inviteEmail, subdomainFromQuery, savedSubdomain, reset]);
 
   // Handler del submit
   const onSubmit = async (data: LoginFormData) => {
@@ -82,25 +91,19 @@ const LoginPage = () => {
       tokenStorage.setUser(response.user);
       tokenStorage.setSubdomain(data.subdomain.toLowerCase());
 
-      // Navegar al dashboard
-      navigate(from, { replace: true });
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const errorMessage = err?.response?.data?.error;
-
-      if (status === 401) {
-        setError("Credenciales incorrectas. Verifica tu correo y contraseña.");
-      } else if (status === 403) {
-        setError(errorMessage || "Tu cuenta o empresa está inactiva.");
-      } else if (status === 404) {
-        setError("Empresa no encontrada. Verifica el identificador.");
-      } else if (status === 429) {
-        setError("Demasiados intentos. Espera unos minutos.");
-      } else if (err?.code === "ERR_NETWORK" || !navigator.onLine) {
-        setError("Error de conexión. Verifica tu internet.");
-      } else {
-        setError(errorMessage || "Error inesperado. Intenta de nuevo.");
+      if (response.user.onboardingCompletedAt == null) {
+        navigate("/onboarding", { replace: true });
+        return;
       }
+
+      navigate(from, { replace: true });
+    } catch (err: unknown) {
+      const mapped = mapBackendError(err);
+      let message = mapped.message;
+      if (!navigator.onLine) {
+        message = "Error de conexión. Verifica tu internet.";
+      }
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -207,6 +210,9 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -221,23 +227,6 @@ const LoginPage = () => {
                   {errors.password.message}
                 </p>
               )}
-            </div>
-
-            {/* Checkbox Recordarme */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="rememberMe"
-                checked={rememberMe}
-                onCheckedChange={(checked) =>
-                  setValue("rememberMe", checked as boolean)
-                }
-              />
-              <Label
-                htmlFor="rememberMe"
-                className="text-sm font-normal cursor-pointer"
-              >
-                Recordarme en este dispositivo
-              </Label>
             </div>
 
             {/* Botón Submit */}
@@ -265,26 +254,6 @@ const LoginPage = () => {
               </Link>
             </p>
           </div>
-
-          {/* Credenciales de prueba (solo desarrollo) */}
-          {import.meta.env.DEV && (
-            <div className="mt-6 rounded-lg border border-dashed p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">
-                🧪 Credenciales de prueba:
-              </p>
-              <div className="text-xs text-muted-foreground space-y-1 font-mono">
-                <p>
-                  <strong>Empresa:</strong> demo
-                </p>
-                <p>
-                  <strong>Email:</strong> admin@boeltech.com
-                </p>
-                <p>
-                  <strong>Password:</strong> Admin123!
-                </p>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 

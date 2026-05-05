@@ -72,7 +72,7 @@ export class Token {
    * Extrae el payload del JWT (sin verificar firma)
    * PRECAUCIÓN: Solo para debugging, no usar para validación
    */
-  getPayload(): Record<string, any> {
+  getPayload(): Record<string, unknown> {
     try {
       const base64Url = this.value.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -83,7 +83,7 @@ export class Token {
           .join(""),
       );
       return JSON.parse(jsonPayload);
-    } catch (error) {
+    } catch {
       throw new Error("Failed to decode JWT payload");
     }
   }

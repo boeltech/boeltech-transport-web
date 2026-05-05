@@ -35,6 +35,15 @@ import { registerSchema, type RegisterFormData } from "@features/auth";
 
 type Step = "company" | "admin" | "confirm";
 
+interface RegisterUserApi {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  tenant: unknown;
+}
+
 const RegisterPage = () => {
   const navigate = useNavigate();
 
@@ -88,7 +97,7 @@ const RegisterPage = () => {
 
       setSubdomainAvailable(response.data.available);
       setSubdomainSuggestion(response.data.suggestion || null);
-    } catch (err) {
+    } catch {
       setSubdomainAvailable(null);
     } finally {
       setIsCheckingSubdomain(false);
@@ -138,7 +147,7 @@ const RegisterPage = () => {
         data: {
           access_token: string;
           refresh_token: string;
-          user: any;
+          user: RegisterUserApi;
         };
       }>("/onboarding/register", {
         company: {
@@ -169,9 +178,16 @@ const RegisterPage = () => {
 
       // Ir al dashboard
       navigate("/dashboard", { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiError = err as
+        | {
+            response?: {
+              data?: { error?: string; details?: { suggestion?: string } };
+            };
+          }
+        | undefined;
       const errorMsg =
-        err?.response?.data?.error || "Error al registrar la empresa";
+        apiError?.response?.data?.error || "Error al registrar la empresa";
       setError(errorMsg);
 
       // Si es error de subdomain, volver al paso 1
@@ -180,8 +196,8 @@ const RegisterPage = () => {
         errorMsg.includes("subdomain")
       ) {
         setStep("company");
-        if (err?.response?.data?.details?.suggestion) {
-          setSubdomainSuggestion(err.response.data.details.suggestion);
+        if (apiError?.response?.data?.details?.suggestion) {
+          setSubdomainSuggestion(apiError.response.data.details.suggestion);
         }
       }
     } finally {

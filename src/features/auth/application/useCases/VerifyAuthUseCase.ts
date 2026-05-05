@@ -68,10 +68,12 @@ export class VerifyAuthUseCase {
       this.tokenStorage.setUser(user.toJSON());
 
       return user;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown verification error";
       console.error(
         "[VerifyAuthUseCase] Token verification failed:",
-        error?.message,
+        message,
       );
 
       // 5. Si la verificación falla, limpiar el storage

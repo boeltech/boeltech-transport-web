@@ -23,14 +23,12 @@ export const loginSchema = z.object({
   password: z
     .string()
     .min(1, "La contraseña es requerida")
-    .min(6, "La contraseña debe tener al menos 6 caracteres"),
+    .min(8, "La contraseña debe tener al menos 8 caracteres"),
 
   subdomain: z
     .string()
     .min(1, "La empresa es requerida")
     .regex(/^[a-z0-9-]+$/, "Solo letras minúsculas, números y guiones"),
-
-  rememberMe: z.boolean().optional().default(false),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
@@ -170,3 +168,49 @@ export const registerSchema = z
   });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+// ============================================
+// MY PROFILE (autoservicio — edición cuenta propia)
+// ============================================
+
+export const myProfileSchema = z.object({
+  firstName: z
+    .string()
+    .min(1, "El nombre es requerido")
+    .max(100, "Máximo 100 caracteres"),
+  lastName: z
+    .string()
+    .min(1, "El apellido es requerido")
+    .max(100, "Máximo 100 caracteres"),
+  email: z
+    .string()
+    .min(1, "El correo es requerido")
+    .email("Ingresa un correo electrónico válido"),
+});
+
+export type MyProfileFormData = z.infer<typeof myProfileSchema>;
+
+// ============================================
+// CHANGE PASSWORD (sesión activa)
+// ============================================
+
+const newPasswordRules = z
+  .string()
+  .min(8, "Mínimo 8 caracteres")
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    "Debe incluir mayúscula, minúscula y número",
+  );
+
+export const changePasswordFormSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Ingresa tu contraseña actual"),
+    newPassword: newPasswordRules,
+    confirmNewPassword: z.string().min(1, "Confirma la nueva contraseña"),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmNewPassword"],
+  });
+
+export type ChangePasswordFormData = z.infer<typeof changePasswordFormSchema>;

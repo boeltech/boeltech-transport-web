@@ -11,7 +11,10 @@ import { authApi } from "../api/authApi";
 import type {
   IAuthRepository,
   AuthResponse,
+  ChangePasswordPayload,
   RefreshResponse,
+  UpdateMyProfilePayload,
+  UpdateProfileResult,
   UserJSON,
 } from "../../domain";
 
@@ -47,10 +50,22 @@ export class AuthRepository implements IAuthRepository {
     return authApi.getProfile();
   }
 
+  async updateProfile(payload: UpdateMyProfilePayload): Promise<UpdateProfileResult> {
+    return authApi.updateProfile(payload);
+  }
+
+  async changePassword(payload: ChangePasswordPayload): Promise<void> {
+    return authApi.changePassword(payload);
+  }
+
   /**
    * Refresca el token de acceso
    */
   async refreshToken(refreshToken: string): Promise<RefreshResponse> {
     return authApi.refresh(refreshToken);
+  }
+
+  async completeProductOnboarding(): Promise<void> {
+    return authApi.completeProductOnboarding();
   }
 }

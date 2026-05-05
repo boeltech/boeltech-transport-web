@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * AuthProvider
  * Clean Architecture - UI Layer
@@ -28,6 +29,7 @@ import {
   User,
   type AuthState,
   type LoginCredentials,
+  type UserJSON,
 } from "../../domain";
 
 // Application
@@ -53,6 +55,10 @@ export interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   /** Cerrar sesión */
   logout: () => Promise<void>;
+  /** Refrescar usuario desde GET /auth/profile (sesión autenticada) */
+  refreshProfile: () => Promise<void>;
+  /** Sincroniza sesión tras PATCH de perfil; opcionalmente guarda nuevo access token. */
+  replaceSessionUser: (json: UserJSON, accessToken?: string) => void;
 }
 
 // ============================================
@@ -229,6 +235,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   // ==========================================
+  // Refrescar perfil (autoservicio lectura / post-login)
+  // ==========================================
+  const refreshProfile = useCallback(async () => {
+    const token = tokenStorage.getToken();
+    if (!token) {
+      return;
+    }
+
+    const userData = await authRepository.getProfile();
+    const user = User.create({
+      ...userData,
+      lastLogin: userData.lastLogin,
+    });
+    tokenStorage.setUser(user.toJSON());
+    setState((prev) => ({
+      ...prev,
+      user,
+      isAuthenticated: true,
+    }));
+  }, [authRepository]);
+
+  const replaceSessionUser = useCallback(
+    (json: UserJSON, accessToken?: string) => {
+      const user = User.fromJSON(json);
+      tokenStorage.setUser(user.toJSON());
+      if (accessToken) {
+        tokenStorage.setToken(accessToken);
+      }
+      setState((prev) => ({
+        ...prev,
+        token: accessToken ?? prev.token,
+        user,
+        isAuthenticated: true,
+      }));
+    },
+    [],
+  );
+
+  // ==========================================
   // Valor del contexto
   // ==========================================
   const value = useMemo<AuthContextType>(
@@ -236,8 +281,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ...state,
       login,
       logout: handleLogout,
+      refreshProfile,
+      replaceSessionUser,
     }),
-    [state, login, handleLogout],
+    [state, login, handleLogout, refreshProfile, replaceSessionUser],
   );
 
   // ==========================================

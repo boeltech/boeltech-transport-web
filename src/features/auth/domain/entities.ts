@@ -114,6 +114,8 @@ export interface UserData {
   tenant: Tenant | TenantData;
   lastLogin?: string | Date;
   permissions?: string[];
+  /** ISO desde API; null = onboarding de producto pendiente */
+  onboardingCompletedAt?: string | Date | null;
 }
 
 /**
@@ -128,6 +130,7 @@ export interface UserJSON {
   tenant: TenantData;
   lastLogin?: string;
   permissions?: string[];
+  onboardingCompletedAt?: string | null;
 }
 
 /**
@@ -148,8 +151,16 @@ export class User {
   public readonly tenant: Tenant;
   public readonly lastLogin?: Date;
   public readonly permissions?: string[];
+  /** undefined = dato no cargado; null = onboarding pendiente */
+  public readonly onboardingCompletedAt?: Date | null;
 
-  private constructor(data: UserData & { tenant: Tenant; lastLogin?: Date }) {
+  private constructor(
+    data: UserData & {
+      tenant: Tenant;
+      lastLogin?: Date;
+      onboardingCompletedAt?: Date | null;
+    },
+  ) {
     this.id = data.id;
     this.email = data.email;
     this.firstName = data.firstName;
@@ -158,6 +169,7 @@ export class User {
     this.tenant = data.tenant;
     this.lastLogin = data.lastLogin;
     this.permissions = data.permissions;
+    this.onboardingCompletedAt = data.onboardingCompletedAt;
     this.validate();
   }
 
@@ -178,10 +190,23 @@ export class User {
           : data.lastLogin;
     }
 
+    let onboardingDate: Date | null | undefined;
+    if (data.onboardingCompletedAt === undefined) {
+      onboardingDate = undefined;
+    } else if (data.onboardingCompletedAt === null) {
+      onboardingDate = null;
+    } else {
+      onboardingDate =
+        typeof data.onboardingCompletedAt === "string"
+          ? new Date(data.onboardingCompletedAt)
+          : data.onboardingCompletedAt;
+    }
+
     return new User({
       ...data,
       tenant,
       lastLogin: lastLoginDate,
+      onboardingCompletedAt: onboardingDate,
     });
   }
 
@@ -193,6 +218,12 @@ export class User {
       ...json,
       tenant: Tenant.create(json.tenant),
       lastLogin: json.lastLogin ? new Date(json.lastLogin) : undefined,
+      onboardingCompletedAt:
+        json.onboardingCompletedAt === undefined
+          ? undefined
+          : json.onboardingCompletedAt === null
+            ? null
+            : new Date(json.onboardingCompletedAt),
     });
   }
 
@@ -281,6 +312,12 @@ export class User {
       tenant: this.tenant.toJSON(),
       lastLogin: this.lastLogin?.toISOString(),
       permissions: this.permissions,
+      onboardingCompletedAt:
+        this.onboardingCompletedAt === undefined
+          ? undefined
+          : this.onboardingCompletedAt === null
+            ? null
+            : this.onboardingCompletedAt.toISOString(),
     };
   }
 

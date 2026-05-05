@@ -52,8 +52,13 @@ const ForgotPasswordPage = () => {
       });
 
       setSuccess(true);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Error al procesar la solicitud");
+    } catch (err: unknown) {
+      const apiError = err as
+        | { response?: { data?: { error?: string } } }
+        | undefined;
+      setError(
+        apiError?.response?.data?.error || "Error al procesar la solicitud",
+      );
     } finally {
       setIsSubmitting(false);
     }

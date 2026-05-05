@@ -12,6 +12,8 @@ export {
   useCurrentUser,
   useAuthLoading,
   useIsAuthenticated,
+  useUpdateMyProfile,
+  useChangePassword,
 } from "./hooks";
 
 // Use Cases

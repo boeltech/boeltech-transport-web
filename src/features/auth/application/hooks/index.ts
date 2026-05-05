@@ -24,7 +24,7 @@ import {
  * @throws Error si se usa fuera del AuthProvider
  *
  * @example
- * const { user, isAuthenticated, login, logout } = useAuth();
+ * const { user, isAuthenticated, login, logout, refreshProfile } = useAuth();
  */
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
@@ -112,3 +112,6 @@ export function useAuthLoading(): boolean {
   const { isLoading } = useAuth();
   return isLoading;
 }
+
+export { useUpdateMyProfile } from "./useUpdateMyProfile";
+export { useChangePassword } from "./useChangePassword";
