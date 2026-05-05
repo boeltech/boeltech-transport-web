@@ -30,7 +30,7 @@ import {
   mapDriver,
   mapPaginatedDriverListItems,
   mapPaginatedDriverTrips,
-  // toApiCreateDriver,
+  toApiCreateDriver,
   toApiUpdateDriver,
   toApiUpdateStatus,
   type ApiDriverResponse,
@@ -130,11 +130,11 @@ export class DriverRepository implements IDriverRepository {
    * Crea un nuevo conductor
    */
   async create(data: CreateDriverDTO): Promise<MappedSingleResult<Driver>> {
-    // const apiData = toApiCreateDriver(data);
+    const payload = toApiCreateDriver(data);
 
     const response = await apiClient.post<ApiSingleResponse<ApiDriverResponse>>(
       DRIVERS_ENDPOINT,
-      data,
+      payload,
     );
 
     return mapDriver(response);

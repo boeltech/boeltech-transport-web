@@ -22,6 +22,7 @@ import type { DriverListItem, DriverStatusType } from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { DriverActions } from "./DriverActions";
 import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
+import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
 
 // ============================================================================
 // TYPES
@@ -180,7 +181,9 @@ export function DriverTable({
                 </TableCell>
 
                 {/* Teléfono */}
-                <TableCell>{driver.employee.phone || "—"}</TableCell>
+                <TableCell>
+                  {employeePrimaryContactDisplay(driver.employee) ?? "—"}
+                </TableCell>
 
                 {/* Licencia */}
                 <TableCell className="font-mono">

@@ -48,6 +48,7 @@ export interface ApiEmployeeRef {
   full_name: string;
   email: string | null;
   phone: string | null;
+  mobile_phone: string | null;
   curp: string | null;
   rfc: string | null;
 }
@@ -180,6 +181,7 @@ function mapEmployeeRefToDomain(raw: DeepCamelCase<ApiEmployeeRef>) {
     fullName: raw.fullName,
     email: raw.email,
     phone: raw.phone,
+    mobilePhone: raw.mobilePhone ?? null,
     curp: raw.curp,
     rfc: raw.rfc,
   };

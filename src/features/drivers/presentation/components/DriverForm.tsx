@@ -14,8 +14,8 @@
  * - Notas
  */
 
-import { forwardRef, useEffect, useImperativeHandle } from "react";
-import { useForm } from "react-hook-form";
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
@@ -119,28 +119,90 @@ function FormField({
   );
 }
 
+function reviewLine(label: string, value: string) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="break-words font-medium">{value.trim() ? value : "—"}</p>
+    </div>
+  );
+}
+
 function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData }) {
   const v = getValues();
   const licenseLabel =
     LICENSE_TYPES.find((t) => t.value === v.licenseType)?.label ?? v.licenseType;
+  const psychLabel =
+    PSYCHOMETRIC_RESULTS.find((r) => r.value === v.psychometricTestResult)
+      ?.label ?? (v.psychometricTestResult || "—");
+  const drugLabel =
+    DRUG_TEST_RESULTS.find((r) => r.value === v.drugTestResult)?.label ??
+    (v.drugTestResult || "—");
+
   return (
     <FormSectionCard
       title="Revisión"
       icon={<ClipboardCheck className="h-4 w-4" />}
       description="Confirma los datos antes de registrar al conductor"
-      contentClassName="space-y-3 text-sm"
+      contentClassName="space-y-6 text-sm"
     >
-        <div>
-          <p className="text-muted-foreground">Empleado (ID)</p>
-          <p className="font-mono text-xs font-medium">{v.employeeId || "—"}</p>
+      <div className="space-y-2 border-b pb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Empleado
+        </p>
+        {reviewLine(
+          "ID de empleado vinculado",
+          v.employeeId ? v.employeeId : "",
+        )}
+      </div>
+
+      <div className="space-y-3 border-b pb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Licencia y certificado médico
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {reviewLine("Número de licencia", v.licenseNumber)}
+          {reviewLine("Tipo", licenseLabel)}
+          {reviewLine("Vencimiento licencia", v.licenseExpiry)}
+          {reviewLine(
+            "Estado emisor",
+            v.licenseState
+              ? v.licenseState
+              : "No especificado",
+          )}
+          {reviewLine(
+            "Número certificado médico",
+            v.medicalCertificateNumber ?? "",
+          )}
+          {reviewLine(
+            "Vencimiento certificado médico",
+            v.medicalCertificateExpiry ?? "",
+          )}
+          {reviewLine(
+            "Institución emisora (médico)",
+            v.medicalCertificateIssuer ?? "",
+          )}
         </div>
-        <div>
-          <p className="text-muted-foreground">Licencia</p>
-          <p className="font-medium">
-            {v.licenseNumber} · {licenseLabel}
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Exámenes, dispositivo y notas
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {reviewLine("Fecha examen psicométrico", v.psychometricTestDate ?? "")}
+          {reviewLine("Resultado psicométrico", psychLabel)}
+          {reviewLine("Fecha último antidoping", v.lastDrugTestDate ?? "")}
+          {reviewLine("Resultado antidoping", drugLabel)}
+          {reviewLine("ID dispositivo GPS", v.assignedDeviceId ?? "")}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Notas</p>
+          <p className="whitespace-pre-wrap break-words text-sm font-medium">
+            {v.notes?.trim() ? v.notes : "—"}
           </p>
-          <p className="text-muted-foreground">Vence: {v.licenseExpiry || "—"}</p>
         </div>
+      </div>
     </FormSectionCard>
   );
 }
@@ -169,7 +231,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     getValues,
     trigger,
     formState: { errors, isDirty },
@@ -179,9 +241,12 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     defaultValues: defaultDriverFormValues,
   });
 
-  const handleFormSubmit = (data: DriverFormData) => {
-    onSubmit(data);
-  };
+  const handleFormSubmit = useCallback(
+    (data: DriverFormData) => {
+      onSubmit(data);
+    },
+    [onSubmit],
+  );
 
   useImperativeHandle(
     ref,
@@ -195,15 +260,18 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         void handleSubmit(handleFormSubmit)();
       },
     }),
-    [trigger, handleSubmit],
+    [trigger, handleSubmit, handleFormSubmit],
   );
 
   // Watch values for controlled components
-  const watchedEmployeeId = watch("employeeId");
-  const watchedLicenseType = watch("licenseType");
-  const watchedLicenseState = watch("licenseState");
-  const watchedPsychometricResult = watch("psychometricTestResult");
-  const watchedDrugTestResult = watch("drugTestResult");
+  const watchedEmployeeId = useWatch({ control, name: "employeeId" });
+  const watchedLicenseType = useWatch({ control, name: "licenseType" });
+  const watchedLicenseState = useWatch({ control, name: "licenseState" });
+  const watchedPsychometricResult = useWatch({
+    control,
+    name: "psychometricTestResult",
+  });
+  const watchedDrugTestResult = useWatch({ control, name: "drugTestResult" });
 
   // Populate form when editing
   useEffect(() => {
@@ -215,7 +283,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       // Validar que psychometricTestResult sea un valor válido
       const validPsychometricResults = PSYCHOMETRIC_RESULTS.map((r) => r.value);
       const normalizedPsychometricResult = validPsychometricResults.includes(
-        driver.psychometricTestResult as any,
+        driver.psychometricTestResult ?? "",
       )
         ? driver.psychometricTestResult
         : "";
@@ -223,7 +291,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       // Validar que drugTestResult sea un valor válido
       const validDrugTestResults = DRUG_TEST_RESULTS.map((r) => r.value);
       const normalizedDrugTestResult = validDrugTestResults.includes(
-        driver.drugTestResult as any,
+        driver.drugTestResult ?? "",
       )
         ? driver.drugTestResult
         : "";
@@ -251,12 +319,17 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
   }, [driver, mode, reset]);
 
   // Handler para Select que maneja el valor vacío
-  const handleSelectChange = (field: keyof DriverFormData, value: string) => {
-    setValue(field, value as any, { shouldValidate: true, shouldDirty: true });
+  const handleSelectChange = <K extends keyof DriverFormData>(
+    field: K,
+    value: DriverFormData[K],
+  ) => {
+    setValue(field, value, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {/* Alta: vínculo a empleado. En edición el empleado no cambia (no hay selector). */}
+      {mode !== "edit" ? (
       <div
         className={cn("space-y-6", wizardActive && ws !== 0 && "hidden")}
         data-wizard-panel="0"
@@ -294,10 +367,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               setValue("employeeId", value, { shouldValidate: true })
             }
             error={errors.employeeId?.message}
-            disabled={mode === "edit"}
           />
       </FormSectionCard>
       </div>
+      ) : null}
 
       <div
         className={cn("space-y-6", wizardActive && ws !== 1 && "hidden")}

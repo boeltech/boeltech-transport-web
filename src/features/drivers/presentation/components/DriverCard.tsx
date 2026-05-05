@@ -33,6 +33,7 @@ import type { DriverListItem, DriverStatusType } from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { formatDriverName } from "../config/driverStatusConfig";
 import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
+import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
 
 // ============================================================================
 // TYPES
@@ -144,7 +145,8 @@ export function DriverCard({
           <div className="flex items-center gap-2 text-muted-foreground">
             <Phone className="h-4 w-4 shrink-0" />
             <span className="truncate">
-              {driver.employee.phone || "Sin teléfono"}
+              {employeePrimaryContactDisplay(driver.employee) ??
+                "Sin teléfono"}
             </span>
           </div>
 

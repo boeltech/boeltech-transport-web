@@ -14,6 +14,11 @@
  */
 
 import { z } from "zod";
+import type {
+  CreateDriverDTO,
+  DriverStatusType,
+  UpdateDriverDTO,
+} from "../../domain";
 
 // ============================================================================
 // Constants
@@ -159,7 +164,7 @@ export const driverSchema = z.object({
 export type DriverFormData = z.infer<typeof driverSchema>;
 
 /** Campos por paso del wizard de alta (0–2); el paso 3 es revisión. */
-export const DRIVER_CREATE_WIZARD_STEP_FIELDS: [keyof DriverFormData][][] = [
+export const DRIVER_CREATE_WIZARD_STEP_FIELDS: (keyof DriverFormData)[][] = [
   ["employeeId"],
   [
     "licenseNumber",
@@ -202,29 +207,74 @@ export const defaultDriverFormValues: DriverFormData = {
 };
 
 // ============================================================================
-// Mapper: Form Data → API Request (snake_case)
+// Mapper: Form → CreateDriverDTO (dominio / API vía toApiCreateDriver)
 // ============================================================================
 
+function trimOrEmptyToUndefined(value: string | undefined): string | undefined {
+  const t = value?.trim();
+  return t ? t : undefined;
+}
+
 /**
- * Convierte los datos del formulario al formato que espera el backend.
- * Transforma camelCase → snake_case
- * Solo incluye campos con valor (no envía strings vacíos)
+ * Normaliza el alta desde el formulario al DTO de creación.
+ * Evita enviar `""` en fechas u opcionales (el backend valida YYYY-MM-DD estricto).
  */
-// export function toApiCreateDriver(data: DriverFormData) {
-//   return {
-//     employee_id: data.employeeId,
-//     license_number: data.licenseNumber,
-//     license_type: data.licenseType,
-//     license_expiry: data.licenseExpiry,
-//     license_state: data.licenseState || undefined,
-//     medical_certificate_number: data.medicalCertificateNumber || undefined,
-//     medical_certificate_expiry: data.medicalCertificateExpiry || undefined,
-//     medical_certificate_issuer: data.medicalCertificateIssuer || undefined,
-//     psychometric_test_date: data.psychometricTestDate || undefined,
-//     psychometric_test_result: data.psychometricTestResult || undefined,
-//     last_drug_test_date: data.lastDrugTestDate || undefined,
-//     drug_test_result: data.drugTestResult || undefined,
-//     assigned_device_id: data.assignedDeviceId || undefined,
-//     notes: data.notes || undefined,
-//   };
-// }
+/**
+ * Normaliza edición desde el formulario al DTO de actualización (incluye status/isActive).
+ */
+export function driverFormDataToUpdateDriverDTO(
+  data: DriverFormData,
+  base: { status: DriverStatusType; isActive: boolean },
+): UpdateDriverDTO {
+  return {
+    licenseNumber: data.licenseNumber.trim(),
+    licenseType: data.licenseType,
+    licenseExpiry: data.licenseExpiry,
+    licenseIssuingState: trimOrEmptyToUndefined(data.licenseState) ?? null,
+    medicalCertificateNumber:
+      trimOrEmptyToUndefined(data.medicalCertificateNumber) ?? null,
+    medicalCertificateExpiry:
+      trimOrEmptyToUndefined(data.medicalCertificateExpiry) ?? null,
+    medicalCertificateIssuer:
+      trimOrEmptyToUndefined(data.medicalCertificateIssuer) ?? null,
+    psychometricTestDate:
+      trimOrEmptyToUndefined(data.psychometricTestDate) ?? null,
+    psychometricTestResult:
+      trimOrEmptyToUndefined(data.psychometricTestResult) ?? null,
+    lastDrugTestDate: trimOrEmptyToUndefined(data.lastDrugTestDate) ?? null,
+    drugTestResult: trimOrEmptyToUndefined(data.drugTestResult) ?? null,
+    assignedDeviceId: trimOrEmptyToUndefined(data.assignedDeviceId) ?? null,
+    notes: trimOrEmptyToUndefined(data.notes) ?? null,
+    status: base.status,
+    isActive: base.isActive,
+  };
+}
+
+export function driverFormDataToCreateDriverDTO(
+  data: DriverFormData,
+): CreateDriverDTO {
+  return {
+    employeeId: data.employeeId,
+    licenseNumber: data.licenseNumber.trim(),
+    licenseType: data.licenseType,
+    licenseExpiry: data.licenseExpiry,
+    licenseIssuingState: trimOrEmptyToUndefined(data.licenseState),
+    medicalCertificateNumber: trimOrEmptyToUndefined(
+      data.medicalCertificateNumber,
+    ),
+    medicalCertificateExpiry: trimOrEmptyToUndefined(
+      data.medicalCertificateExpiry,
+    ),
+    medicalCertificateIssuer: trimOrEmptyToUndefined(
+      data.medicalCertificateIssuer,
+    ),
+    psychometricTestDate: trimOrEmptyToUndefined(data.psychometricTestDate),
+    psychometricTestResult: trimOrEmptyToUndefined(
+      data.psychometricTestResult,
+    ),
+    lastDrugTestDate: trimOrEmptyToUndefined(data.lastDrugTestDate),
+    drugTestResult: trimOrEmptyToUndefined(data.drugTestResult),
+    assignedDeviceId: trimOrEmptyToUndefined(data.assignedDeviceId),
+    notes: trimOrEmptyToUndefined(data.notes),
+  };
+}

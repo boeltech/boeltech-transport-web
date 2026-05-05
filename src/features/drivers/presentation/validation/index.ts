@@ -12,4 +12,6 @@ export {
   type DriverFormData,
   defaultDriverFormValues,
   MEXICAN_STATES,
+  driverFormDataToCreateDriverDTO,
+  driverFormDataToUpdateDriverDTO,
 } from "./driverSchema";

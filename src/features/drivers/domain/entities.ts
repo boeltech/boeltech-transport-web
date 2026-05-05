@@ -96,6 +96,8 @@ export interface EmployeeRef {
   readonly fullName: string;
   readonly email: string | null;
   readonly phone: string | null;
+  /** Celular del empleado; preferido para contacto operativo frente a `phone`. */
+  readonly mobilePhone: string | null;
   readonly curp: string | null;
   readonly rfc: string | null;
 }
