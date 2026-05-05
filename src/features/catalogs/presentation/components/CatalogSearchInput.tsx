@@ -310,10 +310,10 @@ export function CatalogSearchInput({
 /**
  * Búsqueda de productos/servicios Carta Porte
  */
-export interface ProductoServicioCPSearchProps extends Omit<
+export type ProductoServicioCPSearchProps = Omit<
   CatalogSearchInputProps,
   "typeCode"
-> {}
+>;
 
 export function ProductoServicioCPSearch(props: ProductoServicioCPSearchProps) {
   return (
@@ -328,10 +328,7 @@ export function ProductoServicioCPSearch(props: ProductoServicioCPSearchProps) {
 /**
  * Búsqueda de unidades de medida SAT
  */
-export interface UnidadMedidaSearchProps extends Omit<
-  CatalogSearchInputProps,
-  "typeCode"
-> {}
+export type UnidadMedidaSearchProps = Omit<CatalogSearchInputProps, "typeCode">;
 
 export function UnidadMedidaSearch(props: UnidadMedidaSearchProps) {
   return (
@@ -346,10 +343,10 @@ export function UnidadMedidaSearch(props: UnidadMedidaSearchProps) {
 /**
  * Búsqueda de materiales peligrosos
  */
-export interface MaterialPeligrosoSearchProps extends Omit<
+export type MaterialPeligrosoSearchProps = Omit<
   CatalogSearchInputProps,
   "typeCode"
-> {}
+>;
 
 export function MaterialPeligrosoSearch(props: MaterialPeligrosoSearchProps) {
   return (

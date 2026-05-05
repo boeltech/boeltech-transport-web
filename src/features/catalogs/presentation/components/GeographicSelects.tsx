@@ -17,7 +17,7 @@
  * Ubicación: src/features/catalogs/presentation/components/GeographicSelects.tsx
  */
 
-import { forwardRef, useState, useCallback, useMemo, useEffect } from "react";
+import { forwardRef, useState, useCallback, useMemo } from "react";
 import {
   Command,
   CommandEmpty,
@@ -124,12 +124,10 @@ const LocalidadCombobox = forwardRef<HTMLButtonElement, LocalidadComboboxProps>(
       },
       [onValueChange],
     );
-
-    useEffect(() => {
-      if (!open) {
-        setSearchQuery("");
-      }
-    }, [open]);
+    const handleOpenChange = useCallback((nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) setSearchQuery("");
+    }, []);
 
     if (isDisabled) {
       return (
@@ -153,7 +151,7 @@ const LocalidadCombobox = forwardRef<HTMLButtonElement, LocalidadComboboxProps>(
     }
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             ref={ref}
@@ -424,15 +422,13 @@ const CodigoPostalCombobox = forwardRef<
       },
       [searchQuery, onValueChange],
     );
-
-    useEffect(() => {
-      if (!open) {
-        setSearchQuery("");
-      }
-    }, [open]);
+    const handleOpenChange = useCallback((nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) setSearchQuery("");
+    }, []);
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             ref={ref}

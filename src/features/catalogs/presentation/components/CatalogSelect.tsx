@@ -185,10 +185,7 @@ CatalogSelect.displayName = "CatalogSelect";
 /**
  * Select para estados de México
  */
-export interface EstadoSelectProps extends Omit<
-  CatalogSelectProps,
-  "typeCode"
-> {}
+export type EstadoSelectProps = Omit<CatalogSelectProps, "typeCode">;
 
 export const EstadoSelect = forwardRef<HTMLButtonElement, EstadoSelectProps>(
   (props, ref) => (

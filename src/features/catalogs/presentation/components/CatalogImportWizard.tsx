@@ -12,7 +12,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -137,6 +137,12 @@ export function CatalogImportWizard({
       updateExisting: true,
       deactivateMissing: false,
     },
+  });
+  const skipErrors = useWatch({ control: form.control, name: "skipErrors" });
+  const updateExisting = useWatch({ control: form.control, name: "updateExisting" });
+  const deactivateMissing = useWatch({
+    control: form.control,
+    name: "deactivateMissing",
   });
 
   // Actualizar el valor de versión cuando cambie la versión sugerida
@@ -554,7 +560,7 @@ export function CatalogImportWizard({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="skipErrors"
-            checked={form.watch("skipErrors")}
+            checked={skipErrors}
             onCheckedChange={(checked) =>
               form.setValue("skipErrors", checked === true)
             }
@@ -567,7 +573,7 @@ export function CatalogImportWizard({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="updateExisting"
-            checked={form.watch("updateExisting")}
+            checked={updateExisting}
             onCheckedChange={(checked) =>
               form.setValue("updateExisting", checked === true)
             }
@@ -580,7 +586,7 @@ export function CatalogImportWizard({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="deactivateMissing"
-            checked={form.watch("deactivateMissing")}
+            checked={deactivateMissing}
             onCheckedChange={(checked) =>
               form.setValue("deactivateMissing", checked === true)
             }
