@@ -77,6 +77,46 @@ Este componente representa la **fundacion de Fase 1**.
 La integracion en formularios productivos (`clients`, `employees`, `settings`,
 `trips`) queda para fases posteriores.
 
+## Base UX para EntityAddressForm (fase previa)
+
+Antes de extraer `EntityAddressForm`, el formulario de clientes ya adopta estas
+reglas reutilizables:
+
+1. **Single Source of Truth para mensajes globales**
+   - Componente: `AddressFormNotice.tsx`
+   - Resolucion por prioridad: `error > warning > info`
+   - Solo se muestra un banner global a la vez.
+
+2. **Copy centralizado por contexto**
+   - Archivo: `addressFormCopy.ts`
+   - Contextos iniciales:
+     - `billingOnCreate`
+     - `additional`
+   - Evita hardcodear microcopy en formularios de modulo.
+
+3. **Secciones estables del formulario**
+   - Contexto de direccion (tipo/principal + nombre del lugar)
+   - Ubicacion SAT y domicilio (`AddressInput`)
+   - Datos fiscales operativos
+   - Contacto y operacion
+
+4. **Validacion en dos niveles**
+   - Nivel global: `AddressFormNotice`
+   - Nivel campo: mensajes inline del schema/RHF
+
+### Criterios de extraccion para `EntityAddressForm`
+
+Cuando al menos 2 modulos adicionales requieran este mismo cascaron de secciones,
+extraer un componente shared con esta firma minima:
+
+- `context` (reglas de visibilidad y bloqueos)
+- `copy` (catalogo de microcopy)
+- `noticeRules` (reglas globales de feedback)
+- `sections` (habilitar/deshabilitar bloques)
+
+Con eso, cada modulo solo aporta DTO/schema/contrato de negocio, sin duplicar
+estructura visual ni mensajes.
+
 ## Demo de referencia
 
 - Ruta: `/dev/address-input`

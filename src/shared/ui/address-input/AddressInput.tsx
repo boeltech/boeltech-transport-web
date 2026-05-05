@@ -38,8 +38,8 @@ const MODE_REQUIRED_FIELDS: Record<
   }
 > = {
   "carta-porte": {
-    locality: true,
-    neighborhood: true,
+    locality: false,
+    neighborhood: false,
   },
   cfdi: {
     locality: false,
@@ -81,6 +81,25 @@ function resolveMunicipalityCatalogCode(
   const shortCode = toShortSatCode(normalized);
   const fromShort = municipalities.find(
     (municipality) => toShortSatCode(municipality.code) === shortCode,
+  );
+  return fromShort?.code ?? normalized;
+}
+
+function resolveCatalogCodeByShort(
+  rawValue: string,
+  options: Array<{ code: string }>,
+): string {
+  const normalized = rawValue.trim();
+  if (!normalized) return "";
+
+  const exact = options.find(
+    (option) => option.code.toUpperCase() === normalized.toUpperCase(),
+  );
+  if (exact) return exact.code;
+
+  const shortCode = toShortSatCode(normalized);
+  const fromShort = options.find(
+    (option) => toShortSatCode(option.code) === shortCode,
   );
   return fromShort?.code ?? normalized;
 }
@@ -134,11 +153,11 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
     onCartaPorteReadyChange,
     extraSlots,
     disabled = false,
+    hideInformativeAlerts = false,
   } = props;
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const lastAppliedPostalCodeRef = useRef<string>("");
-  const lastKnownMunicipalityShortRef = useRef<string>("");
   const requiredByMode = MODE_REQUIRED_FIELDS[mode];
 
   const postalCodeField = useAddressField(props, "postalCode");
@@ -198,16 +217,34 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
   const hasNeighborhoodValue = Boolean(
     neighborhoodField.field.value || neighborhoodNameField.field.value,
   );
-  useEffect(() => {
-    const currentShort = toShortSatCode(String(municipalityField.field.value ?? "").trim());
-    if (currentShort) {
-      lastKnownMunicipalityShortRef.current = currentShort;
-    }
-  }, [municipalityField.field.value]);
 
-  const municipalityRawForDisplay =
-    String(municipalityField.field.value ?? "").trim() ||
-    lastKnownMunicipalityShortRef.current;
+  const cartaPorteSatMinimumMet = useMemo(() => {
+    if (mode !== "carta-porte") return false;
+    const cp = String(postalCodeField.field.value ?? "").trim();
+    const country = String(countryField.field.value ?? "").trim() || "MEX";
+    return Boolean(
+      country &&
+        stateField.field.value &&
+        /^\d{5}$/.test(cp) &&
+        hasPostalLookupData &&
+        postalLookupFound,
+    );
+  }, [
+    countryField.field.value,
+    hasPostalLookupData,
+    mode,
+    postalCodeField.field.value,
+    postalLookupFound,
+    stateField.field.value,
+  ]);
+
+  const municipalityRawForDisplay = String(
+    municipalityField.field.value ?? "",
+  ).trim();
+  const localityRawForDisplay = String(localityField.field.value ?? "").trim();
+  const neighborhoodRawForDisplay = String(
+    neighborhoodField.field.value ?? "",
+  ).trim();
   const municipalityCatalogValue = useMemo(
     () =>
       resolveMunicipalityCatalogCode(
@@ -215,6 +252,22 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         municipalities,
       ),
     [municipalityRawForDisplay, municipalities],
+  );
+  const localityCatalogValue = useMemo(
+    () =>
+      resolveCatalogCodeByShort(
+        localityRawForDisplay,
+        postalLookup.data?.localities ?? [],
+      ),
+    [localityRawForDisplay, postalLookup.data?.localities],
+  );
+  const neighborhoodCatalogValue = useMemo(
+    () =>
+      resolveCatalogCodeByShort(
+        neighborhoodRawForDisplay,
+        catalogNeighborhoodOptions,
+      ),
+    [catalogNeighborhoodOptions, neighborhoodRawForDisplay],
   );
 
   useEffect(() => {
@@ -233,7 +286,9 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
     }
 
     if (postalLookup.data.localities.length === 1) {
-      localityField.field.onChange(postalLookup.data.localities[0]?.code ?? "");
+      localityField.field.onChange(
+        toShortSatCode(postalLookup.data.localities[0]?.code ?? ""),
+      );
     }
 
     if (postalLookup.data.neighborhoods.length === 1) {
@@ -275,20 +330,16 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
   useEffect(() => {
     if (mode !== "carta-porte" || !onCartaPorteReadyChange) return;
 
+    const cp = String(postalCodeField.field.value ?? "").trim();
+    const country = String(countryField.field.value ?? "").trim() || "MEX";
     const isReady = Boolean(
-      stateField.field.value &&
-        municipalityField.field.value &&
-        postalCodeField.field.value &&
-        localityField.field.value &&
-        neighborhoodField.field.value,
+      country && stateField.field.value && /^\d{5}$/.test(cp),
     );
 
     onCartaPorteReadyChange(isReady);
   }, [
-    localityField.field.value,
+    countryField.field.value,
     mode,
-    municipalityField.field.value,
-    neighborhoodField.field.value,
     onCartaPorteReadyChange,
     postalCodeField.field.value,
     stateField.field.value,
@@ -312,11 +363,14 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
     municipalityField.field.onChange(
       toShortSatCode(String(mapSavedAddressToValue(selected, "satMunicipalityCode") ?? "")),
     );
-    lastKnownMunicipalityShortRef.current = toShortSatCode(
-      String(mapSavedAddressToValue(selected, "satMunicipalityCode") ?? "").trim(),
+    localityField.field.onChange(
+      toShortSatCode(String(mapSavedAddressToValue(selected, "satLocalityCode") ?? "")),
     );
-    setFieldValue("satLocalityCode", localityField.field);
-    setFieldValue("satNeighborhoodCode", neighborhoodField.field);
+    neighborhoodField.field.onChange(
+      toShortSatCode(
+        String(mapSavedAddressToValue(selected, "satNeighborhoodCode") ?? ""),
+      ),
+    );
     setFieldValue("neighborhoodName", neighborhoodNameField.field);
     setFieldValue("latitude", latitudeField.field);
     setFieldValue("longitude", longitudeField.field);
@@ -371,7 +425,6 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
               if (numericValue !== lastAppliedPostalCodeRef.current) {
                 stateField.field.onChange("");
                 municipalityField.field.onChange("");
-                lastKnownMunicipalityShortRef.current = "";
                 localityField.field.onChange("");
               }
             }}
@@ -419,7 +472,6 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
             onValueChange={(value) => {
               stateField.field.onChange(value);
               municipalityField.field.onChange("");
-              lastKnownMunicipalityShortRef.current = "";
               localityField.field.onChange("");
               neighborhoodField.field.onChange("");
               neighborhoodNameField.field.onChange("");
@@ -444,13 +496,24 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-municipality`}>Municipio *</Label>
+          <Label htmlFor={`${props.namePrefix}-municipality`}>
+            Municipio
+            {mode === "carta-porte" ? (
+              <span className="font-normal text-muted-foreground"> (opcional)</span>
+            ) : null}
+          </Label>
+          {/*
+            Radix Select no muestra etiqueta si el primer value no coincide con ningún Item
+            (ej. "039" vs catálogo "JAL-039"). En la 1ª visita el catálogo suele llegar async;
+            al poblar `municipalities` el resolved value cambia a compuesto: sin remount a veces
+            el trigger queda en blanco hasta la 2ª entrada. La key fuerza resync al cargar items.
+          */}
           <Select
+            key={`${props.namePrefix}-municipality-${municipalityCatalogValue}-${municipalities.length}-${isLoadingMunicipalities ? 1 : 0}`}
             value={municipalityCatalogValue}
             onValueChange={(value) => {
               const shortMunicipalityCode = toShortSatCode(value);
               municipalityField.field.onChange(shortMunicipalityCode);
-              lastKnownMunicipalityShortRef.current = shortMunicipalityCode;
               localityField.field.onChange("");
             }}
             disabled={disabled || isLoadingMunicipalities}
@@ -477,8 +540,10 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
             Localidad {requiredByMode.locality ? "*" : ""}
           </Label>
           <Select
-            value={String(localityField.field.value ?? "")}
-            onValueChange={localityField.field.onChange}
+            value={localityCatalogValue}
+            onValueChange={(value) =>
+              localityField.field.onChange(toShortSatCode(value))
+            }
             disabled={disabled || (postalLookup.data?.localities.length ?? 0) === 0}
           >
             <SelectTrigger id={`${props.namePrefix}-locality`}>
@@ -517,12 +582,12 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
             />
           ) : (
             <Select
-              value={String(neighborhoodField.field.value ?? "")}
+              value={neighborhoodCatalogValue}
               onValueChange={(value) => {
                 const selectedNeighborhood = catalogNeighborhoodOptions.find(
                   (item) => item.code === value,
                 );
-                neighborhoodField.field.onChange(value);
+                neighborhoodField.field.onChange(toShortSatCode(value));
                 neighborhoodNameField.field.onChange(selectedNeighborhood?.name ?? "");
               }}
               disabled={disabled || isLoadingNeighborhoodsByPostalCode}
@@ -668,7 +733,7 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         </Alert>
       )}
 
-      {postalLookup.isLoading && (
+      {postalLookup.isLoading && !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
             Consultando catalogo SAT para el codigo postal...
@@ -697,7 +762,10 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         </Alert>
       )}
 
-      {hasPostalLookupData && postalLookupFound && hasMultipleNeighborhoods && (
+      {hasPostalLookupData &&
+        postalLookupFound &&
+        hasMultipleNeighborhoods &&
+        !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
             Se encontraron multiples colonias para el CP. Selecciona la correcta.
@@ -705,7 +773,10 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         </Alert>
       )}
 
-      {hasPostalLookupData && postalLookupFound && hasMultipleLocalities && (
+      {hasPostalLookupData &&
+        postalLookupFound &&
+        hasMultipleLocalities &&
+        !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
             Se encontraron multiples localidades para el CP. Selecciona la que
@@ -714,12 +785,13 @@ export default function AddressInput<TFieldValues extends FieldValues = FieldVal
         </Alert>
       )}
 
-      {mode === "carta-porte" && hasPostalLookupData && lookupHasNeighborhoods && (
+      {cartaPorteSatMinimumMet && !hideInformativeAlerts && (
         <Alert variant="success">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription>
-            Direccion con datos SAT aptos para Carta Porte cuando completes los
-            campos obligatorios.
+            Minimo SAT de ubicacion cubierto (pais, estado, codigo postal).
+            Municipio, localidad y colonia son opcionales en el complemento si no
+            se envian.
           </AlertDescription>
         </Alert>
       )}

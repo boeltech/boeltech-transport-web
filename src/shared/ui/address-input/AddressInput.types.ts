@@ -42,4 +42,6 @@ export interface AddressInputProps<TFieldValues extends FieldValues = FieldValue
   autoFocusFirstField?: boolean;
   onCartaPorteReadyChange?: (ready: boolean) => void;
   disabled?: boolean;
+  /** Oculta avisos informativos del lookup SAT por CP (p. ej. al precargar desde catálogo de cliente). */
+  hideInformativeAlerts?: boolean;
 }

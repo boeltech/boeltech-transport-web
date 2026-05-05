@@ -25,14 +25,30 @@ describe("addressSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects when neighborhood code and name are missing", () => {
+  it("accepts SAT composite locality code", () => {
+    const result = addressSchema.safeParse({
+      ...validBaseAddress,
+      satLocalityCode: "AGU-01",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts when neighborhood code and name are missing (minimo SAT)", () => {
     const result = addressSchema.safeParse({
       ...validBaseAddress,
       satNeighborhoodCode: "",
       neighborhoodName: "",
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty municipality when other SAT base fields are valid", () => {
+    const result = addressSchema.safeParse({
+      ...validBaseAddress,
+      satMunicipalityCode: "",
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects when only latitude is provided", () => {
@@ -47,14 +63,15 @@ describe("addressSchema", () => {
 });
 
 describe("cartaPorteReadyAddressSchema", () => {
-  it("requires locality and sat neighborhood for carta porte", () => {
-    const result = cartaPorteReadyAddressSchema.safeParse({
+  it("matches addressSchema (no extra locality/colonia SAT requirements)", () => {
+    const payload = {
       ...validBaseAddress,
       satLocalityCode: "",
       satNeighborhoodCode: "",
       neighborhoodName: "Moderna",
-    });
-
-    expect(result.success).toBe(false);
+    };
+    expect(cartaPorteReadyAddressSchema.safeParse(payload).success).toBe(
+      addressSchema.safeParse(payload).success,
+    );
   });
 });

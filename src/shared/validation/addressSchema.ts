@@ -29,13 +29,23 @@ export const addressSchema = z
       .string()
       .min(2, "Estado requerido")
       .max(5, "Codigo de estado invalido"),
-    satMunicipalityCode: z
-      .string()
-      .min(2, "Municipio requerido")
-      .max(5, "Codigo de municipio invalido"),
+    /** En Carta Porte 3.1 el domicilio puede omitir municipio/localidad/colonia si no se envían. */
+    satMunicipalityCode: z.preprocess(
+      (v) => (v === undefined || v === null ? "" : v),
+      z.union([
+        z.literal(""),
+        z
+          .string()
+          .min(2, "Codigo de municipio invalido")
+          .max(5, "Codigo de municipio invalido"),
+      ]),
+    ),
     satLocalityCode: z
       .string()
-      .max(5, "Codigo de localidad invalido")
+      // SAT localidad puede venir como código corto ("01")
+      // o compuesto por estado + consecutivo ("AGU-01").
+      .max(10, "Codigo de localidad invalido")
+      .regex(/^[A-Z0-9-]*$/i, "Codigo de localidad invalido")
       .optional()
       .nullable(),
     satNeighborhoodCode: z
@@ -49,18 +59,6 @@ export const addressSchema = z
     isPrimary: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
-    const hasNeighborhoodCode = Boolean(value.satNeighborhoodCode);
-    const hasNeighborhoodName = Boolean(value.neighborhoodName);
-
-    if (!hasNeighborhoodCode && !hasNeighborhoodName) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["satNeighborhoodCode"],
-        message:
-          "Debes seleccionar colonia SAT o capturar una colonia manual",
-      });
-    }
-
     const hasLat = value.latitude != null;
     const hasLng = value.longitude != null;
 
@@ -73,24 +71,11 @@ export const addressSchema = z
     }
   });
 
-export const cartaPorteReadyAddressSchema = addressSchema.superRefine(
-  (value, ctx) => {
-    if (!value.satLocalityCode) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["satLocalityCode"],
-        message: "Localidad requerida para Carta Porte",
-      });
-    }
-
-    if (!value.satNeighborhoodCode) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["satNeighborhoodCode"],
-        message: "Colonia SAT requerida para Carta Porte",
-      });
-    }
-  },
-);
+/**
+ * Mismo contrato que `addressSchema`.
+ * El SAT no exige localidad ni colonia en el complemento si no se envían;
+ * no añadimos refinamientos extra frente al formulario canónico de domicilio.
+ */
+export const cartaPorteReadyAddressSchema = addressSchema;
 
 export type AddressFormValues = z.infer<typeof addressSchema>;
