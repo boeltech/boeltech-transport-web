@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Application Routes
  *
@@ -9,7 +10,8 @@
 
 import {
   createBrowserRouter,
-  // Navigate
+  Navigate,
+  useParams,
 } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
 
@@ -52,7 +54,7 @@ function PageLoader() {
 // Helper para Suspense
 // ============================================
 function withSuspense(
-  Component: React.LazyExoticComponent<React.ComponentType<any>>,
+  Component: React.LazyExoticComponent<React.ComponentType>,
 ): ReactNode {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -74,6 +76,11 @@ const LoginPage = lazy(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
 const RegisterPage = lazy(() => import("@/pages/auth/register"));
+const AcceptInvitationPage = lazy(() =>
+  import("@features/invitations").then((m) => ({
+    default: m.AcceptInvitationPage,
+  })),
+);
 
 // Dashboard
 const DashboardPage = lazy(
@@ -183,9 +190,31 @@ const ClientDetailPage = lazy(() =>
 const ClientCreatePage = lazy(() =>
   import("@features/clients").then((m) => ({ default: m.ClientCreatePage })),
 );
-const ClientEditPage = lazy(() =>
-  import("@features/clients").then((m) => ({ default: m.ClientEditPage })),
+
+// Branches
+const BranchesListPage = lazy(() =>
+  import("@features/branches").then((m) => ({ default: m.BranchesListPage })),
 );
+const BranchDetailPage = lazy(() =>
+  import("@features/branches").then((m) => ({ default: m.BranchDetailPage })),
+);
+const BranchCreatePage = lazy(() =>
+  import("@features/branches").then((m) => ({ default: m.BranchCreatePage })),
+);
+const BranchEditPage = lazy(() =>
+  import("@features/branches").then((m) => ({ default: m.BranchEditPage })),
+);
+
+/**
+ * Backward-compat: la antigua ruta `/clients/:id/edit` se eliminó.
+ * La edición ahora vive como Sheet dentro de `/clients/:id`. Redirigimos
+ * preservando el id y agregando `?edit=true` para que el detalle abra
+ * automáticamente el sheet al montar.
+ */
+function ClientEditRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/clients/${id}?edit=true`} replace />;
+}
 
 // Maintenance
 // const MaintenanceListPage = lazy(() => import("@/pages/maintenance"));
@@ -210,14 +239,27 @@ const CreateInvoicePage = lazy(() =>
 // const ReportsPage = lazy(() => import("@/pages/reports"));
 
 // Users (Admin)
-// const UsersListPage = lazy(() => import("@/pages/users"));
-// const UserCreatePage = lazy(() => import("@/pages/users/create"));
+const UsersListPage = lazy(() =>
+  import("@features/users").then((m) => ({ default: m.UsersListPage })),
+);
+const UserDetailPage = lazy(() =>
+  import("@features/users").then((m) => ({ default: m.UserDetailPage })),
+);
+const UserCreatePage = lazy(() =>
+  import("@features/users").then((m) => ({ default: m.UserCreatePage })),
+);
+const UserEditPage = lazy(() =>
+  import("@features/users").then((m) => ({ default: m.UserEditPage })),
+);
 
 // Settings (Admin)
 // const SettingsPage = lazy(() => import("@/pages/settings"));
 
-// Profile
-// const ProfilePage = lazy(() => import("@/pages/profile"));
+// Profile (autoservicio — todos los autenticados)
+const ProfilePage = lazy(() => import("@/pages/profile"));
+
+// Onboarding guiado (post-invite / primera sesión heurística)
+const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
 
 // Errors
 const NotFoundPage = lazy(() => import("@/pages/errors/not-found"));
@@ -281,6 +323,10 @@ export const router = createBrowserRouter([
         path: "/register",
         element: withSuspense(RegisterPage),
       },
+      {
+        path: "/accept-invitation",
+        element: withSuspense(AcceptInvitationPage),
+      },
     ],
   },
 
@@ -307,10 +353,14 @@ export const router = createBrowserRouter([
           // ========================================
           // Profile (todos los autenticados)
           // ========================================
-          // {
-          //   path: "/profile",
-          //   element: withSuspense(ProfilePage),
-          // },
+          {
+            path: "/profile",
+            element: withSuspense(ProfilePage),
+          },
+          {
+            path: "/onboarding",
+            element: withSuspense(OnboardingPage),
+          },
 
           // ========================================
           // Módulo: Trips (Viajes)
@@ -468,6 +518,11 @@ export const router = createBrowserRouter([
                 path: "/clients/:id",
                 element: withSuspense(ClientDetailPage),
               },
+              {
+                // Legacy redirect — la edición vive en /clients/:id?edit=true
+                path: "/clients/:id/edit",
+                element: <ClientEditRedirect />,
+              },
             ],
           },
           {
@@ -477,9 +532,40 @@ export const router = createBrowserRouter([
                 path: "/clients/new",
                 element: withSuspense(ClientCreatePage),
               },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Branches (Sucursales)
+          // ========================================
+          {
+            element: <ModuleRoute module="branches" />,
+            children: [
               {
-                path: "clients/:id/edit",
-                element: withSuspense(ClientEditPage),
+                path: "/branches",
+                element: withSuspense(BranchesListPage),
+              },
+              {
+                path: "/branches/:id",
+                element: withSuspense(BranchDetailPage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="branches" action="create" />,
+            children: [
+              {
+                path: "/branches/new",
+                element: withSuspense(BranchCreatePage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="branches" action="update" />,
+            children: [
+              {
+                path: "/branches/:id/edit",
+                element: withSuspense(BranchEditPage),
               },
             ],
           },
@@ -582,19 +668,32 @@ export const router = createBrowserRouter([
           {
             element: <ModuleRoute module="users" />,
             children: [
-              // {
-              //   path: "/users",
-              //   element: withSuspense(UsersListPage),
-              // },
+              {
+                path: "/users",
+                element: withSuspense(UsersListPage),
+              },
+              {
+                path: "/users/:id",
+                element: withSuspense(UserDetailPage),
+              },
             ],
           },
           {
             element: <PermissionRoute module="users" action="create" />,
             children: [
-              // {
-              //   path: "/users/new",
-              //   element: withSuspense(UserCreatePage),
-              // },
+              {
+                path: "/users/new",
+                element: withSuspense(UserCreatePage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="users" action="update" />,
+            children: [
+              {
+                path: "/users/:id/edit",
+                element: withSuspense(UserEditPage),
+              },
             ],
           },
 
