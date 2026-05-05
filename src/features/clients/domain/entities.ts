@@ -83,6 +83,8 @@ export interface Client {
 
   // Estado
   isActive: boolean;
+  /** Si el API envía `deleted_at`, el cliente está dado de baja (soft delete). */
+  deletedAt?: string;
   notes?: string;
 
   // Auditoría
@@ -110,6 +112,8 @@ export interface ClientListItem {
   creditDays: number;
   creditLimit?: number;
   isActive: boolean;
+  /** Baja lógica; ocultar en listas cuando exista. */
+  deletedAt?: string;
 }
 
 /**
@@ -424,29 +428,29 @@ export function formatClientAddress(address: ClientAddress): string {
 }
 
 /**
- * Verifica si la dirección tiene datos completos para Carta Porte
+ * Mínimo de domicilio alineado al complemento Carta Porte 3.1 (SAT):
+ * en el nodo Domicilio, país, estado y código postal son los atributos base;
+ * municipio, localidad y colonia son opcionales en el esquema si no se envían.
+ *
+ * Aquí solo exigimos país (por defecto MEX si no viene), estado y CP válido (5 dígitos).
  */
 export function isCartaPorteReady(address: ClientAddress): boolean {
-  return !!(
-    address.satStateCode &&
-    address.satMunicipalityCode &&
-    address.postalCode &&
-    address.satLocalityCode &&
-    address.satNeighborhoodCode
-  );
+  const country = (address.satCountryCode ?? "").trim() || "MEX";
+  const estado = (address.satStateCode ?? "").trim();
+  const cp = (address.postalCode ?? "").trim();
+  return Boolean(country && estado && /^\d{5}$/.test(cp));
 }
 
 /**
- * Obtiene los campos faltantes para Carta Porte
+ * Campos del mínimo SAT que aún faltan (para tooltips / mensajes).
  */
 export function getCartaPorteMissingFields(address: ClientAddress): string[] {
   const missing: string[] = [];
 
-  if (!address.satStateCode) missing.push("Estado");
-  if (!address.satMunicipalityCode) missing.push("Municipio");
-  if (!address.postalCode) missing.push("Código Postal");
-  if (!address.satLocalityCode) missing.push("Localidad");
-  if (!address.satNeighborhoodCode) missing.push("Colonia SAT");
+  if (!(address.satStateCode ?? "").trim()) missing.push("Estado");
+
+  const cp = (address.postalCode ?? "").trim();
+  if (!/^\d{5}$/.test(cp)) missing.push("Código postal");
 
   return missing;
 }

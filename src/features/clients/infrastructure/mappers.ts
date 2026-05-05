@@ -84,6 +84,7 @@ export function mapClientListItem(
     creditDays: response.credit_days,
     creditLimit: response.credit_limit ?? undefined,
     isActive: response.is_active,
+    deletedAt: response.deleted_at ?? undefined,
   };
 }
 
@@ -136,6 +137,7 @@ export function mapClient(response: ClientApiResponse): Client {
     creditLimit: response.credit_limit ?? undefined,
     // Estado
     isActive: response.is_active,
+    deletedAt: response.deleted_at ?? undefined,
     notes: response.notes ?? undefined,
     // Auditoría
     createdAt: response.created_at,

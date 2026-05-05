@@ -8,6 +8,11 @@
  */
 
 export {
+  ClientStatusBadge,
+  operationalStatusFromClient,
+  type ClientOperationalStatus,
+} from "./clientStatusConfig";
+export {
   // Type configs
   CLIENT_TYPE_CONFIG,
   PAYMENT_TERMS_CONFIG,

@@ -16,7 +16,11 @@ export {
   ClientActions,
   ClientAddressCard,
   ClientAddressForm,
-  ClientAddressSection,
+  ClientAddressListItem,
+  ClientAddressDetailView,
+  ClientAddressMasterDetail,
+  ClientDetailDataTab,
+  ClientDetailCommercialTab,
 } from "./components";
 
 // Pages
@@ -24,7 +28,6 @@ export {
   ClientsListPage,
   ClientDetailPage,
   ClientCreatePage,
-  ClientEditPage,
 } from "./pages";
 
 // Validation
@@ -61,4 +64,7 @@ export {
   getPaymentTermsConfig,
   getAddressTypeConfig,
   getStatusConfig,
-} from "./config/clientConfig";
+  ClientStatusBadge,
+  operationalStatusFromClient,
+  type ClientOperationalStatus,
+} from "./config";

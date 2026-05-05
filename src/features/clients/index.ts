@@ -80,6 +80,7 @@ export {
   useClients,
   useActiveClients,
   useCreateClient,
+  useCreateClientOnly,
   useUpdateClient,
   useActivateClient,
   useDeactivateClient,
@@ -104,9 +105,12 @@ export {
   ClientCardSkeleton,
   ClientForm,
   ClientActions,
+  ClientDetailDataTab,
   ClientAddressCard,
   ClientAddressForm,
-  ClientAddressSection,
+  ClientAddressListItem,
+  ClientAddressDetailView,
+  ClientAddressMasterDetail,
 } from "./presentation";
 
 // Pages
@@ -114,7 +118,6 @@ export {
   ClientsListPage,
   ClientDetailPage,
   ClientCreatePage,
-  ClientEditPage,
 } from "./presentation";
 
 // Validation schemas
@@ -143,4 +146,7 @@ export {
   getPaymentTermsConfig,
   getAddressTypeConfig,
   getStatusConfig,
+  ClientStatusBadge,
+  operationalStatusFromClient,
+  type ClientOperationalStatus,
 } from "./presentation";

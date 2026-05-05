@@ -17,10 +17,10 @@ import type { ClientListItem } from "../../domain";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
-  getStatusConfig,
   formatCreditLimit,
   formatCreditDays,
 } from "../config/clientConfig";
+import { ClientStatusBadge, operationalStatusFromClient } from "../config/clientStatusConfig";
 import { ClientActions } from "./ClientActions";
 
 // ============================================================================
@@ -41,7 +41,6 @@ export function ClientCard({ client, className }: ClientCardProps) {
 
   const typeConfig = getClientTypeConfig(client.type);
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
-  const statusConfig = getStatusConfig(client.isActive);
   const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
 
@@ -66,9 +65,11 @@ export function ClientCard({ client, className }: ClientCardProps) {
               <span className="font-mono text-xs text-muted-foreground">
                 {client.clientCode}
               </span>
-              <Badge variant={statusConfig.variant} className="text-xs">
-                {statusConfig.label}
-              </Badge>
+              <ClientStatusBadge
+                status={operationalStatusFromClient(client.isActive)}
+                size="sm"
+                className="text-xs"
+              />
             </div>
 
             {/* Nombre */}

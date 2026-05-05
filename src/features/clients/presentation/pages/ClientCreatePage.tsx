@@ -1,169 +1,381 @@
-﻿import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@shared/ui/button";
+import { Building2, Info, MapPinOff, User, Users } from "lucide-react";
 import {
-  WizardNavigationBar,
-  WizardProgressCard,
-  WizardSteps,
-} from "@shared/ui/wizard";
-import type { WizardStep } from "@shared/ui/wizard";
-import { ArrowLeft, Check, Loader2, Users, Info } from "lucide-react";
+  WizardPageShell,
+  type WizardFormRef,
+} from "@shared/ui/page-shells/WizardPageShell";
+import { Switch } from "@shared/ui/switch";
+import { Label } from "@shared/ui/label";
+import { cn } from "@shared/lib/utils/cn";
 
-import { useCreateClient } from "../../application";
-import { CLIENT_TYPE_LABELS, CLIENT_WIZARD_STEPS, type ClientWizardStep } from "../../domain";
+import { useCreateClient, useCreateClientOnly } from "../../application";
+import {
+  CLIENT_TYPE_LABELS,
+  CLIENT_WIZARD_STEPS,
+} from "../../domain";
 import { ClientForm, ClientAddressForm } from "../components";
 import type { ClientFormData } from "../validation/clientSchema";
-import { clientAddressFormDataToCreateDto, type ClientAddressFormData } from "../validation/clientAddressSchema";
+import {
+  clientAddressFormDataToCreateDto,
+  type ClientAddressFormData,
+} from "../validation/clientAddressSchema";
 
-interface WizardState {
-  currentStep: ClientWizardStep;
+const WIZARD_STEPS = [
+  ...CLIENT_WIZARD_STEPS.map((s) => ({
+    id: s.id,
+    title: s.title,
+    description: s.description,
+  })),
+  {
+    id: "review",
+    title: "Revisión",
+    description: "Confirmar antes de crear el cliente",
+  },
+];
+
+function ClientCreateReviewSummary({
+  clientData,
+  addressData,
+  skipAddress,
+}: {
   clientData: ClientFormData | null;
   addressData: ClientAddressFormData | null;
-  isClientValid: boolean;
-  isAddressValid: boolean;
-}
+  skipAddress: boolean;
+}) {
+  if (!clientData) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Completa los pasos anteriores para ver el resumen.
+      </p>
+    );
+  }
 
-function clientStepToIndex(step: ClientWizardStep): number { return step === "info" ? 0 : 1; }
-function indexToClientStep(index: number): ClientWizardStep { return index <= 0 ? "info" : "address"; }
+  const isIndividual = clientData.type === "individual";
+  const Icon = isIndividual ? User : Building2;
 
-const ClientCreateWizardProgress = memo(function ClientCreateWizardProgress({ currentStep, onStepClick }: { currentStep: ClientWizardStep; onStepClick: (index: number) => void; }) {
-  const steps: WizardStep[] = useMemo(() => CLIENT_WIZARD_STEPS.map((s) => ({ id: s.id, title: s.title, description: s.description })), []);
-  return (
-    <WizardProgressCard>
-      <WizardSteps steps={steps} currentStep={clientStepToIndex(currentStep)} onStepClick={onStepClick} allowNavigation ariaLabel="Pasos para dar de alta un cliente" />
-    </WizardProgressCard>
-  );
-});
-
-export function ClientCreatePage() {
-  const navigate = useNavigate();
-  const createClientMutation = useCreateClient();
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-  const prevWizardStepRef = useRef<ClientWizardStep | null>(null);
-  const nextStepHelpId = useId();
-  const submitHelpId = useId();
-
-  const [state, setState] = useState<WizardState>({ currentStep: "info", clientData: null, addressData: null, isClientValid: false, isAddressValid: false });
-
-  useEffect(() => {
-    const prev = prevWizardStepRef.current;
-    prevWizardStepRef.current = state.currentStep;
-    if (prev && prev !== state.currentStep) requestAnimationFrame(() => stepHeadingRef.current?.focus({ preventScroll: true }));
-  }, [state.currentStep]);
-
-  const handleClientChange = useCallback((data: ClientFormData, isValid: boolean) => setState((prev) => ({ ...prev, clientData: data, isClientValid: isValid })), []);
-  const handleAddressChange = useCallback((data: ClientAddressFormData, isValid: boolean) => setState((prev) => ({ ...prev, addressData: data, isAddressValid: isValid })), []);
-
-  const handleStepClick = useCallback((stepIndex: number) => {
-    const target = indexToClientStep(stepIndex);
-    const currentIdx = clientStepToIndex(state.currentStep);
-    if (stepIndex <= currentIdx) return setState((prev) => ({ ...prev, currentStep: target }));
-    if (state.currentStep === "info" && state.isClientValid) setState((prev) => ({ ...prev, currentStep: "address" }));
-  }, [state.currentStep, state.isClientValid]);
-
-  const handleNext = () => { if (state.currentStep === "info" && state.isClientValid) setState((prev) => ({ ...prev, currentStep: "address" })); };
-  const handleBack = () => { if (state.currentStep === "address") setState((prev) => ({ ...prev, currentStep: "info" })); else navigate("/clients"); };
-  const handlePrevious = () => {
-    if (state.currentStep === "address") {
-      setState((prev) => ({ ...prev, currentStep: "info" }));
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!state.clientData || !state.addressData || !state.isClientValid || !state.isAddressValid) return;
-    createClientMutation.mutate({
-      client: {
-        type: state.clientData.type,
-        legalName: state.clientData.legalName,
-        tradeName: state.clientData.tradeName || undefined,
-        taxId: state.clientData.taxId,
-        taxRegime: state.clientData.taxRegime || undefined,
-        contactName: state.clientData.contactName || undefined,
-        contactPosition: state.clientData.contactPosition || undefined,
-        phone: state.clientData.phone || undefined,
-        secondaryPhone: state.clientData.secondaryPhone || undefined,
-        email: state.clientData.email || undefined,
-        billingEmail: state.clientData.billingEmail || undefined,
-        paymentTerms: state.clientData.paymentTerms,
-        creditDays: state.clientData.creditDays,
-        creditLimit: state.clientData.creditLimit,
-        notes: state.clientData.notes || undefined,
-      },
-      billingAddress: clientAddressFormDataToCreateDto(state.addressData),
-    }, { onSuccess: (result) => navigate(`/clients/${result.clientId}`) });
-  };
-
-  const isSubmitting = createClientMutation.isPending;
-  const canGoNext = state.currentStep === "info" && state.isClientValid;
-  const canSubmit = state.currentStep === "address" && state.isClientValid && state.isAddressValid;
+  const addressLine = addressData
+    ? [
+        addressData.street,
+        addressData.exteriorNumber,
+        addressData.interiorNumber,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex items-center gap-4">
-        <Button type="button" variant="ghost" size="icon" onClick={handleBack} disabled={isSubmitting}><ArrowLeft className="h-5 w-5" /></Button>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div>
-          <div><h1 className="text-2xl font-bold tracking-tight">Nuevo Cliente</h1><p className="text-sm text-muted-foreground">Completa la información para crear un nuevo cliente</p></div>
+    <div className="space-y-4 text-sm">
+      {/* ── Cliente — header visual con icon ─────────────────────────────── */}
+      <div className="flex items-start gap-4 rounded-lg border bg-muted/30 p-4">
+        <div
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center bg-primary/10 text-primary",
+            isIndividual ? "rounded-full" : "rounded-lg",
+          )}
+        >
+          <Icon className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Cliente
+          </p>
+          <p className="font-semibold text-foreground">{clientData.legalName}</p>
+          {clientData.tradeName?.trim() ? (
+            <p className="text-xs text-muted-foreground">
+              {clientData.tradeName}
+            </p>
+          ) : null}
+          <p className="mt-1 text-sm text-muted-foreground">
+            RFC {clientData.taxId.toUpperCase()} ·{" "}
+            {CLIENT_TYPE_LABELS[clientData.type]}
+          </p>
         </div>
       </div>
 
-      <ClientCreateWizardProgress currentStep={state.currentStep} onStepClick={handleStepClick} />
-
-      <section
-        ref={stepHeadingRef}
-        tabIndex={-1}
-        className="space-y-4 outline-none"
-        aria-label={state.currentStep === "info" ? "Información del cliente" : "Dirección fiscal"}
-      >
-        {state.currentStep === "address" && state.clientData && (
-          <div className="flex gap-3 rounded-lg border bg-muted/30 p-4 text-sm" role="status" aria-live="polite">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <div>
-              <span className="font-medium text-foreground">Cliente: {state.clientData.legalName}</span>
-              {state.clientData.tradeName?.trim() ? <span className="text-muted-foreground"> · {state.clientData.tradeName}</span> : null}
-              <span className="mt-1 block text-muted-foreground">RFC {state.clientData.taxId.toUpperCase()} · {CLIENT_TYPE_LABELS[state.clientData.type]}</span>
-            </div>
+      {/* ── Dirección fiscal — o nota de "sin dirección" ─────────────────── */}
+      {skipAddress || !addressData ? (
+        <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4">
+          <MapPinOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Dirección fiscal
+            </p>
+            <p className="text-sm text-foreground">Sin dirección registrada</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Podrás agregarla después desde el detalle del cliente.
+            </p>
           </div>
-        )}
-
-        {state.currentStep === "info" ? (
-          <ClientForm defaultValues={state.clientData ?? undefined} onChange={handleClientChange} disabled={isSubmitting} />
-        ) : (
-          <ClientAddressForm
-            isBillingAddress
-            hideLocationSectionTitle
-            defaultValues={state.addressData ?? undefined}
-            clientRfc={state.clientData?.taxId}
-            clientName={state.clientData?.legalName}
-            onChange={handleAddressChange}
-            disabled={isSubmitting}
-          />
-        )}
-      </section>
-
-      <div className="space-y-2">
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          {state.currentStep === "info" && !canGoNext && <p id={nextStepHelpId} className="max-w-md text-right text-sm text-muted-foreground">Completa los campos obligatorios (RFC según tipo de persona y términos de pago si aplica) para continuar.</p>}
-          {state.currentStep === "address" && !canSubmit && <p id={submitHelpId} className="max-w-md text-right text-sm text-muted-foreground">Completa la dirección fiscal y corrige los errores indicados para crear el cliente.</p>}
         </div>
-        <WizardNavigationBar
-          canGoBack={state.currentStep === "address" && !isSubmitting}
-          isLastStep={state.currentStep === "address"}
-          onPrevious={handlePrevious}
-          onCancel={() => navigate("/clients")}
-          onNext={handleNext}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          disableNext={!canGoNext}
-          disableSubmit={!canSubmit}
-          submitLabel="Crear Cliente"
-          submittingContent={<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando...</>}
-          submitIcon={<Check className="mr-2 h-4 w-4" />}
-        />
-      </div>
+      ) : (
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Dirección fiscal
+          </p>
+          <p className="font-medium">{addressLine || "—"}</p>
+          <p className="text-muted-foreground">
+            C.P. {addressData.postalCode}
+            {addressData.neighborhoodName
+              ? ` · ${addressData.neighborhoodName}`
+              : ""}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-export default ClientCreatePage;
+export function ClientCreatePage() {
+  const navigate = useNavigate();
+  const createClientMutation = useCreateClient();
+  const createClientOnlyMutation = useCreateClientOnly();
+  const formRef = useRef<WizardFormRef | null>(null);
 
+  const [clientData, setClientData] = useState<ClientFormData | null>(null);
+  const [addressData, setAddressData] = useState<ClientAddressFormData | null>(
+    null,
+  );
+  const [isClientValid, setIsClientValid] = useState(false);
+  const [isAddressValid, setIsAddressValid] = useState(false);
+
+  // Toggle "Crear sin dirección" — permite alta rápida sin captura de
+  // dirección fiscal. El usuario puede agregarla después desde el detalle.
+  const [skipAddress, setSkipAddress] = useState(false);
+
+  const handleClientChange = useCallback(
+    (data: ClientFormData, isValid: boolean) => {
+      setClientData(data);
+      setIsClientValid(isValid);
+    },
+    [],
+  );
+
+  const handleAddressChange = useCallback(
+    (data: ClientAddressFormData, isValid: boolean) => {
+      setAddressData(data);
+      setIsAddressValid(isValid);
+    },
+    [],
+  );
+
+  const submitCreate = useCallback(() => {
+    if (!clientData || !isClientValid) return;
+
+    const clientPayload = {
+      type: clientData.type,
+      legalName: clientData.legalName,
+      tradeName: clientData.tradeName || undefined,
+      taxId: clientData.taxId,
+      taxRegime: clientData.taxRegime || undefined,
+      contactName: clientData.contactName || undefined,
+      contactPosition: clientData.contactPosition || undefined,
+      phone: clientData.phone || undefined,
+      secondaryPhone: clientData.secondaryPhone || undefined,
+      email: clientData.email || undefined,
+      billingEmail: clientData.billingEmail || undefined,
+      paymentTerms: clientData.paymentTerms,
+      creditDays: clientData.creditDays,
+      creditLimit: clientData.creditLimit,
+      notes: clientData.notes || undefined,
+    };
+
+    if (skipAddress) {
+      // Modo "sin dirección" — solo crea el cliente, sin paso 2.
+      createClientOnlyMutation.mutate(clientPayload, {
+        onSuccess: ({ id }) => navigate(`/clients/${id}`),
+      });
+      return;
+    }
+
+    if (!addressData || !isAddressValid) return;
+
+    createClientMutation.mutate(
+      {
+        client: clientPayload,
+        billingAddress: clientAddressFormDataToCreateDto(addressData, {
+          context: "billingOnCreate",
+        }),
+      },
+      {
+        onSuccess: (result) => navigate(`/clients/${result.clientId}`),
+      },
+    );
+  }, [
+    clientData,
+    addressData,
+    isClientValid,
+    isAddressValid,
+    skipAddress,
+    createClientMutation,
+    createClientOnlyMutation,
+    navigate,
+  ]);
+
+  useLayoutEffect(() => {
+    formRef.current = {
+      triggerStepValidation: async (stepIndex: number) => {
+        if (stepIndex === 0) return isClientValid;
+        // Paso "Dirección" → si el usuario eligió omitir, pasa automáticamente.
+        if (stepIndex === 1) return skipAddress || isAddressValid;
+        return true;
+      },
+      requestSubmit: () => {
+        submitCreate();
+      },
+    };
+    return () => {
+      formRef.current = null;
+    };
+  }, [isClientValid, isAddressValid, skipAddress, submitCreate]);
+
+  const isSubmitting =
+    createClientMutation.isPending || createClientOnlyMutation.isPending;
+  const handleCancel = useCallback(() => navigate("/clients"), [navigate]);
+
+  const shellHeader = useMemo(
+    () => ({
+      backHref: "/clients",
+      backLabel: "Volver a la lista de clientes",
+      icon: <Users className="h-5 w-5" />,
+      title: "Nuevo Cliente",
+      subtitle: "Completa la información para crear un nuevo cliente",
+    }),
+    [],
+  );
+
+  const renderStep = useCallback(
+    (currentStep: number) => (
+      <>
+        {currentStep === 0 && !isClientValid ? (
+          <p className="max-w-md text-sm text-muted-foreground">
+            Completa los campos obligatorios (RFC según tipo de persona y
+            términos de pago si aplica) para continuar.
+          </p>
+        ) : null}
+        {currentStep === 1 && !skipAddress && !isAddressValid ? (
+          <p className="max-w-md text-sm text-muted-foreground">
+            Completa la dirección fiscal y corrige los errores indicados para
+            continuar.
+          </p>
+        ) : null}
+
+        {currentStep === 1 && clientData ? (
+          <div
+            className="mb-4 flex gap-3 rounded-lg border bg-muted/30 p-4 text-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <span className="font-medium text-foreground">
+                Cliente: {clientData.legalName}
+              </span>
+              {clientData.tradeName?.trim() ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {clientData.tradeName}
+                </span>
+              ) : null}
+              <span className="mt-1 block text-muted-foreground">
+                RFC {clientData.taxId.toUpperCase()} ·{" "}
+                {CLIENT_TYPE_LABELS[clientData.type]}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
+        {currentStep === 0 ? (
+          <ClientForm
+            defaultValues={clientData ?? undefined}
+            onChange={handleClientChange}
+            disabled={isSubmitting}
+          />
+        ) : null}
+
+        {currentStep === 1 ? (
+          <>
+            {/* Toggle "Crear sin dirección" — alta rápida sin captura ahora */}
+            <div className="mb-4 flex flex-col gap-2 rounded-md border bg-card p-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="flex items-start gap-2.5">
+                <MapPinOff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <Label
+                    htmlFor="skipAddress"
+                    className="cursor-pointer text-sm font-medium"
+                  >
+                    Crear cliente sin dirección
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Útil para altas rápidas. Podrás agregar la dirección
+                    después desde el detalle del cliente.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="skipAddress"
+                checked={skipAddress}
+                onCheckedChange={setSkipAddress}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {skipAddress ? (
+              <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center">
+                <MapPinOff className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm font-medium">Sin dirección registrada</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pasa al siguiente paso para revisar y crear el cliente.
+                </p>
+              </div>
+            ) : (
+              <ClientAddressForm
+                formContext="billingOnCreate"
+                hideLocationSectionTitle
+                defaultValues={addressData ?? undefined}
+                clientRfc={clientData?.taxId}
+                clientName={clientData?.legalName}
+                onChange={handleAddressChange}
+                disabled={isSubmitting}
+              />
+            )}
+          </>
+        ) : null}
+
+        {currentStep === 2 ? (
+          <ClientCreateReviewSummary
+            clientData={clientData}
+            addressData={addressData}
+            skipAddress={skipAddress}
+          />
+        ) : null}
+      </>
+    ),
+    [
+      isClientValid,
+      isAddressValid,
+      skipAddress,
+      clientData,
+      addressData,
+      handleClientChange,
+      handleAddressChange,
+      isSubmitting,
+    ],
+  );
+
+  return (
+    <WizardPageShell
+      steps={WIZARD_STEPS}
+      formRef={formRef}
+      header={shellHeader}
+      renderStep={renderStep}
+      isSubmitting={isSubmitting}
+      submitLabel="Crear Cliente"
+      submittingLabel="Creando..."
+      stepsAriaLabel="Pasos para dar de alta un cliente"
+      headerBackMode="wizard"
+      onCancel={handleCancel}
+    />
+  );
+}
+
+export default ClientCreatePage;

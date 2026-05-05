@@ -25,9 +25,9 @@ import type { ClientListItem } from "../../domain";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
-  getStatusConfig,
   formatCreditDays,
 } from "../config/clientConfig";
+import { ClientStatusBadge, operationalStatusFromClient } from "../config/clientStatusConfig";
 import { ClientActions } from "./ClientActions";
 
 // ============================================================================
@@ -145,7 +145,6 @@ export function ClientTable({
           {clients.map((client) => {
             const typeConfig = getClientTypeConfig(client.type);
             const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
-            const statusConfig = getStatusConfig(client.isActive);
             const TypeIcon = typeConfig.icon;
 
             return (
@@ -221,9 +220,10 @@ export function ClientTable({
 
                 {/* Estado */}
                 <TableCell>
-                  <Badge variant={statusConfig.variant}>
-                    {statusConfig.label}
-                  </Badge>
+                  <ClientStatusBadge
+                    status={operationalStatusFromClient(client.isActive)}
+                    size="sm"
+                  />
                 </TableCell>
 
                 {/* Acciones */}

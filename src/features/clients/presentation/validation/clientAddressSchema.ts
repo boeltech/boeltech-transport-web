@@ -42,6 +42,7 @@ export const billingAddressFormSchema = clientAddressFormSchema.extend({
 
 export type ClientAddressFormData = z.infer<typeof clientAddressFormSchema>;
 export type BillingAddressFormData = z.infer<typeof billingAddressFormSchema>;
+export type ClientAddressFormContext = "billingOnCreate" | "additional";
 
 // ============================================================================
 // DEFAULTS
@@ -106,39 +107,114 @@ function nullToUndef<T>(v: T | null | undefined): T | undefined {
   return v === null ? undefined : v;
 }
 
+function normalizeTextValue(
+  value: string | null | undefined,
+): string | undefined {
+  if (value == null) return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function normalizePostalCode(value: string): string {
+  return value.trim();
+}
+
+function normalizeSatCode(value: string | null | undefined): string | null {
+  const normalized = normalizeTextValue(value);
+  if (!normalized) return null;
+  const parts = normalized.split("-").filter(Boolean);
+  return (parts[parts.length - 1] ?? normalized).trim();
+}
+
+function normalizeRfc(value: string | null | undefined): string | null {
+  const normalized = normalizeTextValue(value);
+  return normalized ? normalized.toUpperCase() : null;
+}
+
+export function applyClientAddressFormContext(
+  data: ClientAddressFormData,
+  context: ClientAddressFormContext,
+): ClientAddressFormData {
+  if (context === "billingOnCreate") {
+    return {
+      ...data,
+      addressType: "billing",
+      isPrimary: true,
+    };
+  }
+  return data;
+}
+
+export function normalizeClientAddressFormData(
+  data: ClientAddressFormData,
+): ClientAddressFormData {
+  return {
+    ...data,
+    locationName: normalizeTextValue(data.locationName),
+    street: data.street.trim(),
+    exteriorNumber: data.exteriorNumber.trim(),
+    interiorNumber: normalizeTextValue(data.interiorNumber) ?? null,
+    reference: normalizeTextValue(data.reference) ?? null,
+    postalCode: normalizePostalCode(data.postalCode),
+    satStateCode: data.satStateCode.trim(),
+    satMunicipalityCode: normalizeSatCode(data.satMunicipalityCode) ?? "",
+    satLocalityCode: normalizeSatCode(data.satLocalityCode),
+    satNeighborhoodCode: normalizeSatCode(data.satNeighborhoodCode),
+    neighborhoodName: normalizeTextValue(data.neighborhoodName) ?? null,
+    rfcRemitenteDestinatario: normalizeRfc(data.rfcRemitenteDestinatario),
+    nombreRemitenteDestinatario: normalizeTextValue(data.nombreRemitenteDestinatario),
+    contactName: normalizeTextValue(data.contactName),
+    contactPhone: normalizeTextValue(data.contactPhone),
+    contactEmail: normalizeTextValue(data.contactEmail),
+    businessHours: normalizeTextValue(data.businessHours),
+    notes: normalizeTextValue(data.notes),
+    specialInstructions: normalizeTextValue(data.specialInstructions),
+  };
+}
+
 export function clientAddressFormDataToCreateDto(
   data: ClientAddressFormData,
+  options?: { context?: ClientAddressFormContext },
 ): CreateClientAddressDTO {
+  const contextAware = applyClientAddressFormContext(
+    data,
+    options?.context ?? "additional",
+  );
+  const normalized = normalizeClientAddressFormData(contextAware);
+
   return {
-    addressType: data.addressType as AddressType,
-    isPrimary: data.isPrimary,
-    locationName: emptyToUndef(data.locationName),
-    satCountryCode: data.satCountryCode || "MEX",
-    satStateCode: data.satStateCode,
-    satMunicipalityCode: data.satMunicipalityCode,
-    satLocalityCode: emptyToUndef(data.satLocalityCode ?? undefined),
-    satNeighborhoodCode: emptyToUndef(data.satNeighborhoodCode ?? undefined),
-    neighborhoodName: emptyToUndef(data.neighborhoodName ?? undefined),
-    postalCode: data.postalCode,
-    street: data.street,
-    exteriorNumber: data.exteriorNumber,
-    interiorNumber: emptyToUndef(data.interiorNumber ?? undefined),
-    reference: emptyToUndef(data.reference ?? undefined),
-    rfcRemitenteDestinatario: emptyToUndef(data.rfcRemitenteDestinatario),
-    nombreRemitenteDestinatario: emptyToUndef(data.nombreRemitenteDestinatario),
-    latitude: nullToUndef(data.latitude),
-    longitude: nullToUndef(data.longitude),
-    contactName: emptyToUndef(data.contactName),
-    contactPhone: emptyToUndef(data.contactPhone),
-    contactEmail: emptyToUndef(data.contactEmail),
-    businessHours: emptyToUndef(data.businessHours),
-    notes: emptyToUndef(data.notes),
-    specialInstructions: emptyToUndef(data.specialInstructions),
+    addressType: normalized.addressType as AddressType,
+    isPrimary: normalized.isPrimary,
+    locationName: emptyToUndef(normalized.locationName),
+    satCountryCode: normalized.satCountryCode || "MEX",
+    satStateCode: normalized.satStateCode,
+    satMunicipalityCode: normalized.satMunicipalityCode,
+    satLocalityCode: emptyToUndef(normalized.satLocalityCode ?? undefined),
+    satNeighborhoodCode: emptyToUndef(normalized.satNeighborhoodCode ?? undefined),
+    neighborhoodName: emptyToUndef(normalized.neighborhoodName ?? undefined),
+    postalCode: normalized.postalCode,
+    street: normalized.street,
+    exteriorNumber: normalized.exteriorNumber,
+    interiorNumber: emptyToUndef(normalized.interiorNumber ?? undefined),
+    reference: emptyToUndef(normalized.reference ?? undefined),
+    rfcRemitenteDestinatario: emptyToUndef(normalized.rfcRemitenteDestinatario),
+    nombreRemitenteDestinatario: emptyToUndef(
+      normalized.nombreRemitenteDestinatario,
+    ),
+    latitude: nullToUndef(normalized.latitude),
+    longitude: nullToUndef(normalized.longitude),
+    contactName: emptyToUndef(normalized.contactName),
+    contactPhone: emptyToUndef(normalized.contactPhone),
+    contactEmail: emptyToUndef(normalized.contactEmail),
+    businessHours: emptyToUndef(normalized.businessHours),
+    notes: emptyToUndef(normalized.notes),
+    specialInstructions: emptyToUndef(normalized.specialInstructions),
   };
 }
 
 export function clientAddressFormDataToUpdateDto(
   data: ClientAddressFormData,
+  options?: { context?: ClientAddressFormContext },
 ): UpdateClientAddressDTO {
-  return clientAddressFormDataToCreateDto(data);
+  return clientAddressFormDataToCreateDto(data, options);
 }

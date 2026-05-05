@@ -35,21 +35,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { Card, CardContent } from "@shared/ui/card";
-import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Switch } from "@shared/ui/switch";
-import { Alert, AlertDescription } from "@shared/ui/alert";
-import { MapPin, User, Clock, Info, AlertTriangle } from "lucide-react";
+import {
+  EntityAddressForm,
+  AddressInput,
+  ADDRESS_FORM_COPY,
+  type EntityAddressFormSection,
+} from "@shared/ui/address-input";
+import { MapPin, User } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import AddressInput from "@shared/ui/address-input/AddressInput";
 
 import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
 import {
+  applyClientAddressFormContext,
   clientAddressFormSchema,
+  type ClientAddressFormContext,
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,
   type ClientAddressFormData,
-  //   type BillingAddressFormData,
 } from "../validation/clientAddressSchema";
 import { ADDRESS_TYPE_CONFIG } from "../config/clientConfig";
 
@@ -62,8 +65,8 @@ export interface ClientAddressFormRef {
 }
 
 export interface ClientAddressFormProps {
-  /** Si es true, se usa el schema de dirección fiscal (billing obligatorio) */
-  isBillingAddress?: boolean;
+  /** Contexto de uso del formulario: fiscal en alta o dirección adicional. */
+  formContext?: ClientAddressFormContext;
   /** Wizard de alta: oculta el título de la sección de ubicación (el paso ya lo indica) */
   hideLocationSectionTitle?: boolean;
   /** Valores iniciales del formulario */
@@ -83,23 +86,18 @@ export interface ClientAddressFormProps {
 }
 
 function LocationAddressFields({
-  isBillingAddress,
+  mode,
   control,
   disabled,
 }: {
-  isBillingAddress: boolean;
+  mode: "carta-porte" | "cfdi";
   control: Control<ClientAddressFormData>;
   disabled: boolean;
 }) {
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        {isBillingAddress
-          ? "Captura la dirección fiscal con catálogos SAT (requerido para CFDI y Carta Porte)."
-          : "Selecciona estado, municipio, código postal y colonia según los catálogos del SAT."}
-      </p>
       <AddressInput<ClientAddressFormData>
-        mode={isBillingAddress ? "carta-porte" : "cfdi"}
+        mode={mode}
         control={control}
         namePrefix=""
         layout="compact"
@@ -120,7 +118,7 @@ export const ClientAddressForm = forwardRef<
   ClientAddressFormProps
 >(function ClientAddressForm(
   {
-    isBillingAddress = false,
+    formContext = "additional",
     hideLocationSectionTitle = false,
     defaultValues,
     clientRfc,
@@ -132,6 +130,22 @@ export const ClientAddressForm = forwardRef<
   },
   ref,
 ) {
+  const isBillingContext = formContext === "billingOnCreate";
+  const copy = ADDRESS_FORM_COPY[formContext];
+  const contextConfig = isBillingContext
+    ? {
+        forceAddressType: true,
+        forcePrimary: true,
+        showTypeSection: false,
+        mode: "carta-porte" as const,
+      }
+    : {
+        forceAddressType: false,
+        forcePrimary: false,
+        showTypeSection: true,
+        mode: "carta-porte" as const,
+      };
+
   const hasClientFiscalData = Boolean(clientRfc || clientName);
   const [useClientFiscalData, setUseClientFiscalData] = useState(
     hasClientFiscalData,
@@ -140,7 +154,7 @@ export const ClientAddressForm = forwardRef<
 
   // Se usa un único schema para evitar incompatibilidades de tipos entre variantes.
   // Para dirección fiscal, se fuerzan valores en runtime.
-  const defaults = isBillingAddress
+  const defaults = isBillingContext
     ? defaultBillingAddressFormValues
     : defaultClientAddressFormValues;
 
@@ -172,15 +186,21 @@ export const ClientAddressForm = forwardRef<
   }));
 
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
   const lastParentNotifyKey = useRef<string>("");
 
   useEffect(() => {
-    if (!isBillingAddress) return;
+    if (!contextConfig.forceAddressType && !contextConfig.forcePrimary) return;
 
-    setValue("addressType", "billing");
-    setValue("isPrimary", true);
-  }, [isBillingAddress, setValue]);
+    if (contextConfig.forceAddressType) {
+      setValue("addressType", "billing");
+    }
+    if (contextConfig.forcePrimary) {
+      setValue("isPrimary", true);
+    }
+  }, [contextConfig.forceAddressType, contextConfig.forcePrimary, setValue]);
 
   // Observar todos los valores reactivamente (compatible con React Compiler)
   const formValues = useWatch({ control });
@@ -214,7 +234,9 @@ export const ClientAddressForm = forwardRef<
       (!clientRfcNormalized || currentRfc === clientRfcNormalized) &&
       (!clientNameNormalized || currentName === clientNameNormalized);
 
-    setUseClientFiscalData(!hasCurrentValues || matchesClientData);
+    queueMicrotask(() =>
+      setUseClientFiscalData(!hasCurrentValues || matchesClientData),
+    );
     hasInitializedFiscalModeRef.current = true;
   }, [
     clientName,
@@ -242,319 +264,265 @@ export const ClientAddressForm = forwardRef<
   // Notificar cambios al padre (onChange no va en deps: identidad inestable → bucle infinito con setState del padre).
   // Dedup por contenido: useWatch puede entregar nueva referencia en renders sin cambios reales de valores.
   useEffect(() => {
-    const key = JSON.stringify(formValues) + "|" + String(isValid);
+    const contextAwareValues = applyClientAddressFormContext(
+      formValues as ClientAddressFormData,
+      formContext,
+    );
+    const key = JSON.stringify(contextAwareValues) + "|" + String(isValid);
     if (key === lastParentNotifyKey.current) return;
     lastParentNotifyKey.current = key;
-    onChangeRef.current?.(formValues as ClientAddressFormData, isValid);
-  }, [formValues, isValid]);
+    onChangeRef.current?.(contextAwareValues, isValid);
+  }, [formContext, formValues, isValid]);
 
   // Submit handler
   const handleFormSubmit = (data: ClientAddressFormData) => {
-    onSubmit?.(data);
+    onSubmit?.(applyClientAddressFormContext(data, formContext));
   };
 
-  return (
-    <form
-      onSubmit={handleSubmit(handleFormSubmit)}
-      className={cn("space-y-6", className)}
-    >
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* TIPO Y CONFIGURACIÓN                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {!isBillingAddress && (
-        <FormSectionCard
-          title="Tipo de Dirección"
-          icon={<MapPin className="h-4 w-4" />}
-          contentClassName="space-y-4"
-        >
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Tipo de dirección */}
-              <div className="space-y-2">
-                <Label htmlFor="addressType">
-                  Tipo <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="addressType"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(
-                          Object.keys(ADDRESS_TYPE_LABELS) as AddressType[]
-                        ).map((type) => {
-                          const config = ADDRESS_TYPE_CONFIG[type];
-                          const Icon = config.icon;
-                          return (
-                            <SelectItem key={type} value={type}>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                {config.label}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-
-              {/* Nombre del lugar */}
-              <div className="space-y-2">
-                <Label htmlFor="locationName">Nombre del Lugar</Label>
-                <Input
-                  id="locationName"
-                  placeholder="Ej: Bodega Principal, Sucursal Norte"
-                  disabled={disabled}
-                  {...register("locationName")}
-                />
-              </div>
-            </div>
-
-            {/* Es dirección primaria */}
-            <div className="flex items-center gap-2">
+  const preAddressSections: EntityAddressFormSection[] = [];
+  if (contextConfig.showTypeSection) {
+    preAddressSections.push({
+      id: "address-context-additional",
+      title: "Contexto de direccion",
+      icon: <MapPin className="h-4 w-4" />,
+      content: (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="addressType">
+                Tipo <span className="text-destructive">*</span>
+              </Label>
               <Controller
-                name="isPrimary"
+                name="addressType"
                 control={control}
                 render={({ field }) => (
-                  <Switch
-                    id="isPrimary"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
                     disabled={disabled}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(ADDRESS_TYPE_LABELS) as AddressType[]).map((type) => {
+                        const config = ADDRESS_TYPE_CONFIG[type];
+                        const Icon = config.icon;
+                        return (
+                          <SelectItem key={type} value={type}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              {config.label}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 )}
               />
-              <Label htmlFor="isPrimary" className="cursor-pointer">
-                Dirección principal
-              </Label>
             </div>
-        </FormSectionCard>
-      )}
-
-      {/* Info para dirección fiscal */}
-      {isBillingAddress && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Esta dirección se usará como domicilio fiscal en los CFDI y Carta
-            Porte.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* Dirección (SAT + calle + CP + coordenadas vía AddressInput)            */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {hideLocationSectionTitle ? (
-        <Card>
-          <CardContent className="space-y-4 pt-6">
-            <LocationAddressFields
-              isBillingAddress={isBillingAddress}
+            <div className="space-y-2">
+              <Label htmlFor="locationName">Nombre del Lugar</Label>
+              <Input
+                id="locationName"
+                placeholder={copy.locationNamePlaceholder}
+                disabled={disabled}
+                {...register("locationName")}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Controller
+              name="isPrimary"
               control={control}
-              disabled={disabled}
+              render={({ field }) => (
+                <Switch
+                  id="isPrimary"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={disabled}
+                />
+              )}
             />
-          </CardContent>
-        </Card>
-      ) : (
-        <FormSectionCard
-          title="Ubicación y domicilio"
-          icon={<MapPin className="h-4 w-4" />}
-          contentClassName="space-y-4"
-        >
-          <LocationAddressFields
-            isBillingAddress={isBillingAddress}
-            control={control}
+            <Label htmlFor="isPrimary" className="cursor-pointer">
+              Dirección principal
+            </Label>
+          </div>
+        </>
+      ),
+    });
+  }
+  if (isBillingContext) {
+    preAddressSections.push({
+      id: "address-context-billing",
+      title: "Contexto de direccion",
+      icon: <MapPin className="h-4 w-4" />,
+      content: (
+        <div className="space-y-2">
+          <Label htmlFor="locationName">Nombre del Lugar</Label>
+          <Input
+            id="locationName"
+            placeholder={copy.locationNamePlaceholder}
             disabled={disabled}
-          />
-        </FormSectionCard>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* DATOS REMITENTE/DESTINATARIO (Carta Porte)                              */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <FormSectionCard
-        title="Datos para Carta Porte"
-        icon={<User className="h-4 w-4" />}
-        contentClassName="space-y-4"
-      >
-
-        <p className="text-sm text-muted-foreground">
-          Estos datos se usarán en el complemento Carta Porte del CFDI
-        </p>
-
-        <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
-          <div className="space-y-1">
-            <Label htmlFor="useClientFiscalData" className="cursor-pointer">
-              Usar datos fiscales del cliente
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Recomendado para la mayoría de los casos. Desactiva esta opción
-              solo si esta ubicación maneja remitente/destinatario distinto.
-            </p>
-          </div>
-          <Switch
-            id="useClientFiscalData"
-            checked={useClientFiscalData}
-            onCheckedChange={setUseClientFiscalData}
-            disabled={disabled || !hasClientFiscalData}
+            {...register("locationName")}
           />
         </div>
+      ),
+    });
+  }
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* RFC Remitente/Destinatario */}
-          <div className="space-y-2">
-            <Label htmlFor="rfcRemitenteDestinatario">
-              RFC Remitente/Destinatario
-            </Label>
-            <Input
-              id="rfcRemitenteDestinatario"
-              placeholder="RFC del remitente o destinatario"
-              className="uppercase"
-              maxLength={13}
-              disabled={disabled || useClientFiscalData}
-              {...register("rfcRemitenteDestinatario", {
-                onChange: (e) => {
-                  e.target.value = e.target.value.toUpperCase();
-                },
-              })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Normalmente el RFC del cliente
-            </p>
-          </div>
-
-          {/* Nombre Remitente/Destinatario */}
-          <div className="space-y-2">
-            <Label htmlFor="nombreRemitenteDestinatario">
-              Nombre Remitente/Destinatario
-            </Label>
-            <Input
-              id="nombreRemitenteDestinatario"
-              placeholder="Nombre o razón social"
-              disabled={disabled || useClientFiscalData}
-              {...register("nombreRemitenteDestinatario")}
+  const postAddressSections: EntityAddressFormSection[] = [
+    {
+      id: "fiscal-operational",
+      title: "Datos fiscales operativos",
+      icon: <User className="h-4 w-4" />,
+      content: (
+        <>
+          <p className="text-sm text-muted-foreground">{copy.cartaPorteDescription}</p>
+          <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
+            <div className="space-y-1">
+              <Label htmlFor="useClientFiscalData" className="cursor-pointer">
+                Usar datos fiscales del cliente
+              </Label>
+              <p className="text-xs text-muted-foreground">{copy.fiscalDataDescription}</p>
+            </div>
+            <Switch
+              id="useClientFiscalData"
+              checked={useClientFiscalData}
+              onCheckedChange={setUseClientFiscalData}
+              disabled={disabled || !hasClientFiscalData}
             />
           </div>
-        </div>
-      </FormSectionCard>
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* CONTACTO EN ESTA DIRECCIÓN                                              */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <FormSectionCard
-        title="Contacto en esta Dirección"
-        icon={<User className="h-4 w-4" />}
-        contentClassName="space-y-4"
-      >
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="contactName">Nombre</Label>
-            <Input
-              id="contactName"
-              placeholder="Nombre del contacto"
-              disabled={disabled}
-              {...register("contactName")}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="rfcRemitenteDestinatario">RFC Remitente/Destinatario</Label>
+              <Input
+                id="rfcRemitenteDestinatario"
+                placeholder="RFC del remitente o destinatario"
+                className="uppercase"
+                maxLength={13}
+                disabled={disabled || useClientFiscalData}
+                {...register("rfcRemitenteDestinatario", {
+                  onChange: (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                  },
+                })}
+              />
+              <p className="text-xs text-muted-foreground">{copy.fiscalRfcHint}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nombreRemitenteDestinatario">
+                Nombre Remitente/Destinatario
+              </Label>
+              <Input
+                id="nombreRemitenteDestinatario"
+                placeholder="Nombre o razón social"
+                disabled={disabled || useClientFiscalData}
+                {...register("nombreRemitenteDestinatario")}
+              />
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactPhone">Teléfono</Label>
-            <Input
-              id="contactPhone"
-              placeholder="55 1234 5678"
-              disabled={disabled}
-              {...register("contactPhone")}
-            />
+        </>
+      ),
+    },
+    {
+      id: "contact-operation",
+      title: "Contacto y operacion",
+      icon: <User className="h-4 w-4" />,
+      content: (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="contactName">Nombre</Label>
+              <Input
+                id="contactName"
+                placeholder="Nombre del contacto"
+                disabled={disabled}
+                {...register("contactName")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactPhone">Teléfono</Label>
+              <Input
+                id="contactPhone"
+                placeholder="55 1234 5678"
+                disabled={disabled}
+                {...register("contactPhone")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactEmail">Email</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                placeholder="contacto@ejemplo.com"
+                disabled={disabled}
+                {...register("contactEmail")}
+              />
+              {errors.contactEmail && (
+                <p className="text-sm text-destructive">{errors.contactEmail.message}</p>
+              )}
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactEmail">Email</Label>
-            <Input
-              id="contactEmail"
-              type="email"
-              placeholder="contacto@ejemplo.com"
-              disabled={disabled}
-              {...register("contactEmail")}
-            />
-            {errors.contactEmail && (
-              <p className="text-sm text-destructive">
-                {errors.contactEmail.message}
-              </p>
-            )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="businessHours">Horario de Atención</Label>
+              <Input
+                id="businessHours"
+                placeholder="Ej: Lun-Vie 9:00-18:00"
+                disabled={disabled}
+                {...register("businessHours")}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="specialInstructions">Instrucciones Especiales</Label>
+              <Textarea
+                id="specialInstructions"
+                placeholder="Instrucciones de acceso, requisitos de seguridad, etc."
+                rows={2}
+                disabled={disabled}
+                {...register("specialInstructions")}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="notes">Notas</Label>
+              <Textarea
+                id="notes"
+                placeholder="Notas adicionales sobre esta dirección"
+                rows={2}
+                disabled={disabled}
+                {...register("notes")}
+              />
+            </div>
           </div>
-        </div>
-      </FormSectionCard>
+        </>
+      ),
+    },
+  ];
 
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* OPERACIÓN                                                               */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <FormSectionCard
-        title="Operación"
-        icon={<Clock className="h-4 w-4" />}
-        contentClassName="space-y-4"
-      >
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="businessHours">Horario de Atención</Label>
-            <Input
-              id="businessHours"
-              placeholder="Ej: Lun-Vie 9:00-18:00"
-              disabled={disabled}
-              {...register("businessHours")}
-            />
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="specialInstructions">
-              Instrucciones Especiales
-            </Label>
-            <Textarea
-              id="specialInstructions"
-              placeholder="Instrucciones de acceso, requisitos de seguridad, etc."
-              rows={2}
-              disabled={disabled}
-              {...register("specialInstructions")}
-            />
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="notes">Notas</Label>
-            <Textarea
-              id="notes"
-              placeholder="Notas adicionales sobre esta dirección"
-              rows={2}
-              disabled={disabled}
-              {...register("notes")}
-            />
-          </div>
-        </div>
-      </FormSectionCard>
-
-      {/* Advertencia si faltan campos para Carta Porte */}
-      {(!satStateCode || !satMunicipalityCode || !postalCode) && (
-        <Alert
-          variant="default"
-          className="border-amber-500 bg-amber-50 dark:bg-amber-950"
-        >
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700 dark:text-amber-300">
-            Para generar Carta Porte 3.1 válida, debes completar Estado,
-            Municipio y Código Postal.
-          </AlertDescription>
-        </Alert>
-      )}
-    </form>
+  return (
+    <EntityAddressForm
+      onSubmit={handleSubmit(handleFormSubmit)}
+      className={cn("space-y-6", className)}
+      formContext={formContext}
+      infoMessage={copy.globalInfoMessage}
+      satStateCode={satStateCode}
+      satMunicipalityCode={satMunicipalityCode}
+      postalCode={postalCode}
+      hasClientFiscalData={hasClientFiscalData}
+      useClientFiscalData={useClientFiscalData}
+      hideLocationSectionTitle={hideLocationSectionTitle}
+      preAddressSections={preAddressSections}
+      addressInputSection={
+        <LocationAddressFields
+          mode={contextConfig.mode}
+          control={control}
+          disabled={disabled}
+        />
+      }
+      postAddressSections={postAddressSections}
+    />
   );
 });
 

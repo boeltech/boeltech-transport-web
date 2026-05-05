@@ -32,6 +32,8 @@ export {
 export { useClient } from "./hooks/useClient";
 export { useClients, useActiveClients } from "./hooks/useClients";
 export { useCreateClient } from "./hooks/useCreateClient";
+export { useCreateClientOnly } from "./hooks/useCreateClientOnly";
+export type { CreateClientOnlyResult } from "./hooks/useCreateClientOnly";
 export {
   useUpdateClient,
   useActivateClient,

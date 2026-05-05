@@ -32,7 +32,11 @@ import {
 import { cn } from "@shared/lib/utils/cn";
 
 import type { ClientAddressListItem, ClientAddress } from "../../domain";
-import { formatClientAddress, isCartaPorteReady } from "../../domain";
+import {
+  formatClientAddress,
+  getCartaPorteMissingFields,
+  isCartaPorteReady,
+} from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
 
 // ============================================================================
@@ -63,6 +67,9 @@ export function ClientAddressCard({
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
   const cartaPorteReady = isCartaPorteReady(address as ClientAddress);
+  const satMinHint = cartaPorteReady
+    ? undefined
+    : getCartaPorteMissingFields(address as ClientAddress).join(", ");
 
   return (
     <Card
@@ -204,9 +211,16 @@ export function ClientAddressCard({
               Carta Porte 3.1
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-xs text-amber-600">
+            <span
+              className="flex items-center gap-1 text-xs text-amber-600"
+              title={
+                satMinHint
+                  ? `Falta mínimo SAT: ${satMinHint}`
+                  : "Falta estado o código postal (5 dígitos)"
+              }
+            >
               <AlertCircle className="h-3.5 w-3.5" />
-              Datos CP incompletos
+              Mínimo SAT incompleto
             </span>
           )}
         </div>

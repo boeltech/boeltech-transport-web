@@ -13,12 +13,19 @@ export { ClientCard } from "./ClientCard";
 export { ClientCardSkeleton } from "./ClientCardSkeleton";
 export { ClientForm } from "./ClientForm";
 export { ClientActions } from "./ClientActions";
+export { ClientDetailDataTab } from "./ClientDetailDataTab";
+export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
 
 // Address components
 export { ClientAddressCard } from "./ClientAddressCard";
 export { ClientAddressForm } from "./ClientAddressForm";
-export { ClientAddressSection } from "./ClientAddressSection";
+export { ClientAddressListItem } from "./ClientAddressListItem";
+export { ClientAddressDetailView } from "./ClientAddressDetailView";
+export { ClientAddressMasterDetail } from "./ClientAddressMasterDetail";
 
 // Types
 export type { ClientFormProps } from "./ClientForm";
 export type { ClientAddressFormProps } from "./ClientAddressForm";
+export type { ClientAddressListItemProps } from "./ClientAddressListItem";
+export type { ClientAddressDetailViewProps } from "./ClientAddressDetailView";
+export type { ClientAddressMasterDetailProps } from "./ClientAddressMasterDetail";

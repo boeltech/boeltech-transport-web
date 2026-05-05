@@ -19,7 +19,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks";
 import { clientRepository } from "../../infrastructure";
-import { clientQueryKeys } from "../../domain";
+import {
+  clientQueryKeys,
+  type ClientListItem,
+  type PaginatedResult,
+} from "../../domain";
 
 // ============================================================================
 // HOOK
@@ -36,11 +40,32 @@ export function useDeleteClient() {
     mutationFn: (clientId) => clientRepository.delete(clientId),
 
     onSuccess: (_, clientId) => {
-      // Remover del cache
       queryClient.removeQueries({ queryKey: clientQueryKeys.detail(clientId) });
 
-      // Invalidar listados
-      queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
+      // Quitar el cliente de los listados en caché sin refetch inmediato: un
+      // soft delete en API suele devolver el mismo registro al invalidar, y
+      // el ítem “reaparece” hasta que el backend filtre por `deleted_at`.
+      queryClient.setQueriesData<PaginatedResult<ClientListItem>>(
+        { queryKey: clientQueryKeys.lists() },
+        (old) => {
+          if (!old?.data?.length) return old;
+          if (!old.data.some((c) => c.id === clientId)) return old;
+          return {
+            ...old,
+            data: old.data.filter((c) => c.id !== clientId),
+            pagination: {
+              ...old.pagination,
+              total: Math.max(0, old.pagination.total - 1),
+            },
+          };
+        },
+      );
+
+      queryClient.setQueryData<ClientListItem[]>(
+        clientQueryKeys.active(),
+        (old) => (old ? old.filter((c) => c.id !== clientId) : old),
+      );
+
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
 
       // Notificar éxito

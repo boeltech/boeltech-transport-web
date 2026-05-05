@@ -5,16 +5,19 @@
  * Implementación del repositorio de direcciones de cliente usando apiClient.
  *
  * Endpoints (anidados bajo /clients/:clientId):
- * - GET    /api/v1/clients/:clientId/addresses          → Lista direcciones
- * - GET    /api/v1/clients/:clientId/addresses/:id      → Detalle dirección
- * - POST   /api/v1/clients/:clientId/addresses          → Crear dirección
- * - PUT    /api/v1/clients/:clientId/addresses/:id      → Actualizar dirección
- * - DELETE /api/v1/clients/:clientId/addresses/:id      → Eliminar dirección
+ * - GET    …/addresses          → { data: Address[] }  (ver API Response Standard)
+ * - GET    …/addresses/:id      → { data: Address }
+ * - POST   …/addresses          → 201 { data: Address }
+ * - PUT    …/addresses/:id      → { data: Address }
+ * - DELETE …/addresses/:id      → acción
+ *
+ * Contrato backend (fuente de verdad): `boeltech-transport-api` →
+ * `src/modules/commercial/clients/client-address.controller.ts` (siempre envelope `data` en lecturas/altas/edición de recurso).
  *
  * Ubicación: src/features/clients/infrastructure/ClientAddressRepository.ts
  */
 
-import { apiClient } from "@shared/api";
+import { apiClient, type ApiSingleResponse } from "@shared/api";
 import type {
   ClientAddress,
   ClientAddressListItem,
@@ -47,12 +50,11 @@ class ClientAddressRepository implements IClientAddressRepository {
    * Obtiene todas las direcciones de un cliente
    */
   async findByClientId(clientId: string): Promise<ClientAddressListItem[]> {
-    // El backend devuelve { data: [...] } según client-address.controller.ts
-    const response = await apiClient.get<{ data: ClientAddressApiResponse[] }>(
-      getBaseUrl(clientId),
-    );
+    const { data } = await apiClient.get<
+      ApiSingleResponse<ClientAddressApiResponse[]>
+    >(getBaseUrl(clientId));
 
-    return mapClientAddresses(response.data);
+    return mapClientAddresses(data);
   }
 
   /**
@@ -63,12 +65,10 @@ class ClientAddressRepository implements IClientAddressRepository {
     addressId: string,
   ): Promise<ClientAddress | null> {
     try {
-      // El backend devuelve la dirección directamente (sin wrapper)
-      // según client-address.controller.ts línea 37
-      const response = await apiClient.get<ClientAddressApiResponse>(
-        `${getBaseUrl(clientId)}/${addressId}`,
-      );
-      return mapClientAddress(response);
+      const { data } = await apiClient.get<
+        ApiSingleResponse<ClientAddressApiResponse>
+      >(`${getBaseUrl(clientId)}/${addressId}`);
+      return mapClientAddress(data);
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -90,14 +90,11 @@ class ClientAddressRepository implements IClientAddressRepository {
   ): Promise<ClientAddress> {
     const payload = toApiCreateClientAddress(data);
 
-    // El backend devuelve la dirección creada directamente
-    // según client-address.controller.ts línea 53
-    const response = await apiClient.post<ClientAddressApiResponse>(
-      getBaseUrl(clientId),
-      payload,
-    );
+    const response = await apiClient.post<
+      ApiSingleResponse<ClientAddressApiResponse>
+    >(getBaseUrl(clientId), payload);
 
-    return mapClientAddress(response);
+    return mapClientAddress(response.data);
   }
 
   /**
@@ -110,13 +107,11 @@ class ClientAddressRepository implements IClientAddressRepository {
   ): Promise<ClientAddress> {
     const payload = toApiUpdateClientAddress(data);
 
-    // El backend devuelve la dirección actualizada directamente
-    const response = await apiClient.put<ClientAddressApiResponse>(
-      `${getBaseUrl(clientId)}/${addressId}`,
-      payload,
-    );
+    const response = await apiClient.put<
+      ApiSingleResponse<ClientAddressApiResponse>
+    >(`${getBaseUrl(clientId)}/${addressId}`, payload);
 
-    return mapClientAddress(response);
+    return mapClientAddress(response.data);
   }
 
   /**

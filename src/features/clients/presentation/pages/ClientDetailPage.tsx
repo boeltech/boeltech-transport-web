@@ -2,454 +2,471 @@
  * ClientDetailPage
  * Clean Architecture - Presentation Layer
  *
- * Página de detalle de un cliente.
- * Layout homologado con VehicleDetailPage / DriverDetailPage: cabecera + pestañas.
+ * Detalle canónico: DetailPageShell con stats, alerts, tabs y metadata.
  *
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
 
-import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Badge } from "@shared/ui/badge";
-import { Separator } from "@shared/ui/separator";
-import { Skeleton } from "@shared/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft,
   Building2,
-  User,
-  Phone,
-  Mail,
-  CreditCard,
-  FileText,
-  Calendar,
-  Hash,
   AlertCircle,
-  MapPin,
+  AlertTriangle,
+  Route,
+  Receipt,
+  Timer,
+  Wallet,
+  Loader2,
 } from "lucide-react";
+import { DetailPageShell } from "@shared/ui/page-shells";
+import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
+import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
 
-import { useClient } from "../../application";
+import { useClient, useClientAddresses, useUpdateClient } from "../../application";
 import type { Client } from "../../domain";
 import { getClientDisplayName } from "../../domain";
-import { ClientActions, ClientAddressSection } from "../components";
+import {
+  ClientActions,
+  ClientAddressMasterDetail,
+  ClientDetailCommercialTab,
+  ClientDetailDataTab,
+  ClientForm,
+} from "../components";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
-  getStatusConfig,
+  formatCreditLimit,
 } from "../config/clientConfig";
+import {
+  ClientStatusBadge,
+  operationalStatusFromClient,
+} from "../config/clientStatusConfig";
+import {
+  isClientTaxIdFormatSuspicious,
+  isCreditExposureUndefinable,
+} from "../helpers/clientDetailGuards";
+import type { ClientFormData } from "../validation/clientSchema";
 
 // ============================================================================
-// SUB-COMPONENTS (patrón InfoRow como VehicleDetailPage)
+// HELPERS
 // ============================================================================
 
-interface InfoRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-  className?: string;
-}
+function buildClientStats(client: Client): StatCardProps[] {
+  const tripsPlaceholder = "—";
+  const invoicedPlaceholder = "—";
+  const daysPayPlaceholder = "—";
 
-function InfoRow({ icon, label, value, className }: InfoRowProps) {
-  return (
-    <div className={cn("flex items-start gap-3", className)}>
-      <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <div className="text-sm font-medium">{value}</div>
-      </div>
-    </div>
-  );
-}
+  let creditValue: string;
+  let creditDescription: string | undefined;
+  if (client.paymentTerms === "cash") {
+    creditValue = "N/A";
+    creditDescription = "Pago de contado";
+  } else if (client.creditLimit != null && client.creditLimit > 0) {
+    creditValue = formatCreditLimit(client.creditLimit);
+    creditDescription = "Límite autorizado";
+  } else {
+    creditValue = "Sin definir";
+    creditDescription = "Registra límite en edición";
+  }
 
-function ClientDataTabContent({
-  client,
-  taxRegimeLabel,
-  paymentConfig,
-  PaymentIcon,
-}: {
-  client: Client;
-  taxRegimeLabel: string | null;
-  paymentConfig: ReturnType<typeof getPaymentTermsConfig>;
-  PaymentIcon: React.ComponentType<{ className?: string }>;
-}) {
-  const hasContact =
-    client.contactName ||
-    client.contactPosition ||
-    client.phone ||
-    client.secondaryPhone ||
-    client.email ||
-    client.billingEmail;
-
-  return (
-    <div className="mt-4 grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
-            Información fiscal
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <InfoRow
-            icon={<Building2 className="h-4 w-4" />}
-            label="Razón social"
-            value={client.legalName}
-          />
-          {client.tradeName ? (
-            <InfoRow
-              icon={<Building2 className="h-4 w-4" />}
-              label="Nombre comercial"
-              value={client.tradeName}
-            />
-          ) : null}
-          <InfoRow
-            icon={<Hash className="h-4 w-4" />}
-            label="RFC"
-            value={<span className="font-mono">{client.taxId}</span>}
-          />
-          {taxRegimeLabel ? (
-            <InfoRow
-              icon={<FileText className="h-4 w-4" />}
-              label="Régimen fiscal"
-              value={taxRegimeLabel}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <User className="h-4 w-4" />
-            Contacto principal
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {hasContact ? (
-            <>
-              {client.contactName ? (
-                <InfoRow
-                  icon={<User className="h-4 w-4" />}
-                  label="Nombre"
-                  value={client.contactName}
-                />
-              ) : null}
-              {client.contactPosition ? (
-                <InfoRow
-                  icon={<User className="h-4 w-4" />}
-                  label="Puesto"
-                  value={client.contactPosition}
-                />
-              ) : null}
-              {client.phone ? (
-                <InfoRow
-                  icon={<Phone className="h-4 w-4" />}
-                  label="Teléfono"
-                  value={
-                    <a
-                      href={`tel:${client.phone}`}
-                      className="text-primary hover:underline"
-                    >
-                      {client.phone}
-                    </a>
-                  }
-                />
-              ) : null}
-              {client.secondaryPhone ? (
-                <InfoRow
-                  icon={<Phone className="h-4 w-4" />}
-                  label="Teléfono secundario"
-                  value={
-                    <a
-                      href={`tel:${client.secondaryPhone}`}
-                      className="text-primary hover:underline"
-                    >
-                      {client.secondaryPhone}
-                    </a>
-                  }
-                />
-              ) : null}
-              {client.email ? (
-                <InfoRow
-                  icon={<Mail className="h-4 w-4" />}
-                  label="Correo"
-                  value={
-                    <a
-                      href={`mailto:${client.email}`}
-                      className="text-primary hover:underline"
-                    >
-                      {client.email}
-                    </a>
-                  }
-                />
-              ) : null}
-              {client.billingEmail ? (
-                <InfoRow
-                  icon={<Mail className="h-4 w-4" />}
-                  label="Correo de facturación"
-                  value={
-                    <a
-                      href={`mailto:${client.billingEmail}`}
-                      className="text-primary hover:underline"
-                    >
-                      {client.billingEmail}
-                    </a>
-                  }
-                />
-              ) : null}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No hay información de contacto registrada.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="h-4 w-4" />
-            Términos comerciales
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <InfoRow
-            icon={<CreditCard className="h-4 w-4" />}
-            label="Forma de pago"
-            value={
-              <Badge variant={paymentConfig.variant}>
-                <PaymentIcon className="mr-1 h-3 w-3" />
-                {paymentConfig.label}
-              </Badge>
-            }
-          />
-          {client.paymentTerms === "credit" ? (
-            <>
-              <Separator />
-              <InfoRow
-                icon={<Calendar className="h-4 w-4" />}
-                label="Días de crédito"
-                value={`${client.creditDays} días`}
-              />
-              {client.creditLimit !== undefined && client.creditLimit > 0 ? (
-                <InfoRow
-                  icon={<CreditCard className="h-4 w-4" />}
-                  label="Límite de crédito"
-                  value={`$${client.creditLimit.toLocaleString("es-MX")}`}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
-            Notas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {client.notes ? (
-            <p className="whitespace-pre-wrap text-sm">{client.notes}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin notas</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="md:col-span-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Calendar className="h-4 w-4" />
-            Registro
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <InfoRow
-            icon={<Calendar className="h-4 w-4" />}
-            label="Creado"
-            value={new Date(client.createdAt).toLocaleDateString("es-MX", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          />
-          <InfoRow
-            icon={<Calendar className="h-4 w-4" />}
-            label="Actualizado"
-            value={new Date(client.updatedAt).toLocaleDateString("es-MX", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return [
+    {
+      title: "Viajes activos",
+      value: tripsPlaceholder,
+      icon: <Route className="h-5 w-5 text-primary" />,
+      description: "Integración pendiente",
+    },
+    {
+      title: "Total facturado",
+      value: invoicedPlaceholder,
+      icon: <Receipt className="h-5 w-5 text-emerald-500" />,
+      description: "Integración pendiente",
+    },
+    {
+      title: "Días prom. pago",
+      value: daysPayPlaceholder,
+      icon: <Timer className="h-5 w-5 text-blue-500" />,
+      description: "Histórico de cobranza",
+    },
+    {
+      title: "Crédito disponible",
+      value: creditValue,
+      icon: <Wallet className="h-5 w-5 text-amber-500" />,
+      description: creditDescription,
+    },
+  ];
 }
 
 // ============================================================================
-// COMPONENT
+// PAGE
 // ============================================================================
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const clientId = id ?? "";
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: client, isLoading, isError } = useClient(id);
+  const {
+    data: client,
+    isLoading,
+    isError,
+  } = useClient(clientId || undefined);
+
+  const clientSoftDeleted = Boolean(client?.deletedAt);
+
   const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime);
 
+  const addressQuery = useClientAddresses(clientId || undefined, {
+    enabled: !!clientId,
+  });
+
+  // ── Edición vía Sheet ─────────────────────────────────────────────────────
+  // Soporta abrir automáticamente con `?edit=true` (preserva bookmarks de
+  // la antigua /clients/:id/edit que ahora redirige aquí).
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [formData, setFormData] = useState<ClientFormData | null>(null);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const updateMutation = useUpdateClient();
+
+  useEffect(() => {
+    if (
+      searchParams.get("edit") === "true" &&
+      client &&
+      !clientSoftDeleted &&
+      !editSheetOpen
+    ) {
+      setEditSheetOpen(true);
+    }
+    // Solo dispara la primera vez que cargamos el cliente con ?edit=true.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, clientSoftDeleted]);
+
+  const handleEditSheetOpenChange = useCallback(
+    (open: boolean) => {
+      setEditSheetOpen(open);
+      // Limpia ?edit=true del URL al cerrar para que reload no reabra el sheet.
+      if (!open && searchParams.get("edit") === "true") {
+        setSearchParams(
+          (prev) => {
+            const params = new URLSearchParams(prev);
+            params.delete("edit");
+            return params;
+          },
+          { replace: true },
+        );
+      }
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleFormChange = useCallback(
+    (data: ClientFormData, valid: boolean) => {
+      setFormData(data);
+      setIsFormValid(valid);
+    },
+    [],
+  );
+
+  const handleSaveEdit = useCallback(() => {
+    if (!formData || !isFormValid || !clientId) return;
+    updateMutation.mutate(
+      {
+        clientId,
+        data: {
+          type: formData.type,
+          legalName: formData.legalName,
+          tradeName: formData.tradeName || undefined,
+          taxId: formData.taxId,
+          taxRegime: formData.taxRegime || undefined,
+          contactName: formData.contactName || undefined,
+          contactPosition: formData.contactPosition || undefined,
+          phone: formData.phone || undefined,
+          secondaryPhone: formData.secondaryPhone || undefined,
+          email: formData.email || undefined,
+          billingEmail: formData.billingEmail || undefined,
+          paymentTerms: formData.paymentTerms,
+          creditDays: formData.creditDays,
+          creditLimit: formData.creditLimit,
+          notes: formData.notes || undefined,
+        },
+      },
+      {
+        onSuccess: () => handleEditSheetOpenChange(false),
+      },
+    );
+  }, [formData, isFormValid, clientId, updateMutation, handleEditSheetOpenChange]);
+
+  const editFormDefaults = useMemo<Partial<ClientFormData> | null>(() => {
+    if (!client || clientSoftDeleted) return null;
+    return {
+      type: client.type,
+      legalName: client.legalName,
+      tradeName: client.tradeName ?? "",
+      taxId: client.taxId,
+      taxRegime: client.taxRegime ?? "",
+      contactName: client.contactName ?? "",
+      contactPosition: client.contactPosition ?? "",
+      phone: client.phone ?? "",
+      secondaryPhone: client.secondaryPhone ?? "",
+      email: client.email ?? "",
+      billingEmail: client.billingEmail ?? "",
+      paymentTerms: client.paymentTerms,
+      creditDays: client.creditDays,
+      creditLimit: client.creditLimit ?? undefined,
+      notes: client.notes ?? "",
+    };
+  }, [client, clientSoftDeleted]);
+
+  const clientStats = useMemo((): StatCardProps[] => {
+    if (!client || clientSoftDeleted) return [];
+    return buildClientStats(client);
+  }, [client, clientSoftDeleted]);
+
+  const clientAlerts = useMemo(() => {
+    if (!client || clientSoftDeleted) return undefined;
+
+    const cards: ReactElement[] = [];
+
+    const addressesReady =
+      addressQuery.isSuccess &&
+      addressQuery.data !== undefined &&
+      addressQuery.data.length === 0;
+
+    if (addressesReady) {
+      cards.push(
+        <DetailAlertCard
+          key="no-addresses"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="Sin direcciones registradas"
+          items={[
+            {
+              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones.",
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (isClientTaxIdFormatSuspicious(client)) {
+      cards.push(
+        <DetailAlertCard
+          key="rfc-suspicious"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="RFC con formato inconsistente"
+          items={[
+            {
+              text: "Verifica longitud y caracteres del RFC según el tipo de persona (moral 12 · física 13).",
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (isCreditExposureUndefinable(client)) {
+      cards.push(
+        <DetailAlertCard
+          key="credit-no-limit"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="Crédito sin límite definido"
+          items={[
+            {
+              text: "El cliente está en crédito sin límite registrado. Define un monto para control de exposición (sobregiro se reportará con integración de cartera).",
+            },
+          ]}
+        />,
+      );
+    }
+
+    if (cards.length === 0) return undefined;
+    return <div className="space-y-3">{cards}</div>;
+  }, [client, clientSoftDeleted, addressQuery.isSuccess, addressQuery.data]);
+
   if (isLoading) {
-    return <ClientDetailSkeleton />;
+    return (
+      <DetailPageShell
+        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+        isLoading
+        header={{
+          backHref: "/clients",
+          backLabel: "Volver a clientes",
+          icon: <Building2 className="h-6 w-6" />,
+          iconShape: "circle",
+          title: "Cliente",
+        }}
+      />
+    );
   }
 
-  if (isError || !client) {
+  const clientUnavailable = !client || clientSoftDeleted;
+
+  if (isError || clientUnavailable) {
+    const wasDeleted = Boolean(client?.deletedAt);
     return (
-      <div className="flex flex-col items-center justify-center gap-4 px-6 py-12">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-lg font-medium">Cliente no encontrado</p>
-        <p className="text-center text-sm text-muted-foreground">
-          El cliente que buscas no existe o fue eliminado.
-        </p>
-        <Button variant="outline" onClick={() => navigate("/clients")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a clientes
-        </Button>
-      </div>
+      <DetailPageShell
+        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: wasDeleted ? "Cliente dado de baja" : "Cliente no encontrado",
+          description: wasDeleted
+            ? "Este cliente fue eliminado del catálogo operativo (baja lógica) y ya no está disponible."
+            : "El cliente que buscas no existe o fue eliminado.",
+          backHref: "/clients",
+          backLabel: "Volver a clientes",
+        }}
+        header={{
+          backHref: "/clients",
+          icon: <Building2 className="h-6 w-6" />,
+          iconShape: "circle",
+          title: "Cliente",
+        }}
+      />
     );
   }
 
   const typeConfig = getClientTypeConfig(client.type);
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
-  const statusConfig = getStatusConfig(client.isActive);
   const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
-  const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/clients")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div
-              className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
-                typeConfig.bgColor,
-              )}
-            >
-              <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold">
-                {getClientDisplayName(client)}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {client.clientCode} · {typeConfig.label}
-              </p>
-            </div>
-            <Badge variant={statusConfig.variant} className="shrink-0">
-              <StatusIcon className="mr-1 h-3 w-3" />
-              {statusConfig.label}
-            </Badge>
-          </div>
-        </div>
-
-        <ClientActions client={client} variant="buttons" />
-      </div>
-
-      <Tabs defaultValue="data">
-        <TabsList>
-          <TabsTrigger value="data">Datos</TabsTrigger>
-          <TabsTrigger value="addresses" className="gap-1.5">
-            <MapPin className="h-3.5 w-3.5" />
-            Direcciones
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="data">
-          <ClientDataTabContent
+    <>
+    <DetailPageShell
+      className="mx-auto w-full max-w-6xl p-4 sm:p-6"
+      isLoading={false}
+      header={{
+        backHref: "/clients",
+        backLabel: "Volver a clientes",
+        icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
+        iconVariant: client.isActive ? "primary" : "muted",
+        iconShape: client.type === "individual" ? "circle" : "rounded",
+        title: getClientDisplayName(client),
+        subtitle: `${client.clientCode} · ${typeConfig.label}`,
+        statusBadge: (
+          <ClientStatusBadge
+            status={operationalStatusFromClient(client.isActive)}
+            showIcon
+            size="sm"
+          />
+        ),
+        actions: (
+          <ClientActions
             client={client}
-            taxRegimeLabel={taxRegimeLabel}
-            paymentConfig={paymentConfig}
-            PaymentIcon={PaymentIcon}
+            variant="buttons"
+            onEdit={() => setEditSheetOpen(true)}
           />
-        </TabsContent>
+        ),
+      }}
+      alerts={clientAlerts}
+      stats={clientStats}
+      tabs={{
+        defaultValue: "informacion",
+        items: [
+          {
+            value: "informacion",
+            label: "Información",
+            content: (
+              <ClientDetailDataTab
+                client={client}
+                taxRegimeLabel={taxRegimeLabel}
+              />
+            ),
+          },
+          {
+            value: "terminos_comerciales",
+            label: "Términos comerciales",
+            content: (
+              <ClientDetailCommercialTab
+                client={client}
+                paymentConfig={paymentConfig}
+                PaymentIcon={PaymentIcon}
+              />
+            ),
+          },
+          {
+            value: "addresses",
+            label: "Direcciones",
+            content: (
+              <ClientAddressMasterDetail
+                clientId={client.id}
+                clientRfc={client.taxId}
+                clientName={client.legalName}
+              />
+            ),
+          },
+        ],
+      }}
+      metadata={{
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+        createdBy: client.createdBy ?? undefined,
+      }}
+    />
 
-        <TabsContent value="addresses" className="mt-4">
-          <ClientAddressSection
-            clientId={client.id}
-            clientRfc={client.taxId}
-            clientName={client.legalName}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
+    {/* ============================================================ */}
+    {/* SHEET: edición contextual del cliente                         */}
+    {/* ============================================================ */}
+    <Sheet open={editSheetOpen} onOpenChange={handleEditSheetOpenChange}>
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+      >
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>Editar cliente</SheetTitle>
+          <SheetDescription>{getClientDisplayName(client)}</SheetDescription>
+        </SheetHeader>
 
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function ClientDetailSkeleton() {
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-md" />
-          <Skeleton className="h-12 w-12 rounded-lg" />
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-          <Skeleton className="h-6 w-20 rounded-full" />
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {editFormDefaults ? (
+            <ClientForm
+              defaultValues={editFormDefaults}
+              onChange={handleFormChange}
+              disabled={updateMutation.isPending}
+            />
+          ) : null}
         </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-28" />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-40" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-36" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+
+        <SheetFooter className="border-t bg-background px-6 py-4">
+          <Button
+            variant="outline"
+            onClick={() => handleEditSheetOpenChange(false)}
+            disabled={updateMutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveEdit}
+            disabled={!isFormValid || updateMutation.isPending}
+          >
+            {updateMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              "Guardar cambios"
+            )}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+    </>
   );
 }
 

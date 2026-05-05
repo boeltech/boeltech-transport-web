@@ -54,6 +54,12 @@ export interface ClientActionsProps {
   client: ClientListItem;
   variant?: "dropdown" | "buttons";
   showView?: boolean;
+  /**
+   * Override del handler de "Editar".
+   * Si se pasa, se usa este callback en lugar de navegar a `/clients/:id/edit`.
+   * Útil para abrir un Sheet/Drawer de edición desde la página de detalle.
+   */
+  onEdit?: () => void;
 }
 
 // ============================================================================
@@ -64,6 +70,7 @@ export function ClientActions({
   client,
   variant = "dropdown",
   showView = false,
+  onEdit,
 }: ClientActionsProps) {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
@@ -87,7 +94,13 @@ export function ClientActions({
   };
 
   const handleEdit = () => {
-    navigate(`/clients/${client.id}/edit`);
+    if (onEdit) {
+      onEdit();
+      return;
+    }
+    // Backward-compat: navega a la URL de edición.
+    // El detalle del cliente intercepta `?edit=true` para abrir el Sheet.
+    navigate(`/clients/${client.id}?edit=true`);
   };
 
   const handleActivate = () => {
@@ -105,7 +118,7 @@ export function ClientActions({
         setShowDeleteDialog(false);
         // Si estamos en el detalle, navegar a la lista
         if (variant === "buttons") {
-          navigate("/clients");
+          navigate("/clients", { replace: true });
         }
       },
     });
@@ -307,9 +320,10 @@ function DeactivateDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
           <AlertDialogDescription>
-            El cliente <strong>{clientName}</strong> será desactivado y no podrá
-            ser asignado a nuevos viajes. Puede reactivarlo en cualquier
-            momento.
+            El cliente <strong>{clientName}</strong> seguirá en el catálogo, pero
+            quedará <strong>inactivo</strong> (no podrá asignarse a nuevos
+            viajes). Podrás reactivarlo cuando quieras. No elimina el registro
+            del sistema.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -344,9 +358,10 @@ function DeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción no se puede deshacer. El cliente{" "}
-            <strong>{clientName}</strong> será eliminado permanentemente del
-            sistema.
+            Se dará de baja a <strong>{clientName}</strong> (
+            <strong>borrado lógico</strong>). A diferencia de desactivar, deja
+            de mostrarse como cliente disponible en el listado y no podrás
+            seguir operando su ficha como hasta ahora.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
