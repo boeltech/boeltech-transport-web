@@ -521,7 +521,10 @@ export function TripDetailPage() {
       stats={[
         {
           title: "Distancia",
-          value: distance > 0 ? `${distance.toLocaleString("es-MX")} km` : "—",
+          value:
+            distance != null && distance > 0
+              ? `${distance.toLocaleString("es-MX")} km`
+              : "—",
           icon: <Navigation className="h-5 w-5 text-primary" />,
         },
         {
@@ -1537,7 +1540,6 @@ export function TripDetailPage() {
               </CardHeader>
               <CardContent>
                 <DetailTimeline
-                  dotSize="sm"
                   items={trip.statusHistory.map((entry) => {
                     const statusConfig = getTripStatusConfig(
                       entry.newStatus as TripStatusType,

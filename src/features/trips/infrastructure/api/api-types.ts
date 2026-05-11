@@ -126,9 +126,33 @@ export interface ApiCargoResponse {
 
   // Material peligroso
   hazardous_material: boolean | null;
+  requires_hazmat?: boolean | null;
   hazardous_material_code: string | null;
   packaging_type: string | null;
   packaging_description: string | null;
+
+  // Sectores regulados (Carta Porte 3.1 §6.4)
+  sector_requirements?: Record<string, boolean> | null;
+  sector_cofepris?: string | null;
+  nombre_ingrediente_activo?: string | null;
+  nom_quimico?: string | null;
+  denominacion_generica_prod?: string | null;
+  denominacion_distintiva_prod?: string | null;
+  fabricante?: string | null;
+  fecha_caducidad?: string | null;
+  lote_medicamento?: string | null;
+  forma_farmaceutica?: string | null;
+  condiciones_esp_transp?: string | null;
+  registro_sanitario_folio_autorizacion?: string | null;
+  permiso_importacion?: string | null;
+  folio_impo_vucem?: string | null;
+  num_cas?: string | null;
+  razon_social_emp_imp?: string | null;
+  num_reg_san_plag_cofepris?: string | null;
+  datos_fabricante?: string | null;
+  datos_formulador?: string | null;
+  datos_maquilador?: string | null;
+  uso_autorizado?: string | null;
 
   // Comercio exterior
   fraccion_arancelaria: string | null;
@@ -256,6 +280,7 @@ export interface ApiStopResponse {
   reference: string | null;
 
   // Claves SAT
+  sat_country_code?: string | null;
   sat_state_code?: string | null;
   sat_municipality_code?: string | null;
   sat_locality_code?: string | null;
@@ -270,8 +295,17 @@ export interface ApiStopResponse {
   rfc_remitente_destinatario: string | null;
   nombre_remitente_destinatario: string | null;
 
+  delivery_rfc_remitente_destinatario?: string | null;
+  delivery_nombre_remitente_destinatario?: string | null;
+  remitente_partner_id?: string | null;
+  destinatario_partner_id?: string | null;
+
   // Distancia
   distance_from_previous_km: number | null;
+  distance_source?: "manual" | "mapbox_matrix" | "haversine_fallback" | null;
+  distance_provider?: "mapbox" | "stub" | null;
+  distance_confidence?: "high" | "medium" | "low" | null;
+  distance_computed_at?: string | null;
 
   // Auditoría
   created_at: string;
@@ -349,6 +383,9 @@ export interface ApiTripResponse {
   // Carta Porte 3.1 — distancia registrada / id complemento (cuando aplique)
   total_dist_rec: number | null;
   id_ccp: string | null;
+
+  /** Ingreso vs traslado — metadato fiscal / UX */
+  cfdi_document_intent?: "ingreso" | "traslado";
 
   // Auditoría
   created_at: string;

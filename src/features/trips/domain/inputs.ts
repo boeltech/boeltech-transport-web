@@ -23,6 +23,29 @@ import type {
   ExpenseStatusType,
 } from "./enums";
 
+export interface CargoSectorRequirementsInput {
+  sectorCofepris?: boolean;
+  nombreIngredienteActivo?: boolean;
+  nomQuimico?: boolean;
+  denominacionGenericaProd?: boolean;
+  denominacionDistintivaProd?: boolean;
+  fabricante?: boolean;
+  fechaCaducidad?: boolean;
+  loteMedicamento?: boolean;
+  formaFarmaceutica?: boolean;
+  condicionesEspTransp?: boolean;
+  registroSanitarioFolioAutorizacion?: boolean;
+  permisoImportacion?: boolean;
+  folioImpoVucem?: boolean;
+  numCas?: boolean;
+  razonSocialEmpImp?: boolean;
+  numRegSanPlagCofepris?: boolean;
+  datosFabricante?: boolean;
+  datosFormulador?: boolean;
+  datosMaquilador?: boolean;
+  usoAutorizado?: boolean;
+}
+
 // ============================================================================
 // CARGO MOVEMENT INPUTS
 // ============================================================================
@@ -83,14 +106,39 @@ export interface CreateCargoInput {
   satProductDescription?: string;
   satUnitCode?: string; // c_ClaveUnidad (ej: "KGM", "H87", "XBX")
   satUnitName?: string; // Nombre unidad (ej: "Kilogramo", "Pieza")
+  currency?: CurrencyType; // Moneda SAT para valor de mercancía (v1: MXN)
   weightInKg?: number; // PesoEnKg (obligatorio para CP)
   dimensions?: string; // Largo/Alto/Ancho (ej: "50/40/30cm")
 
   // Material peligroso
   hazardousMaterial?: boolean;
+  requiresHazmat?: boolean; // Derivado de catálogo SAT
   hazardousMaterialCode?: string; // c_MaterialPeligroso (ej: "1203")
   packagingType?: string; // c_TipoEmbalaje (ej: "4H2")
   packagingDescription?: string;
+
+  // Sectores regulados (Carta Porte 3.1 §6.4)
+  sectorRequirements?: CargoSectorRequirementsInput;
+  sectorCofepris?: string;
+  nombreIngredienteActivo?: string;
+  nomQuimico?: string;
+  denominacionGenericaProd?: string;
+  denominacionDistintivaProd?: string;
+  fabricante?: string;
+  fechaCaducidad?: string;
+  loteMedicamento?: string;
+  formaFarmaceutica?: string;
+  condicionesEspTransp?: string;
+  registroSanitarioFolioAutorizacion?: string;
+  permisoImportacion?: string;
+  folioImpoVucem?: string;
+  numCas?: string;
+  razonSocialEmpImp?: string;
+  numRegSanPlagCofepris?: string;
+  datosFabricante?: string;
+  datosFormulador?: string;
+  datosMaquilador?: string;
+  usoAutorizado?: string;
 
   // Comercio exterior (opcional)
   fraccionArancelaria?: string; // 10 dígitos
@@ -132,9 +180,33 @@ export interface UpdateCargoInput {
 
   // Material peligroso
   hazardousMaterial?: boolean | null;
+  requiresHazmat?: boolean | null;
   hazardousMaterialCode?: string | null;
   packagingType?: string | null;
   packagingDescription?: string | null;
+
+  // Sectores regulados
+  sectorRequirements?: CargoSectorRequirementsInput | null;
+  sectorCofepris?: string | null;
+  nombreIngredienteActivo?: string | null;
+  nomQuimico?: string | null;
+  denominacionGenericaProd?: string | null;
+  denominacionDistintivaProd?: string | null;
+  fabricante?: string | null;
+  fechaCaducidad?: string | null;
+  loteMedicamento?: string | null;
+  formaFarmaceutica?: string | null;
+  condicionesEspTransp?: string | null;
+  registroSanitarioFolioAutorizacion?: string | null;
+  permisoImportacion?: string | null;
+  folioImpoVucem?: string | null;
+  numCas?: string | null;
+  razonSocialEmpImp?: string | null;
+  numRegSanPlagCofepris?: string | null;
+  datosFabricante?: string | null;
+  datosFormulador?: string | null;
+  datosMaquilador?: string | null;
+  usoAutorizado?: string | null;
 
   // Comercio exterior
   fraccionArancelaria?: string | null;
@@ -192,8 +264,12 @@ export interface CreateExpenseInput {
   notes?: string;
 }
 
+export type TripInternalStaffRole = "secondary_driver" | "helper";
+
 export interface CreateTripInternalStaffInput {
   employeeId: string;
+  /** Rol en ruta; el API lo exige. UX v1: por defecto `helper`. */
+  internalRole?: TripInternalStaffRole;
   isPaymentResponsible?: boolean;
   paymentNotes?: string;
 }
@@ -292,22 +368,27 @@ export interface CreateStopInput {
   reference?: string;
 
   // Claves SAT (catálogos oficiales)
+  satCountryCode?: string; // c_Pais (ej: "MEX")
   satStateCode?: string; // c_Estado (ej: "MEX", "NLE")
   satMunicipalityCode?: string; // c_Municipio (ej: "028")
   satLocalityCode?: string; // c_Localidad
   satNeighborhoodCode?: string; // c_Colonia
-  // Backward-compat aliases.
-  satEstadoCode?: string;
-  satMunicipioCode?: string;
-  satLocalidadCode?: string;
-  satColoniaCode?: string;
 
   // Datos del remitente/destinatario
   rfcRemitenteDestinatario?: string;
   nombreRemitenteDestinatario?: string;
 
+  deliveryRfcRemitenteDestinatario?: string;
+  deliveryNombreRemitenteDestinatario?: string;
+  remitentePartnerId?: string;
+  destinatarioPartnerId?: string;
+
   // Distancia desde parada anterior (km)
   distanceFromPreviousKm?: number;
+  distanceSource?: "manual" | "mapbox_matrix" | "haversine_fallback";
+  distanceProvider?: "mapbox" | "stub";
+  distanceConfidence?: "high" | "medium" | "low";
+  distanceComputedAt?: string;
 
   // Catálogo (opcional; metadato operativo, no fiscal)
   clientId?: string;
@@ -356,22 +437,27 @@ export interface UpdateStopInput {
   reference?: string | null;
 
   // Claves SAT
+  satCountryCode?: string | null;
   satStateCode?: string | null;
   satMunicipalityCode?: string | null;
   satLocalityCode?: string | null;
   satNeighborhoodCode?: string | null;
-  // Backward-compat aliases.
-  satEstadoCode?: string | null;
-  satMunicipioCode?: string | null;
-  satLocalidadCode?: string | null;
-  satColoniaCode?: string | null;
 
   // Datos del remitente/destinatario
   rfcRemitenteDestinatario?: string | null;
   nombreRemitenteDestinatario?: string | null;
 
+  deliveryRfcRemitenteDestinatario?: string | null;
+  deliveryNombreRemitenteDestinatario?: string | null;
+  remitentePartnerId?: string | null;
+  destinatarioPartnerId?: string | null;
+
   // Distancia
   distanceFromPreviousKm?: number | null;
+  distanceSource?: "manual" | "mapbox_matrix" | "haversine_fallback" | null;
+  distanceProvider?: "mapbox" | "stub" | null;
+  distanceConfidence?: "high" | "medium" | "low" | null;
+  distanceComputedAt?: string | null;
 
   // Catálogo (opcional)
   clientId?: string | null;
@@ -390,6 +476,9 @@ export interface CreateTripInput {
   vehicleId: string;
   driverId: string;
   clientId?: string;
+
+  /** Intención CFDI (Ingreso vs Traslado) — UX y futuro timbrado. */
+  cfdiDocumentIntent?: "ingreso" | "traslado";
 
   // Fechas programadas
   scheduledDeparture: string; // ISO 8601
@@ -422,6 +511,9 @@ export interface CreateTripInput {
   notes?: string;
 
   // ── Carta Porte 3.1 ──────────────────────────────────────────
+  numTotalMercancias?: number;
+  pesoBrutoTotal?: number;
+  unidadPeso?: string;
 
   // Paradas
   stops?: CreateStopInput[];
@@ -452,6 +544,8 @@ export interface UpdateTripInput {
   driverId?: string;
   clientId?: string | null;
 
+  cfdiDocumentIntent?: "ingreso" | "traslado";
+
   // Fechas programadas
   scheduledDeparture?: string;
   scheduledArrival?: string | null;
@@ -481,6 +575,9 @@ export interface UpdateTripInput {
 
   // ── Carta Porte 3.1 ──────────────────────────────────────────
   totalDistRec?: number | null;
+  numTotalMercancias?: number | null;
+  pesoBrutoTotal?: number | null;
+  unidadPeso?: string | null;
 
   // Equipo de apoyo interno (reemplazo completo)
   internalStaff?: CreateTripInternalStaffInput[];

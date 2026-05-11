@@ -152,6 +152,7 @@ export type {
   CreateExpenseInput,
   UpdateExpenseInput,
   CreateTripInternalStaffInput,
+  TripInternalStaffRole,
 
   // Stop Inputs
   CreateStopInput,

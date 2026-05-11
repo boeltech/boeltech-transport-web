@@ -43,6 +43,7 @@ import {
   DialogFooter,
 } from "@shared/ui/dialog";
 import { Textarea } from "@shared/ui/text-area";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { usePermissions } from "@shared/permissions";
 import {
   Plus,
@@ -622,10 +623,21 @@ export function TripsListPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Iniciar viaje?</AlertDialogTitle>
-            <AlertDialogDescription>
-              El viaje cambiará a estado "En progreso". Asegúrese de que el
-              vehículo y el conductor estén listos para salir.
+            <AlertDialogTitle>
+              <SectionHeadingWithHint
+                title="¿Iniciar viaje?"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Iniciar viaje"
+                hint={
+                  <>
+                    El viaje cambiará a estado &quot;En progreso&quot;. Asegúrese de que el vehículo y el conductor estén
+                    listos para salir.
+                  </>
+                }
+              />
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
+              El viaje cambiará a estado en progreso. Confirme que vehículo y conductor están listos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -646,13 +658,21 @@ export function TripsListPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Cancelar viaje</DialogTitle>
+            <DialogTitle>
+              <SectionHeadingWithHint
+                title="Cancelar viaje"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Cancelar viaje"
+                hint={
+                  <>
+                    ¿Está seguro de que desea cancelar este viaje? Esta acción cambiará el estado a
+                    &quot;Cancelado&quot;.
+                  </>
+                }
+              />
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              ¿Está seguro de que desea cancelar este viaje? Esta acción
-              cambiará el estado a "Cancelado".
-            </p>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
                 Motivo de cancelación{" "}

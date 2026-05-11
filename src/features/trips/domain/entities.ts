@@ -194,9 +194,33 @@ export interface TripCargo {
 
   // Material peligroso
   readonly hazardousMaterial: boolean | null;
+  readonly requiresHazmat: boolean;
   readonly hazardousMaterialCode: string | null; // c_MaterialPeligroso
   readonly packagingType: string | null; // c_TipoEmbalaje
   readonly packagingDescription: string | null;
+
+  // Sectores regulados (Carta Porte 3.1 §6.4)
+  readonly sectorRequirements: Record<string, boolean> | null;
+  readonly sectorCofepris: string | null;
+  readonly nombreIngredienteActivo: string | null;
+  readonly nomQuimico: string | null;
+  readonly denominacionGenericaProd: string | null;
+  readonly denominacionDistintivaProd: string | null;
+  readonly fabricante: string | null;
+  readonly fechaCaducidad: string | null;
+  readonly loteMedicamento: string | null;
+  readonly formaFarmaceutica: string | null;
+  readonly condicionesEspTransp: string | null;
+  readonly registroSanitarioFolioAutorizacion: string | null;
+  readonly permisoImportacion: string | null;
+  readonly folioImpoVucem: string | null;
+  readonly numCas: string | null;
+  readonly razonSocialEmpImp: string | null;
+  readonly numRegSanPlagCofepris: string | null;
+  readonly datosFabricante: string | null;
+  readonly datosFormulador: string | null;
+  readonly datosMaquilador: string | null;
+  readonly usoAutorizado: string | null;
 
   // Documentación aduanera (comercio exterior)
   readonly fraccionArancelaria: string | null; // 10 dígitos
@@ -332,6 +356,7 @@ export interface TripStop {
   readonly reference: string | null;
 
   // Claves SAT (catálogos oficiales)
+  readonly satCountryCode: string | null; // c_Pais (ej: "MEX")
   readonly satEstadoCode: string | null; // c_Estado (ej: "MEX", "NLE")
   readonly satMunicipioCode: string | null; // c_Municipio (ej: "028")
   readonly satLocalidadCode: string | null; // c_Localidad (ej: "05")
@@ -341,8 +366,24 @@ export interface TripStop {
   readonly rfcRemitenteDestinatario: string | null;
   readonly nombreRemitenteDestinatario: string | null;
 
+  /** Segunda contraparte cuando carga y descarga aplican en la misma escala (snapshot fiscal). */
+  readonly deliveryRfcRemitenteDestinatario: string | null;
+  readonly deliveryNombreRemitenteDestinatario: string | null;
+
+  /** FK catálogo partners + snapshot arriba (compatibilidad si el catálogo cambia). */
+  readonly remitentePartnerId: string | null;
+  readonly destinatarioPartnerId: string | null;
+
   // Distancia (obligatorio para destinos en CP)
   readonly distanceFromPreviousKm: number | null;
+  readonly distanceSource:
+    | "manual"
+    | "mapbox_matrix"
+    | "haversine_fallback"
+    | null;
+  readonly distanceProvider: "mapbox" | "stub" | null;
+  readonly distanceConfidence: "high" | "medium" | "low" | null;
+  readonly distanceComputedAt: Date | null;
 
   /** Resumen UI de acción de carga en la parada (opcional, backend) */
   readonly cargoActionDescription?: string | null;
@@ -427,6 +468,12 @@ export interface Trip {
   // ── Carta Porte 3.1 — Datos del complemento ──────────────────
   readonly totalDistRec: number | null; // Distancia total recorrida (km)
   readonly idCcp: string | null; // UUID del complemento (auto-generado)
+
+  /**
+   * Intención del CFDI asociado al viaje (orientación operativa / UX).
+   * Validación fiscal definitiva la realiza el PAC al timbrar.
+   */
+  readonly cfdiDocumentIntent: "ingreso" | "traslado";
 
   // Auditoría
   readonly createdAt: Date;

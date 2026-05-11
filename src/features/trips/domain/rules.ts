@@ -11,6 +11,14 @@
 
 import type { DomainResult, ValidationResult } from "@shared/utils/errorMapper";
 import {
+  canTransitionTo as canTransitionToShared,
+  canEditTrip as canEditTripShared,
+  canDeleteTrip as canDeleteTripShared,
+  getAvailableTransitions as getAvailableTransitionsShared,
+  isTerminalStatus as isTerminalStatusShared,
+  calculateTotalCost as calculateTotalCostShared,
+} from "@boeltech/cfdi-domain";
+import {
   StopType,
   TRIP_STATUS_LABELS,
   TripStatus,
@@ -64,7 +72,7 @@ export function canTransitionTo(
   currentStatus: TripStatusType,
   newStatus: TripStatusType,
 ): boolean {
-  return VALID_STATUS_TRANSITIONS[currentStatus]?.includes(newStatus) ?? false;
+  return canTransitionToShared(currentStatus, newStatus);
 }
 
 /**
@@ -72,7 +80,7 @@ export function canTransitionTo(
  * Solo viajes en draft o scheduled pueden editarse
  */
 export function canEditTrip(status: TripStatusType): boolean {
-  return status === TripStatus.DRAFT || status === TripStatus.SCHEDULED;
+  return canEditTripShared(status);
 }
 
 /**
@@ -80,7 +88,7 @@ export function canEditTrip(status: TripStatusType): boolean {
  * Solo viajes en draft pueden eliminarse
  */
 export function canDeleteTrip(status: TripStatusType): boolean {
-  return status === TripStatus.DRAFT;
+  return canDeleteTripShared(status);
 }
 
 /**
@@ -119,7 +127,7 @@ export function isTripActive(status: TripStatusType): boolean {
  * Verifica si un viaje está en un estado terminal
  */
 export function isTerminalStatus(status: TripStatusType): boolean {
-  return status === TripStatus.COMPLETED || status === TripStatus.CANCELLED;
+  return isTerminalStatusShared(status);
 }
 
 /**
@@ -128,7 +136,7 @@ export function isTerminalStatus(status: TripStatusType): boolean {
 export function getAvailableTransitions(
   currentStatus: TripStatusType,
 ): TripStatusType[] {
-  return VALID_STATUS_TRANSITIONS[currentStatus] || [];
+  return getAvailableTransitionsShared(currentStatus);
 }
 
 // ============================================================================
@@ -199,7 +207,7 @@ export function calculateTotalCost(
   tollCost: number,
   otherCosts: number,
 ): number {
-  return baseRate + fuelCost + tollCost + otherCosts;
+  return calculateTotalCostShared(baseRate, fuelCost, tollCost, otherCosts);
 }
 
 // ============================================================================

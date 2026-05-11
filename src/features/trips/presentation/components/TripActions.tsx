@@ -38,6 +38,7 @@ import {
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -546,8 +547,15 @@ export function TripActions(props: TripActionsProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle>
+              <SectionHeadingWithHint
+                noTitleWrap
+                title={<span>{confirmDialog.title}</span>}
+                hintLabel={confirmDialog.title}
+                hint={confirmDialog.description}
+              />
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
               {confirmDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -574,10 +582,21 @@ export function TripActions(props: TripActionsProps) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Iniciar Viaje</DialogTitle>
-            <DialogDescription>
-              El viaje {code} pasará a estado "En Curso". Opcionalmente puede
-              registrar el kilometraje inicial.
+            <DialogTitle>
+              <SectionHeadingWithHint
+                title="Iniciar Viaje"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Iniciar viaje"
+                hint={
+                  <>
+                    El viaje {code} pasará a estado &quot;En Curso&quot;. Opcionalmente puede registrar el kilometraje
+                    inicial.
+                  </>
+                }
+              />
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              El viaje pasará a en curso; puede registrar kilometraje inicial.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -623,9 +642,16 @@ export function TripActions(props: TripActionsProps) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar Viaje</DialogTitle>
-            <DialogDescription>
-              El viaje {code} será cancelado. Esta acción no se puede deshacer.
+            <DialogTitle>
+              <SectionHeadingWithHint
+                title="Cancelar Viaje"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Cancelar viaje"
+                hint={<>El viaje {code} será cancelado. Esta acción no se puede deshacer.</>}
+              />
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Cancelación permanente del viaje.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">

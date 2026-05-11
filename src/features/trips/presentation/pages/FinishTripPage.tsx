@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { AlertWithIcon } from "@shared/ui/alert";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 // Icons
 import {
@@ -863,13 +864,21 @@ export function FinishTripPage() {
             </CardContent>
           </Card>
 
-          {/* Help text */}
-          <div className="rounded-lg border bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">Al finalizar el viaje:</p>
-            <p>• El vehículo y conductor quedarán disponibles</p>
-            <p>• El estado cambiará a "Completado"</p>
-            <p>• Los gastos modificados se registrarán como reales</p>
-            <p>• Esta acción no se puede deshacer</p>
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs dark:bg-muted/15">
+            <SectionHeadingWithHint
+              noTitleWrap
+              title={<span className="font-medium text-muted-foreground">Al finalizar el viaje</span>}
+              hintLabel="Efectos de finalizar viaje"
+              hintContentClassName="max-w-sm text-left [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4"
+              hint={
+                <ul>
+                  <li>El vehículo y el conductor quedarán disponibles</li>
+                  <li>El estado del viaje pasará a &quot;Completado&quot;</li>
+                  <li>Los gastos modificados se registrarán como montos reales</li>
+                  <li>Esta acción no se puede deshacer</li>
+                </ul>
+              }
+            />
           </div>
         </div>
       </div>

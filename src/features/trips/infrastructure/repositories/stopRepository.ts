@@ -31,39 +31,7 @@ const TRIPS_ENDPOINT = "/trips";
 type StopPayload = Record<string, unknown>;
 
 function normalizeStopPayload(input: StopPayload): StopPayload {
-  const payload = { ...input };
-
-  if (payload.satStateCode === undefined && payload.satEstadoCode !== undefined) {
-    payload.satStateCode = payload.satEstadoCode;
-  }
-  if (
-    payload.satMunicipalityCode === undefined &&
-    payload.satMunicipioCode !== undefined
-  ) {
-    payload.satMunicipalityCode = payload.satMunicipioCode;
-  }
-  if (
-    payload.satLocalityCode === undefined &&
-    payload.satLocalidadCode !== undefined
-  ) {
-    payload.satLocalityCode = payload.satLocalidadCode;
-  }
-  if (
-    payload.satNeighborhoodCode === undefined &&
-    payload.satColoniaCode !== undefined
-  ) {
-    payload.satNeighborhoodCode = payload.satColoniaCode;
-  }
-  if (payload.addressId === undefined && payload.clientAddressId !== undefined) {
-    payload.addressId = payload.clientAddressId;
-  }
-
-  delete payload.satEstadoCode;
-  delete payload.satMunicipioCode;
-  delete payload.satLocalidadCode;
-  delete payload.satColoniaCode;
-
-  return payload;
+  return { ...input };
 }
 
 // ============================================================================
@@ -167,6 +135,8 @@ export class StopRepository implements IStopRepository {
       updateData.interiorNumber = input.interiorNumber;
     if (input.colonia !== undefined) updateData.colonia = input.colonia;
     if (input.reference !== undefined) updateData.reference = input.reference;
+    if (input.satCountryCode !== undefined)
+      updateData.satCountryCode = input.satCountryCode;
     if (input.satStateCode !== undefined) updateData.satStateCode = input.satStateCode;
     if (input.satMunicipalityCode !== undefined)
       updateData.satMunicipalityCode = input.satMunicipalityCode;
@@ -174,19 +144,20 @@ export class StopRepository implements IStopRepository {
       updateData.satLocalityCode = input.satLocalityCode;
     if (input.satNeighborhoodCode !== undefined)
       updateData.satNeighborhoodCode = input.satNeighborhoodCode;
-    if (input.satEstadoCode !== undefined) updateData.satEstadoCode = input.satEstadoCode;
-    if (input.satMunicipioCode !== undefined)
-      updateData.satMunicipioCode = input.satMunicipioCode;
-    if (input.satLocalidadCode !== undefined)
-      updateData.satLocalidadCode = input.satLocalidadCode;
-    if (input.satColoniaCode !== undefined)
-      updateData.satColoniaCode = input.satColoniaCode;
     if (input.rfcRemitenteDestinatario !== undefined)
       updateData.rfcRemitenteDestinatario = input.rfcRemitenteDestinatario;
     if (input.nombreRemitenteDestinatario !== undefined)
       updateData.nombreRemitenteDestinatario = input.nombreRemitenteDestinatario;
     if (input.distanceFromPreviousKm !== undefined)
       updateData.distanceFromPreviousKm = input.distanceFromPreviousKm;
+    if (input.distanceSource !== undefined)
+      updateData.distanceSource = input.distanceSource;
+    if (input.distanceProvider !== undefined)
+      updateData.distanceProvider = input.distanceProvider;
+    if (input.distanceConfidence !== undefined)
+      updateData.distanceConfidence = input.distanceConfidence;
+    if (input.distanceComputedAt !== undefined)
+      updateData.distanceComputedAt = input.distanceComputedAt;
 
     const normalizedData = normalizeStopPayload(updateData);
 

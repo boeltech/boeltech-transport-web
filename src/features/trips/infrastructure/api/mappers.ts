@@ -196,9 +196,34 @@ export function mapApiCargo(api: ApiCargoResponse): TripCargo {
 
     // Material peligroso
     hazardousMaterial: api.hazardous_material,
+    requiresHazmat: api.requires_hazmat ?? false,
     hazardousMaterialCode: api.hazardous_material_code,
     packagingType: api.packaging_type,
     packagingDescription: api.packaging_description,
+
+    // Sectores regulados (Carta Porte 3.1 §6.4)
+    sectorRequirements: api.sector_requirements ?? null,
+    sectorCofepris: api.sector_cofepris ?? null,
+    nombreIngredienteActivo: api.nombre_ingrediente_activo ?? null,
+    nomQuimico: api.nom_quimico ?? null,
+    denominacionGenericaProd: api.denominacion_generica_prod ?? null,
+    denominacionDistintivaProd: api.denominacion_distintiva_prod ?? null,
+    fabricante: api.fabricante ?? null,
+    fechaCaducidad: api.fecha_caducidad ?? null,
+    loteMedicamento: api.lote_medicamento ?? null,
+    formaFarmaceutica: api.forma_farmaceutica ?? null,
+    condicionesEspTransp: api.condiciones_esp_transp ?? null,
+    registroSanitarioFolioAutorizacion:
+      api.registro_sanitario_folio_autorizacion ?? null,
+    permisoImportacion: api.permiso_importacion ?? null,
+    folioImpoVucem: api.folio_impo_vucem ?? null,
+    numCas: api.num_cas ?? null,
+    razonSocialEmpImp: api.razon_social_emp_imp ?? null,
+    numRegSanPlagCofepris: api.num_reg_san_plag_cofepris ?? null,
+    datosFabricante: api.datos_fabricante ?? null,
+    datosFormulador: api.datos_formulador ?? null,
+    datosMaquilador: api.datos_maquilador ?? null,
+    usoAutorizado: api.uso_autorizado ?? null,
 
     // Comercio exterior
     fraccionArancelaria: api.fraccion_arancelaria,
@@ -334,6 +359,7 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     reference: api.reference,
 
     // Claves SAT
+    satCountryCode: api.sat_country_code ?? "MEX",
     satEstadoCode: api.sat_state_code ?? api.sat_estado_code ?? null,
     satMunicipioCode:
       api.sat_municipality_code ?? api.sat_municipio_code ?? null,
@@ -344,9 +370,19 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     // Remitente/Destinatario
     rfcRemitenteDestinatario: api.rfc_remitente_destinatario,
     nombreRemitenteDestinatario: api.nombre_remitente_destinatario,
+    deliveryRfcRemitenteDestinatario:
+      api.delivery_rfc_remitente_destinatario ?? null,
+    deliveryNombreRemitenteDestinatario:
+      api.delivery_nombre_remitente_destinatario ?? null,
+    remitentePartnerId: api.remitente_partner_id ?? null,
+    destinatarioPartnerId: api.destinatario_partner_id ?? null,
 
     // Distancia
     distanceFromPreviousKm: api.distance_from_previous_km,
+    distanceSource: api.distance_source ?? null,
+    distanceProvider: api.distance_provider ?? null,
+    distanceConfidence: api.distance_confidence ?? null,
+    distanceComputedAt: toDateOrNull(api.distance_computed_at),
 
     // Auditoría
     createdAt: toDate(api.created_at),
@@ -446,6 +482,8 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     // Carta Porte 3.1
     totalDistRec: api.total_dist_rec,
     idCcp: api.id_ccp,
+    cfdiDocumentIntent:
+      api.cfdi_document_intent === "traslado" ? "traslado" : "ingreso",
 
     // Auditoría
     createdAt: toDate(api.created_at),
