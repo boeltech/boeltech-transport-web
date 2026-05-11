@@ -9,6 +9,10 @@ interface AppConfig {
     timeout?: number;
     headers?: Record<string, string>;
   };
+  geolocation: {
+    provider: "mapbox" | "stub";
+    mapboxPublicToken: string;
+  };
   app: {
     name: string;
     version: string;
@@ -26,6 +30,12 @@ const config: AppConfig = {
       Accept: "application/json",
     },
   },
+  geolocation: {
+    provider:
+      (import.meta.env.VITE_GEO_PROVIDER as "mapbox" | "stub" | undefined) ||
+      "mapbox",
+    mapboxPublicToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || "",
+  },
   app: {
     name: import.meta.env.VITE_APP_NAME || "Boeltech ERP",
     version: import.meta.env.VITE_APP_VERSION || "1.0.0",
@@ -37,6 +47,7 @@ const config: AppConfig = {
 // Freeze para evitar modificaciones accidentales
 Object.freeze(config);
 Object.freeze(config.api);
+Object.freeze(config.geolocation);
 Object.freeze(config.app);
 
 export default config;

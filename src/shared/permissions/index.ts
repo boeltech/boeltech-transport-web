@@ -52,6 +52,11 @@ export {
   isValidRole,
 } from "./domain/rolePermissions";
 
+export {
+  FINANCE_SUMMARY_ROUTE_ROLES,
+  canAccessFinanceSummaryRoute,
+} from "./domain/financeSummaryAccess";
+
 // ============================================================================
 // Application Layer Exports
 // ============================================================================

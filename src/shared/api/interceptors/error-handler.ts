@@ -414,6 +414,16 @@ export function setupErrorInterceptor(instance: AxiosInstance): () => void {
   const id = instance.interceptors.response.use(
     (response) => response,
     (error: AxiosError<ApiErrorResponse>) => {
+      const status = error.response?.status;
+      /**
+       * Axios encadena los interceptors en orden de registro: primero el de este archivo,
+       * después `setupAuthInterceptor`. Si aquí convertimos 401/403 a `ApiError`, el
+       * siguiente handler ya no ve `error.response` y no puede refrescar token ni
+       * despachar `onForbidden` correctamente.
+       */
+      if (status === 401 || status === 403) {
+        return Promise.reject(error);
+      }
       return Promise.reject(ApiError.fromAxiosError(error));
     },
   );

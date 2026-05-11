@@ -343,7 +343,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Viajes - Solo lectura de sus propios viajes
       "trips.read",
 
-      // Facturas - Sin acceso en frontend hasta alinear backend para client
+      // Facturas - lectura alineada con PERMISSIONS.invoices.read en API
+      "invoices.read",
 
       // Reportes - Vista limitada de sus propios datos
       "reports.read",
