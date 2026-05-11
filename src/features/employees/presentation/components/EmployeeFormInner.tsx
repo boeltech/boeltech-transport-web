@@ -54,7 +54,6 @@ import {
 import { AddressInput, EntityAddressForm } from "@shared/ui/address-input";
 import {
   clientAddressFormDataToCreateDto,
-  defaultClientAddressFormValues,
   type ClientAddressFormData,
 } from "@features/clients/presentation/validation/clientAddressSchema";
 import {
@@ -359,7 +358,6 @@ export function EmployeeFormInner({
     );
 
     const addressDto = clientAddressFormDataToCreateDto({
-      ...defaultClientAddressFormValues,
       ...domicilio,
       addressType: "personal",
       isPrimary: true,
@@ -628,6 +626,7 @@ export function EmployeeFormInner({
             asForm={false}
             className="space-y-4"
             formContext="additional"
+            addressMode="personal"
             infoMessage="Captura el domicilio personal del empleado."
             satStateCode={domicilioSatStateCode}
             satMunicipalityCode={domicilioSatMunicipalityCode}
@@ -638,6 +637,7 @@ export function EmployeeFormInner({
               <AddressInput<EmployeeFormValues>
                 mode="personal"
                 control={form.control}
+                setValue={form.setValue}
                 namePrefix="domicilio"
                 layout="compact"
                 showLatLng
@@ -813,7 +813,7 @@ export function EmployeeFormInner({
 
         {!isEditing && (
           <div className={cn(stepPanelClass(EMPLOYEE_REVIEW_STEP_INDEX))}>
-            <EmployeeWizardReview values={watchedFormValues} />
+            <EmployeeWizardReview values={watchedFormValues as EmployeeFormValues} />
           </div>
         )}
 
@@ -930,7 +930,7 @@ function employeeToDomicilioForm(
     satLocalityCode: addr.satLocalityCode ?? null,
     satNeighborhoodCode: addr.satNeighborhoodCode ?? null,
     neighborhoodName: addr.neighborhoodName ?? null,
-    latitude: null,
-    longitude: null,
+    latitude: addr.latitude ?? null,
+    longitude: addr.longitude ?? null,
   };
 }

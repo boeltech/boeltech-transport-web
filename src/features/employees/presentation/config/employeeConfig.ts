@@ -130,7 +130,7 @@ export const STATUS_FILTER_OPTIONS = [
 ];
 
 export const EMPLOYMENT_TYPE_FILTER_OPTIONS = [
-  { value: "", label: "Todos los tipos" },
+  { value: "", label: "Todos los tipos de contrato" },
   ...EMPLOYMENT_TYPE_OPTIONS,
 ];
 

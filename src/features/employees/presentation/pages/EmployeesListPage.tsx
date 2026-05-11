@@ -8,7 +8,7 @@
  * Ubicación: src/features/employees/presentation/pages/EmployeesListPage.tsx
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useListingFilters, useToast } from "@shared/hooks";
 import {
@@ -23,32 +23,66 @@ import { usePermissions } from "@shared/permissions";
 import { Plus, Search } from "lucide-react";
 
 import { useEmployees } from "../../application/hooks/useEmployees";
-import type { EmployeeStatus, EmploymentType } from "../../domain/entities";
+import type {
+  EmployeeSortOptions,
+  EmployeeStatus,
+  EmploymentType,
+} from "../../domain/entities";
 import {
   EMPLOYEE_STATUS_LABELS,
   EMPLOYMENT_TYPE_LABELS,
   DEFAULT_PAGE_SIZE,
 } from "../config/employeeConfig";
-import { EmployeeTable, EmployeeCard, EmployeeCardSkeleton } from "../components";
+import { POSITION_OPTIONS } from "../config/employeeCatalogs";
+import {
+  EmployeeTable,
+  EmployeeCard,
+  EmployeeCardSkeleton,
+  type EmployeeSortableColumn,
+} from "../components";
 
 export function EmployeesListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const filters = useListingFilters<"status" | "type">({
+  const filters = useListingFilters<"status" | "type" | "position">({
     filters: {
       status: {},
       type: {},
+      position: {},
     },
     chipLabels: {
       status: (value) =>
         `Estado: ${EMPLOYEE_STATUS_LABELS[value as EmployeeStatus] || value}`,
       type: (value) =>
         `Contrato: ${EMPLOYMENT_TYPE_LABELS[value as EmploymentType] || value}`,
+      position: (value) =>
+        `Puesto: ${
+          POSITION_OPTIONS.find((o) => o.value === value)?.label ?? value
+        }`,
     },
   });
   const statusFilter = filters.filters.status as EmployeeStatus | "";
   const typeFilter = filters.filters.type as EmploymentType | "";
+  const positionFilter = filters.filters.position;
+
+  const [sort, setSort] = useState<EmployeeSortOptions>({
+    field: "hire_date",
+    direction: "desc",
+  });
+
+  const handleSortChange = useCallback(
+    (field: EmployeeSortableColumn) => {
+      setSort((prev) => {
+        if (prev.field === field) {
+          return { field, direction: prev.direction === "asc" ? "desc" : "asc" };
+        }
+        return { field, direction: "asc" };
+      });
+      filters.setPage(1);
+    },
+    [filters],
+  );
 
   const { data, isLoading, isFetching, refetch } = useEmployees({
     page: filters.page,
@@ -56,6 +90,9 @@ export function EmployeesListPage() {
     search: filters.search || undefined,
     status: statusFilter || undefined,
     employmentType: typeFilter || undefined,
+    position: positionFilter || undefined,
+    sortBy: sort.field,
+    sortOrder: sort.direction,
   });
 
   const employees = data?.data ?? [];
@@ -118,11 +155,11 @@ export function EmployeesListPage() {
               value={typeFilter || "all"}
               onValueChange={(value) => filters.setFilter("type", value)}
             >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Tipo contrato" />
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Tipo de contrato" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="all">Todos los tipos de contrato</SelectItem>
                 {(Object.keys(EMPLOYMENT_TYPE_LABELS) as EmploymentType[]).map(
                   (t) => (
                     <SelectItem key={t} value={t}>
@@ -130,6 +167,22 @@ export function EmployeesListPage() {
                     </SelectItem>
                   ),
                 )}
+              </SelectContent>
+            </Select>
+            <Select
+              value={positionFilter || "all"}
+              onValueChange={(value) => filters.setFilter("position", value)}
+            >
+              <SelectTrigger className="w-[13.5rem] min-w-[13.5rem]">
+                <SelectValue placeholder="Tipo de puesto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos de puesto</SelectItem>
+                {POSITION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </>
@@ -162,6 +215,9 @@ export function EmployeesListPage() {
           onView={handleView}
           onEdit={canEdit ? handleEdit : undefined}
           onTerminate={undefined}
+          sortField={sort.field}
+          sortDirection={sort.direction}
+          onSortChange={handleSortChange}
         />
       )}
       renderCards={() =>

@@ -39,6 +39,7 @@ export async function fetchEmployees(
   if (params.sortOrder) q.set("sort_order", params.sortOrder);
   if (params.status) q.set("status", params.status);
   if (params.employmentType) q.set("employment_type", params.employmentType);
+  if (params.position) q.set("position", params.position);
   if (params.department) q.set("department", params.department);
   if (params.isActive !== undefined) q.set("is_active", String(params.isActive));
   if (params.search) q.set("search", params.search);
@@ -104,6 +105,7 @@ export async function getAvailableForDriver(
 ): Promise<ApiEmployeeForDriverSelection[]> {
   const q = new URLSearchParams();
   if (params?.search) q.set("search", params.search);
+  if (params?.position) q.set("position", params.position);
   const qs = q.toString();
   const response = await apiClient.get<{ data: ApiEmployeeForDriverSelection[] }>(
     `${BASE}/available-for-driver${qs ? `?${qs}` : ""}`,

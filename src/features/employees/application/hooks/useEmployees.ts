@@ -42,8 +42,8 @@ export const employeeQueryKeys = {
     [...employeeQueryKeys.lists(), params] as const,
   details: () => [...employeeQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...employeeQueryKeys.details(), id] as const,
-  availableForDriver: (search?: string) =>
-    [...employeeQueryKeys.all, "available-for-driver", { search }] as const,
+  availableForDriver: (search?: string, position?: string) =>
+    [...employeeQueryKeys.all, "available-for-driver", { search, position }] as const,
   basic: (id: string) => [...employeeQueryKeys.all, "basic", id] as const,
 };
 
@@ -109,12 +109,15 @@ export function useEmployee(id: string, enabled = true) {
 export function useAvailableEmployeesForDriver(
   search?: string,
   enabled = true,
+  /** Coincidencia exacta con el puesto en BD (ej. `Conductor` del catálogo). */
+  position?: string,
 ) {
   return useQuery<EmployeeForSelection[]>({
-    queryKey: employeeQueryKeys.availableForDriver(search),
+    queryKey: employeeQueryKeys.availableForDriver(search, position),
     queryFn: async () => {
       const params: EmployeeSearchParams = {};
       if (search?.trim()) params.search = search.trim();
+      if (position) params.position = position;
       const raw = await getAvailableForDriver(params);
       return mapApiToEmployeeList(raw);
     },

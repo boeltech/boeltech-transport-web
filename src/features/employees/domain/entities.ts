@@ -228,12 +228,32 @@ export interface EmployeeFilters {
   search?: string;
   status?: EmployeeStatus;
   employmentType?: EmploymentType;
+  /** Valor almacenado en `position` (coincide con catálogo de puestos en formulario). */
+  position?: string;
   department?: string;
   isActive?: boolean;
 }
 
+/**
+ * Campos `sort_by` de GET /employees (`employeeQuerySchema` en API).
+ * @see boeltech-transport-api `employee.validation.ts` — no incluye email, position, employment_type ni full_name.
+ */
+export interface EmployeeSortOptions {
+  readonly field:
+    | "employee_number"
+    | "first_name"
+    | "last_name"
+    | "hire_date"
+    | "department"
+    | "status"
+    | "created_at";
+  readonly direction: "asc" | "desc";
+}
+
 export interface EmployeeSearchParams {
   search?: string;
+  /** Coincidencia exacta con `position` en BD (p. ej. catálogo de puestos). */
+  position?: string;
 }
 
 // ============================================================================
