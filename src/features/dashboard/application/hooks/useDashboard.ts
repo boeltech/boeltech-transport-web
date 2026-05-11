@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api";
+import { useAuth } from "@/features/auth";
 import type { DashboardData } from "../../domain/types";
 
 // ============================================
@@ -43,10 +44,13 @@ export const dashboardQueryKeys = {
  * Refresca cada 60 segundos para mantener alertas actualizadas.
  */
 export function useDashboard() {
+  const { isAuthenticated } = useAuth();
+
   return useQuery({
     queryKey: dashboardQueryKeys.all,
     queryFn: dashboardApi.get,
+    enabled: isAuthenticated,
     staleTime: 60_000, // 1 minuto
-    refetchInterval: 60_000, // Auto-refresh cada minuto
+    refetchInterval: isAuthenticated ? 60_000 : false, // Solo con sesión válida
   });
 }

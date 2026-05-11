@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth";
-import { usePermissions } from "@shared/permissions";
+import { usePermissions, canAccessFinanceSummaryRoute } from "@shared/permissions";
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { cn } from "@shared/lib/utils/cn";
 import { useDashboard } from "../application/hooks/useDashboard";
@@ -314,7 +314,9 @@ function FinanceKpis({
   isLoading: boolean;
   navigate: ReturnType<typeof useNavigate>;
 }) {
-  const { data: summary, isLoading: summaryLoading } = useFinanceSummary();
+  const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
+    enabled: true,
+  });
   const loading = isLoading || summaryLoading;
 
   return (
@@ -769,8 +771,8 @@ function DashboardPage() {
 
       <Separator />
 
-      {/* KPIs — Finanzas */}
-      {hasPermission("invoices", "read") && (
+      {/* KPIs financieros — mismo alcance que GET /finance/summary en API */}
+      {canAccessFinanceSummaryRoute(user?.role) && (
         <FinanceKpis isLoading={isLoading} navigate={navigate} />
       )}
 
