@@ -67,6 +67,8 @@ export interface DetailPageShellTabItem {
 
 export interface DetailPageShellTabs {
   defaultValue: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
   items: DetailPageShellTabItem[];
 }
 
@@ -219,7 +221,11 @@ export const DetailPageShell = memo(function DetailPageShell({
        * Tabs o children
        * ================================================================== */}
       {tabs ? (
-        <Tabs defaultValue={tabs.defaultValue}>
+        <Tabs
+          defaultValue={tabs.defaultValue}
+          value={tabs.value}
+          onValueChange={tabs.onValueChange}
+        >
           <TabsList>
             {tabs.items.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
