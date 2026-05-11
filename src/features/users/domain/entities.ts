@@ -46,7 +46,7 @@ export interface UserFilters {
 /** Evento de historial mínimo (gestión de usuarios). */
 export interface UserManagementEvent {
   readonly id: string;
-  readonly subjectUserId: string;
+  readonly subjectUserId: string | null;
   readonly actorUserId: string | null;
   readonly actorEmail: string | null;
   readonly actorFirstName: string | null;
@@ -75,6 +75,15 @@ export interface UserQueryParams {
   readonly limit?: number;
 }
 
+export interface UserManagementActivityFilters {
+  readonly action?: string;
+  readonly actorUserId?: string;
+  readonly subjectUserId?: string;
+  readonly createdFrom?: string;
+  readonly createdTo?: string;
+  readonly includeUnassigned?: boolean;
+}
+
 export const userQueryKeys = {
   all: ["users"] as const,
   lists: () => [...userQueryKeys.all, "list"] as const,
@@ -85,6 +94,16 @@ export const userQueryKeys = {
   activityRoot: (userId: string) => [...userQueryKeys.all, "activity", userId] as const,
   activity: (userId: string, page?: number, limit?: number) =>
     [...userQueryKeys.activityRoot(userId), { page: page ?? 1, limit: limit ?? 25 }] as const,
+  managementActivityRoot: () => [...userQueryKeys.all, "management-activity"] as const,
+  managementActivity: (
+    page: number,
+    limit: number,
+    filters?: UserManagementActivityFilters,
+  ) =>
+    [
+      ...userQueryKeys.managementActivityRoot(),
+      { page, limit, filters: filters ?? {} },
+    ] as const,
 };
 
 export const USER_STATUS_LABELS: Record<UserStatusType, string> = {

@@ -6,6 +6,7 @@ export {
   type UserFilters,
   type UserListItem,
   type UserManagementEvent,
+  type UserManagementActivityFilters,
   type UserQueryParams,
   type UserSortOptions,
   type UserStatusType,

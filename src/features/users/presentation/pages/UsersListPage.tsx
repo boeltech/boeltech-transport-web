@@ -37,14 +37,19 @@ import {
   type UserSortableColumn,
 } from "../components";
 
-const EMPTY_DATE_DRAFT = {
+type DateDraftState = {
+  createdFrom: string;
+  createdTo: string;
+  lastLoginFrom: string;
+  lastLoginTo: string;
+};
+
+const EMPTY_DATE_DRAFT: DateDraftState = {
   createdFrom: "",
   createdTo: "",
   lastLoginFrom: "",
   lastLoginTo: "",
-} as const;
-
-type DateDraftState = typeof EMPTY_DATE_DRAFT;
+};
 
 export function UsersListPage() {
   const navigate = useNavigate();

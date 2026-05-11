@@ -8,7 +8,13 @@ import {
   type MappedPaginatedResult,
   type MappedSingleResult,
 } from "@shared/api";
-import type { User, UserListItem, UserManagementEvent, UserQueryParams } from "../domain/entities";
+import type {
+  User,
+  UserListItem,
+  UserManagementActivityFilters,
+  UserManagementEvent,
+  UserQueryParams,
+} from "../domain/entities";
 import type {
   CreateUserDTO,
   UpdateUserDTO,
@@ -58,7 +64,7 @@ export const usersApi = {
 
   getActivity: async (
     userId: string,
-    params?: { page?: number; limit?: number },
+    params?: { page?: number; limit?: number; action?: string },
   ): Promise<MappedPaginatedResult<UserManagementEvent>> => {
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiUserManagementEventResponse>
@@ -66,7 +72,39 @@ export const usersApi = {
       params: {
         page: params?.page ?? 1,
         limit: params?.limit ?? 25,
+        ...(params?.action ? { action: params.action } : {}),
       },
+    });
+    return mapPaginatedUserActivity(response);
+  },
+
+  getManagementActivity: async (
+    params?: {
+      page?: number;
+      limit?: number;
+      filters?: UserManagementActivityFilters;
+    },
+  ): Promise<MappedPaginatedResult<UserManagementEvent>> => {
+    const queryParams: Record<string, unknown> = {
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 25,
+    };
+
+    if (params?.filters?.action) queryParams.action = params.filters.action;
+    if (params?.filters?.actorUserId) queryParams.actor_user_id = params.filters.actorUserId;
+    if (params?.filters?.subjectUserId) {
+      queryParams.subject_user_id = params.filters.subjectUserId;
+    }
+    if (params?.filters?.createdFrom) queryParams.created_from = params.filters.createdFrom;
+    if (params?.filters?.createdTo) queryParams.created_to = params.filters.createdTo;
+    if (params?.filters?.includeUnassigned !== undefined) {
+      queryParams.include_unassigned = params.filters.includeUnassigned;
+    }
+
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ApiUserManagementEventResponse>
+    >(`${USERS_ENDPOINT}/activity`, {
+      params: queryParams,
     });
     return mapPaginatedUserActivity(response);
   },

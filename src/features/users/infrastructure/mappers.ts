@@ -27,7 +27,7 @@ export interface ApiUserResponse extends ApiUserListItemResponse {
 
 export interface ApiUserManagementEventResponse {
   id: string;
-  subject_user_id: string;
+  subject_user_id: string | null;
   actor_user_id: string | null;
   actor_email: string | null;
   actor_first_name: string | null;

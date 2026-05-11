@@ -1,6 +1,12 @@
 export { UserActions, UserForm, UserTable } from "./components";
 export { UserStatusBadge, USER_STATUS_CONFIG } from "./config/userStatusConfig";
-export { UserCreatePage, UserDetailPage, UserEditPage, UsersListPage } from "./pages";
+export {
+  UserCreatePage,
+  UserDetailPage,
+  UserEditPage,
+  UserManagementActivityPage,
+  UsersListPage,
+} from "./pages";
 export {
   createUserFormSchema,
   defaultCreateUserFormValues,

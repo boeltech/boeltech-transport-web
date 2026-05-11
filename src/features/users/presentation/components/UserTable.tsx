@@ -64,11 +64,11 @@ export function UserTable({
           <TableHeader>
             <TableRow>
               {renderSortableHead("first_name", "Nombre")}
-              {renderSortableHead("email", "Email")}
-              {renderSortableHead("role", "Rol")}
+              {renderSortableHead("email", "Email", "hidden md:table-cell")}
+              {renderSortableHead("role", "Rol", "hidden lg:table-cell")}
               {renderSortableHead("status", "Estatus")}
-              {renderSortableHead("last_login", "Último acceso")}
-              {renderSortableHead("created_at", "Alta")}
+              {renderSortableHead("last_login", "Último acceso", "hidden lg:table-cell")}
+              {renderSortableHead("created_at", "Alta", "hidden xl:table-cell")}
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -78,19 +78,19 @@ export function UserTable({
                 <TableCell>
                   <Skeleton className="h-4 w-40" />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   <Skeleton className="h-4 w-48" />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <Skeleton className="h-4 w-24" />
                 </TableCell>
                 <TableCell>
                   <Skeleton className="h-5 w-24" />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <Skeleton className="h-4 w-36" />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden xl:table-cell">
                   <Skeleton className="h-4 w-24" />
                 </TableCell>
                 <TableCell>
@@ -110,11 +110,11 @@ export function UserTable({
         <TableHeader>
           <TableRow>
             {renderSortableHead("first_name", "Nombre")}
-            {renderSortableHead("email", "Email")}
-            {renderSortableHead("role", "Rol")}
+            {renderSortableHead("email", "Email", "hidden md:table-cell")}
+            {renderSortableHead("role", "Rol", "hidden lg:table-cell")}
             {renderSortableHead("status", "Estatus")}
-            {renderSortableHead("last_login", "Último acceso")}
-            {renderSortableHead("created_at", "Alta")}
+            {renderSortableHead("last_login", "Último acceso", "hidden lg:table-cell")}
+            {renderSortableHead("created_at", "Alta", "hidden xl:table-cell")}
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -128,15 +128,19 @@ export function UserTable({
               <TableCell className="font-medium">
                 {`${user.firstName} ${user.lastName}`.trim()}
               </TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{ROLE_LABELS[user.role] ?? user.role}</TableCell>
+              <TableCell className="hidden md:table-cell">{user.email}</TableCell>
+              <TableCell className="hidden lg:table-cell">
+                {ROLE_LABELS[user.role] ?? user.role}
+              </TableCell>
               <TableCell>
                 <UserStatusBadge status={user.status} size="sm" showIcon />
               </TableCell>
-                <TableCell>{formatDateTime(user.lastLogin)}</TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">
-                  {formatDate(user.createdAt)}
-                </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                {formatDateTime(user.lastLogin)}
+              </TableCell>
+              <TableCell className="hidden xl:table-cell whitespace-nowrap text-muted-foreground">
+                {formatDate(user.createdAt)}
+              </TableCell>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <UserActions
                   userId={user.id}
