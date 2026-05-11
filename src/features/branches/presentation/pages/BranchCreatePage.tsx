@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
@@ -48,31 +48,46 @@ export function BranchCreatePage() {
     },
   });
 
-  const handleSubmit = (values: BranchFormData) => {
-    createMutation.mutate(branchFormToCreateDTO(values));
-  };
+  const handleSubmit = useCallback(
+    (values: BranchFormData) => {
+      createMutation.mutate(branchFormToCreateDTO(values));
+    },
+    [createMutation],
+  );
+
+  const shellHeader = useMemo(
+    () => ({
+      backHref: "/branches",
+      backLabel: "Volver a sucursales",
+      icon: <Building2 className="h-5 w-5" />,
+      title: "Nueva sucursal",
+      subtitle: "Registra una sucursal para operación",
+    }),
+    [],
+  );
+
+  const isSubmitting = createMutation.isPending;
+
+  const renderStep = useCallback(
+    (currentStep: number) => (
+      <BranchForm
+        ref={formRef}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        wizardMode
+        wizardStepIndex={currentStep}
+      />
+    ),
+    [handleSubmit, isSubmitting],
+  );
 
   return (
     <WizardPageShell
       steps={BRANCH_STEPS}
       formRef={formRef}
-      header={{
-        backHref: "/branches",
-        backLabel: "Volver a sucursales",
-        icon: <Building2 className="h-5 w-5" />,
-        title: "Nueva sucursal",
-        subtitle: "Registra una sucursal para operación",
-      }}
-      renderStep={(currentStep) => (
-        <BranchForm
-          ref={formRef}
-          onSubmit={handleSubmit}
-          isSubmitting={createMutation.isPending}
-          wizardMode
-          wizardStepIndex={currentStep}
-        />
-      )}
-      isSubmitting={createMutation.isPending}
+      header={shellHeader}
+      renderStep={renderStep}
+      isSubmitting={isSubmitting}
       submitLabel="Crear sucursal"
       submittingLabel="Creando..."
       onCancel={() => navigate("/branches")}
