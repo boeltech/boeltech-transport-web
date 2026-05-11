@@ -16,6 +16,12 @@ export {
   stopHasUnifiedAddressId,
 } from "./validation";
 
+export {
+  tripWizardSchemaWithCreateApiAlignment,
+  tripWizardSchemaWithUpdateApiAlignment,
+  apiValidationPathToFormPath,
+} from "./wizardPackageAlignedSchema";
+
 export type {
   TripWizardFormValues,
   TripStopFormValues,

@@ -6,8 +6,8 @@
  *
  * ACTUALIZADO: Campos de dirección unificados con Carta Porte 3.1
  * - Eliminados campos legacy (address, city, state como texto libre)
- * - Todos los campos usan catálogos SAT
- * - Display de dirección basado en campos SAT
+ * - Todos los campos usan catálogos fiscales
+ * - Display de dirección con datos legibles para operación
  *
  * Reglas de negocio:
  * - Origen: solo 1 parada, solo operación "carga" (pickup), siempre índice 0
@@ -20,13 +20,10 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
-import { Checkbox } from "@shared/ui/checkbox";
 import { Badge } from "@shared/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 import {
   MapPin,
   Trash2,
@@ -35,15 +32,39 @@ import {
   Flag,
   ChevronUp,
   ChevronDown,
-  Pencil,
   Plus,
   FileText,
   CircleDashed,
   CircleCheck,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
+import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import {
+  applySegmentDistanceResultsToStops,
+  buildRouteSegmentsForBatch,
+  fillMissingDistancesFromCoordinates,
+  hasManualSegmentDistances,
+  hasMissingStopDistances,
+} from "./stopDistanceHelpers";
+import {
+  CalculateSegmentsDistanceUseCase,
+  createGeoProviderBundle,
+} from "@shared/geolocation";
+import { useToast } from "@shared/hooks";
+import { HintIcon, SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog/alert-dialog";
 import { StopType, type StopTypeValue } from "@features/trips";
 import {
   StopFormDialog,
@@ -61,23 +82,12 @@ interface RouteStepProps {
   stopsFieldArray: UseFieldArrayReturn<TripWizardFormValues, "stops">;
 }
 
-// Tipos de operación en la parada
-const STOP_OPERATION_OPTIONS = [
-  { value: "pickup", label: "Carga", icon: MapPin, color: "text-blue-600" },
-  {
-    value: "delivery",
-    label: "Descarga",
-    icon: MapPin,
-    color: "text-orange-600",
-  },
-];
-
 // ============================================================================
 // HELPERS
 // ============================================================================
 
 /**
- * Formatea la dirección para display basándose en campos SAT
+ * Formatea la dirección para display operativo
  * Orden: Calle NumExt, CP, Municipio, Estado
  */
 function formatStopAddress(stop: TripStopFormValues): {
@@ -98,21 +108,21 @@ function formatStopAddress(stop: TripStopFormValues): {
     parts.push(streetLine);
   }
 
-  // Línea secundaria: CP, Municipio, Estado (usando códigos SAT)
+  // Línea secundaria: CP, municipio y estado (prioriza nombres legibles)
   const locationParts: string[] = [];
 
   if (stop.postalCode) {
     locationParts.push(`C.P. ${stop.postalCode}`);
   }
 
-  // Para municipio y estado, mostramos los códigos SAT
-  // En un escenario real, podrías tener un lookup para mostrar nombres
-  if (stop.satMunicipioCode) {
-    locationParts.push(`Mpio. ${stop.satMunicipioCode}`);
+  if (stop.cityName?.trim()) {
+    locationParts.push(stop.cityName.trim());
+  } else if (stop.satMunicipalityCode) {
+    locationParts.push(`Municipio ${stop.satMunicipalityCode}`);
   }
 
-  if (stop.satEstadoCode) {
-    locationParts.push(`Edo. ${stop.satEstadoCode}`);
+  if (stop.satStateCode) {
+    locationParts.push(`Estado ${stop.satStateCode}`);
   }
 
   return {
@@ -124,8 +134,9 @@ function formatStopAddress(stop: TripStopFormValues): {
 /** Datos SAT capturados a mano (sin `addressId` de catálogo unificado). */
 function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
   return !!(
-    stop.satEstadoCode?.trim() &&
-    stop.satMunicipioCode?.trim() &&
+    stop.satCountryCode?.trim() &&
+    stop.satStateCode?.trim() &&
+    stop.satMunicipalityCode?.trim() &&
     /^\d{5}$/.test(stop.postalCode?.trim() ?? "")
   );
 }
@@ -137,6 +148,13 @@ function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
 export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const { fields } = stopsFieldArray;
   const scheduledArrival = form.watch("scheduledArrival");
+  const cfdiDocumentIntent =
+    form.watch("cfdiDocumentIntent") === "traslado" ? "traslado" : "ingreso";
+  const watchedStops = form.watch("stops");
+  const showRecalculateMissingDistances = useMemo(
+    () => hasMissingStopDistances(watchedStops),
+    [watchedStops],
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // STATE
@@ -148,9 +166,15 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   >();
   const [editingStopIndex, setEditingStopIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [operationsPopoverIndex, setOperationsPopoverIndex] = useState<
-    number | null
-  >(null);
+  const [routeRecalcLoading, setRouteRecalcLoading] = useState(false);
+  const [overwriteManualDialogOpen, setOverwriteManualDialogOpen] =
+    useState(false);
+
+  const { toast } = useToast();
+  const segmentsDistanceUseCase = useMemo(() => {
+    const bundle = createGeoProviderBundle();
+    return new CalculateSegmentsDistanceUseCase(bundle.distanceMatrixProvider);
+  }, []);
 
   // ══════════════════════════════════════════════════════════════════════════
   // REORDENAR ARRAY DE STOPS
@@ -208,6 +232,70 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       shouldDirty: true,
     });
   }, [form]);
+
+  /**
+   * Recalcula todos los tramos consecutivos vía API batch (Mapbox + fallback en servidor);
+   * si falla la petición, el use case aplica Haversine local.
+   */
+  const syncRouteDistancesFromApi = useCallback(
+    async (confirmedOverwrite: boolean) => {
+      const stops = form.getValues("stops") ?? [];
+      if (stops.length < 2) return;
+
+      if (!confirmedOverwrite && hasManualSegmentDistances(stops)) {
+        setOverwriteManualDialogOpen(true);
+        return;
+      }
+
+      const { segments, stopIndices } = buildRouteSegmentsForBatch(stops);
+      const expectedSegmentCount = stops.length - 1;
+
+      if (segments.length === 0) {
+        toast({
+          title: "Sin coordenadas suficientes",
+          description:
+            "Confirma geolocalización en todas las paradas para calcular distancias.",
+          variant: "warning",
+        });
+        setOverwriteManualDialogOpen(false);
+        return;
+      }
+
+      if (segments.length < expectedSegmentCount) {
+        toast({
+          title: "Distancia parcial",
+          description:
+            "Algunos tramos no tienen coordenadas en ambas paradas; solo se actualizaron los tramos completos.",
+          variant: "warning",
+        });
+      }
+
+      setRouteRecalcLoading(true);
+      try {
+        const results = await segmentsDistanceUseCase.execute(segments);
+        const updated = applySegmentDistanceResultsToStops(
+          stops,
+          stopIndices,
+          results,
+        );
+        form.setValue("stops", updated, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      } catch {
+        toast({
+          title: "Error al calcular distancias",
+          description:
+            "No se pudieron actualizar los tramos. Intenta de nuevo.",
+          variant: "error",
+        });
+      } finally {
+        setRouteRecalcLoading(false);
+        setOverwriteManualDialogOpen(false);
+      }
+    },
+    [form, segmentsDistanceUseCase, toast],
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // CLASIFICACIÓN DE PARADAS
@@ -276,6 +364,38 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // ══════════════════════════════════════════════════════════════════════════
 
   const openAddDialog = (category: StopCategory) => {
+    const stops = form.getValues("stops") || [];
+    const getPreviousForNew = () => {
+      if (category === "origin") return null;
+      if (category === "destination") {
+        const destinationIdx = stops.findIndex((stop) =>
+          stop.stopType?.includes(StopType.DESTINATION),
+        );
+        const targetIndex = destinationIdx > 0 ? destinationIdx - 1 : stops.length - 1;
+        const previous = stops[targetIndex];
+        return previous
+          ? {
+              latitude: previous.latitude ?? null,
+              longitude: previous.longitude ?? null,
+              label: previous.locationName || `Parada #${targetIndex + 1}`,
+            }
+          : null;
+      }
+
+      const destinationIdx = stops.findIndex((stop) =>
+        stop.stopType?.includes(StopType.DESTINATION),
+      );
+      const previousIndex = destinationIdx > 0 ? destinationIdx - 1 : stops.length - 1;
+      const previous = stops[previousIndex];
+      return previous
+        ? {
+            latitude: previous.latitude ?? null,
+            longitude: previous.longitude ?? null,
+            label: previous.locationName || `Parada #${previousIndex + 1}`,
+          }
+        : null;
+    };
+    const previousStop = getPreviousForNew();
     const defaultOperations =
       category === "origin"
         ? ["pickup"]
@@ -293,6 +413,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       stopCategory: category,
       stopType: defaultOperations as TripStopFormValues["stopType"],
       estimatedArrival: initialEstimatedArrival,
+      previousStopLatitude: previousStop?.latitude ?? undefined,
+      previousStopLongitude: previousStop?.longitude ?? undefined,
+      previousStopLabel: previousStop?.label,
     });
     setEditingStopIndex(null);
     setIsDialogOpen(true);
@@ -301,6 +424,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const openEditDialog = (index: number, category: StopCategory) => {
     const stop = form.getValues(`stops.${index}`);
     if (!stop) return;
+    const previousStop =
+      index > 0 ? form.getValues(`stops.${index - 1}`) : undefined;
 
       // Extraer operaciones (sin la categoría)
       const operations = stop.stopType.filter(
@@ -318,59 +443,53 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         addressId: stop.addressId,
         locationName: stop.locationName,
         // Campos Carta Porte
-        satEstadoCode: stop.satEstadoCode,
-        satMunicipioCode: stop.satMunicipioCode,
+        satCountryCode: stop.satCountryCode,
+        satStateCode: stop.satStateCode,
+        satMunicipalityCode: stop.satMunicipalityCode,
         postalCode: stop.postalCode,
-        satLocalidadCode: stop.satLocalidadCode,
-        satColoniaCode: stop.satColoniaCode,
+        satLocalityCode: stop.satLocalityCode,
+        satNeighborhoodCode: stop.satNeighborhoodCode,
         street: stop.street,
         exteriorNumber: stop.exteriorNumber,
         interiorNumber: stop.interiorNumber,
         reference: stop.reference,
         rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario,
         nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario,
+        deliveryRfcRemitenteDestinatario: stop.deliveryRfcRemitenteDestinatario,
+        deliveryNombreRemitenteDestinatario: stop.deliveryNombreRemitenteDestinatario,
+        remitentePartnerId: stop.remitentePartnerId,
+        destinatarioPartnerId: stop.destinatarioPartnerId,
         contactName: stop.contactName,
         contactPhone: stop.contactPhone,
         notes: stop.notes,
         estimatedArrival: stop.estimatedArrival,
         distanceFromPreviousKm: stop.distanceFromPreviousKm,
+        distanceSource: stop.distanceSource,
+        distanceProvider: stop.distanceProvider,
+        distanceConfidence: stop.distanceConfidence,
+        distanceComputedAt: stop.distanceComputedAt,
         latitude: stop.latitude,
         longitude: stop.longitude,
+        previousStopLatitude: previousStop?.latitude,
+        previousStopLongitude: previousStop?.longitude,
+        previousStopLabel:
+          previousStop?.locationName ||
+          (index > 0 ? `Parada #${index}` : undefined),
       });
     setEditingStopIndex(index);
     setIsDialogOpen(true);
   };
 
   /**
-   * Recorre las paradas en orden y rellena distanceFromPreviousKm usando Haversine × 1.30
-   * cuando dos paradas consecutivas tienen coordenadas y el campo está vacío.
-   * Si ya existe un valor manual, lo respeta.
+   * Solo rellena tramos vacíos (Haversine local). No pisa manuales ni valores existentes.
+   * Útil para el botón "Recalcular distancias faltantes".
    */
-  const recalculateDistances = useCallback(() => {
+  const fillMissingDistancesOnly = useCallback(() => {
     const stops = form.getValues("stops");
     if (!stops || stops.length < 2) return;
 
-    let changed = false;
-    const updated = stops.map((stop, i) => {
-      if (i === 0) return stop; // Origen no tiene parada anterior
-
-      const prev = stops[i - 1];
-      const estimated = estimateRoadDistanceKm(
-        prev.latitude,
-        prev.longitude,
-        stop.latitude,
-        stop.longitude,
-      );
-
-      // Solo prellenar si hay coordenadas y el campo está vacío
-      if (estimated !== null && !stop.distanceFromPreviousKm) {
-        changed = true;
-        return { ...stop, distanceFromPreviousKm: estimated };
-      }
-      return stop;
-    });
-
-    if (changed) {
+    const updated = fillMissingDistancesFromCoordinates(stops);
+    if (updated !== stops) {
       form.setValue("stops", updated, { shouldDirty: true });
     }
   }, [form]);
@@ -379,6 +498,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     if (!data.stopCategory || !data.stopType || data.stopType.length === 0) {
       return;
     }
+
+    const wasNewStop = editingStopIndex === null;
 
       const previousStop =
         editingStopIndex !== null
@@ -400,24 +521,33 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         addressId: data.addressId?.trim() || "",
         locationName: data.locationName,
         // Campos Carta Porte (unificados - sin campos legacy)
-        satEstadoCode: data.satEstadoCode || "",
-        satMunicipioCode: data.satMunicipioCode || "",
+        satCountryCode: data.satCountryCode || "MEX",
+        satStateCode: data.satStateCode || "",
+        satMunicipalityCode: data.satMunicipalityCode || "",
         postalCode: data.postalCode || "",
-        satLocalidadCode: data.satLocalidadCode,
+        satLocalityCode: data.satLocalityCode,
         cityName: data.cityName,
-        satColoniaCode: data.satColoniaCode,
-        colonia: data.colonia,
+        satNeighborhoodCode: data.satNeighborhoodCode,
+        neighborhoodName: data.neighborhoodName,
         street: data.street,
         exteriorNumber: data.exteriorNumber,
         interiorNumber: data.interiorNumber,
         reference: data.reference,
         rfcRemitenteDestinatario: data.rfcRemitenteDestinatario,
         nombreRemitenteDestinatario: data.nombreRemitenteDestinatario,
+        deliveryRfcRemitenteDestinatario: data.deliveryRfcRemitenteDestinatario,
+        deliveryNombreRemitenteDestinatario: data.deliveryNombreRemitenteDestinatario,
+        remitentePartnerId: data.remitentePartnerId,
+        destinatarioPartnerId: data.destinatarioPartnerId,
         contactName: data.contactName,
         contactPhone: data.contactPhone,
         notes: data.notes,
         estimatedArrival: data.estimatedArrival,
         distanceFromPreviousKm: data.distanceFromPreviousKm,
+        distanceSource: data.distanceSource,
+        distanceProvider: data.distanceProvider,
+        distanceConfidence: data.distanceConfidence,
+        distanceComputedAt: data.distanceComputedAt,
         latitude: data.latitude,
         longitude: data.longitude,
       };
@@ -432,11 +562,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         // Modo creación: agregar nueva parada
         const currentStops = form.getValues("stops") || [];
         form.setValue("stops", [...currentStops, stopData]);
-
-        // Reordenar
-        requestAnimationFrame(() => {
-          reorderStopsArray();
-        });
       }
 
       // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
@@ -446,9 +571,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         });
       }
 
-      // Recalcular distancias automáticamente tras reordenar
       requestAnimationFrame(() => {
-        recalculateDistances();
+        if (wasNewStop) {
+          reorderStopsArray();
+        }
+        void syncRouteDistancesFromApi(false);
       });
 
     setIsDialogOpen(false);
@@ -467,10 +594,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
       requestAnimationFrame(() => {
         reorderStopsArray();
-        recalculateDistances();
+        void syncRouteDistancesFromApi(false);
       });
     },
-    [form, reorderStopsArray, recalculateDistances],
+    [form, reorderStopsArray, syncRouteDistancesFromApi],
   );
 
   const handleMoveWaypoint = useCallback(
@@ -521,8 +648,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         shouldValidate: false,
         shouldDirty: true,
       });
+
+      requestAnimationFrame(() => {
+        void syncRouteDistancesFromApi(false);
+      });
     },
-    [form],
+    [form, syncRouteDistancesFromApi],
   );
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -567,48 +698,16 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         shouldDirty: true,
       });
 
+      requestAnimationFrame(() => {
+        void syncRouteDistancesFromApi(false);
+      });
+
     setDraggedIndex(null);
   };
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
   }, []);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // EDITAR OPERACIONES DE ESCALA
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const handleWaypointOperationChange = useCallback(
-    (stopIndex: number, operation: string, checked: boolean) => {
-      const currentStop = form.getValues(`stops.${stopIndex}`);
-      if (!currentStop) return;
-
-      const currentOperations = currentStop.stopType.filter(
-        (type) =>
-          type !== StopType.ORIGIN &&
-          type !== StopType.DESTINATION &&
-          type !== StopType.WAYPOINT,
-      );
-
-      let newOperations: string[];
-
-      if (checked) {
-        newOperations = [...currentOperations, operation];
-      } else {
-        newOperations = currentOperations.filter((t) => t !== operation);
-      }
-
-      if (newOperations.length === 0) return;
-
-      const newStopType = [
-        StopType.WAYPOINT,
-        ...newOperations,
-      ] as TripStopFormValues["stopType"];
-
-      form.setValue(`stops.${stopIndex}.stopType`, newStopType);
-    },
-    [form],
-  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // UI HELPERS
@@ -629,7 +728,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     (
       stop: TripStopFormValues,
       type: "origin" | "waypoint" | "destination",
-      index: number,
     ): string[] => {
       const missing: string[] = [];
 
@@ -644,17 +742,20 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       }
 
       if (!stopHasUnifiedAddressId(stop)) {
-        if (!stop.satEstadoCode?.trim()) missing.push("estado SAT");
-        if (!stop.satMunicipioCode?.trim()) missing.push("municipio SAT");
+        if (!stop.satCountryCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.country);
+        if (!stop.satStateCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.state);
+        if (!stop.satMunicipalityCode?.trim()) {
+          missing.push(LOCATION_CAPTURE_LABELS.municipality);
+        }
         if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) missing.push("CP");
+      }
+
+      if (stop.latitude == null || stop.longitude == null) {
+        missing.push("geolocalización");
       }
 
       if (type === "destination" && !stop.estimatedArrival) {
         missing.push("hora llegada");
-      }
-
-      if (index > 0 && (stop.distanceFromPreviousKm ?? null) === null) {
-        missing.push("distancia");
       }
 
       return missing;
@@ -677,7 +778,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         : stopType.includes(StopType.DESTINATION)
           ? "destination"
           : "waypoint";
-      const missing = getStopMissingFields(stop, type, index);
+      const missing = getStopMissingFields(stop, type);
       if (missing.length > 0) {
         const label = stop.locationName || `Parada #${index + 1}`;
         pendingActions.push(`Completar ${label} (${missing.join(", ")})`);
@@ -719,7 +820,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       formatStopAddress(stop);
     const linkedCatalog = stopHasUnifiedAddressId(stop);
     const hasManualCp = hasManualSatPostalComplete(stop);
-    const missingFields = getStopMissingFields(stop, type, index);
+    const missingFields = getStopMissingFields(stop, type);
     const isComplete = missingFields.length === 0;
     const primaryCtaLabel = isComplete ? "Editar" : "Completar";
 
@@ -810,12 +911,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   {isComplete ? "Completa" : "Pendiente"}
                 </Badge>
 
-                {/* Carta Porte: domicilio en catálogo vs captura manual */}
+                {/* Domicilio en catálogo vs captura manual */}
                 {linkedCatalog && (
                   <Badge
                     variant="outline"
                     className="text-xs border-emerald-300 text-emerald-800 dark:border-emerald-700 dark:text-emerald-200"
-                    title="Ubicación ligada a un domicilio guardado; el SAT se resuelve desde ese registro."
+                    title="Ubicación ligada a un domicilio guardado; la configuración fiscal se toma de ese registro."
                   >
                     <FileText className="h-3 w-3 mr-1" />
                     Domicilio guardado
@@ -827,92 +928,21 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                     className="text-xs border-blue-300 text-blue-600"
                   >
                     <FileText className="h-3 w-3 mr-1" />
-                    CP
+                    Datos fiscales listos
+                  </Badge>
+                )}
+                {index > 0 && stop.distanceFromPreviousKm != null && (
+                  <Badge variant="outline" className="text-xs">
+                    {stop.distanceSource === "manual"
+                      ? "Manual"
+                      : stop.distanceSource === "mapbox_matrix"
+                        ? "Mapbox"
+                        : stop.distanceSource === "haversine_fallback"
+                          ? "Estimado"
+                          : "Distancia"}
                   </Badge>
                 )}
 
-                {/* Botón editar operaciones - solo para escalas */}
-                {isWaypoint && (
-                  <Popover
-                    open={operationsPopoverIndex === index}
-                    onOpenChange={(open) =>
-                      setOperationsPopoverIndex(open ? index : null)
-                    }
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 ml-1"
-                        title="Editar operaciones de esta escala"
-                      >
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-3" align="start">
-                      <div className="space-y-3">
-                        <p className="text-sm font-medium">
-                          Operaciones de la Escala
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Seleccione carga, descarga o ambas
-                        </p>
-                        <div className="space-y-2">
-                          {STOP_OPERATION_OPTIONS.map((option) => {
-                            const OpIcon = option.icon;
-                            const isChecked = stop.stopType.includes(
-                              option.value as StopTypeValue,
-                            );
-                            const operationCount = stop.stopType.filter(
-                              (t) =>
-                                t === StopType.PICKUP ||
-                                t === StopType.DELIVERY,
-                            ).length;
-                            const isLastOperation =
-                              isChecked && operationCount === 1;
-
-                            return (
-                              <div
-                                key={option.value}
-                                className={cn(
-                                  "flex items-center gap-3 p-2.5 border rounded-lg transition-colors",
-                                  isChecked && "border-primary bg-primary/5",
-                                )}
-                              >
-                                <Checkbox
-                                  id={`edit-op-${index}-${option.value}`}
-                                  checked={isChecked}
-                                  disabled={isLastOperation}
-                                  onCheckedChange={(checked) => {
-                                    handleWaypointOperationChange(
-                                      index,
-                                      option.value,
-                                      !!checked,
-                                    );
-                                  }}
-                                />
-                                <label
-                                  htmlFor={`edit-op-${index}-${option.value}`}
-                                  className={cn(
-                                    "flex items-center gap-2 text-sm font-medium leading-none cursor-pointer",
-                                    isLastOperation &&
-                                      "opacity-50 cursor-not-allowed",
-                                  )}
-                                >
-                                  <OpIcon
-                                    className={cn("h-4 w-4", option.color)}
-                                  />
-                                  {option.label}
-                                </label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                )}
               </div>
 
               {/* Location Name */}
@@ -930,10 +960,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </p>
               )}
 
-              {/* Códigos SAT (manual o precargados desde domicilio guardado) */}
+              {/* Identificadores fiscales (manual o precargados desde domicilio guardado) */}
               {(linkedCatalog || hasManualCp) && (
                 <p className="text-xs text-blue-600 mt-1">
-                  SAT: {stop.satEstadoCode}-{stop.satMunicipioCode}
+                  Claves: {stop.satStateCode}-{stop.satMunicipalityCode}
                   {stop.postalCode && ` · CP ${stop.postalCode}`}
                 </p>
               )}
@@ -941,7 +971,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
               {/* Distancia desde parada anterior (solo para escalas y destino) */}
               {index > 0 && stop.distanceFromPreviousKm != null && stop.distanceFromPreviousKm > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  📍 {stop.distanceFromPreviousKm} km desde parada anterior
+                  {stop.distanceFromPreviousKm} km desde parada anterior
                 </p>
               )}
               {!isComplete && (
@@ -960,16 +990,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 onClick={() => openEditDialog(index, type)}
               >
                 {primaryCtaLabel}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 flex-shrink-0"
-                onClick={() => openEditDialog(index, type)}
-                title="Editar parada"
-              >
-                <Pencil className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -1062,7 +1082,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         {icon}
       </div>
       <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-      <p className="text-xs text-muted-foreground mb-4">{description}</p>
+      <div className="mb-4 flex items-center justify-center">
+        <HintIcon label={title} contentClassName="max-w-sm text-left">
+          {description}
+        </HintIcon>
+      </div>
       <Button
         type="button"
         variant="outline"
@@ -1098,12 +1122,39 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-sm font-medium">Guía rápida de ruta</p>
+              <SectionHeadingWithHint
+                noTitleWrap
+                title={<p className="text-sm font-medium">Guía rápida de ruta</p>}
+                hintLabel="Guía rápida de ruta"
+                hint={
+                  <>
+                    Resume qué falta para completar la ruta y sugiere la siguiente acción. Usa los botones de la derecha
+                    para recalcular distancias o revisar paradas pendientes.
+                  </>
+                }
+              />
               <p className="text-sm text-muted-foreground">
                 Siguiente acción: {guidanceSummary.nextAction}
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {showRecalculateMissingDistances ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={routeRecalcLoading}
+                  onClick={() => fillMissingDistancesOnly()}
+                >
+                  Recalcular distancias faltantes
+                </Button>
+              ) : null}
+              {routeRecalcLoading ? (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Actualizando distancias…
+                </span>
+              ) : null}
               <Badge variant="outline">{guidanceSummary.totalStops} paradas</Badge>
               <Badge
                 variant="outline"
@@ -1180,8 +1231,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           ) : (
             renderEmptyBlock(
               "waypoint",
-              "Sin escalas intermedias",
-              "Las escalas son opcionales. Puede agregar paradas intermedias para carga/descarga parcial",
+                "Sin escalas intermedias",
+                "Las escalas son opcionales. Puedes agregarlas para carga o descarga parcial",
               <MapPin className="h-6 w-6 text-gray-600" />,
             )
           )}
@@ -1211,22 +1262,33 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         </CardContent>
       </Card>
 
-      {/* Información de ayuda */}
-      <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-        <p className="font-medium mb-1">Reglas de la ruta:</p>
-        <ul className="list-disc list-inside space-y-0.5">
-          <li>El viaje debe tener exactamente 1 origen y 1 destino</li>
-          <li>Las escalas son opcionales y pueden ser múltiples</li>
-          <li>Puede reordenar las escalas arrastrándolas o con los botones</li>
-          <li>
-            En el origen solo se permite carga; en el destino solo descarga
-          </li>
-          <li>En las escalas puede realizar carga, descarga o ambas</li>
-          <li>
-            Los campos de Estado, Municipio y CP son obligatorios para Carta
-            Porte
-          </li>
-        </ul>
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs dark:bg-muted/15">
+        <SectionHeadingWithHint
+          noTitleWrap
+          title={<span className="font-medium text-muted-foreground">Reglas de la ruta</span>}
+          hintLabel="Reglas de la ruta"
+          hintContentClassName="max-w-sm text-left [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4"
+          hint={
+            <>
+              <span className="font-medium text-foreground">Resumen</span>
+              <ul>
+                <li>El viaje debe tener exactamente 1 origen y 1 destino</li>
+                <li>Las escalas son opcionales y pueden ser múltiples</li>
+                <li>Puede reordenar las escalas arrastrándolas o con los botones</li>
+                <li>En el origen solo se permite carga; en el destino solo descarga</li>
+                <li>En las escalas puede realizar carga, descarga o ambas</li>
+                <li>
+                  Los datos de país, estado, municipio y CP son obligatorios en captura manual
+                </li>
+                <li>
+                  {cfdiDocumentIntent === "traslado"
+                    ? "En traslado, revise en cada parada quién entrega y quién recibe según la operación real."
+                    : "En ingreso, el cliente que contrata el viaje suele ser la referencia principal; las demás contrapartes por ubicación se capturan en cada parada."}
+                </li>
+              </ul>
+            </>
+          }
+        />
       </div>
 
       {/* Dialog para agregar/editar parada */}
@@ -1241,7 +1303,34 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         onSubmit={handleDialogSubmit}
         initialData={dialogInitialData}
         mode={editingStopIndex !== null ? "edit" : "create"}
+        cfdiDocumentIntent={cfdiDocumentIntent}
       />
+
+      <AlertDialog
+        open={overwriteManualDialogOpen}
+        onOpenChange={setOverwriteManualDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sobrescribir distancias manuales</AlertDialogTitle>
+            <AlertDialogDescription>
+              Al cambiar la ruta, se recalcularán los kilómetros de todos los
+              tramos (servidor con Mapbox cuando aplique; si falla, estimación
+              local). Las distancias que capturaste manualmente se
+              reemplazarán.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              onClick={() => void syncRouteDistancesFromApi(true)}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

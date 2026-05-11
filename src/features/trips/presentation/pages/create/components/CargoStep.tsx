@@ -25,7 +25,14 @@
  * Ubicación: src/pages/trips/create/components/CargoStep.tsx
  */
 
-import { useState, useMemo } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { useToast } from "@shared/hooks";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -44,6 +51,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -70,8 +78,11 @@ import {
   Box,
   FileText,
   Gauge,
+  MessageSquare,
+  User,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import type {
   TripWizardFormValues,
   TripCargoFormValues,
@@ -86,6 +97,14 @@ import {
   MaterialPeligrosoSearch,
   TipoEmbalajeSelect,
 } from "@features/catalogs";
+import {
+  extractCargoRegulatoryFlags,
+  getMissingSectorRequiredFields,
+  hasAnySectorFieldValue,
+  isHazmatRequired,
+  sectorFieldLabels,
+} from "./cargoRegulatory";
+import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
 // ============================================================================
 // TYPES
@@ -119,6 +138,49 @@ interface DeliveryStopInfo {
   category: "origin" | "waypoint" | "destination";
 }
 
+function sectorRequirementsHasNoActiveFlags(
+  req: Record<string, boolean> | undefined,
+): boolean {
+  if (!req || Object.keys(req).length === 0) return true;
+  return !Object.values(req).some(Boolean);
+}
+
+interface CargoDialogSectionProps {
+  step: string;
+  title: string;
+  icon: ComponentType<{ className?: string }>;
+  children: ReactNode;
+  className?: string;
+  contentClassName?: string;
+}
+
+const CARGO_DIALOG_SECTION_SURFACE =
+  "overflow-hidden rounded-xl border border-border/60 bg-card/70 shadow-sm";
+
+function CargoDialogSection({
+  step,
+  title,
+  icon: Icon,
+  children,
+  className,
+  contentClassName,
+}: CargoDialogSectionProps) {
+  return (
+    <section className={cn(CARGO_DIALOG_SECTION_SURFACE, className)}>
+      <header className="flex items-center gap-3 border-b border-border/60 bg-muted/30 px-4 py-3">
+        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-1 text-[11px] font-semibold text-primary">
+          {step}
+        </span>
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-background text-muted-foreground">
+          <Icon className="h-4 w-4" />
+        </span>
+        <h4 className="text-sm font-semibold tracking-tight text-foreground">{title}</h4>
+      </header>
+      <div className={cn("space-y-4 p-4 sm:p-5", contentClassName)}>{children}</div>
+    </section>
+  );
+}
+
 function formatWizardStopAddressLine(stop: TripStopFormValues): string {
   const streetLine = [stop.street, stop.exteriorNumber]
     .filter(Boolean)
@@ -130,7 +192,7 @@ function formatWizardStopAddressLine(stop: TripStopFormValues): string {
 }
 
 function formatWizardStopCityLine(stop: TripStopFormValues): string {
-  const line = [stop.cityName, stop.colonia].filter(Boolean).join(" · ");
+  const line = [stop.cityName, stop.neighborhoodName].filter(Boolean).join(" · ");
   if (line) return line;
   return stop.postalCode ?? "—";
 }
@@ -163,6 +225,61 @@ export function CargoStep({
   // Estado para sección colapsable de material peligroso
   const [hazmatSectionOpen, setHazmatSectionOpen] = useState(false);
   const { error: showErrorToast } = useToast();
+  const catalogHydrateKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isCargoDialogOpen) {
+      catalogHydrateKeyRef.current = null;
+      return;
+    }
+    const code = newCargo.satProductCode?.trim();
+    if (!code) return;
+    if (!sectorRequirementsHasNoActiveFlags(newCargo.sectorRequirements)) {
+      return;
+    }
+
+    const key = `${editingIndex ?? "new"}:${code}`;
+    if (catalogHydrateKeyRef.current === key) return;
+    catalogHydrateKeyRef.current = key;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const flags = await fetchRegulatoryFlagsForSatProductCp(code);
+        if (cancelled) return;
+        setNewCargo((prev) => {
+          if (prev.satProductCode?.trim() !== code) return prev;
+          if (!sectorRequirementsHasNoActiveFlags(prev.sectorRequirements)) {
+            return prev;
+          }
+          return {
+            ...prev,
+            sectorRequirements: {
+              ...prev.sectorRequirements,
+              ...flags.sectorRequirements,
+            },
+            requiresHazmat: prev.requiresHazmat || flags.requiresHazmat,
+            hazardousMaterial:
+              prev.hazardousMaterial || flags.requiresHazmat,
+          };
+        });
+        if (flags.requiresHazmat) {
+          setHazmatSectionOpen(true);
+        }
+      } catch {
+        catalogHydrateKeyRef.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isCargoDialogOpen,
+    editingIndex,
+    newCargo.satProductCode,
+    newCargo.sectorRequirements,
+  ]);
 
   const insuredCargoComplete = useMemo(() => {
     if (!newCargo.isInsured) return true;
@@ -184,6 +301,71 @@ export function CargoStep({
     newCargo.aseguraCarga,
     newCargo.polizaCarga,
   ]);
+
+  const hazmatRequiredByCatalog = useMemo(
+    () => isHazmatRequired(newCargo),
+    [newCargo],
+  );
+
+  const missingSectorFields = useMemo(
+    () =>
+      getMissingSectorRequiredFields({
+        requirements: newCargo.sectorRequirements,
+        values: {
+          sectorCofepris: newCargo.sectorCofepris,
+          nombreIngredienteActivo: newCargo.nombreIngredienteActivo,
+          nomQuimico: newCargo.nomQuimico,
+          denominacionGenericaProd: newCargo.denominacionGenericaProd,
+          denominacionDistintivaProd: newCargo.denominacionDistintivaProd,
+          fabricante: newCargo.fabricante,
+          fechaCaducidad: newCargo.fechaCaducidad,
+          loteMedicamento: newCargo.loteMedicamento,
+          formaFarmaceutica: newCargo.formaFarmaceutica,
+          condicionesEspTransp: newCargo.condicionesEspTransp,
+          registroSanitarioFolioAutorizacion:
+            newCargo.registroSanitarioFolioAutorizacion,
+          permisoImportacion: newCargo.permisoImportacion,
+          folioImpoVucem: newCargo.folioImpoVucem,
+          numCas: newCargo.numCas,
+          razonSocialEmpImp: newCargo.razonSocialEmpImp,
+          numRegSanPlagCofepris: newCargo.numRegSanPlagCofepris,
+          datosFabricante: newCargo.datosFabricante,
+          datosFormulador: newCargo.datosFormulador,
+          datosMaquilador: newCargo.datosMaquilador,
+          usoAutorizado: newCargo.usoAutorizado,
+        },
+      }),
+    [newCargo],
+  );
+
+  const shouldShowSectorSection = useMemo(
+    () =>
+      Object.values(newCargo.sectorRequirements ?? {}).some(Boolean) ||
+      hasAnySectorFieldValue({
+        sectorCofepris: newCargo.sectorCofepris,
+        nombreIngredienteActivo: newCargo.nombreIngredienteActivo,
+        nomQuimico: newCargo.nomQuimico,
+        denominacionGenericaProd: newCargo.denominacionGenericaProd,
+        denominacionDistintivaProd: newCargo.denominacionDistintivaProd,
+        fabricante: newCargo.fabricante,
+        fechaCaducidad: newCargo.fechaCaducidad,
+        loteMedicamento: newCargo.loteMedicamento,
+        formaFarmaceutica: newCargo.formaFarmaceutica,
+        condicionesEspTransp: newCargo.condicionesEspTransp,
+        registroSanitarioFolioAutorizacion:
+          newCargo.registroSanitarioFolioAutorizacion,
+        permisoImportacion: newCargo.permisoImportacion,
+        folioImpoVucem: newCargo.folioImpoVucem,
+        numCas: newCargo.numCas,
+        razonSocialEmpImp: newCargo.razonSocialEmpImp,
+        numRegSanPlagCofepris: newCargo.numRegSanPlagCofepris,
+        datosFabricante: newCargo.datosFabricante,
+        datosFormulador: newCargo.datosFormulador,
+        datosMaquilador: newCargo.datosMaquilador,
+        usoAutorizado: newCargo.usoAutorizado,
+      }),
+    [newCargo],
+  );
 
   // ============================================
   // Obtener vehículo seleccionado para validar capacidad
@@ -227,7 +409,7 @@ export function CargoStep({
         index,
         address: formatWizardStopAddressLine(stop),
         city: formatWizardStopCityLine(stop),
-        state: stop.satEstadoCode,
+        state: stop.satStateCode,
         clientId: stop.clientId || undefined,
         clientName: client?.legalName,
         locationName: stop.locationName,
@@ -309,6 +491,7 @@ export function CargoStep({
       description: "",
       weight: undefined,
       units: undefined,
+      currency: "MXN",
       isInsured: false,
       declaredValue: undefined,
       aseguraCarga: undefined,
@@ -322,9 +505,31 @@ export function CargoStep({
       satUnitName: "Pieza",
       weightInKg: undefined,
       hazardousMaterial: false,
+      requiresHazmat: false,
       hazardousMaterialCode: "",
       packagingType: "",
       packagingDescription: "",
+      sectorRequirements: {},
+      sectorCofepris: "",
+      nombreIngredienteActivo: "",
+      nomQuimico: "",
+      denominacionGenericaProd: "",
+      denominacionDistintivaProd: "",
+      fabricante: "",
+      fechaCaducidad: "",
+      loteMedicamento: "",
+      formaFarmaceutica: "",
+      condicionesEspTransp: "",
+      registroSanitarioFolioAutorizacion: "",
+      permisoImportacion: "",
+      folioImpoVucem: "",
+      numCas: "",
+      razonSocialEmpImp: "",
+      numRegSanPlagCofepris: "",
+      datosFabricante: "",
+      datosFormulador: "",
+      datosMaquilador: "",
+      usoAutorizado: "",
     });
     setDeliveryAssignments([]);
     setHazmatSectionOpen(false);
@@ -334,7 +539,33 @@ export function CargoStep({
   const handleOpenEditDialog = (fieldIndex: number) => {
     setEditingIndex(fieldIndex);
     const cargo = fields[fieldIndex];
-    setNewCargo({ ...cargo });
+    setNewCargo({
+      ...cargo,
+      currency: cargo.currency || "MXN",
+      requiresHazmat: cargo.requiresHazmat ?? false,
+      sectorRequirements: cargo.sectorRequirements ?? {},
+      sectorCofepris: cargo.sectorCofepris ?? "",
+      nombreIngredienteActivo: cargo.nombreIngredienteActivo ?? "",
+      nomQuimico: cargo.nomQuimico ?? "",
+      denominacionGenericaProd: cargo.denominacionGenericaProd ?? "",
+      denominacionDistintivaProd: cargo.denominacionDistintivaProd ?? "",
+      fabricante: cargo.fabricante ?? "",
+      fechaCaducidad: cargo.fechaCaducidad ?? "",
+      loteMedicamento: cargo.loteMedicamento ?? "",
+      formaFarmaceutica: cargo.formaFarmaceutica ?? "",
+      condicionesEspTransp: cargo.condicionesEspTransp ?? "",
+      registroSanitarioFolioAutorizacion:
+        cargo.registroSanitarioFolioAutorizacion ?? "",
+      permisoImportacion: cargo.permisoImportacion ?? "",
+      folioImpoVucem: cargo.folioImpoVucem ?? "",
+      numCas: cargo.numCas ?? "",
+      razonSocialEmpImp: cargo.razonSocialEmpImp ?? "",
+      numRegSanPlagCofepris: cargo.numRegSanPlagCofepris ?? "",
+      datosFabricante: cargo.datosFabricante ?? "",
+      datosFormulador: cargo.datosFormulador ?? "",
+      datosMaquilador: cargo.datosMaquilador ?? "",
+      usoAutorizado: cargo.usoAutorizado ?? "",
+    });
     const existingDeliveries = (cargo.movements || []).filter(
       (m) => m.movementType === "delivery",
     );
@@ -353,7 +584,7 @@ export function CargoStep({
   const handleUpdateDeliveryAssignment = (
     index: number,
     field: keyof CargoMovementFormValues,
-    value: string | number,
+    value: string | number | undefined,
   ) => {
     setDeliveryAssignments((prev) =>
       prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)),
@@ -365,6 +596,13 @@ export function CargoStep({
   };
 
   const handleHazmatChange = (checked: boolean) => {
+    if (!checked && hazmatRequiredByCatalog) {
+      showErrorToast(
+        "Material peligroso requerido",
+        "El producto seleccionado exige capturar información de material peligroso según catálogo SAT.",
+      );
+      return;
+    }
     setNewCargo({
       ...newCargo,
       hazardousMaterial: checked,
@@ -395,6 +633,23 @@ export function CargoStep({
       showErrorToast(
         "Datos de seguro incompletos",
         "Si la mercancía está asegurada, indica valor declarado mayor a cero, aseguradora y póliza.",
+      );
+      return;
+    }
+
+    if (hazmatRequiredByCatalog && !newCargo.hazardousMaterial) {
+      showErrorToast(
+        "Material peligroso requerido",
+        "Este producto requiere capturar material peligroso según catálogo SAT.",
+      );
+      return;
+    }
+
+    if (missingSectorFields.length > 0) {
+      const firstMissingField = missingSectorFields[0];
+      showErrorToast(
+        "Datos regulatorios incompletos",
+        `Completa "${sectorFieldLabels[firstMissingField]}" para esta mercancía.`,
       );
       return;
     }
@@ -432,8 +687,10 @@ export function CargoStep({
       satProductDescription: newCargo.satProductDescription,
       satUnitCode: newCargo.satUnitCode,
       satUnitName: newCargo.satUnitName,
+      currency: newCargo.currency || "MXN",
       weightInKg: newCargo.weightInKg,
       hazardousMaterial: newCargo.hazardousMaterial ?? false,
+      requiresHazmat: newCargo.requiresHazmat ?? false,
       hazardousMaterialCode: newCargo.hazardousMaterial
         ? newCargo.hazardousMaterialCode
         : undefined,
@@ -443,6 +700,29 @@ export function CargoStep({
       packagingDescription: newCargo.hazardousMaterial
         ? newCargo.packagingDescription
         : undefined,
+      sectorRequirements: newCargo.sectorRequirements ?? {},
+      sectorCofepris: newCargo.sectorCofepris || undefined,
+      nombreIngredienteActivo: newCargo.nombreIngredienteActivo || undefined,
+      nomQuimico: newCargo.nomQuimico || undefined,
+      denominacionGenericaProd: newCargo.denominacionGenericaProd || undefined,
+      denominacionDistintivaProd:
+        newCargo.denominacionDistintivaProd || undefined,
+      fabricante: newCargo.fabricante || undefined,
+      fechaCaducidad: newCargo.fechaCaducidad || undefined,
+      loteMedicamento: newCargo.loteMedicamento || undefined,
+      formaFarmaceutica: newCargo.formaFarmaceutica || undefined,
+      condicionesEspTransp: newCargo.condicionesEspTransp || undefined,
+      registroSanitarioFolioAutorizacion:
+        newCargo.registroSanitarioFolioAutorizacion || undefined,
+      permisoImportacion: newCargo.permisoImportacion || undefined,
+      folioImpoVucem: newCargo.folioImpoVucem || undefined,
+      numCas: newCargo.numCas || undefined,
+      razonSocialEmpImp: newCargo.razonSocialEmpImp || undefined,
+      numRegSanPlagCofepris: newCargo.numRegSanPlagCofepris || undefined,
+      datosFabricante: newCargo.datosFabricante || undefined,
+      datosFormulador: newCargo.datosFormulador || undefined,
+      datosMaquilador: newCargo.datosMaquilador || undefined,
+      usoAutorizado: newCargo.usoAutorizado || undefined,
     };
 
     if (editingIndex !== null) {
@@ -770,9 +1050,22 @@ export function CargoStep({
       {/* Encabezado con resumen */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Package className="h-5 w-5" /> Cargas del Viaje
-          </h3>
+            <SectionHeadingWithHint
+              title={
+                <>
+                  <Package className="h-5 w-5 shrink-0" />
+                  Mercancías del viaje
+                </>
+              }
+              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+              hintLabel="Mercancías y movimientos"
+              hint={
+                <>
+                  Cada punto de carga agrupa mercancías; al crear una carga se genera un movimiento de pickup. Puedes
+                  asignar entregas parciales hacia otras paradas con descarga.
+                </>
+              }
+            />
           <p className="text-sm text-muted-foreground">
             {totalCargos} carga{totalCargos !== 1 ? "s" : ""} en{" "}
             {pickupStops.length} punto
@@ -922,7 +1215,7 @@ export function CargoStep({
                             {cargo.satProductCode && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-700 border border-blue-200">
                                 <FileText className="h-3 w-3" />
-                                {cargo.satProductCode}
+                              Clave {cargo.satProductCode}
                               </span>
                             )}
                             {cargo.hazardousMaterial && (
@@ -1029,7 +1322,7 @@ export function CargoStep({
                 onClick={() => handleOpenAddDialog(pickupStop)}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Agregar Carga
+                Agregar mercancía
               </Button>
             </CardContent>
           </Card>
@@ -1041,28 +1334,52 @@ export function CargoStep({
       <Dialog open={isCargoDialogOpen} onOpenChange={setIsCargoDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingIndex !== null ? "Editar Carga" : "Agregar Carga"}
+            <DialogTitle className="pr-8">
+              <SectionHeadingWithHint
+                noTitleWrap
+                title={
+                  <span>{editingIndex !== null ? "Editar mercancía" : "Agregar mercancía"}</span>
+                }
+                hintLabel="Qué incluye este formulario"
+                hint={
+                  <>
+                    Complete el cliente de la parada de carga, el producto y la unidad de medida desde los catálogos
+                    oficiales, cantidad y peso, seguro opcional, material peligroso si aplica, entregas posteriores en la
+                    ruta y observaciones.                     El sistema enlaza las claves del catálogo al timbrado; no necesita transcribirlas.
+                  </>
+                }
+              />
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulario de mercancía: cliente, producto y unidad de medida, cantidad y peso, seguro, material
+              peligroso, entregas y observaciones.
+            </DialogDescription>
             {currentPickupStop && (
-              <p className="text-sm text-muted-foreground">
-                Parada #{currentPickupStop.index + 1}:{" "}
-                {currentPickupStop.locationName || currentPickupStop.address}
-                {currentPickupStop.clientName &&
-                  ` · ${currentPickupStop.clientName}`}
-              </p>
+              <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Parada #{currentPickupStop.index + 1}
+                </span>
+                : {currentPickupStop.locationName || currentPickupStop.address}
+                {currentPickupStop.clientName && ` · ${currentPickupStop.clientName}`}
+              </div>
             )}
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-5 py-4">
             {/* ========== SECCIÓN: CLIENTE ========== */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Cliente
-              </h4>
-
+            <CargoDialogSection step="01" title="Cliente en la parada" icon={User}>
               <div className="space-y-2">
-                <Label>Cliente *</Label>
+                <SectionHeadingWithHint
+                  noTitleWrap
+                  title={<Label>Cliente *</Label>}
+                  hintLabel="Cliente en esta parada"
+                  hint={
+                    <>
+                      Se alinea con el cliente vinculado a esta parada de carga en el paso Ruta. Si la parada no tiene
+                      cliente, puede seleccionarlo aquí.
+                    </>
+                  }
+                />
                 {stopHasClient ? (
                   <>
                     <Input
@@ -1070,9 +1387,6 @@ export function CargoStep({
                       disabled
                       className="bg-muted"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Cliente asociado a la parada de carga
-                    </p>
                   </>
                 ) : (
                   <Select
@@ -1095,61 +1409,66 @@ export function CargoStep({
                   </Select>
                 )}
               </div>
-            </div>
+            </CargoDialogSection>
 
-            {/* ========== SECCIÓN: CLASIFICACIÓN SAT Y DESCRIPCIÓN ========== */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Clasificación SAT (Carta Porte)
-              </h4>
-
-              {/* Producto SAT - Búsqueda dinámica en catálogo */}
+            {/* ========== SECCIÓN: PRODUCTO Y UNIDAD (CATÁLOGO) ========== */}
+            <CargoDialogSection
+              step="02"
+              title="Producto y unidad de medida"
+              icon={FileText}
+            >
               <div className="space-y-2">
-                <Label>Clave de Producto SAT *</Label>
+                <Label>Producto o servicio transportado *</Label>
                 <ProductoServicioCPSearch
                   value={newCargo.satProductCode || null}
-                  onSelect={(item) =>
+                  onSelect={(item) => {
+                    const flags = extractCargoRegulatoryFlags(item.metadata);
                     setNewCargo((prev) => ({
                       ...prev,
                       satProductCode: item.code,
                       satProductDescription: item.name,
                       description: prev.description || item.name,
-                    }))
-                  }
+                      requiresHazmat: flags.requiresHazmat,
+                      hazardousMaterial:
+                        prev.hazardousMaterial || flags.requiresHazmat,
+                      sectorRequirements: flags.sectorRequirements,
+                    }));
+                    if (flags.requiresHazmat) {
+                      setHazmatSectionOpen(true);
+                    }
+                  }}
                   onClear={() =>
                     setNewCargo((prev) => ({
                       ...prev,
                       satProductCode: "",
                       satProductDescription: "",
+                      requiresHazmat: false,
+                      sectorRequirements: {},
                     }))
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Catálogo c_ClaveProdServCP del SAT. Busque por código o
-                  descripción.
+                  Elija del catálogo de mercancías y servicios; puede buscar por nombre o por clave. No hace falta saber
+                  cómo se codifica en la factura.
                 </p>
               </div>
 
-              {/* Descripción - Se auto-llena con el producto SAT pero es editable */}
               <div className="space-y-2">
-                <Label>Descripción de la Mercancía *</Label>
+                <Label>Descripción de la mercancía *</Label>
                 <Input
-                  placeholder="Se auto-llena al seleccionar un producto SAT..."
+                  placeholder="Se completa al elegir del catálogo; puede editarla..."
                   value={newCargo.description || ""}
                   onChange={(e) =>
                     setNewCargo({ ...newCargo, description: e.target.value })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Se completa automáticamente con el producto SAT. Puede
-                  editarla para mayor detalle.
+                  Se completa al elegir el producto del catálogo; puede ajustarla para mayor detalle operativo.
                 </p>
               </div>
 
-              {/* Unidad SAT - Búsqueda dinámica en catálogo */}
               <div className="space-y-2">
-                <Label>Unidad de Medida SAT *</Label>
+                <Label>Unidad de medida *</Label>
                 <UnidadMedidaSearch
                   value={newCargo.satUnitCode || null}
                   onSelect={(item) =>
@@ -1167,16 +1486,23 @@ export function CargoStep({
                     }))
                   }
                 />
+                <p className="text-xs text-muted-foreground">
+                  El sistema conserva la unidad elegida del catálogo para la documentación fiscal; no tiene que copiar
+                  claves a mano.
+                </p>
               </div>
-            </div>
+
+              <div className="space-y-2">
+                <Label>Moneda SAT</Label>
+                <Input value={newCargo.currency || "MXN"} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground">
+                  En v1 nacional se usa MXN por defecto para la mercancía.
+                </p>
+              </div>
+            </CargoDialogSection>
 
             {/* ========== SECCIÓN: CANTIDAD Y PESO ========== */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Scale className="h-4 w-4" />
-                Cantidad y Peso
-              </h4>
-
+            <CargoDialogSection step="03" title="Cantidad y peso" icon={Scale}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Cantidad *</Label>
@@ -1213,9 +1539,9 @@ export function CargoStep({
 
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Peso Total (kg) *
+                    Peso total (kg) *
                     <span className="text-xs text-muted-foreground font-normal">
-                      (Carta Porte)
+                      (documentación del envío)
                     </span>
                   </Label>
                   <Input
@@ -1294,15 +1620,10 @@ export function CargoStep({
                   ) : null;
                 })()}
 
-            </div>
+            </CargoDialogSection>
 
             {/* ========== SECCIÓN: SEGURO DE CARGA ========== */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4" />
-                Seguro de Carga
-              </h4>
-
+            <CargoDialogSection step="04" title="Seguro de mercancía" icon={ShieldCheck}>
               <div className="flex items-center space-x-3">
                 <Checkbox
                   id="insured-checkbox"
@@ -1369,9 +1690,9 @@ export function CargoStep({
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Corresponde al campo <span className="font-mono">ValorMercancia</span> en
-                    Carta Porte 3.1. Con mercancía asegurada, valor declarado,
-                    aseguradora y póliza son obligatorios.
+                    Es el valor declarado de la mercancía para la documentación del envío. Si marca mercancía asegurada,
+                    valor
+                    declarado, aseguradora y póliza son obligatorios.
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Captura la aseguradora y póliza específicas de esta mercancía
@@ -1379,10 +1700,10 @@ export function CargoStep({
                   </p>
                 </div>
               )}
-            </div>
+            </CargoDialogSection>
 
             {/* ========== SECCIÓN: MATERIAL PELIGROSO ========== */}
-            <div className="space-y-4 border-t pt-4">
+            <CargoDialogSection step="05" title="Material peligroso" icon={AlertTriangle}>
               <Collapsible
                 open={hazmatSectionOpen}
                 onOpenChange={setHazmatSectionOpen}
@@ -1392,6 +1713,7 @@ export function CargoStep({
                     <Checkbox
                       id="hazmat-checkbox"
                       checked={newCargo.hazardousMaterial || false}
+                      disabled={hazmatRequiredByCatalog}
                       onCheckedChange={handleHazmatChange}
                     />
                     <Label
@@ -1402,6 +1724,11 @@ export function CargoStep({
                       Esta mercancía es material peligroso
                     </Label>
                   </div>
+                  {hazmatRequiredByCatalog && (
+                    <p className="text-xs text-orange-700">
+                      Este producto obliga captura de material peligroso según catálogo SAT.
+                    </p>
+                  )}
                   {newCargo.hazardousMaterial && (
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm">
@@ -1419,8 +1746,7 @@ export function CargoStep({
                 <CollapsibleContent className="space-y-4 mt-4">
                   <div className="p-4 border border-orange-200 rounded-lg bg-orange-50/50 space-y-4">
                     <p className="text-sm text-orange-800">
-                      Complete la información de material peligroso según el
-                      catálogo del SAT.
+                      Completa la información de material peligroso según catálogo oficial.
                     </p>
 
                     {/* Código de material peligroso - Búsqueda dinámica */}
@@ -1475,16 +1801,356 @@ export function CargoStep({
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            </div>
+            </CargoDialogSection>
+
+            {shouldShowSectorSection && (
+              <CargoDialogSection
+                step="06"
+                title="Sectores regulados"
+                icon={FileText}
+              >
+                <p className="text-xs text-muted-foreground">
+                  Complete solo los campos regulatorios que marque el catálogo del
+                  producto. Si no aplica, puede dejarlos vacíos.
+                </p>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>
+                      Sector COFEPRIS
+                      {newCargo.sectorRequirements?.sectorCofepris ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.sectorCofepris || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          sectorCofepris: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Ingrediente activo
+                      {newCargo.sectorRequirements?.nombreIngredienteActivo
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.nombreIngredienteActivo || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          nombreIngredienteActivo: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Nombre químico
+                      {newCargo.sectorRequirements?.nomQuimico ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.nomQuimico || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          nomQuimico: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Denominación genérica
+                      {newCargo.sectorRequirements?.denominacionGenericaProd
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.denominacionGenericaProd || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          denominacionGenericaProd: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Denominación distintiva
+                      {newCargo.sectorRequirements?.denominacionDistintivaProd
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.denominacionDistintivaProd || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          denominacionDistintivaProd: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Fabricante
+                      {newCargo.sectorRequirements?.fabricante ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.fabricante || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          fabricante: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Fecha de caducidad
+                      {newCargo.sectorRequirements?.fechaCaducidad ? " *" : ""}
+                    </Label>
+                    <Input
+                      type="date"
+                      value={newCargo.fechaCaducidad || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          fechaCaducidad: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Lote medicamento
+                      {newCargo.sectorRequirements?.loteMedicamento ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.loteMedicamento || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          loteMedicamento: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Forma farmacéutica
+                      {newCargo.sectorRequirements?.formaFarmaceutica ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.formaFarmaceutica || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          formaFarmaceutica: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Condiciones especiales de transporte
+                      {newCargo.sectorRequirements?.condicionesEspTransp
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.condicionesEspTransp || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          condicionesEspTransp: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Registro sanitario / folio autorización
+                      {newCargo.sectorRequirements
+                        ?.registroSanitarioFolioAutorizacion
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.registroSanitarioFolioAutorizacion || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          registroSanitarioFolioAutorizacion: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Permiso importación
+                      {newCargo.sectorRequirements?.permisoImportacion
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.permisoImportacion || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          permisoImportacion: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Folio VUCEM
+                      {newCargo.sectorRequirements?.folioImpoVucem ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.folioImpoVucem || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          folioImpoVucem: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Número CAS
+                      {newCargo.sectorRequirements?.numCas ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.numCas || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          numCas: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Razón social empresa importadora
+                      {newCargo.sectorRequirements?.razonSocialEmpImp ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.razonSocialEmpImp || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          razonSocialEmpImp: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Registro sanitario plaguicida COFEPRIS
+                      {newCargo.sectorRequirements?.numRegSanPlagCofepris
+                        ? " *"
+                        : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.numRegSanPlagCofepris || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          numRegSanPlagCofepris: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Datos fabricante
+                      {newCargo.sectorRequirements?.datosFabricante ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.datosFabricante || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          datosFabricante: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Datos formulador
+                      {newCargo.sectorRequirements?.datosFormulador ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.datosFormulador || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          datosFormulador: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Datos maquilador
+                      {newCargo.sectorRequirements?.datosMaquilador ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.datosMaquilador || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          datosMaquilador: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Uso autorizado
+                      {newCargo.sectorRequirements?.usoAutorizado ? " *" : ""}
+                    </Label>
+                    <Input
+                      value={newCargo.usoAutorizado || ""}
+                      onChange={(e) =>
+                        setNewCargo((prev) => ({
+                          ...prev,
+                          usoAutorizado: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {missingSectorFields.length > 0 && (
+                  <p className="text-xs text-orange-600">
+                    Campos pendientes:{" "}
+                    {missingSectorFields
+                      .map((field) => sectorFieldLabels[field])
+                      .join(", ")}
+                  </p>
+                )}
+              </CargoDialogSection>
+            )}
 
             {/* ========== SECCIÓN: ENTREGAS (DELIVERY ASSIGNMENTS) ========== */}
             {availableDeliveryForDialog.length > 0 && (
-              <div className="space-y-3 border-t pt-4">
+              <CargoDialogSection step="07" title="Entregas en la ruta" icon={Truck}>
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
-                    Puntos de Entrega
-                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Descargas posteriores en otras paradas
+                  </p>
                   <Button
                     type="button"
                     variant="outline"
@@ -1496,8 +2162,8 @@ export function CargoStep({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Opcional: asigne en qué paradas se entregará esta carga. Para
-                  entregas parciales, especifique peso o unidades por punto.
+                  Opcional: indique en qué paradas se entregará esta mercancía. Para entregas parciales, especifique peso
+                  o unidades por punto.
                 </p>
 
                 {deliveryAssignments.length === 0 ? (
@@ -1587,15 +2253,11 @@ export function CargoStep({
                     ))}
                   </div>
                 )}
-              </div>
+              </CargoDialogSection>
             )}
 
             {/* ========== SECCIÓN: NOTAS ========== */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Notas Adicionales
-              </h4>
-
+            <CargoDialogSection step="08" title="Notas y observaciones" icon={MessageSquare}>
               <div className="space-y-2">
                 <Label>Notas</Label>
                 <Textarea
@@ -1608,7 +2270,7 @@ export function CargoStep({
               </div>
 
               <div className="space-y-2">
-                <Label>Instrucciones Especiales</Label>
+                <Label>Instrucciones especiales</Label>
                 <Textarea
                   placeholder="Manejo especial, temperatura, fragilidad..."
                   value={newCargo.specialInstructions || ""}
@@ -1620,7 +2282,7 @@ export function CargoStep({
                   }
                 />
               </div>
-            </div>
+            </CargoDialogSection>
           </div>
 
           <DialogFooter>
@@ -1645,11 +2307,13 @@ export function CargoStep({
                 newCargo.weightInKg <= 0 ||
                 !newCargo.movements ||
                 newCargo.movements.length === 0 ||
+                (hazmatRequiredByCatalog && !newCargo.hazardousMaterial) ||
                 (newCargo.hazardousMaterial && !newCargo.hazardousMaterialCode) ||
+                missingSectorFields.length > 0 ||
                 (newCargo.isInsured && !insuredCargoComplete)
               }
             >
-              {editingIndex !== null ? "Guardar Cambios" : "Agregar"}
+              {editingIndex !== null ? "Guardar cambios" : "Agregar mercancía"}
             </Button>
           </DialogFooter>
         </DialogContent>

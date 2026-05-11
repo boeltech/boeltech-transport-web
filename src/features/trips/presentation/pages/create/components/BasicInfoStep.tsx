@@ -65,6 +65,7 @@ import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers/domain";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import { isExpiringSoon } from "@shared/utils/dateUtils";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 // Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
 import { useVehicle } from "@features/vehicles/application";
@@ -582,13 +583,23 @@ export function BasicInfoStep({
               )}
             />
 
-            {/* Cliente */}
+            {/* Cliente que contrata */}
             <FormField
               control={form.control}
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente Principal *</FormLabel>
+                  <SectionHeadingWithHint
+                    noTitleWrap
+                    title={<FormLabel>Cliente que contrata *</FormLabel>}
+                    hintLabel="Cliente que contrata"
+                    hint={
+                      <>
+                        Quién contrata el servicio de transporte. Quién entrega y quién recibe en cada ubicación se
+                        captura por parada en el paso Ruta.
+                      </>
+                    }
+                  />
                   <Select
                     onValueChange={(value) => value && field.onChange(value)}
                     value={field.value ?? ""}
@@ -612,9 +623,44 @@ export function BasicInfoStep({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Requerido para facturacion del viaje.
-                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="cfdiDocumentIntent"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-3">
+                  <SectionHeadingWithHint
+                    noTitleWrap
+                    title={<FormLabel>Tipo de comprobante del viaje</FormLabel>}
+                    hintLabel="Tipo de comprobante del viaje"
+                    hint={
+                      <>
+                        Indica si el servicio se documentará principalmente como ingreso (factura de servicio) o como
+                        traslado (movimiento entre ubicaciones). Ajusta etiquetas en Ruta y paradas; el timbrado validará
+                        los datos finos.
+                      </>
+                    }
+                  />
+                  <Select
+                    onValueChange={(value) =>
+                      value && field.onChange(value as "ingreso" | "traslado")
+                    }
+                    value={field.value ?? "ingreso"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo de comprobante" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ingreso">Ingreso — factura de servicio</SelectItem>
+                      <SelectItem value="traslado">Traslado — movimiento entre ubicaciones</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -628,8 +674,23 @@ export function BasicInfoStep({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Users className="h-5 w-5" /> Equipo de Apoyo
+          <CardTitle className="text-lg">
+            <SectionHeadingWithHint
+              title={
+                <>
+                  <Users className="h-5 w-5 shrink-0" />
+                  Equipo de Apoyo
+                </>
+              }
+              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+              hintLabel="Equipo de apoyo interno"
+              hint={
+                <>
+                  Personal que acompaña la operación y puede marcarse como responsable de pago de honorarios o viáticos.
+                  No sustituye al conductor principal del viaje.
+                </>
+              }
+            />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -849,14 +910,20 @@ export function BasicInfoStep({
               name="scheduledArrival"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Llegada Estimada</FormLabel>
+                  <SectionHeadingWithHint
+                    noTitleWrap
+                    title={<FormLabel>Llegada estimada</FormLabel>}
+                    hintLabel="Llegada estimada"
+                    hint={
+                      <>
+                        Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos
+                        puntos, se actualiza el otro.
+                      </>
+                    }
+                  />
                   <FormControl>
                     <Input type="datetime-local" {...field} value={field.value ?? ""} />
                   </FormControl>
-                  <FormDescription>
-                    Sincronizado con la parada de destino del paso Ruta. Si se
-                    modifica en cualquiera de los dos puntos, se actualiza el otro.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

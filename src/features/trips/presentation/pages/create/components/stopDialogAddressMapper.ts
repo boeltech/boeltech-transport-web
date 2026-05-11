@@ -1,6 +1,6 @@
 /**
  * Mapeo entre valores del diálogo de parada (campos SAT en inglés, addressSchema)
- * y el modelo del wizard (`TripStopFormValues` con claves legacy satEstadoCode, etc.).
+ * y el modelo del wizard (`TripStopFormValues` canónico en inglés).
  * Fase C — integración de `AddressInput` compartido.
  */
 
@@ -11,6 +11,13 @@ export type StopCategory = "origin" | "waypoint" | "destination";
 
 export interface StopFormData extends Partial<TripStopFormValues> {
   stopCategory?: StopCategory;
+  distanceSource?: TripStopFormValues["distanceSource"];
+  distanceProvider?: TripStopFormValues["distanceProvider"];
+  distanceConfidence?: TripStopFormValues["distanceConfidence"];
+  distanceComputedAt?: TripStopFormValues["distanceComputedAt"];
+  previousStopLatitude?: number;
+  previousStopLongitude?: number;
+  previousStopLabel?: string;
 }
 
 export type StopDialogFormValues = {
@@ -40,11 +47,22 @@ export type StopDialogFormValues = {
   cityName: string;
   rfcRemitenteDestinatario: string;
   nombreRemitenteDestinatario: string;
+  deliveryRfcRemitenteDestinatario: string;
+  deliveryNombreRemitenteDestinatario: string;
+  remitentePartnerId: string;
+  destinatarioPartnerId: string;
   contactName: string;
   contactPhone: string;
   notes: string;
   estimatedArrival?: string;
   distanceFromPreviousKm?: number;
+  distanceSource?: TripStopFormValues["distanceSource"];
+  distanceProvider?: TripStopFormValues["distanceProvider"];
+  distanceConfidence?: TripStopFormValues["distanceConfidence"];
+  distanceComputedAt?: TripStopFormValues["distanceComputedAt"];
+  previousStopLatitude: number | null;
+  previousStopLongitude: number | null;
+  previousStopLabel: string;
 };
 
 function shortSatCode(code: string | undefined): string {
@@ -96,11 +114,22 @@ export function getEmptyStopDialogValues(): StopDialogFormValues {
     cityName: "",
     rfcRemitenteDestinatario: "",
     nombreRemitenteDestinatario: "",
+    deliveryRfcRemitenteDestinatario: "",
+    deliveryNombreRemitenteDestinatario: "",
+    remitentePartnerId: "",
+    destinatarioPartnerId: "",
     contactName: "",
     contactPhone: "",
     notes: "",
     estimatedArrival: undefined,
     distanceFromPreviousKm: undefined,
+    distanceSource: undefined,
+    distanceProvider: undefined,
+    distanceConfidence: undefined,
+    distanceComputedAt: undefined,
+    previousStopLatitude: null,
+    previousStopLongitude: null,
+    previousStopLabel: "",
   };
 }
 
@@ -111,6 +140,7 @@ export function clientAddressToDialogSlice(
   return {
     addressId: addr.id,
     locationName: addr.locationName || "",
+    satCountryCode: addr.satCountryCode || "MEX",
     satStateCode: addr.satStateCode || "",
     satMunicipalityCode: shortSatCode(addr.satMunicipalityCode),
     postalCode: addr.postalCode || "",
@@ -127,8 +157,8 @@ export function clientAddressToDialogSlice(
     reference: addr.reference ?? null,
     latitude: addr.latitude ?? null,
     longitude: addr.longitude ?? null,
-    contactName: addr.contactName || "",
-    contactPhone: addr.contactPhone || "",
+    contactName: (addr.contactName ?? "").trim(),
+    contactPhone: (addr.contactPhone ?? "").trim(),
   };
 }
 
@@ -147,22 +177,35 @@ export function tripStopToDialogValues(stop: Partial<StopFormData>): StopDialogF
     interiorNumber: stop.interiorNumber ?? null,
     reference: stop.reference ?? null,
     postalCode: stop.postalCode ?? "",
-    satCountryCode: "MEX",
-    satStateCode: stop.satEstadoCode ?? "",
-    satMunicipalityCode: stop.satMunicipioCode ?? "",
-    satLocalityCode: stop.satLocalidadCode || null,
-    satNeighborhoodCode: stop.satColoniaCode || null,
-    neighborhoodName: stop.colonia ?? null,
+    satCountryCode: stop.satCountryCode || "MEX",
+    satStateCode: stop.satStateCode ?? "",
+    satMunicipalityCode: stop.satMunicipalityCode ?? "",
+    satLocalityCode: stop.satLocalityCode || null,
+    satNeighborhoodCode: stop.satNeighborhoodCode || null,
+    neighborhoodName: stop.neighborhoodName ?? null,
     latitude: stop.latitude ?? null,
     longitude: stop.longitude ?? null,
     cityName: stop.cityName ?? "",
     rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario ?? "",
     nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario ?? "",
+    deliveryRfcRemitenteDestinatario:
+      stop.deliveryRfcRemitenteDestinatario ?? "",
+    deliveryNombreRemitenteDestinatario:
+      stop.deliveryNombreRemitenteDestinatario ?? "",
+    remitentePartnerId: stop.remitentePartnerId ?? "",
+    destinatarioPartnerId: stop.destinatarioPartnerId ?? "",
     contactName: stop.contactName ?? "",
     contactPhone: stop.contactPhone ?? "",
     notes: stop.notes ?? "",
     estimatedArrival: stop.estimatedArrival,
     distanceFromPreviousKm: stop.distanceFromPreviousKm,
+    distanceSource: stop.distanceSource,
+    distanceProvider: stop.distanceProvider,
+    distanceConfidence: stop.distanceConfidence,
+    distanceComputedAt: stop.distanceComputedAt,
+    previousStopLatitude: stop.previousStopLatitude ?? null,
+    previousStopLongitude: stop.previousStopLongitude ?? null,
+    previousStopLabel: stop.previousStopLabel ?? "",
   };
 }
 
@@ -174,12 +217,13 @@ export function dialogToStopFormData(v: StopDialogFormValues): StopFormData {
     clientAddressId: v.clientAddressId || undefined,
     addressId: v.addressId || undefined,
     locationName: v.locationName || undefined,
-    satEstadoCode: v.satStateCode,
-    satMunicipioCode: v.satMunicipalityCode,
+    satCountryCode: v.satCountryCode,
+    satStateCode: v.satStateCode,
+    satMunicipalityCode: v.satMunicipalityCode,
     postalCode: v.postalCode,
-    satLocalidadCode: v.satLocalityCode ?? undefined,
-    satColoniaCode: v.satNeighborhoodCode ?? undefined,
-    colonia: v.neighborhoodName ?? undefined,
+    satLocalityCode: v.satLocalityCode ?? undefined,
+    satNeighborhoodCode: v.satNeighborhoodCode ?? undefined,
+    neighborhoodName: v.neighborhoodName ?? undefined,
     cityName: v.cityName || undefined,
     street: v.street || undefined,
     exteriorNumber: v.exteriorNumber || undefined,
@@ -187,13 +231,26 @@ export function dialogToStopFormData(v: StopDialogFormValues): StopFormData {
     reference: v.reference ?? undefined,
     rfcRemitenteDestinatario: v.rfcRemitenteDestinatario || undefined,
     nombreRemitenteDestinatario: v.nombreRemitenteDestinatario || undefined,
+    deliveryRfcRemitenteDestinatario:
+      v.deliveryRfcRemitenteDestinatario || undefined,
+    deliveryNombreRemitenteDestinatario:
+      v.deliveryNombreRemitenteDestinatario || undefined,
+    remitentePartnerId: v.remitentePartnerId || undefined,
+    destinatarioPartnerId: v.destinatarioPartnerId || undefined,
     contactName: v.contactName || undefined,
     contactPhone: v.contactPhone || undefined,
     notes: v.notes || undefined,
     estimatedArrival: v.estimatedArrival,
     distanceFromPreviousKm: v.distanceFromPreviousKm,
+    distanceSource: v.distanceSource,
+    distanceProvider: v.distanceProvider,
+    distanceConfidence: v.distanceConfidence,
+    distanceComputedAt: v.distanceComputedAt,
     latitude: v.latitude ?? undefined,
     longitude: v.longitude ?? undefined,
+    previousStopLatitude: v.previousStopLatitude ?? undefined,
+    previousStopLongitude: v.previousStopLongitude ?? undefined,
+    previousStopLabel: v.previousStopLabel || undefined,
   };
 }
 
@@ -219,10 +276,24 @@ export function mergeDialogWithClientCatalog(
     nombreRemitenteDestinatario: useAddressFiscalData
       ? fiscal.nombreRemitenteDestinatario
       : w.nombreRemitenteDestinatario,
+    deliveryRfcRemitenteDestinatario: w.deliveryRfcRemitenteDestinatario,
+    deliveryNombreRemitenteDestinatario: w.deliveryNombreRemitenteDestinatario,
+    remitentePartnerId: w.remitentePartnerId,
+    destinatarioPartnerId: w.destinatarioPartnerId,
     estimatedArrival: w.estimatedArrival,
     distanceFromPreviousKm: w.distanceFromPreviousKm,
+    distanceSource: w.distanceSource,
+    distanceProvider: w.distanceProvider,
+    distanceConfidence: w.distanceConfidence,
+    distanceComputedAt: w.distanceComputedAt,
     stopType: w.stopType,
     stopCategory: w.stopCategory,
+    previousStopLatitude: w.previousStopLatitude,
+    previousStopLongitude: w.previousStopLongitude,
+    previousStopLabel: w.previousStopLabel,
+    /** El catálogo puede traer lat/lng nulos; no deben pisar valores capturados o geocodificados en el formulario */
+    latitude: w.latitude ?? slice.latitude ?? null,
+    longitude: w.longitude ?? slice.longitude ?? null,
   };
 
   return dialogToStopFormData(merged);

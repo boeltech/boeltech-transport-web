@@ -16,6 +16,12 @@
 import { z } from "zod";
 
 import { isUnifiedAddressId } from "@features/trips/domain";
+import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import {
+  getMissingSectorRequiredFields,
+  isHazmatRequired,
+  sectorFieldLabels,
+} from "./cargoRegulatory";
 
 /** Parada vinculada a fila `addresses` (Fase 4) — el backend puede omitir captura manual SAT. */
 export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
@@ -33,8 +39,8 @@ export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
  * de Carta Porte 3.1. NO hay campos duplicados.
  *
  * Campos geográficos SAT obligatorios **solo si no hay `addressId`** (dirección nueva):
- * - satEstadoCode (c_Estado)
- * - satMunicipioCode (c_Municipio)
+ * - satStateCode (c_Estado)
+ * - satMunicipalityCode (c_Municipio)
  * - postalCode (c_CodigoPostal)
  *
  * En el complemento Carta Porte 3.1, municipio/localidad/colonia en domicilio son
@@ -42,8 +48,8 @@ export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
  * coherencia operativa y catálogos.
  *
  * Opcionales en esquema SAT (recomendables para precisión):
- * - satLocalidadCode (c_Localidad)
- * - satColoniaCode (c_Colonia)
+ * - satLocalityCode (c_Localidad)
+ * - satNeighborhoodCode (c_Colonia)
  */
 export const tripStopSchema = z
   .object({
@@ -67,13 +73,14 @@ export const tripStopSchema = z
    * Código de Estado SAT (c_Estado)
    * Obligatorio si no hay `addressId`.
    */
-  satEstadoCode: z.string().max(3, "Código de estado inválido").optional().or(z.literal("")),
+  satCountryCode: z.string().length(3, "Código de país inválido").optional().or(z.literal("")),
+  satStateCode: z.string().max(3, "Código de estado inválido").optional().or(z.literal("")),
 
   /**
    * Código de Municipio SAT (c_Municipio)
    * Obligatorio si no hay `addressId`.
    */
-  satMunicipioCode: z
+  satMunicipalityCode: z
     .string()
     .max(5, "Código de municipio inválido")
     .optional()
@@ -93,7 +100,7 @@ export const tripStopSchema = z
    * Código de Localidad SAT (c_Localidad)
    * OPCIONAL - Usado principalmente en zonas rurales
    */
-  satLocalidadCode: z.string().optional(),
+  satLocalityCode: z.string().optional(),
 
   /**
    * Nombre del municipio (texto del catálogo SAT)
@@ -105,13 +112,13 @@ export const tripStopSchema = z
    * Código de Colonia SAT (c_Colonia)
    * OPCIONAL - Ayuda a precisar la ubicación
    */
-  satColoniaCode: z.string().optional(),
+  satNeighborhoodCode: z.string().optional(),
 
   /**
    * Nombre/descripción de la colonia (texto del catálogo SAT)
    * Se envía al backend como campo `colonia` en la parada
    */
-  colonia: z.string().max(200, "Nombre de colonia muy largo").optional(),
+  neighborhoodName: z.string().max(200, "Nombre de colonia muy largo").optional(),
 
   // ── Dirección desglosada ────────────────────────────────────────────────
   /**
@@ -157,6 +164,27 @@ export const tripStopSchema = z
     .max(254, "Nombre muy largo")
     .optional(),
 
+  /**
+   * Destinatario fiscal cuando la escala tiene carga y descarga en el mismo punto.
+   * El campo principal sigue representando al remitente (carga).
+   */
+  deliveryRfcRemitenteDestinatario: z
+    .string()
+    .max(13, "RFC inválido")
+    .regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/, "Formato de RFC inválido")
+    .optional()
+    .or(z.literal("")),
+
+  deliveryNombreRemitenteDestinatario: z
+    .string()
+    .max(254, "Nombre muy largo")
+    .optional(),
+
+  /** Catálogo partners — contraparte remitente (carga / origen). */
+  remitentePartnerId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  /** Catálogo partners — contraparte destinatario (descarga / segundo rol en escala mixta). */
+  destinatarioPartnerId: z.union([z.string().uuid(), z.literal("")]).optional(),
+
   // ── Contacto en sitio ───────────────────────────────────────────────────
   contactName: z.string().max(100, "Nombre muy largo").optional(),
   contactPhone: z.string().max(20, "Teléfono muy largo").optional(),
@@ -169,42 +197,64 @@ export const tripStopSchema = z
 
   // ── Distancia (Carta Porte) ─────────────────────────────────────────────
   /**
-   * Distancia en kilómetros desde la parada anterior
-   * OBLIGATORIO para Carta Porte (excepto en origen)
+   * Distancia en kilómetros desde la parada anterior (excepto origen).
+   * Puede dejarse vacía al capturar paradas fuera de orden; debe completarse antes de avanzar del paso Ruta y al enviar el viaje.
    */
   distanceFromPreviousKm: z.coerce
     .number()
     .min(0, "La distancia no puede ser negativa")
     .optional(),
+  distanceSource: z
+    .enum(["manual", "mapbox_matrix", "haversine_fallback"])
+    .optional(),
+  distanceProvider: z.enum(["mapbox", "stub"]).optional(),
+  distanceConfidence: z.enum(["high", "medium", "low"]).optional(),
+  distanceComputedAt: z.string().optional(),
 })
   .superRefine((val, ctx) => {
-    if (stopHasUnifiedAddressId(val)) {
-      return;
+    if (!stopHasUnifiedAddressId(val)) {
+      const country = val.satCountryCode?.trim();
+      if (!country) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Selecciona el ${LOCATION_CAPTURE_LABELS.country} de esta parada`,
+          path: ["satCountryCode"],
+        });
+      }
+      const estado = val.satStateCode?.trim();
+      if (!estado) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Selecciona el ${LOCATION_CAPTURE_LABELS.state} de esta parada`,
+          path: ["satStateCode"],
+        });
+      }
+      const municipio = val.satMunicipalityCode?.trim();
+      if (!municipio) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Selecciona el ${LOCATION_CAPTURE_LABELS.municipality} de esta parada`,
+          path: ["satMunicipalityCode"],
+        });
+      }
+      const cp = val.postalCode?.trim() ?? "";
+      if (!/^\d{5}$/.test(cp)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Captura un ${LOCATION_CAPTURE_LABELS.postalCode} válido de 5 dígitos`,
+          path: ["postalCode"],
+        });
+      }
     }
-    const estado = val.satEstadoCode?.trim();
-    if (!estado) {
+
+    if (val.latitude == null || val.longitude == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Selecciona el estado SAT de esta parada",
-        path: ["satEstadoCode"],
+        message: "Confirma latitud y longitud en el mapa para esta parada",
+        path: ["latitude"],
       });
     }
-    const municipio = val.satMunicipioCode?.trim();
-    if (!municipio) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Selecciona el municipio SAT de esta parada",
-        path: ["satMunicipioCode"],
-      });
-    }
-    const cp = val.postalCode?.trim() ?? "";
-    if (!/^\d{5}$/.test(cp)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Captura un codigo postal valido de 5 digitos",
-        path: ["postalCode"],
-      });
-    }
+    /** Distancia entre paradas: opcional al guardar la parada; se cierra antes de salir del paso Ruta o al enviar el viaje. */
   });
 
 // ============================================================================
@@ -238,6 +288,7 @@ export const tripCargoSchema = z.object({
   satProductDescription: z.string().optional(), // Descripción del catálogo (referencia)
   satUnitCode: z.string().optional(), // c_ClaveUnidad
   satUnitName: z.string().optional(), // Nombre de la unidad (referencia)
+  currency: z.enum(["MXN", "USD", "EUR"]).default("MXN"),
 
   // Descripción
   description: z.string().min(1, "Descripción requerida"),
@@ -260,9 +311,77 @@ export const tripCargoSchema = z.object({
 
   // Material peligroso (Carta Porte 3.1)
   hazardousMaterial: z.boolean().default(false),
+  requiresHazmat: z.boolean().default(false),
   hazardousMaterialCode: z.string().optional(), // c_MaterialPeligroso
   packagingType: z.string().optional(), // c_TipoEmbalaje
   packagingDescription: z.string().optional(),
+
+  // Sectores regulados (Carta Porte 3.1 §6.4)
+  sectorRequirements: z
+    .object({
+      sectorCofepris: z.boolean().optional(),
+      nombreIngredienteActivo: z.boolean().optional(),
+      nomQuimico: z.boolean().optional(),
+      denominacionGenericaProd: z.boolean().optional(),
+      denominacionDistintivaProd: z.boolean().optional(),
+      fabricante: z.boolean().optional(),
+      fechaCaducidad: z.boolean().optional(),
+      loteMedicamento: z.boolean().optional(),
+      formaFarmaceutica: z.boolean().optional(),
+      condicionesEspTransp: z.boolean().optional(),
+      registroSanitarioFolioAutorizacion: z.boolean().optional(),
+      permisoImportacion: z.boolean().optional(),
+      folioImpoVucem: z.boolean().optional(),
+      numCas: z.boolean().optional(),
+      razonSocialEmpImp: z.boolean().optional(),
+      numRegSanPlagCofepris: z.boolean().optional(),
+      datosFabricante: z.boolean().optional(),
+      datosFormulador: z.boolean().optional(),
+      datosMaquilador: z.boolean().optional(),
+      usoAutorizado: z.boolean().optional(),
+    })
+    .optional(),
+  sectorCofepris: z.string().max(10, "Sector COFEPRIS inválido").optional(),
+  nombreIngredienteActivo: z
+    .string()
+    .max(254, "Nombre de ingrediente activo muy largo")
+    .optional(),
+  nomQuimico: z.string().max(254, "Nombre químico muy largo").optional(),
+  denominacionGenericaProd: z
+    .string()
+    .max(254, "Denominación genérica muy larga")
+    .optional(),
+  denominacionDistintivaProd: z
+    .string()
+    .max(254, "Denominación distintiva muy larga")
+    .optional(),
+  fabricante: z.string().max(254, "Fabricante muy largo").optional(),
+  fechaCaducidad: z.string().optional(),
+  loteMedicamento: z.string().max(60, "Lote muy largo").optional(),
+  formaFarmaceutica: z.string().max(100, "Forma farmacéutica muy larga").optional(),
+  condicionesEspTransp: z
+    .string()
+    .max(100, "Condiciones especiales muy largas")
+    .optional(),
+  registroSanitarioFolioAutorizacion: z
+    .string()
+    .max(60, "Registro sanitario / folio demasiado largo")
+    .optional(),
+  permisoImportacion: z.string().max(60, "Permiso de importación muy largo").optional(),
+  folioImpoVucem: z.string().max(60, "Folio VUCEM muy largo").optional(),
+  numCas: z.string().max(40, "Número CAS muy largo").optional(),
+  razonSocialEmpImp: z
+    .string()
+    .max(254, "Razón social importadora muy larga")
+    .optional(),
+  numRegSanPlagCofepris: z
+    .string()
+    .max(80, "Registro sanitario plaguicida muy largo")
+    .optional(),
+  datosFabricante: z.string().max(254, "Datos de fabricante muy largos").optional(),
+  datosFormulador: z.string().max(254, "Datos de formulador muy largos").optional(),
+  datosMaquilador: z.string().max(254, "Datos de maquilador muy largos").optional(),
+  usoAutorizado: z.string().max(254, "Uso autorizado muy largo").optional(),
 
   // Movimientos en paradas
   movements: z.array(cargoMovementSchema).optional(),
@@ -272,6 +391,116 @@ export const tripCargoSchema = z.object({
   specialInstructions: z.string().optional(),
 })
   .superRefine((cargo, ctx) => {
+    if (!cargo.satProductCode?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el producto de transporte",
+        path: ["satProductCode"],
+      });
+    }
+
+    if (!cargo.satUnitCode?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona la unidad de medida",
+        path: ["satUnitCode"],
+      });
+    }
+
+    if (cargo.units == null || Number.isNaN(Number(cargo.units)) || cargo.units <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Captura una cantidad mayor a 0",
+        path: ["units"],
+      });
+    }
+
+    if (
+      cargo.weightInKg == null ||
+      Number.isNaN(Number(cargo.weightInKg)) ||
+      cargo.weightInKg <= 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Captura el peso total en kilogramos",
+        path: ["weightInKg"],
+      });
+    }
+
+    const hazmatRequired = isHazmatRequired(cargo);
+    if (hazmatRequired && !cargo.hazardousMaterial) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Este producto requiere capturar material peligroso según catálogo SAT",
+        path: ["hazardousMaterial"],
+      });
+    }
+
+    if (hazmatRequired) {
+      const hazmatCode = cargo.hazardousMaterialCode?.trim() ?? "";
+      if (!hazmatCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecciona la clave de material peligroso",
+          path: ["hazardousMaterialCode"],
+        });
+      }
+
+      const packagingType = cargo.packagingType?.trim() ?? "";
+      if (!packagingType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecciona el tipo de embalaje",
+          path: ["packagingType"],
+        });
+      }
+
+      const packagingDescription = cargo.packagingDescription?.trim() ?? "";
+      if (!packagingDescription) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Captura la descripción del embalaje",
+          path: ["packagingDescription"],
+        });
+      }
+    }
+
+    const missingSectorFields = getMissingSectorRequiredFields({
+      requirements: cargo.sectorRequirements,
+      values: {
+        sectorCofepris: cargo.sectorCofepris,
+        nombreIngredienteActivo: cargo.nombreIngredienteActivo,
+        nomQuimico: cargo.nomQuimico,
+        denominacionGenericaProd: cargo.denominacionGenericaProd,
+        denominacionDistintivaProd: cargo.denominacionDistintivaProd,
+        fabricante: cargo.fabricante,
+        fechaCaducidad: cargo.fechaCaducidad,
+        loteMedicamento: cargo.loteMedicamento,
+        formaFarmaceutica: cargo.formaFarmaceutica,
+        condicionesEspTransp: cargo.condicionesEspTransp,
+        registroSanitarioFolioAutorizacion:
+          cargo.registroSanitarioFolioAutorizacion,
+        permisoImportacion: cargo.permisoImportacion,
+        folioImpoVucem: cargo.folioImpoVucem,
+        numCas: cargo.numCas,
+        razonSocialEmpImp: cargo.razonSocialEmpImp,
+        numRegSanPlagCofepris: cargo.numRegSanPlagCofepris,
+        datosFabricante: cargo.datosFabricante,
+        datosFormulador: cargo.datosFormulador,
+        datosMaquilador: cargo.datosMaquilador,
+        usoAutorizado: cargo.usoAutorizado,
+      },
+    });
+
+    for (const field of missingSectorFields) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Captura "${sectorFieldLabels[field]}" para esta mercancía`,
+        path: [field],
+      });
+    }
+
     if (!cargo.isInsured) return;
 
     const dv = cargo.declaredValue;
@@ -308,6 +537,7 @@ export const tripCargoSchema = z.object({
         path: ["polizaCarga"],
       });
     }
+
   });
 
 // ============================================================================
@@ -369,6 +599,11 @@ export const tripWizardSchema = z.object({
   vehicleId: z.string().min(1, "Vehículo requerido"),
   driverId: z.string().min(1, "Conductor requerido"),
   clientId: z.string().optional(),
+  /**
+   * Intención del comprobante fiscal asociado al viaje (orientación UX y futuro timbrado).
+   * No sustituye la decisión del PAC; Profact valida RFC en timbrado.
+   */
+  cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
   scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
   // Derivado del estimatedArrival de la parada de destino (Paso 2)
   scheduledArrival: z.string().optional(),
@@ -431,6 +666,7 @@ export const WIZARD_STEPS = [
       "vehicleId",
       "driverId",
       "clientId",
+      "cfdiDocumentIntent",
       "scheduledDeparture",
       "startMileage",
       "internalStaff",
@@ -470,6 +706,7 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   vehicleId: "",
   driverId: "",
   clientId: "",
+  cfdiDocumentIntent: "ingreso",
   scheduledDeparture: "",
   scheduledArrival: "",
   startMileage: undefined,
@@ -492,23 +729,32 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   clientAddressId: "",
   addressId: "",
   locationName: "",
-  satEstadoCode: "",
-  satMunicipioCode: "",
+  satCountryCode: "MEX",
+  satStateCode: "",
+  satMunicipalityCode: "",
   postalCode: "",
-  satLocalidadCode: "",
-  satColoniaCode: "",
+  satLocalityCode: "",
+  satNeighborhoodCode: "",
   cityName: "",
-  colonia: "",
+  neighborhoodName: "",
   street: "",
   exteriorNumber: "",
   interiorNumber: "",
   reference: "",
   rfcRemitenteDestinatario: "",
   nombreRemitenteDestinatario: "",
+  deliveryRfcRemitenteDestinatario: "",
+  deliveryNombreRemitenteDestinatario: "",
+  remitentePartnerId: "",
+  destinatarioPartnerId: "",
   contactName: "",
   contactPhone: "",
   notes: "",
   distanceFromPreviousKm: undefined,
+  distanceSource: undefined,
+  distanceProvider: undefined,
+  distanceConfidence: undefined,
+  distanceComputedAt: undefined,
 };
 
 // ============================================================================
@@ -559,7 +805,7 @@ export function validateRouteStep(
   if (originStops.length === 1) {
     const origin = originStops[0];
     if (!origin.stopType.includes("pickup")) {
-      errors.push("Configura la parada de origen con operacion de carga");
+      errors.push("Configura la parada de origen con operación de carga");
     }
   }
 
@@ -567,7 +813,7 @@ export function validateRouteStep(
   if (destinationStops.length === 1) {
     const destination = destinationStops[0];
     if (!destination.stopType.includes("delivery")) {
-      errors.push("Configura la parada de destino con operacion de descarga");
+      errors.push("Configura la parada de destino con operación de descarga");
     }
   }
 
@@ -580,7 +826,7 @@ export function validateRouteStep(
 
     if (!hasOperation) {
       const label = waypoint.locationName || `Escala ${i + 1}`;
-      errors.push(`Completa "${label}" con al menos una operacion`);
+      errors.push(`Completa "${label}" con al menos una operación`);
     }
   }
 
@@ -590,20 +836,26 @@ export function validateRouteStep(
     const label = stop.locationName || `Parada ${i + 1}`;
 
     if (!stopHasUnifiedAddressId(stop)) {
-      if (!stop.satEstadoCode?.trim()) {
-        errors.push(`Completa "${label}" con estado SAT`);
+      if (!stop.satCountryCode?.trim()) {
+          errors.push(`Completa "${label}" con ${LOCATION_CAPTURE_LABELS.country}`);
       }
-      if (!stop.satMunicipioCode?.trim()) {
-        errors.push(`Completa "${label}" con municipio SAT`);
+      if (!stop.satStateCode?.trim()) {
+          errors.push(`Completa "${label}" con ${LOCATION_CAPTURE_LABELS.state}`);
+      }
+      if (!stop.satMunicipalityCode?.trim()) {
+          errors.push(
+            `Completa "${label}" con ${LOCATION_CAPTURE_LABELS.municipality}`,
+          );
       }
       if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
-        errors.push(`Completa "${label}" con codigo postal valido`);
+          errors.push(
+            `Completa "${label}" con ${LOCATION_CAPTURE_LABELS.postalCode} válido`,
+          );
       }
     }
 
-    // Distancia obligatoria excepto en origen
-    if (i > 0 && !stop.distanceFromPreviousKm && stop.distanceFromPreviousKm !== 0) {
-      warnings.push(`Captura la distancia en "${label}" para cerrar el tramo`);
+    if (stop.latitude == null || stop.longitude == null) {
+      errors.push(`Confirma geolocalización en mapa para "${label}"`);
     }
 
     // estimatedArrival obligatorio en destino, recomendado en waypoints
@@ -616,15 +868,36 @@ export function validateRouteStep(
     if (isDestination && !stop.estimatedArrival) {
       errors.push(`Completa "${label}" con hora estimada de llegada`);
     } else if (isWaypoint && !stop.estimatedArrival) {
-      warnings.push(`"${label}" no tiene hora estimada. Se interpolara al generar Carta Porte.`);
+      warnings.push(
+        `"${label}" no tiene hora estimada. Se interpolará automáticamente en la documentación fiscal.`,
+      );
     }
   }
 
   // Advertencias
   if (waypointStops.length === 0 && errors.length === 0) {
     warnings.push(
-      "No hay escalas intermedias. Es valido; agrega una solo si la operacion lo requiere.",
+      "No hay escalas intermedias. Es válido; agrega una solo si la operación lo requiere.",
     );
+  }
+
+  // Escalas mixtas: segunda contraparte fiscal recomendada (no bloqueante en v1)
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    const label = stop.locationName || `Parada ${i + 1}`;
+    const isMixedWaypointScale =
+      stop.stopType.includes("waypoint") &&
+      stop.stopType.includes("pickup") &&
+      stop.stopType.includes("delivery");
+    if (isMixedWaypointScale) {
+      const dRfc = (stop.deliveryRfcRemitenteDestinatario ?? "").trim();
+      const dName = (stop.deliveryNombreRemitenteDestinatario ?? "").trim();
+      if (!dRfc || !dName) {
+        warnings.push(
+          `"${label}": esta escala tiene carga y descarga; conviene capturar RFC y nombre del destinatario (descarga) además del remitente (carga).`,
+        );
+      }
+    }
   }
 
   return {

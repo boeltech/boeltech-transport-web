@@ -28,10 +28,10 @@ export function buildLegacyAddress(stop: WizardStopRow): {
       address: label,
       city:
         stop.cityName?.trim() ||
-        stop.satMunicipioCode?.trim() ||
-        stop.satEstadoCode?.trim() ||
+        stop.satMunicipalityCode?.trim() ||
+        stop.satStateCode?.trim() ||
         label,
-      state: stop.satEstadoCode?.trim() || "",
+      state: stop.satStateCode?.trim() || "",
     };
   }
 
@@ -55,9 +55,9 @@ export function buildLegacyAddress(stop: WizardStopRow): {
   return {
     address:
       addressParts.join(", ") ||
-      `Ubicación ${stop.satEstadoCode}-${stop.satMunicipioCode}`,
-    city: stop.cityName || stop.satMunicipioCode || "",
-    state: stop.satEstadoCode || "",
+      `Ubicación ${stop.satStateCode}-${stop.satMunicipalityCode}`,
+    city: stop.cityName || stop.satMunicipalityCode || "",
+    state: stop.satStateCode || "",
   };
 }
 
@@ -76,18 +76,29 @@ export function mapWizardStopsToCreateInput(
       state: legacyAddr.state || undefined,
       locationName: stop.locationName,
       postalCode: stop.postalCode,
-      satStateCode: stop.satEstadoCode,
-      satMunicipalityCode: stop.satMunicipioCode,
-      satLocalityCode: stop.satLocalidadCode || undefined,
-      satNeighborhoodCode: stop.satColoniaCode || undefined,
-      colonia: stop.colonia || undefined,
+      satCountryCode: stop.satCountryCode || undefined,
+      satStateCode: stop.satStateCode,
+      satMunicipalityCode: stop.satMunicipalityCode,
+      satLocalityCode: stop.satLocalityCode || undefined,
+      satNeighborhoodCode: stop.satNeighborhoodCode || undefined,
+      colonia: stop.neighborhoodName || undefined,
       street: stop.street || undefined,
       exteriorNumber: stop.exteriorNumber || undefined,
       interiorNumber: stop.interiorNumber || undefined,
       reference: stop.reference || undefined,
       rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
       nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
+      deliveryRfcRemitenteDestinatario:
+        stop.deliveryRfcRemitenteDestinatario || undefined,
+      deliveryNombreRemitenteDestinatario:
+        stop.deliveryNombreRemitenteDestinatario || undefined,
+      remitentePartnerId: stop.remitentePartnerId || undefined,
+      destinatarioPartnerId: stop.destinatarioPartnerId || undefined,
       distanceFromPreviousKm: stop.distanceFromPreviousKm,
+      distanceSource: stop.distanceSource || undefined,
+      distanceProvider: stop.distanceProvider || undefined,
+      distanceConfidence: stop.distanceConfidence || undefined,
+      distanceComputedAt: stop.distanceComputedAt || undefined,
       contactName: stop.contactName || undefined,
       contactPhone: stop.contactPhone || undefined,
       notes: stop.notes || undefined,

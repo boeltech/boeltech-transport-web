@@ -37,6 +37,7 @@ import {
 import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 interface SummaryStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,8 +121,23 @@ export function SummaryStep({
       {/* Resumen General */}
       <Card className="border-primary/50">
         <CardHeader className="bg-primary/5">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" /> Resumen del Viaje
+          <CardTitle className="text-lg">
+            <SectionHeadingWithHint
+              title={
+                <>
+                  <FileText className="h-5 w-5 shrink-0" />
+                  Resumen del Viaje
+                </>
+              }
+              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+              hintLabel="Revisión final"
+              hint={
+                <>
+                  Última vista de asignaciones, ruta, cargas y costos antes de crear o guardar el viaje. Corrige
+                  cualquier dato en los pasos anteriores si algo no coincide.
+                </>
+              }
+            />
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
@@ -254,7 +270,7 @@ export function SummaryStep({
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {stop.satEstadoCode && `${stop.satEstadoCode}`}
+                          {stop.satStateCode && `${stop.satStateCode}`}
                           {stop.postalCode && stop.locationName && ` · CP ${stop.postalCode}`}
                           {index > 0 && stop.distanceFromPreviousKm
                             ? ` · ${stop.distanceFromPreviousKm} km desde parada anterior`
@@ -406,11 +422,13 @@ export function SummaryStep({
         </Card>
       </div>
 
-      {/* Carta Porte */}
+      {/* Carta porte: vehículo/conductor ya bastan para completar el complemento al timbrar */}
       <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-3 flex items-start gap-3 text-sm">
         <FileCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
         <p className="text-muted-foreground">
-          Los datos de <strong className="text-foreground">Autotransporte</strong> y <strong className="text-foreground">Figura de Transporte</strong> para la Carta Porte 3.1 se construirán automáticamente a partir del vehículo y conductor seleccionados al momento de timbrar el CFDI.
+          No necesita configurar a mano la carta porte en este asistente: el <strong className="text-foreground">vehículo</strong> y el{" "}
+          <strong className="text-foreground">conductor</strong> elegidos aquí se usarán para completar el complemento al
+          timbrar el comprobante.
         </p>
       </div>
 

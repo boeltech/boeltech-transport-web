@@ -63,6 +63,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import type { TripWizardFormValues, TripExpenseFormValues } from "./validation";
 import { useVehicle } from "@features/vehicles/application";
 
@@ -298,8 +299,23 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
       {/* ════════════════════════════════════════════════════════════════════ */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5" /> Tarifa del Viaje
+          <CardTitle className="text-lg">
+            <SectionHeadingWithHint
+              title={
+                <>
+                  <DollarSign className="h-5 w-5 shrink-0" />
+                  Tarifa del Viaje
+                </>
+              }
+              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+              hintLabel="Tarifa y rentabilidad estimada"
+              hint={
+                <>
+                  Tarifa base del servicio frente a gastos estimados en esta planeación. La facturación y el detalle
+                  contable final se definen al cerrar el viaje.
+                </>
+              }
+            />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -393,12 +409,24 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
         <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-800">
           <CardContent className="pt-5">
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-                  Estimación de Diesel
-                </h4>
-              </div>
+              <SectionHeadingWithHint
+                noTitleWrap
+                title={
+                  <>
+                    <Calculator className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                      Estimación de Diesel
+                    </h4>
+                  </>
+                }
+                hintLabel="Estimación de combustible"
+                hint={
+                  <>
+                    Se calcula con la distancia total del paso Ruta y el rendimiento (km/L) del vehículo. El precio por
+                    litro es editable; sirve solo como ayuda para cargar un gasto estimado.
+                  </>
+                }
+              />
 
               {/* Datos del cálculo */}
               <div className="grid grid-cols-3 gap-4 text-sm">

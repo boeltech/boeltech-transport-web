@@ -11,19 +11,24 @@ function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
     clientAddressId: "",
     addressId: "",
     locationName: "",
-    satEstadoCode: "",
-    satMunicipioCode: "",
+    satCountryCode: "MEX",
+    satStateCode: "",
+    satMunicipalityCode: "",
     postalCode: "",
-    satLocalidadCode: "",
-    satColoniaCode: "",
+    satLocalityCode: "",
+    satNeighborhoodCode: "",
     cityName: "",
-    colonia: "",
+    neighborhoodName: "",
     street: "",
     exteriorNumber: "",
     interiorNumber: "",
     reference: "",
     rfcRemitenteDestinatario: "",
     nombreRemitenteDestinatario: "",
+    deliveryRfcRemitenteDestinatario: "",
+    deliveryNombreRemitenteDestinatario: "",
+    remitentePartnerId: "",
+    destinatarioPartnerId: "",
     contactName: "",
     contactPhone: "",
     notes: "",
@@ -39,8 +44,8 @@ describe("buildLegacyAddress", () => {
       baseStop({
         addressId: id,
         locationName: "CEDIS Norte",
-        satEstadoCode: "",
-        satMunicipioCode: "",
+        satStateCode: "",
+        satMunicipalityCode: "",
       }),
     );
     expect(r.address).toBe("CEDIS Norte");
@@ -53,8 +58,8 @@ describe("buildLegacyAddress", () => {
         street: "Av. Siempre Viva",
         exteriorNumber: "742",
         postalCode: "44100",
-        satEstadoCode: "JAL",
-        satMunicipioCode: "039",
+        satStateCode: "JAL",
+        satMunicipalityCode: "039",
         cityName: "Guadalajara",
       }),
     );
@@ -80,6 +85,7 @@ describe("mapWizardStopsToCreateInput", () => {
     expect(out).toHaveLength(1);
     expect(out![0].addressId).toBe(id);
     expect(out![0].address).toBeTruthy();
+    expect(out![0].satCountryCode).toBe("MEX");
   });
 
   it("omits addressId when not a valid unified id", () => {
@@ -87,8 +93,8 @@ describe("mapWizardStopsToCreateInput", () => {
       baseStop({
         sequenceOrder: 0,
         addressId: "not-a-uuid",
-        satEstadoCode: "JAL",
-        satMunicipioCode: "039",
+        satStateCode: "JAL",
+        satMunicipalityCode: "039",
         postalCode: "44100",
         street: "Calle",
         exteriorNumber: "1",
