@@ -2,25 +2,14 @@
  * Mi cuenta — autoservicio: lectura, refresco desde API y edición (PATCH /auth/profile).
  */
 
-import { useCallback, useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  RefreshCw,
-  Sparkles,
-  User,
-} from "lucide-react";
+import { useCallback } from "react";
+import { Loader2, RefreshCw, User } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useAuth,
-  useChangePassword,
   useUpdateMyProfile,
-  changePasswordFormSchema,
   myProfileSchema,
-  type ChangePasswordFormData,
   type MyProfileFormData,
 } from "@features/auth";
 import { ROLE_LABELS, type UserRole } from "@shared/constants/roles";
@@ -35,7 +24,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -44,23 +32,14 @@ import {
 import { Input } from "@shared/ui/input";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks/useToast";
-import { generateSecurePassword } from "@shared/utils/generateSecurePassword";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import { PasswordChangeSection } from "./components/PasswordChangeSection";
 
 function ProfilePage() {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const { updateProfile, isPending: isSaving } = useUpdateMyProfile();
-  const {
-    changePassword,
-    isPending: isPasswordSaving,
-    reset: resetPasswordMutation,
-  } = useChangePassword();
-
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<MyProfileFormData, unknown, MyProfileFormData>({
     resolver: zodResolver(myProfileSchema) as Resolver<MyProfileFormData>,
@@ -76,21 +55,6 @@ function ProfilePage() {
           email: user.email,
         }
       : undefined,
-  });
-
-  const passwordForm = useForm<
-    ChangePasswordFormData,
-    unknown,
-    ChangePasswordFormData
-  >({
-    resolver: zodResolver(
-      changePasswordFormSchema,
-    ) as Resolver<ChangePasswordFormData>,
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmNewPassword: "",
-    },
   });
 
   const handleRefresh = useCallback(async () => {
@@ -111,20 +75,6 @@ function ProfilePage() {
     }
   }, [refreshProfile, toast]);
 
-  const handleGenerateNewPassword = useCallback(() => {
-    const next = generateSecurePassword(16);
-    passwordForm.setValue("newPassword", next, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-    setShowNewPassword(true);
-    toast({
-      title: "Contraseña generada",
-      description: "Puedes conservarla o sustituirla por la que prefieras.",
-      variant: "success",
-    });
-  }, [passwordForm, toast]);
-
   const onSubmit = form.handleSubmit(async (data) => {
     try {
       await updateProfile({
@@ -141,35 +91,6 @@ function ProfilePage() {
       const mapped = mapBackendError(error);
       toast({
         title: "No se pudo guardar",
-        description: mapped.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  const onPasswordSubmit = passwordForm.handleSubmit(async (data) => {
-    try {
-      await changePassword({
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-        confirmNewPassword: data.confirmNewPassword,
-      });
-      passwordForm.reset({
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
-      });
-      resetPasswordMutation();
-      toast({
-        title: "Contraseña actualizada",
-        description:
-          "Se aplicó el cambio. Otras sesiones deberán iniciar sesión de nuevo.",
-        variant: "success",
-      });
-    } catch (error) {
-      const mapped = mapBackendError(error);
-      toast({
-        title: "No se pudo cambiar la contraseña",
         description: mapped.message,
         variant: "destructive",
       });
@@ -284,188 +205,7 @@ function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="h-4 w-4" aria-hidden />
-              Seguridad
-            </CardTitle>
-            <CardDescription>
-              Cambia tu contraseña. Debe tener al menos 8 caracteres e incluir
-              mayúscula, minúscula y número. Al guardar, se cerrarán las demás
-              sesiones en otros dispositivos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...passwordForm}>
-              <form onSubmit={onPasswordSubmit} className="space-y-4">
-                <FormField
-                  control={passwordForm.control}
-                  name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contraseña actual</FormLabel>
-                      <div className="flex min-w-0 flex-1 gap-2">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type={showCurrentPassword ? "text" : "password"}
-                            autoComplete="current-password"
-                            disabled={isPasswordSaving || isSaving}
-                            className="min-w-0 flex-1"
-                          />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          aria-label={
-                            showCurrentPassword
-                              ? "Ocultar contraseña"
-                              : "Mostrar contraseña"
-                          }
-                          disabled={isPasswordSaving || isSaving}
-                          onClick={() =>
-                            setShowCurrentPassword((prev) => !prev)
-                          }
-                        >
-                          {showCurrentPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nueva contraseña</FormLabel>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                        <div className="flex min-w-0 flex-1 gap-2">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Mínimo 8 caracteres (mayúscula, minúscula y número)"
-                              type={showNewPassword ? "text" : "password"}
-                              autoComplete="new-password"
-                              disabled={isPasswordSaving || isSaving}
-                              className="min-w-0 flex-1"
-                            />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="shrink-0"
-                            aria-label={
-                              showNewPassword
-                                ? "Ocultar contraseña"
-                                : "Mostrar contraseña"
-                            }
-                            disabled={isPasswordSaving || isSaving}
-                            onClick={() => setShowNewPassword((v) => !v)}
-                          >
-                            {showNewPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="shrink-0 sm:self-start"
-                          disabled={isPasswordSaving || isSaving}
-                          onClick={handleGenerateNewPassword}
-                        >
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Generar segura
-                        </Button>
-                      </div>
-                      <FormDescription>
-                        Entre 8 y 128 caracteres, con mayúscula, minúscula y número. Puedes usar
-                        «Generar segura».
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmNewPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar nueva contraseña</FormLabel>
-                      <div className="flex min-w-0 flex-1 gap-2">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type={showConfirmPassword ? "text" : "password"}
-                            autoComplete="new-password"
-                            disabled={isPasswordSaving || isSaving}
-                            className="min-w-0 flex-1"
-                          />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          aria-label={
-                            showConfirmPassword
-                              ? "Ocultar contraseña"
-                              : "Mostrar contraseña"
-                          }
-                          disabled={isPasswordSaving || isSaving}
-                          onClick={() =>
-                            setShowConfirmPassword((prev) => !prev)
-                          }
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    disabled={
-                      isPasswordSaving ||
-                      isSaving ||
-                      !passwordForm.formState.isDirty
-                    }
-                  >
-                    {isPasswordSaving ? (
-                      <>
-                        <Loader2
-                          className="mr-2 h-4 w-4 animate-spin"
-                          aria-hidden
-                        />
-                        Actualizando…
-                      </>
-                    ) : (
-                      "Actualizar contraseña"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+        <PasswordChangeSection />
 
         <Card>
           <CardHeader className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -481,7 +221,7 @@ function ProfilePage() {
               variant="outline"
               size="sm"
               className="shrink-0 gap-2"
-              disabled={isSaving || isPasswordSaving}
+              disabled={isSaving}
               onClick={() => void handleRefresh()}
             >
               <RefreshCw className="h-4 w-4" aria-hidden />
