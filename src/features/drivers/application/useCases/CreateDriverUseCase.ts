@@ -7,7 +7,6 @@
 
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, CreateDriverDTO } from "../../domain";
-import { isExpired } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // USE CASE
@@ -97,17 +96,6 @@ export class CreateDriverUseCase {
         error: {
           code: "MISSING_LICENSE_EXPIRY",
           message: "La fecha de vencimiento de licencia es requerida",
-        },
-      };
-    }
-
-    // Validar que la licencia no esté vencida
-    if (isExpired(data.licenseExpiry)) {
-      return {
-        success: false,
-        error: {
-          code: "LICENSE_EXPIRED",
-          message: "No se puede registrar un conductor con licencia vencida",
         },
       };
     }

@@ -49,6 +49,11 @@ interface EmployeeSelectorProps {
   disabled?: boolean;
   /** Placeholder del selector */
   placeholder?: string;
+  /**
+   * Si se indica, solo se listan empleados cuyo `position` en BD coincide exactamente
+   * (p. ej. `"Conductor"` del catálogo de puestos).
+   */
+  positionEquals?: string;
 }
 
 // ============================================================================
@@ -61,6 +66,7 @@ export function EmployeeSelector({
   error,
   disabled = false,
   placeholder = "Buscar empleado...",
+  positionEquals,
 }: EmployeeSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,7 +76,11 @@ export function EmployeeSelector({
     data: employees = [],
     isLoading,
     isError,
-  } = useAvailableEmployeesForDriver(searchQuery);
+  } = useAvailableEmployeesForDriver(
+    searchQuery,
+    true,
+    positionEquals?.trim() || undefined,
+  );
 
   // Encontrar el empleado seleccionado
   const selectedEmployee = useMemo(() => {
@@ -146,7 +156,9 @@ export function EmployeeSelector({
                   <div className="flex flex-col items-center gap-2 py-4">
                     <Search className="h-8 w-8 text-muted-foreground/50" />
                     <p className="text-sm text-muted-foreground">
-                      No se encontraron empleados disponibles
+                      {positionEquals
+                        ? `No hay empleados disponibles con puesto «${positionEquals}»`
+                        : "No se encontraron empleados disponibles"}
                     </p>
                     <Link
                       to="/employees/new"
@@ -210,8 +222,9 @@ export function EmployeeSelector({
       {/* Helper text */}
       {!error && (
         <p className="text-xs text-muted-foreground">
-          Solo se muestran empleados activos que no están registrados como
-          conductores
+          {positionEquals
+            ? `Solo empleados activos con puesto «${positionEquals}», sin registro como conductor`
+            : "Solo se muestran empleados activos que no están registrados como conductores"}
         </p>
       )}
     </div>

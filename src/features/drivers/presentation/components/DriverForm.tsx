@@ -282,18 +282,20 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
 
       // Validar que psychometricTestResult sea un valor válido
       const validPsychometricResults = PSYCHOMETRIC_RESULTS.map((r) => r.value);
+      const psychometricValue = driver.psychometricTestResult ?? "";
       const normalizedPsychometricResult = validPsychometricResults.includes(
-        driver.psychometricTestResult ?? "",
+        psychometricValue as (typeof validPsychometricResults)[number],
       )
-        ? driver.psychometricTestResult
+        ? psychometricValue
         : "";
 
       // Validar que drugTestResult sea un valor válido
       const validDrugTestResults = DRUG_TEST_RESULTS.map((r) => r.value);
+      const drugTestValue = driver.drugTestResult ?? "";
       const normalizedDrugTestResult = validDrugTestResults.includes(
-        driver.drugTestResult ?? "",
+        drugTestValue as (typeof validDrugTestResults)[number],
       )
-        ? driver.drugTestResult
+        ? drugTestValue
         : "";
 
       // Usar reset con valores explícitos
@@ -323,7 +325,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     field: K,
     value: DriverFormData[K],
   ) => {
-    setValue(field, value, { shouldValidate: true, shouldDirty: true });
+    setValue(field, value as never, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -367,6 +369,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               setValue("employeeId", value, { shouldValidate: true })
             }
             error={errors.employeeId?.message}
+            positionEquals={mode === "create" ? "Conductor" : undefined}
           />
       </FormSectionCard>
       </div>
@@ -412,7 +415,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                 value={watchedLicenseType ?? ""}
                 onValueChange={(value) => {
                   if (value) {
-                    handleSelectChange("licenseType", value);
+                    handleSelectChange(
+                      "licenseType",
+                      value as DriverFormData["licenseType"],
+                    );
                   }
                 }}
               >

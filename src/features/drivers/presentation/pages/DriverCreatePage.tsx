@@ -78,12 +78,30 @@ export function DriverCreatePage() {
     },
   });
 
-  const handleSubmit = (data: DriverFormData) => {
-    createMutation.mutate(driverFormDataToCreateDriverDTO(data));
-  };
+  const handleSubmit = useCallback(
+    (data: DriverFormData) => {
+      createMutation.mutate(driverFormDataToCreateDriverDTO(data));
+    },
+    [createMutation],
+  );
 
   const isSubmitting = createMutation.isPending;
   const handleCancel = useCallback(() => navigate("/drivers"), [navigate]);
+
+  const renderStep = useCallback(
+    (currentStep: number) => (
+      <DriverForm
+        ref={formRef}
+        mode="create"
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={isSubmitting}
+        wizardMode
+        wizardStepIndex={currentStep}
+      />
+    ),
+    [handleCancel, handleSubmit, isSubmitting],
+  );
 
   const shellHeader = useMemo(
     () => ({
@@ -102,17 +120,7 @@ export function DriverCreatePage() {
       steps={WIZARD_STEPS}
       formRef={formRef}
       header={shellHeader}
-      renderStep={(currentStep) => (
-        <DriverForm
-          ref={formRef}
-          mode="create"
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-          isSubmitting={isSubmitting}
-          wizardMode
-          wizardStepIndex={currentStep}
-        />
-      )}
+      renderStep={renderStep}
       isSubmitting={isSubmitting}
       submitLabel="Registrar conductor"
       submittingLabel="Registrando..."

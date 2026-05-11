@@ -25,14 +25,10 @@ import {
 } from "@shared/ui/data-display";
 import {
   User,
-  Phone,
   CreditCard,
-  Calendar,
   Truck,
   AlertTriangle,
   CheckCircle2,
-  FileText,
-  Heart,
   Users,
   TrendingUp,
   Route,
@@ -42,7 +38,6 @@ import {
   Stethoscope,
   ClipboardCheck,
   XCircle,
-  Clock,
 } from "lucide-react";
 
 // Application Layer
@@ -438,13 +433,14 @@ export function DriverDetailPage() {
             label: "Información",
             content: (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
                   <DetailSection
+                    className="flex h-full min-h-0 flex-col"
                     icon={<User className="h-4 w-4" />}
                     title="Datos del empleado"
                   >
-                    <Card>
-                      <CardContent className="pt-0">
+                    <Card className="flex flex-1 flex-col">
+                      <CardContent className="flex flex-1 flex-col pt-0">
                         <InfoRow variant="inline" label="Nombre completo" value={fullName} />
                         <InfoRow
                           variant="inline"
@@ -488,11 +484,12 @@ export function DriverDetailPage() {
                   </DetailSection>
 
                   <DetailSection
+                    className="flex h-full min-h-0 flex-col"
                     icon={<Cpu className="h-4 w-4" />}
                     title="Dispositivo y notas"
                   >
-                    <Card>
-                      <CardContent className="pt-0">
+                    <Card className="flex flex-1 flex-col">
+                      <CardContent className="flex flex-1 flex-col pt-0">
                         <InfoRow
                           variant="inline"
                           label="Dispositivo GPS asignado"
