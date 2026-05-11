@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -41,6 +41,8 @@ import {
   useFinanceSummary,
   useAccountStatement,
 } from "@features/invoicing/application";
+import { useAuth } from "@features/auth";
+import { canAccessFinanceSummaryRoute } from "@shared/permissions";
 import type { InvoiceFilters, InvoiceStatus } from "@features/invoicing/domain";
 import { FinanceSummaryCards, InvoiceTable } from "../components";
 
@@ -61,20 +63,20 @@ function formatMXN(amount: number) {
 // ============================================================================
 
 
-function SummaryTab() {
+function SummaryTab({ queriesEnabled }: { queriesEnabled: boolean }) {
   const { toast } = useToast();
   const {
     data: summary,
     isLoading,
     isError: summaryError,
     error: summaryErr,
-  } = useFinanceSummary();
+  } = useFinanceSummary({ enabled: queriesEnabled });
   const {
     data: statement,
     isLoading: stmtLoading,
     isError: stmtError,
     error: stmtErr,
-  } = useAccountStatement();
+  } = useAccountStatement({ enabled: queriesEnabled });
 
   useEffect(() => {
     if (summaryError && summaryErr) {
@@ -313,9 +315,11 @@ function InvoicesSummaryCards({
 function InvoicesTab({
   initialStatus,
   onStatusChange,
+  showFinanceSummaryMetrics,
 }: {
   initialStatus?: InvoiceStatus;
   onStatusChange?: (status?: InvoiceStatus) => void;
+  showFinanceSummaryMetrics: boolean;
 }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -335,7 +339,9 @@ function InvoicesTab({
   const { toast } = useToast();
   const { data, isLoading, isError, error, refetch, isFetching } =
     useInvoices(filters);
-  const { data: summary, isLoading: summaryLoading } = useFinanceSummary();
+  const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
+    enabled: showFinanceSummaryMetrics,
+  });
 
   const hasActiveFilter = !!status || !!search;
 
@@ -361,18 +367,23 @@ function InvoicesTab({
 
   return (
     <div className="space-y-5">
-      {/* Summary cards */}
-      <InvoicesSummaryCards
-        stamped={summary?.invoicesByStatus.stamped ?? 0}
-        draft={summary?.invoicesByStatus.draft ?? 0}
-        cancellationPending={summary?.invoicesByStatus.cancellationPending ?? 0}
-        cancelled={summary?.invoicesByStatus.cancelled ?? 0}
-        totalReceivable={summary?.totalReceivable ?? 0}
-        isLoading={summaryLoading}
-        onFilterStatus={handleFilterStatus}
-      />
+      {showFinanceSummaryMetrics ? (
+        <>
+          <InvoicesSummaryCards
+            stamped={summary?.invoicesByStatus.stamped ?? 0}
+            draft={summary?.invoicesByStatus.draft ?? 0}
+            cancellationPending={
+              summary?.invoicesByStatus.cancellationPending ?? 0
+            }
+            cancelled={summary?.invoicesByStatus.cancelled ?? 0}
+            totalReceivable={summary?.totalReceivable ?? 0}
+            isLoading={summaryLoading}
+            onFilterStatus={handleFilterStatus}
+          />
 
-      <Separator />
+          <Separator />
+        </>
+      ) : null}
 
       {/* Filters bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -522,9 +533,37 @@ function InvoicesTab({
 // ============================================================================
 
 export function FinancePage() {
+  const { user } = useAuth();
+  const canSummary = useMemo(
+    () => canAccessFinanceSummaryRoute(user?.role),
+    [user?.role],
+  );
+  const showInvoiceMetrics = canSummary;
+
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const activeTab = searchParams.get("tab") ?? "summary";
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "summary" && !canSummary) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("tab", "invoices");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [searchParams, canSummary, setSearchParams]);
+
+  const activeTab = useMemo(() => {
+    const t = searchParams.get("tab");
+    if (t === "summary" || t === "invoices") {
+      if (t === "summary" && !canSummary) return "invoices";
+      return t;
+    }
+    return canSummary ? "summary" : "invoices";
+  }, [searchParams, canSummary]);
   const statusFromParams = searchParams.get("status");
   const initialStatus =
     statusFromParams === "draft" ||
@@ -570,18 +609,23 @@ export function FinancePage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
-          <TabsTrigger value="summary">Resumen</TabsTrigger>
+          {canSummary ? (
+            <TabsTrigger value="summary">Resumen</TabsTrigger>
+          ) : null}
           <TabsTrigger value="invoices">Facturas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary" className="mt-6">
-          <SummaryTab />
-        </TabsContent>
+        {canSummary ? (
+          <TabsContent value="summary" className="mt-6">
+            <SummaryTab queriesEnabled={activeTab === "summary"} />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="invoices" className="mt-6">
           <InvoicesTab
             initialStatus={initialStatus}
             onStatusChange={handleStatusChange}
+            showFinanceSummaryMetrics={showInvoiceMetrics}
           />
         </TabsContent>
       </Tabs>

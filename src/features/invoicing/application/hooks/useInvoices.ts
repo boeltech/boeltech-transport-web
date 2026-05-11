@@ -72,18 +72,20 @@ export const useInvoicePayments = (invoiceId: string) => {
   });
 };
 
-export const useFinanceSummary = () => {
+export const useFinanceSummary = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: invoiceQueryKeys.summary(),
     queryFn: () => invoicingApi.getFinanceSummary(),
+    enabled: options?.enabled ?? true,
     staleTime: 60_000,
   });
 };
 
-export const useAccountStatement = () => {
+export const useAccountStatement = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: invoiceQueryKeys.statement(),
     queryFn: () => invoicingApi.getAccountStatement(),
+    enabled: options?.enabled ?? true,
     staleTime: 60_000,
   });
 };
