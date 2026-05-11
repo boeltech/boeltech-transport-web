@@ -37,3 +37,6 @@ src/pages/dev/
 
 # Operational manuals and notes (not product source)
 docs/
+
+# Local TypeScript build error dumps
+tsc-errors-frontend.txt
