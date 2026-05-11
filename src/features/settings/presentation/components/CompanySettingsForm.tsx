@@ -27,7 +27,6 @@ import { useAuth } from "@features/auth";
 import type { ClientAddress } from "@features/clients/domain";
 import {
   clientAddressFormDataToCreateDto,
-  defaultClientAddressFormValues,
   type ClientAddressFormData,
 } from "@features/clients/presentation/validation/clientAddressSchema";
 import {
@@ -136,7 +135,6 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
       }
 
       const fiscalPayload = clientAddressFormDataToCreateDto({
-        ...defaultClientAddressFormValues,
         ...data.fiscal,
         addressType: "company",
         isPrimary: true,
@@ -327,6 +325,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
           asForm={false}
           className="space-y-4"
           formContext="billingOnCreate"
+          addressMode="cfdi"
           infoMessage="Esta direccion se usara para CFDI y operaciones fiscales."
           satStateCode={fiscalStateCode}
           satMunicipalityCode={fiscalMunicipalityCode}
@@ -358,6 +357,7 @@ export const CompanySettingsForm = memo(function CompanySettingsForm() {
               <AddressInput<CompanySettingsFormData>
                 mode="cfdi"
                 control={form.control}
+                setValue={form.setValue}
                 namePrefix="fiscal"
                 layout="compact"
                 showLatLng
