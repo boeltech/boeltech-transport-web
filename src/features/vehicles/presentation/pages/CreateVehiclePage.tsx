@@ -6,7 +6,7 @@
  * Ubicación: src/features/vehicles/presentation/pages/CreateVehiclePage.tsx
  */
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
@@ -80,15 +80,52 @@ export function CreateVehiclePage() {
     },
   });
 
-  const handleSubmit = (data: CreateVehicleFormData) => {
-    const payload: CreateVehiclePayload = {
-      ...data,
-      currentMileage: data.currentMileage ?? 0,
-    };
-    createVehicle.mutate(payload);
-  };
+  const handleSubmit = useCallback(
+    (data: CreateVehicleFormData) => {
+      const payload: CreateVehiclePayload = {
+        ...data,
+        currentMileage: data.currentMileage ?? 0,
+      };
+      createVehicle.mutate(payload);
+    },
+    [createVehicle],
+  );
 
   const isSubmitting = createVehicle.isPending;
+
+  const renderStep = useCallback(
+    (currentStep: number) => (
+      <div className="space-y-3">
+        {currentStep < WIZARD_STEPS.length - 1 ? (
+          <div className="flex items-center justify-end rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="vehicle-show-sat-codes"
+                checked={showSatCodes}
+                onCheckedChange={setShowSatCodes}
+                aria-label="Mostrar claves SAT en etiquetas del formulario"
+              />
+              <Label
+                htmlFor="vehicle-show-sat-codes"
+                className="cursor-pointer text-xs text-muted-foreground"
+              >
+                Mostrar claves SAT en etiquetas
+              </Label>
+            </div>
+          </div>
+        ) : null}
+        <VehicleForm
+          ref={formRef}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          wizardMode
+          wizardStepIndex={currentStep}
+          showSatCodes={showSatCodes}
+        />
+      </div>
+    ),
+    [handleSubmit, isSubmitting, showSatCodes],
+  );
 
   return (
     <WizardPageShell
@@ -101,36 +138,7 @@ export function CreateVehiclePage() {
         title: "Nuevo Vehículo",
         subtitle: "Completa los pasos para registrar un vehículo en la flota",
       }}
-      renderStep={(currentStep) => (
-        <div className="space-y-3">
-          {currentStep < WIZARD_STEPS.length - 1 ? (
-            <div className="flex items-center justify-end rounded-lg border bg-muted/30 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="vehicle-show-sat-codes"
-                  checked={showSatCodes}
-                  onCheckedChange={setShowSatCodes}
-                  aria-label="Mostrar claves SAT en etiquetas del formulario"
-                />
-                <Label
-                  htmlFor="vehicle-show-sat-codes"
-                  className="cursor-pointer text-xs text-muted-foreground"
-                >
-                  Mostrar claves SAT en etiquetas
-                </Label>
-              </div>
-            </div>
-          ) : null}
-          <VehicleForm
-            ref={formRef}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            wizardMode
-            wizardStepIndex={currentStep}
-            showSatCodes={showSatCodes}
-          />
-        </div>
-      )}
+      renderStep={renderStep}
       isSubmitting={isSubmitting}
       submitLabel="Crear vehículo"
       submittingLabel="Creando..."
