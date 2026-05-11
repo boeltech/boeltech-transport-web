@@ -7,8 +7,8 @@
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useMemo, useState, type ReactElement } from "react";
+import { useParams } from "react-router-dom";
 import {
   Building2,
   AlertCircle,
@@ -17,24 +17,14 @@ import {
   Receipt,
   Timer,
   Wallet,
-  Loader2,
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@shared/ui/sheet";
-import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
 
-import { useClient, useClientAddresses, useUpdateClient } from "../../application";
+import { useClient, useClientAddresses } from "../../application";
 import type { Client } from "../../domain";
 import { getClientDisplayName } from "../../domain";
 import {
@@ -42,7 +32,6 @@ import {
   ClientAddressMasterDetail,
   ClientDetailCommercialTab,
   ClientDetailDataTab,
-  ClientForm,
 } from "../components";
 import {
   getClientTypeConfig,
@@ -57,7 +46,6 @@ import {
   isClientTaxIdFormatSuspicious,
   isCreditExposureUndefinable,
 } from "../helpers/clientDetailGuards";
-import type { ClientFormData } from "../validation/clientSchema";
 
 // ============================================================================
 // HELPERS
@@ -86,13 +74,13 @@ function buildClientStats(client: Client): StatCardProps[] {
       title: "Viajes activos",
       value: tripsPlaceholder,
       icon: <Route className="h-5 w-5 text-primary" />,
-      description: "Integración pendiente",
+      description: "Próximamente",
     },
     {
       title: "Total facturado",
       value: invoicedPlaceholder,
       icon: <Receipt className="h-5 w-5 text-emerald-500" />,
-      description: "Integración pendiente",
+      description: "Próximamente",
     },
     {
       title: "Días prom. pago",
@@ -115,8 +103,7 @@ function buildClientStats(client: Client): StatCardProps[] {
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const clientId = id ?? "";
-  const [searchParams, setSearchParams] = useSearchParams();
+  const clientId = id;
 
   const {
     data: client,
@@ -132,102 +119,7 @@ export function ClientDetailPage() {
     enabled: !!clientId,
   });
 
-  // ── Edición vía Sheet ─────────────────────────────────────────────────────
-  // Soporta abrir automáticamente con `?edit=true` (preserva bookmarks de
-  // la antigua /clients/:id/edit que ahora redirige aquí).
-  const [editSheetOpen, setEditSheetOpen] = useState(false);
-  const [formData, setFormData] = useState<ClientFormData | null>(null);
-  const [isFormValid, setIsFormValid] = useState(false);
-  const updateMutation = useUpdateClient();
-
-  useEffect(() => {
-    if (
-      searchParams.get("edit") === "true" &&
-      client &&
-      !clientSoftDeleted &&
-      !editSheetOpen
-    ) {
-      setEditSheetOpen(true);
-    }
-    // Solo dispara la primera vez que cargamos el cliente con ?edit=true.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, clientSoftDeleted]);
-
-  const handleEditSheetOpenChange = useCallback(
-    (open: boolean) => {
-      setEditSheetOpen(open);
-      // Limpia ?edit=true del URL al cerrar para que reload no reabra el sheet.
-      if (!open && searchParams.get("edit") === "true") {
-        setSearchParams(
-          (prev) => {
-            const params = new URLSearchParams(prev);
-            params.delete("edit");
-            return params;
-          },
-          { replace: true },
-        );
-      }
-    },
-    [searchParams, setSearchParams],
-  );
-
-  const handleFormChange = useCallback(
-    (data: ClientFormData, valid: boolean) => {
-      setFormData(data);
-      setIsFormValid(valid);
-    },
-    [],
-  );
-
-  const handleSaveEdit = useCallback(() => {
-    if (!formData || !isFormValid || !clientId) return;
-    updateMutation.mutate(
-      {
-        clientId,
-        data: {
-          type: formData.type,
-          legalName: formData.legalName,
-          tradeName: formData.tradeName || undefined,
-          taxId: formData.taxId,
-          taxRegime: formData.taxRegime || undefined,
-          contactName: formData.contactName || undefined,
-          contactPosition: formData.contactPosition || undefined,
-          phone: formData.phone || undefined,
-          secondaryPhone: formData.secondaryPhone || undefined,
-          email: formData.email || undefined,
-          billingEmail: formData.billingEmail || undefined,
-          paymentTerms: formData.paymentTerms,
-          creditDays: formData.creditDays,
-          creditLimit: formData.creditLimit,
-          notes: formData.notes || undefined,
-        },
-      },
-      {
-        onSuccess: () => handleEditSheetOpenChange(false),
-      },
-    );
-  }, [formData, isFormValid, clientId, updateMutation, handleEditSheetOpenChange]);
-
-  const editFormDefaults = useMemo<Partial<ClientFormData> | null>(() => {
-    if (!client || clientSoftDeleted) return null;
-    return {
-      type: client.type,
-      legalName: client.legalName,
-      tradeName: client.tradeName ?? "",
-      taxId: client.taxId,
-      taxRegime: client.taxRegime ?? "",
-      contactName: client.contactName ?? "",
-      contactPosition: client.contactPosition ?? "",
-      phone: client.phone ?? "",
-      secondaryPhone: client.secondaryPhone ?? "",
-      email: client.email ?? "",
-      billingEmail: client.billingEmail ?? "",
-      paymentTerms: client.paymentTerms,
-      creditDays: client.creditDays,
-      creditLimit: client.creditLimit ?? undefined,
-      notes: client.notes ?? "",
-    };
-  }, [client, clientSoftDeleted]);
+  const [activeTab, setActiveTab] = useState("informacion");
 
   const clientStats = useMemo((): StatCardProps[] => {
     if (!client || clientSoftDeleted) return [];
@@ -253,7 +145,7 @@ export function ClientDetailPage() {
           title="Sin direcciones registradas"
           items={[
             {
-              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones.",
+              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones asociadas al cliente.",
             },
           ]}
         />,
@@ -366,47 +258,42 @@ export function ClientDetailPage() {
           />
         ),
         actions: (
-          <ClientActions
-            client={client}
-            variant="buttons"
-            onEdit={() => setEditSheetOpen(true)}
-          />
+          <ClientActions client={client} variant="buttons" />
         ),
       }}
       alerts={clientAlerts}
       stats={clientStats}
       tabs={{
         defaultValue: "informacion",
+        value: activeTab,
+        onValueChange: setActiveTab,
         items: [
           {
             value: "informacion",
-            label: "Información",
+            label: "Datos del cliente",
             content: (
               <ClientDetailDataTab
                 client={client}
                 taxRegimeLabel={taxRegimeLabel}
-              />
-            ),
-          },
-          {
-            value: "terminos_comerciales",
-            label: "Términos comerciales",
-            content: (
-              <ClientDetailCommercialTab
-                client={client}
-                paymentConfig={paymentConfig}
-                PaymentIcon={PaymentIcon}
+                commercialSection={
+                  <ClientDetailCommercialTab
+                    client={client}
+                    paymentConfig={paymentConfig}
+                    PaymentIcon={PaymentIcon}
+                  />
+                }
               />
             ),
           },
           {
             value: "addresses",
-            label: "Direcciones",
+            label: "Direcciones asociadas al cliente",
             content: (
               <ClientAddressMasterDetail
                 clientId={client.id}
                 clientRfc={client.taxId}
                 clientName={client.legalName}
+                readOnly
               />
             ),
           },
@@ -418,54 +305,6 @@ export function ClientDetailPage() {
         createdBy: client.createdBy ?? undefined,
       }}
     />
-
-    {/* ============================================================ */}
-    {/* SHEET: edición contextual del cliente                         */}
-    {/* ============================================================ */}
-    <Sheet open={editSheetOpen} onOpenChange={handleEditSheetOpenChange}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
-      >
-        <SheetHeader className="border-b px-6 py-4">
-          <SheetTitle>Editar cliente</SheetTitle>
-          <SheetDescription>{getClientDisplayName(client)}</SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {editFormDefaults ? (
-            <ClientForm
-              defaultValues={editFormDefaults}
-              onChange={handleFormChange}
-              disabled={updateMutation.isPending}
-            />
-          ) : null}
-        </div>
-
-        <SheetFooter className="border-t bg-background px-6 py-4">
-          <Button
-            variant="outline"
-            onClick={() => handleEditSheetOpenChange(false)}
-            disabled={updateMutation.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSaveEdit}
-            disabled={!isFormValid || updateMutation.isPending}
-          >
-            {updateMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              "Guardar cambios"
-            )}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
     </>
   );
 }

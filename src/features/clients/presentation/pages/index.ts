@@ -10,3 +10,4 @@
 export { ClientsListPage } from "./ClientsListPage";
 export { ClientDetailPage } from "./ClientDetailPage";
 export { ClientCreatePage } from "./ClientCreatePage";
+export { ClientEditPage } from "./ClientEditPage";

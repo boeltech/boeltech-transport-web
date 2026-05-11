@@ -244,6 +244,7 @@ export function mapClientAddress(
 export function mapClientAddressListItem(
   response: ClientAddressApiResponse,
 ): ClientAddressListItem {
+  const cp = response.carta_porte;
   return {
     id: response.id,
     addressType: response.address_type as AddressType,
@@ -269,9 +270,9 @@ export function mapClientAddressListItem(
     address: response.address ?? undefined,
     city: response.city ?? undefined,
     state: response.state ?? undefined,
-    // Contacto
-    contactName: response.contact_name ?? undefined,
-    contactPhone: response.contact_phone ?? undefined,
+    // Contacto (mismo fallback que mapClientAddress: carta_porte anidado)
+    contactName: firstNonEmpty(response.contact_name, cp?.contact_name),
+    contactPhone: firstNonEmpty(response.contact_phone, cp?.contact_phone),
   };
 }
 

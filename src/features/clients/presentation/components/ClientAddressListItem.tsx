@@ -13,6 +13,7 @@
 
 import { Star } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { Badge } from "@shared/ui/badge";
 import type { ClientAddressListItem as ClientAddressListItemEntity } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
 
@@ -83,6 +84,21 @@ export function ClientAddressListItem({
             {typeConfig.label}
             {cityLine ? ` · ${cityLine}` : null}
           </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+              {typeConfig.labelShort}
+            </Badge>
+            {address.isPrimary ? (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                Principal
+              </Badge>
+            ) : null}
+            {!address.isActive ? (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                Inactiva
+              </Badge>
+            ) : null}
+          </div>
         </div>
         {address.isPrimary ? (
           <Star

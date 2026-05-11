@@ -5,7 +5,7 @@
  * Vista read-only del panel detail en el master-detail de direcciones.
  * Muestra todos los campos de la dirección seleccionada con `InfoRow`
  * variant="inline" (estilo editorial, denso, copyable para identificadores)
- * y los botones de acción: Editar y Eliminar.
+ * y opcionalmente los botones de acción: Editar y Eliminar (`readOnly`).
  *
  * Cuando el usuario hace click en "Editar", el componente padre
  * (`ClientAddressMasterDetail`) muta este panel al `ClientAddressForm`
@@ -29,10 +29,12 @@ import { getAddressTypeConfig } from "../config/clientConfig";
 
 export interface ClientAddressDetailViewProps {
   address: ClientAddress;
+  /** Solo lectura: oculta Editar / Eliminar (ej. pestaña del detalle de cliente). */
+  readOnly?: boolean;
   /** Handler de "Editar" — el padre cambia a modo edit. */
-  onEdit: () => void;
+  onEdit?: () => void;
   /** Handler de "Eliminar" — el padre abre el AlertDialog de confirmación. */
-  onDelete: () => void;
+  onDelete?: () => void;
   /** Indicador de mutación en curso (deshabilita botones). */
   isPending?: boolean;
   className?: string;
@@ -44,6 +46,7 @@ export interface ClientAddressDetailViewProps {
 
 export function ClientAddressDetailView({
   address,
+  readOnly = false,
   onEdit,
   onDelete,
   isPending = false,
@@ -210,7 +213,7 @@ export function ClientAddressDetailView({
         address.businessHours) ? (
         <section className="rounded-md border bg-card">
           <div className="px-4 py-3 border-b">
-            <h4 className="text-sm font-medium">Contacto y operación</h4>
+            <h4 className="text-sm font-medium">Contacto en esta ubicación</h4>
           </div>
           <div className="px-4 py-2">
             {address.contactName ? (
@@ -273,30 +276,29 @@ export function ClientAddressDetailView({
         </section>
       ) : null}
 
-      {/* ────────────────────────────────────────────────────────────────── */}
-      {/* Acciones                                                            */}
-      {/* ────────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={onEdit}
-          disabled={isPending}
-        >
-          <Pencil className="mr-2 h-4 w-4" />
-          Editar
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDelete}
-          disabled={isPending}
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Eliminar
-        </Button>
-      </div>
+      {!readOnly && onEdit && onDelete ? (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onEdit}
+            disabled={isPending}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDelete}
+            disabled={isPending}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

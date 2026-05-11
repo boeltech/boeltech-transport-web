@@ -16,6 +16,7 @@ import {
   useState,
   forwardRef,
   useImperativeHandle,
+  memo,
 } from "react";
 import {
   useForm,
@@ -23,6 +24,7 @@ import {
   useWatch,
   type Control,
   type Resolver,
+  type UseFormSetValue,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@shared/ui/input";
@@ -39,6 +41,7 @@ import { Switch } from "@shared/ui/switch";
 import {
   EntityAddressForm,
   AddressInput,
+  AddressGeolocationPanel,
   ADDRESS_FORM_COPY,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
@@ -85,13 +88,77 @@ export interface ClientAddressFormProps {
   className?: string;
 }
 
+/**
+ * Omitir `defaultValues` en igualdad de props: igual que `ClientForm`, el wizard
+ * pasa snapshots nuevos cada tecla sólo por referencia — RHF no rehidrata en caliente.
+ */
+function clientAddressOuterPropsAreEqual(
+  prev: ClientAddressFormProps,
+  next: ClientAddressFormProps,
+): boolean {
+  return (
+    prev.formContext === next.formContext &&
+    prev.hideLocationSectionTitle === next.hideLocationSectionTitle &&
+    prev.disabled === next.disabled &&
+    prev.clientRfc === next.clientRfc &&
+    prev.clientName === next.clientName &&
+    prev.onSubmit === next.onSubmit &&
+    prev.onChange === next.onChange &&
+    prev.className === next.className
+  );
+}
+
+/** Firma por campos (evita `JSON.stringify` del snapshot completo en cada tecla). */
+const CLIENT_ADDRESS_NOTIFY_KEYS = [
+  "addressType",
+  "isPrimary",
+  "locationName",
+  "street",
+  "exteriorNumber",
+  "interiorNumber",
+  "reference",
+  "postalCode",
+  "satCountryCode",
+  "satStateCode",
+  "satMunicipalityCode",
+  "satLocalityCode",
+  "satNeighborhoodCode",
+  "neighborhoodName",
+  "latitude",
+  "longitude",
+  "rfcRemitenteDestinatario",
+  "nombreRemitenteDestinatario",
+  "contactName",
+  "contactPhone",
+  "contactEmail",
+  "businessHours",
+  "notes",
+  "specialInstructions",
+] as const satisfies readonly (keyof ClientAddressFormData)[];
+
+function clientAddressValuesNotifyKey(
+  v: ClientAddressFormData,
+  isValid: boolean,
+): string {
+  let out = "";
+  for (const k of CLIENT_ADDRESS_NOTIFY_KEYS) {
+    const val = v[k];
+    out += `${k}:${
+      val === undefined || val === null ? "" : String(val)
+    }\x1f`;
+  }
+  return `${out}|${String(isValid)}`;
+}
+
 function LocationAddressFields({
   mode,
   control,
+  setValue,
   disabled,
 }: {
   mode: "carta-porte" | "cfdi";
   control: Control<ClientAddressFormData>;
+  setValue: UseFormSetValue<ClientAddressFormData>;
   disabled: boolean;
 }) {
   return (
@@ -99,6 +166,7 @@ function LocationAddressFields({
       <AddressInput<ClientAddressFormData>
         mode={mode}
         control={control}
+        setValue={setValue}
         namePrefix=""
         layout="compact"
         showLatLng
@@ -113,7 +181,7 @@ function LocationAddressFields({
 // COMPONENT
 // ============================================================================
 
-export const ClientAddressForm = forwardRef<
+const ClientAddressFormRoot = forwardRef<
   ClientAddressFormRef,
   ClientAddressFormProps
 >(function ClientAddressForm(
@@ -268,7 +336,10 @@ export const ClientAddressForm = forwardRef<
       formValues as ClientAddressFormData,
       formContext,
     );
-    const key = JSON.stringify(contextAwareValues) + "|" + String(isValid);
+    const key = clientAddressValuesNotifyKey(
+      contextAwareValues as ClientAddressFormData,
+      isValid,
+    );
     if (key === lastParentNotifyKey.current) return;
     lastParentNotifyKey.current = key;
     onChangeRef.current?.(contextAwareValues, isValid);
@@ -374,6 +445,38 @@ export const ClientAddressForm = forwardRef<
 
   const postAddressSections: EntityAddressFormSection[] = [
     {
+      id: "geo-confirmation",
+      title: "Confirmacion geografica",
+      icon: <MapPin className="h-4 w-4" />,
+      content: (
+        <AddressGeolocationPanel
+          address={{
+            locationName: formValues.locationName,
+            street: formValues.street,
+            exteriorNumber: formValues.exteriorNumber,
+            interiorNumber: formValues.interiorNumber,
+            postalCode: formValues.postalCode,
+            satMunicipalityCode: formValues.satMunicipalityCode,
+            satStateCode: formValues.satStateCode,
+            satCountryCode: formValues.satCountryCode,
+          }}
+          latitude={formValues.latitude}
+          longitude={formValues.longitude}
+          onCoordinatesChange={(coords) => {
+            setValue("latitude", coords.latitude, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setValue("longitude", coords.longitude, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+          }}
+          disabled={disabled}
+        />
+      ),
+    },
+    {
       id: "fiscal-operational",
       title: "Datos fiscales operativos",
       icon: <User className="h-4 w-4" />,
@@ -428,7 +531,7 @@ export const ClientAddressForm = forwardRef<
     },
     {
       id: "contact-operation",
-      title: "Contacto y operacion",
+      title: "Contacto en esta ubicación",
       icon: <User className="h-4 w-4" />,
       content: (
         <>
@@ -506,6 +609,7 @@ export const ClientAddressForm = forwardRef<
       onSubmit={handleSubmit(handleFormSubmit)}
       className={cn("space-y-6", className)}
       formContext={formContext}
+      addressMode={contextConfig.mode}
       infoMessage={copy.globalInfoMessage}
       satStateCode={satStateCode}
       satMunicipalityCode={satMunicipalityCode}
@@ -518,6 +622,7 @@ export const ClientAddressForm = forwardRef<
         <LocationAddressFields
           mode={contextConfig.mode}
           control={control}
+          setValue={setValue}
           disabled={disabled}
         />
       }
@@ -525,6 +630,11 @@ export const ClientAddressForm = forwardRef<
     />
   );
 });
+
+export const ClientAddressForm = memo(
+  ClientAddressFormRoot,
+  clientAddressOuterPropsAreEqual,
+) as typeof ClientAddressFormRoot;
 
 export default ClientAddressForm;
 

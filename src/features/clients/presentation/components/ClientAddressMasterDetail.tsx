@@ -26,7 +26,7 @@
  * Ubicación: src/features/clients/presentation/components/ClientAddressMasterDetail.tsx
  */
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Loader2, MapPin, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
@@ -39,8 +39,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
+import { useMediaQuery } from "@shared/hooks";
 
 import {
   useClientAddress,
@@ -72,6 +81,11 @@ export interface ClientAddressMasterDetailProps {
   clientRfc?: string;
   /** Razón social del cliente (para pre-llenar el nombre del remitente). */
   clientName?: string;
+  /**
+   * Solo lectura: lista + detalle sin CRUD (pestaña de detalle de cliente).
+   * En edición de cliente se omite o se pasa `false`.
+   */
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -102,8 +116,10 @@ export function ClientAddressMasterDetail({
   clientId,
   clientRfc,
   clientName,
+  readOnly = false,
   className,
 }: ClientAddressMasterDetailProps) {
+  const isMobile = useMediaQuery("(max-width: 1023px)");
   const { data: addresses, isLoading } = useClientAddresses(clientId);
   const sorted = useMemo(
     () => (addresses ? sortAddresses(addresses) : []),
@@ -163,6 +179,7 @@ export function ClientAddressMasterDetail({
   };
 
   const handleStartCreate = () => {
+    if (readOnly) return;
     setSelectedId(null);
     setMode("create");
     setFormData(null);
@@ -230,6 +247,33 @@ export function ClientAddressMasterDetail({
       );
     }
   };
+
+  // Al activar solo lectura, cerrar modos de edición y diálogos.
+  useEffect(() => {
+    if (!readOnly) return;
+    setMode("view");
+    setFormData(null);
+    setPendingDelete(null);
+  }, [readOnly]);
+
+  // Atajos consistentes para formulario (guardar/cancelar).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (readOnly) return;
+    if (mode !== "create" && mode !== "edit") return;
+    const onKeydown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void handleSubmitForm();
+      }
+      if (event.key === "Escape" && !isMobile) {
+        event.preventDefault();
+        handleCancelForm();
+      }
+    };
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [mode, isMobile, readOnly]);
 
   const handleConfirmDelete = () => {
     if (!pendingDelete) return;
@@ -300,14 +344,16 @@ export function ClientAddressMasterDetail({
             ) : null}
           </h3>
         </div>
-        <Button
-          size="sm"
-          onClick={handleStartCreate}
-          disabled={isPending || mode === "create"}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva dirección
-        </Button>
+        {!readOnly ? (
+          <Button
+            size="sm"
+            onClick={handleStartCreate}
+            disabled={isPending || mode === "create"}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva dirección
+          </Button>
+        ) : null}
       </div>
 
       {/* ────────────────────────────────────────────────────────────────── */}
@@ -322,14 +368,29 @@ export function ClientAddressMasterDetail({
           <EmptyState
             icon={<MapPin />}
             title="No hay direcciones registradas"
-            description="Agrega al menos una dirección fiscal o de entrega para este cliente."
-            cta={{
-              label: "Agregar primera dirección",
-              icon: <Plus className="h-4 w-4" />,
-              onClick: handleStartCreate,
-            }}
+            description={
+              readOnly
+                ? "Puedes agregar direcciones desde la pantalla Editar cliente."
+                : "Agrega al menos una dirección fiscal o de entrega para este cliente."
+            }
+            cta={
+              readOnly
+                ? undefined
+                : {
+                    label: "Agregar primera dirección",
+                    icon: <Plus className="h-4 w-4" />,
+                    onClick: handleStartCreate,
+                  }
+            }
             size="md"
           />
+          <div className="border-t bg-muted/30 px-6 py-3">
+            <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              <li>Define una dirección principal para uso operativo.</li>
+              <li>Registra al menos una de facturación para CFDI.</li>
+              <li>Incluye contacto y referencia para facilitar entregas.</li>
+            </ul>
+          </div>
         </div>
       ) : (
         // ────────────────────────────────────────────────────────────────────
@@ -338,7 +399,7 @@ export function ClientAddressMasterDetail({
         <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:gap-0">
           {/* ─── Master: lista compacta ──────────────────────────────────── */}
           <div className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2">
-            {mode === "create" ? (
+            {mode === "create" && !readOnly ? (
               <div className="rounded-md border-2 border-dashed border-primary/40 bg-primary/5 p-3 text-xs text-primary">
                 <p className="font-medium">Nueva dirección</p>
                 <p className="text-primary/70">
@@ -361,7 +422,7 @@ export function ClientAddressMasterDetail({
 
           {/* ─── Detail: vista o formulario ──────────────────────────────── */}
           <div className="bg-background md:rounded-r-md md:p-5">
-            {mode === "create" ? (
+            {!readOnly && mode === "create" && !isMobile ? (
               <FormPanel
                 title="Nueva dirección"
                 description="Captura los datos. Se guardará al confirmar."
@@ -379,7 +440,7 @@ export function ClientAddressMasterDetail({
                   disabled={isPending}
                 />
               </FormPanel>
-            ) : mode === "edit" && (selectedId ?? resolvedViewId) ? (
+            ) : !readOnly && mode === "edit" && (selectedId ?? resolvedViewId) && !isMobile ? (
               isLoadingDetail || !editFormDefaults ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -413,14 +474,25 @@ export function ClientAddressMasterDetail({
               ) : (
                 <ClientAddressDetailView
                   address={selectedAddressFull}
-                  onEdit={handleStartEdit}
-                  onDelete={() => {
-                    const target = sorted.find((a) => a.id === resolvedViewId);
-                    if (target) setPendingDelete(target);
-                  }}
+                  readOnly={readOnly}
+                  onEdit={readOnly ? undefined : handleStartEdit}
+                  onDelete={
+                    readOnly
+                      ? undefined
+                      : () => {
+                          const target = sorted.find(
+                            (a) => a.id === resolvedViewId,
+                          );
+                          if (target) setPendingDelete(target);
+                        }
+                  }
                   isPending={isPending}
                 />
               )
+            ) : !readOnly && (mode === "create" || mode === "edit") && isMobile ? (
+              <div className="flex items-center justify-center rounded-md border border-dashed py-12 text-sm text-muted-foreground">
+                Formulario abierto en panel inferior.
+              </div>
             ) : (
               <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                 Selecciona una dirección de la lista o crea una nueva.
@@ -429,6 +501,70 @@ export function ClientAddressMasterDetail({
           </div>
         </div>
       )}
+
+      <Sheet
+        open={
+          !readOnly && isMobile && (mode === "create" || mode === "edit")
+        }
+        onOpenChange={(open) => {
+          if (!open) handleCancelForm();
+        }}
+      >
+        <SheetContent side="bottom" className="h-[92vh] overflow-hidden p-0">
+          <SheetHeader className="border-b px-5 py-4">
+            <SheetTitle>
+              {mode === "create" ? "Nueva dirección" : "Editar dirección"}
+            </SheetTitle>
+            <SheetDescription>
+              Los cambios se guardan al confirmar esta acción.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="h-[calc(92vh-132px)] overflow-y-auto px-5 py-4">
+            {mode === "create" ? (
+              <ClientAddressForm
+                ref={formRef}
+                formContext="additional"
+                clientRfc={clientRfc}
+                clientName={clientName}
+                onChange={handleFormChange}
+                disabled={isPending}
+              />
+            ) : isLoadingDetail || !editFormDefaults ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <ClientAddressForm
+                key={selectedId ?? resolvedViewId ?? "mobile-edit"}
+                ref={formRef}
+                formContext="additional"
+                defaultValues={editFormDefaults}
+                clientRfc={clientRfc}
+                clientName={clientName}
+                onChange={handleFormChange}
+                disabled={isPending}
+              />
+            )}
+          </div>
+          <SheetFooter className="border-t bg-background px-5 py-4">
+            <Button variant="outline" onClick={handleCancelForm} disabled={isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitForm} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : mode === "create" ? (
+                "Crear dirección"
+              ) : (
+                "Guardar cambios"
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* ────────────────────────────────────────────────────────────────── */}
       {/* AlertDialog: confirmar eliminación                                  */}
@@ -476,7 +612,7 @@ export function ClientAddressMasterDetail({
 }
 
 // ============================================================================
-// SUB-COMPONENT: panel del form (con header + footer + scroll)
+// SUB-COMPONENT: panel del formulario (altura natural; scroll la página/tab)
 // ============================================================================
 
 interface FormPanelProps {
@@ -499,14 +635,14 @@ function FormPanel({
   children,
 }: FormPanelProps) {
   return (
-    <div className="flex max-h-[640px] flex-col">
-      <header className="border-b pb-3 mb-4">
+    <div className="flex flex-col">
+      <header className="mb-4 border-b pb-3">
         <h3 className="text-base font-semibold">{title}</h3>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </header>
-      <div className="flex-1 overflow-y-auto pr-1">{children}</div>
+      <div className="min-w-0">{children}</div>
       <footer className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
         <Button variant="outline" onClick={onCancel} disabled={isPending}>
           Cancelar

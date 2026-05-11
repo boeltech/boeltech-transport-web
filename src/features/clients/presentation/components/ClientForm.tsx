@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@shared/ui/input";
@@ -34,7 +34,56 @@ export interface ClientFormProps {
   className?: string;
 }
 
-export function ClientForm({
+/** Firma rápida (evita `JSON.stringify` en cada tecla al notificar al padre). */
+const CLIENT_NOTIFY_KEYS = [
+  "type",
+  "legalName",
+  "tradeName",
+  "taxId",
+  "taxRegime",
+  "contactName",
+  "contactPosition",
+  "phone",
+  "secondaryPhone",
+  "email",
+  "billingEmail",
+  "paymentTerms",
+  "creditDays",
+  "creditLimit",
+  "notes",
+] as const satisfies readonly (keyof ClientFormData)[];
+
+function clientFormNotifyKey(values: ClientFormData, valid: boolean): string {
+  let out = "";
+  for (const k of CLIENT_NOTIFY_KEYS) {
+    const v = values[k];
+    out += `${
+      k
+    }:${
+      v === undefined || v === null ? "" : String(v)
+    }\x1f`;
+  }
+  return `${out}|${String(valid)}`;
+}
+
+/**
+ * `defaultValues` no se compara: RHF sólo usa el merge inicial por montaje y el
+ * wizard recrea el ref al cambiar de paso. El padre no debe disparar un re-render
+ * completo en cada pulsación porque `clientData` es un objeto nuevo.
+ */
+function clientFormOuterPropsAreEqual(
+  prev: ClientFormProps,
+  next: ClientFormProps,
+): boolean {
+  return (
+    prev.disabled === next.disabled &&
+    prev.onChange === next.onChange &&
+    prev.onSubmit === next.onSubmit &&
+    prev.className === next.className
+  );
+}
+
+function ClientFormComponent({
   defaultValues,
   onSubmit,
   onChange,
@@ -66,7 +115,7 @@ export function ClientForm({
 
   useEffect(() => {
     if (!formValues) return;
-    const key = JSON.stringify(formValues) + "|" + String(isValid);
+    const key = clientFormNotifyKey(formValues, isValid);
     if (key === lastParentNotifyKey.current) return;
     lastParentNotifyKey.current = key;
     onChangeRef.current?.(formValues, isValid);
@@ -318,5 +367,7 @@ export function ClientForm({
     </form>
   );
 }
+
+export const ClientForm = memo(ClientFormComponent, clientFormOuterPropsAreEqual);
 
 export default ClientForm;

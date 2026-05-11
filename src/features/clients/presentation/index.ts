@@ -28,6 +28,7 @@ export {
   ClientsListPage,
   ClientDetailPage,
   ClientCreatePage,
+  ClientEditPage,
 } from "./pages";
 
 // Validation

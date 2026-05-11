@@ -1,4 +1,11 @@
-﻿import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import {
+  startTransition,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Info, MapPinOff, User, Users } from "lucide-react";
 import {
@@ -130,6 +137,8 @@ export function ClientCreatePage() {
   const createClientMutation = useCreateClient();
   const createClientOnlyMutation = useCreateClientOnly();
   const formRef = useRef<WizardFormRef | null>(null);
+  const clientDraftRef = useRef<ClientFormData | null>(null);
+  const addressDraftRef = useRef<ClientAddressFormData | null>(null);
 
   const [clientData, setClientData] = useState<ClientFormData | null>(null);
   const [addressData, setAddressData] = useState<ClientAddressFormData | null>(
@@ -144,39 +153,42 @@ export function ClientCreatePage() {
 
   const handleClientChange = useCallback(
     (data: ClientFormData, isValid: boolean) => {
-      setClientData(data);
+      clientDraftRef.current = data;
       setIsClientValid(isValid);
+      startTransition(() => setClientData(data));
     },
     [],
   );
 
   const handleAddressChange = useCallback(
     (data: ClientAddressFormData, isValid: boolean) => {
-      setAddressData(data);
+      addressDraftRef.current = data;
       setIsAddressValid(isValid);
+      startTransition(() => setAddressData(data));
     },
     [],
   );
 
   const submitCreate = useCallback(() => {
-    if (!clientData || !isClientValid) return;
+    const clientSnapshot = clientDraftRef.current ?? clientData;
+    if (!clientSnapshot || !isClientValid) return;
 
     const clientPayload = {
-      type: clientData.type,
-      legalName: clientData.legalName,
-      tradeName: clientData.tradeName || undefined,
-      taxId: clientData.taxId,
-      taxRegime: clientData.taxRegime || undefined,
-      contactName: clientData.contactName || undefined,
-      contactPosition: clientData.contactPosition || undefined,
-      phone: clientData.phone || undefined,
-      secondaryPhone: clientData.secondaryPhone || undefined,
-      email: clientData.email || undefined,
-      billingEmail: clientData.billingEmail || undefined,
-      paymentTerms: clientData.paymentTerms,
-      creditDays: clientData.creditDays,
-      creditLimit: clientData.creditLimit,
-      notes: clientData.notes || undefined,
+      type: clientSnapshot.type,
+      legalName: clientSnapshot.legalName,
+      tradeName: clientSnapshot.tradeName || undefined,
+      taxId: clientSnapshot.taxId,
+      taxRegime: clientSnapshot.taxRegime || undefined,
+      contactName: clientSnapshot.contactName || undefined,
+      contactPosition: clientSnapshot.contactPosition || undefined,
+      phone: clientSnapshot.phone || undefined,
+      secondaryPhone: clientSnapshot.secondaryPhone || undefined,
+      email: clientSnapshot.email || undefined,
+      billingEmail: clientSnapshot.billingEmail || undefined,
+      paymentTerms: clientSnapshot.paymentTerms,
+      creditDays: clientSnapshot.creditDays,
+      creditLimit: clientSnapshot.creditLimit,
+      notes: clientSnapshot.notes || undefined,
     };
 
     if (skipAddress) {
@@ -187,12 +199,13 @@ export function ClientCreatePage() {
       return;
     }
 
-    if (!addressData || !isAddressValid) return;
+    const addressSnapshot = addressDraftRef.current ?? addressData;
+    if (!addressSnapshot || !isAddressValid) return;
 
     createClientMutation.mutate(
       {
         client: clientPayload,
-        billingAddress: clientAddressFormDataToCreateDto(addressData, {
+        billingAddress: clientAddressFormDataToCreateDto(addressSnapshot, {
           context: "billingOnCreate",
         }),
       },

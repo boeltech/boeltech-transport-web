@@ -1,25 +1,29 @@
 /**
  * Tab "Información" del detalle de cliente — fiscal, contacto y notas.
- * Términos comerciales viven en `ClientDetailCommercialTab`.
+ * Opcionalmente compone una tercera columna (`commercialSection`), p.ej.
+ * `<ClientDetailCommercialTab />`, en layout simétrico de 3 columnas + Notas ancho completo.
  * Auditoría (`createdAt`/`updatedAt`) está en MetadataFooter del shell.
- *
- * Layout alineado al detalle de empleado: InfoRow variant="inline" + grid lg:2cols.
  */
 
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
 import { FileText, User } from "lucide-react";
+import { cn } from "@shared/lib/utils/cn";
 
 import type { Client } from "../../domain";
 
 interface ClientDetailDataTabProps {
   client: Client;
   taxRegimeLabel: string | null;
+  /** Tercera columna (términos comerciales). Si se omite, layout 2 columnas y notas a ancho completo debajo. */
+  commercialSection?: ReactNode;
 }
 
 export function ClientDetailDataTab({
   client,
   taxRegimeLabel,
+  commercialSection,
 }: ClientDetailDataTabProps) {
   const hasContact =
     client.contactName ||
@@ -29,17 +33,26 @@ export function ClientDetailDataTab({
     client.email ||
     client.billingEmail;
 
+  const threeCol = Boolean(commercialSection);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          threeCol ? "lg:grid-cols-3" : "lg:grid-cols-2",
+        )}
+      >
+        <Card
+          className={cn(threeCol && "flex h-full min-h-[200px] flex-col")}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-4 w-4" />
               Información fiscal
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className={cn("pt-0", threeCol && "flex-1")}>
             <InfoRow variant="inline" label="Razón social" value={client.legalName} />
             {client.tradeName ? (
               <InfoRow variant="inline" label="Nombre comercial" value={client.tradeName} />
@@ -51,14 +64,16 @@ export function ClientDetailDataTab({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          className={cn(threeCol && "flex h-full min-h-[200px] flex-col")}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <User className="h-4 w-4" />
               Contacto principal
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className={cn("pt-0", threeCol && "flex-1")}>
             {hasContact ? (
               <>
                 {client.contactName ? (
@@ -132,22 +147,28 @@ export function ClientDetailDataTab({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              Notas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {client.notes ? (
-              <p className="whitespace-pre-wrap text-sm">{client.notes}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin notas</p>
-            )}
-          </CardContent>
-        </Card>
+        {commercialSection ? (
+          <div className="flex min-h-[200px] w-full min-w-0 flex-col">
+            {commercialSection}
+          </div>
+        ) : null}
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4" />
+            Notas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {client.notes ? (
+            <p className="whitespace-pre-wrap text-sm">{client.notes}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin notas</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -26,15 +26,15 @@ export function ClientDetailCommercialTab({
   PaymentIcon,
 }: ClientDetailCommercialTabProps) {
   return (
-    <div className="space-y-4">
-      <Card className="max-w-2xl">
+    <div className="flex h-full min-w-0 w-full flex-col">
+      <Card className="flex h-full min-h-[200px] w-full min-w-0 flex-col">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <CreditCard className="h-4 w-4" />
             Términos comerciales
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="flex-1 pt-0">
           <InfoRow
             variant="inline"
             label="Forma de pago"

@@ -57,7 +57,6 @@ export interface ClientActionsProps {
   /**
    * Override del handler de "Editar".
    * Si se pasa, se usa este callback en lugar de navegar a `/clients/:id/edit`.
-   * Útil para abrir un Sheet/Drawer de edición desde la página de detalle.
    */
   onEdit?: () => void;
 }
@@ -98,9 +97,7 @@ export function ClientActions({
       onEdit();
       return;
     }
-    // Backward-compat: navega a la URL de edición.
-    // El detalle del cliente intercepta `?edit=true` para abrir el Sheet.
-    navigate(`/clients/${client.id}?edit=true`);
+    navigate(`/clients/${client.id}/edit`);
   };
 
   const handleActivate = () => {

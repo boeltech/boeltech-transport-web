@@ -35,7 +35,6 @@ export type {
   PaymentTerms,
   // Address types
   ClientAddress,
-  ClientAddressListItem,
   AddressType,
   // DTOs
   CreateClientDTO,
@@ -118,6 +117,7 @@ export {
   ClientsListPage,
   ClientDetailPage,
   ClientCreatePage,
+  ClientEditPage,
 } from "./presentation";
 
 // Validation schemas

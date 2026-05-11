@@ -87,7 +87,6 @@ export const defaultBillingAddressFormValues: BillingAddressFormData = {
 
 export const updateClientAddressFormSchema = clientAddressFormSchema.partial().extend({
   satStateCode: z.string().min(1, "El estado es requerido"),
-  satMunicipalityCode: z.string().min(1, "El municipio es requerido"),
   postalCode: z.string().regex(/^\d{5}$/, "CP: 5 dígitos"),
 });
 
@@ -161,7 +160,7 @@ export function normalizeClientAddressFormData(
     satLocalityCode: normalizeSatCode(data.satLocalityCode),
     satNeighborhoodCode: normalizeSatCode(data.satNeighborhoodCode),
     neighborhoodName: normalizeTextValue(data.neighborhoodName) ?? null,
-    rfcRemitenteDestinatario: normalizeRfc(data.rfcRemitenteDestinatario),
+    rfcRemitenteDestinatario: normalizeRfc(data.rfcRemitenteDestinatario) ?? undefined,
     nombreRemitenteDestinatario: normalizeTextValue(data.nombreRemitenteDestinatario),
     contactName: normalizeTextValue(data.contactName),
     contactPhone: normalizeTextValue(data.contactPhone),
