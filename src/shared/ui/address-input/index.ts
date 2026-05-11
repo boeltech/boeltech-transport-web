@@ -1,9 +1,11 @@
 export { default as AddressInput } from "./AddressInput";
+export { default as AddressGeolocationPanel } from "./AddressGeolocationPanel";
 export { AddressPreview } from "./AddressPreview";
 export { AddressFormNotice } from "./AddressFormNotice";
 export { resolveAddressFormNotice } from "./addressFormNoticeRules";
 export { ADDRESS_FORM_COPY } from "./addressFormCopy";
 export { EntityAddressForm } from "./EntityAddressForm";
+export { resolveGeolocationPanelMode } from "./geolocationPanelMode";
 
 export type {
   AddressInputProps,
@@ -21,3 +23,4 @@ export type {
   AddressFormNoticeRuleState,
 } from "./addressFormNoticeRules";
 export type { EntityAddressFormSection } from "./EntityAddressForm";
+export type { GeolocationPanelMode } from "./geolocationPanelMode";

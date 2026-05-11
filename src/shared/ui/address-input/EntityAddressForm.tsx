@@ -5,6 +5,7 @@ import { MapPin } from "lucide-react";
 import { AddressFormNotice } from "./AddressFormNotice";
 import { resolveAddressFormNotice } from "./addressFormNoticeRules";
 import type { AddressFormUiContext } from "./addressFormCopy";
+import type { AddressCaptureMode } from "@shared/validation/addressRequirements";
 
 export interface EntityAddressFormSection {
   id: string;
@@ -18,6 +19,7 @@ export interface EntityAddressFormProps {
   className?: string;
   asForm?: boolean;
   formContext: AddressFormUiContext;
+  addressMode?: AddressCaptureMode;
   infoMessage: string;
   satStateCode?: string;
   satMunicipalityCode?: string;
@@ -38,6 +40,7 @@ export function EntityAddressForm({
   className,
   asForm = true,
   formContext,
+  addressMode = "basic",
   infoMessage,
   satStateCode,
   satMunicipalityCode,
@@ -56,6 +59,7 @@ export function EntityAddressForm({
   const globalNotice = resolveAddressFormNotice(
     {
       context: formContext,
+      addressMode,
       satStateCode,
       satMunicipalityCode,
       postalCode,

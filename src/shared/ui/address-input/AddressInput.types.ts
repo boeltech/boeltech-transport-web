@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import type { Control, FieldValues } from "react-hook-form";
+import type { Control, FieldValues, UseFormSetValue } from "react-hook-form";
+import type { AddressCaptureMode } from "@shared/validation/addressRequirements";
 
-export type AddressInputMode = "cfdi" | "carta-porte" | "personal" | "basic";
+export type AddressInputMode = AddressCaptureMode;
 
 export type AddressInputLayout = "single-column" | "two-column" | "compact";
 
@@ -27,6 +28,8 @@ export interface SavedAddressOption {
 export interface AddressInputProps<TFieldValues extends FieldValues = FieldValues> {
   mode: AddressInputMode;
   control: Control<TFieldValues>;
+  /** Necesario para la lista `savedAddresses`; patchea todos los campos de dirección. */
+  setValue?: UseFormSetValue<TFieldValues>;
   namePrefix: string;
   savedAddresses?: SavedAddressOption[];
   onSelectSaved?: (address: SavedAddressOption) => void;

@@ -1,9 +1,12 @@
 import type { AddressFormUiContext } from "./addressFormCopy";
+import type { AddressCaptureMode } from "@shared/validation/addressRequirements";
+import { getAddressModeRequirements } from "@shared/validation/addressRequirements";
 
 export type AddressFormNoticeLevel = "error" | "warning" | "info";
 
 export interface AddressFormNoticeRuleState {
   context: AddressFormUiContext;
+  addressMode?: AddressCaptureMode;
   satStateCode?: string;
   satMunicipalityCode?: string;
   postalCode?: string;
@@ -20,14 +23,19 @@ export function resolveAddressFormNotice(
   state: AddressFormNoticeRuleState,
   infoMessage: string,
 ): AddressFormNoticeData | null {
-  const missingCritical =
-    !state.satStateCode || !state.satMunicipalityCode || !state.postalCode;
+  const requirements = getAddressModeRequirements(state.addressMode ?? "basic");
+  const missingState = !state.satStateCode?.trim();
+  const missingPostalCode = !state.postalCode?.trim();
+  const missingMunicipality =
+    requirements.requireMunicipality && !state.satMunicipalityCode?.trim();
+  const missingCritical = missingState || missingPostalCode || missingMunicipality;
 
   if (missingCritical) {
+    const criticalLabels = ["Estado", "Codigo Postal"];
+    if (requirements.requireMunicipality) criticalLabels.splice(1, 0, "Municipio");
     return {
       level: "error",
-      message:
-        "Faltan datos SAT obligatorios para continuar: Estado, Municipio y Codigo Postal.",
+      message: `Faltan datos SAT obligatorios para continuar: ${criticalLabels.join(", ")}.`,
     };
   }
 
@@ -39,9 +47,13 @@ export function resolveAddressFormNotice(
     };
   }
 
+  const trimmedInfo = infoMessage.trim();
+  if (!trimmedInfo) {
+    return null;
+  }
   return {
     level: "info",
-    message: infoMessage,
+    message: trimmedInfo,
   };
 }
 

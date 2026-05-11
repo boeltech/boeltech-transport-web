@@ -141,6 +141,31 @@ describe("AddressInput", () => {
     expect(onReadyChange).toHaveBeenCalled();
   });
 
+  it("keeps carta porte readiness false while SAT lookup is loading", () => {
+    const onReadyChange = vi.fn();
+
+    vi.mocked(usePostalCodeLookup).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof usePostalCodeLookup>);
+
+    vi.mocked(useSatCatalogs).mockReturnValue({
+      countries: [{ code: "MEX", name: "Mexico" }],
+      states: [{ code: "JAL", name: "Jalisco" }],
+      municipalities: [{ code: "039", name: "Guadalajara" }],
+      neighborhoodsByPostalCode: [],
+      isLoadingStates: false,
+      isLoadingMunicipalities: false,
+      isLoadingNeighborhoodsByPostalCode: false,
+    });
+
+    render(<TestHarness onCartaPorteReadyChange={onReadyChange} />);
+
+    expect(onReadyChange).toHaveBeenCalled();
+    expect(onReadyChange).toHaveBeenLastCalledWith(false);
+  });
+
   it("keeps only numeric values in postal code input", async () => {
     const user = userEvent.setup();
 
