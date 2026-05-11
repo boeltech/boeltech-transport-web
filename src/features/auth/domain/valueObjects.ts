@@ -95,9 +95,10 @@ export class Token {
   isExpired(): boolean {
     try {
       const payload = this.getPayload();
-      if (!payload.exp) return false;
+      const exp = payload.exp;
+      if (typeof exp !== "number") return false;
 
-      const expirationTime = payload.exp * 1000; // Convertir a milisegundos
+      const expirationTime = exp * 1000; // Convertir a milisegundos
       return Date.now() >= expirationTime;
     } catch {
       return true; // Si no se puede decodificar, asumir expirado
@@ -110,9 +111,10 @@ export class Token {
   getTimeRemaining(): number {
     try {
       const payload = this.getPayload();
-      if (!payload.exp) return Infinity;
+      const exp = payload.exp;
+      if (typeof exp !== "number") return Infinity;
 
-      const expirationTime = payload.exp * 1000;
+      const expirationTime = exp * 1000;
       const remaining = (expirationTime - Date.now()) / 1000;
       return Math.max(0, remaining);
     } catch {

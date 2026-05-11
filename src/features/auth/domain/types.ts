@@ -140,6 +140,13 @@ export interface ChangePasswordPayload {
   confirmNewPassword: string;
 }
 
+/** Respuesta con nuevos tokens tras cambiar contraseña (versión de sesión renovada en servidor). */
+export interface ChangePasswordResult {
+  accessToken: string;
+  refreshToken: string;
+  message?: string;
+}
+
 export interface IAuthRepository {
   login(credentials: {
     email: string;
@@ -149,7 +156,7 @@ export interface IAuthRepository {
   logout(refreshToken?: string): Promise<void>;
   getProfile(): Promise<UserJSON>;
   updateProfile(payload: UpdateMyProfilePayload): Promise<UpdateProfileResult>;
-  changePassword(payload: ChangePasswordPayload): Promise<void>;
+  changePassword(payload: ChangePasswordPayload): Promise<ChangePasswordResult>;
   refreshToken(refreshToken: string): Promise<RefreshResponse>;
   completeProductOnboarding(): Promise<void>;
 }

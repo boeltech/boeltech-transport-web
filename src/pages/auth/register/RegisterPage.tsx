@@ -29,7 +29,8 @@ import {
 import { AlertWithIcon } from "@shared/ui/alert";
 import { apiClient } from "@shared/api";
 import { tokenStorage } from "@features/auth/infrastructure";
-import { registerSchema, type RegisterFormData } from "@features/auth";
+import { registerSchema, type RegisterFormData, type TenantData } from "@features/auth";
+import type { UserRole } from "@shared/constants/roles";
 
 // Schema de validación
 
@@ -40,8 +41,8 @@ interface RegisterUserApi {
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
-  tenant: unknown;
+  role: UserRole;
+  tenant: TenantData;
 }
 
 const RegisterPage = () => {

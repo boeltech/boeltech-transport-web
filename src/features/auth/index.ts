@@ -86,6 +86,7 @@ export {
   type ITokenStorage,
   type UpdateMyProfilePayload,
   type ChangePasswordPayload,
+  type ChangePasswordResult,
 } from "./domain";
 
 // ============================================================================

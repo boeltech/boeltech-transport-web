@@ -9,15 +9,14 @@
 
 import {
   apiClient,
-  mapActionResponse,
   mapSingleResponse,
-  type ApiActionResponse,
   type ApiSingleResponse,
 } from "@/shared/api";
 import type {
   ApiEnvelope,
   AuthResponse,
   ChangePasswordPayload,
+  ChangePasswordResult,
   LoginApiData,
   RefreshApiData,
   RefreshResponse,
@@ -104,18 +103,24 @@ export const authApi = {
   },
 
   /**
-   * Cambiar contraseña con sesión activa (revoca demás refresh tokens en servidor).
+   * Cambiar contraseña con sesión activa (invalida access JWT previos; devuelve nuevos tokens).
    */
-  changePassword: async (payload: ChangePasswordPayload): Promise<void> => {
-    const raw = await apiClient.post<ApiActionResponse>(
-      "/auth/change-password",
-      {
-        currentPassword: payload.currentPassword,
-        password: payload.newPassword,
-        confirmPassword: payload.confirmNewPassword,
-      },
-    );
-    mapActionResponse(raw);
+  changePassword: async (
+    payload: ChangePasswordPayload,
+  ): Promise<ChangePasswordResult> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ access_token: string; refresh_token: string }>
+    >("/auth/change-password", {
+      currentPassword: payload.currentPassword,
+      password: payload.newPassword,
+      confirmPassword: payload.confirmNewPassword,
+    });
+    const { data, message } = mapSingleResponse(raw);
+    return {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      ...(message ? { message } : {}),
+    };
   },
 
   /**

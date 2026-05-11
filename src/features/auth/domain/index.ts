@@ -34,4 +34,5 @@ export {
   type UpdateMyProfilePayload,
   type UpdateProfileResult,
   type ChangePasswordPayload,
+  type ChangePasswordResult,
 } from "./types";

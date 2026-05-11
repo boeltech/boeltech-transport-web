@@ -7,10 +7,12 @@
  * Ubicación: src/features/auth/infrastructure/interceptors/authInterceptor.ts
  */
 
-import type {
-  AxiosInstance,
-  InternalAxiosRequestConfig,
-  AxiosError,
+import {
+  AxiosHeaders,
+  type AxiosInstance,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+  type AxiosError,
 } from "axios";
 import { tokenStorage } from "../storage/tokenStorage";
 
@@ -22,7 +24,7 @@ import { tokenStorage } from "../storage/tokenStorage";
  * Configuración del interceptor de autenticación
  */
 export interface AuthInterceptorConfig {
-  /** Callback cuando se recibe un 401 Unauthorized */
+  /** Callback cuando la sesión ya no es válida (refresh fallido, 401 definitivo, etc.) */
   onUnauthorized: () => void;
   /** Callback cuando se recibe un 403 Forbidden */
   onForbidden: () => void;
@@ -31,30 +33,105 @@ export interface AuthInterceptorConfig {
 }
 
 // ============================================
+// Estado compartido (solo entre peticiones en la misma pestaña)
+// ============================================
+
+let isRefreshing = false;
+
+type PendingRetry = {
+  resolve: (value: AxiosResponse) => void;
+  reject: (reason?: unknown) => void;
+  config: InternalAxiosRequestConfig & { _retry?: boolean };
+};
+
+const pendingRetries: PendingRetry[] = [];
+
+function setBearerToken(
+  config: InternalAxiosRequestConfig,
+  accessToken: string,
+): void {
+  const headers = AxiosHeaders.from(config.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  config.headers = headers;
+}
+
+function rejectPending(error: unknown): void {
+  pendingRetries.forEach(({ reject }) => reject(error));
+  pendingRetries.length = 0;
+}
+
+function replayPending(instance: AxiosInstance, accessToken: string): void {
+  pendingRetries.forEach(({ resolve, reject, config }) => {
+    setBearerToken(config, accessToken);
+    instance(config).then(resolve).catch(reject);
+  });
+  pendingRetries.length = 0;
+}
+
+function isRefreshRequest(requestConfig: InternalAxiosRequestConfig): boolean {
+  const url = requestConfig.url ?? "";
+  return url.includes("/auth/refresh");
+}
+
+/** Rutas de auth que no deben enviar Bearer (evita adjuntar JWT expirado innecesariamente). */
+function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
+  const url = requestConfig.url ?? "";
+  return (
+    url.includes("/auth/login") ||
+    url.includes("/auth/register") ||
+    url.includes("/auth/logout") ||
+    url.includes("/auth/refresh") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-reset-token")
+  );
+}
+
+async function refreshAccessToken(instance: AxiosInstance): Promise<string> {
+  const refreshToken = tokenStorage.getRefreshToken();
+
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
+
+  const response = await instance.post("/auth/refresh", {
+    refresh_token: refreshToken,
+  });
+
+  const newToken = response?.data?.data?.access_token as string | undefined;
+
+  if (!newToken) {
+    throw new Error("Refresh response missing access_token");
+  }
+
+  tokenStorage.setToken(newToken);
+  return newToken;
+}
+
+// ============================================
 // INTERCEPTOR
 // ============================================
 
 /**
- * Configurar interceptores de autenticación en Axios
+ * Configurar interceptores de autenticación en Axios.
  *
  * Responsabilidades:
- * 1. Añadir el token JWT a todas las peticiones
- * 2. Manejar errores 401 (token expirado) → intentar refresh
- * 3. Manejar errores 403 (sin permisos) → redirigir
+ * 1. Adjuntar JWT salvo en rutas públicas de `/auth/*`.
+ * 2. Ante 401: un solo refresh en paralelo y reintento de peticiones encoladas.
+ * 3. Si el refresh falla o sigue 401 después de reintento → `onUnauthorized`.
+ *
+ * @returns función para ejectar interceptores (evitar duplicados si el effect se re-ejecuta).
  */
 export function setupAuthInterceptor(
-  apiClient: AxiosInstance,
+  axiosInstance: AxiosInstance,
   config: AuthInterceptorConfig,
-): void {
-  // ==========================================
-  // Request Interceptor
-  // ==========================================
-  apiClient.interceptors.request.use(
+): () => void {
+  const requestInterceptorId = axiosInstance.interceptors.request.use(
     (requestConfig: InternalAxiosRequestConfig) => {
       const token = tokenStorage.getToken();
 
-      if (token) {
-        requestConfig.headers.Authorization = `Bearer ${token}`;
+      if (token && !isPublicAuthPath(requestConfig)) {
+        setBearerToken(requestConfig, token);
       }
 
       return requestConfig;
@@ -62,76 +139,83 @@ export function setupAuthInterceptor(
     (error) => Promise.reject(error),
   );
 
-  // ==========================================
-  // Response Interceptor
-  // ==========================================
-  apiClient.interceptors.response.use(
+  const responseInterceptorId = axiosInstance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & {
-        _retry?: boolean;
-      };
+      const originalRequest = error.config as
+        | (InternalAxiosRequestConfig & { _retry?: boolean })
+        | undefined;
 
-      // ==========================================
-      // 401 Unauthorized - Token expirado
-      // ==========================================
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-
-        try {
-          console.log(
-            "[AuthInterceptor] 401 received, attempting token refresh...",
-          );
-
-          const refreshToken = tokenStorage.getRefreshToken();
-
-          if (!refreshToken) {
-            throw new Error("No refresh token available");
-          }
-
-          // Intentar refrescar el token
-          const response = await apiClient.post("/auth/refresh", {
-            refresh_token: refreshToken,
-          });
-
-          const newToken = response?.data?.data?.access_token as
-            | string
-            | undefined;
-          if (!newToken) {
-            throw new Error("Refresh response missing access_token");
-          }
-
-          // Guardar el nuevo token
-          tokenStorage.setToken(newToken);
-          console.log("[AuthInterceptor] Token refreshed successfully");
-
-          // Notificar al provider
-          config.onTokenRefreshed?.(newToken);
-
-          // Reintentar la petición original
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return apiClient(originalRequest);
-        } catch (refreshError) {
-          console.error(
-            "[AuthInterceptor] Token refresh failed:",
-            refreshError,
-          );
-          config.onUnauthorized();
-          return Promise.reject(refreshError);
-        }
-      }
-
-      // ==========================================
-      // 403 Forbidden - Sin permisos
-      // ==========================================
       if (error.response?.status === 403) {
         console.log("[AuthInterceptor] 403 Forbidden received");
         config.onForbidden();
+        return Promise.reject(error);
       }
 
-      return Promise.reject(error);
+      if (error.response?.status !== 401) {
+        return Promise.reject(error);
+      }
+
+      if (!originalRequest) {
+        config.onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      if (isRefreshRequest(originalRequest)) {
+        console.error(
+          "[AuthInterceptor] Refresh endpoint returned 401 — ending session",
+        );
+        config.onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      if (originalRequest._retry) {
+        console.error(
+          "[AuthInterceptor] 401 after retry — refresh did not fix access",
+        );
+        config.onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          pendingRetries.push({
+            resolve,
+            reject,
+            config: originalRequest,
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        console.log("[AuthInterceptor] 401 received, attempting token refresh...");
+        const newToken = await refreshAccessToken(axiosInstance);
+        console.log("[AuthInterceptor] Token refreshed successfully");
+        config.onTokenRefreshed?.(newToken);
+
+        replayPending(axiosInstance, newToken);
+
+        setBearerToken(originalRequest, newToken);
+        return await axiosInstance(originalRequest);
+      } catch (refreshError) {
+        console.error("[AuthInterceptor] Token refresh failed:", refreshError);
+        rejectPending(refreshError);
+        config.onUnauthorized();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     },
   );
 
   console.log("[AuthInterceptor] Interceptors configured successfully");
+
+  return () => {
+    axiosInstance.interceptors.request.eject(requestInterceptorId);
+    axiosInstance.interceptors.response.eject(responseInterceptorId);
+  };
 }

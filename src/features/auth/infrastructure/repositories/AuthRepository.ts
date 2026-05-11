@@ -12,6 +12,7 @@ import type {
   IAuthRepository,
   AuthResponse,
   ChangePasswordPayload,
+  ChangePasswordResult,
   RefreshResponse,
   UpdateMyProfilePayload,
   UpdateProfileResult,
@@ -54,7 +55,7 @@ export class AuthRepository implements IAuthRepository {
     return authApi.updateProfile(payload);
   }
 
-  async changePassword(payload: ChangePasswordPayload): Promise<void> {
+  async changePassword(payload: ChangePasswordPayload): Promise<ChangePasswordResult> {
     return authApi.changePassword(payload);
   }
 

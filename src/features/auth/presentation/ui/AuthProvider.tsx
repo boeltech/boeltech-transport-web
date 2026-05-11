@@ -59,6 +59,8 @@ export interface AuthContextType extends AuthState {
   refreshProfile: () => Promise<void>;
   /** Sincroniza sesión tras PATCH de perfil; opcionalmente guarda nuevo access token. */
   replaceSessionUser: (json: UserJSON, accessToken?: string) => void;
+  /** Persiste access + refresh (p. ej. tras POST /auth/change-password con nuevos tokens). */
+  applySessionTokens: (accessToken: string, refreshToken: string) => void;
 }
 
 // ============================================
@@ -78,6 +80,10 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const SESSION_STORAGE_KEYS = useMemo(
+    () => ["erp_access_token", "erp_refresh_token", "erp_user"] as const,
+    [],
+  );
 
   // ==========================================
   // Inicializar casos de uso (DI)
@@ -130,46 +136,99 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ==========================================
   // Logout Handler
   // ==========================================
-  const handleLogout = useCallback(async () => {
-    console.log("[AuthProvider] Logging out...");
+  const handleLogout = useCallback(
+    async (options?: { sessionExpired?: boolean }) => {
+      console.log("[AuthProvider] Logging out...");
 
-    // Ejecutar caso de uso de logout
-    await logoutUseCase.execute();
+      try {
+        await logoutUseCase.execute();
+      } catch {
+        // Refresh/access inválido: el servidor puede responder 401; igual limpiamos cliente
+      }
 
-    // Limpiar cache de React Query
-    queryClient.clear();
+      queryClient.clear();
 
-    // Actualizar estado
-    setState({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
 
-    // Redirigir a login
-    navigate("/login", { replace: true });
-  }, [logoutUseCase, queryClient, navigate]);
+      navigate("/login", {
+        replace: true,
+        ...(options?.sessionExpired ? { state: { sessionExpired: true } } : {}),
+      });
+    },
+    [logoutUseCase, queryClient, navigate],
+  );
 
   // ==========================================
   // Configurar interceptores (una sola vez)
   // ==========================================
   useEffect(() => {
-    setupAuthInterceptor(apiClient.getAxiosInstance(), {
+    const detach = setupAuthInterceptor(apiClient.getAxiosInstance(), {
       onUnauthorized: () => {
-        console.log("[AuthProvider] Unauthorized - logging out");
-        handleLogout();
+        console.log("[AuthProvider] Unauthorized — ending session");
+        void handleLogout({ sessionExpired: true });
       },
       onForbidden: () => {
-        console.log("[AuthProvider] Forbidden - redirecting");
-        navigate("/forbidden");
+        // 403 puede ser contextual a un recurso. Evitamos redirección global forzada.
+        console.log("[AuthProvider] Forbidden - keeping current route");
       },
       onTokenRefreshed: (newToken) => {
         console.log("[AuthProvider] Token refreshed");
         setState((prev) => ({ ...prev, token: newToken }));
       },
     });
+
+    return detach;
   }, [handleLogout, navigate]);
+
+  // ==========================================
+  // Sincronizar sesión entre pestañas
+  // ==========================================
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || !SESSION_STORAGE_KEYS.includes(event.key as (typeof SESSION_STORAGE_KEYS)[number])) {
+        return;
+      }
+
+      const token = tokenStorage.getToken();
+      const userJson = tokenStorage.getUser();
+
+      if (!token || !userJson) {
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+        return;
+      }
+
+      try {
+        const user = User.fromJSON(userJson);
+        setState({
+          user,
+          token,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } catch {
+        tokenStorage.clear();
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [SESSION_STORAGE_KEYS]);
 
   // ==========================================
   // Verificar token al cargar la app
@@ -193,6 +252,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isAuthenticated: false,
             isLoading: false,
           });
+          navigate("/login", {
+            replace: true,
+            state: { sessionExpired: true },
+          });
         }
       } catch (error) {
         console.error("[AuthProvider] Verification failed:", error);
@@ -202,13 +265,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isAuthenticated: false,
           isLoading: false,
         });
+        navigate("/login", {
+          replace: true,
+          state: { sessionExpired: true },
+        });
       }
     };
 
     if (state.isLoading) {
       verifyAuth();
     }
-  }, [state.isLoading, verifyAuthUseCase]);
+  }, [state.isLoading, verifyAuthUseCase, navigate]);
 
   // ==========================================
   // Login
@@ -273,6 +340,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [],
   );
 
+  const applySessionTokens = useCallback(
+    (accessToken: string, refreshToken: string) => {
+      tokenStorage.setToken(accessToken);
+      tokenStorage.setRefreshToken(refreshToken);
+      setState((prev) => ({
+        ...prev,
+        token: accessToken,
+        isAuthenticated: true,
+      }));
+    },
+    [],
+  );
+
   // ==========================================
   // Valor del contexto
   // ==========================================
@@ -283,8 +363,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout: handleLogout,
       refreshProfile,
       replaceSessionUser,
+      applySessionTokens,
     }),
-    [state, login, handleLogout, refreshProfile, replaceSessionUser],
+    [
+      state,
+      login,
+      handleLogout,
+      refreshProfile,
+      replaceSessionUser,
+      applySessionTokens,
+    ],
   );
 
   // ==========================================

@@ -38,9 +38,12 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Obtener la ruta a la que redirigir después del login
-  const from =
-    (location.state as { from?: { pathname: string } })?.from?.pathname ||
-    "/dashboard";
+  const locationState =
+    location.state as { from?: { pathname: string }; sessionExpired?: boolean } | null;
+
+  const from = locationState?.from?.pathname || "/dashboard";
+
+  const sessionExpired = locationState?.sessionExpired === true;
 
   const inviteEmail =
     (location.state as { inviteEmail?: string } | null)?.inviteEmail ?? "";
@@ -132,6 +135,14 @@ const LoginPage = () => {
         </CardHeader>
 
         <CardContent>
+          {sessionExpired && (
+            <AlertWithIcon variant="default" className="mb-6">
+              Tu sesión expiró o dejó de ser válida (por ejemplo: token de acceso
+              caducado o sesión cerrada en el servidor). Vuelve a iniciar sesión
+              para continuar.
+            </AlertWithIcon>
+          )}
+
           {/* Mensaje de error */}
           {error && (
             <AlertWithIcon variant="destructive" className="mb-6">
