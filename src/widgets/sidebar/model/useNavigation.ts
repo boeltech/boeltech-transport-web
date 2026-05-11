@@ -15,7 +15,7 @@ import { useLocation } from "react-router-dom";
 import { usePermissions } from "@/shared/permissions";
 import { navigationConfig } from "./navigation";
 import type { NavGroup, NavItem } from "./types";
-import { ROLES } from "@shared/constants/roles";
+import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
 
 // ============================================================================
@@ -51,6 +51,15 @@ export interface UseNavigationReturn {
 // ============================================================================
 
 /**
+ * Parte pathname del path del ítem (sin query), para comparar con location.pathname
+ */
+function navPathKey(item: NavItem): string {
+  const p = item.path;
+  const q = p.indexOf("?");
+  return q >= 0 ? p.slice(0, q) : p;
+}
+
+/**
  * Verifica si un path coincide con el path actual
  */
 function checkPathActive(currentPath: string, targetPath: string): boolean {
@@ -67,13 +76,42 @@ function checkPathActive(currentPath: string, targetPath: string): boolean {
 }
 
 /**
+ * Entre todos los ítems que coinciden con la ruta actual, gana el prefijo más largo
+ * (evita marcar /users y /users/activity activos a la vez).
+ */
+function findActiveNavItem(
+  currentPath: string,
+  items: NavItem[],
+): NavItem | undefined {
+  let best: NavItem | undefined;
+  let bestKeyLen = -1;
+
+  for (const item of items) {
+    const key = navPathKey(item);
+    if (!checkPathActive(currentPath, key)) continue;
+    if (key.length > bestKeyLen) {
+      bestKeyLen = key.length;
+      best = item;
+    }
+  }
+
+  return best;
+}
+
+/**
  * Filtra los items de navegación según permisos
  */
 function filterNavItems(
   items: NavItem[],
   hasPermission: (module: Module, action: Action) => boolean,
+  userRole: UserRole | null,
 ): NavItem[] {
   return items.filter((item) => {
+    if (item.roles && item.roles.length > 0) {
+      if (!userRole) return false;
+      return item.roles.includes(userRole);
+    }
+
     // Si no requiere módulo, mostrar siempre
     if (!item.module) return true;
 
@@ -89,13 +127,8 @@ function filterNavItems(
 function filterNavigation(
   config: NavGroup[],
   hasPermission: (module: Module, action: Action) => boolean,
-  isAdmin: boolean,
+  userRole: UserRole | null,
 ): NavGroup[] {
-  // Si es admin, mostrar todo
-  if (isAdmin) {
-    return config;
-  }
-
   const filtered: NavGroup[] = [];
 
   for (const group of config) {
@@ -108,7 +141,7 @@ function filterNavigation(
     }
 
     // Filtrar items dentro del grupo
-    const filteredItems = filterNavItems(group.items, hasPermission);
+    const filteredItems = filterNavItems(group.items, hasPermission, userRole);
 
     // Si no hay items visibles, no mostrar el grupo
     if (filteredItems.length === 0) {
@@ -131,14 +164,11 @@ function findCurrentBreadcrumb(
   navigation: NavGroup[],
   currentPath: string,
 ): Breadcrumb {
-  for (const group of navigation) {
-    for (const item of group.items) {
-      if (checkPathActive(currentPath, item.path)) {
-        return { group, item };
-      }
-    }
-  }
-  return {};
+  const flat = navigation.flatMap((g) => g.items);
+  const item = findActiveNavItem(currentPath, flat);
+  if (!item) return {};
+  const group = navigation.find((g) => g.items.includes(item));
+  return group ? { group, item } : {};
 }
 
 /**
@@ -148,13 +178,8 @@ function findNavItemByPath(
   navigation: NavGroup[],
   path: string,
 ): NavItem | undefined {
-  for (const group of navigation) {
-    const item = group.items.find(
-      (item) => item.path === path || path.startsWith(item.path + "/"),
-    );
-    if (item) return item;
-  }
-  return undefined;
+  const flat = navigation.flatMap((g) => g.items);
+  return findActiveNavItem(path, flat);
 }
 
 // ============================================================================
@@ -172,11 +197,7 @@ export function useNavigation(): UseNavigationReturn {
    * Solo se recalcula cuando cambian los permisos o el rol
    */
   const navigation = useMemo<NavGroup[]>(() => {
-    return filterNavigation(
-      navigationConfig,
-      hasPermission,
-      role === ROLES.ADMIN,
-    );
+    return filterNavigation(navigationConfig, hasPermission, role);
   }, [hasPermission, role]);
 
   /**
@@ -187,15 +208,24 @@ export function useNavigation(): UseNavigationReturn {
     return navigation.flatMap((group) => group.items);
   }, [navigation]);
 
+  const activeNavItem = useMemo(
+    () => findActiveNavItem(currentPath, allItems),
+    [currentPath, allItems],
+  );
+
   /**
    * Verifica si un path está activo
    * Memoizado con el path actual como dependencia
    */
   const isPathActive = useCallback(
     (path: string): boolean => {
-      return checkPathActive(currentPath, path);
+      const pathKey = path.split("?")[0];
+      const itemForPath = allItems.find(
+        (i) => i.path === path || navPathKey(i) === pathKey,
+      );
+      return itemForPath !== undefined && itemForPath === activeNavItem;
     },
-    [currentPath],
+    [allItems, activeNavItem],
   );
 
   /**
@@ -203,9 +233,9 @@ export function useNavigation(): UseNavigationReturn {
    */
   const isItemActive = useCallback(
     (item: NavItem): boolean => {
-      return checkPathActive(currentPath, item.path);
+      return activeNavItem === item;
     },
-    [currentPath],
+    [activeNavItem],
   );
 
   /**

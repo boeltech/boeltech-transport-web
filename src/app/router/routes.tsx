@@ -10,8 +10,6 @@
 
 import {
   createBrowserRouter,
-  Navigate,
-  useParams,
 } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
 
@@ -190,6 +188,9 @@ const ClientDetailPage = lazy(() =>
 const ClientCreatePage = lazy(() =>
   import("@features/clients").then((m) => ({ default: m.ClientCreatePage })),
 );
+const ClientEditPage = lazy(() =>
+  import("@features/clients").then((m) => ({ default: m.ClientEditPage })),
+);
 
 // Branches
 const BranchesListPage = lazy(() =>
@@ -204,17 +205,6 @@ const BranchCreatePage = lazy(() =>
 const BranchEditPage = lazy(() =>
   import("@features/branches").then((m) => ({ default: m.BranchEditPage })),
 );
-
-/**
- * Backward-compat: la antigua ruta `/clients/:id/edit` se eliminó.
- * La edición ahora vive como Sheet dentro de `/clients/:id`. Redirigimos
- * preservando el id y agregando `?edit=true` para que el detalle abra
- * automáticamente el sheet al montar.
- */
-function ClientEditRedirect() {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={`/clients/${id}?edit=true`} replace />;
-}
 
 // Maintenance
 // const MaintenanceListPage = lazy(() => import("@/pages/maintenance"));
@@ -244,6 +234,11 @@ const UsersListPage = lazy(() =>
 );
 const UserDetailPage = lazy(() =>
   import("@features/users").then((m) => ({ default: m.UserDetailPage })),
+);
+const UserManagementActivityPage = lazy(() =>
+  import("@features/users").then((m) => ({
+    default: m.UserManagementActivityPage,
+  })),
 );
 const UserCreatePage = lazy(() =>
   import("@features/users").then((m) => ({ default: m.UserCreatePage })),
@@ -519,9 +514,8 @@ export const router = createBrowserRouter([
                 element: withSuspense(ClientDetailPage),
               },
               {
-                // Legacy redirect — la edición vive en /clients/:id?edit=true
                 path: "/clients/:id/edit",
-                element: <ClientEditRedirect />,
+                element: withSuspense(ClientEditPage),
               },
             ],
           },
@@ -671,6 +665,10 @@ export const router = createBrowserRouter([
               {
                 path: "/users",
                 element: withSuspense(UsersListPage),
+              },
+              {
+                path: "/users/activity",
+                element: withSuspense(UserManagementActivityPage),
               },
               {
                 path: "/users/:id",

@@ -39,10 +39,10 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
             gcTime: 10 * 60 * 1000, // 10 minutos
 
             // Reintentos en caso de error
-            retry: (failureCount, error: QueryErrorLike) => {
-              // No reintentar errores 4xx (cliente)
-              const status = error?.response?.status || error?.status;
-              if (status >= 400 && status < 500) {
+            retry: (failureCount, error) => {
+              const queryError = error as QueryErrorLike;
+              const status = queryError.response?.status ?? queryError.status;
+              if (status !== undefined && status >= 400 && status < 500) {
                 return false;
               }
               return failureCount < 3;

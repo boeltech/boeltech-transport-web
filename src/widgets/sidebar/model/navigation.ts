@@ -4,9 +4,16 @@
  * Configuración completa de la navegación del sidebar.
  * Los módulos corresponden a los definidos en el sistema de permisos.
  *
+ * Rutas API de referencia (roles explícitos en backend):
+ * - GET /finance/summary, GET /finance/account-statement → admin, manager, accountant
+ *   (`boeltech-transport-api` invoicing.routes.ts)
+ * - Listado de facturas y prefill → también dispatcher (y client en invoices según API)
+ *
  * Ubicación: src/widgets/sidebar/model/navigation.ts
  */
 
+import { ROLES } from "@shared/constants/roles";
+import { FINANCE_SUMMARY_ROUTE_ROLES } from "@shared/permissions";
 import {
   LayoutDashboard,
   Truck,
@@ -26,6 +33,7 @@ import {
   Fuel,
   Building2,
   GitBranch,
+  ScrollText,
   UsersRound,
 } from "lucide-react";
 import type { NavGroup } from "./types";
@@ -166,11 +174,18 @@ export const navigationConfig: NavGroup[] = [
     title: "Finanzas",
     items: [
       {
-        id: "invoices",
+        id: "finance-hub",
         label: "Finanzas",
         path: "/finance",
         icon: FileText,
-        module: "invoices",
+        roles: [...FINANCE_SUMMARY_ROUTE_ROLES],
+      },
+      {
+        id: "finance-invoices",
+        label: "Facturas",
+        path: "/finance?tab=invoices",
+        icon: FileText,
+        roles: [ROLES.DISPATCHER, ROLES.CLIENT],
       },
     ],
   },
@@ -207,6 +222,13 @@ export const navigationConfig: NavGroup[] = [
         path: "/users",
         icon: UserCog,
         module: "users",
+      },
+      {
+        id: "users-activity",
+        label: "Auditoría",
+        path: "/users/activity",
+        icon: ScrollText,
+        roles: [ROLES.ADMIN],
       },
       {
         id: "settings",

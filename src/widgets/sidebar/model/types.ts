@@ -7,6 +7,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
+import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@/shared/permissions";
 
 // ============================================
@@ -29,6 +30,11 @@ export interface NavItem {
   module?: Module;
   /** Acción requerida (default: 'read') */
   action?: Action;
+  /**
+   * Si se define, solo estos roles ven el ítem (debe coincidir con rutas API).
+   * No usar junto con `module` salvo que quieras AND implícito vía filtro.
+   */
+  roles?: UserRole[];
   /** Badge opcional (ej: contador de notificaciones) */
   badge?: number | string;
   /** Si está deshabilitado */

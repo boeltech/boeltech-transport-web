@@ -6,6 +6,7 @@ import { ThemeProvider } from "@app/providers/ThemeProvider";
 import { ToastProvider } from "@app/providers/ToastProvider";
 import { SidebarProvider } from "@app/providers/SidebarProvider";
 import { LayoutShell } from "./LayoutShell";
+import { TooltipProvider } from "@shared/ui/tooltip";
 
 /**
  * AppLayout
@@ -45,9 +46,11 @@ export const AppLayout = () => {
           <PermissionProvider>
             <ThemeProvider defaultMode="system">
               <ToastProvider>
-                <SidebarProvider>
-                  <LayoutShell />
-                </SidebarProvider>
+                <TooltipProvider delayDuration={250}>
+                  <SidebarProvider>
+                    <LayoutShell />
+                  </SidebarProvider>
+                </TooltipProvider>
               </ToastProvider>
             </ThemeProvider>
           </PermissionProvider>

@@ -4,4 +4,4 @@
  * Ubicación: src/widgets/header/index.ts
  */
 
-export { Header } from "./ui";
+export { Header, GlobalCommandMenu } from "./ui";

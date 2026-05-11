@@ -11,7 +11,7 @@
  * Ubicación: src/widgets/header/ui/Header.tsx
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -47,6 +47,7 @@ import { useAuth } from "@/shared/hooks/useAuth";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { getUserFullName, getUserInitials } from "@/shared/lib/userHelpers";
+import { GlobalCommandMenu } from "./GlobalCommandMenu";
 
 // ============================================
 // Types
@@ -75,6 +76,7 @@ export const Header = memo(function Header({ className }: HeaderProps) {
   const { user, logout } = useAuth();
   const { mode, setMode, toggleTheme, isDark } = useTheme();
   const { isCollapsed, openMobile } = useSidebar();
+  const [commandOpen, setCommandOpen] = useState(false);
 
   return (
     <header
@@ -103,24 +105,27 @@ export const Header = memo(function Header({ className }: HeaderProps) {
           <span className="sr-only">Abrir menú</span>
         </Button>
 
-        {/* Buscador global */}
+        {/* Navegación rápida (misma data filtrada que el sidebar) */}
         <div className="hidden md:flex">
-          <div className="relative">
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              "relative h-9 w-64 justify-start text-muted-foreground",
+              "border bg-background pl-10 pr-12 font-normal shadow-none hover:bg-background",
+            )}
+            onClick={() => setCommandOpen(true)}
+            aria-label="Abrir navegación rápida"
+          >
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              className={cn(
-                "h-9 w-64 rounded-md border bg-background pl-10 pr-4 text-sm",
-                "outline-none placeholder:text-muted-foreground",
-                "focus:ring-2 focus:ring-ring focus:ring-offset-2",
-              )}
-            />
-            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
+            <span className="truncate text-sm">Ir a página…</span>
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
               ⌘K
             </kbd>
-          </div>
+          </Button>
         </div>
+
+        <GlobalCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
       </div>
 
       {/* ==========================================
