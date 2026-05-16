@@ -99,6 +99,8 @@ export interface TripInternalStaff {
   readonly id: string;
   readonly tripId: string;
   readonly employeeId: string;
+  /** Rol en ruta (`null` si el API no envía valor reconocido). */
+  readonly internalRole: "secondary_driver" | "helper" | null;
   readonly employeeFullName: string;
   readonly employeeNumber: string | null;
   readonly employeeStatus: string | null;
@@ -114,11 +116,23 @@ export type TripInvoiceStatus =
   | "cancellation_pending"
   | "cancelled";
 
+/**
+ * Contexto devuelto por el API al cancelar un viaje con CFDI vigente u operaciones fiscales pendientes.
+ */
+export interface TripFiscalActionRequired {
+  readonly invoiceId: string;
+  readonly invoiceStatus: TripInvoiceStatus;
+  readonly cfdiUuid: string | null;
+  readonly suggestedActions?: readonly string[];
+}
+
 export interface TripInvoicing {
   readonly hasActiveInvoice: boolean;
   readonly canGenerateInvoice: boolean;
   readonly invoiceId: string | null;
   readonly invoiceFolio: string | null;
+  /** UUID del CFDI timbrado (solo lectura / operación fiscal). */
+  readonly invoiceCfdiUuid: string | null;
   readonly invoiceStatus: TripInvoiceStatus | null;
   readonly blockReason: string | null;
 }
@@ -443,11 +457,9 @@ export interface Trip {
   // Kilometraje
   readonly mileage: Mileage;
 
-  // Ubicaciones (texto)
-  readonly originAddress: string;
+  // Ubicaciones (resumen operativo)
   readonly originCity: string;
   readonly originState: string | null;
-  readonly destinationAddress: string;
   readonly destinationCity: string;
   readonly destinationState: string | null;
 
@@ -464,6 +476,13 @@ export interface Trip {
   readonly notes: string | null;
   readonly cancellationReason: string | null;
   readonly invoicing: TripInvoicing;
+  /** Marca operativa: el viaje requiere acción fiscal (SAT / facturación). */
+  readonly requiresFiscalAttention: boolean;
+  /**
+   * Contexto puntual tras mutación (p. ej. cancelación con CFDI vigente).
+   * En lecturas normales suele ser null.
+   */
+  readonly fiscalActionRequired: TripFiscalActionRequired | null;
 
   // ── Carta Porte 3.1 — Datos del complemento ──────────────────
   readonly totalDistRec: number | null; // Distancia total recorrida (km)
@@ -480,6 +499,8 @@ export interface Trip {
   readonly updatedAt: Date;
   readonly createdBy: string | null;
   readonly updatedBy: string | null;
+  readonly createdByName: string | null;
+  readonly updatedByName: string | null;
 
   // Relaciones (opcionales, se cargan según contexto)
   readonly vehicle?: VehicleRef;
@@ -503,7 +524,9 @@ export interface TripListItem {
   readonly driver: DriverRef;
   readonly client: ClientRef | null;
   readonly originCity: string;
+  readonly originState: string | null;
   readonly destinationCity: string;
+  readonly destinationState: string | null;
   readonly scheduledDeparture: Date;
   readonly scheduledArrival: Date | null;
   readonly status: TripStatusType;
@@ -514,6 +537,7 @@ export interface TripListItem {
   readonly cargoCount: number;
   readonly clientCount: number;
   readonly invoicing: TripInvoicing;
+  readonly requiresFiscalAttention: boolean;
   readonly createdAt: Date;
 }
 

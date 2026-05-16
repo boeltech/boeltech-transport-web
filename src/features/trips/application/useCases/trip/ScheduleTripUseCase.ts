@@ -3,6 +3,7 @@ import {
   type Trip,
   type ITripRepository,
   validateStatusTransition,
+  validateTripRouteForScheduling,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 
@@ -123,14 +124,12 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       };
     }
 
-    // Validar que tenga origen y destino
-    if (!trip.originAddress || !trip.destinationAddress) {
+    // Validar que tenga origen y destino (resumen y, si aplica, paradas canónicas)
+    const routeError = validateTripRouteForScheduling(trip);
+    if (routeError) {
       return {
         success: false,
-        error: {
-          code: "MISSING_ROUTE",
-          message: "El viaje debe tener origen y destino definidos",
-        },
+        error: routeError,
       };
     }
 

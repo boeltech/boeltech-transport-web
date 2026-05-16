@@ -488,12 +488,10 @@ export interface CreateTripInput {
   startMileage?: number;
 
   // Origen
-  originAddress: string;
   originCity: string;
   originState?: string;
 
   // Destino
-  destinationAddress: string;
   destinationCity: string;
   destinationState?: string;
 
@@ -551,12 +549,10 @@ export interface UpdateTripInput {
   scheduledArrival?: string | null;
 
   // Origen
-  originAddress?: string;
   originCity?: string;
   originState?: string | null;
 
   // Destino
-  destinationAddress?: string;
   destinationCity?: string;
   destinationState?: string | null;
 

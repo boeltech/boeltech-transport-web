@@ -17,8 +17,12 @@ import type {
   CreateStopInput,
   CreateTripInput,
   ITripRepository,
+  Trip,
 } from "@features/trips/domain";
-import type { Trip } from "@features/trips/domain";
+import {
+  validateCreateStopHasResolvableLocation,
+  validateCreateTripRoute,
+} from "@features/trips/domain";
 import { mapBackendError, type UseCaseResult } from "@shared/utils/errorMapper";
 
 // ============================================================================
@@ -143,16 +147,8 @@ export class CreateTripUseCase implements ICreateTripUseCase {
       };
     }
 
-    if (!input.originAddress || !input.originCity) {
-      return { code: "ORIGIN_REQUIRED", message: "El origen es requerido" };
-    }
-
-    if (!input.destinationAddress || !input.destinationCity) {
-      return {
-        code: "DESTINATION_REQUIRED",
-        message: "El destino es requerido",
-      };
-    }
+    const routeError = validateCreateTripRoute(input);
+    if (routeError) return routeError;
 
     // Validar fecha de salida no sea en el pasado
     const departureDate = new Date(input.scheduledDeparture);
@@ -208,17 +204,11 @@ export class CreateTripUseCase implements ICreateTripUseCase {
         };
       }
 
-      if (!stop.address) {
+      const locationError = validateCreateStopHasResolvableLocation(stop);
+      if (locationError) {
         return {
-          code: "STOP_ADDRESS_REQUIRED",
-          message: `Parada #${i + 1}: La dirección es requerida`,
-        };
-      }
-
-      if (!stop.city) {
-        return {
-          code: "STOP_CITY_REQUIRED",
-          message: `Parada #${i + 1}: La ciudad es requerida`,
+          code: locationError.code,
+          message: `Parada #${i + 1}: ${locationError.message}`,
         };
       }
     }

@@ -116,6 +116,7 @@ export type {
   ClientRef,
   TripInternalStaff,
   TripInvoiceStatus,
+  TripFiscalActionRequired,
   TripInvoicing,
 
   // Main Entities
@@ -215,6 +216,20 @@ export type {
 // ============================================================================
 
 export { isUnifiedAddressId } from "./stopAddress";
+
+// ============================================================================
+// ROUTE VALIDATION
+// ============================================================================
+
+export {
+  validateCreateStopHasResolvableLocation,
+  validateCreateTripRoute,
+  validateStopsIncludeOriginAndDestination,
+  validateTripEndpointSummary,
+  validateTripRouteForScheduling,
+  validateTripStopHasResolvableLocation,
+  type TripRouteValidationError,
+} from "./tripRouteValidation";
 
 // ============================================================================
 // RULES

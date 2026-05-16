@@ -23,6 +23,7 @@ import type {
   CargoMovement,
   TripStatusHistory,
   ExpensesSummary,
+  TripFiscalActionRequired,
   //   TripStatusType,
   CurrencyType,
 } from "@features/trips/domain";
@@ -30,6 +31,7 @@ import type {
   ApiTripResponse,
   ApiTripListItemResponse,
   ApiTripInvoicingResponse,
+  ApiTripFiscalActionRequiredResponse,
   ApiTripInternalStaffResponse,
   ApiStopResponse,
   ApiCargoResponse,
@@ -80,6 +82,21 @@ function toDate(value: string): Date {
   return new Date(value);
 }
 
+function mapApiFiscalActionRequired(
+  api: ApiTripFiscalActionRequiredResponse | null | undefined,
+): TripFiscalActionRequired | null {
+  if (!api) return null;
+  return {
+    invoiceId: api.invoice_id,
+    invoiceStatus: api.invoice_status,
+    cfdiUuid: api.cfdi_uuid ?? null,
+    suggestedActions:
+      api.suggested_actions && api.suggested_actions.length > 0
+        ? [...api.suggested_actions]
+        : undefined,
+  };
+}
+
 function mapApiTripInvoicing(
   api: ApiTripInvoicingResponse | undefined,
   tripStatus: Trip["status"],
@@ -87,21 +104,40 @@ function mapApiTripInvoicing(
   const invoiceId = api?.invoice_id ?? null;
   const invoiceFolio = api?.invoice_folio ?? null;
   const invoiceStatus = api?.invoice_status ?? null;
+  const invoiceCfdiUuid = api?.invoice_cfdi_uuid ?? null;
   const hasActiveInvoice = api?.has_active_invoice ?? false;
-  const hasLinkedInvoice =
-    !!invoiceId || !!invoiceFolio || invoiceStatus !== null;
+  const hasLinkedInvoiceEvidence =
+    !!invoiceId ||
+    !!invoiceFolio ||
+    invoiceStatus !== null ||
+    !!invoiceCfdiUuid;
   const canGenerateInvoice =
     api?.can_generate_invoice ??
-    (tripStatus === "completed" && !hasActiveInvoice && !hasLinkedInvoice);
+    (tripStatus === "completed" && !hasActiveInvoice && !hasLinkedInvoiceEvidence);
 
   return {
     hasActiveInvoice,
     canGenerateInvoice,
     invoiceId,
     invoiceFolio,
+    invoiceCfdiUuid,
     invoiceStatus,
     blockReason: api?.block_reason ?? null,
   };
+}
+
+function mapApiTripInternalStaffRole(
+  raw: string | null | undefined,
+): "secondary_driver" | "helper" | null {
+  if (raw == null || String(raw).trim() === "") return null;
+  const n = String(raw).toLowerCase().trim();
+  if (n === "secondary_driver" || n === "secondary-driver") return "secondary_driver";
+  if (n === "helper") return "helper";
+  if (["ayudante", "auxiliar", "soporte", "apoyo"].includes(n)) return "helper";
+  if (["copiloto", "second_driver", "conductor_secundario"].includes(n)) {
+    return "secondary_driver";
+  }
+  return null;
 }
 
 function mapApiTripInternalStaff(
@@ -111,6 +147,7 @@ function mapApiTripInternalStaff(
     id: api.id,
     tripId: api.trip_id,
     employeeId: api.employee_id,
+    internalRole: mapApiTripInternalStaffRole(api.internal_role),
     employeeFullName: api.employee_full_name,
     employeeNumber: api.employee_number,
     employeeStatus: api.employee_status,
@@ -444,10 +481,8 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     },
 
     // Ubicaciones
-    originAddress: api.origin_address,
     originCity: api.origin_city,
     originState: api.origin_state,
-    destinationAddress: api.destination_address,
     destinationCity: api.destination_city,
     destinationState: api.destination_state,
 
@@ -478,6 +513,8 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
+    requiresFiscalAttention: api.requires_fiscal_attention ?? false,
+    fiscalActionRequired: mapApiFiscalActionRequired(api.fiscal_action_required),
 
     // Carta Porte 3.1
     totalDistRec: api.total_dist_rec,
@@ -490,6 +527,8 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     updatedAt: toDate(api.updated_at),
     createdBy: api.created_by,
     updatedBy: api.updated_by,
+    createdByName: api.created_by_name ?? null,
+    updatedByName: api.updated_by_name ?? null,
 
     // Relaciones
     vehicle: api.vehicle
@@ -546,7 +585,9 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
         }
       : null,
     originCity: api.origin_city,
+    originState: api.origin_state,
     destinationCity: api.destination_city,
+    destinationState: api.destination_state,
     scheduledDeparture: toDate(api.scheduled_departure),
     scheduledArrival: toDateOrNull(api.scheduled_arrival),
     status: api.status,
@@ -557,6 +598,7 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     cargoCount: api.cargo_count ?? 0,
     clientCount: api.client_count ?? 0,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
+    requiresFiscalAttention: api.requires_fiscal_attention ?? false,
     createdAt: toDate(api.created_at),
   };
 }

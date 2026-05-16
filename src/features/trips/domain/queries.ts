@@ -26,6 +26,14 @@ export interface TripFilters {
   readonly search?: string;
   readonly minProfit?: number;
   readonly maxProfit?: number;
+  /** Solo viajes con `requires_fiscal_attention` en el API */
+  readonly requiresFiscalAttention?: boolean;
+  /** Filtro por estado de factura ligada (`invoice_status` en query API) */
+  readonly invoiceStatus?:
+    | "draft"
+    | "stamped"
+    | "cancellation_pending"
+    | "cancelled";
 }
 
 /**

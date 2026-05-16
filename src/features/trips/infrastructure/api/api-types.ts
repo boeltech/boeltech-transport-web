@@ -41,11 +41,19 @@ export interface ApiClientRefResponse {
   legal_name: string;
 }
 
+export interface ApiTripFiscalActionRequiredResponse {
+  invoice_id: string;
+  invoice_status: "draft" | "stamped" | "cancellation_pending" | "cancelled";
+  cfdi_uuid?: string | null;
+  suggested_actions?: string[];
+}
+
 export interface ApiTripInvoicingResponse {
   has_active_invoice?: boolean;
   can_generate_invoice?: boolean;
   invoice_id?: string | null;
   invoice_folio?: string | null;
+  invoice_cfdi_uuid?: string | null;
   invoice_status?: "draft" | "stamped" | "cancellation_pending" | "cancelled" | null;
   block_reason?: string | null;
 }
@@ -352,11 +360,9 @@ export interface ApiTripResponse {
   start_mileage: number | null;
   end_mileage: number | null;
 
-  // Ubicaciones
-  origin_address: string;
+  // Ubicaciones (resumen operativo)
   origin_city: string;
   origin_state: string | null;
-  destination_address: string;
   destination_city: string;
   destination_state: string | null;
 
@@ -379,6 +385,8 @@ export interface ApiTripResponse {
   notes: string | null;
   cancellation_reason: string | null;
   invoicing?: ApiTripInvoicingResponse;
+  requires_fiscal_attention?: boolean;
+  fiscal_action_required?: ApiTripFiscalActionRequiredResponse | null;
 
   // Carta Porte 3.1 — distancia registrada / id complemento (cuando aplique)
   total_dist_rec: number | null;
@@ -392,6 +400,8 @@ export interface ApiTripResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  created_by_name?: string | null;
+  updated_by_name?: string | null;
 
   // Relaciones (opcionales)
   vehicle?: ApiVehicleRefResponse;
@@ -419,7 +429,9 @@ export interface ApiTripListItemResponse {
   client_id: string | null;
   client_legal_name: string | null;
   origin_city: string;
+  origin_state: string | null;
   destination_city: string;
+  destination_state: string | null;
   scheduled_departure: string;
   scheduled_arrival: string | null;
   status: TripStatusType;
@@ -431,6 +443,7 @@ export interface ApiTripListItemResponse {
   client_count: number;
   internal_staff_count?: number;
   invoicing?: ApiTripInvoicingResponse;
+  requires_fiscal_attention?: boolean;
   created_at: string;
 }
 

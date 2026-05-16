@@ -41,6 +41,12 @@ import {
   mapCreateTripResponse,
   mapTripResponse,
 } from "../api/mappers";
+import {
+  summarizeTripApiPayloadErrors,
+  validateFinishTripApiPayload,
+  validateTripQueryApiPayload,
+  validateUpdateTripStatusApiPayload,
+} from "@features/trips/presentation/pages/create/validateTripApiPayload";
 
 // ============================================================================
 // CONSTANTS
@@ -59,9 +65,17 @@ export class TripRepository implements ITripRepository {
   async findAll(
     params?: TripQueryParams,
   ): Promise<PaginatedResult<TripListItem>> {
+    const queryParams = this.buildQueryParams(params);
+    const queryValidation = validateTripQueryApiPayload(queryParams);
+    if (!queryValidation.ok) {
+      throw new Error(
+        summarizeTripApiPayloadErrors(queryValidation.fieldErrors, 2),
+      );
+    }
+
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiTripListItemResponse>
-    >(TRIPS_ENDPOINT, { params: this.buildQueryParams(params) });
+    >(TRIPS_ENDPOINT, { params: queryParams });
 
     return {
       data: response.data.map(mapApiTripListItem),
@@ -128,6 +142,13 @@ export class TripRepository implements ITripRepository {
     id: string,
     input: UpdateTripStatusInput,
   ): Promise<MappedSingleResult<Trip>> {
+    const statusValidation = validateUpdateTripStatusApiPayload(input);
+    if (!statusValidation.ok) {
+      throw new Error(
+        summarizeTripApiPayloadErrors(statusValidation.fieldErrors, 2),
+      );
+    }
+
     const response = await apiClient.patch<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/status`,
       input,
@@ -143,6 +164,13 @@ export class TripRepository implements ITripRepository {
     id: string,
     input: FinishTripInput,
   ): Promise<MappedSingleResult<Trip>> {
+    const finishValidation = validateFinishTripApiPayload(input);
+    if (!finishValidation.ok) {
+      throw new Error(
+        summarizeTripApiPayloadErrors(finishValidation.fieldErrors, 2),
+      );
+    }
+
     const response = await apiClient.post<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/finish`,
       input,
@@ -207,6 +235,12 @@ export class TripRepository implements ITripRepository {
       if (dateFrom) query.date_from = dateFrom;
       if (dateTo) query.date_to = dateTo;
       if (search) query.search = search;
+      if (params.filters.requiresFiscalAttention === true) {
+        query.requires_fiscal_attention = true;
+      }
+      if (params.filters.invoiceStatus) {
+        query.invoice_status = params.filters.invoiceStatus;
+      }
     }
 
     return query;

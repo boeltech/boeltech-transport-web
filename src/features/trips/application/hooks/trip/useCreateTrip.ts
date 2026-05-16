@@ -46,7 +46,8 @@ export class TripCreationError extends Error {
  * Hook para crear un viaje completo con todos sus detalles.
  *
  * Usa POST al recurso de viajes (body completo); el `apiClient` serializa a snake_case.
- * que garantiza atomicidad (todo o nada).
+ * El contrato no incluye `origin_address` / `destination_address` en `trips` (migración 045):
+ * resumen de ruta con `originCity` / `destinationCity` y domicilio en `stops[]`.
  *
  * @example
  * ```tsx
@@ -58,10 +59,10 @@ export class TripCreationError extends Error {
  *       vehicleId: formData.vehicleId,
  *       driverId: formData.driverId,
  *       scheduledDeparture: localDateTimeToISO(formData.scheduledDeparture),
- *       originAddress: formData.stops[0].address,
- *       originCity: formData.stops[0].city,
- *       destinationAddress: formData.stops.at(-1).address,
- *       destinationCity: formData.stops.at(-1).city,
+ *       originCity: formData.stops[0].cityName,
+ *       originState: formData.stops[0].satStateCode,
+ *       destinationCity: formData.stops.at(-1)?.cityName,
+ *       destinationState: formData.stops.at(-1)?.satStateCode,
  *       stops: formData.stops,
  *       cargos: formData.cargos,
  *       estimatedExpenses: formData.expenses,

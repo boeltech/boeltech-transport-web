@@ -14,6 +14,8 @@ import {
   canTransitionTo as canTransitionToShared,
   canEditTrip as canEditTripShared,
   canDeleteTrip as canDeleteTripShared,
+  canStartTrip as canStartTripShared,
+  canFinishTrip as canFinishTripShared,
   getAvailableTransitions as getAvailableTransitionsShared,
   isTerminalStatus as isTerminalStatusShared,
   calculateTotalCost as calculateTotalCostShared,
@@ -23,7 +25,6 @@ import {
   TRIP_STATUS_LABELS,
   TripStatus,
   UNIQUE_STOP_TYPES,
-  VALID_STATUS_TRANSITIONS,
   type StopTypeValue,
   type TripStatusType,
 } from "./enums";
@@ -40,7 +41,7 @@ export function validateStatusTransition(
   currentStatus: TripStatusType,
   newStatus: TripStatusType,
 ): ValidationResult {
-  const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+  const allowedTransitions = getAvailableTransitionsShared(currentStatus);
 
   if (!allowedTransitions || allowedTransitions.length === 0) {
     return {
@@ -52,7 +53,7 @@ export function validateStatusTransition(
     };
   }
 
-  if (!allowedTransitions.includes(newStatus)) {
+  if (!canTransitionToShared(currentStatus, newStatus)) {
     return {
       success: false,
       error: {
@@ -95,14 +96,14 @@ export function canDeleteTrip(status: TripStatusType): boolean {
  * Verifica si un viaje puede iniciarse
  */
 export function canStartTrip(status: TripStatusType): boolean {
-  return status === TripStatus.SCHEDULED;
+  return canStartTripShared(status);
 }
 
 /**
  * Verifica si un viaje puede finalizarse
  */
 export function canFinishTrip(status: TripStatusType): boolean {
-  return status === TripStatus.IN_PROGRESS;
+  return canFinishTripShared(status);
 }
 
 /**

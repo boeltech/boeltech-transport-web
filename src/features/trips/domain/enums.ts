@@ -11,6 +11,8 @@
  * Ubicación: src/features/trips/domain/enums.ts
  */
 
+import { VALID_STATUS_TRANSITIONS } from "@boeltech/cfdi-domain";
+
 // ============================================================================
 // TRIP STATUS
 // ============================================================================
@@ -33,16 +35,8 @@ export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
   [TripStatus.CANCELLED]: "Cancelado",
 };
 
-export const VALID_STATUS_TRANSITIONS: Record<
-  TripStatusType,
-  TripStatusType[]
-> = {
-  [TripStatus.DRAFT]: [TripStatus.SCHEDULED, TripStatus.CANCELLED],
-  [TripStatus.SCHEDULED]: [TripStatus.IN_PROGRESS, TripStatus.CANCELLED],
-  [TripStatus.IN_PROGRESS]: [TripStatus.COMPLETED, TripStatus.CANCELLED],
-  [TripStatus.COMPLETED]: [],
-  [TripStatus.CANCELLED]: [],
-};
+/** Matriz de transiciones: fuente única en `@boeltech/cfdi-domain` (`entidades/trip`). */
+export { VALID_STATUS_TRANSITIONS };
 
 // ============================================================================
 // STOP TYPE
