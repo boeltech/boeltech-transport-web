@@ -259,6 +259,23 @@ export const ConfigAutotransporteSelect = forwardRef<
 ConfigAutotransporteSelect.displayName = "ConfigAutotransporteSelect";
 
 /**
+ * Select para subtipo de remolque
+ */
+export const SubTipoRemSelect = forwardRef<
+  HTMLButtonElement,
+  Omit<CatalogSelectProps, "typeCode">
+>((props, ref) => (
+  <CatalogSelect
+    ref={ref}
+    typeCode={"sat_sub_tipo_rem" as CatalogTypeCodeValue}
+    placeholder="Seleccione subtipo de remolque"
+    showCode
+    {...props}
+  />
+));
+SubTipoRemSelect.displayName = "SubTipoRemSelect";
+
+/**
  * Select para tipos de figura (Carta Porte)
  */
 export const TipoFiguraSelect = forwardRef<

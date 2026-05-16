@@ -37,6 +37,7 @@ export {
   MetodoPagoSelect,
   MunicipioSelect,
   RegimenFiscalSelect,
+  SubTipoRemSelect,
   TipoEmbalajeSelect,
   TipoFiguraSelect,
   TipoPermisoSelect,

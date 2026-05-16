@@ -174,6 +174,7 @@ export {
   MetodoPagoSelect,
   UsoCfdiSelect,
   RegimenFiscalSelect,
+  SubTipoRemSelect,
   TipoEmbalajeSelect,
 
   // Specialized Search components
