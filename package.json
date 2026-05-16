@@ -9,10 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:trips:regression": "vitest run src/features/trips/presentation/pages/create/contract-trip-validation.test.ts src/features/trips/presentation/pages/create/validateTripApiPayload.test.ts src/features/trips/presentation/pages/create/components/validation.test.ts"
   },
   "dependencies": {
-    "@boeltech/cfdi-domain": "^0.1.0",
+    "@boeltech/cfdi-domain": "^0.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -38,6 +39,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "html-entities": "^2.5.2",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
