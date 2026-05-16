@@ -345,7 +345,7 @@ export function TripFormPage() {
           | "other",
         description: expense.description,
         amount: expense.amount,
-        currency: expense.currency,
+        currency: "MXN" as const,
         expenseDate: expense.expenseDate
           ? utcIsoToLocalInput(expense.expenseDate.toISOString())
           : undefined,

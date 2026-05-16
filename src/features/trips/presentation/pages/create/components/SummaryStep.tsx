@@ -41,8 +41,8 @@ import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   computeFinancialSummary,
   formatMxCurrency,
-  INDIRECT_EXPENSE_CATEGORIES,
-  OPERATIONAL_COST_CATEGORIES,
+  isIndirectExpenseCategory,
+  isOperationalExpenseCategory,
 } from "./financialSummary";
 
 interface SummaryStepProps {
@@ -104,7 +104,7 @@ export function SummaryStep({
   const totalOperationalCosts =
     values.expenses?.reduce(
       (sum, expense) =>
-        OPERATIONAL_COST_CATEGORIES.includes(expense.category)
+        isOperationalExpenseCategory(expense.category)
           ? sum + (expense.amount || 0)
           : sum,
       0,
@@ -112,7 +112,7 @@ export function SummaryStep({
   const totalIndirectExpenses =
     values.expenses?.reduce(
       (sum, expense) =>
-        INDIRECT_EXPENSE_CATEGORIES.includes(expense.category)
+        isIndirectExpenseCategory(expense.category)
           ? sum + (expense.amount || 0)
           : sum,
       0,

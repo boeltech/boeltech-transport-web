@@ -68,7 +68,9 @@ export function validateStopsIncludeOriginAndDestination(
 
 /** Domicilio capturable en parada: texto legacy, `address_id` o ciudad operativa. */
 export function validateCreateStopHasResolvableLocation(
-  stop: Pick<CreateStopInput, "address" | "addressId" | "city">,
+  stop: Pick<CreateStopInput, "address" | "city"> & {
+    addressId?: string | null;
+  },
 ): TripRouteValidationError | null {
   if (isUnifiedAddressId(stop.addressId)) return null;
   if (stop.address?.trim()) return null;

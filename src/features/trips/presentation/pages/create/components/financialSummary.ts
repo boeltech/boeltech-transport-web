@@ -30,6 +30,22 @@ export type ExpenseCategory =
   | (typeof OPERATIONAL_COST_CATEGORIES)[number]
   | (typeof INDIRECT_EXPENSE_CATEGORIES)[number];
 
+export function isOperationalExpenseCategory(
+  category: ExpenseCategory,
+): category is (typeof OPERATIONAL_COST_CATEGORIES)[number] {
+  return (OPERATIONAL_COST_CATEGORIES as readonly ExpenseCategory[]).includes(
+    category,
+  );
+}
+
+export function isIndirectExpenseCategory(
+  category: ExpenseCategory,
+): category is (typeof INDIRECT_EXPENSE_CATEGORIES)[number] {
+  return (INDIRECT_EXPENSE_CATEGORIES as readonly ExpenseCategory[]).includes(
+    category,
+  );
+}
+
 export function computeFinancialSummary(
   baseRate: number,
   totalExpenses: number,

@@ -90,7 +90,7 @@ describe("Trip API payload contract (update/status/finish/query)", () => {
       stops: [
         {
           sequenceOrder: 0,
-          stopType: "origin",
+          stopType: ["origin"],
           address: "Av. Vallarta 123",
           city: "Guadalajara",
           postalCode: "44100",

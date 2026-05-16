@@ -45,6 +45,8 @@ import {
   computeFinancialSummary,
   formatMxCurrency,
   INDIRECT_EXPENSE_CATEGORIES,
+  isIndirectExpenseCategory,
+  isOperationalExpenseCategory,
   OPERATIONAL_COST_CATEGORIES,
   type ExpenseCategory,
 } from "./financialSummary";
@@ -82,10 +84,8 @@ const CATEGORY_MAP = new Map(
   EXPENSE_CATEGORIES.map((item) => [item.value, item]),
 );
 
-function isCostCategory(category: string): category is (typeof OPERATIONAL_COST_CATEGORIES)[number] {
-  return OPERATIONAL_COST_CATEGORIES.includes(
-    category as (typeof OPERATIONAL_COST_CATEGORIES)[number],
-  );
+function isCostCategory(category: string): category is ExpenseCategory {
+  return isOperationalExpenseCategory(category as ExpenseCategory);
 }
 
 function getDefaultCategoryForTab(tab: CostTab): ExpenseCategory {
@@ -97,12 +97,12 @@ function getDefaultCategoryForTab(tab: CostTab): ExpenseCategory {
 function getCategoriesByTab(tab: CostTab) {
   if (tab === "cost") {
     return EXPENSE_CATEGORIES.filter((item) =>
-      OPERATIONAL_COST_CATEGORIES.includes(item.value),
+      isOperationalExpenseCategory(item.value),
     );
   }
   if (tab === "expense") {
     return EXPENSE_CATEGORIES.filter((item) =>
-      INDIRECT_EXPENSE_CATEGORIES.includes(item.value),
+      isIndirectExpenseCategory(item.value),
     );
   }
   return [];
@@ -167,14 +167,14 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const operationalCosts = useMemo(
     () =>
       fields.filter((expense) =>
-        OPERATIONAL_COST_CATEGORIES.includes(expense.category),
+        isOperationalExpenseCategory(expense.category),
       ),
     [fields],
   );
   const indirectExpenses = useMemo(
     () =>
       fields.filter((expense) =>
-        INDIRECT_EXPENSE_CATEGORIES.includes(expense.category),
+        isIndirectExpenseCategory(expense.category),
       ),
     [fields],
   );

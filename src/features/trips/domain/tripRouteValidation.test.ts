@@ -7,7 +7,7 @@ import {
   validateTripEndpointSummary,
   validateTripRouteForScheduling,
 } from "@features/trips/domain";
-import type { Trip } from "@features/trips/domain";
+import type { CreateTripInput, Trip } from "@features/trips/domain";
 
 describe("tripRouteValidation", () => {
   it("exige resumen de origen y destino", () => {
@@ -53,7 +53,14 @@ describe("tripRouteValidation", () => {
       ],
     };
 
-    expect(validateCreateTripRoute(input)).toBeNull();
+    expect(
+      validateCreateTripRoute(
+        input as unknown as Pick<
+          CreateTripInput,
+          "originCity" | "destinationCity" | "stops"
+        >,
+      ),
+    ).toBeNull();
 
     const trip = {
       originCity: "Guadalajara",

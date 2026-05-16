@@ -241,7 +241,7 @@ describe("tripQuickEditPayload", () => {
           updatedAt: new Date("2026-05-13T00:00:00.000Z"),
         },
       ],
-      stops: baseTrip.stops.map((s, i) =>
+      stops: (baseTrip.stops ?? []).map((s, i) =>
         i === 0
           ? {
               ...s,
@@ -267,7 +267,7 @@ describe("tripQuickEditPayload", () => {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
       clientId: "33333333-3333-4333-8333-333333333333",
-      stops: baseTrip.stops.map((s, i) =>
+      stops: (baseTrip.stops ?? []).map((s, i) =>
         i === 0 ? { ...s, addressId: linkedAddressId } : s,
       ),
     } as unknown as Trip;

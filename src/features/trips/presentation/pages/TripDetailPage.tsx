@@ -1030,7 +1030,7 @@ export function TripDetailPage() {
                               <InfoRow
                                 variant="inline"
                                 label="Escalas"
-                                value={orderedStops.filter((s) => hasStopType(s.stopType, "checkpoint")).length}
+                                value={orderedStops.filter((s) => hasStopType(s.stopType, "waypoint")).length}
                               />
                             </div>
                           </CardContent>
@@ -1743,7 +1743,9 @@ export function TripDetailPage() {
         open={quickEditOpen}
         isSaving={updateTripMutation.isPending}
         onOpenChange={setQuickEditOpen}
-        onSubmit={(payload) => updateTripMutation.mutateAsync({ id: trip.id, data: payload })}
+        onSubmit={async (payload) => {
+          await updateTripMutation.mutateAsync({ id: trip.id, data: payload });
+        }}
       />
     </>
   );
