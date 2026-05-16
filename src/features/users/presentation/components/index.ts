@@ -1,4 +1,5 @@
-export { PendingInvitationsPanel, invitationsPendingQueryKey } from "./PendingInvitationsPanel";
+export { invitationsPendingQueryKey } from "./invitationsPendingQueryKey";
+export { PendingInvitationsPanel } from "./PendingInvitationsPanel";
 export { InviteUserDialog } from "./InviteUserDialog";
 export { UserActions } from "./UserActions";
 export { UserActivitySection } from "./UserActivitySection";

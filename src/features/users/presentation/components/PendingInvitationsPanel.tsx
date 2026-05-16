@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@shared/ui/table";
 
-export const invitationsPendingQueryKey = ["invitations", "pending"] as const;
+import { invitationsPendingQueryKey } from "./invitationsPendingQueryKey";
 
 /**
  * Invitaciones pendientes con reenvío y cancelación (API).
