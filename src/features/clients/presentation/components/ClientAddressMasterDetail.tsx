@@ -248,27 +248,36 @@ export function ClientAddressMasterDetail({
     }
   };
 
+  const handleSubmitFormRef = useRef(handleSubmitForm);
+  const handleCancelFormRef = useRef(handleCancelForm);
+
+  useEffect(() => {
+    handleSubmitFormRef.current = handleSubmitForm;
+    handleCancelFormRef.current = handleCancelForm;
+  });
+
   // Al activar solo lectura, cerrar modos de edición y diálogos.
   useEffect(() => {
     if (!readOnly) return;
-    setMode("view");
-    setFormData(null);
-    setPendingDelete(null);
+    queueMicrotask(() => {
+      setMode("view");
+      setFormData(null);
+      setPendingDelete(null);
+    });
   }, [readOnly]);
 
   // Atajos consistentes para formulario (guardar/cancelar).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (readOnly) return;
     if (mode !== "create" && mode !== "edit") return;
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void handleSubmitForm();
+        void handleSubmitFormRef.current();
       }
       if (event.key === "Escape" && !isMobile) {
         event.preventDefault();
-        handleCancelForm();
+        handleCancelFormRef.current();
       }
     };
     window.addEventListener("keydown", onKeydown);
