@@ -25,6 +25,7 @@ import {
   PrivateRoute,
   ModuleRoute,
   PermissionRoute,
+  AdminRoute,
 } from "./guards";
 
 // ============================================
@@ -252,6 +253,9 @@ const UserEditPage = lazy(() =>
 
 // Profile (autoservicio — todos los autenticados)
 const ProfilePage = lazy(() => import("@/pages/profile"));
+
+// Design System (gated a admin)
+const DesignSystemPage = lazy(() => import("@/pages/design-system"));
 
 // Onboarding guiado (post-invite / primera sesión heurística)
 const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
@@ -708,6 +712,20 @@ export const router = createBrowserRouter([
               {
                 path: "/settings/*",
                 element: <SettingsRoutes />,
+              },
+            ],
+          },
+
+          // ========================================
+          // Design System — gated a admin
+          // Referencia visual viva (tokens, tipografía, componentes).
+          // ========================================
+          {
+            element: <AdminRoute />,
+            children: [
+              {
+                path: "/design-system",
+                element: withSuspense(DesignSystemPage),
               },
             ],
           },
