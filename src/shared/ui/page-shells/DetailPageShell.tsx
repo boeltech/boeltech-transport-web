@@ -11,9 +11,10 @@
  *   2. Not-found state
  *   3. Header (back + icon + title + subtitle + statusBadge + actions)
  *   4. Alerts (slot opcional)
- *   5. Stats grid (opcional, lista de StatCard)
- *   6. Tabs (opcional) o children libre
- *   7. Metadata footer (opcional)
+ *   5. preStats (slot opcional, p. ej. resumen fiscal encima de KPIs)
+ *   6. Stats grid (opcional, lista de StatCard)
+ *   7. Tabs (opcional) o children libre
+ *   8. Metadata footer (opcional)
  */
 
 import { memo, type ReactNode } from "react";
@@ -86,6 +87,11 @@ export interface DetailPageShellProps {
   // ── Bloques opcionales ────────────────────────────────────────────────────
   /** Slot para alertas (vencimientos, problemas críticos). */
   alerts?: ReactNode;
+  /**
+   * Contenido entre alertas y stats (p. ej. bloque fiscal en detalle de viaje).
+   * No añade espacio extra si se omite o es null/false.
+   */
+  preStats?: ReactNode;
   /** Lista de StatCard. Si vacío/undefined no se renderiza el grid. */
   stats?: StatCardProps[];
   /** Tabs. Si se omite, se renderizan los `children` directamente. */
@@ -129,6 +135,7 @@ export const DetailPageShell = memo(function DetailPageShell({
   notFoundConfig,
   header,
   alerts,
+  preStats,
   stats,
   tabs,
   children,
@@ -198,6 +205,8 @@ export const DetailPageShell = memo(function DetailPageShell({
        * Alerts
        * ================================================================== */}
       {alerts}
+
+      {preStats ? <div className="space-y-4">{preStats}</div> : null}
 
       {/* ====================================================================
        * Stats

@@ -480,13 +480,16 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     postalLookup.isError,
     postalLookup.isLoading,
   ]);
-  const catalogNeighborhoodOptions =
-    (postalLookup.data?.neighborhoods.length ?? 0) > 0
-      ? postalLookup.data?.neighborhoods ?? []
-      : neighborhoodsByPostalCode.map((item) => ({
-          code: item.code,
-          name: item.name,
-        }));
+  const catalogNeighborhoodOptions = useMemo(
+    () =>
+      (postalLookup.data?.neighborhoods.length ?? 0) > 0
+        ? postalLookup.data?.neighborhoods ?? []
+        : neighborhoodsByPostalCode.map((item) => ({
+            code: item.code,
+            name: item.name,
+          })),
+    [postalLookup.data?.neighborhoods, neighborhoodsByPostalCode],
+  );
   const lookupHasNeighborhoods = catalogNeighborhoodOptions.length > 0;
   const shouldUseManualNeighborhood = !lookupHasNeighborhoods;
   const hasMultipleNeighborhoods =

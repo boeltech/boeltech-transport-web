@@ -6,7 +6,7 @@
  * eliminando duplicación entre features.
  *
  * - ListPageShell      → listas con filtros + paginación
- * - DetailPageShell    → detalle con header + alerts + stats + tabs + metadata
+ * - DetailPageShell    → detalle con header + alerts + preStats + stats + tabs + metadata
  * - FormPageShell      → edición simple (no wizard)
  * - WizardPageShell    → creación por pasos
  * - SettingsPageShell  → wrapper sobre SettingsLayout

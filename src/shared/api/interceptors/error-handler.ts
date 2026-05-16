@@ -139,6 +139,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "El viaje no puede ser modificado en su estado actual",
   INVALID_TRIP_STATUS_TRANSITION: "Transición de estado del viaje no permitida",
   TRIP_CODE_EXISTS: "El código de viaje ya existe",
+  FISCAL_PRECONDITION_FAILED:
+    "No se puede iniciar el viaje: falta cumplir la precondición fiscal (p. ej. factura timbrada). Revise la sección Fiscal o genere/timbre la factura del viaje.",
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",
