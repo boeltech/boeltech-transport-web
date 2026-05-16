@@ -5,7 +5,7 @@
 import type { CreateTripInput } from "@features/trips/domain";
 import type { CurrencyType } from "@features/trips/domain";
 import type { TripWizardFormValues } from "./components/validation";
-import { buildLegacyAddress, mapWizardStopsToCreateInput } from "./wizardStopPayload";
+import { buildTripEndpointSummary, mapWizardStopsToCreateInput } from "./wizardStopPayload";
 import {
   buildMercanciasHeaderSummary,
   mapWizardCargosToCreateInput,
@@ -20,8 +20,8 @@ export function buildCreateTripInputFromWizardValues(
   const destinationStop = data.stops?.find((stop) =>
     stop.stopType.includes("destination"),
   );
-  const originAddress = originStop ? buildLegacyAddress(originStop) : null;
-  const destAddress = destinationStop ? buildLegacyAddress(destinationStop) : null;
+  const originSummary = originStop ? buildTripEndpointSummary(originStop) : null;
+  const destSummary = destinationStop ? buildTripEndpointSummary(destinationStop) : null;
 
   return {
     vehicleId: data.vehicleId,
@@ -33,12 +33,10 @@ export function buildCreateTripInputFromWizardValues(
       ? localInputToUtcIso(data.scheduledArrival)
       : undefined,
     startMileage: data.startMileage,
-    originAddress: originAddress?.address || "",
-    originCity: originAddress?.city || "",
-    originState: originAddress?.state || undefined,
-    destinationAddress: destAddress?.address || "",
-    destinationCity: destAddress?.city || "",
-    destinationState: destAddress?.state || undefined,
+    originCity: originSummary?.city || "",
+    originState: originSummary?.state || undefined,
+    destinationCity: destSummary?.city || "",
+    destinationState: destSummary?.state || undefined,
     cargoDescription: data.cargos?.[0]?.description,
     cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
     cargoValue: data.cargos?.reduce((sum, c) => sum + (c.declaredValue || 0), 0),

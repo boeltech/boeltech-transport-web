@@ -1,19 +1,30 @@
-/**
- * CostsStep - Paso 4 del Wizard
- * Costos: Tarifa base, gastos operativos estimados e indicador de rentabilidad.
- *
- * Diseño para planeación operativa:
- * - Sugerencia automática de diesel basada en distancia total del viaje y
- *   rendimiento del vehículo (expected_fuel_efficiency de la tabla vehicles).
- * - Indicador de rentabilidad en tiempo real (tarifa vs gastos totales).
- * - Acceso rápido a los 4 gastos más frecuentes en transporte.
- * - Formulario simplificado: los datos de contabilidad (CFDI, RFC del proveedor,
- *   clave SAT, forma de pago) se gestionan en la liquidación post-viaje.
- */
+import { useMemo, useState } from "react";
+import type { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
+import {
+  AlertCircle,
+  Bed,
+  Calculator,
+  CircleDollarSign,
+  DollarSign,
+  Edit2,
+  FileText,
+  Fuel,
+  MoreHorizontal,
+  Package,
+  ParkingCircle,
+  Plus,
+  Receipt,
+  Shield,
+  Trash2,
+  Wallet,
+  Wrench,
+} from "lucide-react";
 
-import { useState, useMemo } from "react";
-import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
+import { useVehicle } from "@features/vehicles/application";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
 import {
   FormControl,
   FormField,
@@ -21,55 +32,23 @@ import {
   FormLabel,
   FormMessage,
 } from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
-import { Button } from "@shared/ui/button";
-import { Textarea } from "@shared/ui/text-area";
-import { Label } from "@shared/ui/label";
-import { Checkbox } from "@shared/ui/checkbox";
-import { Separator } from "@shared/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@shared/ui/dialog";
-import {
-  Receipt,
-  Plus,
-  Trash2,
-  Edit2,
-  DollarSign,
-  Fuel,
-  CircleDollarSign,
-  Wallet,
-  Bed,
-  Package,
-  ParkingCircle,
-  Wrench,
-  Shield,
-  FileText,
-  MoreHorizontal,
-  TrendingUp,
-  TrendingDown,
-  Calculator,
-  AlertCircle,
-} from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
-import type { TripWizardFormValues, TripExpenseFormValues } from "./validation";
-import { useVehicle } from "@features/vehicles/application";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@shared/ui/select";
+import { Separator } from "@shared/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
+import { Textarea } from "@shared/ui/text-area";
+import { cn } from "@shared/lib/utils/cn";
 
-// ============================================================================
-// TYPES
-// ============================================================================
+import {
+  computeFinancialSummary,
+  formatMxCurrency,
+  INDIRECT_EXPENSE_CATEGORIES,
+  OPERATIONAL_COST_CATEGORIES,
+  type ExpenseCategory,
+} from "./financialSummary";
+import type { TripExpenseFormValues, TripWizardFormValues } from "./validation";
 
 interface CostsStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,11 +56,9 @@ interface CostsStepProps {
   expensesFieldArray: UseFieldArrayReturn<TripWizardFormValues, "expenses">;
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+type CostTab = "income" | "cost" | "expense";
 
-const DEFAULT_DIESEL_PRICE = 24.0; // MXN/L — ajustable por el usuario en la UI
+const DEFAULT_DIESEL_PRICE = 24.0;
 
 const EXPENSE_CATEGORIES = [
   { value: "fuel", label: "Combustible", icon: Fuel },
@@ -96,691 +73,708 @@ const EXPENSE_CATEGORIES = [
   { value: "other", label: "Otros Gastos", icon: MoreHorizontal },
 ] as const;
 
-const QUICK_ADD_PRESETS = [
-  {
-    category: "fuel" as const,
-    label: "Diesel",
-    icon: Fuel,
-    defaultDescription: "Carga de diesel",
-  },
-  {
-    category: "tolls" as const,
-    label: "Casetas",
-    icon: CircleDollarSign,
-    defaultDescription: "Casetas de peaje",
-  },
-  {
-    category: "driver_allowance" as const,
-    label: "Viáticos",
-    icon: Wallet,
-    defaultDescription: "Viáticos del operador",
-  },
-  {
-    category: "other" as const,
-    label: "Otro",
-    icon: Plus,
-    defaultDescription: "",
-  },
-];
+const CATEGORY_SET = new Set<ExpenseCategory>([
+  ...OPERATIONAL_COST_CATEGORIES,
+  ...INDIRECT_EXPENSE_CATEGORIES,
+]);
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+const CATEGORY_MAP = new Map(
+  EXPENSE_CATEGORIES.map((item) => [item.value, item]),
+);
 
-const getCategoryInfo = (category: string) =>
-  EXPENSE_CATEGORIES.find((c) => c.value === category) ?? EXPENSE_CATEGORIES[9];
+function isCostCategory(category: string): category is (typeof OPERATIONAL_COST_CATEGORIES)[number] {
+  return OPERATIONAL_COST_CATEGORIES.includes(
+    category as (typeof OPERATIONAL_COST_CATEGORIES)[number],
+  );
+}
 
-const formatCurrency = (amount: number, currency = "MXN") =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(amount);
+function getDefaultCategoryForTab(tab: CostTab): ExpenseCategory {
+  if (tab === "cost") return "fuel";
+  if (tab === "expense") return "driver_allowance";
+  return "fuel";
+}
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function getCategoriesByTab(tab: CostTab) {
+  if (tab === "cost") {
+    return EXPENSE_CATEGORIES.filter((item) =>
+      OPERATIONAL_COST_CATEGORIES.includes(item.value),
+    );
+  }
+  if (tab === "expense") {
+    return EXPENSE_CATEGORIES.filter((item) =>
+      INDIRECT_EXPENSE_CATEGORIES.includes(item.value),
+    );
+  }
+  return [];
+}
+
+function getTabByCategory(category: string): CostTab {
+  if (isCostCategory(category)) return "cost";
+  return "expense";
+}
 
 export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const { fields, append, remove, update } = expensesFieldArray;
 
-  // ── Dialog state ───────────────────────────────────────────────────────────
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<CostTab>("income");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [newExpense, setNewExpense] = useState<Partial<TripExpenseFormValues>>({});
-
-  // ── Diesel suggestion state ────────────────────────────────────────────────
   const [dieselPricePerLiter, setDieselPricePerLiter] =
     useState(DEFAULT_DIESEL_PRICE);
+  const [draftExpense, setDraftExpense] = useState<Partial<TripExpenseFormValues>>({
+    category: "fuel",
+    description: "",
+    amount: undefined,
+    currency: "MXN",
+    vendorName: "",
+    notes: "",
+    isEstimated: true,
+  });
 
-  // ── Form-level data ────────────────────────────────────────────────────────
   const vehicleId = form.watch("vehicleId");
   const stops = form.watch("stops");
   const baseRate = form.watch("baseRate") ?? 0;
 
-  // ── Vehicle: rendimiento del combustible ──────────────────────────────────
   const { data: vehicle } = useVehicle(vehicleId);
   const expectedFuelEfficiency =
     vehicle?.capacities?.expectedFuelEfficiency ?? null;
 
-  // ── Distancia total (suma de distanceFromPreviousKm de todas las paradas) ─
   const totalDistanceKm = useMemo(() => {
     if (!stops || stops.length < 2) return 0;
     return stops.reduce(
-      (sum, stop, i) => (i > 0 ? sum + (stop.distanceFromPreviousKm || 0) : sum),
+      (sum, stop, index) =>
+        index > 0 ? sum + (stop.distanceFromPreviousKm || 0) : sum,
       0,
     );
   }, [stops]);
 
-  // ── Sugerencia de diesel ───────────────────────────────────────────────────
   const dieselSuggestion = useMemo(() => {
     if (
       !expectedFuelEfficiency ||
       expectedFuelEfficiency <= 0 ||
       totalDistanceKm <= 0 ||
       dieselPricePerLiter <= 0
-    )
+    ) {
       return null;
+    }
     const liters = totalDistanceKm / expectedFuelEfficiency;
     const cost = liters * dieselPricePerLiter;
     return {
       liters: Math.round(liters * 10) / 10,
       cost: Math.round(cost * 100) / 100,
     };
-  }, [expectedFuelEfficiency, totalDistanceKm, dieselPricePerLiter]);
+  }, [dieselPricePerLiter, expectedFuelEfficiency, totalDistanceKm]);
 
-  // ── Totales ────────────────────────────────────────────────────────────────
-  const totalExpenses = useMemo(
-    () => fields.reduce((sum, e) => sum + (e.amount || 0), 0),
+  const operationalCosts = useMemo(
+    () =>
+      fields.filter((expense) =>
+        OPERATIONAL_COST_CATEGORIES.includes(expense.category),
+      ),
+    [fields],
+  );
+  const indirectExpenses = useMemo(
+    () =>
+      fields.filter((expense) =>
+        INDIRECT_EXPENSE_CATEGORIES.includes(expense.category),
+      ),
     [fields],
   );
 
-  const margin = baseRate - totalExpenses;
-  const marginPct = baseRate > 0 ? (margin / baseRate) * 100 : null;
+  const totalOperationalCosts = useMemo(
+    () =>
+      operationalCosts.reduce((sum, expense) => sum + (expense.amount || 0), 0),
+    [operationalCosts],
+  );
+  const totalIndirectExpenses = useMemo(
+    () =>
+      indirectExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0),
+    [indirectExpenses],
+  );
+  const totalExpenses = totalOperationalCosts + totalIndirectExpenses;
 
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
+  const financial = computeFinancialSummary(baseRate, totalExpenses, {
+    totalOperationalCosts,
+    totalIndirectExpenses,
+  });
 
-  const openAddDialog = (preset?: {
-    category: TripExpenseFormValues["category"];
-    defaultDescription: string;
-    amount?: number;
-    notes?: string;
-  }) => {
-    setEditingIndex(null);
-    setNewExpense({
-      category: preset?.category ?? "other",
-      description: preset?.defaultDescription ?? "",
-      amount: preset?.amount,
+  const activeExpenseList =
+    activeTab === "cost"
+      ? operationalCosts
+      : activeTab === "expense"
+        ? indirectExpenses
+        : [];
+
+  const availableCategories = getCategoriesByTab(activeTab);
+  const showExpenseForm = activeTab === "cost" || activeTab === "expense";
+  const selectedCategory = draftExpense.category ?? getDefaultCategoryForTab(activeTab);
+
+  const resetDraft = (tab: CostTab) => {
+    setDraftExpense({
+      category: getDefaultCategoryForTab(tab),
+      description: "",
+      amount: undefined,
       currency: "MXN",
       vendorName: "",
-      notes: preset?.notes ?? "",
+      notes: "",
       isEstimated: true,
     });
-    setIsDialogOpen(true);
+    setEditingIndex(null);
   };
 
-  const openEditDialog = (index: number) => {
+  const switchTab = (tab: CostTab) => {
+    setActiveTab(tab);
+    if (tab === "income") {
+      setEditingIndex(null);
+      return;
+    }
+    resetDraft(tab);
+  };
+
+  const handleEdit = (index: number) => {
+    const expense = fields[index];
+    const tab = getTabByCategory(expense.category);
+    setActiveTab(tab);
     setEditingIndex(index);
-    setNewExpense({ ...fields[index] });
-    setIsDialogOpen(true);
-  };
-
-  const handleAddDieselSuggestion = () => {
-    if (!dieselSuggestion) return;
-    openAddDialog({
-      category: "fuel",
-      defaultDescription: "Carga de diesel",
-      amount: dieselSuggestion.cost,
-      notes: `${dieselSuggestion.liters} L × $${dieselPricePerLiter}/L (estimado)`,
+    setDraftExpense({
+      ...expense,
+      currency: "MXN",
     });
   };
 
-  const handleSave = () => {
+  const handleSaveExpense = () => {
     if (
-      !newExpense.category ||
-      !newExpense.description?.trim() ||
-      !newExpense.amount ||
-      newExpense.amount <= 0
-    )
+      !showExpenseForm ||
+      !draftExpense.category ||
+      !CATEGORY_SET.has(draftExpense.category as ExpenseCategory) ||
+      !draftExpense.description?.trim() ||
+      !draftExpense.amount ||
+      draftExpense.amount <= 0
+    ) {
       return;
+    }
 
-    const expense: TripExpenseFormValues = {
-      category: newExpense.category,
-      description: newExpense.description,
-      amount: newExpense.amount,
-      currency: newExpense.currency || "MXN",
-      vendorName: newExpense.vendorName || undefined,
-      notes: newExpense.notes || undefined,
-      isEstimated: newExpense.isEstimated ?? true,
+    const payload: TripExpenseFormValues = {
+      category: draftExpense.category as TripExpenseFormValues["category"],
+      description: draftExpense.description.trim(),
+      amount: draftExpense.amount,
+      currency: "MXN",
+      vendorName: draftExpense.vendorName?.trim() || undefined,
+      notes: draftExpense.notes?.trim() || undefined,
+      isEstimated: true,
     };
 
     if (editingIndex !== null) {
-      update(editingIndex, expense);
+      update(editingIndex, payload);
     } else {
-      append(expense);
+      append(payload);
     }
-    setIsDialogOpen(false);
+
+    resetDraft(activeTab);
   };
 
-  const isValid =
-    !!newExpense.category &&
-    !!newExpense.description?.trim() &&
-    !!newExpense.amount &&
-    newExpense.amount > 0;
-
-  // ============================================================================
-  // PROFITABILITY HELPERS
-  // ============================================================================
-
-  const getProfitColor = () => {
-    if (marginPct === null) return "text-muted-foreground";
-    if (marginPct >= 30) return "text-green-600 dark:text-green-400";
-    if (marginPct >= 10) return "text-yellow-600 dark:text-yellow-400";
-    return "text-red-600 dark:text-red-400";
+  const applyDieselSuggestion = () => {
+    if (!dieselSuggestion) return;
+    setDraftExpense((prev) => ({
+      ...prev,
+      category: "fuel",
+      description: prev.description?.trim() || "Carga de diesel",
+      amount: dieselSuggestion.cost,
+      notes: `${dieselSuggestion.liters} L × $${dieselPricePerLiter}/L (estimado)`,
+    }));
   };
 
-  const getProfitBadgeClass = () => {
-    if (marginPct === null) return "bg-muted text-muted-foreground";
-    if (marginPct >= 30)
-      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-    if (marginPct >= 10)
-      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-  };
+  const isDraftValid =
+    !!draftExpense.category &&
+    !!draftExpense.description?.trim() &&
+    !!draftExpense.amount &&
+    draftExpense.amount > 0;
 
-  const ProfitIcon = marginPct !== null && marginPct < 10 ? TrendingDown : TrendingUp;
-
-  // ============================================================================
-  // RENDER
-  // ============================================================================
+  const marginToneClass =
+    financial.health === "healthy"
+      ? "text-green-600 dark:text-green-400"
+      : financial.health === "warning"
+        ? "text-amber-600 dark:text-amber-400"
+        : financial.health === "critical"
+          ? "text-red-600 dark:text-red-400"
+          : "text-muted-foreground";
 
   return (
     <div className="space-y-6">
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* TARIFA BASE + RENTABILIDAD */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">
-            <SectionHeadingWithHint
-              title={
-                <>
-                  <DollarSign className="h-5 w-5 shrink-0" />
-                  Tarifa del Viaje
-                </>
-              }
-              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
-              hintLabel="Tarifa y rentabilidad estimada"
-              hint={
-                <>
-                  Tarifa base del servicio frente a gastos estimados en esta planeación. La facturación y el detalle
-                  contable final se definen al cerrar el viaje.
-                </>
-              }
-            />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <FormField
-            control={form.control}
-            name="baseRate"
-            render={({ field }) => (
-              <FormItem className="sm:w-1/3">
-                <FormLabel>Tarifa Base (MXN)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Indicador de rentabilidad — visible cuando hay tarifa */}
-          {baseRate > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Tarifa Base</span>
-                  <span className="font-medium">{formatCurrency(baseRate)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    − Gastos Estimados
-                  </span>
-                  <span className="font-medium text-destructive">
-                    − {formatCurrency(totalExpenses)}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="font-medium flex items-center gap-1.5">
-                    <ProfitIcon
-                      className={cn("h-4 w-4", getProfitColor())}
-                    />
-                    Margen Estimado
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={cn("text-lg font-bold", getProfitColor())}>
-                      {formatCurrency(margin)}
-                    </span>
-                    {marginPct !== null && (
-                      <span
-                        className={cn(
-                          "text-xs font-semibold px-1.5 py-0.5 rounded",
-                          getProfitBadgeClass(),
-                        )}
-                      >
-                        {marginPct.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Alerta de margen bajo */}
-                {marginPct !== null && marginPct < 10 && totalExpenses > 0 && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 mt-1">
-                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-red-700 dark:text-red-400">
-                      El margen estimado es menor al 10%. Considera revisar la
-                      tarifa o reducir los gastos estimados.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* SUGERENCIA DE DIESEL */}
-      {/* Visible solo si el vehículo tiene rendimiento y el viaje tiene distancia */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {totalDistanceKm > 0 && expectedFuelEfficiency && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-800">
-          <CardContent className="pt-5">
-            <div className="space-y-4">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
               <SectionHeadingWithHint
-                noTitleWrap
                 title={
                   <>
-                    <Calculator className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-                      Estimación de Diesel
-                    </h4>
+                    <Receipt className="h-5 w-5 shrink-0" />
+                    Agregar movimiento
                   </>
                 }
-                hintLabel="Estimación de combustible"
+                titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+                hintLabel="Cómo funciona"
                 hint={
                   <>
-                    Se calcula con la distancia total del paso Ruta y el rendimiento (km/L) del vehículo. El precio por
-                    litro es editable; sirve solo como ayuda para cargar un gasto estimado.
+                    Registra primero el ingreso del viaje y luego clasifica cada
+                    salida de dinero como costo operativo o gasto indirecto.
                   </>
                 }
               />
-
-              {/* Datos del cálculo */}
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Distancia total
-                  </p>
-                  <p className="font-medium">{totalDistanceKm.toFixed(1)} km</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Rendimiento</p>
-                  <p className="font-medium">
-                    {expectedFuelEfficiency} km/L
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Consumo estimado
-                  </p>
-                  <p className="font-medium">
-                    {dieselSuggestion?.liters ?? "—"} L
-                  </p>
-                </div>
-              </div>
-
-              {/* Precio ajustable + costo resultante + botón agregar */}
-              <div className="flex items-end gap-3">
-                <div className="space-y-1 w-36">
-                  <Label className="text-xs">Precio diesel (MXN/L)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={dieselPricePerLiter}
-                    onChange={(e) =>
-                      setDieselPricePerLiter(
-                        e.target.value
-                          ? Number(e.target.value)
-                          : DEFAULT_DIESEL_PRICE,
-                      )
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Costo estimado
-                  </p>
-                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                    {dieselSuggestion ? formatCurrency(dieselSuggestion.cost) : "—"}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-900/30"
-                  onClick={handleAddDieselSuggestion}
-                  disabled={!dieselSuggestion}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => switchTab(value as CostTab)}
+            >
+              <TabsList className="grid h-auto grid-cols-3 gap-2 bg-transparent p-0">
+                <TabsTrigger
+                  value="income"
+                  className="h-12 border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  <Fuel className="h-3.5 w-3.5 mr-1" />
-                  Agregar
-                </Button>
-              </div>
+                  <span className="inline-flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Ingreso
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="cost"
+                  className="h-12 border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <CircleDollarSign className="h-4 w-4" />
+                    Costo
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="expense"
+                  className="h-12 border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Gasto
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="income" className="mt-4">
+                <FormField
+                  control={form.control}
+                  name="baseRate"
+                  render={({ field }) => (
+                    <FormItem className="max-w-sm">
+                      <FormLabel>Tarifa Base (MXN)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value
+                                ? Number(event.target.value)
+                                : undefined,
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value="cost" className="mt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Costos operativos directos del servicio (combustible, casetas,
+                  maniobras, mantenimiento, seguros, permisos).
+                </p>
+              </TabsContent>
+
+              <TabsContent value="expense" className="mt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Gastos indirectos relacionados con el viaje (viáticos, hospedaje,
+                  estacionamientos, multas y otros).
+                </p>
+              </TabsContent>
+            </Tabs>
+
+            {showExpenseForm ? (
+              <>
+                <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>
+                      Categoría <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(value) =>
+                        setDraftExpense((prev) => ({
+                          ...prev,
+                          category: value as TripExpenseFormValues["category"],
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCategories.map((category) => (
+                          <SelectItem key={category.value} value={category.value}>
+                            <div className="flex items-center gap-2">
+                              <category.icon className="h-4 w-4" />
+                              {category.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Moneda</Label>
+                    <Input value="MXN" disabled />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>
+                      Descripción <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Ej: Casetas tramo MTY-SLP"
+                      value={draftExpense.description || ""}
+                      onChange={(event) =>
+                        setDraftExpense((prev) => ({
+                          ...prev,
+                          description: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Monto <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={draftExpense.amount ?? ""}
+                      onChange={(event) =>
+                        setDraftExpense((prev) => ({
+                          ...prev,
+                          amount: event.target.value
+                            ? Number(event.target.value)
+                            : undefined,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Proveedor (opcional)</Label>
+                    <Input
+                      placeholder="Nombre o razón social"
+                      value={draftExpense.vendorName || ""}
+                      onChange={(event) =>
+                        setDraftExpense((prev) => ({
+                          ...prev,
+                          vendorName: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Notas (opcional)</Label>
+                    <Textarea
+                      rows={2}
+                      placeholder="Observaciones del concepto..."
+                      value={draftExpense.notes || ""}
+                      onChange={(event) =>
+                        setDraftExpense((prev) => ({
+                          ...prev,
+                          notes: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {activeTab === "cost" && selectedCategory === "fuel" && totalDistanceKm > 0 && expectedFuelEfficiency ? (
+                  <Card className="border-blue-200 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">
+                        Estimación de Diesel
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Distancia total</p>
+                          <p className="font-medium">{totalDistanceKm.toFixed(1)} km</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Rendimiento</p>
+                          <p className="font-medium">{expectedFuelEfficiency} km/L</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Consumo estimado</p>
+                          <p className="font-medium">{dieselSuggestion?.liters ?? "—"} L</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="space-y-1 w-44">
+                          <Label className="text-xs">Precio diesel (MXN/L)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="h-8 text-sm"
+                            value={dieselPricePerLiter}
+                            onChange={(event) =>
+                              setDieselPricePerLiter(
+                                event.target.value
+                                  ? Number(event.target.value)
+                                  : DEFAULT_DIESEL_PRICE,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground mb-1">Costo estimado</p>
+                          <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                            {dieselSuggestion ? formatMxCurrency(dieselSuggestion.cost) : "—"}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={applyDieselSuggestion}
+                          disabled={!dieselSuggestion}
+                        >
+                          <Fuel className="mr-1 h-3.5 w-3.5" />
+                          Usar estimación
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {editingIndex !== null ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => resetDraft(activeTab)}
+                    >
+                      Cancelar edición
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    className="min-w-44"
+                    onClick={handleSaveExpense}
+                    disabled={!isDraftValid}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    {editingIndex !== null ? "Guardar concepto" : "Agregar concepto"}
+                  </Button>
+                </div>
+
+                {activeExpenseList.length === 0 ? (
+                  <EmptyState
+                    icon={<Receipt />}
+                    size="sm"
+                    title={`Sin ${activeTab === "cost" ? "costos" : "gastos"} registrados`}
+                    description="Completa el formulario para agregar el primer concepto."
+                  />
+                ) : (
+                  <div className="divide-y rounded-lg border px-4">
+                    {activeExpenseList.map((expense) => {
+                      const category = CATEGORY_MAP.get(expense.category);
+                      const index = fields.findIndex((item) => item.id === expense.id);
+                      return (
+                        <div
+                          key={expense.id}
+                          className="flex items-center gap-3 py-3"
+                        >
+                          <div className="rounded-lg bg-muted p-2 shrink-0">
+                            {category ? (
+                              <category.icon className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Receipt className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{expense.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {category?.label || "Sin categoría"}
+                              {expense.vendorName ? ` · ${expense.vendorName}` : ""}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold whitespace-nowrap">
+                            -{formatMxCurrency(expense.amount)}
+                          </span>
+                          <div className="flex gap-1 shrink-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleEdit(index)}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => remove(index)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Cómo funciona</p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>Define el ingreso del viaje en la pestaña Ingreso.</li>
+                <li>Registra costos operativos directos en la pestaña Costo.</li>
+                <li>Registra gastos indirectos en la pestaña Gasto.</li>
+                <li>Revisa utilidad y margen en tiempo real en el panel derecho.</li>
+              </ol>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* GASTOS ESTIMADOS */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Receipt className="h-5 w-5" /> Gastos Estimados
-              </CardTitle>
-              {fields.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {fields.length} gasto{fields.length !== 1 ? "s" : ""} •{" "}
-                  {formatCurrency(totalExpenses)} total
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Acceso rápido */}
-          <div className="flex flex-wrap gap-2 pt-2">
-            {QUICK_ADD_PRESETS.map((preset) => (
-              <Button
-                key={preset.category}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() =>
-                  openAddDialog({
-                    category: preset.category,
-                    defaultDescription: preset.defaultDescription,
-                  })
-                }
-              >
-                <preset.icon className="h-3.5 w-3.5 mr-1" />
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {fields.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground border border-dashed rounded-lg">
-              <Receipt className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Sin gastos registrados</p>
-              <p className="text-xs mt-1">
-                Usa los accesos rápidos o agrega un gasto personalizado
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {fields.map((expense, index) => {
-                const categoryInfo = getCategoryInfo(expense.category);
-                const CategoryIcon = categoryInfo.icon;
-                return (
-                  <div
-                    key={expense.id || index}
-                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                  >
-                    <div className="p-2 rounded-lg bg-muted shrink-0">
-                      <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">
-                          {expense.description}
-                        </p>
-                        {expense.isEstimated && (
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
-                            Estimado
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                        <span>{categoryInfo.label}</span>
-                        {expense.vendorName && (
-                          <>
-                            <span>·</span>
-                            <span className="truncate">{expense.vendorName}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <span className="font-semibold text-sm whitespace-nowrap">
-                      {formatCurrency(expense.amount, expense.currency)}
-                    </span>
-
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => openEditDialog(index)}
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => remove(index)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Total */}
-              <div className="flex items-center justify-between pt-3">
-                <span className="text-sm font-medium">Total Gastos</span>
-                <span className="font-bold text-destructive">
-                  {formatCurrency(totalExpenses)}
+        <Card className="xl:sticky xl:top-4 h-fit">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Resumen financiero estimado
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <div className="border-b border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-900 dark:text-emerald-400">
+                INGRESOS (1)
+              </div>
+              <div className="px-3 py-2 text-sm flex items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium">Flete</p>
+                  <p className="text-xs text-muted-foreground">Tarifa base</p>
+                </div>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  +{formatMxCurrency(financial.baseRate)}
                 </span>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* DIALOG: Agregar / Editar Gasto */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-120">
-          <DialogHeader>
-            <DialogTitle>
-              {editingIndex !== null ? "Editar Gasto" : "Agregar Gasto"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Categoría */}
-            <div className="space-y-2">
-              <Label>
-                Categoría <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={newExpense.category ?? "other"}
-                onValueChange={(value) =>
-                  setNewExpense((prev) => ({
-                    ...prev,
-                    category: value as TripExpenseFormValues["category"],
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      <div className="flex items-center gap-2">
-                        <cat.icon className="h-4 w-4" />
-                        {cat.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Descripción */}
-            <div className="space-y-2">
-              <Label>
-                Descripción <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                placeholder="Ej: Carga de diesel en Pemex km 45..."
-                value={newExpense.description || ""}
-                onChange={(e) =>
-                  setNewExpense((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            {/* Monto + Moneda */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-2">
-                <Label>
-                  Monto <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  value={newExpense.amount ?? ""}
-                  onChange={(e) =>
-                    setNewExpense((prev) => ({
-                      ...prev,
-                      amount: e.target.value ? Number(e.target.value) : undefined,
-                    }))
-                  }
-                />
+            <div className="rounded-md border border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20">
+              <div className="border-b border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:text-blue-400">
+                COSTOS OPERATIVOS ({operationalCosts.length})
               </div>
-              <div className="space-y-2">
-                <Label>Moneda</Label>
-                <Select
-                  value={newExpense.currency || "MXN"}
-                  onValueChange={(value) =>
-                    setNewExpense((prev) => ({ ...prev, currency: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MXN">MXN</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2 px-3 py-2">
+                {operationalCosts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin conceptos</p>
+                ) : (
+                  operationalCosts.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
+                      <p className="truncate">{item.description}</p>
+                      <span className="font-semibold text-blue-700 dark:text-blue-400">
+                        -{formatMxCurrency(item.amount)}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Proveedor */}
-            <div className="space-y-2">
-              <Label>Proveedor (opcional)</Label>
-              <Input
-                placeholder="Nombre o razón social"
-                value={newExpense.vendorName || ""}
-                onChange={(e) =>
-                  setNewExpense((prev) => ({
-                    ...prev,
-                    vendorName: e.target.value,
-                  }))
-                }
-              />
+            <div className="rounded-md border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20">
+              <div className="border-b border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:text-amber-400">
+                GASTOS ({indirectExpenses.length})
+              </div>
+              <div className="space-y-2 px-3 py-2">
+                {indirectExpenses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin conceptos</p>
+                ) : (
+                  indirectExpenses.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
+                      <p className="truncate">{item.description}</p>
+                      <span className="font-semibold text-amber-700 dark:text-amber-400">
+                        -{formatMxCurrency(item.amount)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
-            {/* Notas */}
-            <div className="space-y-2">
-              <Label>Notas (opcional)</Label>
-              <Textarea
-                placeholder="Observaciones adicionales..."
-                value={newExpense.notes || ""}
-                onChange={(e) =>
-                  setNewExpense((prev) => ({ ...prev, notes: e.target.value }))
-                }
-                rows={2}
-              />
-            </div>
+            <Separator />
+            <InfoRow
+              variant="inline"
+              label="Ingresos"
+              value={formatMxCurrency(financial.baseRate)}
+            />
+            <InfoRow
+              variant="inline"
+              label="Costos"
+              value={`-${formatMxCurrency(financial.totalOperationalCosts)}`}
+            />
+            <InfoRow
+              variant="inline"
+              label="Gastos"
+              value={`-${formatMxCurrency(financial.totalIndirectExpenses)}`}
+            />
+            <Separator />
+            <InfoRow
+              variant="inline"
+              label="Utilidad"
+              value={
+                <span className={cn("font-semibold", marginToneClass)}>
+                  {formatMxCurrency(financial.margin)}
+                </span>
+              }
+            />
+            <InfoRow
+              variant="inline"
+              label="Margen"
+              value={
+                financial.marginPct === null
+                  ? "—"
+                  : `${financial.marginPct.toFixed(1)}%`
+              }
+            />
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Es estimado */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isEstimated"
-                checked={newExpense.isEstimated ?? true}
-                onCheckedChange={(checked) =>
-                  setNewExpense((prev) => ({ ...prev, isEstimated: !!checked }))
-                }
-              />
-              <Label
-                htmlFor="isEstimated"
-                className="text-sm font-normal cursor-pointer"
-              >
-                Es un gasto estimado (aún no se ha efectuado)
-              </Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleSave} disabled={!isValid}>
-              {editingIndex !== null ? "Guardar Cambios" : "Agregar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {financial.health === "critical" ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-4 w-4" />}
+          title="Rentabilidad estimada comprometida"
+          items={[
+            {
+              text: "El margen está por debajo del 10%. Revisa tarifa o conceptos antes de continuar.",
+            },
+          ]}
+        />
+      ) : null}
     </div>
   );
 }

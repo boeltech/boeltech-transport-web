@@ -310,7 +310,6 @@ export function StopFormDialog({
   const [useClientAddressPrefill, setUseClientAddressPrefill] = useState(false);
   /** Con precarga desde cliente: formulario de dirección colapsado por defecto; el usuario puede expandirlo. */
   const [addressDetailsOpen, setAddressDetailsOpen] = useState(false);
-  const prevClientPrefillRef = useRef(false);
   const hasInitializedFiscalModeRef = useRef(false);
   const wasDialogOpenRef = useRef(false);
   const lastSyncedCatalogIdRef = useRef<string | null>(null);
@@ -567,6 +566,7 @@ export function StopFormDialog({
       setUseClientAddressPrefill(checked);
 
       if (checked) {
+        setAddressDetailsOpen(false);
         return;
       }
 
@@ -594,6 +594,24 @@ export function StopFormDialog({
     [getValues, setValue],
   );
 
+  const resetDialogUiState = useCallback(() => {
+    setAttemptedSubmitValidation(false);
+    setAddressDetailsOpen(false);
+  }, []);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetDialogUiState();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetDialogUiState],
+  );
+
+  const closeDialog = useCallback(() => {
+    resetDialogUiState();
+    onOpenChange(false);
+  }, [onOpenChange, resetDialogUiState]);
+
   const submitDialog = handleSubmit((values) => {
     onSubmit(
       mergeDialogWithClientCatalog(
@@ -603,7 +621,7 @@ export function StopFormDialog({
         clientFiscalFallback,
       ),
     );
-    onOpenChange(false);
+    closeDialog();
   });
 
   const getAvailableOperations = () => {
@@ -665,30 +683,30 @@ export function StopFormDialog({
     [missingRequiredFields],
   );
 
+  const validationActive =
+    attemptedSubmitValidation && missingRequiredFields.length > 0;
+
   const handlePrimaryFooterAction = useCallback(() => {
     const missing = getMissingRequiredFields();
     if (missing.length > 0) {
       setAttemptedSubmitValidation(true);
+      const keys = missingMessagesToHighlightKeys(missing);
+      if (
+        useClientAddressPrefill &&
+        (keys.has("addressSat") ||
+          keys.has("geolocation") ||
+          keys.has("distance"))
+      ) {
+        setAddressDetailsOpen(true);
+      }
       return;
     }
     setAttemptedSubmitValidation(false);
     void submitDialog();
-  }, [getMissingRequiredFields, submitDialog]);
+  }, [getMissingRequiredFields, submitDialog, useClientAddressPrefill]);
 
   useEffect(() => {
-    if (!open) {
-      setAttemptedSubmitValidation(false);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (missingRequiredFields.length === 0) {
-      setAttemptedSubmitValidation(false);
-    }
-  }, [missingRequiredFields.length]);
-
-  useEffect(() => {
-    if (!attemptedSubmitValidation || missingRequiredFields.length === 0) return;
+    if (!validationActive) return;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         scrollToFirstHighlightedSection(
@@ -699,31 +717,7 @@ export function StopFormDialog({
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [attemptedSubmitValidation, missingRequiredFields, highlightKeys, sectionRefs]);
-
-  useEffect(() => {
-    if (!open) {
-      setAddressDetailsOpen(false);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (useClientAddressPrefill && !prevClientPrefillRef.current) {
-      setAddressDetailsOpen(false);
-    }
-    prevClientPrefillRef.current = useClientAddressPrefill;
-  }, [useClientAddressPrefill]);
-
-  useEffect(() => {
-    if (!useClientAddressPrefill || !attemptedSubmitValidation) return;
-    if (
-      highlightKeys.has("addressSat") ||
-      highlightKeys.has("geolocation") ||
-      highlightKeys.has("distance")
-    ) {
-      setAddressDetailsOpen(true);
-    }
-  }, [useClientAddressPrefill, attemptedSubmitValidation, highlightKeys]);
+  }, [validationActive, missingRequiredFields, highlightKeys, sectionRefs]);
 
   const showWaypointArrivalWarning =
     displayStop.stopCategory === "waypoint" && !displayStop.estimatedArrival;
@@ -797,13 +791,13 @@ export function StopFormDialog({
   const addressInputMode = stopHasUnifiedAddressId({ addressId }) ? "cfdi" : "carta-porte";
 
   const addressSatHighlightClass = sectionHighlightClass(
-    attemptedSubmitValidation,
+    validationActive,
     highlightKeys,
     "addressSat",
   );
   const geoDistanceHighlightClass = cn(
-    sectionHighlightClass(attemptedSubmitValidation, highlightKeys, "geolocation"),
-    sectionHighlightClass(attemptedSubmitValidation, highlightKeys, "distance"),
+    sectionHighlightClass(validationActive, highlightKeys, "geolocation"),
+    sectionHighlightClass(validationActive, highlightKeys, "distance"),
   );
 
   const entityAddressForm = (
@@ -936,7 +930,7 @@ export function StopFormDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-8">
@@ -957,7 +951,7 @@ export function StopFormDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-8">
-          {attemptedSubmitValidation && missingRequiredFields.length > 0 ? (
+          {validationActive ? (
             <Alert ref={validationAlertRef} variant="destructive" aria-live="polite">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
@@ -992,7 +986,7 @@ export function StopFormDialog({
               displayStop.stopCategory === "destination" &&
                 "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
               sectionHighlightClass(
-                attemptedSubmitValidation,
+                validationActive,
                 highlightKeys,
                 "stopCategory",
               ),
@@ -1044,7 +1038,7 @@ export function StopFormDialog({
               className={cn(
                 "space-y-3",
                 sectionHighlightClass(
-                  attemptedSubmitValidation,
+                  validationActive,
                   highlightKeys,
                   "waypointOperations",
                 ),
@@ -1617,7 +1611,7 @@ export function StopFormDialog({
                 className={cn(
                   "space-y-3 border-t border-border/60 pt-5",
                   sectionHighlightClass(
-                    attemptedSubmitValidation,
+                    validationActive,
                     highlightKeys,
                     "estimatedArrival",
                   ),
@@ -1685,7 +1679,7 @@ export function StopFormDialog({
         </div>
 
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => closeDialog()}>
               Cancelar
             </Button>
             <Button type="button" onClick={() => handlePrimaryFooterAction()}>

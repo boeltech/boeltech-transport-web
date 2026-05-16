@@ -103,8 +103,8 @@ export const tripStopSchema = z
   satLocalityCode: z.string().optional(),
 
   /**
-   * Nombre del municipio (texto del catálogo SAT)
-   * Se usa como `city` en los campos legacy del viaje
+   * Nombre del municipio (texto del catálogo SAT).
+   * Alimenta `originCity` / `destinationCity` del viaje y `city` en la parada.
    */
   cityName: z.string().max(200).optional(),
 
@@ -564,7 +564,7 @@ export const tripExpenseSchema = z.object({
   // Descripción y monto
   description: z.string().min(1, "Descripción requerida"),
   amount: z.coerce.number().min(0, "El monto no puede ser negativo"),
-  currency: z.string().default("MXN"),
+  currency: z.literal("MXN").default("MXN"),
 
   // Proveedor (opcional, para referencia operativa)
   vendorName: z.string().optional(),

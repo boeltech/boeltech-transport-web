@@ -38,6 +38,12 @@ import type { TripWizardFormValues } from "./validation";
 import type { DriverListItem } from "@features/drivers";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import {
+  computeFinancialSummary,
+  formatMxCurrency,
+  INDIRECT_EXPENSE_CATEGORIES,
+  OPERATIONAL_COST_CATEGORIES,
+} from "./financialSummary";
 
 interface SummaryStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,14 +81,6 @@ export function SummaryStep({
     return client?.legalName || "Cliente no encontrado";
   };
 
-  const formatCurrency = (amount: number | undefined, currency = "MXN") => {
-    if (amount === undefined) return "$0.00";
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-    }).format(amount);
-  };
-
   const getStopLabel = (stopType: string[]): { primary: string; operation: string } => {
     if (stopType.includes("origin")) return { primary: "Origen", operation: "Carga" };
     if (stopType.includes("destination")) return { primary: "Destino", operation: "Descarga" };
@@ -103,9 +101,27 @@ export function SummaryStep({
   // ── Financial calculations ──────────────────────────────────────────────────
 
   const baseRate = values.baseRate || 0;
-  const totalExpenses = values.expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
-  const margin = baseRate - totalExpenses;
-  const marginPct = baseRate > 0 ? (margin / baseRate) * 100 : null;
+  const totalOperationalCosts =
+    values.expenses?.reduce(
+      (sum, expense) =>
+        OPERATIONAL_COST_CATEGORIES.includes(expense.category)
+          ? sum + (expense.amount || 0)
+          : sum,
+      0,
+    ) || 0;
+  const totalIndirectExpenses =
+    values.expenses?.reduce(
+      (sum, expense) =>
+        INDIRECT_EXPENSE_CATEGORIES.includes(expense.category)
+          ? sum + (expense.amount || 0)
+          : sum,
+      0,
+    ) || 0;
+  const totalExpenses = totalOperationalCosts + totalIndirectExpenses;
+  const financial = computeFinancialSummary(baseRate, totalExpenses, {
+    totalOperationalCosts,
+    totalIndirectExpenses,
+  });
 
   // ── Cargo aggregates ────────────────────────────────────────────────────────
 
@@ -402,7 +418,7 @@ export function SummaryStep({
                   >
                     <p className="text-sm truncate flex-1">{expense.description}</p>
                     <span className="font-medium text-destructive shrink-0 ml-2">
-                      {formatCurrency(expense.amount, expense.currency)}
+                      {formatMxCurrency(expense.amount)}
                     </span>
                   </div>
                 ))}
@@ -414,7 +430,7 @@ export function SummaryStep({
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between font-medium">
                   <span>Total Gastos:</span>
-                  <span className="text-destructive">{formatCurrency(totalExpenses)}</span>
+                  <span className="text-destructive">{formatMxCurrency(totalExpenses)}</span>
                 </div>
               </div>
             )}
@@ -422,56 +438,70 @@ export function SummaryStep({
         </Card>
       </div>
 
-      {/* Carta porte: vehículo/conductor ya bastan para completar el complemento al timbrar */}
-      <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-3 flex items-start gap-3 text-sm">
-        <FileCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-        <p className="text-muted-foreground">
-          No necesita configurar a mano la carta porte en este asistente: el <strong className="text-foreground">vehículo</strong> y el{" "}
-          <strong className="text-foreground">conductor</strong> elegidos aquí se usarán para completar el complemento al
-          timbrar el comprobante.
-        </p>
-      </div>
-
       {/* Rentabilidad Estimada */}
-      <Card className={margin >= 0 ? "border-green-500/50" : "border-red-500/50"}>
-        <CardHeader className={margin >= 0 ? "bg-green-500/5" : "bg-red-500/5"}>
+      <Card
+        className={
+          financial.margin >= 0 ? "border-green-500/50" : "border-red-500/50"
+        }
+      >
+        <CardHeader
+          className={
+            financial.margin >= 0 ? "bg-green-500/5" : "bg-red-500/5"
+          }
+        >
           <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5" /> Rentabilidad Estimada
+            <DollarSign className="h-5 w-5" /> Resumen financiero estimado
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="text-center p-4 rounded-lg bg-muted/50">
               <p className="text-xs text-muted-foreground mb-1">Tarifa Base</p>
-              <p className="text-lg font-semibold">{formatCurrency(baseRate)}</p>
+              <p className="text-lg font-semibold">
+                {formatMxCurrency(financial.baseRate)}
+              </p>
             </div>
             <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Gastos Estimados</p>
-              <p className="text-lg font-semibold text-destructive">{formatCurrency(totalExpenses)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Costos + Gastos</p>
+              <p className="text-lg font-semibold text-destructive">
+                {formatMxCurrency(financial.totalExpenses)}
+              </p>
             </div>
             <div
               className={`text-center p-4 rounded-lg ${
-                margin >= 0
+                financial.margin >= 0
                   ? "bg-green-100 dark:bg-green-900/30"
                   : "bg-red-100 dark:bg-red-900/30"
               }`}
             >
               <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                {margin >= 0 ? (
+                {financial.margin >= 0 ? (
                   <TrendingUp className="h-3 w-3 text-green-600" />
                 ) : (
                   <TrendingDown className="h-3 w-3 text-red-600" />
                 )}
-                Utilidad Estimada
+                Margen Estimado
               </p>
-              <p className={`text-xl font-bold ${margin >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {formatCurrency(margin)}
+              <p
+                className={`text-xl font-bold ${financial.margin >= 0 ? "text-green-600" : "text-red-600"}`}
+              >
+                {formatMxCurrency(financial.margin)}
               </p>
-              {marginPct !== null && (
+              {financial.marginPct !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Margen: {marginPct.toFixed(1)}%
+                  Margen: {financial.marginPct.toFixed(1)}%
                 </p>
               )}
+            </div>
+          </div>
+          <div className="mt-4 space-y-1 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between">
+              <span>Costos operativos</span>
+              <span>-{formatMxCurrency(financial.totalOperationalCosts)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Gastos indirectos</span>
+              <span>-{formatMxCurrency(financial.totalIndirectExpenses)}</span>
             </div>
           </div>
         </CardContent>

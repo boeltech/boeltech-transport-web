@@ -427,55 +427,57 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     const previousStop =
       index > 0 ? form.getValues(`stops.${index - 1}`) : undefined;
 
-      // Extraer operaciones (sin la categoría)
-      const operations = stop.stopType.filter(
-        (t) =>
-          t !== StopType.ORIGIN &&
-          t !== StopType.DESTINATION &&
-          t !== StopType.WAYPOINT,
-      );
+    // Extraer operaciones (sin la categoría)
+    const operations = stop.stopType.filter(
+      (t) =>
+        t !== StopType.ORIGIN &&
+        t !== StopType.DESTINATION &&
+        t !== StopType.WAYPOINT,
+    );
 
-      setDialogInitialData({
-        stopCategory: category,
-        stopType: operations as TripStopFormValues["stopType"],
-        clientId: stop.clientId,
-        clientAddressId: stop.clientAddressId,
-        addressId: stop.addressId,
-        locationName: stop.locationName,
-        // Campos Carta Porte
-        satCountryCode: stop.satCountryCode,
-        satStateCode: stop.satStateCode,
-        satMunicipalityCode: stop.satMunicipalityCode,
-        postalCode: stop.postalCode,
-        satLocalityCode: stop.satLocalityCode,
-        satNeighborhoodCode: stop.satNeighborhoodCode,
-        street: stop.street,
-        exteriorNumber: stop.exteriorNumber,
-        interiorNumber: stop.interiorNumber,
-        reference: stop.reference,
-        rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario,
-        nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario,
-        deliveryRfcRemitenteDestinatario: stop.deliveryRfcRemitenteDestinatario,
-        deliveryNombreRemitenteDestinatario: stop.deliveryNombreRemitenteDestinatario,
-        remitentePartnerId: stop.remitentePartnerId,
-        destinatarioPartnerId: stop.destinatarioPartnerId,
-        contactName: stop.contactName,
-        contactPhone: stop.contactPhone,
-        notes: stop.notes,
-        estimatedArrival: stop.estimatedArrival,
-        distanceFromPreviousKm: stop.distanceFromPreviousKm,
-        distanceSource: stop.distanceSource,
-        distanceProvider: stop.distanceProvider,
-        distanceConfidence: stop.distanceConfidence,
-        distanceComputedAt: stop.distanceComputedAt,
-        latitude: stop.latitude,
-        longitude: stop.longitude,
-        previousStopLatitude: previousStop?.latitude,
-        previousStopLongitude: previousStop?.longitude,
-        previousStopLabel:
-          previousStop?.locationName ||
-          (index > 0 ? `Parada #${index}` : undefined),
-      });
+    setDialogInitialData({
+      stopCategory: category,
+      stopType: operations as TripStopFormValues["stopType"],
+      clientId: stop.clientId,
+      clientAddressId: stop.clientAddressId,
+      addressId: stop.addressId,
+      locationName: stop.locationName,
+      // Campos Carta Porte
+      satCountryCode: stop.satCountryCode,
+      satStateCode: stop.satStateCode,
+      satMunicipalityCode: stop.satMunicipalityCode,
+      postalCode: stop.postalCode,
+      satLocalityCode: stop.satLocalityCode,
+      cityName: stop.cityName,
+      satNeighborhoodCode: stop.satNeighborhoodCode,
+      neighborhoodName: stop.neighborhoodName,
+      street: stop.street,
+      exteriorNumber: stop.exteriorNumber,
+      interiorNumber: stop.interiorNumber,
+      reference: stop.reference,
+      rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario,
+      nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario,
+      deliveryRfcRemitenteDestinatario: stop.deliveryRfcRemitenteDestinatario,
+      deliveryNombreRemitenteDestinatario: stop.deliveryNombreRemitenteDestinatario,
+      remitentePartnerId: stop.remitentePartnerId,
+      destinatarioPartnerId: stop.destinatarioPartnerId,
+      contactName: stop.contactName,
+      contactPhone: stop.contactPhone,
+      notes: stop.notes,
+      estimatedArrival: stop.estimatedArrival,
+      distanceFromPreviousKm: stop.distanceFromPreviousKm,
+      distanceSource: stop.distanceSource,
+      distanceProvider: stop.distanceProvider,
+      distanceConfidence: stop.distanceConfidence,
+      distanceComputedAt: stop.distanceComputedAt,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      previousStopLatitude: previousStop?.latitude,
+      previousStopLongitude: previousStop?.longitude,
+      previousStopLabel:
+        previousStop?.locationName ||
+        (index > 0 ? `Parada #${index}` : undefined),
+    });
     setEditingStopIndex(index);
     setIsDialogOpen(true);
   };
@@ -501,82 +503,84 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
     const wasNewStop = editingStopIndex === null;
 
-      const previousStop =
-        editingStopIndex !== null
-          ? form.getValues(`stops.${editingStopIndex}`)
-          : undefined;
+    /** Parada ya en el wizard (solo existe en modo edición). */
+    const existingStop =
+      editingStopIndex !== null
+        ? form.getValues(`stops.${editingStopIndex}`)
+        : undefined;
 
-      // Construir stopTypes incluyendo la categoría
-      const stopTypes: TripStopFormValues["stopType"] = [
-        data.stopCategory as StopTypeValue,
-        ...data.stopType.filter((t) => t !== data.stopCategory),
-      ];
+    // Construir stopTypes incluyendo la categoría
+    const stopTypes: TripStopFormValues["stopType"] = [
+      data.stopCategory as StopTypeValue,
+      ...data.stopType.filter((t) => t !== data.stopCategory),
+    ];
 
-      const stopData: TripStopFormValues = {
-        ...(previousStop?.id ? { id: previousStop.id } : {}),
-        sequenceOrder: editingStopIndex ?? 999, // Se recalculará si es nuevo
-        stopType: stopTypes,
-        clientId: data.clientId || undefined,
-        clientAddressId: data.clientAddressId || undefined,
-        addressId: data.addressId?.trim() || "",
-        locationName: data.locationName,
-        // Campos Carta Porte (unificados - sin campos legacy)
-        satCountryCode: data.satCountryCode || "MEX",
-        satStateCode: data.satStateCode || "",
-        satMunicipalityCode: data.satMunicipalityCode || "",
-        postalCode: data.postalCode || "",
-        satLocalityCode: data.satLocalityCode,
-        cityName: data.cityName,
-        satNeighborhoodCode: data.satNeighborhoodCode,
-        neighborhoodName: data.neighborhoodName,
-        street: data.street,
-        exteriorNumber: data.exteriorNumber,
-        interiorNumber: data.interiorNumber,
-        reference: data.reference,
-        rfcRemitenteDestinatario: data.rfcRemitenteDestinatario,
-        nombreRemitenteDestinatario: data.nombreRemitenteDestinatario,
-        deliveryRfcRemitenteDestinatario: data.deliveryRfcRemitenteDestinatario,
-        deliveryNombreRemitenteDestinatario: data.deliveryNombreRemitenteDestinatario,
-        remitentePartnerId: data.remitentePartnerId,
-        destinatarioPartnerId: data.destinatarioPartnerId,
-        contactName: data.contactName,
-        contactPhone: data.contactPhone,
-        notes: data.notes,
-        estimatedArrival: data.estimatedArrival,
-        distanceFromPreviousKm: data.distanceFromPreviousKm,
-        distanceSource: data.distanceSource,
-        distanceProvider: data.distanceProvider,
-        distanceConfidence: data.distanceConfidence,
-        distanceComputedAt: data.distanceComputedAt,
-        latitude: data.latitude,
-        longitude: data.longitude,
-      };
+    const stopData: TripStopFormValues = {
+      ...(existingStop?.id ? { id: existingStop.id } : {}),
+      // En edición conservar `sequenceOrder` persistido; en alta temporal 999 hasta `reorderStopsArray`.
+      sequenceOrder: existingStop?.sequenceOrder ?? editingStopIndex ?? 999,
+      stopType: stopTypes,
+      clientId: data.clientId || undefined,
+      clientAddressId: data.clientAddressId || undefined,
+      addressId: data.addressId?.trim() || "",
+      locationName: data.locationName,
+      // Campos Carta Porte (unificados - sin campos legacy)
+      satCountryCode: data.satCountryCode || "MEX",
+      satStateCode: data.satStateCode || "",
+      satMunicipalityCode: data.satMunicipalityCode || "",
+      postalCode: data.postalCode || "",
+      satLocalityCode: data.satLocalityCode,
+      cityName: data.cityName,
+      satNeighborhoodCode: data.satNeighborhoodCode,
+      neighborhoodName: data.neighborhoodName,
+      street: data.street,
+      exteriorNumber: data.exteriorNumber,
+      interiorNumber: data.interiorNumber,
+      reference: data.reference,
+      rfcRemitenteDestinatario: data.rfcRemitenteDestinatario,
+      nombreRemitenteDestinatario: data.nombreRemitenteDestinatario,
+      deliveryRfcRemitenteDestinatario: data.deliveryRfcRemitenteDestinatario,
+      deliveryNombreRemitenteDestinatario: data.deliveryNombreRemitenteDestinatario,
+      remitentePartnerId: data.remitentePartnerId,
+      destinatarioPartnerId: data.destinatarioPartnerId,
+      contactName: data.contactName,
+      contactPhone: data.contactPhone,
+      notes: data.notes,
+      estimatedArrival: data.estimatedArrival,
+      distanceFromPreviousKm: data.distanceFromPreviousKm,
+      distanceSource: data.distanceSource,
+      distanceProvider: data.distanceProvider,
+      distanceConfidence: data.distanceConfidence,
+      distanceComputedAt: data.distanceComputedAt,
+      latitude: data.latitude,
+      longitude: data.longitude,
+    };
 
-      if (editingStopIndex !== null) {
-        // Modo edición: actualizar parada existente
-        form.setValue(`stops.${editingStopIndex}`, stopData, {
-          shouldValidate: false,
-          shouldDirty: true,
-        });
-      } else {
-        // Modo creación: agregar nueva parada
-        const currentStops = form.getValues("stops") || [];
-        form.setValue("stops", [...currentStops, stopData]);
-      }
-
-      // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
-      if (data.stopCategory === "destination") {
-        form.setValue("scheduledArrival", stopData.estimatedArrival ?? "", {
-          shouldDirty: true,
-        });
-      }
-
-      requestAnimationFrame(() => {
-        if (wasNewStop) {
-          reorderStopsArray();
-        }
-        void syncRouteDistancesFromApi(false);
+    if (editingStopIndex !== null) {
+      // Modo edición: actualizar parada existente
+      form.setValue(`stops.${editingStopIndex}`, stopData, {
+        shouldValidate: false,
+        shouldDirty: true,
       });
+    } else {
+      // Modo creación: agregar nueva parada
+      const currentStops = form.getValues("stops") || [];
+      form.setValue("stops", [...currentStops, stopData]);
+    }
+
+    // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
+    if (data.stopCategory === "destination") {
+      form.setValue("scheduledArrival", stopData.estimatedArrival ?? "", {
+        shouldDirty: true,
+      });
+    }
+
+    requestAnimationFrame(() => {
+      if (wasNewStop) {
+        reorderStopsArray();
+      }
+      void syncRouteDistancesFromApi(false);
+    });
 
     setIsDialogOpen(false);
     setEditingStopIndex(null);

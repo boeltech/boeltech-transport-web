@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildLegacyAddress, mapWizardStopsToCreateInput } from "./wizardStopPayload";
+import { buildTripEndpointSummary, mapWizardStopsToCreateInput } from "./wizardStopPayload";
 import type { WizardStopRow } from "./wizardStopPayload";
 
 function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
@@ -37,10 +37,10 @@ function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
   };
 }
 
-describe("buildLegacyAddress", () => {
+describe("buildTripEndpointSummary", () => {
   it("uses catalog label when addressId is unified UUID", () => {
     const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
-    const r = buildLegacyAddress(
+    const r = buildTripEndpointSummary(
       baseStop({
         addressId: id,
         locationName: "CEDIS Norte",
@@ -53,7 +53,7 @@ describe("buildLegacyAddress", () => {
   });
 
   it("builds street line when manual", () => {
-    const r = buildLegacyAddress(
+    const r = buildTripEndpointSummary(
       baseStop({
         street: "Av. Siempre Viva",
         exteriorNumber: "742",

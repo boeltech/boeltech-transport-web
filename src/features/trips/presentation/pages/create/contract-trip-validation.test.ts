@@ -2,11 +2,28 @@
  * WS-G2 — Contrato: mismo payload cliente (camelCase → snake_case) misma decisión que Zod del paquete.
  */
 import { describe, expect, it } from "vitest";
-import { createTripSchema } from "@boeltech/cfdi-domain/validadores/trips";
+import {
+  createTripSchema,
+  finishTripSchema,
+  tripQuerySchema,
+  updateTripSchema,
+  updateTripStatusSchema,
+} from "@boeltech/cfdi-domain/validadores/trips";
 import { deepToCamel, deepToSnake } from "@shared/api/utils/case-transformer";
 
-import type { CreateTripInput } from "@features/trips/domain";
-import { validateCreateTripApiPayload } from "./validateTripApiPayload";
+import type {
+  CreateTripInput,
+  FinishTripInput,
+  UpdateTripInput,
+  UpdateTripStatusInput,
+} from "@features/trips/domain";
+import {
+  validateCreateTripApiPayload,
+  validateFinishTripApiPayload,
+  validateTripQueryApiPayload,
+  validateUpdateTripApiPayload,
+  validateUpdateTripStatusApiPayload,
+} from "./validateTripApiPayload";
 
 /** Fixture snake_case alineado con `test/trips-validation.test.ts` del paquete (parse exitoso). */
 const VALID_CREATE_TRIP_SNAKE = {
@@ -62,5 +79,69 @@ describe("Trip API payload contract (create)", () => {
     const direct = createTripSchema.safeParse(deepToSnake({}));
     expect(viaWrapper.ok).toBe(direct.success);
     expect(viaWrapper.ok).toBe(false);
+  });
+});
+
+describe("Trip API payload contract (update/status/finish/query)", () => {
+  it("validateUpdateTripApiPayload matches updateTripSchema.safeParse", () => {
+    const updateInput: UpdateTripInput = {
+      originCity: "Guadalajara",
+      destinationCity: "Monterrey",
+      stops: [
+        {
+          sequenceOrder: 0,
+          stopType: "origin",
+          address: "Av. Vallarta 123",
+          city: "Guadalajara",
+          postalCode: "44100",
+          satStateCode: "JAL",
+          satMunicipalityCode: "039",
+        },
+      ],
+    };
+    const wrapper = validateUpdateTripApiPayload(updateInput);
+    const direct = updateTripSchema.safeParse(deepToSnake(updateInput));
+    expect(wrapper.ok).toBe(direct.success);
+  });
+
+  it("validateUpdateTripStatusApiPayload matches updateTripStatusSchema.safeParse", () => {
+    const statusInput: UpdateTripStatusInput = {
+      status: "in_progress",
+      mileage: 1200,
+    };
+    const wrapper = validateUpdateTripStatusApiPayload(statusInput);
+    const direct = updateTripStatusSchema.safeParse(deepToSnake(statusInput));
+    expect(wrapper.ok).toBe(direct.success);
+  });
+
+  it("validateFinishTripApiPayload matches finishTripSchema.safeParse", () => {
+    const finishInput: FinishTripInput = {
+      endMileage: 2450,
+      actualArrival: "2026-05-10T18:30:00.000Z",
+      notes: "Fin de viaje",
+    };
+    const wrapper = validateFinishTripApiPayload(finishInput);
+    const direct = finishTripSchema.safeParse(deepToSnake(finishInput));
+    expect(wrapper.ok).toBe(direct.success);
+  });
+
+  it("validateTripQueryApiPayload matches tripQuerySchema.safeParse", () => {
+    const querySnake = {
+      page: 1,
+      limit: 20,
+      status: ["draft", "scheduled"],
+      sort_by: "scheduled_departure",
+      sort_order: "desc",
+    };
+    const wrapper = validateTripQueryApiPayload(querySnake);
+    const direct = tripQuerySchema.safeParse(querySnake);
+    expect(wrapper.ok).toBe(direct.success);
+  });
+
+  it("roundtrip deepToCamel/deepToSnake keeps create payload contract", () => {
+    const camel = deepToCamel(
+      VALID_CREATE_TRIP_SNAKE,
+    ) as unknown as CreateTripInput;
+    expect(createTripSchema.safeParse(deepToSnake(camel)).success).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import {
   stopHasUnifiedAddressId,
   tripStopSchema,
   tripCargoSchema,
+  tripExpenseSchema,
   validateRouteStep,
   type TripStopFormValues,
 } from "./validation";
@@ -323,5 +324,28 @@ describe("tripCargoSchema — sectores regulados", () => {
     expect(paths).toEqual(
       expect.arrayContaining(["sectorCofepris", "loteMedicamento"]),
     );
+  });
+});
+
+describe("tripExpenseSchema — moneda", () => {
+  it("defaults expense currency to MXN", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1200,
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.currency).toBe("MXN");
+  });
+
+  it("rejects non-MXN currencies", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1200,
+      currency: "USD",
+    });
+    expect(result.success).toBe(false);
   });
 });

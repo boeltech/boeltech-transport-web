@@ -95,6 +95,8 @@ const SUPPORT_STAFF_POSITION_FILTER_OPTIONS = [
 type SupportStaffPositionFilterValue =
   (typeof SUPPORT_STAFF_POSITION_FILTER_OPTIONS)[number]["value"];
 
+const EMPTY_INTERNAL_STAFF: TripWizardFormValues["internalStaff"] = [];
+
 function employeePositionMatchesFilter(
   employee: EmployeeListItem,
   filter: SupportStaffPositionFilterValue,
@@ -232,7 +234,14 @@ export function BasicInfoStep({
 }: BasicInfoStepProps) {
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
-  const internalStaffValues = form.watch("internalStaff") ?? [];
+  const watchedInternalStaff = form.watch("internalStaff");
+  const internalStaffValues = useMemo(
+    () =>
+      watchedInternalStaff != null && watchedInternalStaff.length > 0
+        ? watchedInternalStaff
+        : EMPTY_INTERNAL_STAFF,
+    [watchedInternalStaff],
+  );
 
   const internalStaffFieldArray = useFieldArray({
     control: form.control,
@@ -331,15 +340,11 @@ export function BasicInfoStep({
     }
   }, [vehicleDetail, form]);
 
-  useEffect(() => {
-    if (
-      draftEmployeeId &&
-      excludeEmployeeIdsForSupportDraft.has(draftEmployeeId)
-    ) {
-      setDraftEmployeeId("");
-      setAddStaffError(null);
-    }
-  }, [draftEmployeeId, excludeEmployeeIdsForSupportDraft]);
+  const draftEmployeeSelectValue =
+    draftEmployeeId.trim() !== "" &&
+    excludeEmployeeIdsForSupportDraft.has(draftEmployeeId.trim())
+      ? ""
+      : draftEmployeeId;
 
   const employeeNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -367,6 +372,11 @@ export function BasicInfoStep({
     const empId = draftEmployeeId.trim();
     if (!empId) {
       setAddStaffError("Selecciona un empleado.");
+      return;
+    }
+    if (excludeEmployeeIdsForSupportDraft.has(empId)) {
+      setDraftEmployeeId("");
+      setAddStaffError("Este empleado ya no está disponible para apoyo; elige otro.");
       return;
     }
     if (
@@ -401,6 +411,7 @@ export function BasicInfoStep({
     selectedDriverEmployeeId,
     internalStaffFieldArray,
     form,
+    excludeEmployeeIdsForSupportDraft,
   ]);
 
   // ============================================================================
@@ -728,7 +739,7 @@ export function BasicInfoStep({
               <div className="space-y-2">
                 <Label htmlFor="support-staff-employee">Empleado</Label>
                 <Select
-                  value={draftEmployeeId}
+                  value={draftEmployeeSelectValue}
                   onValueChange={(v) => {
                     setAddStaffError(null);
                     setDraftEmployeeId(v);

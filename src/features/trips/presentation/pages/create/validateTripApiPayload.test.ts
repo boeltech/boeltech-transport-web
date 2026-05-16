@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import type { CreateTripInput, UpdateTripInput } from "@features/trips/domain";
+import type {
+  CreateTripInput,
+  FinishTripInput,
+  UpdateTripInput,
+  UpdateTripStatusInput,
+} from "@features/trips/domain";
 
 import {
+  apiValidationPathToFormPath,
+  formatTripApiValidationForUser,
   summarizeTripApiPayloadErrors,
   validateCreateTripApiPayload,
+  validateFinishTripApiPayload,
+  validateTripQueryApiPayload,
   validateUpdateTripApiPayload,
+  validateUpdateTripStatusApiPayload,
 } from "./validateTripApiPayload";
 
 describe("validateCreateTripApiPayload", () => {
@@ -14,9 +24,7 @@ describe("validateCreateTripApiPayload", () => {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
       scheduledDeparture: "2026-05-10T12:00:00.000Z",
-      originAddress: "X",
       originCity: "Guadalajara",
-      destinationAddress: "Y",
       destinationCity: "CDMX",
       stops: [
         {
@@ -45,9 +53,7 @@ describe("validateCreateTripApiPayload", () => {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
       scheduledDeparture: "2026-05-10T12:00:00.000Z",
-      originAddress: "X",
       originCity: "Guadalajara",
-      destinationAddress: "Y",
       destinationCity: "CDMX",
       internalStaff: [
         {
@@ -63,6 +69,21 @@ describe("validateCreateTripApiPayload", () => {
     expect(summarizeTripApiPayloadErrors(result.fieldErrors)).toContain(
       "internal_staff",
     );
+  });
+});
+
+describe("formatTripApiValidationForUser", () => {
+  it("traduce errores típicos de internal_staff y stops.city", () => {
+    const msg = formatTripApiValidationForUser(
+      {
+        "internal_staff.0.internal_role": "Invalid option",
+        "stops.0.city": "Too small",
+      },
+      4,
+    );
+    expect(msg).toContain("personal de apoyo");
+    expect(msg).toContain("ciudad");
+    expect(msg).not.toContain("internal_staff.0");
   });
 });
 
@@ -91,5 +112,47 @@ describe("validateUpdateTripApiPayload", () => {
     };
 
     expect(validateUpdateTripApiPayload(input)).toEqual({ ok: true });
+  });
+});
+
+describe("validateUpdateTripStatusApiPayload", () => {
+  it("acepta status transitions payload válidos", () => {
+    const input: UpdateTripStatusInput = { status: "in_progress" };
+    expect(validateUpdateTripStatusApiPayload(input)).toEqual({ ok: true });
+  });
+});
+
+describe("validateFinishTripApiPayload", () => {
+  it("acepta finish payload válido", () => {
+    const input: FinishTripInput = {
+      endMileage: 5021,
+      actualArrival: "2026-05-10T12:00:00.000Z",
+      notes: "Cierre manual",
+    };
+    expect(validateFinishTripApiPayload(input)).toEqual({ ok: true });
+  });
+});
+
+describe("validateTripQueryApiPayload", () => {
+  it("valida query params en snake_case", () => {
+    expect(
+      validateTripQueryApiPayload({
+        page: 1,
+        limit: 20,
+        status: ["draft", "scheduled"],
+        sort_by: "scheduled_departure",
+        sort_order: "desc",
+      }),
+    ).toEqual({ ok: true });
+  });
+});
+
+describe("apiValidationPathToFormPath", () => {
+  it("convierte paths snake_case/numericos a camelCase", () => {
+    expect(apiValidationPathToFormPath("internal_staff.0.employee_id")).toEqual([
+      "internalStaff",
+      0,
+      "employeeId",
+    ]);
   });
 });

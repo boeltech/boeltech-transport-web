@@ -1,6 +1,7 @@
 /**
- * Construcción de payloads de parada desde el wizard (Fase 4).
- * Extraído de TripFormPage para pruebas y un solo lugar de verdad.
+ * Construcción de payloads de parada desde el wizard.
+ * Tras la migración API 045, `trips` ya no persiste `origin_address` / `destination_address`;
+ * el domicilio vive en `trip_stops` y, si aplica, en `addresses` vía `address_id`.
  */
 
 import type { CreateStopInput } from "@features/trips/domain";
@@ -14,10 +15,10 @@ import { stopHasUnifiedAddressId } from "./components/validation";
 export type WizardStopRow = TripStopFormValues;
 
 /**
- * Dirección legible para campos legacy del viaje (`originAddress`, `destinationAddress`)
- * y para `CreateStopInput.address` / `city` cuando el API aún los exige junto a SAT.
+ * Deriva resumen operativo de extremo y texto de parada para el contrato actual:
+ * `originCity` / `destinationCity` en el viaje y `address` / `city` / `state` en cada stop.
  */
-export function buildLegacyAddress(stop: WizardStopRow): {
+export function buildTripEndpointSummary(stop: WizardStopRow): {
   address: string;
   city: string;
   state: string;
@@ -28,6 +29,7 @@ export function buildLegacyAddress(stop: WizardStopRow): {
       address: label,
       city:
         stop.cityName?.trim() ||
+        stop.locationName?.trim() ||
         stop.satMunicipalityCode?.trim() ||
         stop.satStateCode?.trim() ||
         label,
@@ -56,7 +58,11 @@ export function buildLegacyAddress(stop: WizardStopRow): {
     address:
       addressParts.join(", ") ||
       `Ubicación ${stop.satStateCode}-${stop.satMunicipalityCode}`,
-    city: stop.cityName || stop.satMunicipalityCode || "",
+    city:
+      stop.cityName?.trim() ||
+      stop.locationName?.trim() ||
+      stop.satMunicipalityCode ||
+      "",
     state: stop.satStateCode || "",
   };
 }
@@ -67,13 +73,13 @@ export function mapWizardStopsToCreateInput(
 ): CreateStopInput[] | undefined {
   if (!stops?.length) return undefined;
   return stops.map((stop) => {
-    const legacyAddr = buildLegacyAddress(stop);
+    const endpointSummary = buildTripEndpointSummary(stop);
     return {
       sequenceOrder: stop.sequenceOrder,
       stopType: stop.stopType,
-      address: legacyAddr.address,
-      city: legacyAddr.city,
-      state: legacyAddr.state || undefined,
+      address: endpointSummary.address,
+      city: endpointSummary.city,
+      state: endpointSummary.state || undefined,
       locationName: stop.locationName,
       postalCode: stop.postalCode,
       satCountryCode: stop.satCountryCode || undefined,

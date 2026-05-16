@@ -237,6 +237,7 @@ export function TripFormPage() {
         satLocalityCode: stop.satLocalidadCode || undefined,
         satNeighborhoodCode: stop.satColoniaCode || undefined,
         neighborhoodName: stop.colonia || undefined,
+        cityName: stop.city || undefined,
         street: stop.street || undefined,
         exteriorNumber: stop.exteriorNumber || undefined,
         interiorNumber: stop.interiorNumber || undefined,
@@ -960,7 +961,7 @@ export function TripFormPage() {
         </form>
       </Form>
     ),
-    [form, renderStepContent, stepErrors],
+    [form, renderStepContent, stepErrors, id],
   );
 
   if (isEditMode && isLoadingTrip) {

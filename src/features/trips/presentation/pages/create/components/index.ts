@@ -19,7 +19,6 @@ export {
 export {
   tripWizardSchemaWithCreateApiAlignment,
   tripWizardSchemaWithUpdateApiAlignment,
-  apiValidationPathToFormPath,
 } from "./wizardPackageAlignedSchema";
 
 export type {

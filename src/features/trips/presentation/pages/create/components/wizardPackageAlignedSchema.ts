@@ -5,6 +5,7 @@
 import { z } from "zod";
 
 import {
+  apiValidationPathToFormPath,
   validateCreateTripApiPayload,
   validateUpdateTripApiPayload,
 } from "../validateTripApiPayload";
@@ -12,19 +13,6 @@ import { buildCreateTripInputFromWizardValues } from "../wizardToCreateTripInput
 import { buildUpdateTripInputFromWizardValues } from "../wizardToUpdateTripInput";
 
 import { tripWizardSchema } from "./validation";
-
-function snakeSegmentToCamel(segment: string): string {
-  if (/^\d+$/.test(segment)) return segment;
-  return segment.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-/** Convierte paths de error del payload API (snake) a paths del formulario (camel). */
-export function apiValidationPathToFormPath(path: string): (string | number)[] {
-  return path.split(".").map((part) => {
-    if (/^\d+$/.test(part)) return Number(part);
-    return snakeSegmentToCamel(part);
-  });
-}
 
 export const tripWizardSchemaWithCreateApiAlignment = tripWizardSchema.superRefine(
   (data, ctx) => {
