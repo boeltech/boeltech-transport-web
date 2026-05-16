@@ -12,7 +12,13 @@
 import { useParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
 import { Separator } from "@shared/ui/separator";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import {
@@ -85,10 +91,23 @@ export function VehicleDetailPage() {
 
   const vehicle = vehicleResponse;
 
+  if (isLoading) {
+    return (
+      <DetailPageShell
+        isLoading
+        header={{
+          backHref: "/vehicles",
+          icon: <Truck className="h-6 w-6" />,
+          title: "Vehículo",
+        }}
+      />
+    );
+  }
+
   if (!vehicle) {
     return (
       <DetailPageShell
-        isLoading={isLoading}
+        isLoading={false}
         notFound
         notFoundConfig={{
           icon: <Truck />,
@@ -148,7 +167,7 @@ export function VehicleDetailPage() {
 
   return (
     <DetailPageShell
-      isLoading={isLoading}
+      isLoading={false}
       header={{
         backHref: "/vehicles",
         icon: <Truck className="h-6 w-6" />,
@@ -157,16 +176,26 @@ export function VehicleDetailPage() {
             ? "muted"
             : "primary",
         title: vehicle.unitNumber,
-        subtitle: `${vehicle.brand} ${vehicle.model} (${vehicle.year})`,
+        subtitle: (
+          <>
+            <span className="font-mono">{vehicle.licensePlate}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span>
+              {vehicle.brand} {vehicle.model} ({vehicle.year})
+            </span>
+          </>
+        ),
         statusBadge: <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />,
         actions: (
-          <VehicleActions
-            vehicleId={vehicle.id}
-            vehicleName={vehicle.unitNumber}
-            status={vehicle.status}
-            variant="buttons"
-            onActionComplete={refetchVehicle}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <VehicleActions
+              vehicleId={vehicle.id}
+              vehicleName={vehicle.unitNumber}
+              status={vehicle.status}
+              variant="buttons"
+              onActionComplete={refetchVehicle}
+            />
+          </div>
         ),
       }}
       alerts={
@@ -197,31 +226,32 @@ export function VehicleDetailPage() {
           title: "Kilometraje",
           value: `${formatNumber(vehicle.currentMileage)} km`,
           icon: <Gauge className="h-5 w-5 text-primary" />,
+          description: "Odómetro actual del vehículo",
         },
         {
-          title: "Capacidad de Carga",
-          value:
-            capacities.loadCapacity ? `${capacities.loadCapacity} ton` : "—"
-          ,
+          title: "Capacidad de carga",
+          value: capacities.loadCapacity ? `${capacities.loadCapacity} t` : "—",
           icon: <Package className="h-5 w-5 text-blue-500" />,
+          description:
+            capacities.volumeCapacity != null
+              ? `${capacities.volumeCapacity} m³ volumen útil`
+              : undefined,
         },
         {
           title: "Tanque",
-          value:
-            capacities.fuelTankCapacity
-              ? `${capacities.fuelTankCapacity} L`
-              : "—"
-          ,
+          value: capacities.fuelTankCapacity
+            ? `${capacities.fuelTankCapacity} L`
+            : "—",
           icon: <Fuel className="h-5 w-5 text-amber-500" />,
+          description: "Capacidad del depósito",
         },
         {
           title: "Rendimiento",
-          value:
-            capacities.expectedFuelEfficiency
-              ? `${capacities.expectedFuelEfficiency} km/L`
-              : "—"
-          ,
+          value: capacities.expectedFuelEfficiency
+            ? `${capacities.expectedFuelEfficiency} km/L`
+            : "—",
           icon: <Route className="h-5 w-5 text-green-500" />,
+          description: "Consumo esperado (referencia)",
         },
       ]}
       tabs={{
@@ -229,15 +259,19 @@ export function VehicleDetailPage() {
         items: [
           {
             value: "info",
-            label: "Información",
+            label: "General",
             content: (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Truck className="h-4 w-4" /> Identificación
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Truck className="h-4 w-4 shrink-0 text-primary" />
+                        Identificación
                       </CardTitle>
+                      <CardDescription>
+                        Unidad, placa, VIN y clasificación del vehículo.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <InfoRow
@@ -261,7 +295,7 @@ export function VehicleDetailPage() {
                           )
                         }
                       />
-                      <Separator className="my-2" />
+                      <Separator className="my-3" />
                       <InfoRow
                         variant="inline"
                         label="Tipo de vehículo"
@@ -290,15 +324,19 @@ export function VehicleDetailPage() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Gauge className="h-4 w-4" /> Características
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Gauge className="h-4 w-4 shrink-0 text-primary" />
+                  Características
                       </CardTitle>
+                      <CardDescription>
+                        Marca, modelo, año y capacidad volumétrica.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <InfoRow variant="inline" label="Marca" value={vehicle.brand} />
                       <InfoRow variant="inline" label="Modelo" value={vehicle.model} />
                       <InfoRow variant="inline" label="Año" value={vehicle.year} />
-                      <Separator className="my-2" />
+                      <Separator className="my-3" />
                       <InfoRow
                         variant="inline"
                         label="Capacidad de volumen"
@@ -310,12 +348,54 @@ export function VehicleDetailPage() {
                       />
                     </CardContent>
                   </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                        Estado en el sistema
+                      </CardTitle>
+                      <CardDescription>
+                        Alta, actividad y vigencia del registro en el ERP.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                      <InfoRow
+                        variant="inline"
+                        label="Estado"
+                        value={
+                          <span className="inline-flex items-center gap-1.5">
+                            {vehicle.isActive ? (
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 shrink-0 text-destructive" />
+                            )}
+                            {vehicle.isActive ? "Activo" : "Inactivo"}
+                          </span>
+                        }
+                      />
+                      <InfoRow
+                        variant="inline"
+                        label="Fecha de registro"
+                        value={formatDate(
+                          vehicle.createdAt.toISOString().split("T")[0],
+                        )}
+                      />
+                      <InfoRow
+                        variant="inline"
+                        label="Última actualización"
+                        value={formatDate(
+                          vehicle.updatedAt.toISOString().split("T")[0],
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-                      <FileText className="h-4 w-4 shrink-0" />
+                    <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                      <FileText className="h-4 w-4 shrink-0 text-primary" />
                       <span className="inline-flex flex-wrap items-center gap-2">
                         Carta Porte 3.1 — Autotransporte
                         <Badge
@@ -326,6 +406,10 @@ export function VehicleDetailPage() {
                         </Badge>
                       </span>
                     </CardTitle>
+                    <CardDescription>
+                      Datos base del vehículo para el complemento de autotransporte;
+                      la operación puede ajustar valores por viaje cuando aplique.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <InfoRow
@@ -374,7 +458,52 @@ export function VehicleDetailPage() {
                       }
                       value={fmtPeso(cartaPorte.pesoBrutoVehicular)}
                     />
-                    <Separator className="my-2" />
+                    <Separator className="my-3" />
+                    <p className="mb-2 text-sm font-medium">Remolques</p>
+                    {cartaPorte.remolques.length > 0 ? (
+                      <div className="space-y-2">
+                        {cartaPorte.remolques.map((remolque) => (
+                          <div
+                            key={`${remolque.position}-${remolque.licensePlate}`}
+                            className="rounded-lg border bg-muted/30 p-3"
+                          >
+                            <InfoRow
+                              variant="inline"
+                              label={
+                                <SatFieldLabel
+                                  label={`SubTipoRem #${remolque.position}`}
+                                  satCode="SubTipoRem"
+                                />
+                              }
+                              value={
+                                <span className="font-mono text-xs">
+                                  {remolque.satSubTipoRemCode}
+                                </span>
+                              }
+                            />
+                            <InfoRow
+                              variant="inline"
+                              label={
+                                <SatFieldLabel
+                                  label={`Placa remolque #${remolque.position}`}
+                                  satCode="Placa"
+                                />
+                              }
+                              value={
+                                <span className="font-mono text-xs">
+                                  {remolque.licensePlate}
+                                </span>
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Sin remolques registrados.
+                      </p>
+                    )}
+                    <Separator className="my-3" />
                     <p className="mb-3 text-sm font-medium">
                       Seguros (Carta Porte)
                     </p>
@@ -388,13 +517,15 @@ export function VehicleDetailPage() {
                       }
                       value={fmtOptional(cartaPorte.insuranceCompany)}
                     />
-                    <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Opcionales (valores predeterminados)
-                    </p>
-                    <p className="mb-3 text-xs text-muted-foreground">
-                      Estos seguros se usan como base del vehículo para Carta
-                      Porte; en la operación pueden cambiar por viaje/carga.
-                    </p>
+                    <div className="mb-3 rounded-lg border bg-muted/20 px-3 py-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Opcionales (valores predeterminados)
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Estos seguros se usan como base del vehículo para Carta
+                        Porte; en la operación pueden cambiar por viaje/carga.
+                      </p>
+                    </div>
                     <InfoRow
                       variant="inline"
                       label={
@@ -421,42 +552,6 @@ export function VehicleDetailPage() {
                     </p>
                   </CardContent>
                 </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Calendar className="h-4 w-4" /> Estado del sistema
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
-                      <InfoRow
-                        variant="inline"
-                        label="Estado"
-                        value={
-                          <span className="inline-flex items-center gap-1.5">
-                            {vehicle.isActive ? (
-                              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 shrink-0 text-destructive" />
-                            )}
-                            {vehicle.isActive ? "Activo" : "Inactivo"}
-                          </span>
-                        }
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Fecha de registro"
-                        value={formatDate(vehicle.createdAt.toISOString().split("T")[0])}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Última actualización"
-                        value={formatDate(vehicle.updatedAt.toISOString().split("T")[0])}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             ),
           },
@@ -471,14 +566,19 @@ export function VehicleDetailPage() {
               </span>
             ),
             content: (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <Card>
-                  <CardHeader className="pb-2">
+                  <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Shield className="h-4 w-4" /> Documentación Vigente
+                      <Shield className="h-4 w-4 shrink-0 text-primary" />
+                      Documentación vigente
                     </CardTitle>
+                    <CardDescription>
+                      Póliza de responsabilidad civil y permiso SCT; vencimientos
+                      se resaltan arriba cuando aplican.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0">
                     <DocumentRow
                       label={
                         <SatFieldLabel
@@ -502,13 +602,21 @@ export function VehicleDetailPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground mb-4">
-                      Gestión de documentos próximamente
+                <Card className="border-dashed">
+                  <CardContent className="py-10 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <FileText className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="mt-4 text-sm font-medium">
+                      Archivos adjuntos y expediente digital
                     </p>
-                    <Badge variant="outline">Módulo en construcción</Badge>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      La carga y gestión centralizada de documentos llegará en una
+                      versión posterior.
+                    </p>
+                    <Badge variant="outline" className="mt-5">
+                      Próximamente
+                    </Badge>
                   </CardContent>
                 </Card>
               </div>
@@ -518,13 +626,21 @@ export function VehicleDetailPage() {
             value: "maintenance",
             label: "Mantenimiento",
             content: (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Wrench className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Historial de mantenimiento próximamente
+              <Card className="border-dashed">
+                <CardContent className="py-10 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Wrench className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="mt-4 text-sm font-medium">
+                    Mantenimiento y historial de servicio
                   </p>
-                  <Badge variant="outline">Módulo en construcción</Badge>
+                  <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
+                    Aquí podrás registrar órdenes de trabajo, kilometraje al
+                    servicio y documentos del taller.
+                  </p>
+                  <Badge variant="outline" className="mt-5">
+                    Próximamente
+                  </Badge>
                 </CardContent>
               </Card>
             ),

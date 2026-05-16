@@ -8,7 +8,7 @@
  */
 
 import { forwardRef, useImperativeHandle } from "react";
-import { useForm, useFormContext, type Resolver } from "react-hook-form";
+import { useFieldArray, useForm, useFormContext, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Save,
@@ -61,6 +61,7 @@ import {
 import {
   TipoPermisoSelect,
   ConfigAutotransporteSelect,
+  SubTipoRemSelect,
 } from "@features/catalogs";
 import { cn } from "@shared/lib/utils/cn";
 
@@ -137,6 +138,10 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
     polizaMedioAmbiente: vehicle.cartaPorte.polizaMedioAmbiente ?? "",
     aseguraCarga: vehicle.cartaPorte.aseguraCarga ?? "",
     polizaCarga: vehicle.cartaPorte.polizaCarga ?? "",
+    remolques: vehicle.cartaPorte.remolques.map((remolque) => ({
+      satSubTipoRemCode: remolque.satSubTipoRemCode,
+      licensePlate: remolque.licensePlate,
+    })),
   };
 }
 
@@ -189,6 +194,19 @@ function VehicleCreateWizardSummary() {
               "—"}
           </p>
         </div>
+        <div className="sm:col-span-2">
+          <p className="text-muted-foreground">Remolques</p>
+          <p className="font-medium">
+            {v.remolques.length > 0
+              ? v.remolques
+                  .map(
+                    (r, idx) =>
+                      `#${idx + 1}: ${r.satSubTipoRemCode || "—"} · ${r.licensePlate || "—"}`,
+                  )
+                  .join(" | ")
+              : "Sin remolques"}
+          </p>
+        </div>
     </FormSectionCard>
   );
 }
@@ -220,6 +238,7 @@ const defaultValues: CreateVehicleFormData = {
   polizaMedioAmbiente: "",
   aseguraCarga: "",
   polizaCarga: "",
+  remolques: [],
 };
 
 /** Celdas de grid: sin `h-full` para que, con `items-start` en el grid, no se estire la fila al mostrar errores. */
@@ -255,6 +274,10 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const form = useForm<CreateVehicleFormData, unknown, CreateVehicleFormData>({
       resolver: zodResolver(createVehicleSchema) as Resolver<CreateVehicleFormData>,
       defaultValues: vehicle ? formDataFromVehicle(vehicle) : defaultValues,
+    });
+    const remolquesFieldArray = useFieldArray({
+      control: form.control,
+      name: "remolques",
     });
 
     const handleSubmit = form.handleSubmit((data) => {
@@ -888,6 +911,109 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   )}
                 />
               </div>
+            </div>
+
+            {/* ── Remolques ──────────────────────────────────────────────────── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">Remolques (máx. 2)</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    remolquesFieldArray.append({
+                      satSubTipoRemCode: "",
+                      licensePlate: "",
+                    })
+                  }
+                  disabled={remolquesFieldArray.fields.length >= 2}
+                >
+                  Agregar remolque
+                </Button>
+              </div>
+
+              {remolquesFieldArray.fields.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Sin remolques registrados para este vehículo.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {remolquesFieldArray.fields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid items-start gap-4 rounded-md border p-3 sm:grid-cols-2"
+                    >
+                      <FormField
+                        control={form.control}
+                        name={`remolques.${index}.satSubTipoRemCode`}
+                        render={({ field }) => (
+                          <FormItem className={FORM_GRID_ITEM_CLASS}>
+                            <FormLabel>
+                              <SatFieldLabel
+                                label={`SubTipoRem #${index + 1}`}
+                                satCode="SubTipoRem"
+                                showSatCode={showSatCodes}
+                              />
+                            </FormLabel>
+                            <FormGridGrowSpacer />
+                            <FormControl>
+                              <SubTipoRemSelect
+                                value={field.value ?? ""}
+                                onValueChange={field.onChange}
+                                placeholder="Seleccionar subtipo"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`remolques.${index}.licensePlate`}
+                        render={({ field }) => (
+                          <FormItem className={FORM_GRID_ITEM_CLASS}>
+                            <FormLabel>
+                              <SatFieldLabel
+                                label={`Placa remolque #${index + 1}`}
+                                satCode="Placa"
+                                showSatCode={showSatCodes}
+                              />
+                            </FormLabel>
+                            <FormGridGrowSpacer />
+                            <FormControl>
+                              <Input
+                                placeholder="Ej: REM1234"
+                                value={field.value ?? ""}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      .toUpperCase()
+                                      .replace(/[^A-Z0-9]/g, ""),
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="sm:col-span-2 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remolquesFieldArray.remove(index)}
+                        >
+                          Quitar remolque
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ── Seguros Opcionales ──────────────────────────────────────── */}

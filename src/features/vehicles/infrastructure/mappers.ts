@@ -92,6 +92,13 @@ export interface ApiVehicleResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  remolques?: ApiVehicleRemolqueResponse[];
+}
+
+export interface ApiVehicleRemolqueResponse {
+  position: number;
+  sat_sub_tipo_rem_code: string;
+  license_plate: string;
 }
 
 // ============================================================================
@@ -195,6 +202,11 @@ export function mapVehicleDetail(
         polizaMedioAmbiente: raw.data.poliza_medio_ambiente,
         aseguraCarga: raw.data.asegura_carga,
         polizaCarga: raw.data.poliza_carga,
+        remolques: (raw.data.remolques ?? []).map((r) => ({
+          position: r.position,
+          satSubTipoRemCode: r.sat_sub_tipo_rem_code,
+          licensePlate: r.license_plate,
+        })),
       },
 
       // Status
@@ -248,6 +260,10 @@ export function toApiCreateVehicle(
     poliza_medio_ambiente: payload.polizaMedioAmbiente,
     asegura_carga: payload.aseguraCarga,
     poliza_carga: payload.polizaCarga,
+    remolques: payload.remolques?.map((r) => ({
+      sat_sub_tipo_rem_code: r.satSubTipoRemCode,
+      license_plate: r.licensePlate,
+    })),
   };
 }
 
@@ -302,6 +318,11 @@ export function toApiUpdateVehicle(
     result.asegura_carga = payload.aseguraCarga;
   if (payload.polizaCarga !== undefined)
     result.poliza_carga = payload.polizaCarga;
+  if (payload.remolques !== undefined)
+    result.remolques = payload.remolques.map((r) => ({
+      sat_sub_tipo_rem_code: r.satSubTipoRemCode,
+      license_plate: r.licensePlate,
+    }));
   // Status
   if (payload.status !== undefined) result.status = payload.status;
   if (payload.isActive !== undefined) result.is_active = payload.isActive;

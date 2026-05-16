@@ -30,6 +30,19 @@ const vehicleStatusSchema = z.enum([
   "out_of_service",
 ]);
 
+const remolqueSchema = z.object({
+  satSubTipoRemCode: z
+    .string()
+    .min(1, "Selecciona el subtipo de remolque")
+    .max(10, "Máximo 10 caracteres"),
+  licensePlate: z
+    .string()
+    .regex(
+      /^[A-Za-z0-9]{5,7}$/,
+      "La placa del remolque debe tener 5 a 7 caracteres alfanuméricos",
+    ),
+});
+
 // ============================================
 // Helper: Optional positive number (handles string from HTML input)
 // ============================================
@@ -214,6 +227,7 @@ export const createVehicleSchema = z.object({
     .max(30, "Máximo 30 caracteres")
     .optional()
     .or(z.literal("")),
+  remolques: z.array(remolqueSchema).max(2, "Máximo 2 remolques").default([]),
 });
 
 // ============================================
@@ -264,6 +278,7 @@ export const updateVehicleSchema = z.object({
   polizaMedioAmbiente: z.string().max(30).nullable().optional(),
   aseguraCarga: z.string().max(50).nullable().optional(),
   polizaCarga: z.string().max(30).nullable().optional(),
+  remolques: z.array(remolqueSchema).max(2, "Máximo 2 remolques").optional(),
 
   // Status
   status: vehicleStatusSchema.optional(),
@@ -309,5 +324,6 @@ export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: (keyof CreateVehicleFormData)[][
     "polizaMedioAmbiente",
     "aseguraCarga",
     "polizaCarga",
+    "remolques",
   ],
 ];

@@ -85,6 +85,15 @@ export interface VehicleCartaPorteData {
   readonly aseguraCarga: string | null;
   /** Número de póliza de seguro de carga — PolizaCarga */
   readonly polizaCarga: string | null;
+
+  /** Remolques/Semirremolques del nodo Autotransporte:Remolques (máx. 2). */
+  readonly remolques: VehicleRemolqueData[];
+}
+
+export interface VehicleRemolqueData {
+  readonly position: number;
+  readonly satSubTipoRemCode: string;
+  readonly licensePlate: string;
 }
 
 // ============================================================================
@@ -214,6 +223,10 @@ export interface CreateVehiclePayload {
   readonly polizaMedioAmbiente?: string;
   readonly aseguraCarga?: string;
   readonly polizaCarga?: string;
+  readonly remolques?: Array<{
+    satSubTipoRemCode: string;
+    licensePlate: string;
+  }>;
 }
 
 export interface UpdateVehiclePayload extends Partial<
