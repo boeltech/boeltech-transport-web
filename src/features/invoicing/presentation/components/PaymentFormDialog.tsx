@@ -105,6 +105,8 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
 
     mutate({
       amount: values.amount,
+      currency: invoice.currency,
+      exchangeRate: 1,
       paymentDate: values.payment_date,
       paymentForm: values.payment_form,
       reference: values.reference || undefined,
@@ -116,7 +118,11 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Registrar Pago</DialogTitle>
+          <DialogTitle>
+            {invoice.paymentMethod === "PPD"
+              ? "Registrar pago (PPD / REP)"
+              : "Registrar pago"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="text-sm text-muted-foreground mb-2">

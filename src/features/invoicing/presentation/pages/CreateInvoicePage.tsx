@@ -150,6 +150,7 @@ export function CreateInvoicePage() {
       payment_method: "PUE",
       currency: "MXN",
       subtotal: 0,
+      discount: 0,
       apply_retained_tax: false,
       total_tax: 0,
       retained_tax: 0,
@@ -193,19 +194,21 @@ export function CreateInvoicePage() {
     if (!isEditMode && prefill) {
       const personaMoral = prefill.clientType === "company";
       form.reset({
-        receiver_rfc: prefill.receiverRfc,
-        receiver_name: prefill.receiverName,
-        cfdi_usage: prefill.cfdiUsage,
-        receiver_tax_regime: prefill.receiverTaxRegime,
-        receiver_postal_code: prefill.receiverPostalCode,
-        payment_form: prefill.paymentForm,
+        receiver_rfc: prefill.receiverRfc ?? "",
+        receiver_name: prefill.receiverName ?? "",
+        cfdi_usage: prefill.cfdiUsage ?? "S01",
+        receiver_tax_regime: prefill.receiverTaxRegime ?? "",
+        receiver_postal_code: prefill.receiverPostalCode ?? "",
+        payment_form: prefill.paymentForm ?? "99",
         payment_method: prefill.paymentMethod as "PUE" | "PPD",
-        currency: prefill.currency,
-        subtotal: prefill.subtotal,
+        currency: prefill.currency ?? "MXN",
+        subtotal: prefill.subtotal ?? 0,
+        discount: 0,
         apply_retained_tax: personaMoral,
-        total_tax: prefill.totalTax,
-        retained_tax: prefill.retainedTax,
-        total: prefill.total,
+        total_tax: prefill.totalTax ?? 0,
+        retained_tax: prefill.retainedTax ?? 0,
+        total: prefill.total ?? 0,
+        notes: "",
       });
     }
   }, [prefill, form, isEditMode]);
@@ -214,20 +217,23 @@ export function CreateInvoicePage() {
     if (!isEditMode || !editableInvoice) return;
 
     form.reset({
-      receiver_rfc: editableInvoice.receiverRfc,
-      receiver_name: editableInvoice.receiverName,
-      cfdi_usage: editableInvoice.cfdiUsage,
-      receiver_tax_regime: editableInvoice.receiverTaxRegime,
-      receiver_postal_code: editableInvoice.receiverPostalCode,
-      payment_form: editableInvoice.paymentForm,
-      payment_method: editableInvoice.paymentMethod as "PUE" | "PPD",
-      currency: editableInvoice.currency,
-      subtotal: editableInvoice.subtotal,
-      discount: editableInvoice.discount > 0 ? editableInvoice.discount : 0,
-      apply_retained_tax: editableInvoice.retainedTax > 0,
-      total_tax: editableInvoice.totalTax,
-      retained_tax: editableInvoice.retainedTax,
-      total: editableInvoice.total,
+      receiver_rfc: editableInvoice.receiverRfc ?? "",
+      receiver_name: editableInvoice.receiverName ?? "",
+      cfdi_usage: editableInvoice.cfdiUsage ?? "S01",
+      receiver_tax_regime: editableInvoice.receiverTaxRegime ?? "",
+      receiver_postal_code: editableInvoice.receiverPostalCode ?? "",
+      payment_form: editableInvoice.paymentForm ?? "99",
+      payment_method: (editableInvoice.paymentMethod ?? "PUE") as "PUE" | "PPD",
+      currency: editableInvoice.currency ?? "MXN",
+      subtotal: editableInvoice.subtotal ?? 0,
+      discount:
+        editableInvoice.discount != null && editableInvoice.discount > 0
+          ? editableInvoice.discount
+          : 0,
+      apply_retained_tax: (editableInvoice.retainedTax ?? 0) > 0,
+      total_tax: editableInvoice.totalTax ?? 0,
+      retained_tax: editableInvoice.retainedTax ?? 0,
+      total: editableInvoice.total ?? 0,
       notes: editableInvoice.notes ?? "",
     });
   }, [isEditMode, editableInvoice, form]);

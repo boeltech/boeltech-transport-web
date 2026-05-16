@@ -36,7 +36,7 @@ import {
 } from "@shared/ui/alert-dialog";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import {
   MoreHorizontal,
   Eye,
@@ -46,6 +46,7 @@ import {
   DollarSign,
   XCircle,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import {
   useDeleteInvoice,
@@ -53,6 +54,7 @@ import {
 } from "@features/invoicing/application";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
+import { SubstituteInvoiceDialog } from "./SubstituteInvoiceDialog";
 import type { InvoiceStatus, Invoice } from "@features/invoicing/domain";
 
 // ============================================================================
@@ -79,6 +81,57 @@ interface InvoiceActionsProps {
   onActionComplete?: () => void;
 }
 
+type Cp31NumericDetail = {
+  code?: string;
+  path?: string;
+  message?: string;
+};
+
+function formatCp31Path(path: string): string {
+  const tripStop = /^trip\.([^.\s]+)\.stop\.(\d+)\.distance_from_previous_km$/.exec(path);
+  if (tripStop) {
+    return `Viaje ${tripStop[1]} · parada ${tripStop[2]}: distancia previa`;
+  }
+  const tripTotal = /^trip\.([^.\s]+)\.total_dist_rec$/.exec(path);
+  if (tripTotal) {
+    return `Viaje ${tripTotal[1]}: distancia total`;
+  }
+  const tripDistance = /^trip\.([^.\s]+)\.distancia_recorrida$/.exec(path);
+  if (tripDistance) {
+    return `Viaje ${tripDistance[1]}: distancia recorrida`;
+  }
+  const cargoWeight = /^cargo\.(\d+)\.weight_in_kg$/.exec(path);
+  if (cargoWeight) {
+    return `Carga ${Number(cargoWeight[1]) + 1}: peso (kg)`;
+  }
+  const cargoUnits = /^cargo\.(\d+)\.units$/.exec(path);
+  if (cargoUnits) {
+    return `Carga ${Number(cargoUnits[1]) + 1}: unidades`;
+  }
+  return path.replaceAll(".", " > ");
+}
+
+function getStampErrorDescription(error: unknown): string {
+  if (!isApiError(error) || error.code !== "CP31_INVALID_NUMERIC_DATA") {
+    return getErrorMessage(error);
+  }
+  const rawDetails = error.details;
+  const details = Array.isArray(rawDetails) ? (rawDetails as Cp31NumericDetail[]) : [];
+  const invalids = details
+    .filter((d) => d.code === "CP31_INVALID_NUMERIC_DATA" && typeof d.path === "string")
+    .map((d) => `• ${formatCp31Path(d.path!)}`);
+  if (invalids.length === 0) {
+    return error.message;
+  }
+  const preview = invalids.slice(0, 4);
+  const more = invalids.length - preview.length;
+  return [
+    "Se detectaron valores numéricos inválidos en Carta Porte:",
+    ...preview,
+    ...(more > 0 ? [`• ...y ${more} campo(s) más`] : []),
+  ].join("\n");
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -103,6 +156,11 @@ export function InvoiceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [substituteDialogOpen, setSubstituteDialogOpen] = useState(false);
+  const [stampErrorDialog, setStampErrorDialog] = useState<{
+    open: boolean;
+    description: string;
+  }>({ open: false, description: "" });
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -119,17 +177,29 @@ export function InvoiceActions({
       }),
   });
 
+  const handleStampError = (err: unknown) => {
+    const description = getStampErrorDescription(err);
+    toast({
+      variant: "destructive",
+      title: "Error al timbrar",
+      description,
+    });
+
+    const shouldOpenDialog =
+      (isApiError(err) && err.code === "CP31_INVALID_NUMERIC_DATA") ||
+      description.includes("\n") ||
+      description.length > 180;
+    if (shouldOpenDialog) {
+      setStampErrorDialog({ open: true, description });
+    }
+  };
+
   const { mutate: stamp, isPending: stamping } = useStampInvoice({
     onSuccess: () => {
       toast({ title: "Factura timbrada exitosamente" });
       onActionComplete?.();
     },
-    onError: (err) =>
-      toast({
-        variant: "destructive",
-        title: "Error al timbrar",
-        description: getErrorMessage(err),
-      }),
+    onError: handleStampError,
   });
 
   const isLoading = deleting || stamping;
@@ -143,6 +213,15 @@ export function InvoiceActions({
   const isDraft = invoiceStatus === "draft";
   const isStamped = invoiceStatus === "stamped";
   const hasPendingBalance = (fullInvoice?.balanceDue ?? 0) > 0;
+
+  const canShowSubstitute =
+    isStamped &&
+    Boolean(fullInvoice?.canSubstituteInvoice) &&
+    hasPermission("invoices", "delete");
+
+  const hasStampedActions =
+    isStamped &&
+    ((canCreate && hasPendingBalance) || canDelete || canShowSubstitute);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 
@@ -230,7 +309,7 @@ export function InvoiceActions({
 
   const hasNoActions =
     (!isDraft || (!canDelete && !canCreate && !canUpdate)) &&
-    (!isStamped || ((!canCreate || !hasPendingBalance) && !canDelete));
+    (!isStamped || !hasStampedActions);
 
   if (hasNoActions) return null;
 
@@ -297,6 +376,19 @@ export function InvoiceActions({
           </Button>
         )}
 
+        {/* Sustituir (Fase 5) */}
+        {canShowSubstitute && fullInvoice && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSubstituteDialogOpen(true)}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Sustituir factura
+          </Button>
+        )}
+
         {/* Cancelar */}
         {isStamped && canDelete && (
           <Button
@@ -340,6 +432,32 @@ export function InvoiceActions({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Stamp error details */}
+      <AlertDialog
+        open={stampErrorDialog.open}
+        onOpenChange={(open) =>
+          setStampErrorDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Error al timbrar factura</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line text-left">
+              {stampErrorDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() =>
+                setStampErrorDialog({ open: false, description: "" })
+              }
+            >
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Payment dialog */}
       {fullInvoice && paymentDialogOpen && (
         <PaymentFormDialog
@@ -359,6 +477,18 @@ export function InvoiceActions({
           open={cancelDialogOpen}
           onOpenChange={(open) => {
             setCancelDialogOpen(open);
+            if (!open) onActionComplete?.();
+          }}
+        />
+      )}
+
+      {/* Substitute stamped invoice (SAT 01) */}
+      {fullInvoice && (
+        <SubstituteInvoiceDialog
+          invoice={fullInvoice}
+          open={substituteDialogOpen}
+          onOpenChange={(open) => {
+            setSubstituteDialogOpen(open);
             if (!open) onActionComplete?.();
           }}
         />

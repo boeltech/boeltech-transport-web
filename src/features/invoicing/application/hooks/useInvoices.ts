@@ -18,6 +18,8 @@ import type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  SubstituteStampedInvoicePayload,
+  SubstituteStampedInvoiceResult,
 } from "@features/invoicing/domain";
 
 // ============================================================================
@@ -182,6 +184,7 @@ export function useStampInvoice(
     mutationFn: (id: string) => invoicingApi.stamp(id),
     ...options,
     onSuccess: (data, variables, context, mutation) => {
+      queryClient.setQueryData(invoiceQueryKeys.detail(variables), data);
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
@@ -251,6 +254,36 @@ export function useRegisterPayment(
   });
 }
 
+export function useSubstituteStampedInvoice(
+  invoiceId: string,
+  options?: Omit<
+    UseMutationOptions<
+      SubstituteStampedInvoiceResult,
+      Error,
+      SubstituteStampedInvoicePayload
+    >,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SubstituteStampedInvoicePayload) =>
+      invoicingApi.substituteStampedInvoice(invoiceId, payload),
+    ...options,
+    onSuccess: (data, variables, context, mutation) => {
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(invoiceId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(data.replacement.id),
+      });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
+  });
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // PDF
 // ──────────────────────────────────────────────────────────────────────────
@@ -261,12 +294,17 @@ export function useRegisterPayment(
  */
 export function useOpenInvoicePdf(
   options?: Omit<
-    UseMutationOptions<void, Error, { id: string; serieFolio: string }>,
+    UseMutationOptions<
+      void,
+      Error,
+      { id: string; serieFolio: string; refreshPdf?: boolean }
+    >,
     "mutationFn"
   >,
 ) {
   return useMutation({
-    mutationFn: ({ id, serieFolio }) => invoicingApi.openPdf(id, serieFolio),
+    mutationFn: ({ id, serieFolio, refreshPdf }) =>
+      invoicingApi.openPdf(id, serieFolio, { refresh: refreshPdf }),
     ...options,
   });
 }

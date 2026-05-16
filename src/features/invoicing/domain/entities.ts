@@ -34,6 +34,8 @@ export interface Invoice {
   readonly serie: string;
   readonly folio: number;
   readonly cfdiUuid: string | null;
+  readonly invoiceType: "ingreso" | "pago";
+  readonly parentInvoiceId: string | null;
   // Emisor
   readonly issuerRfc: string;
   readonly issuerName: string;
@@ -80,6 +82,8 @@ export interface Invoice {
   readonly payments: Payment[];
   readonly totalPaid: number;
   readonly balanceDue: number;
+  /** API (getById): si aplica sustitución transaccional Fase 5. */
+  readonly canSubstituteInvoice?: boolean;
   // Auditoría
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -141,6 +145,9 @@ export interface Payment {
   readonly notes: string | null;
   readonly createdAt: string;
   readonly createdByName: string | null;
+  /** UUID del CFDI complemento REP (tipo P), si se timbró. */
+  readonly repCfdiUuid: string | null;
+  readonly repStampedAt: string | null;
 }
 
 // ============================================================================
@@ -262,6 +269,21 @@ export interface CancelInvoicePayload {
   replacementCfdiUuid?: string;
 }
 
+export interface PaymentAllocationPayload {
+  readonly ingressInvoiceId: string;
+  readonly amount: number;
+}
+
+export interface SubstituteStampedInvoicePayload {
+  readonly cancellationReason: string;
+  readonly notes?: string;
+}
+
+export interface SubstituteStampedInvoiceResult {
+  readonly replacement: Invoice;
+  readonly original: Invoice;
+}
+
 export interface CreatePaymentPayload {
   amount: number;
   currency?: string;
@@ -270,6 +292,8 @@ export interface CreatePaymentPayload {
   paymentForm: string;
   reference?: string;
   notes?: string;
+  /** Opcional; si se omite y hay REP, la API aplica el monto a la factura actual. */
+  allocations?: PaymentAllocationPayload[];
 }
 
 export interface InvoiceFilters {

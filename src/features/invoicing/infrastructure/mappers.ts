@@ -17,7 +17,9 @@ import type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  SubstituteStampedInvoicePayload,
 } from "@features/invoicing/domain";
+import { decodeHtmlEntityEncodedXml } from "@shared/utils/decodeHtmlEntityXml";
 
 // ============================================================================
 // RAW API TYPES (snake_case — solo usados en este archivo)
@@ -35,6 +37,8 @@ interface ApiPayment {
   payment_form_name: string | null;
   reference: string | null;
   notes: string | null;
+  rep_cfdi_uuid?: string | null;
+  rep_stamped_at?: string | null;
   created_at: string;
   created_by_name: string | null;
 }
@@ -55,6 +59,8 @@ interface ApiInvoice {
   serie: string;
   folio: number;
   cfdi_uuid: string | null;
+  invoice_type?: string | null;
+  parent_invoice_id?: string | null;
   issuer_rfc: string;
   issuer_name: string;
   issuer_tax_regime: string;
@@ -95,6 +101,7 @@ interface ApiInvoice {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  can_substitute_invoice?: boolean;
 }
 
 interface ApiInvoiceListItem {
@@ -192,6 +199,8 @@ export function mapPayment(raw: unknown): Payment {
     notes: payment.notes,
     createdAt: payment.created_at,
     createdByName: payment.created_by_name,
+    repCfdiUuid: payment.rep_cfdi_uuid ?? null,
+    repStampedAt: payment.rep_stamped_at ?? null,
   };
 }
 
@@ -215,31 +224,36 @@ export function mapInvoice(raw: unknown): Invoice {
     serie: invoice.serie,
     folio: invoice.folio,
     cfdiUuid: invoice.cfdi_uuid,
+    invoiceType:
+      invoice.invoice_type === "pago" ? "pago" : "ingreso",
+    parentInvoiceId: invoice.parent_invoice_id ?? null,
     issuerRfc: invoice.issuer_rfc,
     issuerName: invoice.issuer_name,
     issuerTaxRegime: invoice.issuer_tax_regime,
     issueLocation: invoice.issue_location,
-    receiverRfc: invoice.receiver_rfc,
-    receiverName: invoice.receiver_name,
-    cfdiUsage: invoice.cfdi_usage,
-    receiverTaxRegime: invoice.receiver_tax_regime,
-    receiverPostalCode: invoice.receiver_postal_code,
+    receiverRfc: invoice.receiver_rfc ?? "",
+    receiverName: invoice.receiver_name ?? "",
+    cfdiUsage: invoice.cfdi_usage ?? "S01",
+    receiverTaxRegime: invoice.receiver_tax_regime ?? "",
+    receiverPostalCode: invoice.receiver_postal_code ?? "",
     issuedAt: invoice.issued_at,
-    paymentForm: invoice.payment_form,
-    paymentMethod: invoice.payment_method,
-    currency: invoice.currency,
-    exchangeRate: invoice.exchange_rate,
-    subtotal: invoice.subtotal,
-    discount: invoice.discount,
-    totalTax: invoice.total_tax,
+    paymentForm: invoice.payment_form ?? "99",
+    paymentMethod: invoice.payment_method ?? "PUE",
+    currency: invoice.currency ?? "MXN",
+    exchangeRate: invoice.exchange_rate ?? 1,
+    subtotal: invoice.subtotal ?? 0,
+    discount: invoice.discount ?? 0,
+    totalTax: invoice.total_tax ?? 0,
     retainedTax: invoice.retained_tax ?? 0,
-    total: invoice.total,
+    total: invoice.total ?? 0,
     status: invoice.status as Invoice["status"],
     satCancellationStatus: invoice.sat_cancellation_status ?? "none",
     satCancellationMessage: invoice.sat_cancellation_message,
     satCancellationUpdatedAt: invoice.sat_cancellation_updated_at,
     pacProvider: invoice.pac_provider,
-    xmlContent: invoice.xml_content,
+    xmlContent: invoice.xml_content
+      ? decodeHtmlEntityEncodedXml(invoice.xml_content)
+      : null,
     qrCode: invoice.qr_code,
     pdfUrl: invoice.pdf_url,
     stampedAt: invoice.stamped_at,
@@ -252,6 +266,7 @@ export function mapInvoice(raw: unknown): Invoice {
     payments: (invoice.payments ?? []).map(mapPayment),
     totalPaid: invoice.total_paid,
     balanceDue: invoice.balance_due,
+    canSubstituteInvoice: invoice.can_substitute_invoice ?? false,
     createdAt: invoice.created_at,
     updatedAt: invoice.updated_at,
     createdBy: invoice.created_by,
@@ -400,8 +415,17 @@ export function toApiCancelInvoice(payload: CancelInvoicePayload) {
   };
 }
 
-export function toApiCreatePayment(payload: CreatePaymentPayload) {
+export function toApiSubstituteStampedInvoice(
+  payload: SubstituteStampedInvoicePayload,
+) {
   return {
+    cancellation_reason: payload.cancellationReason,
+    notes: payload.notes,
+  };
+}
+
+export function toApiCreatePayment(payload: CreatePaymentPayload) {
+  const body: Record<string, unknown> = {
     amount: payload.amount,
     currency: payload.currency,
     exchange_rate: payload.exchangeRate,
@@ -410,4 +434,11 @@ export function toApiCreatePayment(payload: CreatePaymentPayload) {
     reference: payload.reference,
     notes: payload.notes,
   };
+  if (payload.allocations?.length) {
+    body.allocations = payload.allocations.map((a) => ({
+      ingress_invoice_id: a.ingressInvoiceId,
+      amount: a.amount,
+    }));
+  }
+  return body;
 }

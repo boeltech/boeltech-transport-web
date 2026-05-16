@@ -18,6 +18,8 @@ import type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  SubstituteStampedInvoicePayload,
+  SubstituteStampedInvoiceResult,
   InvoiceFilters,
 } from "@features/invoicing/domain";
 import {
@@ -31,7 +33,9 @@ import {
   toApiUpdateInvoice,
   toApiCancelInvoice,
   toApiCreatePayment,
+  toApiSubstituteStampedInvoice,
 } from "./mappers";
+import { decodeHtmlEntityEncodedXml } from "@shared/utils/decodeHtmlEntityXml";
 
 const INVOICES = "/invoices";
 const FINANCE = "/finance";
@@ -128,6 +132,20 @@ export const invoicingApi = {
     return mapInvoice(response.data as Record<string, unknown>);
   },
 
+  substituteStampedInvoice: async (
+    id: string,
+    payload: SubstituteStampedInvoicePayload,
+  ): Promise<SubstituteStampedInvoiceResult> => {
+    const response = await apiClient.post<{
+      data: { replacement: unknown; original: unknown };
+    }>(`${INVOICES}/${id}/substitute`, toApiSubstituteStampedInvoice(payload));
+    const d = response.data;
+    return {
+      replacement: mapInvoice(d.replacement as Record<string, unknown>),
+      original: mapInvoice(d.original as Record<string, unknown>),
+    };
+  },
+
   // ──────────────────────────────────────────────────────────────────────────
   // PAYMENTS
   // ──────────────────────────────────────────────────────────────────────────
@@ -158,11 +176,17 @@ export const invoicingApi = {
 
   /**
    * Abre el PDF de la factura en una nueva pestaña.
-   * Usa el endpoint autenticado GET /invoices/:id/pdf (genera on-demand si no existe).
+   * Usa GET /invoices/:id/pdf (genera on-demand si no existe).
+   * Añade `?refresh=1` para forzar regeneración (p. ej. tras cambios en la plantilla o en Carta Porte).
    */
-  openPdf: async (id: string, serieFolio: string): Promise<void> => {
+  openPdf: async (
+    id: string,
+    serieFolio: string,
+    options?: { refresh?: boolean },
+  ): Promise<void> => {
     const axios = apiClient.getAxiosInstance();
-    const response = await axios.get<Blob>(`${INVOICES}/${id}/pdf`, {
+    const qs = options?.refresh ? "?refresh=1" : "";
+    const response = await axios.get<Blob>(`${INVOICES}/${id}/pdf${qs}`, {
       responseType: "blob",
     });
     const url = window.URL.createObjectURL(
@@ -180,11 +204,14 @@ export const invoicingApi = {
   },
 
   /**
-   * Descarga el XML timbrado de la factura (desde el campo xmlContent en memoria).
-   * No hace llamada HTTP — usa el XML ya cargado en la entidad.
+   * Descarga el XML timbrado (CFDI + complementos, p. ej. Carta Porte 3.1 y TFD).
+   * Usa el `xmlContent` ya cargado en la factura (GET /invoices/:id).
    */
   downloadXml: (xmlContent: string, serieFolio: string): void => {
-    const blob = new Blob([xmlContent], { type: "application/xml" });
+    const decoded = decodeHtmlEntityEncodedXml(xmlContent);
+    const blob = new Blob([decoded], {
+      type: "application/xml;charset=utf-8",
+    });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

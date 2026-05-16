@@ -12,6 +12,7 @@ export {
   useStampInvoice,
   useCancelInvoice,
   useRegisterPayment,
+  useSubstituteStampedInvoice,
   useOpenInvoicePdf,
   downloadInvoiceXml,
 } from "./hooks/useInvoices";

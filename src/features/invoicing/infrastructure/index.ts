@@ -8,5 +8,6 @@ export {
   toApiCreateInvoice,
   toApiUpdateInvoice,
   toApiCancelInvoice,
+  toApiSubstituteStampedInvoice,
   toApiCreatePayment,
 } from "./mappers";

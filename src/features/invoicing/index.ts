@@ -13,6 +13,9 @@ export type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  PaymentAllocationPayload,
+  SubstituteStampedInvoicePayload,
+  SubstituteStampedInvoiceResult,
   InvoiceFilters,
 } from "./domain";
 export { InvoiceStatusLabels } from "./domain";
@@ -32,6 +35,7 @@ export {
   useStampInvoice,
   useCancelInvoice,
   useRegisterPayment,
+  useSubstituteStampedInvoice,
 } from "./application";
 
 // Infrastructure
@@ -46,6 +50,7 @@ export {
   InvoiceTable,
   PaymentFormDialog,
   CancelInvoiceDialog,
+  SubstituteInvoiceDialog,
   FinanceSummaryCards,
   invoiceStatusConfig,
 } from "./presentation/components";

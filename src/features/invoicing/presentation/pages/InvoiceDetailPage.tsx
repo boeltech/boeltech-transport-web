@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Download, FileText, FileCode, Loader2, Receipt, AlertCircle } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -196,6 +196,28 @@ export function InvoiceDetailPage() {
       }}
       className="p-6 max-w-4xl mx-auto"
     >
+      {invoice.parentInvoiceId && (
+        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm mb-6">
+          <span className="text-muted-foreground">Esta factura sustituye a </span>
+          <Link
+            to={`/invoices/${invoice.parentInvoiceId}`}
+            state={{ from: location.pathname }}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            la factura original
+          </Link>
+          .
+        </div>
+      )}
+
+      {isStampedLike && (
+        <p className="text-xs text-muted-foreground mb-6">
+          {invoice.xmlContent
+            ? "El XML descargable es el CFDI timbrado completo (Carta Porte 3.1 y TimbreFiscalDigital van dentro del mismo archivo). El PDF de representación impresa resume el CFDI y, si el XML incluye Carta Porte, muestra un resumen de transporte."
+            : "Si no aparece el botón para descargar XML, actualice la página para volver a cargar el comprobante desde el servidor."}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Emisor */}
         <Card>
@@ -349,7 +371,7 @@ export function InvoiceDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Pagos registrados ({invoice.payments.length})
+              Pagos y complementos REP ({invoice.payments.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -365,6 +387,13 @@ export function InvoiceDetailPage() {
                     {payment.paymentFormName ?? payment.paymentForm}
                     {payment.reference && ` • Ref: ${payment.reference}`}
                   </p>
+                  {payment.repCfdiUuid && (
+                    <p className="text-xs text-muted-foreground mt-1 font-mono">
+                      REP UUID: {payment.repCfdiUuid}
+                      {payment.repStampedAt &&
+                        ` • ${formatDate(payment.repStampedAt)}`}
+                    </p>
+                  )}
                 </div>
                 {payment.createdByName && (
                   <span className="text-xs text-muted-foreground">

@@ -13,6 +13,9 @@ export type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  PaymentAllocationPayload,
+  SubstituteStampedInvoicePayload,
+  SubstituteStampedInvoiceResult,
   InvoiceFilters,
 } from "./entities";
 
