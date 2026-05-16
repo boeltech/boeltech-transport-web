@@ -31,8 +31,12 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        success: "bg-green-600 text-white shadow-sm hover:bg-green-600/90",
-        warning: "bg-yellow-500 text-white shadow-sm hover:bg-yellow-500/90",
+        // Semantic — usan tokens del DS (Fase 0). NO colores Tailwind crudos.
+        success:
+          "bg-success text-success-foreground shadow-sm hover:bg-success/90",
+        warning:
+          "bg-warning text-warning-foreground shadow-sm hover:bg-warning/90",
+        info: "bg-info text-info-foreground shadow-sm hover:bg-info/90",
       },
       size: {
         default: "h-9 px-4 py-2",
