@@ -9,7 +9,7 @@
  *    <TripActions trip={trip} onView={...} onEdit={...} />
  *
  * 2. Con props individuales (para TripDetailPage):
- *    <TripActions tripId={id} tripCode={code} status={status} variant="buttons" />
+ *    <TripActions tripId={id} tripCode={code} status={status} variant="detailMenu" onQuickEdit={...} />
  *
  * Ubicación: src/features/trips/presentation/components/TripActions.tsx
  */
@@ -70,6 +70,9 @@ import {
   XCircle,
   Calendar,
   Loader2,
+  ChevronDown,
+  Truck,
+  Edit3,
 } from "lucide-react";
 
 // ============================================================================
@@ -100,8 +103,10 @@ interface TripIndividualProps {
  * Props comunes
  */
 interface CommonProps {
-  /** Variante de visualización: dropdown (default) o buttons */
-  variant?: "dropdown" | "buttons";
+  /** Variante de visualización: dropdown (tabla), buttons (legacy), detailMenu (detalle con disparador «Operación»). */
+  variant?: "dropdown" | "buttons" | "detailMenu";
+  /** En `detailMenu`: abre edición rápida (Sheet) desde el menú Operación. */
+  onQuickEdit?: () => void;
   /** Callback para ver detalles (solo en modo dropdown desde tabla) */
   onView?: (id: string) => void;
   /** Callback para editar (solo en modo dropdown desde tabla) */
@@ -116,8 +121,8 @@ interface CommonProps {
   onFinish?: (id: string) => void;
   /** Callback para cancelar (solo en modo dropdown desde tabla) */
   onCancel?: (id: string) => void;
-  /** Callback después de una acción exitosa (usado en TripDetailPage) */
-  onActionComplete?: () => void;
+  /** Callback después de una acción exitosa; recibe el viaje actualizado cuando aplique. */
+  onActionComplete?: (trip?: Trip) => void;
 }
 
 type TripActionsProps = CommonProps & (TripObjectProps | TripIndividualProps);
@@ -146,6 +151,7 @@ const EDITABLE_STATUSES: TripStatusType[] = [
 export function TripActions(props: TripActionsProps) {
   const {
     variant = "dropdown",
+    onQuickEdit,
     onView,
     onEdit,
     onDelete,
@@ -166,7 +172,7 @@ export function TripActions(props: TripActionsProps) {
   const { hasPermission } = usePermissions();
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DIALOG STATES (solo para variant="buttons")
+  // DIALOG STATES (variant "buttons" y "detailMenu")
   // ══════════════════════════════════════════════════════════════════════════
 
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -198,17 +204,17 @@ export function TripActions(props: TripActionsProps) {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MUTATIONS (solo para variant="buttons")
+  // MUTATIONS (variant "buttons" y "detailMenu")
   // ══════════════════════════════════════════════════════════════════════════
 
   const scheduleMutation = useScheduleTrip({
-    onSuccess: () => {
+    onSuccess: (trip) => {
       toast({
         title: "Viaje programado",
         description: `${code} está listo para iniciar`,
         variant: "success",
       });
-      onActionComplete?.();
+      onActionComplete?.(trip);
     },
     onError: (error) => {
       toast({
@@ -220,13 +226,13 @@ export function TripActions(props: TripActionsProps) {
   });
 
   const startMutation = useStartTrip({
-    onSuccess: () => {
+    onSuccess: (trip) => {
       toast({
         title: "Viaje iniciado",
         description: `${code} está en curso`,
         variant: "success",
       });
-      onActionComplete?.();
+      onActionComplete?.(trip);
     },
     onError: (error) => {
       toast({
@@ -238,13 +244,13 @@ export function TripActions(props: TripActionsProps) {
   });
 
   const cancelMutation = useCancelTrip({
-    onSuccess: () => {
+    onSuccess: (trip) => {
       toast({
         title: "Viaje cancelado",
         description: code,
         variant: "success",
       });
-      onActionComplete?.();
+      onActionComplete?.(trip);
     },
     onError: (error) => {
       toast({
@@ -324,6 +330,165 @@ export function TripActions(props: TripActionsProps) {
     });
     setCancelDialog({ open: false, reason: "" });
   };
+
+  const hasNoActions =
+    !canSchedule &&
+    !canStart &&
+    !canFinish &&
+    !canCancelTrip &&
+    !canEditTrip &&
+    !canDeleteTrip;
+
+  const tripActionDialogs = (
+    <>
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <SectionHeadingWithHint
+                noTitleWrap
+                title={<span>{confirmDialog.title}</span>}
+                hintLabel={confirmDialog.title}
+                hint={confirmDialog.description}
+              />
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
+              {confirmDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              className={
+                confirmDialog.action === "delete"
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : ""
+              }
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={startDialog.open}
+        onOpenChange={(open) => setStartDialog({ ...startDialog, open })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <SectionHeadingWithHint
+                title="Iniciar Viaje"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Iniciar viaje"
+                hint={
+                  <>
+                    El viaje {code} pasará a estado &quot;En Curso&quot;. Opcionalmente puede registrar el kilometraje
+                    inicial.
+                  </>
+                }
+              />
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              El viaje pasará a en curso; puede registrar kilometraje inicial.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="start-mileage">
+              Kilometraje inicial (opcional)
+            </Label>
+            <Input
+              id="start-mileage"
+              type="number"
+              placeholder="Ej: 150000"
+              value={startDialog.mileage}
+              onChange={(e) =>
+                setStartDialog({ ...startDialog, mileage: e.target.value })
+              }
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setStartDialog({ open: false, mileage: "" })}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleStartConfirm}
+              disabled={startMutation.isPending}
+            >
+              {startMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              <Play className="mr-2 h-4 w-4" />
+              Iniciar Viaje
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={cancelDialog.open}
+        onOpenChange={(open) => setCancelDialog({ ...cancelDialog, open })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <SectionHeadingWithHint
+                title="Cancelar Viaje"
+                titleClassName="text-lg font-semibold leading-none tracking-tight"
+                hintLabel="Cancelar viaje"
+                hint={<>El viaje {code} será cancelado. Esta acción no se puede deshacer.</>}
+              />
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Cancelación permanente del viaje.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="cancel-reason">
+              Motivo de cancelación (opcional)
+            </Label>
+            <Textarea
+              id="cancel-reason"
+              placeholder="Ingrese el motivo de la cancelación..."
+              value={cancelDialog.reason}
+              onChange={(e) =>
+                setCancelDialog({ ...cancelDialog, reason: e.target.value })
+              }
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialog({ open: false, reason: "" })}
+            >
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelConfirm}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancelar Viaje
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: DROPDOWN MODE (para TripTable)
@@ -418,16 +583,128 @@ export function TripActions(props: TripActionsProps) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: BUTTONS MODE (para TripDetailPage)
+  // RENDER: DETAIL HEADER MENU (Facturación + Operación en detalle de viaje)
   // ══════════════════════════════════════════════════════════════════════════
 
-  const hasNoActions =
-    !canSchedule &&
-    !canStart &&
-    !canFinish &&
-    !canCancelTrip &&
-    !canEditTrip &&
-    !canDeleteTrip;
+  if (variant === "detailMenu") {
+    const hasMenuContent = Boolean(onQuickEdit) || !hasNoActions;
+    if (!hasMenuContent) {
+      return null;
+    }
+
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1 shrink-0" disabled={isLoading}>
+              <Truck className="h-4 w-4 shrink-0" />
+              <span className="mx-0.5">Operación</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {onQuickEdit ? (
+              <DropdownMenuItem onSelect={() => onQuickEdit()}>
+                <Edit3 className="mr-2 h-4 w-4" />
+                Edición rápida
+              </DropdownMenuItem>
+            ) : null}
+
+            {canEditTrip ? (
+              <DropdownMenuItem
+                onSelect={() => navigate(`/trips/${id}/edit`)}
+                disabled={isLoading}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edición completa
+              </DropdownMenuItem>
+            ) : null}
+
+            {(onQuickEdit || canEditTrip) &&
+            (canSchedule || canStart || canFinish || canCancelTrip || canDeleteTrip) ? (
+              <DropdownMenuSeparator />
+            ) : null}
+
+            {canSchedule ? (
+              <DropdownMenuItem
+                onSelect={() =>
+                  setConfirmDialog({
+                    open: true,
+                    action: "schedule",
+                    title: "¿Programar este viaje?",
+                    description:
+                      "El viaje pasará a estado 'Programado' y estará listo para iniciarse.",
+                  })
+                }
+                disabled={isLoading}
+              >
+                <Calendar className="mr-2 h-4 w-4 text-blue-500" />
+                Programar
+              </DropdownMenuItem>
+            ) : null}
+
+            {canStart ? (
+              <DropdownMenuItem
+                onSelect={() => setStartDialog({ open: true, mileage: "" })}
+                disabled={isLoading}
+              >
+                <Play className="mr-2 h-4 w-4 text-green-500" />
+                Iniciar viaje
+              </DropdownMenuItem>
+            ) : null}
+
+            {canFinish ? (
+              <DropdownMenuItem
+                onSelect={() => navigate(`/trips/${id}/finish`)}
+                disabled={isLoading}
+              >
+                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                Finalizar
+              </DropdownMenuItem>
+            ) : null}
+
+            {canCancelTrip ? (
+              <DropdownMenuItem
+                onSelect={() => setCancelDialog({ open: true, reason: "" })}
+                disabled={isLoading}
+                className="text-amber-600 focus:text-amber-600"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Cancelar viaje
+              </DropdownMenuItem>
+            ) : null}
+
+            {canDeleteTrip ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setConfirmDialog({
+                      open: true,
+                      action: "delete",
+                      title: "¿Eliminar este viaje?",
+                      description:
+                        "Esta acción no se puede deshacer. El viaje será eliminado permanentemente.",
+                    })
+                  }
+                  disabled={isLoading}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {tripActionDialogs}
+      </>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: BUTTONS MODE (legacy / otras pantallas)
+  // ══════════════════════════════════════════════════════════════════════════
 
   if (hasNoActions) {
     return null;
@@ -535,160 +812,7 @@ export function TripActions(props: TripActionsProps) {
           </Button>
         )}
       </div>
-
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* DIALOGS                                                              */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-
-      {/* Confirm Dialog (Schedule, Delete) */}
-      <AlertDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <SectionHeadingWithHint
-                noTitleWrap
-                title={<span>{confirmDialog.title}</span>}
-                hintLabel={confirmDialog.title}
-                hint={confirmDialog.description}
-              />
-            </AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">
-              {confirmDialog.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirm}
-              className={
-                confirmDialog.action === "delete"
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : ""
-              }
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Start Trip Dialog */}
-      <Dialog
-        open={startDialog.open}
-        onOpenChange={(open) => setStartDialog({ ...startDialog, open })}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <SectionHeadingWithHint
-                title="Iniciar Viaje"
-                titleClassName="text-lg font-semibold leading-none tracking-tight"
-                hintLabel="Iniciar viaje"
-                hint={
-                  <>
-                    El viaje {code} pasará a estado &quot;En Curso&quot;. Opcionalmente puede registrar el kilometraje
-                    inicial.
-                  </>
-                }
-              />
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              El viaje pasará a en curso; puede registrar kilometraje inicial.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="start-mileage">
-              Kilometraje inicial (opcional)
-            </Label>
-            <Input
-              id="start-mileage"
-              type="number"
-              placeholder="Ej: 150000"
-              value={startDialog.mileage}
-              onChange={(e) =>
-                setStartDialog({ ...startDialog, mileage: e.target.value })
-              }
-              className="mt-2"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStartDialog({ open: false, mileage: "" })}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleStartConfirm}
-              disabled={startMutation.isPending}
-            >
-              {startMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              <Play className="mr-2 h-4 w-4" />
-              Iniciar Viaje
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancel Trip Dialog */}
-      <Dialog
-        open={cancelDialog.open}
-        onOpenChange={(open) => setCancelDialog({ ...cancelDialog, open })}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <SectionHeadingWithHint
-                title="Cancelar Viaje"
-                titleClassName="text-lg font-semibold leading-none tracking-tight"
-                hintLabel="Cancelar viaje"
-                hint={<>El viaje {code} será cancelado. Esta acción no se puede deshacer.</>}
-              />
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              Cancelación permanente del viaje.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="cancel-reason">
-              Motivo de cancelación (opcional)
-            </Label>
-            <Textarea
-              id="cancel-reason"
-              placeholder="Ingrese el motivo de la cancelación..."
-              value={cancelDialog.reason}
-              onChange={(e) =>
-                setCancelDialog({ ...cancelDialog, reason: e.target.value })
-              }
-              className="mt-2"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCancelDialog({ open: false, reason: "" })}
-            >
-              Volver
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelConfirm}
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              <XCircle className="mr-2 h-4 w-4" />
-              Cancelar Viaje
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {tripActionDialogs}
     </>
   );
 }
