@@ -24,6 +24,7 @@ import {
   getTripInvoicingBadgeConfig,
 } from "../uiHelpers";
 import { TripActions } from "./TripActions";
+import { TripListRouteLabel } from "./TripListRouteLabel";
 import { formatDate, formatTime } from "@shared/utils/dateUtils";
 
 // ============================================================================
@@ -189,12 +190,10 @@ export function TripTable({
 
               {/* Ruta */}
               <TableCell>
-                <div className="space-y-0.5">
-                  <p className="font-medium">{trip.originCity}</p>
-                  <p className="text-sm text-muted-foreground">
-                    → {trip.destinationCity}
-                  </p>
-                </div>
+                <TripListRouteLabel
+                  trip={trip}
+                  className="font-medium leading-snug"
+                />
               </TableCell>
 
               {/* Vehículo */}
@@ -225,6 +224,11 @@ export function TripTable({
               {/* Facturación */}
               <TableCell>
                 <div className="space-y-1">
+                  {trip.requiresFiscalAttention ? (
+                    <Badge variant="destructive" className="mr-1">
+                      Fiscal
+                    </Badge>
+                  ) : null}
                   <Badge variant={invoicingConfig.variant}>
                     {invoicingConfig.label}
                   </Badge>

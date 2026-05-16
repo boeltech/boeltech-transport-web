@@ -60,13 +60,36 @@ import {
   useStartTrip,
   useCancelTrip,
 } from "../../application";
-import { type TripStatusType } from "../../domain";
+import { type TripStatusType, type TripInvoiceStatus } from "../../domain";
 import { TripTable, TripCard, TripCardSkeleton } from "../components";
 import { TRIP_STATUS_CONFIG } from "../index";
 import { formatDate } from "@shared/utils/dateUtils";
 
 const EMPTY_TRIP_DATE_DRAFT = { dateFrom: "", dateTo: "" } as const;
 type TripDateDraftState = { dateFrom: string; dateTo: string };
+
+const TRIP_INVOICE_STATUS_FILTER_VALUES: TripInvoiceStatus[] = [
+  "draft",
+  "stamped",
+  "cancellation_pending",
+  "cancelled",
+];
+
+const TRIP_INVOICE_STATUS_LABELS: Record<TripInvoiceStatus, string> = {
+  draft: "Borrador",
+  stamped: "Timbrada",
+  cancellation_pending: "Pend. cancelación SAT",
+  cancelled: "Cancelada",
+};
+
+function parseInvoiceStatusFilter(
+  raw: string | null,
+): TripInvoiceStatus | undefined {
+  if (!raw) return undefined;
+  return TRIP_INVOICE_STATUS_FILTER_VALUES.includes(raw as TripInvoiceStatus)
+    ? (raw as TripInvoiceStatus)
+    : undefined;
+}
 
 // ============================================================================
 // COMPONENT
@@ -100,6 +123,10 @@ export function TripsListPage() {
   // Filtro de fecha — local porque combina dos params relacionados
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
+  const fiscalAttentionOnly = searchParams.get("fiscalAttention") === "1";
+  const invoiceStatusFilter = parseInvoiceStatusFilter(
+    searchParams.get("invoiceStatus"),
+  );
 
   const syncDateDraftFromUrl = useCallback(() => {
     setDateDraft({ dateFrom, dateTo });
@@ -129,6 +156,8 @@ export function TripsListPage() {
       search: filters.search || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
+      requiresFiscalAttention: fiscalAttentionOnly ? true : undefined,
+      invoiceStatus: invoiceStatusFilter,
     },
     sort: { field: "scheduled_departure", direction: "desc" },
   });
@@ -178,7 +207,8 @@ export function TripsListPage() {
   const trips = data?.data ?? [];
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
-  const hasFilters = filters.hasFilters || hasDateFilter;
+  const hasFiscalFilter = fiscalAttentionOnly || !!invoiceStatusFilter;
+  const hasFilters = filters.hasFilters || hasDateFilter || hasFiscalFilter;
 
   // Permissions
   const canCreate = hasPermission("trips", "create");
@@ -280,8 +310,56 @@ export function TripsListPage() {
     setIsDateFilterOpen(false);
   }, [setSearchParams]);
 
+  const clearFiscalSearchParams = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("fiscalAttention");
+      params.delete("invoiceStatus");
+      params.set("page", "1");
+      return params;
+    });
+  }, [setSearchParams]);
+
+  const clearAllTripsFilters = useCallback(() => {
+    filters.clearAll();
+    handleClearDateFilter();
+    clearFiscalSearchParams();
+  }, [filters, handleClearDateFilter, clearFiscalSearchParams]);
+
   const activeFilterChips: ActiveFilterChip[] = [
     ...filters.activeChips,
+    ...(fiscalAttentionOnly
+      ? [
+          {
+            id: "fiscal",
+            label: "Atención fiscal",
+            onRemove: () => {
+              setSearchParams((prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete("fiscalAttention");
+                p.set("page", "1");
+                return p;
+              });
+            },
+          },
+        ]
+      : []),
+    ...(invoiceStatusFilter
+      ? [
+          {
+            id: "invoice-status",
+            label: `Factura: ${TRIP_INVOICE_STATUS_LABELS[invoiceStatusFilter]}`,
+            onRemove: () => {
+              setSearchParams((prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete("invoiceStatus");
+                p.set("page", "1");
+                return p;
+              });
+            },
+          },
+        ]
+      : []),
     ...(hasDateFilter
       ? [
           {
@@ -330,6 +408,52 @@ export function TripsListPage() {
                         />
                         {config.label}
                       </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={fiscalAttentionOnly ? "yes" : "all"}
+                onValueChange={(v) => {
+                  setSearchParams((prev) => {
+                    const p = new URLSearchParams(prev);
+                    if (v === "yes") p.set("fiscalAttention", "1");
+                    else p.delete("fiscalAttention");
+                    p.set("page", "1");
+                    return p;
+                  });
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Fiscal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos (fiscal)</SelectItem>
+                  <SelectItem value="yes">Solo atención fiscal</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={invoiceStatusFilter ?? "all"}
+                onValueChange={(v) => {
+                  setSearchParams((prev) => {
+                    const p = new URLSearchParams(prev);
+                    if (v === "all") p.delete("invoiceStatus");
+                    else p.set("invoiceStatus", v);
+                    p.set("page", "1");
+                    return p;
+                  });
+                }}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Estado factura" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las facturas</SelectItem>
+                  {TRIP_INVOICE_STATUS_FILTER_VALUES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {TRIP_INVOICE_STATUS_LABELS[s]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -518,7 +642,7 @@ export function TripsListPage() {
           },
           isRefreshing: isFetching,
           activeFilterChips,
-          onClearFilters: filters.clearAll,
+          onClearFilters: clearAllTripsFilters,
           hasFilters,
           viewMode: filters.viewModeProps,
         }}
@@ -579,7 +703,7 @@ export function TripsListPage() {
           secondaryCta: hasFilters
             ? {
                 label: "Limpiar filtros",
-                onClick: filters.clearAll,
+                onClick: clearAllTripsFilters,
                 variant: "outline",
               }
             : undefined,

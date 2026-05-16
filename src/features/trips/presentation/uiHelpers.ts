@@ -23,9 +23,9 @@ import {
   STOP_TYPE_LABELS,
   STOP_STATUS_LABELS,
   type TripListItem,
-  TripStatus,
   isUnifiedAddressId,
 } from "../domain";
+import { composeStopLocalityLine } from "./stopLocalityDisplay";
 
 // ============================================================================
 // TYPES
@@ -296,19 +296,97 @@ export function formatRoute(
   return `${originCity || "?"} → ${destinationCity || "?"}`;
 }
 
+function isBareSatMunicipalityCode(value: string): boolean {
+  return /^\d{1,3}$/.test(value.trim());
+}
+
+function formatLegacyTripCityLabel(
+  city: string | null | undefined,
+  state: string | null | undefined,
+): string | null {
+  const cityValue = city?.trim();
+  if (!cityValue) return null;
+  const stateValue = state?.trim();
+  if (isBareSatMunicipalityCode(cityValue)) {
+    return stateValue
+      ? `Municipio ${cityValue}, ${stateValue}`
+      : `Municipio ${cityValue}`;
+  }
+  if (stateValue) return `${cityValue}, ${stateValue}`;
+  return cityValue;
+}
+
+/** Etiqueta legible de un extremo del viaje (parada canónica + fallback legacy). */
+export function formatTripEndpointLabel(
+  stop: TripStop | undefined,
+  legacy?: { city?: string | null; state?: string | null },
+): string | null {
+  const locationName = stop?.locationName?.trim();
+  if (locationName) return locationName;
+
+  if (stop) {
+    const primary = formatStopDisplayPrimaryLine(stop);
+    if (primary && primary !== "Sin dirección") return primary;
+
+    const city = stop.city?.trim();
+    if (city && !isBareSatMunicipalityCode(city)) {
+      return formatLegacyTripCityLabel(city, stop.state) ?? city;
+    }
+
+    const locality = formatStopDisplayLocalityLine(stop);
+    if (locality) return locality;
+  }
+
+  return formatLegacyTripCityLabel(legacy?.city, legacy?.state);
+}
+
+/** Subtítulo de detalle/listado: origen → destino desde paradas y resumen legacy. */
+export function formatTripRouteSubtitle(
+  stops: readonly TripStop[] | undefined,
+  legacy: {
+    originCity?: string | null;
+    originState?: string | null;
+    destinationCity?: string | null;
+    destinationState?: string | null;
+  },
+): string {
+  const ordered = stops?.length
+    ? [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder)
+    : undefined;
+
+  const originStop = ordered?.find((stop) => {
+    const types = Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType];
+    return types.includes(StopType.ORIGIN);
+  });
+  const destinationStop = ordered?.find((stop) => {
+    const types = Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType];
+    return types.includes(StopType.DESTINATION);
+  });
+
+  const origin = formatTripEndpointLabel(originStop, {
+    city: legacy.originCity,
+    state: legacy.originState,
+  });
+  const destination = formatTripEndpointLabel(destinationStop, {
+    city: legacy.destinationCity,
+    state: legacy.destinationState,
+  });
+
+  if (!origin && !destination) return "—";
+  return `${origin || "Origen"} → ${destination || "Destino"}`;
+}
+
 export function getTripInvoicingBadgeConfig(
   tripItem: Pick<TripListItem, "status" | "invoicing">,
 ): InvoicingBadgeConfig {
-  if (tripItem.status === TripStatus.COMPLETED) {
-    const invoicing = tripItem.invoicing;
-    const hasLinkedInvoiceEvidence =
+  const invoicing = tripItem.invoicing;
+  const hasLinkedInvoiceEvidence =
     !!invoicing.invoiceId ||
     !!invoicing.invoiceFolio ||
-    invoicing.invoiceStatus !== null;
+    invoicing.invoiceStatus !== null ||
+    !!invoicing.invoiceCfdiUuid;
 
-    // Prioritize explicit invoice status from backend.
-    // This avoids showing "Disponible" when a draft/cancelled invoice exists
-    // but hasActiveInvoice is false due to backend business semantics.
+  if (hasLinkedInvoiceEvidence || invoicing.hasActiveInvoice) {
     switch (invoicing.invoiceStatus) {
       case "draft":
         return { label: "Borrador", variant: "secondary" };
@@ -322,20 +400,30 @@ export function getTripInvoicingBadgeConfig(
         if (invoicing.hasActiveInvoice) {
           return { label: "Facturado", variant: "default" };
         }
-
         if (hasLinkedInvoiceEvidence) {
           return { label: "Borrador", variant: "secondary" };
         }
-
-        return { label: "Disponible", variant: "outline" };
+        break;
     }
-  } else {
-    return { label: "No Disponible", variant: "outline" };
   }
+
+  if (invoicing.canGenerateInvoice) {
+    return { label: "Disponible", variant: "outline" };
+  }
+
+  return { label: "No Disponible", variant: "outline" };
 }
 
 export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | null {
   if (invoicing.canGenerateInvoice) return null;
+  const suppressBecauseInvoiceLinked =
+    invoicing.hasActiveInvoice ||
+    !!invoicing.invoiceId ||
+    !!invoicing.invoiceFolio ||
+    invoicing.invoiceStatus === "draft" ||
+    invoicing.invoiceStatus === "stamped" ||
+    invoicing.invoiceStatus === "cancellation_pending";
+  if (suppressBecauseInvoiceLinked) return null;
   return (
     invoicing.blockReason ??
     "Este viaje ya tiene una factura activa y no se puede facturar nuevamente."
@@ -369,16 +457,46 @@ export function formatStopDisplayPrimaryLine(stop: TripStop): string {
   return "Sin dirección";
 }
 
+function isPlaceholderStopAddress(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === "sin domicilio" ||
+    normalized === "sin dirección" ||
+    normalized === "domicilio en catálogo"
+  );
+}
+
+/** Calle y número cuando el título de la parada es `locationName` (domicilio en catálogo). */
+export function formatStopDisplayStreetLine(stop: TripStop): string | null {
+  const locationName = stop.locationName?.trim();
+  if (!locationName) return null;
+
+  const street = stop.street?.trim();
+  if (street) {
+    let line = street;
+    if (stop.exteriorNumber?.trim()) {
+      line += ` #${stop.exteriorNumber.trim()}`;
+    }
+    if (stop.interiorNumber?.trim()) {
+      line += `, Int. ${stop.interiorNumber.trim()}`;
+    }
+    if (line !== locationName) return line;
+    return null;
+  }
+
+  const addr = stop.address?.trim();
+  if (
+    addr &&
+    addr !== locationName &&
+    !isPlaceholderStopAddress(addr)
+  ) {
+    return addr;
+  }
+
+  return null;
+}
+
 /** Línea secundaria: ciudad, estado, CP (o mensaje cuando solo hay `address_id`). */
 export function formatStopDisplayLocalityLine(stop: TripStop): string {
-  const parts: string[] = [];
-  if (stop.city?.trim()) parts.push(stop.city.trim());
-  if (stop.state?.trim()) parts.push(stop.state.trim());
-  if (stop.postalCode?.trim()) parts.push(`C.P. ${stop.postalCode.trim()}`);
-  const line = parts.join(", ");
-  if (line) return line;
-  if (isUnifiedAddressId(stop.addressId)) {
-    return "Ubicación resuelta desde domicilio guardado";
-  }
-  return "";
+  return composeStopLocalityLine(stop);
 }
