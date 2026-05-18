@@ -164,7 +164,7 @@ export function DriverCard({
                 isLicenseExpired
                   ? "text-destructive"
                   : isLicenseExpiringSoon
-                    ? "text-amber-600 dark:text-amber-500"
+                    ? "text-warning"
                     : ""
               }
             >
@@ -175,7 +175,7 @@ export function DriverCard({
                 className={`h-3 w-3 ${
                   isLicenseExpired
                     ? "text-destructive"
-                    : "text-amber-600 dark:text-amber-500"
+                    : "text-warning"
                 }`}
               />
             )}

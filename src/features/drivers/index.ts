@@ -38,7 +38,6 @@ export {
   // Labels
   DRIVER_STATUS_LABELS,
   LICENSE_TYPE_LABELS,
-  DRIVER_STATUS_COLORS,
   // DTOs
   type CreateDriverDTO,
   type UpdateDriverDTO,

@@ -19,7 +19,6 @@ export {
   type VehicleStatusType,
   type VehicleTypeValue,
   VALID_STATUS_TRANSITIONS,
-  VEHICLE_STATUS_COLORS,
   VEHICLE_STATUS_LABELS,
   VEHICLE_TYPE_LABELS,
   VehicleStatus,

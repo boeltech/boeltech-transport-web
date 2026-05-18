@@ -165,7 +165,7 @@ export function DriversListPage() {
               onClick={handleLicenseExpiringToggle}
               className={cn(
                 licenseExpiring &&
-                  "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50",
+                  "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
               )}
             >
               <AlertTriangle className="mr-2 h-4 w-4" />

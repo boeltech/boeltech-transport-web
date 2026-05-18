@@ -132,27 +132,27 @@ const STATUS_ACTION_CONFIG: Record<
   [DriverStatus.AVAILABLE]: {
     label: "Marcar disponible",
     icon: UserCheck,
-    colorClass: "text-green-500",
+    colorClass: "text-success",
   },
   [DriverStatus.RESTING]: {
     label: "Marcar en descanso",
     icon: Coffee,
-    colorClass: "text-blue-500",
+    colorClass: "text-info",
   },
   [DriverStatus.ON_VACATION]: {
     label: "Marcar en vacaciones",
     icon: Palmtree,
-    colorClass: "text-purple-500",
+    colorClass: "text-info",
   },
   [DriverStatus.ON_LEAVE]: {
     label: "Marcar con permiso",
     icon: CalendarOff,
-    colorClass: "text-amber-500",
+    colorClass: "text-warning",
   },
   [DriverStatus.TERMINATED]: {
     label: "Dar de baja",
     icon: UserX,
-    colorClass: "text-red-500",
+    colorClass: "text-destructive",
   },
 };
 

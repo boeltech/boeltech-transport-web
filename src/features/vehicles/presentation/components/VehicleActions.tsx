@@ -143,17 +143,17 @@ const STATUS_ACTION_CONFIG: Record<
   [VehicleStatus.AVAILABLE]: {
     label: "Marcar disponible",
     icon: CheckCircle,
-    colorClass: "text-green-500",
+    colorClass: "text-success",
   },
   [VehicleStatus.IN_MAINTENANCE]: {
     label: "Enviar a mantenimiento",
     icon: Wrench,
-    colorClass: "text-amber-500",
+    colorClass: "text-warning",
   },
   [VehicleStatus.OUT_OF_SERVICE]: {
     label: "Marcar fuera de servicio",
     icon: XCircle,
-    colorClass: "text-red-500",
+    colorClass: "text-destructive",
   },
 };
 

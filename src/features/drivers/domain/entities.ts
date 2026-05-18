@@ -367,15 +367,6 @@ export const LICENSE_TYPE_LABELS: Record<LicenseTypeValue, string> = {
   [LicenseType.F]: "Tipo F - Doble articulado",
 };
 
-export const DRIVER_STATUS_COLORS: Record<DriverStatusType, string> = {
-  [DriverStatus.AVAILABLE]: "success",
-  [DriverStatus.ON_TRIP]: "warning",
-  [DriverStatus.RESTING]: "secondary",
-  [DriverStatus.ON_VACATION]: "secondary",
-  [DriverStatus.ON_LEAVE]: "secondary",
-  [DriverStatus.TERMINATED]: "destructive",
-};
-
 export const PSYCHOMETRIC_RESULT_LABELS: Record<string, string> = {
   approved: "Aprobado",
   conditionally_approved: "Aprobado con observaciones",

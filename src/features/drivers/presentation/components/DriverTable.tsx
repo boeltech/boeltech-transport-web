@@ -198,7 +198,7 @@ export function DriverTable({
                         expired
                           ? "text-destructive"
                           : expiringSoon
-                            ? "text-amber-600 dark:text-amber-500"
+                            ? "text-warning"
                             : ""
                       }
                     >
@@ -209,7 +209,7 @@ export function DriverTable({
                         className={`h-4 w-4 ${
                           expired
                             ? "text-destructive"
-                            : "text-amber-600 dark:text-amber-500"
+                            : "text-warning"
                         }`}
                       />
                     )}

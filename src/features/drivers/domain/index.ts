@@ -43,7 +43,6 @@ export {
   // Colors
   PSYCHOMETRIC_RESULT_COLORS,
   DRUG_TEST_RESULT_COLORS,
-  DRIVER_STATUS_COLORS,
 } from "./entities";
 
 // Repository Interfaces & DTOs

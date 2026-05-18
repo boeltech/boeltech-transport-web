@@ -330,17 +330,6 @@ export const VEHICLE_TYPE_LABELS: Record<VehicleTypeValue, string> = {
   [VehicleType.UTILITY]: "Utilitario",
 };
 
-export const VEHICLE_STATUS_COLORS: Record<VehicleStatusType, string> = {
-  [VehicleStatus.AVAILABLE]:
-    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  [VehicleStatus.ON_TRIP]:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  [VehicleStatus.IN_MAINTENANCE]:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  [VehicleStatus.OUT_OF_SERVICE]:
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-};
-
 export const VEHICLE_TYPE_ICONS: Record<VehicleTypeValue, string> = {
   [VehicleType.TRUCK]: "truck",
   [VehicleType.TORTON]: "truck",

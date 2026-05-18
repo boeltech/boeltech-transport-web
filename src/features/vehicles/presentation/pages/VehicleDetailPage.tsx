@@ -208,7 +208,7 @@ export function VehicleDetailPage() {
                   "h-5 w-5",
                   insuranceExpired || sctExpired
                     ? "text-destructive"
-                    : "text-amber-500",
+                    : "text-warning",
                 )}
               />
             }
@@ -225,13 +225,15 @@ export function VehicleDetailPage() {
         {
           title: "Kilometraje",
           value: `${formatNumber(vehicle.currentMileage)} km`,
-          icon: <Gauge className="h-5 w-5 text-primary" />,
+          tone: "primary",
+          icon: <Gauge className="h-5 w-5" />,
           description: "Odómetro actual del vehículo",
         },
         {
           title: "Capacidad de carga",
           value: capacities.loadCapacity ? `${capacities.loadCapacity} t` : "—",
-          icon: <Package className="h-5 w-5 text-blue-500" />,
+          tone: "info",
+          icon: <Package className="h-5 w-5" />,
           description:
             capacities.volumeCapacity != null
               ? `${capacities.volumeCapacity} m³ volumen útil`
@@ -242,7 +244,8 @@ export function VehicleDetailPage() {
           value: capacities.fuelTankCapacity
             ? `${capacities.fuelTankCapacity} L`
             : "—",
-          icon: <Fuel className="h-5 w-5 text-amber-500" />,
+          tone: "warning",
+          icon: <Fuel className="h-5 w-5" />,
           description: "Capacidad del depósito",
         },
         {
@@ -250,7 +253,8 @@ export function VehicleDetailPage() {
           value: capacities.expectedFuelEfficiency
             ? `${capacities.expectedFuelEfficiency} km/L`
             : "—",
-          icon: <Route className="h-5 w-5 text-green-500" />,
+          tone: "success",
+          icon: <Route className="h-5 w-5" />,
           description: "Consumo esperado (referencia)",
         },
       ]}
@@ -366,7 +370,7 @@ export function VehicleDetailPage() {
                         value={
                           <span className="inline-flex items-center gap-1.5">
                             {vehicle.isActive ? (
-                              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                             ) : (
                               <XCircle className="h-4 w-4 shrink-0 text-destructive" />
                             )}
@@ -561,7 +565,7 @@ export function VehicleDetailPage() {
               <span className="inline-flex items-center">
                 Documentos
                 {hasDocumentAlerts ? (
-                  <AlertTriangle className="ml-1.5 h-3.5 w-3.5 text-amber-500" />
+                  <AlertTriangle className="ml-1.5 h-3.5 w-3.5 text-warning" />
                 ) : null}
               </span>
             ),

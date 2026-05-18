@@ -78,12 +78,13 @@ function formatNumber(num: number): string {
 }
 
 function getExpirationStatus(days: number | null): {
-  variant: "default" | "secondary" | "destructive" | "outline";
+  variant: "default" | "secondary" | "destructive" | "warning";
+  tone?: "soft";
   label: string;
 } {
   if (days === null) return { variant: "secondary", label: "Sin fecha" };
-  if (days <= 0) return { variant: "destructive", label: "Vencido" };
-  if (days <= 30) return { variant: "outline", label: `${days} días` };
+  if (days <= 0) return { variant: "destructive", tone: "soft", label: "Vencido" };
+  if (days <= 30) return { variant: "warning", tone: "soft", label: `${days} días` };
   return { variant: "default", label: "Vigente" };
 }
 
@@ -105,15 +106,25 @@ function ResultBadge({ result, labels, colors }: ResultBadgeProps) {
 
   const variantMap: Record<
     string,
-    "default" | "secondary" | "destructive" | "outline"
+    "default" | "secondary" | "destructive" | "warning" | "success"
   > = {
-    success: "default",
-    warning: "outline",
+    success: "success",
+    warning: "warning",
     destructive: "destructive",
     secondary: "secondary",
   };
 
-  return <Badge variant={variantMap[colorClass] || "secondary"}>{label}</Badge>;
+  const variant = variantMap[colorClass] || "secondary";
+  const tone =
+    variant === "success" || variant === "warning" || variant === "destructive"
+      ? "soft"
+      : undefined;
+
+  return (
+    <Badge variant={variant} tone={tone}>
+      {label}
+    </Badge>
+  );
 }
 
 // ============================================================================
@@ -229,14 +240,14 @@ export function DriverDetailPage() {
   const licenseVariant = getLicenseExpirationVariant(
     daysUntilLicenseExpiration,
   );
-  const licenseBadgeVariant =
+  const licenseBadgeProps =
     licenseVariant === "warning"
-      ? "outline"
+      ? { variant: "warning" as const, tone: "soft" as const }
       : licenseVariant === "destructive"
-        ? "destructive"
+        ? { variant: "destructive" as const, tone: "soft" as const }
         : licenseVariant === "secondary"
-          ? "secondary"
-          : "default";
+          ? { variant: "secondary" as const }
+          : { variant: "default" as const };
   const isLicenseExpired =
     daysUntilLicenseExpiration !== null && daysUntilLicenseExpiration <= 0;
   const isLicenseExpiringSoon =
@@ -373,7 +384,7 @@ export function DriverDetailPage() {
                     "h-5 w-5",
                     isDrugEstimatedExpired
                       ? "text-destructive"
-                      : "text-amber-500",
+                      : "text-warning",
                   )}
                 />
               }
@@ -398,12 +409,14 @@ export function DriverDetailPage() {
         {
           title: "Viajes Totales",
           value: formatNumber(stats.totalTrips),
-          icon: <Route className="h-5 w-5 text-primary" />,
+          tone: "primary",
+          icon: <Route className="h-5 w-5" />,
         },
         {
           title: "Viajes Completados",
           value: formatNumber(stats.completedTrips),
-          icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+          tone: "success",
+          icon: <CheckCircle2 className="h-5 w-5" />,
           description:
             stats.totalTrips > 0
               ? `${Math.round((stats.completedTrips / stats.totalTrips) * 100)}% de éxito`
@@ -412,12 +425,14 @@ export function DriverDetailPage() {
         {
           title: "Viajes Cancelados",
           value: formatNumber(stats.cancelledTrips),
-          icon: <XCircle className="h-5 w-5 text-red-500" />,
+          tone: "destructive",
+          icon: <XCircle className="h-5 w-5" />,
         },
         {
           title: "Años de Experiencia",
           value: stats.yearsOfExperience,
-          icon: <TrendingUp className="h-5 w-5 text-purple-500" />,
+          tone: "info",
+          icon: <TrendingUp className="h-5 w-5" />,
         },
       ]}
       metadata={{
@@ -555,19 +570,12 @@ export function DriverDetailPage() {
                           <span
                             className={cn(
                               isLicenseExpired && "text-destructive",
-                              isLicenseExpiringSoon && "text-amber-600",
+                              isLicenseExpiringSoon && "text-warning",
                             )}
                           >
                             {formatDate(driver.licenseExpiry)}
                           </span>
-                          <Badge
-                            variant={licenseBadgeVariant}
-                            className={
-                              licenseVariant === "warning"
-                                ? "border-amber-500 text-amber-800 dark:text-amber-200"
-                                : undefined
-                            }
-                          >
+                          <Badge {...licenseBadgeProps}>
                             {isLicenseExpired
                               ? "Vencida"
                               : isLicenseExpiringSoon
@@ -620,12 +628,17 @@ export function DriverDetailPage() {
                               <span
                                 className={cn(
                                   isMedicalExpired && "text-destructive",
-                                  isMedicalExpiringSoon && "text-amber-600",
+                                  isMedicalExpiringSoon && "text-warning",
                                 )}
                               >
                                 {formatDate(driver.medicalCertificateExpiry)}
                               </span>
-                              <Badge variant={medicalStatus.variant}>{medicalStatus.label}</Badge>
+                              <Badge
+                                variant={medicalStatus.variant}
+                                tone={medicalStatus.tone}
+                              >
+                                {medicalStatus.label}
+                              </Badge>
                             </div>
                           ) : (
                             "No registrado"
@@ -714,7 +727,7 @@ export function DriverDetailPage() {
                               );
                             if (daysRemaining <= 30)
                               return (
-                                <span className="text-amber-600">
+                                <span className="text-warning">
                                   {daysRemaining} días restantes
                                 </span>
                               );
