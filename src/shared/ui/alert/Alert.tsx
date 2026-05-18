@@ -4,19 +4,34 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
+/**
+ * Alert variants — Design System (Fase 4)
+ *
+ * Cada variante semántica usa los tokens *-soft del DS. El icono y borde
+ * usan el token solid del mismo namespace para crear refuerzo visual sin
+ * ser estridente. Dark mode hereda automáticamente vía las definiciones de
+ * tokens en .dark.
+ *
+ * Reglas:
+ *   - NUNCA usar colores Tailwind crudos (bg-green-500/10, text-yellow-700, …).
+ *   - Si necesitas un estado nuevo, agrega un token semántico primero en
+ *     index.css.
+ */
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
+  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default:
+          "bg-background text-foreground border-border [&>svg]:text-foreground",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive bg-destructive/10",
+          "border-destructive/40 bg-destructive-soft text-destructive-soft-foreground [&>svg]:text-destructive",
         success:
-          "border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-600 bg-green-500/10",
+          "border-success/40 bg-success-soft text-success-soft-foreground [&>svg]:text-success",
         warning:
-          "border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600 bg-yellow-500/10",
-        info: "border-blue-500/50 text-blue-700 dark:text-blue-400 [&>svg]:text-blue-600 bg-blue-500/10",
+          "border-warning/40 bg-warning-soft text-warning-soft-foreground [&>svg]:text-warning",
+        info:
+          "border-info/40 bg-info-soft text-info-soft-foreground [&>svg]:text-info",
       },
     },
     defaultVariants: {

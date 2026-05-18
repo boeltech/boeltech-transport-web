@@ -45,6 +45,8 @@ export interface FormPageShellHeader {
   title: string;
   /** Subtítulo opcional. */
   subtitle?: string;
+  /** Slot a la derecha del título (badge, acciones). */
+  trailing?: ReactNode;
 }
 
 export interface FormPageShellProps {
@@ -109,7 +111,7 @@ export const FormPageShell = memo(function FormPageShell({
       {/* ====================================================================
        * Header
        * ================================================================== */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         <Button
           variant="ghost"
           size="icon"
@@ -118,21 +120,26 @@ export const FormPageShell = memo(function FormPageShell({
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-lg",
-              iconBgVariants[header.iconVariant ?? "primary"],
-            )}
-          >
-            {header.icon}
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                iconBgVariants[header.iconVariant ?? "primary"],
+              )}
+            >
+              {header.icon}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold">{header.title}</h1>
+              {header.subtitle ? (
+                <p className="text-sm text-muted-foreground">{header.subtitle}</p>
+              ) : null}
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{header.title}</h1>
-            {header.subtitle ? (
-              <p className="text-sm text-muted-foreground">{header.subtitle}</p>
-            ) : null}
-          </div>
+          {header.trailing ? (
+            <div className="shrink-0">{header.trailing}</div>
+          ) : null}
         </div>
       </div>
 

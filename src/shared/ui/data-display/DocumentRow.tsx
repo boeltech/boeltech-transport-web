@@ -34,13 +34,20 @@ export interface DocumentRowProps {
 // HELPERS
 // ============================================================================
 
-type ExpirationVariant = "destructive" | "outline" | "secondary" | "default";
+type ExpirationBadgeVariant =
+  | "destructive"
+  | "warning"
+  | "secondary"
+  | "default";
 
-function getExpirationVariant(date: string | null): ExpirationVariant {
+function getExpirationBadgeVariant(
+  date: string | null,
+): ExpirationBadgeVariant | null {
+  if (!date) return null;
   const days = getDaysUntilDateString(date);
   if (days === null) return "secondary";
   if (days <= 0) return "destructive";
-  if (days <= 30) return "outline";
+  if (days <= 30) return "warning";
   if (days <= 90) return "secondary";
   return "default";
 }
@@ -57,7 +64,11 @@ export function DocumentRow({
   const expired = isExpired(expirationDate);
   const expiringSoon = isExpiringSoon(expirationDate);
   const daysUntil = getDaysUntilDateString(expirationDate);
-  const variant = getExpirationVariant(expirationDate);
+  const badgeVariant = getExpirationBadgeVariant(expirationDate);
+  const badgeTone =
+    badgeVariant === "destructive" || badgeVariant === "warning"
+      ? "soft"
+      : undefined;
 
   return (
     <div className="flex items-center justify-between py-3 border-b last:border-b-0">
@@ -72,20 +83,13 @@ export function DocumentRow({
           className={cn(
             "text-sm",
             expired && "text-destructive",
-            expiringSoon && "text-amber-600 dark:text-amber-500",
+            expiringSoon && "text-warning",
           )}
         >
           {formatDate(expirationDate)}
         </p>
-        {expirationDate ? (
-          <Badge
-            variant={variant}
-            className={cn(
-              "text-xs",
-              variant === "outline" &&
-                "border-amber-500 text-amber-800 dark:text-amber-200",
-            )}
-          >
+        {badgeVariant ? (
+          <Badge variant={badgeVariant} tone={badgeTone} className="text-xs">
             {expired
               ? "Vencido"
               : expiringSoon

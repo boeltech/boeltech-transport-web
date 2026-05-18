@@ -91,6 +91,10 @@ export interface ListPageShellProps<TItem> {
   title: string;
   description?: string;
   primaryAction?: ListPageShellPrimaryAction;
+  /** Si es false, no renderiza el bloque de título/acción (p. ej. listado embebido en tabs). */
+  showHeader?: boolean;
+  /** Contenido encima de la toolbar (KPIs, banners). */
+  beforeToolbar?: ReactNode;
 
   // ── Toolbar ───────────────────────────────────────────────────────────────
   toolbar?: ListPageShellToolbar;
@@ -128,6 +132,8 @@ function ListPageShellInner<TItem>({
   title,
   description,
   primaryAction,
+  showHeader = true,
+  beforeToolbar,
   toolbar,
   isLoading,
   items,
@@ -150,19 +156,23 @@ function ListPageShellInner<TItem>({
       {/* ====================================================================
        * Header
        * ================================================================== */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {description ? (
-            <p className="text-muted-foreground">{description}</p>
+      {showHeader ? (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            {description ? (
+              <p className="text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+          {showActionButton ? (
+            <Button onClick={primaryAction.onClick} leftIcon={primaryAction.icon}>
+              {primaryAction.label}
+            </Button>
           ) : null}
         </div>
-        {showActionButton ? (
-          <Button onClick={primaryAction.onClick} leftIcon={primaryAction.icon}>
-            {primaryAction.label}
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
+
+      {beforeToolbar}
 
       {/* ====================================================================
        * Toolbar

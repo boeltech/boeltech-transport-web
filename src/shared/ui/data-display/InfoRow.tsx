@@ -122,7 +122,7 @@ function StackedInfoRow({
               "min-w-0 flex-1 text-sm font-medium",
               alert && "flex items-center gap-1.5",
               alert === "expired" && "text-destructive",
-              alert === "warning" && "text-amber-600 dark:text-amber-500",
+              alert === "warning" && "text-warning",
             )}
           >
             {alert ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
@@ -207,7 +207,7 @@ function InlineInfoRow({
             mono && "font-mono",
             isEmpty && "italic text-muted-foreground",
             alert === "expired" && "text-destructive",
-            alert === "warning" && "text-amber-600 dark:text-amber-500",
+            alert === "warning" && "text-warning",
           )}
         >
           {displayValue}

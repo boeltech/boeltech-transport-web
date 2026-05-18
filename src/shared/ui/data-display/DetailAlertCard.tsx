@@ -72,9 +72,9 @@ const severityClasses: Record<
     iconColor: "text-destructive",
   },
   warning: {
-    border: "border-l-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-950/20",
-    iconColor: "text-amber-500",
+    border: "border-l-warning",
+    bg: "bg-warning-soft",
+    iconColor: "text-warning",
   },
   info: {
     border: "border-l-primary",

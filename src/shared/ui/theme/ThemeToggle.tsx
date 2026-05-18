@@ -171,7 +171,7 @@ export const ThemeSwitch = memo(function ThemeSwitch({
           className={cn(
             s.icon,
             "text-muted-foreground",
-            !isDark && "text-amber-500",
+            !isDark && "text-warning",
           )}
         />
       )}
@@ -205,7 +205,7 @@ export const ThemeSwitch = memo(function ThemeSwitch({
           className={cn(
             s.icon,
             "text-muted-foreground",
-            isDark && "text-blue-400",
+            isDark && "text-info",
           )}
         />
       )}

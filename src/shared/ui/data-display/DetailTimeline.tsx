@@ -101,7 +101,7 @@ export function DetailTimeline({ items, className }: DetailTimelineProps) {
                   "shrink-0 rounded-full flex items-center justify-center border-2",
                   sizeClass,
                   item.completed
-                    ? "bg-emerald-100 border-emerald-500 dark:bg-emerald-900/30"
+                    ? "bg-success-soft border-success"
                     : cn(
                         item.dotBgClassName ?? "bg-muted",
                         "border-muted-foreground/30",
@@ -109,7 +109,7 @@ export function DetailTimeline({ items, className }: DetailTimelineProps) {
                 )}
               >
                 {item.completed ? (
-                  <Check className="h-5 w-5 text-emerald-600" />
+                  <Check className="h-5 w-5 text-success" />
                 ) : (
                   <span
                     className={cn(
@@ -128,7 +128,7 @@ export function DetailTimeline({ items, className }: DetailTimelineProps) {
                     "w-0.5 flex-1",
                     lineMin,
                     item.completed
-                      ? "bg-emerald-500"
+                      ? "bg-success"
                       : "bg-muted-foreground/20",
                   )}
                   aria-hidden
