@@ -31,7 +31,6 @@ import {
   Wrench,
   MapPin,
   User,
-  BadgeCheck,
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth";
@@ -59,6 +58,8 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import { Separator } from "@/shared/ui/separator";
 import { TripStatus, type TripStatusType } from "@features/trips";
 import { TripStatusBadge } from "@features/trips/presentation";
+import { StatCard } from "@shared/ui/data-display";
+import type { ElementType } from "react";
 
 // ============================================================================
 // HELPERS
@@ -104,93 +105,43 @@ function handleAlertClick(
 }
 
 // ============================================================================
-// KPI CARD — base reutilizable
+// KPI CARD — StatCard compartido
 // ============================================================================
 
-interface KpiCardProps {
+interface DashboardStatCardProps {
   title: string;
   value: string | number | undefined;
   description?: string;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  valueColor?: string;
-  indicator?: { label: string; variant: string };
+  icon: ElementType;
   isLoading: boolean;
   onClick?: () => void;
 }
 
-const INDICATOR_CLASSES: Record<string, string> = {
-  blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  red: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  yellow: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  orange: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  muted: "bg-muted text-muted-foreground",
-};
-
-function KpiCard({
+function DashboardStatCard({
   title,
   value,
   description,
   icon: Icon,
-  iconBg,
-  iconColor,
-  valueColor,
-  indicator,
   isLoading,
   onClick,
-}: KpiCardProps) {
+}: DashboardStatCardProps) {
+  const card = (
+    <StatCard
+      title={title}
+      value={value ?? "—"}
+      description={description}
+      isLoading={isLoading}
+      icon={<Icon className="h-5 w-5 text-primary" />}
+      className={onClick ? "transition-shadow hover:shadow-md" : undefined}
+    />
+  );
+
+  if (!onClick) return card;
+
   return (
-    <Card
-      className={cn(
-        "transition-shadow",
-        onClick && "cursor-pointer hover:shadow-md",
-      )}
-      onClick={onClick}
-    >
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <div
-            className={cn(
-              "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
-              iconBg,
-            )}
-          >
-            <Icon className={cn("h-4 w-4", iconColor)} />
-          </div>
-        </div>
-        {isLoading ? (
-          <>
-            <Skeleton className="h-8 w-24 mb-2" />
-            <Skeleton className="h-3 w-36 mb-3" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </>
-        ) : (
-          <>
-            <p className={cn("text-2xl font-bold", valueColor ?? "")}>
-              {value ?? "—"}
-            </p>
-            {description && (
-              <p className="text-xs text-muted-foreground mt-1 mb-3">
-                {description}
-              </p>
-            )}
-            {indicator && (
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1",
-                  INDICATOR_CLASSES[indicator.variant] ?? INDICATOR_CLASSES.muted,
-                )}
-              >
-                {indicator.label}
-              </span>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <button type="button" className="w-full text-left" onClick={onClick}>
+      {card}
+    </button>
   );
 }
 
@@ -211,7 +162,7 @@ function OperationKpis({
 
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      <KpiCard
+      <DashboardStatCard
         title="Flota activa"
         value={stats ? `${stats.vehicles.on_trip} / ${stats.vehicles.total}` : undefined}
         description={
@@ -220,21 +171,11 @@ function OperationKpis({
             : undefined
         }
         icon={Truck}
-        iconBg="bg-blue-100 dark:bg-blue-900/30"
-        iconColor="text-blue-600 dark:text-blue-400"
-        valueColor="text-blue-600 dark:text-blue-400"
-        indicator={
-          stats
-            ? stats.vehicles.on_trip > 0
-              ? { label: `${stats.vehicles.on_trip} en viaje`, variant: "blue" }
-              : { label: "Sin unidades en ruta", variant: "muted" }
-            : undefined
-        }
         isLoading={isLoading}
         onClick={() => navigate("/vehicles")}
       />
 
-      <KpiCard
+      <DashboardStatCard
         title="Conductores"
         value={stats?.drivers.available}
         description={
@@ -243,19 +184,11 @@ function OperationKpis({
             : undefined
         }
         icon={Users}
-        iconBg="bg-green-100 dark:bg-green-900/30"
-        iconColor="text-green-600 dark:text-green-400"
-        valueColor="text-green-600 dark:text-green-400"
-        indicator={
-          stats
-            ? { label: "Disponibles ahora", variant: "green" }
-            : undefined
-        }
         isLoading={isLoading}
         onClick={() => navigate("/drivers")}
       />
 
-      <KpiCard
+      <DashboardStatCard
         title="Viajes en curso"
         value={stats?.trips.in_progress}
         description={
@@ -264,21 +197,11 @@ function OperationKpis({
             : undefined
         }
         icon={Route}
-        iconBg="bg-purple-100 dark:bg-purple-900/30"
-        iconColor="text-purple-600 dark:text-purple-400"
-        valueColor="text-purple-600 dark:text-purple-400"
-        indicator={
-          stats
-            ? stats.trips.in_progress > 0
-              ? { label: "En progreso", variant: "blue" }
-              : { label: "Sin viajes activos", variant: "muted" }
-            : undefined
-        }
         isLoading={isLoading}
         onClick={() => navigate("/trips")}
       />
 
-      <KpiCard
+      <DashboardStatCard
         title="Tarifa base (mes)"
         value={stats ? formatMXN(stats.billing.total_base_rate_this_month) : undefined}
         description={
@@ -287,16 +210,6 @@ function OperationKpis({
             : undefined
         }
         icon={DollarSign}
-        iconBg="bg-orange-100 dark:bg-orange-900/30"
-        iconColor="text-orange-600 dark:text-orange-400"
-        valueColor="text-orange-600 dark:text-orange-400"
-        indicator={
-          stats
-            ? stats.billing.total_base_rate_this_month > 0
-              ? { label: "Ingresos del período", variant: "orange" }
-              : { label: "Sin facturación este mes", variant: "muted" }
-            : undefined
-        }
         isLoading={isLoading}
       />
     </div>
@@ -334,71 +247,29 @@ function FinanceKpis({
         </Button>
       </div>
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <KpiCard
+        <DashboardStatCard
           title="Por cobrar"
           value={summary ? formatMXN(summary.totalReceivable) : undefined}
           description="Facturas timbradas sin pago completo"
           icon={DollarSign}
-          iconBg="bg-blue-100 dark:bg-blue-900/30"
-          iconColor="text-blue-600 dark:text-blue-400"
-          valueColor="text-blue-600 dark:text-blue-400"
-          indicator={
-            summary
-              ? summary.totalReceivable > 0
-                ? { label: "Pendiente de cobro", variant: "blue" }
-                : { label: "Sin saldo pendiente", variant: "green" }
-              : undefined
-          }
           isLoading={loading}
           onClick={() => navigate("/finance?tab=invoices")}
         />
 
-        <KpiCard
+        <DashboardStatCard
           title="Cobrado este mes"
           value={summary ? formatMXN(summary.collectedThisMonth) : undefined}
           description="Pagos registrados en el período actual"
           icon={TrendingUp}
-          iconBg="bg-green-100 dark:bg-green-900/30"
-          iconColor="text-green-600 dark:text-green-400"
-          valueColor="text-green-600 dark:text-green-400"
-          indicator={
-            summary
-              ? summary.collectedThisMonth > 0
-                ? { label: "Ingresos recibidos", variant: "green" }
-                : { label: "Sin cobros este mes", variant: "muted" }
-              : undefined
-          }
           isLoading={loading}
           onClick={() => navigate("/finance")}
         />
 
-        <KpiCard
+        <DashboardStatCard
           title="Vencido"
           value={summary ? formatMXN(summary.totalOverdue) : undefined}
           description="Facturas PPD con pago pendiente vencido"
           icon={AlertTriangle}
-          iconBg={
-            summary && summary.totalOverdue > 0
-              ? "bg-red-100 dark:bg-red-900/30"
-              : "bg-muted"
-          }
-          iconColor={
-            summary && summary.totalOverdue > 0
-              ? "text-red-600 dark:text-red-400"
-              : "text-muted-foreground"
-          }
-          valueColor={
-            summary && summary.totalOverdue > 0
-              ? "text-red-600 dark:text-red-400"
-              : "text-muted-foreground"
-          }
-          indicator={
-            summary
-              ? summary.totalOverdue > 0
-                ? { label: "Requiere atención", variant: "red" }
-                : { label: "Sin vencidos", variant: "green" }
-              : undefined
-          }
           isLoading={loading}
           onClick={() => navigate("/finance?tab=invoices&status=stamped")}
         />
@@ -712,21 +583,14 @@ function DashboardPage() {
   const { data, isLoading, isError, refetch, isFetching } = useDashboard();
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <BadgeCheck className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {getGreeting(user)}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Resumen de operación y finanzas
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">{getGreeting(user)}</h1>
+          <p className="text-sm text-muted-foreground">
+            Resumen de operación y finanzas
+          </p>
         </div>
         <Button
           variant="outline"
