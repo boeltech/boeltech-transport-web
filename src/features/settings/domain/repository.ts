@@ -7,12 +7,14 @@
  * Ubicación: src/features/settings/domain/repository.ts
  */
 
+import type { CreateClientAddressDTO } from "@features/clients/domain";
 import type {
   CompanySettings,
   BillingSettings,
   NotificationSettings,
   TestPacConnectionPayload,
   TestPacConnectionResult,
+  RegisterPacEmitterResult,
 } from "./entities";
 
 // ============================================================================
@@ -29,6 +31,8 @@ export interface UpdateCompanySettingsDTO {
   website?: string | null;
   /** Código postal del lugar de expedición para el CFDI 4.0 */
   lugarExpedicion?: string;
+  /** Domicilio fiscal (upsert atómico con `PUT /settings/company`). */
+  fiscalAddress?: CreateClientAddressDTO & { id?: string };
 }
 
 // ============================================================================
@@ -123,6 +127,7 @@ export interface ISettingsRepository {
   testPacConnection(
     payload?: TestPacConnectionPayload,
   ): Promise<TestPacConnectionResult>;
+  registerPacEmitter(): Promise<RegisterPacEmitterResult>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Notification Settings

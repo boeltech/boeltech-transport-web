@@ -22,6 +22,7 @@ import {
   type SettingsResult,
   type TestPacConnectionPayload,
   type TestPacConnectionResult,
+  type RegisterPacEmitterResult,
   settingsQueryKeys,
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
@@ -177,6 +178,48 @@ export function useTestPacConnection(
       toast({
         title: "Error de conexión",
         description: error.message ?? "No se pudo probar la conexión.",
+        variant: "destructive",
+      });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook para reintentar registro de emisor en ProFact con la configuración
+ * persistida del tenant (RFC + CSD + PAC).
+ */
+export function useRegisterPacEmitter(
+  options?: Omit<
+    UseMutationOptions<RegisterPacEmitterResult, Error, void>,
+    "mutationFn"
+  >,
+) {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => settingsRepository.registerPacEmitter(),
+    onSuccess: (result) => {
+      if (result.success) {
+        toast({
+          title: "Emisor registrado en ProFact",
+          description: result.message,
+        });
+        return;
+      }
+
+      toast({
+        title: result.attempted
+          ? "No se pudo registrar en ProFact"
+          : "No se pudo iniciar el registro",
+        description: result.message,
+        variant: result.attempted ? "destructive" : "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al registrar emisor",
+        description: error.message ?? "No se pudo completar la operación.",
         variant: "destructive",
       });
     },

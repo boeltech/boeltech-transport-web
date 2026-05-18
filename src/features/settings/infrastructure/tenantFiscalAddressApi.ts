@@ -2,7 +2,7 @@
  * Direcciones del tenant (domicilio fiscal) vía recurso unificado `/addresses`.
  */
 
-import { apiClient } from "@shared/api";
+import { apiClient, type ApiSingleResponse } from "@shared/api";
 import type {
   ClientAddress,
   ClientAddressApiResponse,
@@ -11,6 +11,7 @@ import type {
 } from "@features/clients/domain";
 import {
   mapClientAddress,
+  mapClientAddressListToDomain,
   toApiCreateClientAddress,
   toApiUpdateClientAddress,
 } from "@features/clients/infrastructure/mappers";
@@ -38,10 +39,10 @@ export async function fetchTenantAddresses(
     owner_type: "tenant",
     owner_id: tenantId,
   });
-  const res = await apiClient.get<{ data: ClientAddressApiResponse[] }>(
-    `${ADDRESSES}?${q.toString()}`,
-  );
-  return res.data.map(mapClientAddress);
+  const response = await apiClient.get<
+    ApiSingleResponse<ClientAddressApiResponse[]>
+  >(`${ADDRESSES}?${q.toString()}`);
+  return mapClientAddressListToDomain(response);
 }
 
 export async function createTenantAddress(
@@ -53,20 +54,18 @@ export async function createTenantAddress(
     ownerId: tenantId,
     ...toApiCreateClientAddress(dto),
   };
-  const response = await apiClient.post<{ data: ClientAddressApiResponse }>(
-    ADDRESSES,
-    payload,
-  );
-  return mapClientAddress(response.data);
+  const response = await apiClient.post<
+    ApiSingleResponse<ClientAddressApiResponse>
+  >(ADDRESSES, payload);
+  return mapClientAddress(response).data;
 }
 
 export async function updateTenantAddress(
   addressId: string,
   dto: UpdateClientAddressDTO,
 ): Promise<ClientAddress> {
-  const response = await apiClient.put<{ data: ClientAddressApiResponse }>(
-    `${ADDRESSES}/${addressId}`,
-    toApiUpdateClientAddress(dto),
-  );
-  return mapClientAddress(response.data);
+  const response = await apiClient.put<
+    ApiSingleResponse<ClientAddressApiResponse>
+  >(`${ADDRESSES}/${addressId}`, toApiUpdateClientAddress(dto));
+  return mapClientAddress(response).data;
 }

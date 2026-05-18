@@ -58,15 +58,19 @@ import {
   useUpdateBillingSettings,
   useUploadCertificate,
   useTestPacConnection,
+  useRegisterPacEmitter,
 } from "../../application/hooks";
 import {
   PAC_PROVIDER_LABELS,
   PAC_USES_CREDENTIALS,
+  SELECTABLE_PAC_PROVIDERS,
+  resolveSelectablePacProvider,
   PacProviders,
   type BillingSettings,
   type UpdateBillingSettingsDTO,
   type PacProvider,
   type TestPacConnectionPayload,
+  type RegisterPacEmitterResult,
 } from "../../domain";
 
 // ============================================================================
@@ -171,8 +175,11 @@ interface PacProviderConfigProps {
   form: UseFormReturn<BillingSettingsFormData>;
   settings?: BillingSettings;
   isPending: boolean;
+  isRegisterEmitterPending: boolean;
+  registerEmitterResult?: RegisterPacEmitterResult;
   canTestConnection: boolean;
   onTestConnection: () => void;
+  onRegisterEmitter: () => void;
   isDirty: boolean;
 }
 
@@ -187,8 +194,11 @@ function PacProviderConfig({
   form,
   settings,
   isPending,
+  isRegisterEmitterPending,
+  registerEmitterResult,
   canTestConnection,
   onTestConnection,
+  onRegisterEmitter,
   isDirty,
 }: PacProviderConfigProps) {
   const pacProvider =
@@ -220,25 +230,58 @@ function PacProviderConfig({
         </Alert>
 
         <div className="space-y-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onTestConnection}
-            disabled={isPending || !canTestConnection}
-          >
-            {isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Verificar conexión con ProFact
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onTestConnection}
+              disabled={isPending || !canTestConnection}
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Verificar conexión con ProFact
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRegisterEmitter}
+              disabled={isRegisterEmitterPending || !canTestConnection}
+            >
+              {isRegisterEmitterPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileKey className="h-4 w-4 mr-2" />
+              )}
+              Registrar emisor en ProFact
+            </Button>
+          </div>
           {isDirty && (
             <p className="text-xs text-muted-foreground">
               Estás probando con configuración no guardada.
             </p>
           )}
+          {registerEmitterResult ? (
+            <Alert variant={registerEmitterResult.success ? "default" : "warning"}>
+              {registerEmitterResult.success ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+              <AlertTitle>
+                {registerEmitterResult.success
+                  ? "Emisor registrado"
+                  : registerEmitterResult.attempted
+                    ? "Registro fallido"
+                    : "Registro pendiente de prerequisitos"}
+              </AlertTitle>
+              <AlertDescription>{registerEmitterResult.message}</AlertDescription>
+            </Alert>
+          ) : null}
         </div>
       </div>
     );
@@ -322,6 +365,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const { data: settings, isLoading, isError } = useBillingSettings();
   const updateMutation = useUpdateBillingSettings();
   const testConnectionMutation = useTestPacConnection();
+  const registerEmitterMutation = useRegisterPacEmitter();
   const canUpdateSettings = hasPermission("settings", "update");
   const canUploadCertificate = hasRole(ROLES.ADMIN);
 
@@ -357,12 +401,15 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const watchedMoneda = useWatch({ control: form.control, name: "moneda" });
   const watchedTasaIva = useWatch({ control: form.control, name: "tasaIva" });
 
+  const pacProviderSelectDisabled =
+    !canUpdateSettings || SELECTABLE_PAC_PROVIDERS.length <= 1;
+
   const onSubmit = useCallback(
     (data: BillingSettingsFormData) => {
       if (!canUpdateSettings) return;
 
       const dto: UpdateBillingSettingsDTO = {
-        pacProvider: data.pacProvider,
+        pacProvider: resolveSelectablePacProvider(data.pacProvider),
         defaultUsoCfdi: data.defaultUsoCfdi,
         defaultFormaPago: data.defaultFormaPago,
         defaultMetodoPago: data.defaultMetodoPago,
@@ -400,6 +447,11 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     };
     testConnectionMutation.mutate(payload);
   }, [form, testConnectionMutation, canUpdateSettings]);
+
+  const handleRegisterEmitter = useCallback(() => {
+    if (!canUpdateSettings) return;
+    registerEmitterMutation.mutate();
+  }, [canUpdateSettings, registerEmitterMutation]);
 
   if (isLoading) {
     return (
@@ -451,26 +503,33 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                     Proveedor PAC <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={pacProvider ?? ""}
+                    value={pacProvider ?? PacProviders.PROFACT}
+                    disabled={pacProviderSelectDisabled}
                     onValueChange={(value) => {
-                      if (!value) return;
+                      if (!value || pacProviderSelectDisabled) return;
                       form.setValue("pacProvider", value, { shouldDirty: true });
-                      // Limpiar credenciales al cambiar de PAC
                       form.setValue("pacUsername", "");
                       form.setValue("pacPassword", "");
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="pacProvider">
                       <SelectValue placeholder="Seleccionar proveedor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(PAC_PROVIDER_LABELS).map(([code, name]) => (
+                      {SELECTABLE_PAC_PROVIDERS.map((code) => (
                         <SelectItem key={code} value={code}>
-                          {name}
+                          {PAC_PROVIDER_LABELS[code]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {pacProviderSelectDisabled &&
+                    SELECTABLE_PAC_PROVIDERS.length === 1 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {PAC_PROVIDER_LABELS[SELECTABLE_PAC_PROVIDERS[0]!]} es el
+                        único proveedor disponible por ahora.
+                      </p>
+                    )}
                   {form.formState.errors.pacProvider && (
                     <p className="text-sm text-destructive mt-1">
                       {form.formState.errors.pacProvider.message}
@@ -483,8 +542,11 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   form={form}
                   settings={settings}
                   isPending={testConnectionMutation.isPending}
+                  isRegisterEmitterPending={registerEmitterMutation.isPending}
+                  registerEmitterResult={registerEmitterMutation.data}
                   canTestConnection={canUpdateSettings}
                   onTestConnection={handleTestConnection}
+                  onRegisterEmitter={handleRegisterEmitter}
                   isDirty={form.formState.isDirty}
                 />
               </div>
@@ -887,12 +949,9 @@ const CertificateCard = memo(function CertificateCard({
       actions={
         settings.certificateConfigured ? (
           <Badge
-            variant={isExpiringSoon ? "outline" : "secondary"}
-            className={
-              isExpiringSoon
-                ? "shrink-0 border-amber-500 text-amber-800 dark:text-amber-200"
-                : "shrink-0 bg-emerald-600 text-white hover:bg-emerald-600/90"
-            }
+            variant={isExpiringSoon ? "warning" : "success"}
+            tone="soft"
+            className="shrink-0"
           >
             {settings.certificateConfigured ? (
               <>
@@ -1076,7 +1135,7 @@ function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
   const allowedTasa = normalizeTasaIva(settings.tasaIva) ?? 0.16;
 
   return {
-    pacProvider: settings.pacProvider || PacProviders.PROFACT,
+    pacProvider: resolveSelectablePacProvider(settings.pacProvider),
     pacUsername: settings.pacUsername ?? "",
     pacPassword: "",
     defaultUsoCfdi: settings.defaultUsoCfdi,

@@ -77,7 +77,7 @@ export function useUpdateCompanySettings(
         title: "Configuración actualizada",
         description:
           result.message ??
-          "Los datos de la empresa se guardaron correctamente.",
+          "Los datos de la empresa y el domicilio fiscal se guardaron correctamente.",
       });
     },
     onError: (error) => {

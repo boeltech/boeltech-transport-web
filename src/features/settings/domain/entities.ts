@@ -127,6 +127,26 @@ export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
   [PacProviders.STUB]: false,
 };
 
+/**
+ * PACs con adapter implementado en API. Ampliar al habilitar Finkok, SW Sapien, etc.
+ * Mientras solo haya uno, la UI deja ProFact fijo y deshabilita el selector.
+ */
+export const SELECTABLE_PAC_PROVIDERS: readonly PacProvider[] = [
+  PacProviders.PROFACT,
+];
+
+export function resolveSelectablePacProvider(
+  stored: string | null | undefined,
+): PacProvider {
+  if (
+    stored &&
+    SELECTABLE_PAC_PROVIDERS.includes(stored as PacProvider)
+  ) {
+    return stored as PacProvider;
+  }
+  return SELECTABLE_PAC_PROVIDERS[0] ?? PacProviders.PROFACT;
+}
+
 // ============================================================================
 // PAC TEST CONNECTION
 // ============================================================================
@@ -150,6 +170,22 @@ export interface TestPacConnectionResult {
   provider: PacProvider | null;
   environment: "production" | "sandbox" | null;
   errorType: PacTestErrorType | null;
+}
+
+export type PacEmitterRegisterReason =
+  | "provider_not_profact"
+  | "missing_rfc"
+  | "missing_csd"
+  | "missing_csd_password"
+  | "register_failed"
+  | null;
+
+export interface RegisterPacEmitterResult {
+  success: boolean;
+  attempted: boolean;
+  provider: PacProvider | null;
+  message: string;
+  reason: PacEmitterRegisterReason;
 }
 
 // ============================================================================

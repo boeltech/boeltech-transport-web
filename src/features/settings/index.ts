@@ -32,6 +32,8 @@ export {
   SETTINGS_SECTION_LABELS,
   PacProviders,
   PAC_PROVIDER_LABELS,
+  SELECTABLE_PAC_PROVIDERS,
+  resolveSelectablePacProvider,
   settingsQueryKeys,
 } from "./domain";
 

@@ -18,6 +18,7 @@ export {
   useUpdateBillingSettings,
   useUploadCertificate,
   useTestPacConnection,
+  useRegisterPacEmitter,
 } from "./useBillingSettings";
 
 // Notification Settings

@@ -20,11 +20,16 @@ import type {
   TestPacConnectionPayload,
   TestPacConnectionResult,
   PacTestErrorType,
+  RegisterPacEmitterResult,
+  PacEmitterRegisterReason,
 } from "../domain";
 import { config } from "@shared/config";
 import type { ClientAddress } from "@features/clients/domain";
 import type { ClientAddressApiResponse } from "@features/clients/domain";
-import { mapClientAddress } from "@features/clients/infrastructure/mappers";
+import {
+  mapClientAddressFromApi,
+  toApiCreateClientAddress,
+} from "@features/clients/infrastructure/mappers";
 
 // ============================================================================
 // API RESPONSE TYPES (snake_case from backend)
@@ -170,7 +175,7 @@ export function mapEmbeddedCompanyAddress(
   api: ApiCompanySettingsResponse,
 ): ClientAddress | null {
   if (!api.company_address) return null;
-  return mapClientAddress(api.company_address);
+  return mapClientAddressFromApi(api.company_address);
 }
 
 export function mapBillingSettings(
@@ -252,6 +257,14 @@ export function toApiUpdateCompanySettings(
   if (dto.lugarExpedicion !== undefined)
     apiData.lugar_expedicion = dto.lugarExpedicion;
 
+  if (dto.fiscalAddress !== undefined) {
+    const { id, ...fiscalFields } = dto.fiscalAddress;
+    apiData.fiscal_address = {
+      ...(id ? { id } : {}),
+      ...toApiCreateClientAddress(fiscalFields),
+    };
+  }
+
   return apiData;
 }
 
@@ -297,6 +310,14 @@ export interface ApiTestPacConnectionResponse {
   error_type: PacTestErrorType | null;
 }
 
+export interface ApiRegisterPacEmitterResponse {
+  success: boolean;
+  attempted: boolean;
+  provider: string | null;
+  message: string;
+  reason: PacEmitterRegisterReason;
+}
+
 /** Convierte el payload camelCase del formulario a snake_case para la API */
 export function toApiTestPacConnection(
   payload: TestPacConnectionPayload,
@@ -318,6 +339,18 @@ export function mapTestPacConnection(
     provider: (api.provider as PacProvider) ?? null,
     environment: api.environment,
     errorType: api.error_type,
+  };
+}
+
+export function mapRegisterPacEmitter(
+  api: ApiRegisterPacEmitterResponse,
+): RegisterPacEmitterResult {
+  return {
+    success: api.success,
+    attempted: api.attempted,
+    provider: (api.provider as PacProvider) ?? null,
+    message: api.message,
+    reason: api.reason,
   };
 }
 
