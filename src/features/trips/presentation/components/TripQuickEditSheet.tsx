@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock3, Edit3, FileWarning, Route, Save } from "lucide-react";
 
@@ -56,25 +56,17 @@ function normalizeRfc(value: string): string {
   return value.trim().toUpperCase();
 }
 
-export function TripQuickEditSheet({
+function TripQuickEditSheetContent({
   trip,
-  open,
   isSaving,
   onOpenChange,
   onSubmit,
-}: TripQuickEditSheetProps) {
+}: Omit<TripQuickEditSheetProps, "open">) {
   const [values, setValues] = useState<TripQuickEditValues>(() =>
     mapTripToQuickEditValues(trip),
   );
   const [stopFieldErrors, setStopFieldErrors] = useState<Record<string, string[]>>({});
   const [globalError, setGlobalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setValues(mapTripToQuickEditValues(trip));
-    setStopFieldErrors({});
-    setGlobalError(null);
-  }, [open, trip]);
 
   const fiscalSummary = useMemo(() => {
     const counters = { ok: 0, invalid: 0, pending: 0 };
@@ -151,8 +143,7 @@ export function TripQuickEditSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full max-h-[100dvh] flex-col overflow-hidden sm:max-w-2xl">
+    <>
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Edit3 className="h-4 w-4" />
@@ -383,6 +374,31 @@ export function TripQuickEditSheet({
             </Button>
           </div>
         </SheetFooter>
+    </>
+  );
+}
+
+export function TripQuickEditSheet({
+  trip,
+  open,
+  isSaving,
+  onOpenChange,
+  onSubmit,
+}: TripQuickEditSheetProps) {
+  const contentKey = `${trip.id}-${trip.updatedAt.toISOString()}`;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full max-h-[100dvh] flex-col overflow-hidden sm:max-w-2xl">
+        {open ? (
+          <TripQuickEditSheetContent
+            key={contentKey}
+            trip={trip}
+            isSaving={isSaving}
+            onOpenChange={onOpenChange}
+            onSubmit={onSubmit}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );
