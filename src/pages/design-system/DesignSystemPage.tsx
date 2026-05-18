@@ -5,7 +5,7 @@
  *
  * Acceso: gated a admin (vía AdminRoute en routes.tsx).
  * Propósito:
- *   - Documentación viva del DS (tokens, tipografía, componentes).
+ *   - Documentación viva del DS (tokens, tipografía, componentes, patrones).
  *   - Onboarding visual de futuros devs.
  *   - QA visual rápido (light + dark mode).
  *
@@ -16,7 +16,19 @@
  */
 
 import { useState } from "react";
-import { Sun, Moon, Palette, Type, Layers, BarChart3 } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Palette,
+  Type,
+  Layers,
+  BarChart3,
+  Activity,
+  FormInput,
+  PanelRight,
+  MessageSquareWarning,
+  LayoutTemplate,
+} from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -25,15 +37,31 @@ import { useTheme } from "@shared/hooks";
 import { ColorPaletteSection } from "./sections/ColorPaletteSection";
 import { TypographySection } from "./sections/TypographySection";
 import { ComponentsSection } from "./sections/ComponentsSection";
+import { FormsSection } from "./sections/FormsSection";
+import { OverlaysSection } from "./sections/OverlaysSection";
+import { FeedbackSection } from "./sections/FeedbackSection";
+import { StatusSection } from "./sections/StatusSection";
 import { ChartPaletteSection } from "./sections/ChartPaletteSection";
+import { PatternsSection } from "./sections/PatternsSection";
 
-type SectionKey = "colors" | "typography" | "components" | "charts";
+type SectionKey =
+  | "colors"
+  | "typography"
+  | "components"
+  | "forms"
+  | "overlays"
+  | "feedback"
+  | "status"
+  | "charts"
+  | "patterns";
 
 interface SectionConfig {
   key: SectionKey;
   label: string;
   icon: typeof Palette;
   description: string;
+  /** Agrupador visual para no saturar el nav. */
+  group: "Foundations" | "Components" | "Patterns";
 }
 
 const SECTIONS: readonly SectionConfig[] = [
@@ -42,30 +70,73 @@ const SECTIONS: readonly SectionConfig[] = [
     label: "Color",
     icon: Palette,
     description: "Paleta primary, tokens semánticos y soft variants",
+    group: "Foundations",
   },
   {
     key: "typography",
     label: "Tipografía",
     icon: Type,
     description: "Geist Sans + JetBrains Mono, escala y feature settings",
+    group: "Foundations",
   },
   {
     key: "components",
-    label: "Componentes",
+    label: "Botones & badges",
     icon: Layers,
-    description: "Buttons, badges y variantes",
+    description: "Button y Badge con todas sus variantes",
+    group: "Components",
+  },
+  {
+    key: "forms",
+    label: "Formularios",
+    icon: FormInput,
+    description: "Input, Label, Textarea, Select, Checkbox, Switch",
+    group: "Components",
+  },
+  {
+    key: "overlays",
+    label: "Overlays",
+    icon: PanelRight,
+    description: "Dialog, Sheet, Popover, Tooltip y Toast",
+    group: "Components",
+  },
+  {
+    key: "feedback",
+    label: "Feedback",
+    icon: MessageSquareWarning,
+    description: "Alert, EmptyState y LoadingPageState",
+    group: "Components",
+  },
+  {
+    key: "status",
+    label: "Status & KPIs",
+    icon: Activity,
+    description: "StatusBadge, StatCard y composiciones de dashboard",
+    group: "Components",
   },
   {
     key: "charts",
     label: "Charts",
     icon: BarChart3,
     description: "Paleta alineada a la marca para visualizaciones",
+    group: "Components",
+  },
+  {
+    key: "patterns",
+    label: "Patrones",
+    icon: LayoutTemplate,
+    description:
+      "Page shells, jerarquía tipográfica, spacing y master-detail",
+    group: "Patterns",
   },
 ] as const;
+
+const GROUPS = ["Foundations", "Components", "Patterns"] as const;
 
 export function DesignSystemPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>("colors");
   const { resolvedTheme, toggleTheme } = useTheme();
+  const activeConfig = SECTIONS.find((s) => s.key === activeSection);
 
   return (
     <div className="space-y-8">
@@ -81,7 +152,7 @@ export function DesignSystemPage() {
                 Design System
               </Badge>
               <Badge variant="neutral" tone="soft">
-                Fase 1
+                Fase 4
               </Badge>
             </div>
             <p className="text-muted-foreground">
@@ -113,22 +184,34 @@ export function DesignSystemPage() {
       </header>
 
       {/* ============================================
-       *  Section tabs
+       *  Section tabs — agrupados por categoría
        *  ============================================ */}
-      <nav className="flex flex-wrap gap-2 border-b pb-4">
-        {SECTIONS.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.key;
+      <nav className="space-y-3 border-b pb-4">
+        {GROUPS.map((group) => {
+          const groupSections = SECTIONS.filter((s) => s.group === group);
           return (
-            <Button
-              key={section.key}
-              variant={isActive ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setActiveSection(section.key)}
-              leftIcon={<Icon className="h-4 w-4" />}
-            >
-              {section.label}
-            </Button>
+            <div key={group} className="space-y-2">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                {group}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {groupSections.map((section) => {
+                  const Icon = section.icon;
+                  const isActive = activeSection === section.key;
+                  return (
+                    <Button
+                      key={section.key}
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setActiveSection(section.key)}
+                      leftIcon={<Icon className="h-4 w-4" />}
+                    >
+                      {section.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
@@ -138,13 +221,11 @@ export function DesignSystemPage() {
        *  ============================================ */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            {SECTIONS.find((s) => s.key === activeSection)?.label}
-          </CardTitle>
+          <CardTitle className="text-base">{activeConfig?.label}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {SECTIONS.find((s) => s.key === activeSection)?.description}
+            {activeConfig?.description}
           </p>
         </CardContent>
       </Card>
@@ -156,7 +237,12 @@ export function DesignSystemPage() {
         {activeSection === "colors" && <ColorPaletteSection />}
         {activeSection === "typography" && <TypographySection />}
         {activeSection === "components" && <ComponentsSection />}
+        {activeSection === "forms" && <FormsSection />}
+        {activeSection === "overlays" && <OverlaysSection />}
+        {activeSection === "feedback" && <FeedbackSection />}
+        {activeSection === "status" && <StatusSection />}
         {activeSection === "charts" && <ChartPaletteSection />}
+        {activeSection === "patterns" && <PatternsSection />}
       </div>
     </div>
   );
