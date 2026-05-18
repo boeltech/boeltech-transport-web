@@ -24,7 +24,7 @@ const AuthLayout = () => {
     <QueryProvider>
       <ThemeProvider defaultMode="system">
         <ToastProvider>
-          <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+          <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted">
             <div className="w-full max-w-md p-6">
               <Outlet />
             </div>

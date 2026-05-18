@@ -12,10 +12,11 @@
 
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Truck, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
+import { Wordmark } from "@/shared/ui/brand";
 import {
   Tooltip,
   TooltipContent,
@@ -42,26 +43,25 @@ export const Sidebar = memo(function Sidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "flex h-full flex-col bg-card border-r transition-all duration-300",
+          "flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
           isCollapsed ? "w-[70px]" : "w-[260px]",
         )}
       >
         {/* ==========================================
-            Header con Logo
+            Header con Wordmark (Design System Fase 1)
             ========================================== */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-4">
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 overflow-hidden"
+            className="flex items-center justify-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+            aria-label="Ir al dashboard de Boeltech"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
-              <Truck className="h-5 w-5 text-primary-foreground" />
-            </div>
-            {!isCollapsed && (
-              <span className="text-lg font-bold whitespace-nowrap">
-                Boeltech
-              </span>
-            )}
+            <Wordmark
+              compact={isCollapsed}
+              variant="brand"
+              decorative
+              className={isCollapsed ? "text-2xl" : "text-xl"}
+            />
           </Link>
         </div>
 
