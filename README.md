@@ -1,4 +1,14 @@
-# React + TypeScript + Vite
+# Boeltech Transport Web
+
+Frontend del ERP de transporte (React + TypeScript + Vite).
+
+## Documentación
+
+- [Flujo Web → API → ProFact (PAC)](docs/integraciones/profact-flujo-web-api.md) — diagramas de timbrado, registro de CSD, cancelación y pagos (REP).
+
+---
+
+## Desarrollo (Vite)
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
