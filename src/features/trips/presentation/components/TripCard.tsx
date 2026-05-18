@@ -158,7 +158,7 @@ export const TripCard = memo(function TripCard({
                     onStart(trip.id);
                   }}
                 >
-                  <Play className="mr-2 h-4 w-4 text-amber-500" /> Iniciar
+                  <Play className="mr-2 h-4 w-4 text-warning" /> Iniciar
                 </DropdownMenuItem>
               )}
               {canFinish && onFinish && (
@@ -168,7 +168,7 @@ export const TripCard = memo(function TripCard({
                     onFinish(trip.id);
                   }}
                 >
-                  <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" /> Finalizar
+                  <CheckCircle className="mr-2 h-4 w-4 text-success" /> Finalizar
                 </DropdownMenuItem>
               )}
               {canCancel && onCancel && (
@@ -178,7 +178,7 @@ export const TripCard = memo(function TripCard({
                     onCancel(trip.id);
                   }}
                 >
-                  <XCircle className="mr-2 h-4 w-4 text-amber-600" /> Cancelar
+                  <XCircle className="mr-2 h-4 w-4 text-warning" /> Cancelar
                 </DropdownMenuItem>
               )}
               {canDelete && onDelete && (

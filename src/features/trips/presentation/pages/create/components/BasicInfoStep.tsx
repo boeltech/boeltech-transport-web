@@ -476,7 +476,7 @@ export function BasicInfoStep({
                             )}
                           {blockedVehicles.length > 0 && (
                             <SelectGroup>
-                              <SelectLabel className="flex items-center gap-1.5 text-yellow-600">
+                              <SelectLabel className="flex items-center gap-1.5 text-warning">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                                 No asignables
                               </SelectLabel>
@@ -561,7 +561,7 @@ export function BasicInfoStep({
                             )}
                           {blockedDriversForConductorSelect.length > 0 && (
                             <SelectGroup>
-                              <SelectLabel className="flex items-center gap-1.5 text-yellow-600">
+                              <SelectLabel className="flex items-center gap-1.5 text-warning">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                                 No asignables
                               </SelectLabel>

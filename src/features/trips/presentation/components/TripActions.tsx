@@ -533,21 +533,21 @@ export function TripActions(props: TripActionsProps) {
 
               {canSchedule && onSchedule && (
                 <DropdownMenuItem onClick={() => onSchedule(id)}>
-                  <Calendar className="mr-2 h-4 w-4 text-blue-500" />
+                  <Calendar className="mr-2 h-4 w-4 text-info" />
                   Programar
                 </DropdownMenuItem>
               )}
 
               {canStart && onStart && (
                 <DropdownMenuItem onClick={() => onStart(id)}>
-                  <Play className="mr-2 h-4 w-4 text-green-500" />
+                  <Play className="mr-2 h-4 w-4 text-success" />
                   Iniciar viaje
                 </DropdownMenuItem>
               )}
 
               {canFinish && onFinish && (
                 <DropdownMenuItem onClick={() => onFinish(id)}>
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                  <CheckCircle className="mr-2 h-4 w-4 text-success" />
                   Finalizar viaje
                 </DropdownMenuItem>
               )}
@@ -555,7 +555,7 @@ export function TripActions(props: TripActionsProps) {
               {canCancelTrip && onCancel && (
                 <DropdownMenuItem
                   onClick={() => onCancel(id)}
-                  className="text-amber-600 focus:text-amber-600"
+                  className="text-warning focus:text-warning"
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Cancelar viaje
@@ -638,7 +638,7 @@ export function TripActions(props: TripActionsProps) {
                 }
                 disabled={isLoading}
               >
-                <Calendar className="mr-2 h-4 w-4 text-blue-500" />
+                <Calendar className="mr-2 h-4 w-4 text-info" />
                 Programar
               </DropdownMenuItem>
             ) : null}
@@ -648,7 +648,7 @@ export function TripActions(props: TripActionsProps) {
                 onSelect={() => setStartDialog({ open: true, mileage: "" })}
                 disabled={isLoading}
               >
-                <Play className="mr-2 h-4 w-4 text-green-500" />
+                <Play className="mr-2 h-4 w-4 text-success" />
                 Iniciar viaje
               </DropdownMenuItem>
             ) : null}
@@ -658,7 +658,7 @@ export function TripActions(props: TripActionsProps) {
                 onSelect={() => navigate(`/trips/${id}/finish`)}
                 disabled={isLoading}
               >
-                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                <CheckCircle className="mr-2 h-4 w-4 text-success" />
                 Finalizar
               </DropdownMenuItem>
             ) : null}
@@ -667,7 +667,7 @@ export function TripActions(props: TripActionsProps) {
               <DropdownMenuItem
                 onSelect={() => setCancelDialog({ open: true, reason: "" })}
                 disabled={isLoading}
-                className="text-amber-600 focus:text-amber-600"
+                className="text-warning focus:text-warning"
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Cancelar viaje

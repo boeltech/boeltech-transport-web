@@ -202,8 +202,8 @@ export function SummaryStep({
             </h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
-                  <Calendar className="h-4 w-4 text-green-600" />
+                <div className="p-2 rounded-full bg-success-soft">
+                  <Calendar className="h-4 w-4 text-success" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Salida Programada</p>
@@ -211,8 +211,8 @@ export function SummaryStep({
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                  <Calendar className="h-4 w-4 text-blue-600" />
+                <div className="p-2 rounded-full bg-info-soft">
+                  <Calendar className="h-4 w-4 text-info" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Llegada Estimada (Destino)</p>
@@ -261,16 +261,16 @@ export function SummaryStep({
                       <div
                         className={`mt-0.5 p-1.5 rounded-full shrink-0 ${
                           isOrigin
-                            ? "bg-green-100 dark:bg-green-900/30"
+                            ? "bg-success-soft"
                             : isDestination
-                              ? "bg-red-100 dark:bg-red-900/30"
+                              ? "bg-destructive-soft"
                               : "bg-muted"
                         }`}
                       >
                         {isOrigin ? (
-                          <Navigation className="h-3.5 w-3.5 text-green-600" />
+                          <Navigation className="h-3.5 w-3.5 text-success" />
                         ) : isDestination ? (
-                          <Flag className="h-3.5 w-3.5 text-red-600" />
+                          <Flag className="h-3.5 w-3.5 text-destructive" />
                         ) : (
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
@@ -381,7 +381,7 @@ export function SummaryStep({
                   </div>
                 )}
                 {insuredCargos > 0 && (
-                  <div className="flex items-center gap-2 mt-2 p-2 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs">
+                  <div className="flex items-center gap-2 mt-2 p-2 rounded bg-info-soft text-info-soft-foreground text-xs">
                     <FileCheck className="h-3.5 w-3.5 shrink-0" />
                     <span>
                       {insuredCargos} carga{insuredCargos !== 1 ? "s" : ""} con datos de
@@ -441,12 +441,12 @@ export function SummaryStep({
       {/* Rentabilidad Estimada */}
       <Card
         className={
-          financial.margin >= 0 ? "border-green-500/50" : "border-red-500/50"
+          financial.margin >= 0 ? "border-success/50" : "border-destructive/50"
         }
       >
         <CardHeader
           className={
-            financial.margin >= 0 ? "bg-green-500/5" : "bg-red-500/5"
+            financial.margin >= 0 ? "bg-success/5" : "bg-destructive/5"
           }
         >
           <CardTitle className="text-lg flex items-center gap-2">
@@ -470,20 +470,20 @@ export function SummaryStep({
             <div
               className={`text-center p-4 rounded-lg ${
                 financial.margin >= 0
-                  ? "bg-green-100 dark:bg-green-900/30"
-                  : "bg-red-100 dark:bg-red-900/30"
+                  ? "bg-success-soft"
+                  : "bg-destructive-soft"
               }`}
             >
               <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
                 {financial.margin >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-green-600" />
+                  <TrendingUp className="h-3 w-3 text-success" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-red-600" />
+                  <TrendingDown className="h-3 w-3 text-destructive" />
                 )}
                 Margen Estimado
               </p>
               <p
-                className={`text-xl font-bold ${financial.margin >= 0 ? "text-green-600" : "text-red-600"}`}
+                className={`text-xl font-bold ${financial.margin >= 0 ? "text-success" : "text-destructive"}`}
               >
                 {formatMxCurrency(financial.margin)}
               </p>

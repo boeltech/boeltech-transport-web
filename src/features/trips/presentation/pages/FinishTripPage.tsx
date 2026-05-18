@@ -61,7 +61,6 @@ import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 // Icons
 import {
-  ArrowLeft,
   CheckCircle,
   Loader2,
   Truck,
@@ -80,6 +79,7 @@ import {
   localInputToUtcIso,
   utcIsoToLocalInput,
 } from "@shared/utils/dateUtils";
+import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 
 // ============================================================================
 // TYPES
@@ -147,10 +147,10 @@ function RouteSummary({ stops }: { stops?: TripStop[] }) {
                   <div
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       index === 0
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        ? "bg-success-soft text-success-soft-foreground"
                         : index === stops.length - 1
-                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          ? "bg-destructive-soft text-destructive-soft-foreground"
+                          : "bg-info-soft text-info-soft-foreground"
                     }`}
                   >
                     {index + 1}
@@ -523,9 +523,16 @@ export function FinishTripPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <FormPageShell
+        isLoading
+        header={{
+          backHref: id ? `/trips/${id}` : "/trips",
+          icon: <CheckCircle className="h-5 w-5" />,
+          title: "Finalizar viaje",
+        }}
+      >
+        {null}
+      </FormPageShell>
     );
   }
 
@@ -535,17 +542,24 @@ export function FinishTripPage() {
 
   if (isError || !trip) {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center">
-        <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h2 className="text-lg font-semibold mb-2">Error al cargar el viaje</h2>
-        <p className="text-muted-foreground mb-4">
-          No se pudo obtener la información del viaje.
-        </p>
-        <Button variant="outline" onClick={() => navigate("/trips")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Viajes
-        </Button>
-      </div>
+      <FormPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertTriangle className="h-10 w-10" />,
+          title: "Error al cargar el viaje",
+          description: "No se pudo obtener la información del viaje.",
+          backHref: "/trips",
+          backLabel: "Volver a viajes",
+        }}
+        header={{
+          backHref: id ? `/trips/${id}` : "/trips",
+          icon: <CheckCircle className="h-5 w-5" />,
+          title: "Finalizar viaje",
+        }}
+      >
+        {null}
+      </FormPageShell>
     );
   }
 
@@ -555,20 +569,26 @@ export function FinishTripPage() {
 
   if (trip.status !== "in_progress") {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center">
-        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold mb-2">
-          Este viaje no puede finalizarse
-        </h2>
-        <p className="text-muted-foreground mb-4">
-          Solo los viajes con estado "En Curso" pueden ser finalizados. El
-          estado actual es: <Badge variant="secondary">{trip.status}</Badge>
-        </p>
-        <Button variant="outline" onClick={() => navigate(`/trips/${id}`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Ver Detalle del Viaje
-        </Button>
-      </div>
+      <FormPageShell
+        isLoading={false}
+        className="max-w-2xl mx-auto"
+        header={{
+          backHref: `/trips/${id}`,
+          icon: <CheckCircle className="h-5 w-5" />,
+          title: "Finalizar viaje",
+          subtitle: `${trip.tripCode} · ${trip.originCity} → ${trip.destinationCity}`,
+          trailing: (
+            <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
+          ),
+        }}
+      >
+        <AlertWithIcon variant="warning" title="Este viaje no puede finalizarse">
+          <p>
+            Solo los viajes con estado &quot;En curso&quot; pueden finalizarse.
+            Estado actual: <Badge variant="secondary">{trip.status}</Badge>
+          </p>
+        </AlertWithIcon>
+      </FormPageShell>
     );
   }
 
@@ -578,17 +598,23 @@ export function FinishTripPage() {
 
   if (!canUpdate) {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center">
-        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold mb-2">Sin permisos</h2>
-        <p className="text-muted-foreground mb-4">
+      <FormPageShell
+        isLoading={false}
+        className="max-w-2xl mx-auto"
+        header={{
+          backHref: `/trips/${id}`,
+          icon: <CheckCircle className="h-5 w-5" />,
+          title: "Finalizar viaje",
+          subtitle: `${trip.tripCode} · ${trip.originCity} → ${trip.destinationCity}`,
+          trailing: (
+            <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
+          ),
+        }}
+      >
+        <AlertWithIcon variant="warning" title="Sin permisos">
           No tienes permisos para finalizar viajes.
-        </p>
-        <Button variant="outline" onClick={() => navigate(`/trips/${id}`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver
-        </Button>
-      </div>
+        </AlertWithIcon>
+      </FormPageShell>
     );
   }
 
@@ -600,25 +626,20 @@ export function FinishTripPage() {
   // ============================================================================
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(`/trips/${id}`)}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">Finalizar Viaje</h1>
-          <p className="text-muted-foreground">
-            {trip.tripCode} · {trip.originCity} → {trip.destinationCity}
-          </p>
-        </div>
-        <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
-      </div>
-
+    <>
+      <FormPageShell
+        isLoading={false}
+        className="max-w-4xl mx-auto"
+        header={{
+          backHref: `/trips/${id}`,
+          icon: <CheckCircle className="h-5 w-5" />,
+          title: "Finalizar viaje",
+          subtitle: `${trip.tripCode} · ${trip.originCity} → ${trip.destinationCity}`,
+          trailing: (
+            <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
+          ),
+        }}
+      >
       {hasPendingItems && (
         <AlertWithIcon
           variant="warning"
@@ -879,8 +900,8 @@ export function FinishTripPage() {
           </div>
         </div>
       </div>
+      </FormPageShell>
 
-      {/* Confirmation Dialog */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -945,6 +966,6 @@ export function FinishTripPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

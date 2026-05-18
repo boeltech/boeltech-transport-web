@@ -618,17 +618,20 @@ export function TripDetailPage() {
             distance != null && distance > 0
               ? `${distance.toLocaleString("es-MX")} km`
               : "—",
-          icon: <Navigation className="h-5 w-5 text-primary" />,
+          tone: "primary",
+          icon: <Navigation className="h-5 w-5" />,
         },
         {
           title: "Duración",
           value: duration ? formatDuration(duration) : "—",
-          icon: <Clock className="h-5 w-5 text-blue-500" />,
+          tone: "info",
+          icon: <Clock className="h-5 w-5" />,
         },
         {
           title: "Cargas",
           value: cargoCount,
-          icon: <Package className="h-5 w-5 text-amber-500" />,
+          tone: "warning",
+          icon: <Package className="h-5 w-5" />,
           description:
             totalCargoWeight > 0
               ? `${totalCargoWeight.toLocaleString("es-MX")} kg total`
@@ -637,7 +640,8 @@ export function TripDetailPage() {
         {
           title: "Tarifa base",
           value: trip.costs.baseRate > 0 ? formatCurrency(trip.costs.baseRate) : "—",
-          icon: <DollarSign className="h-5 w-5 text-emerald-500" />,
+          tone: "success",
+          icon: <DollarSign className="h-5 w-5" />,
         },
       ]}
       tabs={{
@@ -1251,7 +1255,7 @@ export function TripDetailPage() {
                                                 className={cn(
                                                   "flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs",
                                                   isCompleted
-                                                    ? "text-emerald-600 dark:text-emerald-400"
+                                                    ? "text-success"
                                                     : "text-muted-foreground",
                                                 )}
                                               >
@@ -1260,8 +1264,8 @@ export function TripDetailPage() {
                                                     className={cn(
                                                       "h-3 w-3 shrink-0",
                                                       isCompleted
-                                                        ? "text-emerald-500"
-                                                        : "text-blue-500",
+                                                        ? "text-success"
+                                                        : "text-info",
                                                     )}
                                                   />
                                                 ) : (
@@ -1269,8 +1273,8 @@ export function TripDetailPage() {
                                                     className={cn(
                                                       "h-3 w-3 shrink-0",
                                                       isCompleted
-                                                        ? "text-emerald-500"
-                                                        : "text-orange-500",
+                                                        ? "text-success"
+                                                        : "text-warning",
                                                     )}
                                                   />
                                                 )}
@@ -1466,7 +1470,7 @@ export function TripDetailPage() {
                                 className={cn(
                                   "mt-2 text-xl font-semibold tabular-nums tracking-tight",
                                   trip.costs.baseRate - totalExpenses >= 0
-                                    ? "text-green-600 dark:text-green-400"
+                                    ? "text-success"
                                     : "text-destructive",
                                 )}
                               >

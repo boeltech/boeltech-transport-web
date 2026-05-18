@@ -66,6 +66,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog/alert-dialog";
 import { StopType, type StopTypeValue } from "@features/trips";
+import { getStopTypeBadgeClasses, getStopTypeConfig } from "../../../uiHelpers";
 import {
   StopFormDialog,
   type StopFormData,
@@ -718,14 +719,25 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // ══════════════════════════════════════════════════════════════════════════
 
   const getStopTypeInfo = (type: string) => {
-    const labels: Record<string, { label: string; color: string }> = {
-      origin: { label: "Origen", color: "bg-green-100 text-green-700" },
-      destination: { label: "Destino", color: "bg-red-100 text-red-700" },
-      waypoint: { label: "Escala", color: "bg-gray-100 text-gray-700" },
-      pickup: { label: "Carga", color: "bg-blue-100 text-blue-700" },
-      delivery: { label: "Descarga", color: "bg-orange-100 text-orange-700" },
+    const typeMap: Record<string, StopTypeValue> = {
+      origin: StopType.ORIGIN,
+      destination: StopType.DESTINATION,
+      waypoint: StopType.WAYPOINT,
+      pickup: StopType.PICKUP,
+      delivery: StopType.DELIVERY,
     };
-    return labels[type] || { label: type, color: "bg-gray-100 text-gray-700" };
+    const stopType = typeMap[type];
+    if (stopType) {
+      const config = getStopTypeConfig(stopType);
+      return {
+        label: config.label,
+        color: getStopTypeBadgeClasses(stopType),
+      };
+    }
+    return {
+      label: type,
+      color: "bg-muted text-muted-foreground",
+    };
   };
 
   const getStopMissingFields = useCallback(
@@ -841,9 +853,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           draggedIndex === index && "opacity-50",
           canDrag && "hover:shadow-md cursor-move",
           type === "origin" &&
-            "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/50",
+            "border-success/30 border-success/30 bg-success-soft/50",
           type === "destination" &&
-            "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/50",
+            "border-destructive/30 border-destructive/30 bg-destructive-soft/50",
           type === "waypoint" && "border-gray-200 bg-white dark:bg-gray-900",
         )}
       >
@@ -871,10 +883,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         {/* Stop Icon */}
         <div className="pt-1">
           {type === "origin" && (
-            <Navigation className="h-5 w-5 text-green-600" />
+            <Navigation className="h-5 w-5 text-success" />
           )}
           {type === "waypoint" && <MapPin className="h-5 w-5 text-gray-600" />}
-          {type === "destination" && <Flag className="h-5 w-5 text-red-600" />}
+          {type === "destination" && <Flag className="h-5 w-5 text-destructive" />}
         </div>
 
         {/* Stop Info */}
@@ -903,8 +915,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   className={cn(
                     "text-xs",
                     isComplete
-                      ? "border-emerald-300 text-emerald-700"
-                      : "border-amber-300 text-amber-700",
+                      ? "border-success/30 text-success-soft-foreground"
+                      : "border-warning/30 text-warning-soft-foreground",
                   )}
                 >
                   {isComplete ? (
@@ -919,7 +931,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 {linkedCatalog && (
                   <Badge
                     variant="outline"
-                    className="text-xs border-emerald-300 text-emerald-800 dark:border-emerald-700 dark:text-emerald-200"
+                    className="text-xs border-success/30 text-success-soft-foreground"
                     title="Ubicación ligada a un domicilio guardado; la configuración fiscal se toma de ese registro."
                   >
                     <FileText className="h-3 w-3 mr-1" />
@@ -929,7 +941,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 {!linkedCatalog && hasManualCp && (
                   <Badge
                     variant="outline"
-                    className="text-xs border-blue-300 text-blue-600"
+                    className="text-xs border-info/30 text-info"
                   >
                     <FileText className="h-3 w-3 mr-1" />
                     Datos fiscales listos
@@ -966,7 +978,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
               {/* Identificadores fiscales (manual o precargados desde domicilio guardado) */}
               {(linkedCatalog || hasManualCp) && (
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-xs text-info mt-1">
                   Claves: {stop.satStateCode}-{stop.satMunicipalityCode}
                   {stop.postalCode && ` · CP ${stop.postalCode}`}
                 </p>
@@ -979,7 +991,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </p>
               )}
               {!isComplete && (
-                <p className="mt-1 text-xs text-amber-700">
+                <p className="mt-1 text-xs text-warning-soft-foreground">
                   Falta: {missingFields.join(", ")}.
                 </p>
               )}
@@ -1068,19 +1080,19 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       className={cn(
         "border-2 border-dashed rounded-lg p-6 text-center",
         type === "origin" &&
-          "border-green-300 bg-green-50/30 dark:border-green-700 dark:bg-green-950/30",
+          "border-success/30 border-success/30 bg-success-soft/30",
         type === "waypoint" &&
           "border-gray-300 bg-gray-50/30 dark:border-gray-600 dark:bg-gray-900/30",
         type === "destination" &&
-          "border-red-300 bg-red-50/30 dark:border-red-700 dark:bg-red-950/30",
+          "border-destructive/30 border-destructive/30 bg-destructive-soft/30",
       )}
     >
       <div
         className={cn(
           "mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3",
-          type === "origin" && "bg-green-100 dark:bg-green-900",
+          type === "origin" && "bg-success-soft ",
           type === "waypoint" && "bg-gray-100 dark:bg-gray-800",
-          type === "destination" && "bg-red-100 dark:bg-red-900",
+          type === "destination" && "bg-destructive-soft ",
         )}
       >
         {icon}
@@ -1098,11 +1110,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         onClick={() => openAddDialog(type)}
         className={cn(
           type === "origin" &&
-            "border-green-300 text-green-700 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-950",
+            "border-success/30 text-success-soft-foreground hover:bg-success-soft",
           type === "waypoint" &&
             "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-900",
           type === "destination" &&
-            "border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-950",
+            "border-destructive/30 text-destructive-soft-foreground hover:bg-destructive-soft",
         )}
       >
         <Plus className="h-4 w-4 mr-2" />
@@ -1164,8 +1176,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 variant="outline"
                 className={cn(
                   guidanceSummary.incompleteCount > 0
-                    ? "border-amber-300 text-amber-700"
-                    : "border-emerald-300 text-emerald-700",
+                    ? "border-warning/30 text-warning-soft-foreground"
+                    : "border-success/30 text-success-soft-foreground",
                 )}
               >
                 {guidanceSummary.incompleteCount > 0
@@ -1181,7 +1193,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Navigation className="h-5 w-5 text-green-600" />
+            <Navigation className="h-5 w-5 text-success" />
             Origen
             <span className="text-xs font-normal text-muted-foreground">
               (1 parada)
@@ -1195,7 +1207,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 "origin",
                 "Sin parada de origen",
                 "Agregue el punto de inicio del viaje",
-                <Navigation className="h-6 w-6 text-green-600" />,
+                <Navigation className="h-6 w-6 text-success" />,
               )}
         </CardContent>
       </Card>
@@ -1247,7 +1259,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Flag className="h-5 w-5 text-red-600" />
+            <Flag className="h-5 w-5 text-destructive" />
             Destino
             <span className="text-xs font-normal text-muted-foreground">
               (1 parada)
@@ -1261,7 +1273,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 "destination",
                 "Sin parada de destino",
                 "Agregue el punto final del viaje",
-                <Flag className="h-6 w-6 text-red-600" />,
+                <Flag className="h-6 w-6 text-destructive" />,
               )}
         </CardContent>
       </Card>

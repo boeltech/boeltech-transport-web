@@ -85,8 +85,8 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         {postCancelFiscal ? (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-            <p className="font-medium text-amber-950 dark:text-amber-100">
+          <div className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-sm">
+            <p className="font-medium text-warning-soft-foreground">
               {postCancelFiscal.title}
             </p>
             <ul className="mt-1 list-disc pl-4 text-muted-foreground">

@@ -290,11 +290,11 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
 
   const marginToneClass =
     financial.health === "healthy"
-      ? "text-green-600 dark:text-green-400"
+      ? "text-success"
       : financial.health === "warning"
-        ? "text-amber-600 dark:text-amber-400"
+        ? "text-warning"
         : financial.health === "critical"
-          ? "text-red-600 dark:text-red-400"
+          ? "text-destructive"
           : "text-muted-foreground";
 
   return (
@@ -506,7 +506,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                 </div>
 
                 {activeTab === "cost" && selectedCategory === "fuel" && totalDistanceKm > 0 && expectedFuelEfficiency ? (
-                  <Card className="border-blue-200 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/20">
+                  <Card className="border-info/30 border-info/30 bg-info-soft/40">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-semibold">
                         Estimación de Diesel
@@ -547,7 +547,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground mb-1">Costo estimado</p>
-                          <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                          <p className="text-xl font-bold text-info-soft-foreground">
                             {dieselSuggestion ? formatMxCurrency(dieselSuggestion.cost) : "—"}
                           </p>
                         </div>
@@ -669,8 +669,8 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-md border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20">
-              <div className="border-b border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-900 dark:text-emerald-400">
+            <div className="rounded-md border border-success/30 bg-success-soft/70">
+              <div className="border-b border-success/30 px-3 py-2 text-xs font-semibold text-success-soft-foreground">
                 INGRESOS (1)
               </div>
               <div className="px-3 py-2 text-sm flex items-center justify-between gap-2">
@@ -678,14 +678,14 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                   <p className="font-medium">Flete</p>
                   <p className="text-xs text-muted-foreground">Tarifa base</p>
                 </div>
-                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="font-semibold text-success-soft-foreground">
                   +{formatMxCurrency(financial.baseRate)}
                 </span>
               </div>
             </div>
 
-            <div className="rounded-md border border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20">
-              <div className="border-b border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:text-blue-400">
+            <div className="rounded-md border border-info/30 border-info/30 bg-info-soft/70">
+              <div className="border-b border-info/30 px-3 py-2 text-xs font-semibold text-info-soft-foreground ">
                 COSTOS OPERATIVOS ({operationalCosts.length})
               </div>
               <div className="space-y-2 px-3 py-2">
@@ -695,7 +695,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                   operationalCosts.map((item) => (
                     <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
                       <p className="truncate">{item.description}</p>
-                      <span className="font-semibold text-blue-700 dark:text-blue-400">
+                      <span className="font-semibold text-info-soft-foreground">
                         -{formatMxCurrency(item.amount)}
                       </span>
                     </div>
@@ -704,8 +704,8 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
               </div>
             </div>
 
-            <div className="rounded-md border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="border-b border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:text-amber-400">
+            <div className="rounded-md border border-warning/30 bg-warning-soft/70">
+              <div className="border-b border-warning/30 px-3 py-2 text-xs font-semibold text-warning-soft-foreground ">
                 GASTOS ({indirectExpenses.length})
               </div>
               <div className="space-y-2 px-3 py-2">
@@ -715,7 +715,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                   indirectExpenses.map((item) => (
                     <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
                       <p className="truncate">{item.description}</p>
-                      <span className="font-semibold text-amber-700 dark:text-amber-400">
+                      <span className="font-semibold text-warning-soft-foreground">
                         -{formatMxCurrency(item.amount)}
                       </span>
                     </div>

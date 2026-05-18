@@ -82,36 +82,36 @@ interface InvoicingBadgeConfig {
 export const STOP_TYPE_CONFIG: Record<StopTypeValue, StopTypeConfig> = {
   [StopType.ORIGIN]: {
     label: STOP_TYPE_LABELS[StopType.ORIGIN],
-    color: "text-emerald-600 dark:text-emerald-400",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-success-soft-foreground",
+    bgColor: "bg-success-soft",
     icon: Navigation,
     emoji: "🟢",
   },
   [StopType.PICKUP]: {
     label: STOP_TYPE_LABELS[StopType.PICKUP],
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    color: "text-info-soft-foreground",
+    bgColor: "bg-info-soft",
     icon: Package,
     emoji: "📦",
   },
   [StopType.DELIVERY]: {
     label: STOP_TYPE_LABELS[StopType.DELIVERY],
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    color: "text-warning-soft-foreground",
+    bgColor: "bg-warning-soft",
     icon: Package,
     emoji: "📤",
   },
   [StopType.WAYPOINT]: {
     label: STOP_TYPE_LABELS[StopType.WAYPOINT],
-    color: "text-gray-600 dark:text-gray-400",
-    bgColor: "bg-gray-100 dark:bg-gray-800",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
     icon: MapPin,
     emoji: "📍",
   },
   [StopType.DESTINATION]: {
     label: STOP_TYPE_LABELS[StopType.DESTINATION],
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
+    color: "text-destructive-soft-foreground",
+    bgColor: "bg-destructive-soft",
     icon: Flag,
     emoji: "🏁",
   },
@@ -124,23 +124,23 @@ export const STOP_TYPE_CONFIG: Record<StopTypeValue, StopTypeConfig> = {
 export const STOP_STATUS_CONFIG: Record<StopStatusValue, StopStatusConfig> = {
   [StopStatus.PENDING]: {
     label: STOP_STATUS_LABELS[StopStatus.PENDING],
-    color: "text-gray-600 dark:text-gray-400",
-    bgColor: "bg-gray-100 dark:bg-gray-800",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
   },
   [StopStatus.IN_PROGRESS]: {
     label: STOP_STATUS_LABELS[StopStatus.IN_PROGRESS],
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    color: "text-info-soft-foreground",
+    bgColor: "bg-info-soft",
   },
   [StopStatus.COMPLETED]: {
     label: STOP_STATUS_LABELS[StopStatus.COMPLETED],
-    color: "text-emerald-600 dark:text-emerald-400",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-success-soft-foreground",
+    bgColor: "bg-success-soft",
   },
   [StopStatus.SKIPPED]: {
     label: STOP_STATUS_LABELS[StopStatus.SKIPPED],
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    color: "text-warning-soft-foreground",
+    bgColor: "bg-warning-soft",
   },
 };
 
@@ -237,8 +237,8 @@ export function getStopTypeConfig(
   if (!config) {
     return {
       label: stopType,
-      color: "text-gray-600",
-      bgColor: "bg-gray-100",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted",
       icon: MapPin,
       emoji: "📍",
     };
@@ -252,6 +252,14 @@ export function getStopTypeConfig(
  */
 export function getStopStatusConfig(status: StopStatusValue): StopStatusConfig {
   return STOP_STATUS_CONFIG[status];
+}
+
+/** Clases `bg` + `text` para chips de tipo de parada. */
+export function getStopTypeBadgeClasses(
+  stopType: StopTypeValue | string,
+): string {
+  const { bgColor, color } = getStopTypeConfig(stopType);
+  return `${bgColor} ${color}`;
 }
 
 // ============================================================================

@@ -121,12 +121,12 @@ export interface StopFormDialogProps {
 }
 
 const STOP_OPERATION_OPTIONS = [
-  { value: "pickup" as const, label: "Carga", icon: MapPin, color: "text-blue-600" },
+  { value: "pickup" as const, label: "Carga", icon: MapPin, color: "text-info" },
   {
     value: "delivery" as const,
     label: "Descarga",
     icon: MapPin,
-    color: "text-orange-600",
+    color: "text-warning",
   },
 ];
 
@@ -980,11 +980,11 @@ export function StopFormDialog({
             className={cn(
               "rounded-lg p-4 border-2",
               displayStop.stopCategory === "origin" &&
-                "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
+                "border-success/30 bg-success-soft",
               displayStop.stopCategory === "waypoint" &&
                 "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900",
               displayStop.stopCategory === "destination" &&
-                "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
+                "border-destructive/30 bg-destructive-soft",
               sectionHighlightClass(
                 validationActive,
                 highlightKeys,
@@ -995,7 +995,7 @@ export function StopFormDialog({
             <div className="flex items-center gap-3">
               {displayStop.stopCategory === "origin" && (
                 <>
-                  <Navigation className="h-6 w-6 shrink-0 text-green-600" />
+                  <Navigation className="h-6 w-6 shrink-0 text-success" />
                   <SectionHeadingWithHint
                     className="min-w-0"
                     noTitleWrap
@@ -1019,7 +1019,7 @@ export function StopFormDialog({
               )}
               {displayStop.stopCategory === "destination" && (
                 <>
-                  <Flag className="h-6 w-6 shrink-0 text-red-600" />
+                  <Flag className="h-6 w-6 shrink-0 text-destructive" />
                   <SectionHeadingWithHint
                     className="min-w-0"
                     noTitleWrap
@@ -1205,7 +1205,7 @@ export function StopFormDialog({
                 )}
 
                 {displayStop.clientId && addresses.length === 0 && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-100">
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
                     <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
                     <SectionHeadingWithHint
                       noTitleWrap
@@ -1657,7 +1657,7 @@ export function StopFormDialog({
                   )}
                 />
                 {showWaypointArrivalWarning ? (
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-warning-soft-foreground">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     <SectionHeadingWithHint
                       noTitleWrap

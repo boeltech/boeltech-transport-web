@@ -777,17 +777,17 @@ export function CargoStep({
     : false;
 
   const getCapacityColor = (): string => {
-    if (isOverCapacity) return "text-red-600";
-    if (isNearCapacity) return "text-orange-600";
-    if (isModerateCapacity) return "text-yellow-600";
-    return "text-green-600";
+    if (isOverCapacity) return "text-destructive";
+    if (isNearCapacity) return "text-warning";
+    if (isModerateCapacity) return "text-warning";
+    return "text-success";
   };
 
   const getProgressColor = (): string => {
-    if (isOverCapacity) return "bg-red-500";
-    if (isNearCapacity) return "bg-orange-500";
-    if (isModerateCapacity) return "bg-yellow-500";
-    return "bg-green-500";
+    if (isOverCapacity) return "bg-destructive";
+    if (isNearCapacity) return "bg-warning";
+    if (isModerateCapacity) return "bg-warning";
+    return "bg-success";
   };
 
   const formatWeight = (weightKg: number): string => {
@@ -820,15 +820,15 @@ export function CargoStep({
     <div className="space-y-6">
       {/* Alerta: no hay paradas con carga */}
       {hasNoPickupStops && (
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-warning/30 bg-warning-soft/50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-yellow-900">
+                <p className="text-sm font-medium text-warning-soft-foreground">
                   No hay paradas con operación de carga
                 </p>
-                <p className="text-xs text-yellow-700 mt-1">
+                <p className="text-xs text-warning-soft-foreground mt-1">
                   Regrese al paso de Ruta y asegúrese de que al menos una parada
                   tenga la operación de &quot;Carga&quot; (pickup) para poder
                   registrar mercancías.
@@ -841,17 +841,17 @@ export function CargoStep({
 
       {/* Alerta: paradas sin cargas */}
       {stopsWithoutCargos.length > 0 && !hasNoPickupStops && (
-        <Card className="border-orange-200 bg-orange-50/50">
+        <Card className="border-warning/30 bg-warning-soft/50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-orange-900">
+                <p className="text-sm font-medium text-warning-soft-foreground">
                   {stopsWithoutCargos.length === 1
                     ? "1 parada de carga sin mercancías registradas"
                     : `${stopsWithoutCargos.length} paradas de carga sin mercancías registradas`}
                 </p>
-                <ul className="text-xs text-orange-700 mt-1 space-y-0.5">
+                <ul className="text-xs text-warning-soft-foreground mt-1 space-y-0.5">
                   {stopsWithoutCargos.map((stop) => (
                     <li key={stop.index}>
                       • Parada #{stop.index + 1}:{" "}
@@ -859,7 +859,7 @@ export function CargoStep({
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-orange-700 mt-2">
+                <p className="text-xs text-warning-soft-foreground mt-2">
                   Todas las paradas de carga deben tener al menos una mercancía
                   para continuar.
                 </p>
@@ -874,8 +874,8 @@ export function CargoStep({
         <Card
           className={cn(
             "transition-colors",
-            isOverCapacity && "border-red-300 bg-red-50/50",
-            isNearCapacity && "border-orange-300 bg-orange-50/50",
+            isOverCapacity && "border-destructive/30 bg-destructive-soft/50",
+            isNearCapacity && "border-warning/30 bg-warning-soft/50",
           )}
         >
           <CardContent className="pt-6">
@@ -886,13 +886,13 @@ export function CargoStep({
                   <div
                     className={cn(
                       "flex items-center justify-center h-10 w-10 rounded-lg",
-                      isOverCapacity && "bg-red-100 text-red-600",
-                      isNearCapacity && "bg-orange-100 text-orange-600",
-                      isModerateCapacity && "bg-yellow-100 text-yellow-600",
+                      isOverCapacity && "bg-destructive-soft text-destructive",
+                      isNearCapacity && "bg-warning-soft text-warning",
+                      isModerateCapacity && "bg-warning-soft text-warning-soft-foreground",
                       !isOverCapacity &&
                         !isNearCapacity &&
                         !isModerateCapacity &&
-                        "bg-green-100 text-green-600",
+                        "bg-success-soft text-success",
                     )}
                   >
                     <Truck className="h-5 w-5" />
@@ -994,15 +994,15 @@ export function CargoStep({
 
       {/* Alerta: Sobrepeso del vehículo */}
       {isOverCapacity && (
-        <Card className="border-red-300 bg-red-50/50">
+        <Card className="border-destructive/30 bg-destructive-soft/50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-red-900">
+                <p className="text-sm font-medium text-destructive-soft-foreground">
                   ¡Capacidad del vehículo excedida!
                 </p>
-                <p className="text-xs text-red-700 mt-1">
+                <p className="text-xs text-destructive-soft-foreground mt-1">
                   El peso total de las cargas ({formatWeight(totalWeight)})
                   excede la capacidad del vehículo (
                   {formatWeight(vehicleCapacityKg!)}). Exceso:{" "}
@@ -1010,7 +1010,7 @@ export function CargoStep({
                     {formatWeight(totalWeight - vehicleCapacityKg!)}
                   </strong>
                 </p>
-                <p className="text-xs text-red-700 mt-2">
+                <p className="text-xs text-destructive-soft-foreground mt-2">
                   Opciones: Reduzca el peso de las cargas o seleccione un
                   vehículo con mayor capacidad en el Paso 1 (Información).
                 </p>
@@ -1024,20 +1024,20 @@ export function CargoStep({
       {vehicleId &&
         !isLoadingVehicle &&
         (!vehicleCapacityKg || vehicleCapacityKg === 0) && (
-          <Card className="border-blue-200 bg-blue-50/50">
+          <Card className="border-info/30 bg-info-soft/50">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-5 w-5 text-info mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900">
+                  <p className="text-sm font-medium text-info-soft-foreground">
                     Vehículo sin capacidad de carga definida
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-info-soft-foreground mt-1">
                     El vehículo seleccionado no tiene registrada su capacidad de
                     carga. No se podrá validar si las cargas exceden la
                     capacidad del vehículo.
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-info-soft-foreground mt-1">
                     Puede continuar, pero se recomienda actualizar la capacidad
                     del vehículo en el módulo de Vehículos.
                   </p>
@@ -1075,7 +1075,7 @@ export function CargoStep({
         </div>
         <div className="text-right space-y-1">
           {hasHazmatCargo && (
-            <div className="flex items-center gap-1 text-xs text-orange-600">
+            <div className="flex items-center gap-1 text-xs text-warning">
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Contiene material peligroso</span>
             </div>
@@ -1098,9 +1098,9 @@ export function CargoStep({
           <Card
             key={pickupStop.index}
             className={cn(
-              pickupStop.category === "origin" && "border-green-200",
-              pickupStop.category === "destination" && "border-red-200",
-              hasMissing && "border-orange-300",
+              pickupStop.category === "origin" && "border-success/30",
+              pickupStop.category === "destination" && "border-destructive/30",
+              hasMissing && "border-warning/30",
             )}
           >
             <CardHeader className="pb-3">
@@ -1110,9 +1110,9 @@ export function CargoStep({
                     className={cn(
                       "flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0",
                       pickupStop.category === "origin" &&
-                        "bg-green-100 text-green-700",
+                        "bg-success-soft text-success-soft-foreground",
                       pickupStop.category === "destination" &&
-                        "bg-red-100 text-red-700",
+                        "bg-destructive-soft text-destructive-soft-foreground",
                       pickupStop.category === "waypoint" &&
                         "bg-gray-100 text-gray-700",
                     )}
@@ -1128,9 +1128,9 @@ export function CargoStep({
                         className={cn(
                           "px-2 py-0.5 text-xs font-medium rounded",
                           pickupStop.category === "origin" &&
-                            "bg-green-100 text-green-700",
+                            "bg-success-soft text-success-soft-foreground",
                           pickupStop.category === "destination" &&
-                            "bg-red-100 text-red-700",
+                            "bg-destructive-soft text-destructive-soft-foreground",
                           pickupStop.category === "waypoint" &&
                             "bg-gray-100 text-gray-700",
                         )}
@@ -1141,11 +1141,11 @@ export function CargoStep({
                             ? "Destino"
                             : "Escala"}
                       </span>
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-700">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-info-soft text-info-soft-foreground">
                         Carga
                       </span>
                       {hasMissing && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-warning-soft text-warning-soft-foreground">
                           Sin mercancías
                         </span>
                       )}
@@ -1172,7 +1172,7 @@ export function CargoStep({
 
             <CardContent className="space-y-3">
               {stopCargos.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground border border-dashed border-orange-300 rounded-lg bg-orange-50/30">
+                <div className="text-center py-4 text-muted-foreground border border-dashed border-warning/30 rounded-lg bg-warning-soft/30">
                   <Package className="h-8 w-8 mx-auto mb-1 opacity-40" />
                   <p className="text-sm">Sin cargas registradas</p>
                   <p className="text-xs mt-0.5">
@@ -1192,14 +1192,14 @@ export function CargoStep({
                         className={cn(
                           "flex items-start gap-3 p-3 border rounded-lg bg-muted/30",
                           cargo.hazardousMaterial &&
-                            "border-orange-300 bg-orange-50/30",
+                            "border-warning/30 bg-warning-soft/30",
                         )}
                       >
                         <Package
                           className={cn(
                             "h-4 w-4 mt-0.5 flex-shrink-0",
                             cargo.hazardousMaterial
-                              ? "text-orange-600"
+                              ? "text-warning"
                               : "text-muted-foreground",
                           )}
                         />
@@ -1213,13 +1213,13 @@ export function CargoStep({
                           {/* Badges de info */}
                           <div className="flex flex-wrap gap-1.5">
                             {cargo.satProductCode && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-info-soft text-info-soft-foreground border border-info/30">
                                 <FileText className="h-3 w-3" />
                               Clave {cargo.satProductCode}
                               </span>
                             )}
                             {cargo.hazardousMaterial && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 border border-orange-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30">
                                 <AlertTriangle className="h-3 w-3" />
                                 Mat. Peligroso
                               </span>
@@ -1270,7 +1270,7 @@ export function CargoStep({
                               {deliveries.map((del, idx) => (
                                 <span
                                   key={idx}
-                                  className="inline-flex items-center gap-1 mr-2 px-1.5 py-0.5 text-xs rounded bg-orange-50 text-orange-700 border border-orange-200"
+                                  className="inline-flex items-center gap-1 mr-2 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30"
                                 >
                                   <Truck className="h-3 w-3" />
                                   Entrega: {getStopLabel(del.stopIndex)}
@@ -1514,7 +1514,7 @@ export function CargoStep({
                       className={cn(
                         "flex-1",
                         (!newCargo.units || newCargo.units <= 0) &&
-                          "border-orange-300 focus-visible:ring-orange-500",
+                          "border-warning/30 focus-visible:ring-warning",
                       )}
                       value={newCargo.units ?? ""}
                       onChange={(e) =>
@@ -1531,7 +1531,7 @@ export function CargoStep({
                     </span>
                   </div>
                   {(!newCargo.units || newCargo.units <= 0) && (
-                    <p className="text-xs text-orange-600">
+                    <p className="text-xs text-warning">
                       Ingrese la cantidad
                     </p>
                   )}
@@ -1551,7 +1551,7 @@ export function CargoStep({
                     step="0.01"
                     className={cn(
                       (!newCargo.weightInKg || newCargo.weightInKg <= 0) &&
-                        "border-orange-300 focus-visible:ring-orange-500",
+                        "border-warning/30 focus-visible:ring-warning",
                     )}
                     value={newCargo.weightInKg ?? ""}
                     onChange={(e) =>
@@ -1567,7 +1567,7 @@ export function CargoStep({
                     }
                   />
                   {(!newCargo.weightInKg || newCargo.weightInKg <= 0) && (
-                    <p className="text-xs text-orange-600">Ingrese el peso</p>
+                    <p className="text-xs text-warning">Ingrese el peso</p>
                   )}
                 </div>
               </div>
@@ -1592,9 +1592,9 @@ export function CargoStep({
                     (projectedWeight / vehicleCapacityKg) * 100;
 
                   return wouldExceed ? (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-xs text-red-700">
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive-soft border border-destructive/30">
+                      <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-destructive-soft-foreground">
                         <p className="font-medium">
                           ¡Esta carga excederá la capacidad del vehículo!
                         </p>
@@ -1606,9 +1606,9 @@ export function CargoStep({
                       </div>
                     </div>
                   ) : projectedPercentage >= 90 ? (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-orange-50 border border-orange-200">
-                      <Gauge className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-xs text-orange-700">
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-warning-soft border border-warning/30">
+                      <Gauge className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-warning-soft-foreground">
                         <p className="font-medium">Capacidad casi al límite</p>
                         <p className="mt-1">
                           Peso proyectado: {formatWeight(projectedWeight)} /{" "}
@@ -1720,12 +1720,12 @@ export function CargoStep({
                       htmlFor="hazmat-checkbox"
                       className="flex items-center gap-2 cursor-pointer"
                     >
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      <AlertTriangle className="h-4 w-4 text-warning" />
                       Esta mercancía es material peligroso
                     </Label>
                   </div>
                   {hazmatRequiredByCatalog && (
-                    <p className="text-xs text-orange-700">
+                    <p className="text-xs text-warning-soft-foreground">
                       Este producto obliga captura de material peligroso según catálogo SAT.
                     </p>
                   )}
@@ -1744,8 +1744,8 @@ export function CargoStep({
                 </div>
 
                 <CollapsibleContent className="space-y-4 mt-4">
-                  <div className="p-4 border border-orange-200 rounded-lg bg-orange-50/50 space-y-4">
-                    <p className="text-sm text-orange-800">
+                  <div className="p-4 border border-warning/30 rounded-lg bg-warning-soft/50 space-y-4">
+                    <p className="text-sm text-warning-soft-foreground">
                       Completa la información de material peligroso según catálogo oficial.
                     </p>
 
@@ -2134,7 +2134,7 @@ export function CargoStep({
                 </div>
 
                 {missingSectorFields.length > 0 && (
-                  <p className="text-xs text-orange-600">
+                  <p className="text-xs text-warning">
                     Campos pendientes:{" "}
                     {missingSectorFields
                       .map((field) => sectorFieldLabels[field])
@@ -2175,7 +2175,7 @@ export function CargoStep({
                     {deliveryAssignments.map((delivery, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-2 p-3 border rounded-lg bg-orange-50/30"
+                        className="flex items-start gap-2 p-3 border rounded-lg bg-warning-soft/30"
                       >
                         <div className="flex-1 space-y-2">
                           <Select
