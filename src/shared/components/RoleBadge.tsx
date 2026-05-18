@@ -6,6 +6,7 @@
  */
 
 import { Badge } from "@/shared/ui/badge";
+import { cn } from "@shared/lib/utils/cn";
 import {
   Shield,
   Briefcase,
@@ -38,17 +39,19 @@ const ROLE_ICONS: Record<UserRole, LucideIcon> = {
   client: User,
 };
 
-const ROLE_COLORS: Record<UserRole, string> = {
-  admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  manager:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  dispatcher:
-    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-  accountant:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  operator: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  driver: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
-  client: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+type RoleBadgeStyle = {
+  variant: "destructive" | "warning" | "info" | "success" | "neutral";
+  tone?: "soft" | "solid";
+};
+
+const ROLE_BADGE_STYLE: Record<UserRole, RoleBadgeStyle> = {
+  admin: { variant: "destructive", tone: "soft" },
+  manager: { variant: "warning", tone: "soft" },
+  dispatcher: { variant: "info", tone: "solid" },
+  accountant: { variant: "warning", tone: "soft" },
+  operator: { variant: "success", tone: "soft" },
+  driver: { variant: "neutral", tone: "soft" },
+  client: { variant: "info", tone: "soft" },
 };
 
 const SIZE_CLASSES = {
@@ -71,41 +74,22 @@ export function RoleBadge({
 }: RoleBadgeProps) {
   const Icon = ROLE_ICONS[role];
   const label = ROLE_LABELS[role];
-  const colorClass = ROLE_COLORS[role];
+  const { variant, tone } = ROLE_BADGE_STYLE[role];
   const sizeClass = SIZE_CLASSES[size];
   const iconSize = ICON_SIZES[size];
 
   return (
     <Badge
-      variant="secondary"
-      className={`${colorClass} ${sizeClass} ${className} inline-flex items-center gap-1.5`}
+      variant={variant}
+      tone={tone}
+      className={cn(
+        "inline-flex items-center gap-1.5 border-transparent",
+        sizeClass,
+        className,
+      )}
     >
       {showIcon && <Icon size={iconSize} />}
       <span>{label}</span>
     </Badge>
   );
 }
-
-/**
- * Example Usage:
- *
- * import { RoleBadge } from '@/shared/components/RoleBadge';
- *
- * function UserCard({ user }) {
- *   return (
- *     <div>
- *       <h3>{user.name}</h3>
- *       <RoleBadge role={user.role} />
- *     </div>
- *   );
- * }
- *
- * // Without icon
- * <RoleBadge role="admin" showIcon={false} />
- *
- * // Large size
- * <RoleBadge role="manager" size="lg" />
- *
- * // Small size for tables
- * <RoleBadge role="operator" size="sm" />
- */

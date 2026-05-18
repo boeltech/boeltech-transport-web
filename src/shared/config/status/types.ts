@@ -5,6 +5,13 @@
  * Tipos base para configuración de estados en todos los módulos.
  * Garantiza consistencia visual y estructural en toda la aplicación.
  *
+ * Design System — Fase 2:
+ *   - STATUS_COLORS usa tokens semánticos del DS (no colores Tailwind crudos).
+ *   - Soporta dos tonos por variante: "soft" (default, recomendado) y "solid"
+ *     (alta saturación, para estados que requieren atención inmediata).
+ *   - Aliases legacy ("danger", "purple", "orange") mantienen backward
+ *     compatibility — internamente se normalizan a las variantes canónicas.
+ *
  * Ubicación: src/shared/config/status/types.ts
  */
 
@@ -13,6 +20,16 @@ import type { LucideIcon } from "lucide-react";
 // ============================================================================
 // BASE STATUS CONFIG TYPE
 // ============================================================================
+
+/**
+ * Tono visual del badge.
+ *
+ * - `soft` (default): fondo tenue + texto saturado. Ideal para listas densas,
+ *   tablas, chips repetidos. Es el visual histórico del ERP.
+ * - `solid`: fondo saturado + texto claro/contrastante. Úsalo para estados
+ *   que requieren llamar la atención (ej: viaje EN_RUTA, errores críticos).
+ */
+export type StatusTone = "soft" | "solid";
 
 /**
  * Configuración base para cualquier estado en el sistema.
@@ -25,80 +42,160 @@ export interface StatusConfig {
   /** Ícono de Lucide para representar el estado */
   icon: LucideIcon;
 
-  /** Color de fondo del badge (Tailwind classes) */
+  /** Color de fondo del badge (clases Tailwind sobre tokens del DS) */
   bgColor: string;
 
-  /** Color del texto del badge (Tailwind classes) */
+  /** Color del texto del badge */
   textColor: string;
 
-  /** Color del borde del badge (Tailwind classes) */
+  /** Color del borde del badge */
   borderColor: string;
 
   /** Descripción detallada del estado (para tooltips o ayuda) */
   description: string;
+
+  /** Tono visual: soft (default) o solid */
+  tone?: StatusTone;
 }
 
 // ============================================================================
-// COLOR VARIANTS
+// CANONICAL COLOR VARIANTS — Fase 2
 // ============================================================================
 
 /**
- * Variantes de color predefinidas para mantener consistencia.
- * Cada variante incluye soporte para dark mode.
+ * Variantes canónicas alineadas al DS.
+ * Cada una mapea a un token semántico de `index.css`.
  */
-export type ColorVariant =
-  | "success" // Verde - Estados positivos/completados
-  | "warning" // Ámbar - Estados de advertencia/pendientes
-  | "danger" // Rojo - Estados críticos/cancelados
-  | "info" // Azul - Estados informativos/en progreso
-  | "neutral" // Gris - Estados neutros/borradores
-  | "purple" // Morado - Estados especiales
-  | "orange"; // Naranja - Estados de alerta moderada
+export type CanonicalColorVariant =
+  | "success" // Verde — Operación completada, viaje finalizado
+  | "warning" // Ámbar — Por vencer, pendiente, atención moderada
+  | "info" // Azul — Notas, en progreso, neutral activo
+  | "destructive" // Rojo — Eliminar, cancelar, error crítico
+  | "neutral"; // Gris — Borrador, inactivo, archivado
 
 /**
- * Colores predefinidos por variante.
- * Usar estos para mantener consistencia en todo el sistema.
+ * Aliases legacy (DEPRECATED) — se mantienen para no romper módulos que
+ * todavía usan estos nombres. Internamente se normalizan.
+ *
+ * Migración recomendada:
+ *   - "danger" → "destructive"
+ *   - "purple" → "info" + tone: "solid"  (para estados activos llamativos)
+ *   - "orange" → "warning"
  */
-export const STATUS_COLORS: Record<
-  ColorVariant,
-  Pick<StatusConfig, "bgColor" | "textColor" | "borderColor">
-> = {
+export type LegacyColorVariant = "danger" | "purple" | "orange";
+
+/**
+ * Cualquier variante aceptada (canónica o legacy).
+ * Existe solo para que callsites antiguos compilen.
+ */
+export type ColorVariant = CanonicalColorVariant | LegacyColorVariant;
+
+const LEGACY_VARIANT_MAP: Record<LegacyColorVariant, CanonicalColorVariant> = {
+  danger: "destructive",
+  purple: "info",
+  orange: "warning",
+};
+
+const LEGACY_VARIANT_TONE: Partial<Record<LegacyColorVariant, StatusTone>> = {
+  // "purple" históricamente se usaba para estados activos / llamativos
+  // (ej: trip IN_PROGRESS). Mapeamos a info solid para preservar la intención.
+  purple: "solid",
+};
+
+function normalizeVariant(variant: ColorVariant): {
+  canonical: CanonicalColorVariant;
+  inheritedTone?: StatusTone;
+} {
+  if (variant in LEGACY_VARIANT_MAP) {
+    const legacy = variant as LegacyColorVariant;
+    return {
+      canonical: LEGACY_VARIANT_MAP[legacy],
+      inheritedTone: LEGACY_VARIANT_TONE[legacy],
+    };
+  }
+  return { canonical: variant as CanonicalColorVariant };
+}
+
+// ============================================================================
+// COLOR PRESETS — tokens del DS (no colores Tailwind crudos)
+// ============================================================================
+
+type ColorPreset = Pick<StatusConfig, "bgColor" | "textColor" | "borderColor">;
+
+/**
+ * Tono SOFT (default).
+ *
+ * Lee tokens `*-soft` definidos en index.css. Cambios futuros a la calibración
+ * de tokens se reflejan automáticamente — sin tocar este archivo.
+ */
+export const STATUS_COLORS_SOFT: Record<CanonicalColorVariant, ColorPreset> = {
   success: {
-    bgColor: "bg-green-50 dark:bg-green-950/30",
-    textColor: "text-green-700 dark:text-green-400",
-    borderColor: "border-green-200 dark:border-green-800",
+    bgColor: "bg-success-soft",
+    textColor: "text-success-soft-foreground",
+    borderColor: "border-success/30",
   },
   warning: {
-    bgColor: "bg-amber-50 dark:bg-amber-950/30",
-    textColor: "text-amber-700 dark:text-amber-400",
-    borderColor: "border-amber-200 dark:border-amber-800",
-  },
-  danger: {
-    bgColor: "bg-red-50 dark:bg-red-950/30",
-    textColor: "text-red-700 dark:text-red-400",
-    borderColor: "border-red-200 dark:border-red-800",
+    bgColor: "bg-warning-soft",
+    textColor: "text-warning-soft-foreground",
+    borderColor: "border-warning/30",
   },
   info: {
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
-    textColor: "text-blue-700 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    bgColor: "bg-info-soft",
+    textColor: "text-info-soft-foreground",
+    borderColor: "border-info/30",
+  },
+  destructive: {
+    bgColor: "bg-destructive-soft",
+    textColor: "text-destructive-soft-foreground",
+    borderColor: "border-destructive/30",
   },
   neutral: {
-    bgColor: "bg-gray-50 dark:bg-gray-950/30",
-    textColor: "text-gray-700 dark:text-gray-400",
-    borderColor: "border-gray-200 dark:border-gray-800",
-  },
-  purple: {
-    bgColor: "bg-purple-50 dark:bg-purple-950/30",
-    textColor: "text-purple-700 dark:text-purple-400",
-    borderColor: "border-purple-200 dark:border-purple-800",
-  },
-  orange: {
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
-    textColor: "text-orange-700 dark:text-orange-400",
-    borderColor: "border-orange-200 dark:border-orange-800",
+    bgColor: "bg-neutral-soft",
+    textColor: "text-neutral-soft-foreground",
+    borderColor: "border-neutral/30",
   },
 };
+
+/**
+ * Tono SOLID.
+ *
+ * Fondo saturado + foreground contrastante. Úsalo cuando el estado debe
+ * destacar visualmente (ej: viaje EN_RUTA en un dashboard denso).
+ */
+export const STATUS_COLORS_SOLID: Record<CanonicalColorVariant, ColorPreset> = {
+  success: {
+    bgColor: "bg-success",
+    textColor: "text-success-foreground",
+    borderColor: "border-success",
+  },
+  warning: {
+    bgColor: "bg-warning",
+    textColor: "text-warning-foreground",
+    borderColor: "border-warning",
+  },
+  info: {
+    bgColor: "bg-info",
+    textColor: "text-info-foreground",
+    borderColor: "border-info",
+  },
+  destructive: {
+    bgColor: "bg-destructive",
+    textColor: "text-destructive-foreground",
+    borderColor: "border-destructive",
+  },
+  neutral: {
+    bgColor: "bg-neutral",
+    textColor: "text-neutral-foreground",
+    borderColor: "border-neutral",
+  },
+};
+
+/**
+ * @deprecated Usa `STATUS_COLORS_SOFT` o `STATUS_COLORS_SOLID` directamente.
+ * Mantenido como alias para evitar romper imports históricos.
+ */
+export const STATUS_COLORS: Record<CanonicalColorVariant, ColorPreset> =
+  STATUS_COLORS_SOFT;
 
 // ============================================================================
 // HELPER FUNCTION
@@ -106,21 +203,50 @@ export const STATUS_COLORS: Record<
 
 /**
  * Crea una configuración de estado usando una variante de color predefinida.
- * Simplifica la creación de configs manteniendo consistencia.
  *
  * @example
- * const config = createStatusConfig("success", {
+ * // Soft (default, recomendado para listas)
+ * createStatusConfig("success", {
  *   label: "Completado",
  *   icon: CheckCircle2,
  *   description: "El viaje ha sido completado exitosamente",
  * });
+ *
+ * @example
+ * // Solid (para estados que requieren atención)
+ * createStatusConfig("info", {
+ *   label: "En Ruta",
+ *   icon: Truck,
+ *   description: "Viaje actualmente en progreso",
+ *   tone: "solid",
+ * });
+ *
+ * @example
+ * // Backward compatible (usa alias legacy)
+ * createStatusConfig("danger", { label: "Cancelado", ... });
+ * // → equivalente a createStatusConfig("destructive", { ... })
+ *
+ * createStatusConfig("purple", { label: "En Ruta", ... });
+ * // → equivalente a createStatusConfig("info", { ..., tone: "solid" })
  */
 export function createStatusConfig(
   variant: ColorVariant,
-  config: Pick<StatusConfig, "label" | "icon" | "description">,
+  config: Pick<StatusConfig, "label" | "icon" | "description"> & {
+    tone?: StatusTone;
+  },
 ): StatusConfig {
+  const { canonical, inheritedTone } = normalizeVariant(variant);
+  const tone: StatusTone = config.tone ?? inheritedTone ?? "soft";
+  const palette =
+    tone === "solid"
+      ? STATUS_COLORS_SOLID[canonical]
+      : STATUS_COLORS_SOFT[canonical];
+
   return {
-    ...config,
-    ...STATUS_COLORS[variant],
+    label: config.label,
+    icon: config.icon,
+    description: config.description,
+    tone,
+    ...palette,
   };
 }

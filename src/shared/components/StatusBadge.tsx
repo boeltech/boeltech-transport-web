@@ -74,15 +74,21 @@ export function StatusBadge<T extends string>({
 
   const Icon = statusConfig.icon;
 
+  // Solid quita el borde para que el badge no compita con su propio fondo
+  // (es lo recomendado en la guía de Badge del DS — variantes solid usan
+  // `border-transparent`).
+  const isSolid = statusConfig.tone === "solid";
+
   return (
     <Badge
       variant="outline"
       className={cn(
         "font-medium inline-flex items-center gap-1.5",
+        isSolid && "border-transparent shadow-sm",
         sizeClasses[size],
         statusConfig.bgColor,
         statusConfig.textColor,
-        statusConfig.borderColor,
+        !isSolid && statusConfig.borderColor,
         className,
       )}
     >
