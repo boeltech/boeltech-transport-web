@@ -38,6 +38,7 @@ type AddressFormShape = {
 
 function TestHarness(props: {
   onCartaPorteReadyChange?: (ready: boolean) => void;
+  initialAddress?: Partial<AddressFormShape["address"]>;
 }) {
   const form = useForm<AddressFormShape>({
     defaultValues: {
@@ -57,6 +58,7 @@ function TestHarness(props: {
         latitude: null,
         longitude: null,
         isPrimary: false,
+        ...props.initialAddress,
       },
     },
   });
@@ -164,6 +166,47 @@ describe("AddressInput", () => {
 
     expect(onReadyChange).toHaveBeenCalled();
     expect(onReadyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps manual neighborhood input when lookup returns catalog options", () => {
+    vi.mocked(usePostalCodeLookup).mockReturnValue({
+      data: {
+        found: true,
+        postalCode: "44100",
+        stateCode: "JAL",
+        stateName: "Jalisco",
+        municipalityCode: "039",
+        municipalityName: "Guadalajara",
+        localities: [],
+        neighborhoods: [{ code: "0001", name: "Moderna" }],
+      } satisfies PostalCodeLookupResult,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof usePostalCodeLookup>);
+
+    vi.mocked(useSatCatalogs).mockReturnValue({
+      countries: [{ code: "MEX", name: "Mexico" }],
+      states: [{ code: "JAL", name: "Jalisco" }],
+      municipalities: [{ code: "JAL-039", name: "Guadalajara" }],
+      neighborhoodsByPostalCode: [{ code: "0001", name: "Moderna" }],
+      isLoadingStates: false,
+      isLoadingMunicipalities: false,
+      isLoadingNeighborhoodsByPostalCode: false,
+    });
+
+    render(
+      <TestHarness
+        initialAddress={{
+          postalCode: "44100",
+          satStateCode: "JAL",
+          satMunicipalityCode: "039",
+          neighborhoodName: "Colonia capturada manual",
+        }}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Colonia capturada manual")).toBeInTheDocument();
+    expect(screen.queryByText(/selecciona colonia/i)).not.toBeInTheDocument();
   });
 
   it("keeps only numeric values in postal code input", async () => {

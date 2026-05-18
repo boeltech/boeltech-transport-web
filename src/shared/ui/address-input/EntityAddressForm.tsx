@@ -1,5 +1,4 @@
 import type { FormEventHandler, ReactNode } from "react";
-import { Card, CardContent } from "@shared/ui/card";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { MapPin } from "lucide-react";
 import { AddressFormNotice } from "./AddressFormNotice";
@@ -88,9 +87,7 @@ export function EntityAddressForm({
       ) : null}
 
       {hideLocationSectionTitle ? (
-        <Card>
-          <CardContent className="space-y-4 pt-6">{addressInputSection}</CardContent>
-        </Card>
+        <div className="space-y-4">{addressInputSection}</div>
       ) : (
         <FormSectionCard
           title={locationSectionTitle}

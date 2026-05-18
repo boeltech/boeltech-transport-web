@@ -433,6 +433,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     extraSlots,
     disabled = false,
     hideInformativeAlerts = false,
+    embedded = false,
     control,
     namePrefix,
     setValue,
@@ -491,7 +492,17 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     [postalLookup.data?.neighborhoods, neighborhoodsByPostalCode],
   );
   const lookupHasNeighborhoods = catalogNeighborhoodOptions.length > 0;
-  const shouldUseManualNeighborhood = !lookupHasNeighborhoods;
+  const hasPersistedNeighborhoodName = Boolean(
+    String(neighborhoodNameField.field.value ?? "").trim(),
+  );
+  const hasPersistedNeighborhoodCode = Boolean(
+    String(neighborhoodField.field.value ?? "").trim(),
+  );
+  /** Colonia guardada solo como texto (sin código SAT) debe seguir en input manual. */
+  const prefersManualNeighborhood =
+    hasPersistedNeighborhoodName && !hasPersistedNeighborhoodCode;
+  const shouldUseManualNeighborhood =
+    prefersManualNeighborhood || !lookupHasNeighborhoods;
   const hasMultipleNeighborhoods =
     catalogNeighborhoodOptions.length > 1;
   const hasMultipleLocalities = (postalLookup.data?.localities.length ?? 0) > 1;
@@ -569,19 +580,57 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     [catalogNeighborhoodOptions, neighborhoodRawForDisplay],
   );
 
+  // Dirección ya persistida: marcar CP como aplicado para no pisar municipio/colonia al hidratar.
+  useEffect(() => {
+    const cp = String(postalCodeField.field.value ?? "").trim();
+    if (!/^\d{5}$/.test(cp)) return;
+
+    const hasPersistedSatFields =
+      Boolean(String(stateField.field.value ?? "").trim()) ||
+      Boolean(String(municipalityField.field.value ?? "").trim()) ||
+      Boolean(String(localityField.field.value ?? "").trim()) ||
+      hasPersistedNeighborhoodCode ||
+      hasPersistedNeighborhoodName;
+
+    if (hasPersistedSatFields) {
+      lastAppliedPostalCodeRef.current = cp;
+    }
+  }, [
+    hasPersistedNeighborhoodCode,
+    hasPersistedNeighborhoodName,
+    localityField.field.value,
+    municipalityField.field.value,
+    neighborhoodField.field.value,
+    neighborhoodNameField.field.value,
+    postalCodeField.field.value,
+    stateField.field.value,
+  ]);
+
   useEffect(() => {
     const data = postalLookup.data;
     if (!data || !postalLookupFound) return;
     if (data.postalCode === lastAppliedPostalCodeRef.current) return;
 
-    if (data.stateCode) stateField.field.onChange(data.stateCode);
-    if (data.municipalityCode) {
+    const stateEmpty = !String(stateField.field.value ?? "").trim();
+    const municipalityEmpty = !String(municipalityField.field.value ?? "").trim();
+    const localityEmpty = !String(localityField.field.value ?? "").trim();
+    const neighborhoodEmpty = !String(neighborhoodField.field.value ?? "").trim();
+    const neighborhoodNameEmpty = !String(neighborhoodNameField.field.value ?? "").trim();
+
+    if (data.stateCode && stateEmpty) {
+      stateField.field.onChange(data.stateCode);
+    }
+    if (data.municipalityCode && municipalityEmpty) {
       municipalityField.field.onChange(toShortSatCode(data.municipalityCode));
     }
-    if (data.localities.length === 1) {
+    if (data.localities.length === 1 && localityEmpty) {
       localityField.field.onChange(toShortSatCode(data.localities[0]?.code ?? ""));
     }
-    if (data.neighborhoods.length === 1) {
+    if (
+      data.neighborhoods.length === 1 &&
+      neighborhoodEmpty &&
+      neighborhoodNameEmpty
+    ) {
       neighborhoodField.field.onChange(data.neighborhoods[0]?.code ?? "");
       neighborhoodNameField.field.onChange(data.neighborhoods[0]?.name ?? "");
     }
@@ -602,7 +651,8 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     onCartaPorteReadyChange(addressReadyForMode);
   }, [addressReadyForMode, mode, onCartaPorteReadyChange]);
 
-  const containerClass = cn("space-y-4 rounded-lg border p-4", {
+  const containerClass = cn("space-y-4", {
+    "rounded-lg border p-4": !embedded,
     "opacity-70": disabled,
   });
 
@@ -803,6 +853,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             />
           ) : (
             <Select
+              key={`${props.namePrefix}-neighborhood-${neighborhoodCatalogValue}-${catalogNeighborhoodOptions.length}-${isLoadingNeighborhoodsByPostalCode ? 1 : 0}`}
               value={neighborhoodCatalogValue}
               onValueChange={(value) => {
                 const selectedNeighborhood = catalogNeighborhoodOptions.find(
@@ -981,7 +1032,8 @@ function addressInputPropsAreEqual(
     prev.onCartaPorteReadyChange === next.onCartaPorteReadyChange &&
     prev.extraSlots === next.extraSlots &&
     prev.disabled === next.disabled &&
-    prev.hideInformativeAlerts === next.hideInformativeAlerts
+    prev.hideInformativeAlerts === next.hideInformativeAlerts &&
+    prev.embedded === next.embedded
   );
 }
 

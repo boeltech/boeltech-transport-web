@@ -47,4 +47,9 @@ export interface AddressInputProps<TFieldValues extends FieldValues = FieldValue
   disabled?: boolean;
   /** Oculta avisos informativos del lookup SAT por CP (p. ej. al precargar desde catálogo de cliente). */
   hideInformativeAlerts?: boolean;
+  /**
+   * Sin borde/padding propio: usar cuando el padre ya provee un Card o sección
+   * (p. ej. SettingsCard + EntityAddressForm con hideLocationSectionTitle).
+   */
+  embedded?: boolean;
 }
