@@ -102,6 +102,8 @@ export interface CatalogSearchParamsExtended extends CatalogSearchParams {
    * Si incluir items inactivos en la búsqueda
    */
   includeInactive?: boolean;
+  /** Desactiva la query (p. ej. listado en cliente para catálogos pequeños). */
+  enabled?: boolean;
 }
 
 // ============================================================================
@@ -136,6 +138,7 @@ export function useCatalogSearch(
     limit = 50,
     offset = 0,
     includeInactive = true,
+    enabled: enabledParam = true,
   } = params;
 
   return useQuery({
@@ -157,7 +160,9 @@ export function useCatalogSearch(
     // - includeInactive es true (controla si el hook está "activo")
     // - query tiene al menos 1 caracter O offset > 0 (paginación inicial)
     enabled:
-      includeInactive && (query.length >= 1 || offset > 0 || query === " "),
+      enabledParam &&
+      includeInactive &&
+      (query.length >= 1 || offset > 0 || query === " "),
     staleTime: 30_000, // 30 segundos
     gcTime: 5 * 60_000, // 5 minutos
     placeholderData: (previousData) => previousData,

@@ -21,11 +21,6 @@ import {
   FileText,
   AlertTriangle,
   Layers,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Loader2,
 } from "lucide-react";
 
@@ -33,7 +28,12 @@ import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Skeleton } from "@shared/ui/skeleton";
-import { Input } from "@shared/ui/input";
+import { StatCard } from "@shared/ui/data-display";
+import {
+  ListingSearchInput,
+  ListingPagination,
+  ListingResultsSummary,
+} from "@shared/ui/listing";
 
 import { usePermissions } from "@shared/permissions";
 import {
@@ -124,59 +124,76 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     },
   );
 
-  // Para catálogos grandes: usar búsqueda paginada
-  const {
-    data: searchResult,
-    isLoading: isLoadingSearch,
-    isFetching: isFetchingSearch,
-  } = useCatalogSearch(typeCode ?? "", {
-    query: debouncedSearch || " ", // Espacio para cargar página inicial
-    limit: DEFAULT_PAGE_SIZE,
-    offset: (currentPage - 1) * DEFAULT_PAGE_SIZE,
-    includeInactive: true,
-  });
-
-
   // ══════════════════════════════════════════════════════════════════════════
   // COMPUTED VALUES
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Encontrar el tipo de catálogo
   const catalogType = useMemo(
     () => types?.find((t) => t.code === typeCode),
     [types, typeCode],
   );
 
-  // Encontrar estadísticas del catálogo
   const catalogStats = useMemo(
     () => statistics?.find((s) => s.typeCode === typeCode),
     [statistics, typeCode],
   );
 
-  // Determinar si realmente es un catálogo grande (por estadísticas o conocido)
   const isLargeCatalog = useMemo(() => {
     if (isKnownLargeCatalog) return true;
     const itemCount = catalogStats?.itemCount ?? allItems?.length ?? 0;
     return itemCount > LARGE_CATALOG_THRESHOLD;
   }, [isKnownLargeCatalog, catalogStats?.itemCount, allItems?.length]);
 
-  // Items a mostrar (depende de si es grande o pequeño)
+  const {
+    data: searchResult,
+    isLoading: isLoadingSearch,
+    isFetching: isFetchingSearch,
+  } = useCatalogSearch(typeCode ?? "", {
+    query: debouncedSearch || " ",
+    limit: DEFAULT_PAGE_SIZE,
+    offset: (currentPage - 1) * DEFAULT_PAGE_SIZE,
+    includeInactive: true,
+    enabled: isLargeCatalog,
+  });
+
+  const clientFilteredItems = useMemo(() => {
+    if (isLargeCatalog) return [];
+
+    const term = debouncedSearch.trim().toLowerCase();
+    const source = allItems ?? [];
+    if (!term) return source;
+
+    return source.filter(
+      (item) =>
+        item.code.toLowerCase().includes(term) ||
+        item.name.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term),
+    );
+  }, [isLargeCatalog, allItems, debouncedSearch]);
+
+  const listTotal = useMemo(() => {
+    if (isLargeCatalog) return searchResult?.total ?? 0;
+    return clientFilteredItems.length;
+  }, [isLargeCatalog, searchResult?.total, clientFilteredItems.length]);
+
+  const listTotalPages = Math.max(
+    1,
+    Math.ceil(listTotal / DEFAULT_PAGE_SIZE),
+  );
+
   const displayItems: CatalogItem[] = useMemo(() => {
-    if (isLargeCatalog) {
-      return searchResult?.items ?? [];
-    }
-    return allItems ?? [];
-  }, [isLargeCatalog, searchResult?.items, allItems]);
+    if (isLargeCatalog) return searchResult?.items ?? [];
 
-  // Total de items (para paginación)
-  const totalItems = useMemo(() => {
-    if (isLargeCatalog) {
-      return searchResult?.total ?? 0;
-    }
-    return allItems?.length ?? 0;
-  }, [isLargeCatalog, searchResult?.total, allItems?.length]);
+    const start = (currentPage - 1) * DEFAULT_PAGE_SIZE;
+    return clientFilteredItems.slice(start, start + DEFAULT_PAGE_SIZE);
+  }, [
+    isLargeCatalog,
+    searchResult?.items,
+    clientFilteredItems,
+    currentPage,
+  ]);
 
-  const totalPages = Math.ceil(totalItems / DEFAULT_PAGE_SIZE);
+  const catalogTotalCount = catalogStats?.itemCount ?? listTotal;
 
   const isSat = typeCode ? isSatCatalog(typeCode) : false;
   const canImport = hasPermission("catalogs", "import") && isSat;
@@ -316,22 +333,28 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Registros"
-            value={catalogStats?.itemCount ?? totalItems}
-            icon={FileText}
+            title="Registros"
+            value={(catalogStats?.itemCount ?? catalogTotalCount).toLocaleString(
+              "es-MX",
+            )}
+            icon={<FileText className="h-5 w-5 text-primary" />}
             isLoading={isLoading}
           />
-          <StatCard label="Fuente" value={sourceLabel} icon={Database} />
           <StatCard
-            label="Tipo"
-            value={showParentColumn ? "Jerárquico" : "Plano"}
-            icon={Layers}
+            title="Fuente"
+            value={sourceLabel}
+            icon={<Database className="h-5 w-5 text-primary" />}
           />
           <StatCard
-            label="Versión"
+            title="Tipo"
+            value={showParentColumn ? "Jerárquico" : "Plano"}
+            icon={<Layers className="h-5 w-5 text-primary" />}
+          />
+          <StatCard
+            title="Versión"
             value={catalogStats?.currentVersion ?? "—"}
-            icon={FileText}
-            isMono
+            icon={<FileText className="h-5 w-5 text-primary" />}
+            className="[&_p:last-child]:font-mono [&_p:last-child]:text-sm"
           />
         </div>
 
@@ -350,60 +373,46 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
         {/* Items section with search and pagination */}
         <SettingsCard
           title="Registros"
-          description={`${totalItems.toLocaleString("es-MX")} registros en este catálogo`}
+          description={`${catalogTotalCount.toLocaleString("es-MX")} registros en este catálogo`}
         >
           <div className="space-y-4">
-            {/* Search input */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-1 items-center gap-3">
+                <ListingSearchInput
+                  value={searchTerm}
+                  onChange={handleSearchChange}
                   placeholder={
                     isLargeCatalog
                       ? "Buscar en el servidor..."
                       : "Buscar por código o nombre..."
                   }
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-9"
+                  className="w-full sm:max-w-sm"
                 />
+                {isFetchingSearch && isLargeCatalog ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                ) : null}
               </div>
-              {isFetchingSearch && isLargeCatalog && (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-              <p className="text-sm text-muted-foreground">
-                {isLargeCatalog
-                  ? `Mostrando ${displayItems.length} de ${totalItems.toLocaleString("es-MX")}`
-                  : `${displayItems.length} registros`}
-              </p>
+              <ListingResultsSummary
+                entityLabelPlural="registros"
+                total={listTotal}
+                page={currentPage}
+                limit={DEFAULT_PAGE_SIZE}
+              />
             </div>
 
-            {/* Table */}
-            {isLargeCatalog ? (
-              <LargeCatalogTable
-                items={displayItems}
-                isLoading={isLoadingSearch}
-                showParentCode={showParentColumn}
-              />
-            ) : (
-              <CatalogItemsTable
-                items={displayItems}
-                isLoading={isLoadingAllItems}
-                showParentCode={showParentColumn}
-              />
-            )}
+            <CatalogItemsTable
+              embedded
+              items={displayItems}
+              isLoading={isLargeCatalog ? isLoadingSearch : isLoadingAllItems}
+              showParentCode={showParentColumn}
+              showDescription={!isLargeCatalog}
+            />
 
-            {/* Server-side pagination (only for large catalogs) */}
-            {isLargeCatalog && totalPages > 1 && (
-              <ServerPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                pageSize={DEFAULT_PAGE_SIZE}
-                onPageChange={handlePageChange}
-                isLoading={isFetchingSearch}
-              />
-            )}
+            <ListingPagination
+              page={currentPage}
+              totalPages={listTotalPages}
+              onPageChange={handlePageChange}
+            />
           </div>
         </SettingsCard>
 
@@ -417,241 +426,6 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
         )}
       </div>
     </SettingsLayout>
-  );
-});
-
-// ============================================================================
-// LARGE CATALOG TABLE (simplified, no client-side filtering)
-// ============================================================================
-
-interface LargeCatalogTableProps {
-  items: CatalogItem[];
-  isLoading: boolean;
-  showParentCode: boolean;
-}
-
-const LargeCatalogTable = memo(function LargeCatalogTable({
-  items,
-  isLoading,
-  showParentCode,
-}: LargeCatalogTableProps) {
-  if (isLoading) {
-    return (
-      <div className="border rounded-lg">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="text-left p-3 text-sm font-medium">Código</th>
-              <th className="text-left p-3 text-sm font-medium">Nombre</th>
-              {showParentCode && (
-                <th className="text-left p-3 text-sm font-medium">Padre</th>
-              )}
-              <th className="text-center p-3 text-sm font-medium w-24">
-                Estado
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 10 }).map((_, i) => (
-              <tr key={i} className="border-t">
-                <td className="p-3">
-                  <Skeleton className="h-4 w-24" />
-                </td>
-                <td className="p-3">
-                  <Skeleton className="h-4 w-48" />
-                </td>
-                {showParentCode && (
-                  <td className="p-3">
-                    <Skeleton className="h-4 w-16" />
-                  </td>
-                )}
-                <td className="p-3 text-center">
-                  <Skeleton className="h-5 w-16 mx-auto" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No se encontraron registros
-      </div>
-    );
-  }
-
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-muted/50">
-          <tr>
-            <th className="text-left p-3 text-sm font-medium">Código</th>
-            <th className="text-left p-3 text-sm font-medium">Nombre</th>
-            {showParentCode && (
-              <th className="text-left p-3 text-sm font-medium">Padre</th>
-            )}
-            <th className="text-center p-3 text-sm font-medium w-24">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr
-              key={item.id}
-              className="border-t hover:bg-muted/30 transition-colors"
-            >
-              <td className="p-3 font-mono text-sm">{item.code}</td>
-              <td className="p-3">{item.name}</td>
-              {showParentCode && (
-                <td className="p-3 font-mono text-sm text-muted-foreground">
-                  {item.parentCode || "—"}
-                </td>
-              )}
-              <td className="p-3 text-center">
-                {item.isActive ? (
-                  <Badge
-                    variant="outline"
-                    className="text-green-600 border-green-200 bg-green-50"
-                  >
-                    Activo
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="text-red-600 border-red-200 bg-red-50"
-                  >
-                    Inactivo
-                  </Badge>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-});
-
-// ============================================================================
-// SERVER PAGINATION
-// ============================================================================
-
-interface ServerPaginationProps {
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-  isLoading?: boolean;
-}
-
-const ServerPagination = memo(function ServerPagination({
-  currentPage,
-  totalPages,
-  totalItems,
-  pageSize,
-  onPageChange,
-  isLoading,
-}: ServerPaginationProps) {
-  const startIndex = (currentPage - 1) * pageSize + 1;
-  const endIndex = Math.min(currentPage * pageSize, totalItems);
-
-  return (
-    <div className="flex items-center justify-between">
-      <p className="text-sm text-muted-foreground">
-        Mostrando {startIndex.toLocaleString("es-MX")} a{" "}
-        {endIndex.toLocaleString("es-MX")} de{" "}
-        {totalItems.toLocaleString("es-MX")}
-      </p>
-
-      <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onPageChange(1)}
-          disabled={currentPage === 1 || isLoading}
-        >
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1 || isLoading}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-
-        <span className="px-3 text-sm">
-          Página {currentPage} de {totalPages.toLocaleString("es-MX")}
-        </span>
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages || isLoading}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage === totalPages || isLoading}
-        >
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-});
-
-// ============================================================================
-// STAT CARD
-// ============================================================================
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  isLoading?: boolean;
-  isMono?: boolean;
-}
-
-const StatCard = memo(function StatCard({
-  label,
-  value,
-  icon: Icon,
-  isLoading,
-  isMono,
-}: StatCardProps) {
-  const formattedValue =
-    typeof value === "number" ? value.toLocaleString("es-MX") : value;
-
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Icon className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {isLoading ? (
-            <Skeleton className="h-5 w-16 mt-1" />
-          ) : (
-            <p
-              className={`font-medium truncate ${isMono ? "font-mono text-sm" : ""}`}
-            >
-              {formattedValue}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 });
 

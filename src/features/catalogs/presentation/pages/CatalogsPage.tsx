@@ -10,7 +10,6 @@
 import { memo, useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  Search,
   Database,
   Upload,
   ChevronRight,
@@ -18,7 +17,8 @@ import {
   FileText,
 } from "lucide-react";
 
-import { Input } from "@shared/ui/input";
+import { ListingSearchInput } from "@shared/ui/listing";
+import { StatCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@shared/ui/tabs";
@@ -143,42 +143,39 @@ export const CatalogsPage = memo(function CatalogsPage() {
         {/* Statistics */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Total Catálogos"
+            title="Total catálogos"
             value={catalogsWithStats.length}
-            icon={Database}
+            icon={<Database className="h-5 w-5 text-primary" />}
             isLoading={isLoading}
           />
           <StatCard
-            label="Total Registros"
+            title="Total registros"
             value={totalItems}
-            icon={FileText}
+            icon={<FileText className="h-5 w-5 text-primary" />}
             isLoading={isLoading}
           />
           <StatCard
-            label="Catálogos SAT"
+            title="Catálogos SAT"
             value={satCount}
-            icon={Building2}
+            icon={<Building2 className="h-5 w-5 text-primary" />}
             isLoading={isLoading}
           />
           <StatCard
-            label="Catálogos Internos"
+            title="Catálogos internos"
             value={internalCount}
-            icon={Database}
+            icon={<Database className="h-5 w-5 text-primary" />}
             isLoading={isLoading}
           />
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar catálogo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <ListingSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Buscar catálogo..."
+            className="w-full sm:flex-1"
+          />
           <Tabs
             value={activeTab}
             onValueChange={(v) => setActiveTab(v as TabValue)}
@@ -227,42 +224,6 @@ export const CatalogsPage = memo(function CatalogsPage() {
         )}
       </div>
     </SettingsLayout>
-  );
-});
-
-// ============================================================================
-// STAT CARD
-// ============================================================================
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-  isLoading?: boolean;
-}
-
-const StatCard = memo(function StatCard({
-  label,
-  value,
-  icon: Icon,
-  isLoading,
-}: StatCardProps) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {isLoading ? (
-            <Skeleton className="h-6 w-16 mt-1" />
-          ) : (
-            <p className="text-xl font-semibold">{formatNumber(value)}</p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 });
 
