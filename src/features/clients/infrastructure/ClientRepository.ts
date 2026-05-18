@@ -14,7 +14,12 @@
  * Ubicación: src/features/clients/infrastructure/ClientRepository.ts
  */
 
-import { apiClient } from "@shared/api";
+import {
+  apiClient,
+  mapSingleResponse,
+  type ApiPaginatedResponse,
+  type ApiSingleResponse,
+} from "@shared/api";
 import type {
   Client,
   ClientListItem,
@@ -32,7 +37,6 @@ import type {
 import {
   mapClient,
   mapPaginatedClients,
-  mapClientListItem,
   toApiCreateClient,
   toApiUpdateClient,
 } from "./mappers";
@@ -55,10 +59,8 @@ class ClientRepository implements IClientRepository {
     filters: ClientFilters,
     pagination: PaginationParams,
   ): Promise<PaginatedResult<ClientListItem>> {
-    // Construir query params
     const params = new URLSearchParams();
 
-    // Filtros
     if (filters.type) params.append("type", filters.type);
     if (filters.paymentTerms)
       params.append("payment_terms", filters.paymentTerms);
@@ -66,21 +68,14 @@ class ClientRepository implements IClientRepository {
       params.append("is_active", String(filters.isActive));
     if (filters.search) params.append("search", filters.search);
 
-    // Paginación
     params.append("page", String(pagination.page));
     params.append("limit", String(pagination.limit));
     if (pagination.sortBy) params.append("sort_by", pagination.sortBy);
     if (pagination.sortOrder) params.append("sort_order", pagination.sortOrder);
 
-    const response = await apiClient.get<{
-      data: ClientListItemApiResponse[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        total_pages: number;
-      };
-    }>(`${BASE_URL}?${params.toString()}`);
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ClientListItemApiResponse>
+    >(`${BASE_URL}?${params.toString()}`);
 
     return mapPaginatedClients(response);
   }
@@ -90,12 +85,11 @@ class ClientRepository implements IClientRepository {
    */
   async findById(id: string): Promise<Client | null> {
     try {
-      const response = await apiClient.get<{ data: ClientApiResponse }>(
+      const response = await apiClient.get<ApiSingleResponse<ClientApiResponse>>(
         `${BASE_URL}/${id}`,
       );
-      return mapClient(response.data);
+      return mapClient(response).data;
     } catch (error: unknown) {
-      // Si es 404, retornar null
       if (
         error instanceof Error &&
         "status" in error &&
@@ -113,22 +107,16 @@ class ClientRepository implements IClientRepository {
   async findActive(): Promise<ClientListItem[]> {
     const params = new URLSearchParams({
       is_active: "true",
-      limit: "100", // Obtener todos los activos
+      limit: "100",
       sort_by: "legal_name",
       sort_order: "asc",
     });
 
-    const response = await apiClient.get<{
-      data: ClientListItemApiResponse[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        total_pages: number;
-      };
-    }>(`${BASE_URL}?${params.toString()}`);
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ClientListItemApiResponse>
+    >(`${BASE_URL}?${params.toString()}`);
 
-    return response.data.map(mapClientListItem);
+    return mapPaginatedClients(response).data;
   }
 
   /**
@@ -144,9 +132,10 @@ class ClientRepository implements IClientRepository {
       payload,
     );
 
+    const mapped = mapSingleResponse(response);
     return {
-      id: response.data.id,
-      clientCode: response.data.client_code,
+      id: mapped.data.id,
+      clientCode: mapped.data.clientCode,
     };
   }
 
@@ -161,7 +150,7 @@ class ClientRepository implements IClientRepository {
       payload,
     );
 
-    return mapClient(response.data);
+    return mapClient(response).data;
   }
 
   /**

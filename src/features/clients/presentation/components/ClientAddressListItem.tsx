@@ -102,7 +102,7 @@ export function ClientAddressListItem({
         </div>
         {address.isPrimary ? (
           <Star
-            className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400"
+            className="h-3.5 w-3.5 shrink-0 fill-warning text-warning"
             aria-label="Dirección principal"
           />
         ) : null}

@@ -100,7 +100,7 @@ export function ClientAddressCard({
                 <Badge variant={typeConfig.variant}>{typeConfig.label}</Badge>
                 {address.isPrimary && (
                   <Badge variant="outline" className="gap-1">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <Star className="h-3 w-3 fill-warning text-warning" />
                     Principal
                   </Badge>
                 )}
@@ -206,13 +206,13 @@ export function ClientAddressCard({
         {/* Indicador Carta Porte */}
         <div className="flex items-center gap-1 mt-3 pt-2 border-t">
           {cartaPorteReady ? (
-            <span className="flex items-center gap-1 text-xs text-green-600">
+            <span className="flex items-center gap-1 text-xs text-success">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Carta Porte 3.1
             </span>
           ) : (
             <span
-              className="flex items-center gap-1 text-xs text-amber-600"
+              className="flex items-center gap-1 text-xs text-warning"
               title={
                 satMinHint
                   ? `Falta mínimo SAT: ${satMinHint}`

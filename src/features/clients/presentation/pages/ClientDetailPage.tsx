@@ -73,25 +73,29 @@ function buildClientStats(client: Client): StatCardProps[] {
     {
       title: "Viajes activos",
       value: tripsPlaceholder,
-      icon: <Route className="h-5 w-5 text-primary" />,
+      tone: "primary",
+      icon: <Route className="h-5 w-5" />,
       description: "Próximamente",
     },
     {
       title: "Total facturado",
       value: invoicedPlaceholder,
-      icon: <Receipt className="h-5 w-5 text-emerald-500" />,
+      tone: "success",
+      icon: <Receipt className="h-5 w-5" />,
       description: "Próximamente",
     },
     {
       title: "Días prom. pago",
       value: daysPayPlaceholder,
-      icon: <Timer className="h-5 w-5 text-blue-500" />,
+      tone: "info",
+      icon: <Timer className="h-5 w-5" />,
       description: "Histórico de cobranza",
     },
     {
       title: "Crédito disponible",
       value: creditValue,
-      icon: <Wallet className="h-5 w-5 text-amber-500" />,
+      tone: "warning",
+      icon: <Wallet className="h-5 w-5" />,
       description: creditDescription,
     },
   ];

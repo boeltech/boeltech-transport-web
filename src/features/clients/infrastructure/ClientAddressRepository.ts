@@ -28,7 +28,7 @@ import type {
 } from "../domain";
 import {
   mapClientAddress,
-  mapClientAddresses,
+  mapClientAddressList,
   toApiCreateClientAddress,
   toApiUpdateClientAddress,
 } from "./mappers";
@@ -50,11 +50,11 @@ class ClientAddressRepository implements IClientAddressRepository {
    * Obtiene todas las direcciones de un cliente
    */
   async findByClientId(clientId: string): Promise<ClientAddressListItem[]> {
-    const { data } = await apiClient.get<
+    const response = await apiClient.get<
       ApiSingleResponse<ClientAddressApiResponse[]>
     >(getBaseUrl(clientId));
 
-    return mapClientAddresses(data);
+    return mapClientAddressList(response);
   }
 
   /**
@@ -65,10 +65,10 @@ class ClientAddressRepository implements IClientAddressRepository {
     addressId: string,
   ): Promise<ClientAddress | null> {
     try {
-      const { data } = await apiClient.get<
+      const response = await apiClient.get<
         ApiSingleResponse<ClientAddressApiResponse>
       >(`${getBaseUrl(clientId)}/${addressId}`);
-      return mapClientAddress(data);
+      return mapClientAddress(response).data;
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -94,7 +94,7 @@ class ClientAddressRepository implements IClientAddressRepository {
       ApiSingleResponse<ClientAddressApiResponse>
     >(getBaseUrl(clientId), payload);
 
-    return mapClientAddress(response.data);
+    return mapClientAddress(response).data;
   }
 
   /**
@@ -111,7 +111,7 @@ class ClientAddressRepository implements IClientAddressRepository {
       ApiSingleResponse<ClientAddressApiResponse>
     >(`${getBaseUrl(clientId)}/${addressId}`, payload);
 
-    return mapClientAddress(response.data);
+    return mapClientAddress(response).data;
   }
 
   /**

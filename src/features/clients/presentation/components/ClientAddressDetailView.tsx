@@ -96,7 +96,7 @@ export function ClientAddressDetailView({
               <Badge variant={typeConfig.variant}>{typeConfig.label}</Badge>
               {address.isPrimary ? (
                 <Badge variant="outline" className="gap-1">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  <Star className="h-3 w-3 fill-warning text-warning" />
                   Principal
                 </Badge>
               ) : null}
@@ -106,7 +106,7 @@ export function ClientAddressDetailView({
               {cartaPorteReady ? (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                  className="gap-1 border-success/40 text-success-soft-foreground"
                 >
                   <CheckCircle2 className="h-3 w-3" />
                   Carta Porte 3.1
@@ -114,7 +114,7 @@ export function ClientAddressDetailView({
               ) : (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-amber-500/40 text-amber-700 dark:text-amber-300"
+                  className="gap-1 border-warning/40 text-warning-soft-foreground"
                   title={
                     satMinMissing.length > 0
                       ? `Falta mínimo SAT: ${satMinMissing.join(", ")}`

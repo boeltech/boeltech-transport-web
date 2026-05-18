@@ -15,12 +15,16 @@ export { clientAddressRepository } from "./ClientAddressRepository";
 export {
   // Client mappers
   mapClient,
+  mapClientFromApi,
   mapClientListItem,
   mapPaginatedClients,
   toApiCreateClient,
   toApiUpdateClient,
   // Address mappers
   mapClientAddress,
+  mapClientAddressList,
+  mapClientAddressListToDomain,
+  mapClientAddressFromApi,
   mapClientAddressListItem,
   mapClientAddresses,
   toApiCreateClientAddress,

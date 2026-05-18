@@ -5,8 +5,8 @@
  * Transformaciones entre formatos API (snake_case) y Domain (camelCase).
  *
  * CONVENCIONES:
- * - `map*`: API Response (snake_case) → Domain Entity (camelCase)
- * - `toApi*`: Domain DTO (camelCase) → API Request (snake_case)
+ * - Clientes y direcciones: `mapSingleResponse` / `mapPaginatedResponse` (snake → camel) y luego dominio.
+ * - `toApi*`: Domain DTO (camelCase) → body JSON; `apiClient` serializa a snake en POST/PUT.
  *
  * NOTA: El apiClient ya hace conversión automática de camelCase a snake_case
  * en POST/PUT/PATCH, pero estos mappers son explícitos para:
@@ -17,6 +17,15 @@
  * Ubicación: src/features/clients/infrastructure/mappers.ts
  */
 
+import {
+  deepToCamel,
+  mapPaginatedResponse,
+  mapSingleResponse,
+  type ApiPaginatedResponse,
+  type ApiSingleResponse,
+  type DeepCamelCase,
+  type MappedSingleResult,
+} from "@shared/api";
 import type {
   // Domain types
   Client,
@@ -63,88 +72,93 @@ function apiOptionalEmail(
 // CLIENT MAPPERS: API → DOMAIN
 // ============================================================================
 
-/**
- * Mapea respuesta de listado de cliente (API) a entidad de dominio
- */
-export function mapClientListItem(
-  response: ClientListItemApiResponse,
+function mapClientListItemToDomain(
+  raw: DeepCamelCase<ClientListItemApiResponse>,
 ): ClientListItem {
   return {
-    id: response.id,
-    clientCode: response.client_code,
-    type: response.type as ClientType,
-    legalName: response.legal_name,
-    tradeName: response.trade_name ?? undefined,
-    taxId: response.tax_id,
-    city: response.city ?? undefined,
-    state: response.state ?? undefined,
-    phone: response.phone ?? undefined,
-    email: response.email ?? undefined,
-    paymentTerms: response.payment_terms as PaymentTerms,
-    creditDays: response.credit_days,
-    creditLimit: response.credit_limit ?? undefined,
-    isActive: response.is_active,
-    deletedAt: response.deleted_at ?? undefined,
+    id: raw.id,
+    clientCode: raw.clientCode,
+    type: raw.type as ClientType,
+    legalName: raw.legalName,
+    tradeName: raw.tradeName ?? undefined,
+    taxId: raw.taxId,
+    city: raw.city ?? undefined,
+    state: raw.state ?? undefined,
+    phone: raw.phone ?? undefined,
+    email: raw.email ?? undefined,
+    paymentTerms: raw.paymentTerms as PaymentTerms,
+    creditDays: raw.creditDays,
+    creditLimit: raw.creditLimit ?? undefined,
+    isActive: raw.isActive,
+    deletedAt: raw.deletedAt ?? undefined,
+  };
+}
+
+function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
+  return {
+    id: raw.id,
+    tenantId: raw.tenantId,
+    clientCode: raw.clientCode,
+    type: raw.type as ClientType,
+    legalName: raw.legalName,
+    tradeName: raw.tradeName ?? undefined,
+    taxId: raw.taxId,
+    taxRegime: raw.taxRegime ?? undefined,
+    contactName: raw.contactName ?? undefined,
+    contactPosition: raw.contactPosition ?? undefined,
+    phone: raw.phone ?? undefined,
+    secondaryPhone: raw.secondaryPhone ?? undefined,
+    email: raw.email ?? undefined,
+    billingEmail: raw.billingEmail ?? undefined,
+    paymentTerms: raw.paymentTerms as PaymentTerms,
+    creditDays: raw.creditDays,
+    creditLimit: raw.creditLimit ?? undefined,
+    isActive: raw.isActive,
+    deletedAt: raw.deletedAt ?? undefined,
+    notes: raw.notes ?? undefined,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    createdBy: raw.createdBy ?? undefined,
+    updatedBy: raw.updatedBy ?? undefined,
   };
 }
 
 /**
- * Mapea respuesta paginada de clientes
+ * Recurso único `{ data: Client }` → dominio (patrón `mapDriver`).
  */
-export function mapPaginatedClients(response: {
-  data: ClientListItemApiResponse[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    total_pages: number;
-  };
-}): PaginatedResult<ClientListItem> {
+export function mapClient(
+  response: ApiSingleResponse<ClientApiResponse>,
+): MappedSingleResult<Client> {
+  const mapped = mapSingleResponse(response);
   return {
-    data: response.data.map(mapClientListItem),
-    pagination: {
-      page: response.pagination.page,
-      limit: response.pagination.limit,
-      total: response.pagination.total,
-      totalPages: response.pagination.total_pages,
-    },
+    data: mapClientToDomain(mapped.data),
+    message: mapped.message,
   };
 }
 
 /**
- * Mapea respuesta de detalle de cliente (API) a entidad de dominio
+ * Lista paginada de clientes → dominio.
  */
-export function mapClient(response: ClientApiResponse): Client {
+export function mapPaginatedClients(
+  response: ApiPaginatedResponse<ClientListItemApiResponse>,
+): PaginatedResult<ClientListItem> {
+  const mapped = mapPaginatedResponse(response);
   return {
-    id: response.id,
-    tenantId: response.tenant_id,
-    clientCode: response.client_code,
-    type: response.type as ClientType,
-    legalName: response.legal_name,
-    tradeName: response.trade_name ?? undefined,
-    taxId: response.tax_id,
-    taxRegime: response.tax_regime ?? undefined,
-    // Contacto
-    contactName: response.contact_name ?? undefined,
-    contactPosition: response.contact_position ?? undefined,
-    phone: response.phone ?? undefined,
-    secondaryPhone: response.secondary_phone ?? undefined,
-    email: response.email ?? undefined,
-    billingEmail: response.billing_email ?? undefined,
-    // Términos comerciales
-    paymentTerms: response.payment_terms as PaymentTerms,
-    creditDays: response.credit_days,
-    creditLimit: response.credit_limit ?? undefined,
-    // Estado
-    isActive: response.is_active,
-    deletedAt: response.deleted_at ?? undefined,
-    notes: response.notes ?? undefined,
-    // Auditoría
-    createdAt: response.created_at,
-    updatedAt: response.updated_at,
-    createdBy: response.created_by ?? undefined,
-    updatedBy: response.updated_by ?? undefined,
+    data: mapped.data.map(mapClientListItemToDomain),
+    pagination: mapped.pagination,
   };
+}
+
+/**
+ * Objeto API en snake_case sin envelope (uso puntual).
+ */
+export function mapClientFromApi(response: ClientApiResponse): Client {
+  return mapClientToDomain(deepToCamel(response));
+}
+
+/** @deprecated Use {@link mapPaginatedClients} o `mapClientListItemFromApi`. */
+export function mapClientListItem(response: ClientListItemApiResponse): ClientListItem {
+  return mapClientListItemToDomain(deepToCamel(response));
 }
 
 // ============================================================================
@@ -165,124 +179,140 @@ function firstNonEmpty(
 }
 
 /**
- * Mapea respuesta de dirección (API) a entidad de dominio
+ * Mapea dirección API (camelCase tras `mapSingleResponse`) → dominio.
  */
-export function mapClientAddress(
-  response: ClientAddressApiResponse,
+function mapClientAddressToDomain(
+  raw: DeepCamelCase<ClientAddressApiResponse>,
 ): ClientAddress {
-  const cp = response.carta_porte;
+  const cp = raw.cartaPorte;
 
   return {
-    id: response.id,
-    tenantId: response.tenant_id,
-    clientId: response.client_id ?? response.employee_id ?? "",
-    // Tipo y estado
-    addressType: response.address_type as AddressType,
-    isPrimary: response.is_primary,
-    isActive: response.is_active,
-    // Nombre del lugar
-    locationName: response.location_name ?? undefined,
-    // Códigos SAT (inglés; fallback a claves legacy españolas)
-    satCountryCode: firstNonEmpty(response.sat_country_code) ?? "MEX",
-    satStateCode: firstNonEmpty(
-      response.sat_state_code,
-      response.sat_estado_code,
-    ),
-    satMunicipalityCode: firstNonEmpty(
-      response.sat_municipality_code,
-      response.sat_municipio_code,
-    ),
-    satLocalityCode: firstNonEmpty(response.sat_locality_code),
-    satNeighborhoodCode: firstNonEmpty(
-      response.sat_neighborhood_code,
-      response.sat_colonia_code,
-    ),
-    neighborhoodName: firstNonEmpty(response.neighborhood_name),
-    postalCode: response.postal_code ?? undefined,
-    street: response.street ?? undefined,
-    exteriorNumber: response.exterior_number ?? undefined,
-    interiorNumber: response.interior_number ?? undefined,
-    reference: response.reference ?? undefined,
+    id: raw.id,
+    tenantId: raw.tenantId,
+    clientId: raw.clientId ?? raw.employeeId ?? "",
+    addressType: raw.addressType as AddressType,
+    isPrimary: raw.isPrimary,
+    isActive: raw.isActive,
+    locationName: raw.locationName ?? undefined,
+    satCountryCode: firstNonEmpty(raw.satCountryCode) ?? "MEX",
+    satStateCode: firstNonEmpty(raw.satStateCode, raw.satEstadoCode),
+    satMunicipalityCode: firstNonEmpty(raw.satMunicipalityCode, raw.satMunicipioCode),
+    satLocalityCode: firstNonEmpty(raw.satLocalityCode),
+    satNeighborhoodCode: firstNonEmpty(raw.satNeighborhoodCode, raw.satColoniaCode),
+    neighborhoodName: firstNonEmpty(raw.neighborhoodName),
+    postalCode: raw.postalCode ?? undefined,
+    street: raw.street ?? undefined,
+    exteriorNumber: raw.exteriorNumber ?? undefined,
+    interiorNumber: raw.interiorNumber ?? undefined,
+    reference: raw.reference ?? undefined,
     rfcRemitenteDestinatario: firstNonEmpty(
-      response.rfc_remitente_destinatario,
-      cp?.remitente_rfc,
+      raw.rfcRemitenteDestinatario,
+      cp?.remitenteRfc,
     ),
     nombreRemitenteDestinatario: firstNonEmpty(
-      response.nombre_remitente_destinatario,
-      cp?.remitente_name,
+      raw.nombreRemitenteDestinatario,
+      cp?.remitenteName,
     ),
-    // Campos legacy
-    address: response.address ?? undefined,
-    city: response.city ?? undefined,
-    state: response.state ?? undefined,
-    country: response.country ?? undefined,
-    // Coordenadas
-    latitude: response.latitude ?? undefined,
-    longitude: response.longitude ?? undefined,
-    // Contacto (plano o anidado en carta_porte)
-    contactName: firstNonEmpty(response.contact_name, cp?.contact_name),
-    contactPhone: firstNonEmpty(response.contact_phone, cp?.contact_phone),
-    contactEmail: firstNonEmpty(response.contact_email, cp?.contact_email),
-    // Operación
-    businessHours: firstNonEmpty(response.business_hours, cp?.business_hours),
-    notes: response.notes ?? undefined,
+    address: raw.address ?? undefined,
+    city: raw.city ?? undefined,
+    state: raw.state ?? undefined,
+    country: raw.country ?? undefined,
+    latitude: raw.latitude ?? undefined,
+    longitude: raw.longitude ?? undefined,
+    contactName: firstNonEmpty(raw.contactName, cp?.contactName),
+    contactPhone: firstNonEmpty(raw.contactPhone, cp?.contactPhone),
+    contactEmail: firstNonEmpty(raw.contactEmail, cp?.contactEmail),
+    businessHours: firstNonEmpty(raw.businessHours, cp?.businessHours),
+    notes: raw.notes ?? undefined,
     specialInstructions: firstNonEmpty(
-      response.special_instructions,
-      cp?.special_instructions,
+      raw.specialInstructions,
+      cp?.specialInstructions,
     ),
-    // Auditoría
-    createdAt: response.created_at,
-    updatedAt: response.updated_at,
-    createdBy: response.created_by ?? undefined,
-    updatedBy: response.updated_by ?? undefined,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    createdBy: raw.createdBy ?? undefined,
+    updatedBy: raw.updatedBy ?? undefined,
+  };
+}
+
+function mapClientAddressListItemToDomain(
+  raw: DeepCamelCase<ClientAddressApiResponse>,
+): ClientAddressListItem {
+  const cp = raw.cartaPorte;
+  return {
+    id: raw.id,
+    addressType: raw.addressType as AddressType,
+    isPrimary: raw.isPrimary,
+    isActive: raw.isActive,
+    locationName: raw.locationName ?? undefined,
+    satStateCode: firstNonEmpty(raw.satStateCode, raw.satEstadoCode),
+    satMunicipalityCode: firstNonEmpty(raw.satMunicipalityCode, raw.satMunicipioCode),
+    satLocalityCode: firstNonEmpty(raw.satLocalityCode),
+    satNeighborhoodCode: firstNonEmpty(raw.satNeighborhoodCode, raw.satColoniaCode),
+    neighborhoodName: firstNonEmpty(raw.neighborhoodName),
+    postalCode: raw.postalCode ?? undefined,
+    address: raw.address ?? undefined,
+    city: raw.city ?? undefined,
+    state: raw.state ?? undefined,
+    contactName: firstNonEmpty(raw.contactName, cp?.contactName),
+    contactPhone: firstNonEmpty(raw.contactPhone, cp?.contactPhone),
   };
 }
 
 /**
- * Mapea respuesta de dirección a item de listado
+ * Recurso único `{ data: Address }` → dominio (patrón `mapDriver`).
  */
+export function mapClientAddress(
+  response: ApiSingleResponse<ClientAddressApiResponse>,
+): MappedSingleResult<ClientAddress> {
+  const mapped = mapSingleResponse(response);
+  return {
+    data: mapClientAddressToDomain(mapped.data),
+    message: mapped.message,
+  };
+}
+
+/**
+ * Lista en envelope `{ data: Address[] }` → ítems de listado.
+ */
+export function mapClientAddressList(
+  response: ApiSingleResponse<ClientAddressApiResponse[]>,
+): ClientAddressListItem[] {
+  const mapped = mapSingleResponse(response);
+  return mapped.data.map(mapClientAddressListItemToDomain);
+}
+
+/**
+ * Lista en envelope `{ data: Address[] }` → entidades completas de dominio.
+ */
+export function mapClientAddressListToDomain(
+  response: ApiSingleResponse<ClientAddressApiResponse[]>,
+): ClientAddress[] {
+  const mapped = mapSingleResponse(response);
+  return mapped.data.map(mapClientAddressToDomain);
+}
+
+/**
+ * Objeto API en snake_case sin envelope (p. ej. `company_address` embebido).
+ */
+export function mapClientAddressFromApi(
+  response: ClientAddressApiResponse,
+): ClientAddress {
+  return mapClientAddressToDomain(deepToCamel(response));
+}
+
+/** @deprecated Use {@link mapClientAddressList} con el envelope completo. */
 export function mapClientAddressListItem(
   response: ClientAddressApiResponse,
 ): ClientAddressListItem {
-  const cp = response.carta_porte;
-  return {
-    id: response.id,
-    addressType: response.address_type as AddressType,
-    isPrimary: response.is_primary,
-    isActive: response.is_active,
-    locationName: response.location_name ?? undefined,
-    satStateCode: firstNonEmpty(
-      response.sat_state_code,
-      response.sat_estado_code,
-    ),
-    satMunicipalityCode: firstNonEmpty(
-      response.sat_municipality_code,
-      response.sat_municipio_code,
-    ),
-    satLocalityCode: firstNonEmpty(response.sat_locality_code),
-    satNeighborhoodCode: firstNonEmpty(
-      response.sat_neighborhood_code,
-      response.sat_colonia_code,
-    ),
-    neighborhoodName: firstNonEmpty(response.neighborhood_name),
-    postalCode: response.postal_code ?? undefined,
-    // Campos legacy
-    address: response.address ?? undefined,
-    city: response.city ?? undefined,
-    state: response.state ?? undefined,
-    // Contacto (mismo fallback que mapClientAddress: carta_porte anidado)
-    contactName: firstNonEmpty(response.contact_name, cp?.contact_name),
-    contactPhone: firstNonEmpty(response.contact_phone, cp?.contact_phone),
-  };
+  return mapClientAddressListItemToDomain(deepToCamel(response));
 }
 
-/**
- * Mapea array de direcciones
- */
+/** @deprecated Use {@link mapClientAddressList} con el envelope completo. */
 export function mapClientAddresses(
   responses: ClientAddressApiResponse[],
 ): ClientAddressListItem[] {
-  return responses.map(mapClientAddressListItem);
+  return responses.map((item) => mapClientAddressListItemToDomain(deepToCamel(item)));
 }
 
 // ============================================================================
