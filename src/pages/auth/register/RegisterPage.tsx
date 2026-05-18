@@ -226,7 +226,7 @@ const RegisterPage = () => {
                 step === s
                   ? "bg-primary text-primary-foreground"
                   : i < ["company", "admin", "confirm"].indexOf(step)
-                    ? "bg-green-500 text-white"
+                    ? "bg-success text-success-foreground"
                     : "bg-muted text-muted-foreground"
               }`}
             >
@@ -240,7 +240,7 @@ const RegisterPage = () => {
               <div
                 className={`mx-2 h-0.5 w-8 ${
                   i < ["company", "admin", "confirm"].indexOf(step)
-                    ? "bg-green-500"
+                    ? "bg-success"
                     : "bg-muted"
                 }`}
               />
@@ -308,7 +308,7 @@ const RegisterPage = () => {
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {!isCheckingSubdomain && subdomainAvailable === true && (
-                      <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                      <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
                     )}
                   </div>
                   {errors.subdomain && (
@@ -334,7 +334,7 @@ const RegisterPage = () => {
                     </p>
                   )}
                   {subdomainAvailable === true && (
-                    <p className="text-sm text-green-600">✓ Disponible</p>
+                    <p className="text-sm text-success">✓ Disponible</p>
                   )}
                   <p className="text-xs text-muted-foreground">
                     Este será tu identificador para iniciar sesión

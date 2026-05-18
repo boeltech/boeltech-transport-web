@@ -166,8 +166,8 @@ const ResetPasswordPage = () => {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-soft">
+                <CheckCircle className="h-8 w-8 text-success" />
               </div>
               <h2 className="mb-2 text-xl font-semibold">
                 ¡Contraseña actualizada!

@@ -161,8 +161,8 @@ export default function OnboardingPage() {
         case 3:
           return (
             <div className="space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success-soft">
+                <CheckCircle className="h-6 w-6 text-success-soft-foreground" />
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Al pulsar <strong className="text-foreground">Finalizar y guardar</strong>,

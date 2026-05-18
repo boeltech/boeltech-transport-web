@@ -69,12 +69,12 @@ function PasswordRequirementsList({ password }: { password: string }) {
           className={cn(
             "flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
             met
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
+              ? "border-success/40 bg-success-soft text-success-soft-foreground"
               : "border-border bg-muted/30 text-muted-foreground",
           )}
         >
           {met ? (
-            <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+            <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
           ) : (
             <Circle className="h-4 w-4 shrink-0 opacity-40" aria-hidden />
           )}
@@ -395,7 +395,7 @@ export function PasswordChangeSection() {
                           </p>
                         )}
                       {passwordsMatch && (
-                        <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                        <p className="text-sm text-success">
                           Las contraseñas coinciden
                         </p>
                       )}

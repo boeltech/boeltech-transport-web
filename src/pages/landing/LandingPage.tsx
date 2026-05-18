@@ -110,7 +110,7 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 text-center">
         {/* Badge */}
         <div className="mb-6 inline-flex items-center rounded-full border bg-background px-4 py-1.5 text-sm">
-          <span className="mr-2 flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="mr-2 flex h-2 w-2 rounded-full bg-success animate-pulse" />
           Sistema de Gestión Empresarial
         </div>
 
