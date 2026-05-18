@@ -97,7 +97,6 @@ export function InvoiceDetailPage() {
       <DetailPageShell
         isLoading
         header={shellHeaderPlaceholder}
-        className="p-6 max-w-4xl mx-auto"
       />
     );
   }
@@ -115,7 +114,6 @@ export function InvoiceDetailPage() {
           backLabel: "Regresar",
         }}
         header={shellHeaderPlaceholder}
-        className="p-6 max-w-4xl mx-auto"
       />
     );
   }
@@ -194,7 +192,6 @@ export function InvoiceDetailPage() {
         updatedAt: invoice.updatedAt,
         createdBy: invoice.createdBy ?? undefined,
       }}
-      className="p-6 max-w-4xl mx-auto"
     >
       {invoice.parentInvoiceId && (
         <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm mb-6">
@@ -300,7 +297,7 @@ export function InvoiceDetailPage() {
               <span>{formatMXN(invoice.subtotal)}</span>
             </div>
             {invoice.discount > 0 && (
-              <div className="flex justify-between w-48 text-green-600">
+              <div className="flex justify-between w-48 text-success">
                 <span>Descuento</span>
                 <span>-{formatMXN(invoice.discount)}</span>
               </div>
@@ -310,7 +307,7 @@ export function InvoiceDetailPage() {
               <span>{formatMXN(invoice.totalTax)}</span>
             </div>
             {invoice.retainedTax > 0 && (
-              <div className="flex justify-between w-48 text-amber-600 dark:text-amber-400">
+              <div className="flex justify-between w-48 text-warning">
                 <span>IVA Retenido</span>
                 <span>-{formatMXN(invoice.retainedTax)}</span>
               </div>
@@ -320,7 +317,7 @@ export function InvoiceDetailPage() {
               <span>Total</span>
               <span>{formatMXN(invoice.total)}</span>
             </div>
-            <div className="flex justify-between w-48 text-green-600">
+            <div className="flex justify-between w-48 text-success">
               <span>Pagado</span>
               <span>{formatMXN(invoice.totalPaid)}</span>
             </div>

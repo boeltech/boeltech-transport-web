@@ -152,7 +152,7 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
                   Saldo: {formatMXN(invoice.balanceDue)}
                 </p>
               ) : (
-                <p className="text-xs text-green-600 dark:text-green-400">
+                <p className="text-xs text-success">
                   Pagado
                 </p>
               )}

@@ -13,7 +13,7 @@ export type {
 } from "./InfoRow";
 
 export { StatCard } from "./StatCard";
-export type { StatCardProps } from "./StatCard";
+export type { StatCardProps, StatCardTone } from "./StatCard";
 
 export { DocumentRow } from "./DocumentRow";
 export type { DocumentRowProps } from "./DocumentRow";

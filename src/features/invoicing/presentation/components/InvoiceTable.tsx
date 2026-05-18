@@ -214,7 +214,7 @@ export function InvoiceTable({
                     {formatMXN(inv.balanceDue)}
                   </span>
                 ) : (
-                  <span className="text-green-600 dark:text-green-400 text-sm">
+                  <span className="text-success text-sm">
                     Pagado
                   </span>
                 )}

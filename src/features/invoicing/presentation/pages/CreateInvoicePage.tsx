@@ -3,7 +3,13 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Building2, Info } from "lucide-react";
+import { Building2, Info } from "lucide-react";
+import { usePermissions } from "@shared/permissions";
+import { InvoiceFormPageShell } from "../components/InvoiceFormPageShell";
+import {
+  canShowInvoiceFromTripCta,
+  FINANCE_INVOICE_FROM_TRIP_CTA,
+} from "../financeInvoiceFromTripCta";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Checkbox } from "@shared/ui/checkbox";
@@ -42,7 +48,6 @@ import {
 import { useTrip } from "@features/trips";
 import { useActiveClients } from "@features/clients/application";
 import { useClientBillingAddress } from "@features/clients/application";
-import { Skeleton } from "@shared/ui/skeleton";
 
 // ============================================================================
 // SCHEMA
@@ -88,6 +93,17 @@ export function CreateInvoicePage() {
   const tripId = searchParams.get("trip_id") ?? "";
   const hasTripContext = Boolean(tripId);
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
+
+  const shellBackHref =
+    isEditMode && invoiceId
+      ? `/invoices/${invoiceId}`
+      : tripId
+        ? `/trips/${tripId}`
+        : "/finance?tab=invoices";
+
+  const shellTitle = isEditMode ? "Editar factura" : "Nueva factura";
 
   // Client selector state — independent of trip prefill
   const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -381,24 +397,29 @@ export function CreateInvoicePage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  const shellSubtitle = isEditMode && editableInvoice
+    ? `Borrador ${editableInvoice.serie}-${editableInvoice.folio}`
+    : prefill
+      ? `Desde viaje ${prefill.tripCode}`
+      : undefined;
+
   if (isEditMode && isLoadingEditableInvoice) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-4">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-40 w-full" />
-      </div>
+      <InvoiceFormPageShell
+        isLoading
+        backHref={shellBackHref}
+        title={shellTitle}
+      />
     );
   }
 
   if (isEditMode && (!editableInvoice || editableInvoice.status !== "draft")) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Editar Factura</h1>
-        </div>
+      <InvoiceFormPageShell
+        backHref="/finance?tab=invoices"
+        title="Editar factura"
+        subtitle="Solo borradores son editables"
+      >
         <Card>
           <CardHeader>
             <CardTitle>Edición no disponible</CardTitle>
@@ -412,62 +433,66 @@ export function CreateInvoicePage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </InvoiceFormPageShell>
     );
   }
 
   if (!isEditMode && !hasTripContext) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? "Editar Factura" : "Nueva Factura"}
-          </h1>
-        </div>
-
+      <InvoiceFormPageShell
+        backHref="/finance?tab=invoices"
+        title={shellTitle}
+        subtitle={FINANCE_INVOICE_FROM_TRIP_CTA.emptyDescription}
+      >
         <Card>
           <CardHeader>
-            <CardTitle>Creación desde viaje obligatoria</CardTitle>
+            <CardTitle>Facturar desde un viaje</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Para alinear el flujo con backend, la factura debe crearse desde un
-              viaje completado (`trip_id`).
+              El CFDI se genera desde un viaje con facturación disponible. Abre
+              el viaje y usa «Generar factura», o el listado de viajes.
             </p>
-            <div className="flex gap-3">
-              <Button onClick={() => navigate("/trips")}>Ir a viajes</Button>
-              <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
+            <div className="flex flex-wrap gap-3">
+              {canInvoiceFromTrip ? (
+                <Button
+                  onClick={() =>
+                    navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath)
+                  }
+                >
+                  {FINANCE_INVOICE_FROM_TRIP_CTA.label}
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                onClick={() => navigate("/finance?tab=invoices")}
+              >
                 Volver a finanzas
               </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </InvoiceFormPageShell>
     );
   }
 
   if (!isEditMode && hasTripContext && isTripContextLoading) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-4">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-40 w-full" />
-      </div>
+      <InvoiceFormPageShell
+        isLoading
+        backHref={shellBackHref}
+        title={shellTitle}
+      />
     );
   }
 
   if (!isEditMode && (isBlockedByTripContext || isAlreadyInvoicedByError)) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Nueva Factura</h1>
-        </div>
-
+      <InvoiceFormPageShell
+        backHref={shellBackHref}
+        title={shellTitle}
+        subtitle="No se puede crear otra factura para este viaje"
+      >
         <Card>
           <CardHeader>
             <CardTitle>Este viaje ya está facturado</CardTitle>
@@ -475,7 +500,7 @@ export function CreateInvoicePage() {
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{blockedReason}</p>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => navigate("/trips")}>Volver a viajes</Button>
+              <Button onClick={() => navigate(shellBackHref)}>Volver al viaje</Button>
               {linkedInvoiceId ? (
                 <Button
                   variant="outline"
@@ -494,36 +519,16 @@ export function CreateInvoicePage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </InvoiceFormPageShell>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Nueva Factura</h1>
-          {isEditMode && editableInvoice && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Editando borrador{" "}
-              <span className="font-medium">
-                {editableInvoice.serie}-{editableInvoice.folio}
-              </span>
-            </p>
-          )}
-          {prefill && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Pre-llenado desde viaje{" "}
-              <span className="font-medium">{prefill.tripCode}</span>
-            </p>
-          )}
-        </div>
-      </div>
-
+    <InvoiceFormPageShell
+      backHref={shellBackHref}
+      title={shellTitle}
+      subtitle={shellSubtitle}
+    >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* RECEPTOR */}
@@ -957,6 +962,6 @@ export function CreateInvoicePage() {
           </div>
         </form>
       </Form>
-    </div>
+    </InvoiceFormPageShell>
   );
 }
