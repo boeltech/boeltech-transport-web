@@ -1,5 +1,13 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Building2, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  Mail,
+  MapPin,
+  Phone,
+  Star,
+  UserRound,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { InfoRow } from "@shared/ui/data-display";
@@ -71,12 +79,18 @@ export function BranchDetailPage() {
               {
                 title: "Sucursal principal",
                 value: branch.isMain ? "Sí" : "No",
-                icon: <Building2 className="h-4 w-4 text-primary" />,
+                tone: branch.isMain ? "primary" : "neutral",
+                icon: <Star className="h-5 w-5" />,
               },
               {
                 title: "Estado operativo",
                 value: branch.isActive ? "Activa" : "Inactiva",
-                icon: <Building2 className="h-4 w-4 text-primary" />,
+                tone: branch.isActive ? "success" : "neutral",
+                icon: branch.isActive ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <Building2 className="h-5 w-5" />
+                ),
               },
             ]
           : undefined

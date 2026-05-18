@@ -54,7 +54,7 @@ export function EmployeeEditSidebar({
                 />
               ) : isActive ? (
                 <span
-                  className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500/80"
+                  className="inline-flex h-2.5 w-2.5 rounded-full bg-success"
                   aria-hidden
                 />
               ) : null}

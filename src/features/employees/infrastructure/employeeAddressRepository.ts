@@ -2,7 +2,7 @@
  * Direcciones de empleado (anidadas bajo `/employees/:id/addresses`).
  */
 
-import { apiClient } from "@shared/api";
+import { apiClient, type ApiSingleResponse } from "@shared/api";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import type {
   ClientAddress,
@@ -12,6 +12,7 @@ import type {
 } from "@features/clients/domain";
 import {
   mapClientAddress,
+  mapClientAddressListToDomain,
   toApiCreateClientAddress,
   toApiUpdateClientAddress,
 } from "@features/clients/infrastructure/mappers";
@@ -32,10 +33,10 @@ export async function fetchEmployeeAddresses(
   employeeId: string,
 ): Promise<ClientAddress[]> {
   try {
-    const res = await apiClient.get<{ data: ClientAddressApiResponse[] }>(
-      base(employeeId),
-    );
-    return res.data.map(mapClientAddress);
+    const response = await apiClient.get<
+      ApiSingleResponse<ClientAddressApiResponse[]>
+    >(base(employeeId));
+    return mapClientAddressListToDomain(response);
   } catch (error) {
     // Algunos despliegues devuelven 404 para este sub-recurso (p. ej. empleado dado de baja
     // o sin filas en `addresses`). Un listado vacío es el comportamiento esperado en UI.
@@ -50,21 +51,20 @@ export async function fetchEmployeeAddressById(
   employeeId: string,
   addressId: string,
 ): Promise<ClientAddress> {
-  const res = await apiClient.get<{ data: ClientAddressApiResponse }>(
-    `${base(employeeId)}/${addressId}`,
-  );
-  return mapClientAddress(res.data);
+  const response = await apiClient.get<
+    ApiSingleResponse<ClientAddressApiResponse>
+  >(`${base(employeeId)}/${addressId}`);
+  return mapClientAddress(response).data;
 }
 
 export async function createEmployeeAddress(
   employeeId: string,
   dto: CreateClientAddressDTO,
 ): Promise<ClientAddress> {
-  const response = await apiClient.post<{ data: ClientAddressApiResponse }>(
-    base(employeeId),
-    toApiCreateClientAddress(dto),
-  );
-  return mapClientAddress(response.data);
+  const response = await apiClient.post<
+    ApiSingleResponse<ClientAddressApiResponse>
+  >(base(employeeId), toApiCreateClientAddress(dto));
+  return mapClientAddress(response).data;
 }
 
 export async function updateEmployeeAddress(
@@ -72,9 +72,8 @@ export async function updateEmployeeAddress(
   addressId: string,
   dto: UpdateClientAddressDTO,
 ): Promise<ClientAddress> {
-  const response = await apiClient.put<{ data: ClientAddressApiResponse }>(
-    `${base(employeeId)}/${addressId}`,
-    toApiUpdateClientAddress(dto),
-  );
-  return mapClientAddress(response.data);
+  const response = await apiClient.put<
+    ApiSingleResponse<ClientAddressApiResponse>
+  >(`${base(employeeId)}/${addressId}`, toApiUpdateClientAddress(dto));
+  return mapClientAddress(response).data;
 }

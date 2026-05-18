@@ -1,14 +1,14 @@
 import { useParams } from "react-router-dom";
-import { AlertCircle, KeyRound, User, UserRound } from "lucide-react";
+import { AlertCircle, Clock, KeyRound, Shield, User, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
-import { InfoRow } from "@shared/ui/data-display";
+import { InfoRow, type StatCardProps } from "@shared/ui/data-display";
 import { ROLE_LABELS } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { useUpdateUserStatus, useUser } from "../../application";
 import { UserActions, UserActivitySection } from "../components";
 import { UserStatusBadge } from "../config/userStatusConfig";
-import { UserStatus, type UserStatusType } from "../../domain";
+import { USER_STATUS_LABELS, UserStatus, type UserStatusType } from "../../domain";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
 export function UserDetailPage() {
@@ -83,6 +83,32 @@ export function UserDetailPage() {
   const fullName = `${user.firstName} ${user.lastName}`.trim();
   const isInactive = user.status !== UserStatus.ACTIVE;
 
+  const userStats: StatCardProps[] = [
+    {
+      title: "Rol",
+      value: ROLE_LABELS[user.role] ?? user.role,
+      tone: "info",
+      icon: <Shield className="h-5 w-5" />,
+    },
+    {
+      title: "Estado",
+      value: USER_STATUS_LABELS[user.status],
+      tone:
+        user.status === UserStatus.ACTIVE
+          ? "success"
+          : user.status === UserStatus.SUSPENDED
+            ? "warning"
+            : "neutral",
+      icon: <UserRound className="h-5 w-5" />,
+    },
+    {
+      title: "Último acceso",
+      value: user.lastLogin ? formatDateTime(user.lastLogin) : "Sin registro",
+      tone: user.lastLogin ? "primary" : "neutral",
+      icon: <Clock className="h-5 w-5" />,
+    },
+  ];
+
   return (
     <DetailPageShell
       className="mx-auto w-full max-w-6xl p-4 sm:p-6"
@@ -106,6 +132,7 @@ export function UserDetailPage() {
           />
         ),
       }}
+      stats={userStats}
       metadata={{
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,

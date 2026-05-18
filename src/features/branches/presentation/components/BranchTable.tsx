@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import type { BranchListItem } from "../../domain";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
@@ -69,7 +70,12 @@ export function BranchTable({ branches, isLoading, onDelete }: BranchTableProps)
               <TableCell>
                 {branch.name}
                 {branch.isMain ? (
-                  <span className="ml-2 text-xs text-muted-foreground">(Principal)</span>
+                  <Badge
+                    variant="outline"
+                    className="ml-2 border-warning/40 text-warning-soft-foreground text-xs"
+                  >
+                    Principal
+                  </Badge>
                 ) : null}
               </TableCell>
               <TableCell>{branch.city}, {branch.state}</TableCell>

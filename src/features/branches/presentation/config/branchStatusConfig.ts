@@ -22,6 +22,10 @@ export const BRANCH_STATUS_CONFIG: Record<BranchStatusType, StatusConfig> = {
 
 export const BranchStatusBadge = createStatusBadgeComponent(BRANCH_STATUS_CONFIG);
 
+export function getBranchStatusConfig(status: BranchStatusType): StatusConfig {
+  return BRANCH_STATUS_CONFIG[status];
+}
+
 export function getBranchStatusLabel(status: BranchStatusType): string {
   return BRANCH_STATUS_CONFIG[status]?.label ?? status;
 }

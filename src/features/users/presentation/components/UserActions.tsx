@@ -84,7 +84,13 @@ export function UserActions({
                 setConfirmStatusOpen(true);
               }}
             >
-              <StatusIcon className="mr-2 h-4 w-4" />
+              <StatusIcon
+                className={`mr-2 h-4 w-4 ${
+                  nextStatus === UserStatus.ACTIVE
+                    ? "text-success"
+                    : "text-destructive"
+                }`}
+              />
               {statusActionLabel}
             </Button>
           ) : null}
@@ -139,7 +145,14 @@ export function UserActions({
           {canUpdateStatus ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setConfirmStatusOpen(true)}>
+              <DropdownMenuItem
+                className={
+                  nextStatus === UserStatus.ACTIVE
+                    ? "text-success focus:text-success"
+                    : "text-destructive focus:text-destructive focus:bg-destructive/10"
+                }
+                onClick={() => setConfirmStatusOpen(true)}
+              >
                 <StatusIcon className="mr-2 h-4 w-4" />
                 {statusActionLabel}
               </DropdownMenuItem>

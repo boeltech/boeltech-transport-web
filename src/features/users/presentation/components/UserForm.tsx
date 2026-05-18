@@ -285,7 +285,7 @@ export function UserForm({
           ) : null}
 
           {isRoleDowngrade ? (
-            <Alert variant="default" className="sm:col-span-2 border-amber-500/50 bg-amber-500/5">
+            <Alert variant="warning" className="sm:col-span-2">
               <AlertTitle>Rol con menos permisos</AlertTitle>
               <AlertDescription>
                 Al guardar, el usuario puede perder acceso a módulos en su próximo inicio de

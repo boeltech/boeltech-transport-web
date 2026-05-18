@@ -26,3 +26,7 @@ export const USER_STATUS_CONFIG: Record<UserStatusType, StatusConfig> = {
 };
 
 export const UserStatusBadge = createStatusBadgeComponent(USER_STATUS_CONFIG);
+
+export function getUserStatusConfig(status: UserStatusType): StatusConfig {
+  return USER_STATUS_CONFIG[status];
+}
