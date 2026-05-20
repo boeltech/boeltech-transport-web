@@ -4,7 +4,14 @@ Frontend del ERP de transporte (React + TypeScript + Vite).
 
 ## Documentación
 
-- [Flujo Web → API → ProFact (PAC)](docs/integraciones/profact-flujo-web-api.md) — diagramas de timbrado, registro de CSD, cancelación y pagos (REP).
+Fuente única del ecosistema (fuera de este repo):
+
+- [Índice documental ERP-T](D:/cowork/boeltech/erp-transport/docs/README.md)
+- [Flujo Web → API → ProFact (PAC)](D:/cowork/boeltech/erp-transport/docs/facturacion/profact-flujo-web-api.md)
+- [Campos de parada por acción operativa (tracking)](D:/cowork/boeltech/erp-transport/docs/viajes/tracking-paradas-campos.md)
+- [Design system (tokens, componentes, patrones)](D:/cowork/boeltech/erp-transport/docs/design-system/)
+
+Guía para agentes: `CLAUDE.md` en la raíz del repo.
 
 ---
 
