@@ -1,6 +1,6 @@
 import type { AddressFormUiContext } from "./addressFormCopy";
 import type { AddressCaptureMode } from "@shared/validation/addressRequirements";
-import { getAddressModeRequirements } from "@shared/validation/addressRequirements";
+import { resolveAddressModeRequirements } from "@shared/validation/addressRequirements";
 
 export type AddressFormNoticeLevel = "error" | "warning" | "info";
 
@@ -23,7 +23,7 @@ export function resolveAddressFormNotice(
   state: AddressFormNoticeRuleState,
   infoMessage: string,
 ): AddressFormNoticeData | null {
-  const requirements = getAddressModeRequirements(state.addressMode ?? "basic");
+  const requirements = resolveAddressModeRequirements(state.addressMode ?? "basic");
   const missingState = !state.satStateCode?.trim();
   const missingPostalCode = !state.postalCode?.trim();
   const missingMunicipality =

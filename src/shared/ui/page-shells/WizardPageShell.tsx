@@ -9,6 +9,7 @@
  * - estado del paso actual
  * - validación por paso (delegada al ref del form)
  * - navegación (next, prev, click en step)
+ * - scroll al inicio de la página al cambiar de paso
  * - confirmación final (valida todos los pasos previos)
  * - toast de "Revisa el formulario" cuando hay errores
  *
@@ -25,6 +26,8 @@
 import {
   memo,
   useCallback,
+  useEffect,
+  useRef,
   useState,
   type ReactNode,
   type RefObject,
@@ -132,9 +135,19 @@ export const WizardPageShell = memo(function WizardPageShell({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
+  const isFirstStepRenderRef = useRef(true);
 
   const lastStepIndex = steps.length - 1;
   const isReview = currentStep === lastStepIndex;
+
+  useEffect(() => {
+    if (isFirstStepRenderRef.current) {
+      isFirstStepRenderRef.current = false;
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
 
   const handleHeaderBack = useCallback(() => {
     if (onHeaderBack) {
@@ -160,12 +173,29 @@ export const WizardPageShell = memo(function WizardPageShell({
     );
   }, [currentStep, lastStepIndex, formRef]);
 
+  const notifyValidationFailed = useCallback(() => {
+    toast({
+      title: "Revisa el formulario",
+      description: "Completa o corrige los campos obligatorios antes de continuar.",
+      variant: "destructive",
+    });
+  }, [toast]);
+
   const handleNext = useCallback(async () => {
     const ok = await validateCurrentStep();
-    if (ok && currentStep < lastStepIndex) {
+    if (!ok) {
+      notifyValidationFailed();
+      return;
+    }
+    if (currentStep < lastStepIndex) {
       setCurrentStep((s) => s + 1);
     }
-  }, [validateCurrentStep, currentStep, lastStepIndex]);
+  }, [
+    validateCurrentStep,
+    currentStep,
+    lastStepIndex,
+    notifyValidationFailed,
+  ]);
 
   const handlePrevious = useCallback(() => {
     if (currentStep > 0) setCurrentStep((s) => s - 1);
@@ -178,13 +208,16 @@ export const WizardPageShell = memo(function WizardPageShell({
         return;
       }
       const ok = await validateCurrentStep();
-      if (!ok) return;
+      if (!ok) {
+        notifyValidationFailed();
+        return;
+      }
       // Avance por clic: solo un paso a la vez (evita saltar datos obligatorios)
       setCurrentStep((prev) =>
         stepIndex > prev + 1 ? prev + 1 : stepIndex,
       );
     },
-    [currentStep, validateCurrentStep],
+    [currentStep, validateCurrentStep, notifyValidationFailed],
   );
 
   const handleConfirm = useCallback(async () => {

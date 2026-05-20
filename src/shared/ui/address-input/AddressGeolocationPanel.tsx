@@ -17,6 +17,7 @@ import {
   type GeoProviderId,
   type LatLng,
 } from "@shared/geolocation";
+import { AddressGeolocationMap } from "./AddressGeolocationMap";
 
 export interface AddressGeolocationPanelProps {
   readonly address: {
@@ -53,14 +54,6 @@ export interface AddressGeolocationPanelProps {
   readonly distanceEditable?: boolean;
   readonly disabled?: boolean;
   readonly className?: string;
-}
-
-function getStaticMapUrl(
-  token: string,
-  latitude: number,
-  longitude: number,
-): string {
-  return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+285aeb(${longitude},${latitude})/${longitude},${latitude},14/720x240?access_token=${token}`;
 }
 
 export function AddressGeolocationPanel({
@@ -263,27 +256,28 @@ export function AddressGeolocationPanel({
         </div>
       ) : null}
 
-      {hasCoordinates ? (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Ubicacion confirmada: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
-          </p>
-          {mapboxToken ? (
-            <img
-              src={getStaticMapUrl(mapboxToken, latitude as number, longitude as number)}
-              alt="Vista previa del punto geolocalizado"
-              className="h-40 w-full rounded-md border object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <Alert variant="info">
-              <AlertDescription>
-                Configura `VITE_MAPBOX_PUBLIC_TOKEN` para ver la vista previa del mapa.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      ) : null}
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          {hasCoordinates
+            ? `Ubicacion confirmada: ${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`
+            : "Haz clic en el mapa para colocar el pin o selecciona un candidato."}
+        </p>
+        {mapboxToken ? (
+          <AddressGeolocationMap
+            token={mapboxToken}
+            latitude={latitude}
+            longitude={longitude}
+            onCoordinatesChange={onCoordinatesChange}
+            disabled={disabled}
+          />
+        ) : (
+          <Alert variant="info">
+            <AlertDescription>
+              Configura `VITE_MAPBOX_PUBLIC_TOKEN` para habilitar mapa interactivo.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       {onDistanceChange && (showDistanceSection ?? true) ? (
         <div className="space-y-2 rounded-md border border-dashed p-3">

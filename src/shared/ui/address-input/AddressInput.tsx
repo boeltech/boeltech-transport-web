@@ -30,9 +30,9 @@ import { usePostalCodeLookup } from "./use-postal-code-lookup";
 import { useSatCatalogs } from "./use-sat-catalogs";
 import { AddressPreview } from "./AddressPreview";
 import {
-  getAddressModeRequirements,
   isAddressReadyForMode,
   isCartaPorteSatMinimumMet,
+  resolveAddressModeRequirements,
   type PostalLookupStatus,
 } from "@shared/validation/addressRequirements";
 
@@ -441,7 +441,6 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const lastAppliedPostalCodeRef = useRef<string>("");
-  const requiredByMode = getAddressModeRequirements(mode);
 
   const postalCodeField = useAddressField(props, "postalCode");
   const countryField = useAddressField(props, "satCountryCode");
@@ -481,6 +480,10 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     postalLookup.isError,
     postalLookup.isLoading,
   ]);
+  const requiredByMode = useMemo(
+    () => resolveAddressModeRequirements(mode, postalLookup.data),
+    [mode, postalLookup.data],
+  );
   const catalogNeighborhoodOptions = useMemo(
     () =>
       (postalLookup.data?.neighborhoods.length ?? 0) > 0
@@ -512,19 +515,27 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
 
   const addressReadyForMode = useMemo(
     () =>
-      isAddressReadyForMode({
-        mode,
-        satCountryCode: String(countryField.field.value ?? ""),
-        satStateCode: String(stateField.field.value ?? ""),
-        satMunicipalityCode: String(municipalityField.field.value ?? ""),
-        postalCode: String(postalCodeField.field.value ?? ""),
-        postalLookupStatus,
-      }),
+      isAddressReadyForMode(
+        {
+          mode,
+          satCountryCode: String(countryField.field.value ?? ""),
+          satStateCode: String(stateField.field.value ?? ""),
+          satMunicipalityCode: String(municipalityField.field.value ?? ""),
+          satLocalityCode: String(localityField.field.value ?? ""),
+          satNeighborhoodCode: String(neighborhoodField.field.value ?? ""),
+          postalCode: String(postalCodeField.field.value ?? ""),
+          postalLookupStatus,
+        },
+        postalLookup.data,
+      ),
     [
       countryField.field.value,
+      localityField.field.value,
       mode,
       municipalityField.field.value,
+      neighborhoodField.field.value,
       postalCodeField.field.value,
+      postalLookup.data,
       postalLookupStatus,
       stateField.field.value,
     ],
@@ -532,17 +543,27 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
 
   const cartaPorteSatMinimumMet = useMemo(
     () =>
-      isCartaPorteSatMinimumMet({
-        mode,
-        satCountryCode: String(countryField.field.value ?? ""),
-        satStateCode: String(stateField.field.value ?? ""),
-        postalCode: String(postalCodeField.field.value ?? ""),
-        postalLookupStatus,
-      }),
+      isCartaPorteSatMinimumMet(
+        {
+          mode,
+          satCountryCode: String(countryField.field.value ?? ""),
+          satStateCode: String(stateField.field.value ?? ""),
+          satMunicipalityCode: String(municipalityField.field.value ?? ""),
+          satLocalityCode: String(localityField.field.value ?? ""),
+          satNeighborhoodCode: String(neighborhoodField.field.value ?? ""),
+          postalCode: String(postalCodeField.field.value ?? ""),
+          postalLookupStatus,
+        },
+        postalLookup.data,
+      ),
     [
       countryField.field.value,
+      localityField.field.value,
       mode,
+      municipalityField.field.value,
+      neighborhoodField.field.value,
       postalCodeField.field.value,
+      postalLookup.data,
       postalLookupStatus,
       stateField.field.value,
     ],
@@ -768,7 +789,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
 
         <div className="space-y-2">
           <Label htmlFor={`${props.namePrefix}-municipality`}>
-            Municipio
+            Municipio {requiredByMode.requireMunicipality ? "*" : ""}
             {mode === "carta-porte" ? (
               <span className="font-normal text-muted-foreground"> (opcional)</span>
             ) : null}
