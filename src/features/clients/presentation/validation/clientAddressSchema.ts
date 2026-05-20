@@ -1,11 +1,15 @@
 /**
  * Client Address Form Validation
  *
- * Fase 2: compone el contrato compartido `addressSchema` con campos extra de
- * cliente (Carta Porte / operación). Evita duplicar reglas SAT.
+ * Estructura UX (camelCase) + reglas SAT/operativas vía @boeltech/cfdi-domain.
  */
 
 import { z } from "zod";
+import type { ValidationError } from "@boeltech/cfdi-domain";
+import {
+  mapValidationErrorsToRHF,
+  parseClientAddressFormCreate,
+} from "@shared/cfdi/addressPayloadBridge";
 import { addressSchema } from "@shared/validation/addressSchema";
 import type { AddressType } from "../../domain/entities";
 import type { CreateClientAddressDTO, UpdateClientAddressDTO } from "../../domain/repository";
@@ -29,13 +33,11 @@ const clientAddressExtras = z.object({
   specialInstructions: optionalTrimmed(1000),
 });
 
-// ============================================================================
-// FORM SCHEMA
-// ============================================================================
+const clientAddressBaseSchema = addressSchema.merge(clientAddressExtras);
 
-export const clientAddressFormSchema = addressSchema.merge(clientAddressExtras);
+export const clientAddressFormSchema = clientAddressBaseSchema;
 
-export const billingAddressFormSchema = clientAddressFormSchema.extend({
+export const billingAddressFormSchema = clientAddressBaseSchema.extend({
   addressType: z.literal("billing"),
   isPrimary: z.literal(true),
 });
@@ -81,14 +83,12 @@ export const defaultBillingAddressFormValues: BillingAddressFormData = {
   isPrimary: true,
 };
 
-// ============================================================================
-// UPDATE (edición parcial)
-// ============================================================================
-
-export const updateClientAddressFormSchema = clientAddressFormSchema.partial().extend({
-  satStateCode: z.string().min(1, "El estado es requerido"),
-  postalCode: z.string().regex(/^\d{5}$/, "CP: 5 dígitos"),
-});
+export const updateClientAddressFormSchema = clientAddressBaseSchema
+  .partial()
+  .extend({
+    satStateCode: z.string().min(1, "El estado es requerido"),
+    postalCode: z.string().regex(/^\d{5}$/, "CP: 5 dígitos"),
+  });
 
 export type UpdateClientAddressFormData = z.infer<typeof updateClientAddressFormSchema>;
 
@@ -128,6 +128,14 @@ function normalizeSatCode(value: string | null | undefined): string | null {
 function normalizeRfc(value: string | null | undefined): string | null {
   const normalized = normalizeTextValue(value);
   return normalized ? normalized.toUpperCase() : null;
+}
+
+function zodIssuesToValidationErrors(error: z.ZodError): ValidationError[] {
+  return error.issues.map((issue) => ({
+    code: String(issue.code),
+    message: issue.message,
+    path: issue.path.length > 0 ? issue.path.join(".") : undefined,
+  }));
 }
 
 export function applyClientAddressFormContext(
@@ -181,6 +189,9 @@ export function clientAddressFormDataToCreateDto(
   );
   const normalized = normalizeClientAddressFormData(contextAware);
 
+  const hasCoordinates =
+    normalized.latitude != null && normalized.longitude != null;
+
   return {
     addressType: normalized.addressType as AddressType,
     isPrimary: normalized.isPrimary,
@@ -202,6 +213,8 @@ export function clientAddressFormDataToCreateDto(
     ),
     latitude: nullToUndef(normalized.latitude),
     longitude: nullToUndef(normalized.longitude),
+    geolocationPending: !hasCoordinates,
+    geocodingSource: hasCoordinates ? "manual" : undefined,
     contactName: emptyToUndef(normalized.contactName),
     contactPhone: emptyToUndef(normalized.contactPhone),
     contactEmail: emptyToUndef(normalized.contactEmail),
@@ -217,3 +230,80 @@ export function clientAddressFormDataToUpdateDto(
 ): UpdateClientAddressDTO {
   return clientAddressFormDataToCreateDto(data, options);
 }
+
+export type ClientAddressValidationResult =
+  | { ok: true }
+  | { ok: false; errors: ValidationError[]; fieldErrors: Record<string, string> };
+
+/**
+ * Validación completa: Zod estructural (formulario) + SAT por CP + coords operativas.
+ */
+export async function validateClientAddressFormComplete(
+  data: ClientAddressFormData,
+  options?: {
+    context?: ClientAddressFormContext;
+    requireCoordinates?: boolean;
+  },
+): Promise<ClientAddressValidationResult> {
+  const context = options?.context ?? "additional";
+  const contextual = applyClientAddressFormContext(data, context);
+  const normalized = normalizeClientAddressFormData(contextual);
+
+  const structuralSchema =
+    context === "billingOnCreate" ? billingAddressFormSchema : clientAddressFormSchema;
+  const structural = structuralSchema.safeParse(normalized);
+  if (!structural.success) {
+    const errors = zodIssuesToValidationErrors(structural.error);
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of structural.error.issues) {
+      const key = issue.path.length > 0 ? issue.path.join(".") : "";
+      if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return { ok: false, errors, fieldErrors };
+  }
+
+  const requireCoordinates =
+    options?.requireCoordinates ?? context === "billingOnCreate";
+
+  const addressContext =
+    normalized.addressType === "billing" ||
+    normalized.addressType === "shipping" ||
+    normalized.addressType === "pickup" ||
+    normalized.addressType === "warehouse" ||
+    normalized.addressType === "office" ||
+    normalized.addressType === "other"
+      ? normalized.addressType
+      : "billing";
+
+  const parsed = await parseClientAddressFormCreate(
+    normalized as unknown as Record<string, unknown>,
+    {
+      context: addressContext,
+      mode: "carta_porte_31",
+      requireCoordinates,
+    },
+  );
+
+  if (!parsed.ok) {
+    return parsed;
+  }
+
+  return { ok: true };
+}
+
+/** @deprecated Usar {@link validateClientAddressFormComplete} */
+export async function validateClientAddressSatRules(
+  data: ClientAddressFormData,
+  options?: { context?: ClientAddressFormContext },
+): Promise<{ ok: true } | { ok: false; errors: ValidationError[] }> {
+  const result = await validateClientAddressFormComplete(data, {
+    context: options?.context,
+    requireCoordinates: options?.context === "billingOnCreate",
+  });
+  if (!result.ok) {
+    return { ok: false, errors: result.errors };
+  }
+  return { ok: true };
+}
+
+export { mapValidationErrorsToRHF };

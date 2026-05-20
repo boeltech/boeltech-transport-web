@@ -19,13 +19,15 @@ export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
 // Address components
 export { ClientAddressCard } from "./ClientAddressCard";
 export { ClientAddressForm } from "./ClientAddressForm";
-export { ClientAddressListItem } from "./ClientAddressListItem";
+export { ClientAddressListRow } from "./ClientAddressListItem";
 export { ClientAddressDetailView } from "./ClientAddressDetailView";
 export { ClientAddressMasterDetail } from "./ClientAddressMasterDetail";
+export { ClientCreateReviewSummary } from "./ClientCreateReviewSummary";
 
 // Types
-export type { ClientFormProps } from "./ClientForm";
+export type { ClientFormProps, ClientFormRef } from "./ClientForm";
+export type { ClientAddressFormRef } from "./ClientAddressForm";
 export type { ClientAddressFormProps } from "./ClientAddressForm";
-export type { ClientAddressListItemProps } from "./ClientAddressListItem";
+export type { ClientAddressListRowProps } from "./ClientAddressListItem";
 export type { ClientAddressDetailViewProps } from "./ClientAddressDetailView";
 export type { ClientAddressMasterDetailProps } from "./ClientAddressMasterDetail";

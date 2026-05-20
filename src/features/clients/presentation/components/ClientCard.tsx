@@ -10,7 +10,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
-import { Phone, Mail, MapPin } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
 import type { ClientListItem } from "../../domain";
@@ -99,16 +99,6 @@ export function ClientCard({ client, className }: ClientCardProps) {
             {typeConfig.labelShort}
           </Badge>
         </div>
-
-        {/* Ubicación */}
-        {(client.city || client.state) && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">
-              {[client.city, client.state].filter(Boolean).join(", ")}
-            </span>
-          </div>
-        )}
 
         {/* Contacto */}
         <div className="flex flex-col gap-1">

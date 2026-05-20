@@ -21,7 +21,7 @@ import { getAddressTypeConfig } from "../config/clientConfig";
 // TYPES
 // ============================================================================
 
-export interface ClientAddressListItemProps {
+export interface ClientAddressListRowProps {
   address: ClientAddressListItemEntity;
   /** Si esta dirección es la seleccionada en el master-detail. */
   selected?: boolean;
@@ -34,12 +34,12 @@ export interface ClientAddressListItemProps {
 // COMPONENT
 // ============================================================================
 
-export function ClientAddressListItem({
+export function ClientAddressListRow({
   address,
   selected = false,
   onClick,
   className,
-}: ClientAddressListItemProps) {
+}: ClientAddressListRowProps) {
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
 
@@ -98,6 +98,11 @@ export function ClientAddressListItem({
                 Inactiva
               </Badge>
             ) : null}
+            {address.geolocationPending ? (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                Geo pendiente
+              </Badge>
+            ) : null}
           </div>
         </div>
         {address.isPrimary ? (
@@ -111,4 +116,4 @@ export function ClientAddressListItem({
   );
 }
 
-export default ClientAddressListItem;
+export default ClientAddressListRow;

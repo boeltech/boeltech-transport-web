@@ -66,7 +66,11 @@ export function ClientAddressCard({
 }: ClientAddressCardProps) {
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
-  const cartaPorteReady = isCartaPorteReady(address as ClientAddress);
+  const cartaPorteReady =
+    ("isCartaPorteReady" in address &&
+      typeof address.isCartaPorteReady === "boolean"
+      ? address.isCartaPorteReady
+      : undefined) ?? isCartaPorteReady(address as ClientAddress);
   const satMinHint = cartaPorteReady
     ? undefined
     : getCartaPorteMissingFields(address as ClientAddress).join(", ");

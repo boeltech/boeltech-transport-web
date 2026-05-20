@@ -11,7 +11,9 @@
  */
 
 import {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   forwardRef,
@@ -47,6 +49,12 @@ import {
 } from "@shared/ui/address-input";
 import { MapPin, User } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import {
+  createGeoProviderBundle,
+  ResolveStopGeolocationUseCase,
+} from "@shared/geolocation";
+import { FormValidationSummary } from "./FormValidationSummary";
 
 import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
 import {
@@ -198,6 +206,11 @@ const ClientAddressFormRoot = forwardRef<
   },
   ref,
 ) {
+  const providers = useMemo(() => createGeoProviderBundle(), []);
+  const geocodeUseCase = useMemo(
+    () => new ResolveStopGeolocationUseCase(providers.geocodingProvider),
+    [providers.geocodingProvider],
+  );
   const isBillingContext = formContext === "billingOnCreate";
   const copy = ADDRESS_FORM_COPY[formContext];
   const contextConfig = isBillingContext
@@ -215,6 +228,7 @@ const ClientAddressFormRoot = forwardRef<
       };
 
   const hasClientFiscalData = Boolean(clientRfc || clientName);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [useClientFiscalData, setUseClientFiscalData] = useState(
     hasClientFiscalData,
   );
@@ -249,9 +263,56 @@ const ClientAddressFormRoot = forwardRef<
     formState: { errors, isValid },
   } = form;
 
+  const validationMessages = collectFieldErrorMessages(errors);
+  const shouldShowValidationSummary = showValidationSummary && !isValid;
+
+  const tryAutoGeocodeIfMissingCoords = useCallback(async (): Promise<boolean> => {
+    const values = form.getValues();
+    if (values.latitude != null && values.longitude != null) return true;
+
+    const outcome = await geocodeUseCase.execute(
+      {
+        street: values.street,
+        exteriorNumber: values.exteriorNumber,
+        interiorNumber: values.interiorNumber,
+        postalCode: values.postalCode,
+        satMunicipalityCode: values.satMunicipalityCode,
+        satStateCode: values.satStateCode,
+        satCountryCode: values.satCountryCode,
+        locationName: values.locationName,
+      },
+      5,
+    );
+
+    if (!outcome.ok || outcome.data.candidates.length === 0) {
+      return false;
+    }
+
+    const highConfidence = outcome.data.candidates.find(
+      (candidate) => (candidate.relevance ?? 0) >= 0.85,
+    );
+    if (!highConfidence) return false;
+
+    setValue("latitude", highConfidence.position.latitude, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("longitude", highConfidence.position.longitude, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    return true;
+  }, [form, geocodeUseCase, setValue]);
+
   useImperativeHandle(ref, () => ({
-    triggerValidation: () => trigger(),
-  }));
+    triggerValidation: async () => {
+      await tryAutoGeocodeIfMissingCoords();
+      const ok = await trigger(undefined, { shouldFocus: true });
+      if (!ok) setShowValidationSummary(true);
+      else setShowValidationSummary(false);
+      return ok;
+    },
+  }), [trigger, tryAutoGeocodeIfMissingCoords]);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -443,37 +504,52 @@ const ClientAddressFormRoot = forwardRef<
     });
   }
 
+  const geoError = errors.latitude?.message;
+
   const postAddressSections: EntityAddressFormSection[] = [
     {
       id: "geo-confirmation",
-      title: "Confirmacion geografica",
+      title: (
+        <span className="inline-flex items-center gap-2">
+          Confirmación geográfica
+          <span className="text-destructive text-xs font-normal">*</span>
+        </span>
+      ),
       icon: <MapPin className="h-4 w-4" />,
       content: (
-        <AddressGeolocationPanel
-          address={{
-            locationName: formValues.locationName,
-            street: formValues.street,
-            exteriorNumber: formValues.exteriorNumber,
-            interiorNumber: formValues.interiorNumber,
-            postalCode: formValues.postalCode,
-            satMunicipalityCode: formValues.satMunicipalityCode,
-            satStateCode: formValues.satStateCode,
-            satCountryCode: formValues.satCountryCode,
-          }}
-          latitude={formValues.latitude}
-          longitude={formValues.longitude}
-          onCoordinatesChange={(coords) => {
-            setValue("latitude", coords.latitude, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            setValue("longitude", coords.longitude, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-          }}
-          disabled={disabled}
-        />
+        <>
+          {geoError && (
+            <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              {geoError}
+            </p>
+          )}
+          <AddressGeolocationPanel
+            address={{
+              locationName: formValues.locationName,
+              street: formValues.street,
+              exteriorNumber: formValues.exteriorNumber,
+              interiorNumber: formValues.interiorNumber,
+              postalCode: formValues.postalCode,
+              satMunicipalityCode: formValues.satMunicipalityCode,
+              satStateCode: formValues.satStateCode,
+              satCountryCode: formValues.satCountryCode,
+            }}
+            latitude={formValues.latitude}
+            longitude={formValues.longitude}
+            onCoordinatesChange={(coords) => {
+              setValue("latitude", coords.latitude, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("longitude", coords.longitude, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+            }}
+            disabled={disabled}
+          />
+        </>
       ),
     },
     {
@@ -627,7 +703,14 @@ const ClientAddressFormRoot = forwardRef<
         />
       }
       postAddressSections={postAddressSections}
-    />
+    >
+      {shouldShowValidationSummary ? (
+        <FormValidationSummary
+          messages={validationMessages}
+          title="Revisa la dirección fiscal"
+        />
+      ) : null}
+    </EntityAddressForm>
   );
 });
 

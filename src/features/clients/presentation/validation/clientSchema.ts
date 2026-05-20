@@ -12,6 +12,9 @@
 
 import { z } from "zod";
 
+import type { Client } from "../../domain";
+import type { UpdateClientDTO } from "../../domain/repository";
+
 // ============================================================================
 // ENUMS
 // ============================================================================
@@ -200,3 +203,47 @@ export const defaultClientFormValues: ClientFormData = {
 export const updateClientFormSchema = clientFormSchema;
 
 export type UpdateClientFormData = z.infer<typeof updateClientFormSchema>;
+
+// ============================================================================
+// Mapeo entidad / formulario ↔ DTO de API
+// ============================================================================
+
+export function clientToFormValues(client: Client): ClientFormData {
+  return {
+    type: client.type,
+    legalName: client.legalName,
+    tradeName: client.tradeName ?? "",
+    taxId: client.taxId.trim().toUpperCase(),
+    taxRegime: client.taxRegime ?? "",
+    contactName: client.contactName ?? "",
+    contactPosition: client.contactPosition ?? "",
+    phone: client.phone ?? "",
+    secondaryPhone: client.secondaryPhone ?? "",
+    email: client.email ?? "",
+    billingEmail: client.billingEmail ?? "",
+    paymentTerms: client.paymentTerms,
+    creditDays: client.creditDays,
+    creditLimit: client.creditLimit ?? undefined,
+    notes: client.notes ?? "",
+  };
+}
+
+export function clientFormDataToUpdateDto(data: ClientFormData): UpdateClientDTO {
+  return {
+    type: data.type,
+    legalName: data.legalName,
+    tradeName: data.tradeName || undefined,
+    taxId: data.taxId,
+    taxRegime: data.taxRegime || undefined,
+    contactName: data.contactName || undefined,
+    contactPosition: data.contactPosition || undefined,
+    phone: data.phone || undefined,
+    secondaryPhone: data.secondaryPhone || undefined,
+    email: data.email || undefined,
+    billingEmail: data.billingEmail || undefined,
+    paymentTerms: data.paymentTerms,
+    creditDays: data.creditDays,
+    creditLimit: data.creditLimit,
+    notes: data.notes || undefined,
+  };
+}

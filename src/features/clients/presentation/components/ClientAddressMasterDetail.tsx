@@ -56,6 +56,7 @@ import {
   useClientAddresses,
   useCreateClientAddress,
   useDeleteClientAddress,
+  useSetPrimaryClientAddress,
   useUpdateClientAddress,
 } from "../../application";
 import type { ClientAddressListItem as ClientAddressListItemEntity } from "../../domain";
@@ -63,7 +64,7 @@ import {
   ClientAddressForm,
   type ClientAddressFormRef,
 } from "./ClientAddressForm";
-import { ClientAddressListItem } from "./ClientAddressListItem";
+import { ClientAddressListRow } from "./ClientAddressListItem";
 import { ClientAddressDetailView } from "./ClientAddressDetailView";
 import {
   clientAddressFormDataToCreateDto,
@@ -135,6 +136,7 @@ export function ClientAddressMasterDetail({
   // Estado del form (cuando mode === "edit" o "create")
   const formRef = useRef<ClientAddressFormRef>(null);
   const [formData, setFormData] = useState<ClientAddressFormData | null>(null);
+  const effectiveMode: Mode = readOnly ? "view" : mode;
 
   /**
    * Selección efectiva en modo vista: si `selectedId` no existe en la lista
@@ -150,21 +152,23 @@ export function ClientAddressMasterDetail({
   }, [sorted, selectedId]);
 
   const detailFetchId = useMemo(() => {
-    if (mode === "create") return undefined;
-    if (mode === "edit") return selectedId ?? resolvedViewId ?? undefined;
+    if (effectiveMode === "create") return undefined;
+    if (effectiveMode === "edit") return selectedId ?? resolvedViewId ?? undefined;
     return resolvedViewId ?? undefined;
-  }, [mode, selectedId, resolvedViewId]);
+  }, [effectiveMode, selectedId, resolvedViewId]);
 
   const listHighlightId =
-    mode === "edit" ? (selectedId ?? resolvedViewId) : resolvedViewId;
+    effectiveMode === "edit" ? (selectedId ?? resolvedViewId) : resolvedViewId;
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMutation = useCreateClientAddress();
   const updateMutation = useUpdateClientAddress();
+  const setPrimaryMutation = useSetPrimaryClientAddress();
   const deleteMutation = useDeleteClientAddress();
   const isPending =
     createMutation.isPending ||
     updateMutation.isPending ||
+    setPrimaryMutation.isPending ||
     deleteMutation.isPending;
 
   // ── Detalle full de la dirección seleccionada ────────────────────────────
@@ -256,20 +260,10 @@ export function ClientAddressMasterDetail({
     handleCancelFormRef.current = handleCancelForm;
   });
 
-  // Al activar solo lectura, cerrar modos de edición y diálogos.
-  useEffect(() => {
-    if (!readOnly) return;
-    queueMicrotask(() => {
-      setMode("view");
-      setFormData(null);
-      setPendingDelete(null);
-    });
-  }, [readOnly]);
-
   // Atajos consistentes para formulario (guardar/cancelar).
   useEffect(() => {
     if (readOnly) return;
-    if (mode !== "create" && mode !== "edit") return;
+    if (effectiveMode !== "create" && effectiveMode !== "edit") return;
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -282,7 +276,13 @@ export function ClientAddressMasterDetail({
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, [mode, isMobile, readOnly]);
+  }, [effectiveMode, isMobile, readOnly]);
+
+  const handleSetPrimary = () => {
+    const addressId = selectedId ?? resolvedViewId;
+    if (!addressId) return;
+    setPrimaryMutation.mutate({ clientId, addressId });
+  };
 
   const handleConfirmDelete = () => {
     if (!pendingDelete) return;
@@ -296,13 +296,13 @@ export function ClientAddressMasterDetail({
 
   // ── Empty state ──────────────────────────────────────────────────────────
   const showEmptyState =
-    !isLoading && sorted.length === 0 && mode !== "create";
+    !isLoading && sorted.length === 0 && effectiveMode !== "create";
 
   // Form defaults para modo "edit"
   const editFormDefaults = useMemo<
     Partial<ClientAddressFormData> | undefined
   >(() => {
-    if (mode !== "edit" || !selectedAddressFull) return undefined;
+    if (effectiveMode !== "edit" || !selectedAddressFull) return undefined;
     const a = selectedAddressFull;
     return {
       addressType: a.addressType,
@@ -333,7 +333,7 @@ export function ClientAddressMasterDetail({
       notes: a.notes ?? "",
       specialInstructions: a.specialInstructions ?? "",
     };
-  }, [mode, selectedAddressFull]);
+  }, [effectiveMode, selectedAddressFull]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -357,7 +357,7 @@ export function ClientAddressMasterDetail({
           <Button
             size="sm"
             onClick={handleStartCreate}
-            disabled={isPending || mode === "create"}
+            disabled={isPending || effectiveMode === "create"}
           >
             <Plus className="mr-2 h-4 w-4" />
             Nueva dirección
@@ -408,7 +408,7 @@ export function ClientAddressMasterDetail({
         <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:gap-0">
           {/* ─── Master: lista compacta ──────────────────────────────────── */}
           <div className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2">
-            {mode === "create" && !readOnly ? (
+            {effectiveMode === "create" && !readOnly ? (
               <div className="rounded-md border-2 border-dashed border-primary/40 bg-primary/5 p-3 text-xs text-primary">
                 <p className="font-medium">Nueva dirección</p>
                 <p className="text-primary/70">
@@ -418,11 +418,11 @@ export function ClientAddressMasterDetail({
             ) : null}
 
             {sorted.map((address) => (
-              <ClientAddressListItem
+              <ClientAddressListRow
                 key={address.id}
                 address={address}
                 selected={
-                  listHighlightId === address.id && mode !== "create"
+                  listHighlightId === address.id && effectiveMode !== "create"
                 }
                 onClick={() => handleSelect(address.id)}
               />
@@ -431,7 +431,7 @@ export function ClientAddressMasterDetail({
 
           {/* ─── Detail: vista o formulario ──────────────────────────────── */}
           <div className="bg-background md:rounded-r-md md:p-5">
-            {!readOnly && mode === "create" && !isMobile ? (
+            {!readOnly && effectiveMode === "create" && !isMobile ? (
               <FormPanel
                 title="Nueva dirección"
                 description="Captura los datos. Se guardará al confirmar."
@@ -449,7 +449,7 @@ export function ClientAddressMasterDetail({
                   disabled={isPending}
                 />
               </FormPanel>
-            ) : !readOnly && mode === "edit" && (selectedId ?? resolvedViewId) && !isMobile ? (
+            ) : !readOnly && effectiveMode === "edit" && (selectedId ?? resolvedViewId) && !isMobile ? (
               isLoadingDetail || !editFormDefaults ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -475,7 +475,7 @@ export function ClientAddressMasterDetail({
                   />
                 </FormPanel>
               )
-            ) : mode === "view" && resolvedViewId ? (
+            ) : effectiveMode === "view" && resolvedViewId ? (
               isLoadingDetail || !selectedAddressFull ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -484,6 +484,7 @@ export function ClientAddressMasterDetail({
                 <ClientAddressDetailView
                   address={selectedAddressFull}
                   readOnly={readOnly}
+                  onSetPrimary={readOnly ? undefined : handleSetPrimary}
                   onEdit={readOnly ? undefined : handleStartEdit}
                   onDelete={
                     readOnly
@@ -498,7 +499,7 @@ export function ClientAddressMasterDetail({
                   isPending={isPending}
                 />
               )
-            ) : !readOnly && (mode === "create" || mode === "edit") && isMobile ? (
+            ) : !readOnly && (effectiveMode === "create" || effectiveMode === "edit") && isMobile ? (
               <div className="flex items-center justify-center rounded-md border border-dashed py-12 text-sm text-muted-foreground">
                 Formulario abierto en panel inferior.
               </div>
@@ -513,7 +514,9 @@ export function ClientAddressMasterDetail({
 
       <Sheet
         open={
-          !readOnly && isMobile && (mode === "create" || mode === "edit")
+          !readOnly &&
+          isMobile &&
+          (effectiveMode === "create" || effectiveMode === "edit")
         }
         onOpenChange={(open) => {
           if (!open) handleCancelForm();
@@ -522,14 +525,14 @@ export function ClientAddressMasterDetail({
         <SheetContent side="bottom" className="h-[92vh] overflow-hidden p-0">
           <SheetHeader className="border-b px-5 py-4">
             <SheetTitle>
-              {mode === "create" ? "Nueva dirección" : "Editar dirección"}
+              {effectiveMode === "create" ? "Nueva dirección" : "Editar dirección"}
             </SheetTitle>
             <SheetDescription>
               Los cambios se guardan al confirmar esta acción.
             </SheetDescription>
           </SheetHeader>
           <div className="h-[calc(92vh-132px)] overflow-y-auto px-5 py-4">
-            {mode === "create" ? (
+            {effectiveMode === "create" ? (
               <ClientAddressForm
                 ref={formRef}
                 formContext="additional"
@@ -565,7 +568,7 @@ export function ClientAddressMasterDetail({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Guardando...
                 </>
-              ) : mode === "create" ? (
+              ) : effectiveMode === "create" ? (
                 "Crear dirección"
               ) : (
                 "Guardar cambios"
@@ -579,7 +582,7 @@ export function ClientAddressMasterDetail({
       {/* AlertDialog: confirmar eliminación                                  */}
       {/* ────────────────────────────────────────────────────────────────── */}
       <AlertDialog
-        open={pendingDelete !== null}
+        open={!readOnly && pendingDelete !== null}
         onOpenChange={(open) => !open && setPendingDelete(null)}
       >
         <AlertDialogContent>

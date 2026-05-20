@@ -3,6 +3,7 @@
  * Clean Architecture - Presentation Layer
  *
  * Detalle canónico: DetailPageShell con stats, alerts, tabs y metadata.
+ * Layout alineado a VehicleDetailPage / DriverDetailPage / TripDetailPage.
  *
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
@@ -52,10 +53,6 @@ import {
 // ============================================================================
 
 function buildClientStats(client: Client): StatCardProps[] {
-  const tripsPlaceholder = "—";
-  const invoicedPlaceholder = "—";
-  const daysPayPlaceholder = "—";
-
   let creditValue: string;
   let creditDescription: string | undefined;
   if (client.paymentTerms === "cash") {
@@ -72,21 +69,21 @@ function buildClientStats(client: Client): StatCardProps[] {
   return [
     {
       title: "Viajes activos",
-      value: tripsPlaceholder,
+      value: "—",
       tone: "primary",
       icon: <Route className="h-5 w-5" />,
       description: "Próximamente",
     },
     {
       title: "Total facturado",
-      value: invoicedPlaceholder,
+      value: "—",
       tone: "success",
       icon: <Receipt className="h-5 w-5" />,
       description: "Próximamente",
     },
     {
       title: "Días prom. pago",
-      value: daysPayPlaceholder,
+      value: "—",
       tone: "info",
       icon: <Timer className="h-5 w-5" />,
       description: "Histórico de cobranza",
@@ -107,7 +104,7 @@ function buildClientStats(client: Client): StatCardProps[] {
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const clientId = id;
+  const clientId = id ?? "";
 
   const {
     data: client,
@@ -115,23 +112,23 @@ export function ClientDetailPage() {
     isError,
   } = useClient(clientId || undefined);
 
-  const clientSoftDeleted = Boolean(client?.deletedAt);
+  const clientUnavailable = !client;
 
   const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime);
 
   const addressQuery = useClientAddresses(clientId || undefined, {
-    enabled: !!clientId,
+    enabled: !!clientId && !clientUnavailable,
   });
 
   const [activeTab, setActiveTab] = useState("informacion");
 
   const clientStats = useMemo((): StatCardProps[] => {
-    if (!client || clientSoftDeleted) return [];
+    if (!client) return [];
     return buildClientStats(client);
-  }, [client, clientSoftDeleted]);
+  }, [client]);
 
   const clientAlerts = useMemo(() => {
-    if (!client || clientSoftDeleted) return undefined;
+    if (!client) return undefined;
 
     const cards: ReactElement[] = [];
 
@@ -149,7 +146,7 @@ export function ClientDetailPage() {
           title="Sin direcciones registradas"
           items={[
             {
-              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones asociadas al cliente.",
+              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones o desde Editar cliente.",
             },
           ]}
         />,
@@ -181,7 +178,7 @@ export function ClientDetailPage() {
           title="Crédito sin límite definido"
           items={[
             {
-              text: "El cliente está en crédito sin límite registrado. Define un monto para control de exposición (sobregiro se reportará con integración de cartera).",
+              text: "El cliente está en crédito sin límite registrado. Define un monto para control de exposición.",
             },
           ]}
         />,
@@ -190,46 +187,36 @@ export function ClientDetailPage() {
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [client, clientSoftDeleted, addressQuery.isSuccess, addressQuery.data]);
+  }, [client, addressQuery.isSuccess, addressQuery.data]);
 
   if (isLoading) {
     return (
       <DetailPageShell
-        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
         isLoading
         header={{
           backHref: "/clients",
-          backLabel: "Volver a clientes",
           icon: <Building2 className="h-6 w-6" />,
-          iconShape: "circle",
           title: "Cliente",
         }}
       />
     );
   }
 
-  const clientUnavailable = !client || clientSoftDeleted;
-
   if (isError || clientUnavailable) {
-    const wasDeleted = Boolean(client?.deletedAt);
     return (
       <DetailPageShell
-        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
         isLoading={false}
         notFound
         notFoundConfig={{
           icon: <AlertCircle />,
-          title: wasDeleted ? "Cliente dado de baja" : "Cliente no encontrado",
-          description: wasDeleted
-            ? "Este cliente fue eliminado del catálogo operativo (baja lógica) y ya no está disponible."
-            : "El cliente que buscas no existe o fue eliminado.",
+          title: "Cliente no encontrado",
+          description: "El cliente que buscas no existe o fue eliminado.",
           backHref: "/clients",
           backLabel: "Volver a clientes",
         }}
         header={{
           backHref: "/clients",
           icon: <Building2 className="h-6 w-6" />,
-          iconShape: "circle",
           title: "Cliente",
         }}
       />
@@ -242,18 +229,21 @@ export function ClientDetailPage() {
   const PaymentIcon = paymentConfig.icon;
 
   return (
-    <>
     <DetailPageShell
-      className="mx-auto w-full max-w-6xl p-4 sm:p-6"
       isLoading={false}
       header={{
         backHref: "/clients",
-        backLabel: "Volver a clientes",
         icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
         iconVariant: client.isActive ? "primary" : "muted",
         iconShape: client.type === "individual" ? "circle" : "rounded",
         title: getClientDisplayName(client),
-        subtitle: `${client.clientCode} · ${typeConfig.label}`,
+        subtitle: (
+          <>
+            <span className="font-mono">{client.clientCode}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span>{typeConfig.label}</span>
+          </>
+        ),
         statusBadge: (
           <ClientStatusBadge
             status={operationalStatusFromClient(client.isActive)}
@@ -261,9 +251,7 @@ export function ClientDetailPage() {
             size="sm"
           />
         ),
-        actions: (
-          <ClientActions client={client} variant="buttons" />
-        ),
+        actions: <ClientActions client={client} variant="buttons" />,
       }}
       alerts={clientAlerts}
       stats={clientStats}
@@ -274,7 +262,7 @@ export function ClientDetailPage() {
         items: [
           {
             value: "informacion",
-            label: "Datos del cliente",
+            label: "Información",
             content: (
               <ClientDetailDataTab
                 client={client}
@@ -291,13 +279,12 @@ export function ClientDetailPage() {
           },
           {
             value: "addresses",
-            label: "Direcciones asociadas al cliente",
+            label: "Direcciones",
             content: (
               <ClientAddressMasterDetail
                 clientId={client.id}
                 clientRfc={client.taxId}
                 clientName={client.legalName}
-                readOnly
               />
             ),
           },
@@ -309,7 +296,6 @@ export function ClientDetailPage() {
         createdBy: client.createdBy ?? undefined,
       }}
     />
-    </>
   );
 }
 

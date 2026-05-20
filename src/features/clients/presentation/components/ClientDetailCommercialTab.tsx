@@ -1,11 +1,9 @@
 /**
- * Tab "Términos comerciales" del detalle de cliente (shell canónico).
- *
- * InfoRow variant="inline" alineado al detalle de empleado.
+ * Bloque de términos comerciales en el tab Información del detalle de cliente.
  */
 
 import type { ComponentType } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Separator } from "@shared/ui/separator";
 import { InfoRow } from "@shared/ui/data-display";
@@ -26,44 +24,43 @@ export function ClientDetailCommercialTab({
   PaymentIcon,
 }: ClientDetailCommercialTabProps) {
   return (
-    <div className="flex h-full min-w-0 w-full flex-col">
-      <Card className="flex h-full min-h-[200px] w-full min-w-0 flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="h-4 w-4" />
-            Términos comerciales
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 pt-0">
-          <InfoRow
-            variant="inline"
-            label="Forma de pago"
-            value={
-              <Badge variant={paymentConfig.variant}>
-                <PaymentIcon className="mr-1 h-3 w-3" />
-                {paymentConfig.label}
-              </Badge>
-            }
-          />
-          {client.paymentTerms === "credit" ? (
-            <>
-              <Separator className="my-2" />
+    <Card className="flex h-full flex-col">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CreditCard className="h-4 w-4 shrink-0 text-primary" />
+          Términos comerciales
+        </CardTitle>
+        <CardDescription>Forma de pago y condiciones de crédito.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 pt-0">
+        <InfoRow
+          variant="inline"
+          label="Forma de pago"
+          value={
+            <Badge variant={paymentConfig.variant}>
+              <PaymentIcon className="mr-1 h-3 w-3" />
+              {paymentConfig.label}
+            </Badge>
+          }
+        />
+        {client.paymentTerms === "credit" ? (
+          <>
+            <Separator className="my-2" />
+            <InfoRow
+              variant="inline"
+              label="Días de crédito"
+              value={`${client.creditDays} días`}
+            />
+            {client.creditLimit !== undefined && client.creditLimit > 0 ? (
               <InfoRow
                 variant="inline"
-                label="Días de crédito"
-                value={`${client.creditDays} días`}
+                label="Límite de crédito"
+                value={`$${client.creditLimit.toLocaleString("es-MX")}`}
               />
-              {client.creditLimit !== undefined && client.creditLimit > 0 ? (
-                <InfoRow
-                  variant="inline"
-                  label="Límite de crédito"
-                  value={`$${client.creditLimit.toLocaleString("es-MX")}`}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-    </div>
+            ) : null}
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }

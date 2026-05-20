@@ -86,7 +86,7 @@ export function ClientsListPage() {
     sortOrder,
   });
 
-  const clients = (data?.data ?? []).filter((c) => !c.deletedAt);
+  const clients = data?.data ?? [];
 
   // Permisos
   const canCreate = hasPermission("clients", "create");

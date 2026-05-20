@@ -1,12 +1,10 @@
 /**
  * Tab "Información" del detalle de cliente — fiscal, contacto y notas.
- * Opcionalmente compone una tercera columna (`commercialSection`), p.ej.
- * `<ClientDetailCommercialTab />`, en layout simétrico de 3 columnas + Notas ancho completo.
- * Auditoría (`createdAt`/`updatedAt`) está en MetadataFooter del shell.
+ * Layout alineado a VehicleDetailPage / DriverDetailPage (cards en grid).
  */
 
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
 import { FileText, User } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
@@ -16,7 +14,7 @@ import type { Client } from "../../domain";
 interface ClientDetailDataTabProps {
   client: Client;
   taxRegimeLabel: string | null;
-  /** Tercera columna (términos comerciales). Si se omite, layout 2 columnas y notas a ancho completo debajo. */
+  /** Tercera columna (términos comerciales). Si se omite, layout 2 columnas. */
   commercialSection?: ReactNode;
 }
 
@@ -36,21 +34,20 @@ export function ClientDetailDataTab({
   const threeCol = Boolean(commercialSection);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div
         className={cn(
-          "grid grid-cols-1 gap-4",
+          "grid grid-cols-1 gap-6",
           threeCol ? "lg:grid-cols-3" : "lg:grid-cols-2",
         )}
       >
-        <Card
-          className={cn(threeCol && "flex h-full min-h-[200px] flex-col")}
-        >
+        <Card className={cn(threeCol && "flex h-full flex-col")}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
+              <FileText className="h-4 w-4 shrink-0 text-primary" />
               Información fiscal
             </CardTitle>
+            <CardDescription>Razón social, RFC y régimen para facturación.</CardDescription>
           </CardHeader>
           <CardContent className={cn("pt-0", threeCol && "flex-1")}>
             <InfoRow variant="inline" label="Razón social" value={client.legalName} />
@@ -64,14 +61,13 @@ export function ClientDetailDataTab({
           </CardContent>
         </Card>
 
-        <Card
-          className={cn(threeCol && "flex h-full min-h-[200px] flex-col")}
-        >
+        <Card className={cn(threeCol && "flex h-full flex-col")}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <User className="h-4 w-4" />
+              <User className="h-4 w-4 shrink-0 text-primary" />
               Contacto principal
             </CardTitle>
+            <CardDescription>Persona y canales de comunicación del cliente.</CardDescription>
           </CardHeader>
           <CardContent className={cn("pt-0", threeCol && "flex-1")}>
             {hasContact ? (
@@ -148,18 +144,17 @@ export function ClientDetailDataTab({
         </Card>
 
         {commercialSection ? (
-          <div className="flex min-h-[200px] w-full min-w-0 flex-col">
-            {commercialSection}
-          </div>
+          <div className="flex min-w-0 w-full flex-col">{commercialSection}</div>
         ) : null}
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4 shrink-0 text-primary" />
             Notas
           </CardTitle>
+          <CardDescription>Observaciones internas sobre el cliente.</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           {client.notes ? (

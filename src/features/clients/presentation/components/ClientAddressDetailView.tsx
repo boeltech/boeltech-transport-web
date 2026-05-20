@@ -35,6 +35,8 @@ export interface ClientAddressDetailViewProps {
   onEdit?: () => void;
   /** Handler de "Eliminar" — el padre abre el AlertDialog de confirmación. */
   onDelete?: () => void;
+  /** Handler para marcar dirección como principal. */
+  onSetPrimary?: () => void;
   /** Indicador de mutación en curso (deshabilita botones). */
   isPending?: boolean;
   className?: string;
@@ -49,12 +51,13 @@ export function ClientAddressDetailView({
   readOnly = false,
   onEdit,
   onDelete,
+  onSetPrimary,
   isPending = false,
   className,
 }: ClientAddressDetailViewProps) {
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
-  const cartaPorteReady = isCartaPorteReady(address);
+  const cartaPorteReady = address.isCartaPorteReady ?? isCartaPorteReady(address);
   const satMinMissing = cartaPorteReady ? [] : getCartaPorteMissingFields(address);
 
   // ── Líneas calculadas ───────────────────────────────────────────────────
@@ -102,6 +105,15 @@ export function ClientAddressDetailView({
               ) : null}
               {!address.isActive ? (
                 <Badge variant="secondary">Inactiva</Badge>
+              ) : null}
+              {address.geolocationPending ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1 border-warning/40 text-warning-soft-foreground"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  Geo pendiente
+                </Badge>
               ) : null}
               {cartaPorteReady ? (
                 <Badge
@@ -278,6 +290,17 @@ export function ClientAddressDetailView({
 
       {!readOnly && onEdit && onDelete ? (
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {!address.isPrimary && onSetPrimary ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onSetPrimary}
+              disabled={isPending}
+            >
+              <Star className="mr-2 h-4 w-4" />
+              Marcar principal
+            </Button>
+          ) : null}
           <Button
             variant="default"
             size="sm"
