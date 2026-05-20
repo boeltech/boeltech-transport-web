@@ -9,6 +9,7 @@
  * - GET    …/addresses/:id      → { data: Address }
  * - POST   …/addresses          → 201 { data: Address }
  * - PUT    …/addresses/:id      → { data: Address }
+ * - PATCH  …/addresses/:id/primary → acción atómica de primaria
  * - DELETE …/addresses/:id      → acción
  *
  * Contrato backend (fuente de verdad): `boeltech-transport-api` →
@@ -115,7 +116,14 @@ class ClientAddressRepository implements IClientAddressRepository {
   }
 
   /**
-   * Elimina una dirección (hard delete)
+   * Marca una dirección como primaria (acción atómica del backend).
+   */
+  async setPrimaryAddress(clientId: string, addressId: string): Promise<void> {
+    await apiClient.patch(`${getBaseUrl(clientId)}/${addressId}/primary`);
+  }
+
+  /**
+   * Elimina una dirección (soft delete: `is_active=false` en backend)
    */
   async delete(clientId: string, addressId: string): Promise<void> {
     await apiClient.delete(`${getBaseUrl(clientId)}/${addressId}`);

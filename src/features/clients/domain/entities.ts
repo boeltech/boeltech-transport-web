@@ -104,16 +104,12 @@ export interface ClientListItem {
   legalName: string;
   tradeName?: string;
   taxId: string;
-  city?: string;
-  state?: string;
   phone?: string;
   email?: string;
   paymentTerms: PaymentTerms;
   creditDays: number;
   creditLimit?: number;
   isActive: boolean;
-  /** Baja lógica; ocultar en listas cuando exista. */
-  deletedAt?: string;
 }
 
 /**
@@ -179,6 +175,9 @@ export interface ClientAddress {
   // Coordenadas
   latitude?: number;
   longitude?: number;
+  /** Dirección migrada o capturada sin geo completa; no elegible para viajes. */
+  geolocationPending?: boolean;
+  isCartaPorteReady?: boolean;
 
   // Contacto en esta dirección
   contactName?: string;
@@ -223,6 +222,14 @@ export interface ClientAddressListItem {
   // Contacto
   contactName?: string;
   contactPhone?: string;
+
+  // Coordenadas (elegibilidad en selectores de paradas / viajes)
+  latitude?: number;
+  longitude?: number;
+
+  /** Dirección no elegible para viajes hasta completar geolocalización. */
+  geolocationPending?: boolean;
+  isCartaPorteReady?: boolean;
 }
 
 // ============================================================================

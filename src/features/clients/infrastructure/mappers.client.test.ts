@@ -9,27 +9,18 @@ const snakeListItem: ClientListItemApiResponse = {
   legal_name: "Transportes ACME",
   trade_name: "ACME",
   tax_id: "XAXX010101000",
-  city: "Guadalajara",
-  state: "Jalisco",
   phone: "3312345678",
   email: "ops@acme.test",
-  payment_terms: "net_30",
+  payment_terms: "credit",
   credit_days: 30,
   credit_limit: 50000,
   is_active: true,
-  deleted_at: null,
 };
 
 const snakeClient: ClientApiResponse = {
   ...snakeListItem,
   tenant_id: "tenant-1",
   tax_regime: "601",
-  street: null,
-  exterior_number: null,
-  interior_number: null,
-  neighborhood: null,
-  postal_code: null,
-  country: null,
   contact_name: "Ana",
   contact_position: "Compras",
   secondary_phone: null,
@@ -62,7 +53,7 @@ describe("client mappers (mapSingleResponse / mapPaginatedResponse)", () => {
 
   it("mapClientFromApi acepta objeto snake sin envelope", () => {
     const client = mapClientFromApi(snakeClient);
-    expect(client.paymentTerms).toBe("net_30");
+    expect(client.paymentTerms).toBe("credit");
     expect(client.creditDays).toBe(30);
   });
 });

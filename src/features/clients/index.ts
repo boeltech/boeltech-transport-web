@@ -79,7 +79,6 @@ export {
   useClients,
   useActiveClients,
   useCreateClient,
-  useCreateClientOnly,
   useUpdateClient,
   useActivateClient,
   useDeactivateClient,
@@ -91,6 +90,7 @@ export {
   useCreateClientAddress,
   useUpdateClientAddress,
   useDeleteClientAddress,
+  useSetPrimaryClientAddress,
 } from "./application";
 
 // ============================================================================
@@ -107,7 +107,7 @@ export {
   ClientDetailDataTab,
   ClientAddressCard,
   ClientAddressForm,
-  ClientAddressListItem,
+  ClientAddressListRow,
   ClientAddressDetailView,
   ClientAddressMasterDetail,
 } from "./presentation";

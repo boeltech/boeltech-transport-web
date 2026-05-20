@@ -82,15 +82,12 @@ function mapClientListItemToDomain(
     legalName: raw.legalName,
     tradeName: raw.tradeName ?? undefined,
     taxId: raw.taxId,
-    city: raw.city ?? undefined,
-    state: raw.state ?? undefined,
     phone: raw.phone ?? undefined,
     email: raw.email ?? undefined,
     paymentTerms: raw.paymentTerms as PaymentTerms,
     creditDays: raw.creditDays,
     creditLimit: raw.creditLimit ?? undefined,
     isActive: raw.isActive,
-    deletedAt: raw.deletedAt ?? undefined,
   };
 }
 
@@ -114,7 +111,6 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     creditDays: raw.creditDays,
     creditLimit: raw.creditLimit ?? undefined,
     isActive: raw.isActive,
-    deletedAt: raw.deletedAt ?? undefined,
     notes: raw.notes ?? undefined,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -219,6 +215,8 @@ function mapClientAddressToDomain(
     country: raw.country ?? undefined,
     latitude: raw.latitude ?? undefined,
     longitude: raw.longitude ?? undefined,
+    geolocationPending: raw.geolocationPending ?? undefined,
+    isCartaPorteReady: raw.isCartaPorteReady ?? undefined,
     contactName: firstNonEmpty(raw.contactName, cp?.contactName),
     contactPhone: firstNonEmpty(raw.contactPhone, cp?.contactPhone),
     contactEmail: firstNonEmpty(raw.contactEmail, cp?.contactEmail),
@@ -252,10 +250,12 @@ function mapClientAddressListItemToDomain(
     neighborhoodName: firstNonEmpty(raw.neighborhoodName),
     postalCode: raw.postalCode ?? undefined,
     address: raw.address ?? undefined,
-    city: raw.city ?? undefined,
-    state: raw.state ?? undefined,
     contactName: firstNonEmpty(raw.contactName, cp?.contactName),
     contactPhone: firstNonEmpty(raw.contactPhone, cp?.contactPhone),
+    latitude: raw.latitude ?? undefined,
+    longitude: raw.longitude ?? undefined,
+    geolocationPending: raw.geolocationPending ?? undefined,
+    isCartaPorteReady: raw.isCartaPorteReady ?? undefined,
   };
 }
 
@@ -429,6 +429,8 @@ export function toApiCreateClientAddress(
     nombreRemitenteDestinatario: dto.nombreRemitenteDestinatario,
     latitude: dto.latitude,
     longitude: dto.longitude,
+    geolocationPending: dto.geolocationPending,
+    geocodingSource: dto.geocodingSource,
     contactName: dto.contactName,
     contactPhone: dto.contactPhone,
     contactEmail: dto.contactEmail,

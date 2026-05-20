@@ -139,6 +139,8 @@ export interface CreateClientAddressDTO {
   // Coordenadas (opcionales)
   latitude?: number;
   longitude?: number;
+  geolocationPending?: boolean;
+  geocodingSource?: "manual" | "mapbox" | "google" | "nominatim";
 
   // Contacto en esta dirección
   contactName?: string;
@@ -230,6 +232,8 @@ export interface IClientAddressRepository {
     data: UpdateClientAddressDTO,
   ): Promise<ClientAddress>;
 
+  setPrimaryAddress(clientId: string, addressId: string): Promise<void>;
+
   delete(clientId: string, addressId: string): Promise<void>;
 }
 
@@ -247,16 +251,12 @@ export interface ClientListItemApiResponse {
   legal_name: string;
   trade_name: string | null;
   tax_id: string;
-  city: string | null;
-  state: string | null;
   phone: string | null;
   email: string | null;
   payment_terms: string;
   credit_days: number;
   credit_limit: number | null;
   is_active: boolean;
-  /** Baja lógica (soft delete); ausente en APIs que no lo exponen aún. */
-  deleted_at?: string | null;
 }
 
 /**
@@ -271,15 +271,6 @@ export interface ClientApiResponse {
   trade_name: string | null;
   tax_id: string;
   tax_regime: string | null;
-  // Campos de dirección LEGACY (ignorar en UI nueva)
-  street: string | null;
-  exterior_number: string | null;
-  interior_number: string | null;
-  neighborhood: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-  country: string | null;
   // Contacto
   contact_name: string | null;
   contact_position: string | null;
@@ -293,8 +284,6 @@ export interface ClientApiResponse {
   credit_limit: number | null;
   // Estado
   is_active: boolean;
-  /** Soft delete; si viene informado, el detalle debe tratarse como no disponible. */
-  deleted_at?: string | null;
   notes: string | null;
   // Auditoría
   created_at: string;
@@ -355,6 +344,8 @@ export interface ClientAddressApiResponse {
   // Coordenadas
   latitude: number | null;
   longitude: number | null;
+  geolocation_pending?: boolean | null;
+  is_carta_porte_ready?: boolean | null;
   // Contacto
   contact_name: string | null;
   contact_phone: string | null;

@@ -97,10 +97,6 @@ export class CreateClientUseCase {
         addressId: address.id,
       };
     } catch (error) {
-      console.error(
-        `Error creating billing address for client ${clientId}:`,
-        error,
-      );
       const message =
         error instanceof Error
           ? error.message

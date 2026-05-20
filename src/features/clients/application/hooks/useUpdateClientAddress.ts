@@ -33,6 +33,10 @@ interface UpdateAddressParams {
   data: UpdateClientAddressDTO;
 }
 
+interface UseUpdateClientAddressOptions {
+  silent?: boolean;
+}
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -40,7 +44,8 @@ interface UpdateAddressParams {
 /**
  * Hook mutation para actualizar una dirección de cliente
  */
-export function useUpdateClientAddress() {
+export function useUpdateClientAddress(options: UseUpdateClientAddressOptions = {}) {
+  const { silent = false } = options;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -61,19 +66,23 @@ export function useUpdateClientAddress() {
       });
 
       // Notificar éxito
-      toast({
-        title: "Dirección actualizada",
-        description: "Los cambios han sido guardados exitosamente.",
-      });
+      if (!silent) {
+        toast({
+          title: "Dirección actualizada",
+          description: "Los cambios han sido guardados exitosamente.",
+        });
+      }
     },
 
     onError: (error) => {
-      toast({
-        title: "Error al actualizar",
-        description:
-          error.message || "Ocurrió un error al actualizar la dirección.",
-        variant: "destructive",
-      });
+      if (!silent) {
+        toast({
+          title: "Error al actualizar",
+          description:
+            error.message || "Ocurrió un error al actualizar la dirección.",
+          variant: "destructive",
+        });
+      }
     },
   });
 }

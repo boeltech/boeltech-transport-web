@@ -67,6 +67,8 @@ describe("client address mappers (mapSingleResponse + camelCase)", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.locationName).toBe("CEDIS Norte");
     expect(items[0]?.satMunicipalityCode).toBe("039");
+    expect(items[0]?.latitude).toBe(20.67);
+    expect(items[0]?.longitude).toBe(-103.34);
   });
 
   it("mapClientAddressFromApi acepta objeto snake sin envelope", () => {
