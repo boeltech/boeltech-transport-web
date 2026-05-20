@@ -18,6 +18,16 @@ type CatalogSingleResponse = {
   };
 };
 
+type PostalLookupResponse = {
+  data: {
+    postal_code: string;
+    state_code?: string | null;
+    municipality_code?: string | null;
+    localities?: Array<{ code: string; name: string }>;
+    neighborhoods?: Array<{ code: string; name: string }>;
+  };
+};
+
 export function createCatalogProviderRest(): CatalogProvider {
   return {
     async getCatalogItem(
@@ -40,6 +50,35 @@ export function createCatalogProviderRest(): CatalogProvider {
       } catch (e) {
         if (isAxiosError(e) && e.response?.status === 404) {
           return null;
+        }
+        throw e;
+      }
+    },
+    async getPostalCodeLookup(postalCode: string) {
+      const cp = encodeURIComponent(postalCode);
+      try {
+        const res = await apiClient.get<PostalLookupResponse>(
+          `/catalogs/sat/by-postal-code/${cp}`,
+        );
+        const row = res.data;
+        return {
+          postal_code: row.postal_code,
+          found: true,
+          state_code: row.state_code ?? null,
+          municipality_code: row.municipality_code ?? null,
+          localities: row.localities ?? [],
+          neighborhoods: row.neighborhoods ?? [],
+        };
+      } catch (e) {
+        if (isAxiosError(e) && e.response?.status === 404) {
+          return {
+            postal_code: postalCode,
+            found: false,
+            state_code: null,
+            municipality_code: null,
+            localities: [],
+            neighborhoods: [],
+          };
         }
         throw e;
       }
