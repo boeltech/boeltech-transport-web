@@ -102,7 +102,7 @@ export interface ITripRepository {
 }
 
 // ============================================================================
-// STOP REPOSITORY  // FALTA IMPLEMENTARLO EN EL BACKEND
+// STOP REPOSITORY (LEGACY - sin handlers REST /stops/* en backend tracking v1)
 // ============================================================================
 
 /**

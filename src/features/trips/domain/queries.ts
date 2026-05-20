@@ -119,6 +119,8 @@ export const tripQueryKeys = {
     [...tripQueryKeys.detail(tripId), "profitability"] as const,
   statusHistory: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "status-history"] as const,
+  timeline: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "timeline"] as const,
 } as const;
 
 /**

@@ -23,6 +23,12 @@ export {
 } from "./repositories/stopRepository";
 
 export {
+  TrackingRepository,
+  createTrackingRepository,
+  trackingRepository,
+} from "./repositories/trackingRepository";
+
+export {
   TripRepository,
   createTripRepository,
   tripRepository,

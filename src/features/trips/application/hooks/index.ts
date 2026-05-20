@@ -21,9 +21,8 @@ export {
   useAddMultipleExpenses,
 } from "./expense/useExpenseOperations";
 
-export { useAddStop } from "./stop/useAddStop";
-export { useMarkStopVisited } from "./stop/useMarkStopVisited";
-export { useTripStops } from "./stop/useTripStops";
+export { useRegisterTrackingEvent } from "./tracking/useRegisterTrackingEvent";
+export { useTripTimeline } from "./tracking/useTripTimeline";
 
 export { useCancelTrip } from "./trip/useCancelTrip";
 export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";

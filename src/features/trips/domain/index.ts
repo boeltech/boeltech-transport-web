@@ -136,6 +136,18 @@ export type {
   CargosSummary,
 } from "./entities";
 
+export type {
+  CreateTrackingEventInput,
+  StartTripTrackingInput,
+  TrackingCapturedVia,
+  TrackingEvent,
+  TrackingEventCategory,
+  TrackingEventType,
+  TrackingTimeline,
+  TrackingTimelineMapPosition,
+  TrackingTimelineProgress,
+} from "./trackingEvent";
+
 // ============================================================================
 // INPUTS (for create/update operations)
 // ============================================================================
@@ -206,7 +218,7 @@ export {
 
 export type {
   ITripRepository,
-  IStopRepository, // FALTA IMPLEMENTAR EN EL BACKEND
+  IStopRepository, // Legacy sin handlers REST /stops/* en backend (migrar a tracking API)
   ICargoRepository,
   IExpenseRepository,
 } from "./repositories";
