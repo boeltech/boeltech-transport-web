@@ -229,14 +229,6 @@ export const tripStopSchema = z
           path: ["satStateCode"],
         });
       }
-      const municipio = val.satMunicipalityCode?.trim();
-      if (!municipio) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Selecciona el ${LOCATION_CAPTURE_LABELS.municipality} de esta parada`,
-          path: ["satMunicipalityCode"],
-        });
-      }
       const cp = val.postalCode?.trim() ?? "";
       if (!/^\d{5}$/.test(cp)) {
         ctx.addIssue({

@@ -54,7 +54,7 @@ import {
   createGeoProviderBundle,
 } from "@shared/geolocation";
 import { useToast } from "@shared/hooks";
-import { HintIcon, SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1098,11 +1098,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         {icon}
       </div>
       <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-      <div className="mb-4 flex items-center justify-center">
-        <HintIcon label={title} contentClassName="max-w-sm text-left">
-          {description}
-        </HintIcon>
-      </div>
+      <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       <Button
         type="button"
         variant="outline"

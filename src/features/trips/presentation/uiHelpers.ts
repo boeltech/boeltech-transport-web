@@ -508,3 +508,34 @@ export function formatStopDisplayStreetLine(stop: TripStop): string | null {
 export function formatStopDisplayLocalityLine(stop: TripStop): string {
   return composeStopLocalityLine(stop);
 }
+
+export interface StopTimelineLabel {
+  primary: string;
+  secondary?: string;
+}
+
+/** Texto legible de parada para timeline operativo (sin UUID). */
+export function formatStopTimelineLabel(
+  stop: TripStop,
+  displayOrder: number,
+): StopTimelineLabel {
+  const types = (Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType])
+    .map((type) => STOP_TYPE_CONFIG[type as StopTypeValue]?.label)
+    .filter((label): label is string => Boolean(label));
+  const typePart = [...new Set(types)].join(" · ");
+
+  const place = formatStopDisplayPrimaryLine(stop);
+  const locality = formatStopDisplayLocalityLine(stop).trim();
+
+  const primary = typePart
+    ? `Parada ${displayOrder} · ${typePart} · ${place}`
+    : `Parada ${displayOrder} · ${place}`;
+
+  const showSecondary =
+    locality.length > 0 && locality !== "—" && locality !== place;
+
+  return {
+    primary,
+    secondary: showSecondary ? locality : undefined,
+  };
+}

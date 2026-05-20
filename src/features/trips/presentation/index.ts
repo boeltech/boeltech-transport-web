@@ -10,6 +10,8 @@ export {
   TripActions,
   TripInvoiceActions,
   TripQuickEditSheet,
+  TripTrackingMap,
+  TripTrackingTab,
   TripTable,
 } from "./components";
 

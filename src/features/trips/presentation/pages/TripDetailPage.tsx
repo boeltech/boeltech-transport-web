@@ -6,7 +6,7 @@
  * - useTripCargos: Obtiene cargas del viaje via endpoint separado
  * - useTripExpenses: Obtiene gastos del viaje via endpoint separado
  * - useTripExpensesSummary: Obtiene resumen de gastos
- * - Tabs: Resumen, Ruta, Cargas, Costos, Historial
+ * - Tabs: Operación, Ruta, Seguimiento, Cargas, Costos, Historial
  *
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
  */
@@ -35,7 +35,6 @@ import {
   Clock,
   Gauge,
   DollarSign,
-  Check,
   Package,
   Navigation,
   FileText,
@@ -55,7 +54,6 @@ import {
 // ── Hooks de Application Layer ─────────────────────────────────────────────
 import {
   useTrip,
-  useMarkStopVisited,
   useUpdateTrip,
   useUpdateCargo,
   // Nuevos hooks para cargas y gastos
@@ -97,6 +95,7 @@ import {
   TripActions,
   TripInvoiceActions,
   TripQuickEditSheet,
+  TripTrackingTab,
   TripStatusBadge,
 } from "@features/trips/presentation";
 import { TripStopAddressSingleLine } from "../components/TripStopAddressLines";
@@ -316,15 +315,6 @@ export function TripDetailPage() {
   // ══════════════════════════════════════════════════════════════════════════
   // MUTATIONS
   // ══════════════════════════════════════════════════════════════════════════
-
-  const markVisitedMutation = useMarkStopVisited({
-    onSuccess: () => {
-      toast({ title: "Parada marcada como visitada", variant: "success" });
-      refetchTrip();
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
 
   const deliverCargoMutation = useUpdateCargo(tripId, {
     onSuccess: () => {
@@ -568,6 +558,8 @@ export function TripDetailPage() {
               variant="detailMenu"
               tripId={trip.id}
               tripCode={trip.tripCode}
+              vehicleId={trip.vehicleId}
+              tripStartMileage={trip.mileage.start}
               status={trip.status}
               onQuickEdit={
                 canEditTrip(trip.status) ? () => setQuickEditOpen(true) : undefined
@@ -820,7 +812,8 @@ export function TripDetailPage() {
                               Paradas del recorrido
                             </CardTitle>
                             <CardDescription>
-                              Orden, tipo de parada y detalle por ubicación. Marca como visitada cuando aplique.
+                              Orden, tipo de parada y detalle por ubicación. La
+                              operacion en ruta se gestiona desde Seguimiento.
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-2 pt-0">
@@ -828,8 +821,6 @@ export function TripDetailPage() {
                               const config = getStopDisplayConfig(stop.stopType);
                               const StopIcon = config.icon;
                               const isVisited = !!stop.actualArrival;
-                              const canMarkVisited =
-                                trip.status === TripStatus.IN_PROGRESS && !isVisited;
 
                               return (
                                 <div
@@ -929,26 +920,8 @@ export function TripDetailPage() {
                                         <Badge variant="secondary" className="font-normal">
                                           {isVisited ? "Visitada" : "Pendiente"}
                                         </Badge>
-                                        {canMarkVisited ? (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="w-full sm:w-auto"
-                                            onClick={() =>
-                                              markVisitedMutation.mutate({
-                                                tripId: trip.id,
-                                                stopId: stop.id,
-                                              })
-                                            }
-                                            disabled={markVisitedMutation.isPending}
-                                          >
-                                            {markVisitedMutation.isPending ? (
-                                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <Check className="mr-1 h-4 w-4" />
-                                            )}
-                                            Marcar
-                                          </Button>
+                                        {trip.status === TripStatus.IN_PROGRESS && !isVisited ? (
+                                          <Badge variant="outline">Gestionar en Seguimiento</Badge>
                                         ) : null}
                                       </div>
                                     </div>
@@ -1044,6 +1017,28 @@ export function TripDetailPage() {
                   )}
                 </div>
               </>
+            ),
+          },
+          {
+            value: "tracking",
+            label: (
+              <span className="inline-flex items-center gap-1">
+                Seguimiento
+                {trip.status === TripStatus.IN_PROGRESS ? (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    En vivo
+                  </Badge>
+                ) : null}
+              </span>
+            ),
+            content: (
+              <TripTrackingTab
+                tripId={trip.id}
+                tripCode={trip.tripCode}
+                vehicleId={trip.vehicleId}
+                tripStartMileage={trip.mileage.start}
+                status={trip.status}
+              />
             ),
           },
           {

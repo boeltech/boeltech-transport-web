@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TripActions
  * Clean Architecture - Presentation Layer (Components)
  *
@@ -35,7 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
@@ -50,10 +49,10 @@ import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
   useScheduleTrip,
-  useStartTrip,
   useCancelTrip,
   useDeleteTrip,
 } from "../../application";
+import { StartTripDialog } from "./StartTripDialog";
 import {
   TripStatus,
   type TripListItem,
@@ -97,6 +96,8 @@ interface TripIndividualProps {
   tripId: string;
   tripCode: string;
   status: TripStatusType;
+  vehicleId?: string;
+  tripStartMileage?: number | null;
 }
 
 /**
@@ -166,14 +167,26 @@ export function TripActions(props: TripActionsProps) {
   const id = props.trip?.id ?? props.tripId!;
   const code = props.trip?.tripCode ?? props.tripCode!;
   const currentStatus = props.trip?.status ?? props.status!;
+  const vehicleId =
+    props.trip && "vehicleId" in props.trip
+      ? props.trip.vehicleId
+      : props.trip
+        ? props.trip.vehicle.id
+        : props.vehicleId;
+  const tripStartMileage =
+    props.trip && "mileage" in props.trip
+      ? props.trip.mileage.start
+      : "tripStartMileage" in props
+        ? (props.tripStartMileage ?? null)
+        : null;
 
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // DIALOG STATES (variant "buttons" y "detailMenu")
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -187,13 +200,7 @@ export function TripActions(props: TripActionsProps) {
     description: "",
   });
 
-  const [startDialog, setStartDialog] = useState<{
-    open: boolean;
-    mileage: string;
-  }>({
-    open: false,
-    mileage: "",
-  });
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
 
   const [cancelDialog, setCancelDialog] = useState<{
     open: boolean;
@@ -203,9 +210,9 @@ export function TripActions(props: TripActionsProps) {
     reason: "",
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // MUTATIONS (variant "buttons" y "detailMenu")
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   const scheduleMutation = useScheduleTrip({
     onSuccess: (trip) => {
@@ -219,24 +226,6 @@ export function TripActions(props: TripActionsProps) {
     onError: (error) => {
       toast({
         title: "Error al programar",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const startMutation = useStartTrip({
-    onSuccess: (trip) => {
-      toast({
-        title: "Viaje iniciado",
-        description: `${code} está en curso`,
-        variant: "success",
-      });
-      onActionComplete?.(trip);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al iniciar",
         description: error.message,
         variant: "destructive",
       });
@@ -277,13 +266,12 @@ export function TripActions(props: TripActionsProps) {
 
   const isLoading =
     scheduleMutation.isPending ||
-    startMutation.isPending ||
     cancelMutation.isPending ||
     deleteMutation.isPending;
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // PERMISSIONS & AVAILABLE ACTIONS
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   const canUpdate = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
@@ -297,9 +285,9 @@ export function TripActions(props: TripActionsProps) {
   const canEditTrip = EDITABLE_STATUSES.includes(currentStatus) && canUpdate;
   const canDeleteTrip = validTransitions.includes("delete") && canDelete;
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // HANDLERS
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   const handleConfirm = () => {
     switch (confirmDialog.action) {
@@ -311,16 +299,6 @@ export function TripActions(props: TripActionsProps) {
         break;
     }
     setConfirmDialog({ ...confirmDialog, open: false });
-  };
-
-  const handleStartConfirm = () => {
-    startMutation.mutate({
-      id,
-      mileage: startDialog.mileage
-        ? parseInt(startDialog.mileage, 10)
-        : undefined,
-    });
-    setStartDialog({ open: false, mileage: "" });
   };
 
   const handleCancelConfirm = () => {
@@ -375,64 +353,15 @@ export function TripActions(props: TripActionsProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
-        open={startDialog.open}
-        onOpenChange={(open) => setStartDialog({ ...startDialog, open })}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <SectionHeadingWithHint
-                title="Iniciar Viaje"
-                titleClassName="text-lg font-semibold leading-none tracking-tight"
-                hintLabel="Iniciar viaje"
-                hint={
-                  <>
-                    El viaje {code} pasará a estado &quot;En Curso&quot;. Opcionalmente puede registrar el kilometraje
-                    inicial.
-                  </>
-                }
-              />
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              El viaje pasará a en curso; puede registrar kilometraje inicial.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="start-mileage">
-              Kilometraje inicial (opcional)
-            </Label>
-            <Input
-              id="start-mileage"
-              type="number"
-              placeholder="Ej: 150000"
-              value={startDialog.mileage}
-              onChange={(e) =>
-                setStartDialog({ ...startDialog, mileage: e.target.value })
-              }
-              className="mt-2"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStartDialog({ open: false, mileage: "" })}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleStartConfirm}
-              disabled={startMutation.isPending}
-            >
-              {startMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              <Play className="mr-2 h-4 w-4" />
-              Iniciar Viaje
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StartTripDialog
+        tripId={id}
+        tripCode={code}
+        vehicleId={vehicleId}
+        tripStartMileage={tripStartMileage}
+        open={startDialogOpen}
+        onOpenChange={setStartDialogOpen}
+        onSuccess={onActionComplete}
+      />
 
       <Dialog
         open={cancelDialog.open}
@@ -490,9 +419,9 @@ export function TripActions(props: TripActionsProps) {
     </>
   );
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // RENDER: DROPDOWN MODE (para TripTable)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   if (variant === "dropdown") {
     const hasStateActions =
@@ -582,9 +511,9 @@ export function TripActions(props: TripActionsProps) {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // RENDER: DETAIL HEADER MENU (Facturación + Operación en detalle de viaje)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   if (variant === "detailMenu") {
     const hasMenuContent = Boolean(onQuickEdit) || !hasNoActions;
@@ -645,7 +574,7 @@ export function TripActions(props: TripActionsProps) {
 
             {canStart ? (
               <DropdownMenuItem
-                onSelect={() => setStartDialog({ open: true, mileage: "" })}
+                onSelect={() => setStartDialogOpen(true)}
                 disabled={isLoading}
               >
                 <Play className="mr-2 h-4 w-4 text-success" />
@@ -702,9 +631,9 @@ export function TripActions(props: TripActionsProps) {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
   // RENDER: BUTTONS MODE (legacy / otras pantallas)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ---------------------------------------------------------------------------
 
   if (hasNoActions) {
     return null;
@@ -741,7 +670,7 @@ export function TripActions(props: TripActionsProps) {
         {canStart && (
           <Button
             size="sm"
-            onClick={() => setStartDialog({ open: true, mileage: "" })}
+            onClick={() => setStartDialogOpen(true)}
             disabled={isLoading}
           >
             {isLoading ? (

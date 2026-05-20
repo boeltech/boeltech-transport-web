@@ -57,11 +57,15 @@ import {
 import {
   useTrips,
   useDeleteTrip,
-  useStartTrip,
   useCancelTrip,
 } from "../../application";
 import { type TripStatusType, type TripInvoiceStatus } from "../../domain";
-import { TripTable, TripCard, TripCardSkeleton } from "../components";
+import {
+  TripTable,
+  TripCard,
+  TripCardSkeleton,
+  StartTripDialog,
+} from "../components";
 import { TRIP_STATUS_CONFIG } from "../index";
 import { formatDate } from "@shared/utils/dateUtils";
 
@@ -105,7 +109,11 @@ export function TripsListPage() {
 
   // Estado para diálogos de confirmación
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [pendingStartId, setPendingStartId] = useState<string | null>(null);
+  const [pendingStartTrip, setPendingStartTrip] = useState<{
+    id: string;
+    tripCode: string;
+    vehicleId: string;
+  } | null>(null);
   const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
@@ -177,19 +185,6 @@ export function TripsListPage() {
     },
   });
 
-  const startMutation = useStartTrip({
-    onSuccess: () => {
-      toast({ title: "Viaje iniciado", variant: "success" });
-      refetch();
-    },
-    onError: (error) =>
-      toast({
-        title: "Error al iniciar",
-        description: error.message,
-        variant: "destructive",
-      }),
-  });
-
   const cancelMutation = useCancelTrip({
     onSuccess: () => {
       toast({ title: "Viaje cancelado", variant: "success" });
@@ -204,7 +199,7 @@ export function TripsListPage() {
   });
 
   // Data
-  const trips = data?.data ?? [];
+  const trips = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
   const hasFiscalFilter = fiscalAttentionOnly || !!invoiceStatusFilter;
@@ -244,14 +239,18 @@ export function TripsListPage() {
     setPendingDeleteId(null);
   }, [pendingDeleteId, deleteMutation]);
 
-  const handleStart = useCallback((id: string) => {
-    setPendingStartId(id);
-  }, []);
-
-  const confirmStart = useCallback(() => {
-    if (pendingStartId) startMutation.mutate({ id: pendingStartId });
-    setPendingStartId(null);
-  }, [pendingStartId, startMutation]);
+  const handleStart = useCallback(
+    (id: string) => {
+      const trip = trips.find((item) => item.id === id);
+      if (!trip) return;
+      setPendingStartTrip({
+        id: trip.id,
+        tripCode: trip.tripCode,
+        vehicleId: trip.vehicle.id,
+      });
+    },
+    [trips],
+  );
 
   const handleFinish = useCallback(
     (id: string) => navigate(`/trips/${id}/finish`),
@@ -738,40 +737,17 @@ export function TripsListPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ================================================================ */}
-      {/* DIÁLOGO: Confirmar inicio de viaje                               */}
-      {/* ================================================================ */}
-      <AlertDialog
-        open={!!pendingStartId}
-        onOpenChange={(open) => !open && setPendingStartId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <SectionHeadingWithHint
-                title="¿Iniciar viaje?"
-                titleClassName="text-lg font-semibold leading-none tracking-tight"
-                hintLabel="Iniciar viaje"
-                hint={
-                  <>
-                    El viaje cambiará a estado &quot;En progreso&quot;. Asegúrese de que el vehículo y el conductor estén
-                    listos para salir.
-                  </>
-                }
-              />
-            </AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">
-              El viaje cambiará a estado en progreso. Confirme que vehículo y conductor están listos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmStart}>
-              Iniciar viaje
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <StartTripDialog
+        tripId={pendingStartTrip?.id ?? ""}
+        tripCode={pendingStartTrip?.tripCode ?? ""}
+        vehicleId={pendingStartTrip?.vehicleId}
+        open={!!pendingStartTrip}
+        onOpenChange={(open) => !open && setPendingStartTrip(null)}
+        onSuccess={() => {
+          toast({ title: "Viaje iniciado", variant: "success" });
+          refetch();
+        }}
+      />
 
       {/* ================================================================ */}
       {/* DIÁLOGO: Cancelar viaje con motivo                               */}
