@@ -19,7 +19,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",
           error
-            ? "border-destructive focus-visible:ring-destructive"
+            ? "border-destructive focus-visible:ring-1 focus-visible:ring-destructive focus-visible:ring-offset-1"
             : "border-input",
           className,
         )}

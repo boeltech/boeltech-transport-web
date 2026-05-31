@@ -76,6 +76,16 @@ export interface SectionHeadingWithHintProps {
    * Si es true, `title` se renderiza sin envolver en el span por defecto (p. ej. {@link FormLabel}, `DialogTitle`).
    */
   noTitleWrap?: boolean;
+  /**
+   * Si es true, renderiza el asterisco rojo (`*`) **dentro** del mismo flex container,
+   * pegado al título, evitando que se rompa el wrap horizontal del campo.
+   *
+   * **Importante:** al usarlo como `label` de un `FormFieldShell`, **no pases `required`
+   * al shell**, ya que este lo añadiría como nodo hermano fuera del flex container
+   * (`reactNodeHasRequiredMark` no inspecciona dentro de componentes funcionales) y se
+   * vería un asterisco duplicado.
+   */
+  required?: boolean;
 }
 
 /**
@@ -90,6 +100,7 @@ export function SectionHeadingWithHint({
   hintContentClassName,
   hintSide,
   noTitleWrap,
+  required = false,
 }: SectionHeadingWithHintProps) {
   const titleEl = noTitleWrap ? (
     title
@@ -106,7 +117,16 @@ export function SectionHeadingWithHint({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      {titleEl}
+      {required ? (
+        <span className="inline-flex items-baseline gap-0.5">
+          {titleEl}
+          <span className="text-destructive" aria-hidden="true">
+            *
+          </span>
+        </span>
+      ) : (
+        titleEl
+      )}
       {hint != null ? (
         <HintIcon
           label={hintLabel}
