@@ -70,13 +70,20 @@ export function BranchCreatePage() {
 
   const renderStep = useCallback(
     (currentStep: number) => (
-      <BranchForm
-        ref={formRef}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        wizardMode
-        wizardStepIndex={currentStep}
-      />
+      <>
+        {currentStep < 2 ? (
+          <p className="mb-4 max-w-md text-sm text-muted-foreground">
+            Completa los campos obligatorios del paso para continuar.
+          </p>
+        ) : null}
+        <BranchForm
+          ref={formRef}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          wizardMode
+          wizardStepIndex={currentStep}
+        />
+      </>
     ),
     [handleSubmit, isSubmitting],
   );

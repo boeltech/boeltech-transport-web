@@ -8,7 +8,7 @@
  * Ubicación: src/features/vehicles/presentation/pages/VehicleListPage.tsx
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Select,
@@ -17,10 +17,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
 import {
+  Loader2,
   Plus,
   Search,
 } from "lucide-react";
@@ -30,6 +41,7 @@ import { useVehicles, useDeleteVehicle } from "../../application";
 import {
   VehicleStatus,
   VehicleType,
+  type VehicleListItem,
   type VehicleStatusType,
   type VehicleTypeValue,
   VEHICLE_STATUS_LABELS,
@@ -73,10 +85,18 @@ export function VehicleListPage() {
     sort: { field: "unit_number", direction: "asc" },
   });
 
+  // Data
+  const vehicles = data?.data ?? [];
+
+  // Delete confirmation dialog state (Radix AlertDialog, alineado a ClientActions / VehicleActions buttons)
+  const [vehicleToDelete, setVehicleToDelete] =
+    useState<VehicleListItem | null>(null);
+
   // Mutations
   const deleteMutation = useDeleteVehicle({
     onSuccess: () => {
       toast({ title: "Vehículo eliminado", variant: "success" });
+      setVehicleToDelete(null);
       refetch();
     },
     onError: (error) => {
@@ -87,9 +107,6 @@ export function VehicleListPage() {
       });
     },
   });
-
-  // Data
-  const vehicles = data?.data ?? [];
 
   // Permisos
   const canCreate = hasPermission("vehicles", "create");
@@ -109,12 +126,16 @@ export function VehicleListPage() {
 
   const handleDelete = useCallback(
     (id: string) => {
-      if (window.confirm("¿Estás seguro de eliminar este vehículo?")) {
-        deleteMutation.mutate(id);
-      }
+      const vehicle = vehicles.find((v) => v.id === id);
+      if (vehicle) setVehicleToDelete(vehicle);
     },
-    [deleteMutation],
+    [vehicles],
   );
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!vehicleToDelete) return;
+    deleteMutation.mutate(vehicleToDelete.id);
+  }, [deleteMutation, vehicleToDelete]);
   const handleCreate = useCallback(() => {
     navigate("/vehicles/new");
   }, [navigate]);
@@ -124,120 +145,163 @@ export function VehicleListPage() {
   }, [refetch, toast]);
 
   return (
-    <ListPageShell
-      title="Vehículos"
-      description="Gestión de la flota vehicular"
-      primaryAction={{
-        label: "Nuevo Vehículo",
-        icon: <Plus className="h-4 w-4" />,
-        onClick: handleCreate,
-        visible: canCreate,
-      }}
-      toolbar={{
-        search: {
-          ...filters.searchProps,
-          placeholder: "Buscar vehículo...",
-        },
-        filters: (
-          <>
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(value) => filters.setFilter("status", value)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                {Object.values(VehicleStatus).map((statusValue) => (
-                  <SelectItem key={statusValue} value={statusValue}>
-                    {VEHICLE_STATUS_LABELS[statusValue]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <>
+      <ListPageShell
+        title="Vehículos"
+        description="Gestión de la flota vehicular"
+        primaryAction={{
+          label: "Nuevo Vehículo",
+          icon: <Plus className="h-4 w-4" />,
+          onClick: handleCreate,
+          visible: canCreate,
+        }}
+        toolbar={{
+          search: {
+            ...filters.searchProps,
+            placeholder: "Buscar vehículo...",
+          },
+          filters: (
+            <>
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={(value) => filters.setFilter("status", value)}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  {Object.values(VehicleStatus).map((statusValue) => (
+                    <SelectItem key={statusValue} value={statusValue}>
+                      {VEHICLE_STATUS_LABELS[statusValue]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select
-              value={typeFilter || "all"}
-              onValueChange={(value) => filters.setFilter("type", value)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                {Object.values(VehicleType).map((typeValue) => (
-                  <SelectItem key={typeValue} value={typeValue}>
-                    {VEHICLE_TYPE_LABELS[typeValue]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
-        ),
-        onRefresh: handleRefresh,
-        isRefreshing: isFetching,
-        activeFilterChips: filters.activeChips,
-        onClearFilters: filters.clearAll,
-        hasFilters: filters.hasFilters,
-        viewMode: filters.viewModeProps,
-      }}
-      isLoading={isLoading}
-      items={vehicles}
-      pagination={
-        data?.pagination
-          ? {
-              page: filters.page,
-              totalPages: data.pagination.totalPages,
-              total: data.pagination.total,
-              limit: data.pagination.limit,
-            }
-          : undefined
-      }
-      onPageChange={filters.setPage}
-      entityLabelPlural="vehículos"
-      renderTable={() => (
-        <VehicleTable
-          vehicles={vehicles}
-          isLoading={isLoading}
-          onView={handleView}
-          onEdit={canEdit ? handleEdit : undefined}
-          onDelete={canDelete ? handleDelete : undefined}
-        />
-      )}
-      renderCards={() =>
-        vehicles.map((vehicle) => (
-          <VehicleCard
-            key={vehicle.id}
-            vehicle={vehicle}
+              <Select
+                value={typeFilter || "all"}
+                onValueChange={(value) => filters.setFilter("type", value)}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  {Object.values(VehicleType).map((typeValue) => (
+                    <SelectItem key={typeValue} value={typeValue}>
+                      {VEHICLE_TYPE_LABELS[typeValue]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ),
+          onRefresh: handleRefresh,
+          isRefreshing: isFetching,
+          activeFilterChips: filters.activeChips,
+          onClearFilters: filters.clearAll,
+          hasFilters: filters.hasFilters,
+          viewMode: filters.viewModeProps,
+        }}
+        isLoading={isLoading}
+        items={vehicles}
+        pagination={
+          data?.pagination
+            ? {
+                page: filters.page,
+                totalPages: data.pagination.totalPages,
+                total: data.pagination.total,
+                limit: data.pagination.limit,
+              }
+            : undefined
+        }
+        onPageChange={filters.setPage}
+        entityLabelPlural="vehículos"
+        renderTable={() => (
+          <VehicleTable
+            vehicles={vehicles}
+            isLoading={isLoading}
             onView={handleView}
             onEdit={canEdit ? handleEdit : undefined}
             onDelete={canDelete ? handleDelete : undefined}
           />
-        ))
-      }
-      renderCardSkeleton={() => <VehicleCardSkeleton />}
-      emptyState={{
-        icon: <Search className="h-10 w-10 text-muted-foreground" />,
-        title: "No se encontraron vehículos",
-        description: filters.hasFilters
-          ? "Intenta ajustar los filtros de búsqueda"
-          : "Comienza agregando tu primer vehículo",
-        cta: canCreate
-          ? {
-              label: "Nuevo Vehículo",
-              icon: <Plus className="h-4 w-4" />,
-              onClick: handleCreate,
-            }
-          : undefined,
-        secondaryCta: filters.hasFilters
-          ? {
-              label: "Limpiar filtros",
-              onClick: filters.clearAll,
-              variant: "outline",
-            }
-          : undefined,
-      }}
-    />
+        )}
+        renderCards={() =>
+          vehicles.map((vehicle) => (
+            <VehicleCard
+              key={vehicle.id}
+              vehicle={vehicle}
+              onView={handleView}
+              onEdit={canEdit ? handleEdit : undefined}
+              onDelete={canDelete ? handleDelete : undefined}
+            />
+          ))
+        }
+        renderCardSkeleton={() => <VehicleCardSkeleton />}
+        emptyState={{
+          icon: <Search className="h-10 w-10 text-muted-foreground" />,
+          title: "No se encontraron vehículos",
+          description: filters.hasFilters
+            ? "Intenta ajustar los filtros de búsqueda"
+            : "Comienza agregando tu primer vehículo",
+          cta: canCreate
+            ? {
+                label: "Nuevo Vehículo",
+                icon: <Plus className="h-4 w-4" />,
+                onClick: handleCreate,
+              }
+            : undefined,
+          secondaryCta: filters.hasFilters
+            ? {
+                label: "Limpiar filtros",
+                onClick: filters.clearAll,
+                variant: "outline",
+              }
+            : undefined,
+        }}
+      />
+
+      <AlertDialog
+        open={vehicleToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setVehicleToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este vehículo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El vehículo{" "}
+              <strong>{vehicleToDelete?.unitNumber}</strong>
+              {vehicleToDelete?.licensePlate
+                ? ` (${vehicleToDelete.licensePlate})`
+                : ""}{" "}
+              será eliminado del sistema y dejará de estar disponible para
+              asignaciones a viajes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

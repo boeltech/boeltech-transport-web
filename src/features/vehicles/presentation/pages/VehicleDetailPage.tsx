@@ -654,7 +654,11 @@ export function VehicleDetailPage() {
       metadata={{
         createdAt: vehicle.createdAt,
         updatedAt: vehicle.updatedAt,
-        createdBy: vehicle.createdBy ?? undefined,
+        createdBy:
+          vehicle.createdByName?.trim() ||
+          vehicle.createdBy?.trim() ||
+          undefined,
+        updatedBy: vehicle.updatedByName?.trim() || undefined,
       }}
     />
   );

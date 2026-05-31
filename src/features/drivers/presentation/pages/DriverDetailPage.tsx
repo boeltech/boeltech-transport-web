@@ -438,7 +438,9 @@ export function DriverDetailPage() {
       metadata={{
         createdAt: driver.createdAt,
         updatedAt: driver.updatedAt,
-        createdBy: driver.createdBy ?? undefined,
+        createdBy:
+          driver.createdByName?.trim() || driver.createdBy?.trim() || undefined,
+        updatedBy: driver.updatedByName?.trim() || undefined,
       }}
       tabs={{
         defaultValue: "info",

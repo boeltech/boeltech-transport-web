@@ -50,6 +50,10 @@ export interface Branch {
   readonly updatedAt: Date;
   readonly createdBy: string | null;
   readonly updatedBy: string | null;
+  /** Nombre completo del usuario creador (LEFT JOIN users). */
+  readonly createdByName: string | null;
+  /** Nombre completo del usuario que realizó la última actualización. */
+  readonly updatedByName: string | null;
 }
 
 export interface BranchFilters {

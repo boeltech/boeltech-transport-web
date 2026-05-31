@@ -90,7 +90,13 @@ export function DriverCreatePage() {
 
   const renderStep = useCallback(
     (currentStep: number) => (
-      <DriverForm
+      <>
+        {currentStep < 3 ? (
+          <p className="mb-4 max-w-md text-sm text-muted-foreground">
+            Completa los campos obligatorios del paso para continuar.
+          </p>
+        ) : null}
+        <DriverForm
         ref={formRef}
         mode="create"
         onSubmit={handleSubmit}
@@ -99,6 +105,7 @@ export function DriverCreatePage() {
         wizardMode
         wizardStepIndex={currentStep}
       />
+      </>
     ),
     [handleCancel, handleSubmit, isSubmitting],
   );

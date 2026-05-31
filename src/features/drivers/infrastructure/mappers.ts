@@ -136,6 +136,8 @@ export interface ApiDriverResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
 }
 
 /**
@@ -272,6 +274,8 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
     updatedAt: new Date(raw.updatedAt),
     createdBy: raw.createdBy,
     updatedBy: raw.updatedBy,
+    createdByName: raw.createdByName ?? null,
+    updatedByName: raw.updatedByName ?? null,
   };
 }
 

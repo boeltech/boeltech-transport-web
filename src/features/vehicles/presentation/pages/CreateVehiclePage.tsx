@@ -6,13 +6,11 @@
  * Ubicación: src/features/vehicles/presentation/pages/CreateVehiclePage.tsx
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast } from "@shared/hooks";
-import { Switch } from "@shared/ui/switch";
-import { Label } from "@shared/ui/label";
 import {
   VehicleForm,
   type VehicleFormRef,
@@ -52,7 +50,6 @@ export function CreateVehiclePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const formRef = useRef<VehicleFormRef>(null);
-  const [showSatCodes, setShowSatCodes] = useState(false);
 
   const createVehicle = useCreateVehicle({
     onSuccess: (data) => {
@@ -97,22 +94,9 @@ export function CreateVehiclePage() {
     (currentStep: number) => (
       <div className="space-y-3">
         {currentStep < WIZARD_STEPS.length - 1 ? (
-          <div className="flex items-center justify-end rounded-lg border bg-muted/30 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="vehicle-show-sat-codes"
-                checked={showSatCodes}
-                onCheckedChange={setShowSatCodes}
-                aria-label="Mostrar claves SAT en etiquetas del formulario"
-              />
-              <Label
-                htmlFor="vehicle-show-sat-codes"
-                className="cursor-pointer text-xs text-muted-foreground"
-              >
-                Mostrar claves SAT en etiquetas
-              </Label>
-            </div>
-          </div>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Completa los campos obligatorios del paso para continuar.
+          </p>
         ) : null}
         <VehicleForm
           ref={formRef}
@@ -120,11 +104,10 @@ export function CreateVehiclePage() {
           isSubmitting={isSubmitting}
           wizardMode
           wizardStepIndex={currentStep}
-          showSatCodes={showSatCodes}
         />
       </div>
     ),
-    [handleSubmit, isSubmitting, showSatCodes],
+    [handleSubmit, isSubmitting],
   );
 
   return (

@@ -14,13 +14,18 @@
  * - Notas
  */
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
 import {
   Select,
@@ -46,6 +51,12 @@ import {
 } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
+import {
+  FormFieldShell,
+  FormValidationSummary,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
 import {
@@ -82,41 +93,6 @@ interface DriverFormProps {
   /** Wizard de alta (solo creación) */
   wizardMode?: boolean;
   wizardStepIndex?: number;
-}
-
-// ============================================================================
-// Form Field Component
-// ============================================================================
-
-interface FormFieldProps {
-  label: string;
-  htmlFor: string;
-  required?: boolean;
-  error?: string;
-  description?: string;
-  children: React.ReactNode;
-}
-
-function FormField({
-  label,
-  htmlFor,
-  required,
-  error,
-  description,
-  children,
-}: FormFieldProps) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={htmlFor}>
-        {label} {required && <span className="text-destructive">*</span>}
-      </Label>
-      {children}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {description && !error && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
-    </div>
-  );
 }
 
 function reviewLine(label: string, value: string) {
@@ -226,6 +202,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
   ) {
   const wizardActive = Boolean(wizardMode && mode === "create");
   const ws = wizardStepIndex;
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const {
     register,
@@ -234,12 +211,16 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     control,
     getValues,
     trigger,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, isValid },
     reset,
   } = useForm<DriverFormData>({
     resolver: zodResolver(driverSchema),
     defaultValues: defaultDriverFormValues,
+    mode: "onChange",
   });
+
+  const validationMessages = collectFieldErrorMessages(errors);
+  const shouldShowValidationSummary = showValidationSummary && !isValid;
 
   const handleFormSubmit = useCallback(
     (data: DriverFormData) => {
@@ -254,7 +235,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       triggerStepValidation: async (stepIndex: number) => {
         const fields = DRIVER_CREATE_WIZARD_STEP_FIELDS[stepIndex];
         if (!fields?.length) return true;
-        return trigger(fields);
+        const ok = await trigger(fields, { shouldFocus: true });
+        if (!ok) setShowValidationSummary(true);
+        else setShowValidationSummary(false);
+        return ok;
       },
       requestSubmit: () => {
         void handleSubmit(handleFormSubmit)();
@@ -335,6 +319,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       <div
         className={cn("space-y-6", wizardActive && ws !== 0 && "hidden")}
         data-wizard-panel="0"
+        aria-hidden={wizardActive && ws !== 0}
       >
       {/* ================================================================== */}
       {/* INFO BANNER - Solo en modo crear                                   */}
@@ -378,6 +363,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       <div
         className={cn("space-y-6", wizardActive && ws !== 1 && "hidden")}
         data-wizard-panel="1"
+        aria-hidden={wizardActive && ws !== 1}
       >
       {/* ================================================================== */}
       {/* SECCIÓN: LICENCIA                                                  */}
@@ -390,26 +376,30 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Número de licencia */}
-            <FormField
+            <FormFieldShell
               label="Número de licencia"
-              htmlFor="licenseNumber"
+              fieldId="licenseNumber"
               required
-              error={errors.licenseNumber?.message}
+              errorMessage={errors.licenseNumber?.message}
             >
               <Input
                 id="licenseNumber"
                 {...register("licenseNumber")}
                 placeholder="Ej: ABC123456"
-                className={errors.licenseNumber ? "border-destructive" : ""}
+                error={Boolean(errors.licenseNumber)}
+                {...getFieldErrorAriaProps(
+                  "licenseNumber",
+                  errors.licenseNumber?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Tipo de licencia */}
-            <FormField
+            <FormFieldShell
               label="Tipo de licencia"
-              htmlFor="licenseType"
+              fieldId="licenseType"
               required
-              error={errors.licenseType?.message}
+              errorMessage={errors.licenseType?.message}
             >
               <Select
                 value={watchedLicenseType ?? ""}
@@ -423,7 +413,12 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                 }}
               >
                 <SelectTrigger
-                  className={errors.licenseType ? "border-destructive" : ""}
+                  id="licenseType"
+                  error={Boolean(errors.licenseType)}
+                  {...getFieldErrorAriaProps(
+                    "licenseType",
+                    errors.licenseType?.message,
+                  )}
                 >
                   <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
@@ -435,28 +430,32 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   ))}
                 </SelectContent>
               </Select>
-            </FormField>
+            </FormFieldShell>
 
             {/* Fecha de vencimiento */}
-            <FormField
+            <FormFieldShell
               label="Fecha de vencimiento"
-              htmlFor="licenseExpiry"
+              fieldId="licenseExpiry"
               required
-              error={errors.licenseExpiry?.message}
+              errorMessage={errors.licenseExpiry?.message}
             >
               <Input
                 id="licenseExpiry"
                 type="date"
                 {...register("licenseExpiry")}
-                className={errors.licenseExpiry ? "border-destructive" : ""}
+                error={Boolean(errors.licenseExpiry)}
+                {...getFieldErrorAriaProps(
+                  "licenseExpiry",
+                  errors.licenseExpiry?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Estado emisor */}
-            <FormField
+            <FormFieldShell
               label="Estado emisor"
-              htmlFor="licenseState"
-              error={errors.licenseState?.message}
+              fieldId="licenseState"
+              errorMessage={errors.licenseState?.message}
             >
               <Select
                 value={watchedLicenseState ?? ""}
@@ -466,7 +465,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="licenseState"
+                  error={Boolean(errors.licenseState)}
+                  {...getFieldErrorAriaProps(
+                    "licenseState",
+                    errors.licenseState?.message,
+                  )}
+                >
                   <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -477,7 +483,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   ))}
                 </SelectContent>
               </Select>
-            </FormField>
+            </FormFieldShell>
           </div>
       </FormSectionCard>
 
@@ -492,43 +498,58 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       >
           <div className="grid gap-4 md:grid-cols-3">
             {/* Número de certificado */}
-            <FormField
+            <FormFieldShell
               label="Número de certificado"
-              htmlFor="medicalCertificateNumber"
-              error={errors.medicalCertificateNumber?.message}
+              fieldId="medicalCertificateNumber"
+              errorMessage={errors.medicalCertificateNumber?.message}
             >
               <Input
                 id="medicalCertificateNumber"
                 {...register("medicalCertificateNumber")}
                 placeholder="Ej: CM-2024-001234"
+                error={Boolean(errors.medicalCertificateNumber)}
+                {...getFieldErrorAriaProps(
+                  "medicalCertificateNumber",
+                  errors.medicalCertificateNumber?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Fecha de vencimiento */}
-            <FormField
+            <FormFieldShell
               label="Fecha de vencimiento"
-              htmlFor="medicalCertificateExpiry"
-              error={errors.medicalCertificateExpiry?.message}
+              fieldId="medicalCertificateExpiry"
+              errorMessage={errors.medicalCertificateExpiry?.message}
             >
               <Input
                 id="medicalCertificateExpiry"
                 type="date"
                 {...register("medicalCertificateExpiry")}
+                error={Boolean(errors.medicalCertificateExpiry)}
+                {...getFieldErrorAriaProps(
+                  "medicalCertificateExpiry",
+                  errors.medicalCertificateExpiry?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Institución emisora */}
-            <FormField
+            <FormFieldShell
               label="Institución emisora"
-              htmlFor="medicalCertificateIssuer"
-              error={errors.medicalCertificateIssuer?.message}
+              fieldId="medicalCertificateIssuer"
+              errorMessage={errors.medicalCertificateIssuer?.message}
             >
               <Input
                 id="medicalCertificateIssuer"
                 {...register("medicalCertificateIssuer")}
                 placeholder="Ej: IMSS, Hospital General, etc."
+                error={Boolean(errors.medicalCertificateIssuer)}
+                {...getFieldErrorAriaProps(
+                  "medicalCertificateIssuer",
+                  errors.medicalCertificateIssuer?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
           </div>
       </FormSectionCard>
       </div>
@@ -536,6 +557,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       <div
         className={cn("space-y-6", wizardActive && ws !== 2 && "hidden")}
         data-wizard-panel="2"
+        aria-hidden={wizardActive && ws !== 2}
       >
       {/* ================================================================== */}
       {/* SECCIÓN: EXAMEN PSICOMÉTRICO                                       */}
@@ -548,23 +570,28 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Fecha del examen */}
-            <FormField
+            <FormFieldShell
               label="Fecha del examen"
-              htmlFor="psychometricTestDate"
-              error={errors.psychometricTestDate?.message}
+              fieldId="psychometricTestDate"
+              errorMessage={errors.psychometricTestDate?.message}
             >
               <Input
                 id="psychometricTestDate"
                 type="date"
                 {...register("psychometricTestDate")}
+                error={Boolean(errors.psychometricTestDate)}
+                {...getFieldErrorAriaProps(
+                  "psychometricTestDate",
+                  errors.psychometricTestDate?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Resultado */}
-            <FormField
+            <FormFieldShell
               label="Resultado"
-              htmlFor="psychometricTestResult"
-              error={errors.psychometricTestResult?.message}
+              fieldId="psychometricTestResult"
+              errorMessage={errors.psychometricTestResult?.message}
             >
               <Select
                 value={watchedPsychometricResult ?? ""}
@@ -574,7 +601,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="psychometricTestResult"
+                  error={Boolean(errors.psychometricTestResult)}
+                  {...getFieldErrorAriaProps(
+                    "psychometricTestResult",
+                    errors.psychometricTestResult?.message,
+                  )}
+                >
                   <SelectValue placeholder="Seleccionar resultado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -585,7 +619,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   ))}
                 </SelectContent>
               </Select>
-            </FormField>
+            </FormFieldShell>
           </div>
       </FormSectionCard>
 
@@ -600,23 +634,28 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       >
           <div className="grid gap-4 md:grid-cols-2">
             {/* Fecha del examen */}
-            <FormField
+            <FormFieldShell
               label="Fecha del último examen"
-              htmlFor="lastDrugTestDate"
-              error={errors.lastDrugTestDate?.message}
+              fieldId="lastDrugTestDate"
+              errorMessage={errors.lastDrugTestDate?.message}
             >
               <Input
                 id="lastDrugTestDate"
                 type="date"
                 {...register("lastDrugTestDate")}
+                error={Boolean(errors.lastDrugTestDate)}
+                {...getFieldErrorAriaProps(
+                  "lastDrugTestDate",
+                  errors.lastDrugTestDate?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
 
             {/* Resultado */}
-            <FormField
+            <FormFieldShell
               label="Resultado"
-              htmlFor="drugTestResult"
-              error={errors.drugTestResult?.message}
+              fieldId="drugTestResult"
+              errorMessage={errors.drugTestResult?.message}
             >
               <Select
                 value={watchedDrugTestResult ?? ""}
@@ -626,7 +665,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="drugTestResult"
+                  error={Boolean(errors.drugTestResult)}
+                  {...getFieldErrorAriaProps(
+                    "drugTestResult",
+                    errors.drugTestResult?.message,
+                  )}
+                >
                   <SelectValue placeholder="Seleccionar resultado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -637,7 +683,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   ))}
                 </SelectContent>
               </Select>
-            </FormField>
+            </FormFieldShell>
           </div>
       </FormSectionCard>
 
@@ -650,18 +696,23 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         description="Dispositivo de rastreo asignado al conductor"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
+            <FormFieldShell
               label="ID del dispositivo"
-              htmlFor="assignedDeviceId"
-              error={errors.assignedDeviceId?.message}
+              fieldId="assignedDeviceId"
+              errorMessage={errors.assignedDeviceId?.message}
               description="Identificador único del dispositivo GPS asignado"
             >
               <Input
                 id="assignedDeviceId"
                 {...register("assignedDeviceId")}
                 placeholder="Ej: GPS-001, TLM-A1234"
+                error={Boolean(errors.assignedDeviceId)}
+                {...getFieldErrorAriaProps(
+                  "assignedDeviceId",
+                  errors.assignedDeviceId?.message,
+                )}
               />
-            </FormField>
+            </FormFieldShell>
           </div>
       </FormSectionCard>
 
@@ -672,10 +723,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         title="Notas Adicionales"
         icon={<FileText className="h-4 w-4" />}
       >
-          <FormField
+          <FormFieldShell
             label="Notas"
-            htmlFor="notes"
-            error={errors.notes?.message}
+            fieldId="notes"
+            errorMessage={errors.notes?.message}
             description="Información adicional sobre el conductor (restricciones, observaciones, etc.)"
           >
             <Textarea
@@ -683,17 +734,31 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               {...register("notes")}
               placeholder="Observaciones, restricciones, certificaciones adicionales..."
               rows={4}
+              error={Boolean(errors.notes)}
+              {...getFieldErrorAriaProps("notes", errors.notes?.message)}
             />
-          </FormField>
+          </FormFieldShell>
       </FormSectionCard>
       </div>
 
       <div
         className={cn(!wizardActive || ws !== 3 ? "hidden" : undefined)}
         data-wizard-panel="3"
+        aria-hidden={!wizardActive || ws !== 3}
       >
         <DriverReviewSummary getValues={getValues} />
       </div>
+
+      {shouldShowValidationSummary ? (
+        <FormValidationSummary
+          messages={validationMessages}
+          title={
+            wizardActive
+              ? "Revisa la información del conductor"
+              : "Revisa los siguientes campos"
+          }
+        />
+      ) : null}
 
       {/* ================================================================== */}
       {/* ACCIONES                                                           */}

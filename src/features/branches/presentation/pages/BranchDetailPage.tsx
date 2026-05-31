@@ -100,7 +100,11 @@ export function BranchDetailPage() {
           ? {
               createdAt: branch.createdAt,
               updatedAt: branch.updatedAt,
-              createdBy: branch.createdBy ?? undefined,
+              createdBy:
+                branch.createdByName?.trim() ||
+                branch.createdBy?.trim() ||
+                undefined,
+              updatedBy: branch.updatedByName?.trim() || undefined,
             }
           : undefined
       }

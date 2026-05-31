@@ -92,6 +92,8 @@ export interface ApiVehicleResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   remolques?: ApiVehicleRemolqueResponse[];
 }
 
@@ -218,6 +220,8 @@ export function mapVehicleDetail(
       updatedAt: new Date(raw.data.updated_at),
       createdBy: raw.data.created_by,
       updatedBy: raw.data.updated_by,
+      createdByName: raw.data.created_by_name ?? null,
+      updatedByName: raw.data.updated_by_name ?? null,
     },
     message: raw.message,
   };

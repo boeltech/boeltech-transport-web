@@ -4,12 +4,22 @@
  *
  * Schemas Zod para validación de formularios de vehículos.
  *
- * ACTUALIZADO: Incluye campos de Carta Porte 3.1
+ * Carta Porte 3.1 (SoT `@boeltech/cfdi-domain/validateVehicleForCartaPorteStamp`):
+ * - Alta: los campos del nodo `Autotransporte` (PermSCT, NumPermisoSCT,
+ *   ConfigVehicular, PesoBrutoVehicular, AseguraRespCivil, PolizaRespCivil)
+ *   son **requeridos** para garantizar que cualquier vehículo nuevo sea
+ *   timbrable. PlacaVM/AnioModeloVM ya son requeridos como datos básicos.
+ * - Edición: los CP3.1 quedan opcionales para no bloquear ediciones puntuales
+ *   sobre vehículos legacy sin estos datos (el pre-stamp API bloquea timbrado).
+ * - Remolques: si `ConfigVehicular` exige remolques (catálogos `S\d`/`R\d`,
+ *   regla del paquete `configVehicularLikelyRequiresRemolques`), se exige al
+ *   menos uno.
  *
  * Ubicación: src/features/vehicles/presentation/validation.ts
  */
 
 import { z } from "zod";
+import { configVehicularLikelyRequiresRemolques } from "@boeltech/cfdi-domain";
 
 // ============================================
 // Enums (mirror backend)
@@ -110,6 +120,7 @@ function preprocessPesoBrutoVehicular(val: unknown): unknown {
   return undefined;
 }
 
+/** Peso bruto vehicular — versión opcional (modo edición/legacy). */
 const vehicleFormPesoBrutoSchema = z.preprocess(
   preprocessPesoBrutoVehicular,
   z
@@ -117,6 +128,15 @@ const vehicleFormPesoBrutoSchema = z.preprocess(
     .positive("Debe ser mayor a 0")
     .max(9999.999, "Máximo 9999.999 toneladas")
     .optional(),
+);
+
+/** Peso bruto vehicular — versión requerida (alta CP3.1). */
+const vehicleFormPesoBrutoRequiredSchema = z.preprocess(
+  preprocessPesoBrutoVehicular,
+  z
+    .number({ error: "El peso bruto vehicular es requerido para Carta Porte" })
+    .positive("Debe ser mayor a 0")
+    .max(9999.999, "Máximo 9999.999 toneladas"),
 );
 
 const optionalPositiveNumber = z.preprocess(
@@ -136,10 +156,17 @@ const optionalPositiveNumber = z.preprocess(
 );
 
 // ============================================
-// Create Vehicle Schema
+// Vehicle Form Schemas
 // ============================================
 
-export const createVehicleSchema = z.object({
+/**
+ * Campos comunes alta/edición (identidad, características, capacidades,
+ * documentación, seguros opcionales y remolques).
+ * Los campos CP3.1 críticos (PermSCT, NumPermisoSCT, ConfigVehicular,
+ * PesoBruto, AseguraRespCivil, PolizaRespCivil) se definen por separado
+ * para tener variantes requeridas (alta) y opcionales (edición).
+ */
+const vehicleFormCommonShape = {
   // ── Identification ────────────────────────────────────────────────────────
   unitNumber: z
     .string()
@@ -179,33 +206,11 @@ export const createVehicleSchema = z.object({
   // Mileage (opcional en UI; POST normaliza falta como 0)
   currentMileage: vehicleFormCurrentMileageSchema,
 
-  // ── Documentation ─────────────────────────────────────────────────────────
-  insurancePolicy: z.string().max(50).optional().or(z.literal("")),
+  // ── Vigencias (operativas, no XSD) ────────────────────────────────────────
   insuranceExpiry: z.string().optional().or(z.literal("")),
-  sctPermitNumber: z.string().max(50).optional().or(z.literal("")),
   sctPermitExpiry: z.string().optional().or(z.literal("")),
 
-  // ── Carta Porte 3.1 — Autotransporte ─────────────────────────────────────
-  // PermSCT — en "Documentación y Seguros" (satTipoPermisoCode + sctPermitNumber)
-  satTipoPermisoCode: z
-    .string()
-    .max(10, "Máximo 10 caracteres")
-    .optional()
-    .or(z.literal("")),
-  // IdentificacionVehicular
-  satConfigAutotransporteCode: z
-    .string()
-    .max(10, "Máximo 10 caracteres")
-    .optional()
-    .or(z.literal("")),
-  pesoBrutoVehicular: vehicleFormPesoBrutoSchema,
-  // Seguros — Responsabilidad Civil (requeridos para emitir Carta Porte)
-  insuranceCompany: z
-    .string()
-    .max(50, "Máximo 50 caracteres")
-    .optional()
-    .or(z.literal("")),
-  // Seguros — Medio Ambiente (opcionales)
+  // ── Seguros adicionales (opcionales para CP3.1) ───────────────────────────
   aseguraMedioAmbiente: z
     .string()
     .max(50, "Máximo 50 caracteres")
@@ -216,7 +221,6 @@ export const createVehicleSchema = z.object({
     .max(30, "Máximo 30 caracteres")
     .optional()
     .or(z.literal("")),
-  // Seguros — Carga (opcionales)
   aseguraCarga: z
     .string()
     .max(50, "Máximo 50 caracteres")
@@ -227,8 +231,129 @@ export const createVehicleSchema = z.object({
     .max(30, "Máximo 30 caracteres")
     .optional()
     .or(z.literal("")),
+
+  // Remolques (cardinalidad CP3.1: máx. 2)
   remolques: z.array(remolqueSchema).max(2, "Máximo 2 remolques").default([]),
-});
+} as const;
+
+/**
+ * Refinement compartido: si la `ConfigVehicular` SAT requiere remolques
+ * (patrones `S\d`/`R\d` según `configVehicularLikelyRequiresRemolques`),
+ * se exige al menos uno.
+ */
+function applyRemolquesConditional(
+  data: {
+    satConfigAutotransporteCode?: string | null;
+    remolques: Array<{ satSubTipoRemCode: string; licensePlate: string }>;
+  },
+  ctx: z.RefinementCtx,
+) {
+  const config = (data.satConfigAutotransporteCode ?? "").trim();
+  if (!config) return;
+  if (
+    configVehicularLikelyRequiresRemolques(config) &&
+    data.remolques.length === 0
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["remolques"],
+      message:
+        "La configuración vehicular SAT seleccionada requiere capturar al menos un remolque (SubTipoRem + Placa).",
+    });
+  }
+}
+
+// ============================================
+// Create Vehicle Schema — CP3.1 estricto
+// ============================================
+
+/**
+ * Schema de alta de vehículo. Los campos del nodo `Autotransporte` son
+ * requeridos para que cualquier vehículo nuevo sea timbrable en CP3.1.
+ */
+export const createVehicleSchema = z
+  .object({
+    ...vehicleFormCommonShape,
+
+    // ── Carta Porte 3.1 — Autotransporte (REQUERIDOS) ───────────────────────
+    // PermSCT — catálogo SAT c_TipoPermiso
+    satTipoPermisoCode: z
+      .string()
+      .min(1, "Selecciona el tipo de permiso SCT (PermSCT)")
+      .max(10, "Máximo 10 caracteres"),
+    // NumPermisoSCT
+    sctPermitNumber: z
+      .string()
+      .min(1, "El número de permiso SCT es requerido para Carta Porte")
+      .max(50, "Máximo 50 caracteres"),
+    // ConfigVehicular — catálogo SAT c_ConfigAutotransporte
+    satConfigAutotransporteCode: z
+      .string()
+      .min(1, "Selecciona la configuración vehicular SAT (ConfigVehicular)")
+      .max(10, "Máximo 10 caracteres"),
+    // PesoBrutoVehicular (toneladas)
+    pesoBrutoVehicular: vehicleFormPesoBrutoRequiredSchema,
+    // AseguraRespCivil
+    insuranceCompany: z
+      .string()
+      .min(
+        1,
+        "La aseguradora de responsabilidad civil es requerida para Carta Porte",
+      )
+      .max(50, "Máximo 50 caracteres"),
+    // PolizaRespCivil
+    insurancePolicy: z
+      .string()
+      .min(
+        1,
+        "La póliza de responsabilidad civil es requerida para Carta Porte",
+      )
+      .max(50, "Máximo 50 caracteres"),
+  })
+  .superRefine(applyRemolquesConditional);
+
+// ============================================
+// Edit Vehicle Form Schema — CP3.1 laxo (legacy-safe)
+// ============================================
+
+/**
+ * Schema usado por el formulario en modo edición. Mantiene los CP3.1
+ * opcionales para no bloquear ediciones sobre vehículos legacy sin estos
+ * datos. El pre-stamp API (`validateVehicleForCartaPorteStamp`) sigue
+ * bloqueando el timbrado si faltan; aquí sólo se permite editar otros
+ * campos sin tener que completar todo el nodo Autotransporte.
+ */
+export const editVehicleFormSchema = z
+  .object({
+    ...vehicleFormCommonShape,
+    satTipoPermisoCode: z
+      .string()
+      .max(10, "Máximo 10 caracteres")
+      .optional()
+      .or(z.literal("")),
+    sctPermitNumber: z
+      .string()
+      .max(50, "Máximo 50 caracteres")
+      .optional()
+      .or(z.literal("")),
+    satConfigAutotransporteCode: z
+      .string()
+      .max(10, "Máximo 10 caracteres")
+      .optional()
+      .or(z.literal("")),
+    pesoBrutoVehicular: vehicleFormPesoBrutoSchema,
+    insuranceCompany: z
+      .string()
+      .max(50, "Máximo 50 caracteres")
+      .optional()
+      .or(z.literal("")),
+    insurancePolicy: z
+      .string()
+      .max(50, "Máximo 50 caracteres")
+      .optional()
+      .or(z.literal("")),
+  })
+  .superRefine(applyRemolquesConditional);
 
 // ============================================
 // Update Vehicle Schema
@@ -289,7 +414,15 @@ export const updateVehicleSchema = z.object({
 // Type Exports
 // ============================================
 
-export type CreateVehicleFormData = z.infer<typeof createVehicleSchema>;
+/**
+ * Tipo del formulario de vehículo (alta y edición).
+ *
+ * Se infiere del schema **laxo** (`editVehicleFormSchema`) para que el handler
+ * de submit y los `defaultValues` sean compatibles con ambos modos. En alta,
+ * `createVehicleSchema` los enforces como requeridos en runtime; en edición,
+ * mantiene flexibilidad para vehículos legacy.
+ */
+export type CreateVehicleFormData = z.infer<typeof editVehicleFormSchema>;
 export type UpdateVehicleFormData = z.infer<typeof updateVehicleSchema>;
 
 /** Campos por paso del wizard de alta (índices 0–2); el paso 3 es solo revisión. */

@@ -7,8 +7,15 @@
  * Ubicación: src/features/vehicles/presentation/components/VehicleForm.tsx
  */
 
-import { forwardRef, useImperativeHandle } from "react";
-import { useFieldArray, useForm, useFormContext, type Resolver } from "react-hook-form";
+import { forwardRef, useImperativeHandle, useState } from "react";
+import {
+  Controller,
+  FormProvider,
+  useFieldArray,
+  useForm,
+  useFormContext,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Save,
@@ -25,27 +32,15 @@ import {
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { FormValidationSummary } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
+import { getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
 
 import {
   createVehicleSchema,
+  editVehicleFormSchema,
   parsePesoBrutoVehicularFormInput,
   VEHICLE_CREATE_WIZARD_STEP_FIELDS,
   type CreateVehicleFormData,
@@ -64,6 +59,14 @@ import {
   SubTipoRemSelect,
 } from "@features/catalogs";
 import { cn } from "@shared/lib/utils/cn";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import {
+  VehicleGridCatalogSlot,
+  VehicleGridField,
+  VehicleGridInput,
+  VehicleGridNumberInput,
+  VehicleGridSelect,
+} from "./VehicleFormFields";
 
 // ============================================================================
 // TYPES
@@ -85,8 +88,6 @@ interface VehicleFormProps {
   wizardMode?: boolean;
   /** Índice de paso visible (0–3). El 3 es revisión. */
   wizardStepIndex?: number;
-  /** Muestra u oculta las claves SAT en las etiquetas del formulario. */
-  showSatCodes?: boolean;
 }
 
 // ============================================================================
@@ -241,16 +242,6 @@ const defaultValues: CreateVehicleFormData = {
   remolques: [],
 };
 
-/** Celdas de grid: sin `h-full` para que, con `items-start` en el grid, no se estire la fila al mostrar errores. */
-const FORM_GRID_ITEM_CLASS =
-  "flex min-h-0 flex-col gap-2 space-y-0";
-
-function FormGridGrowSpacer() {
-  return (
-    <div className="min-h-0 min-w-0 flex-1 shrink basis-0" aria-hidden />
-  );
-}
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -263,24 +254,41 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       isSubmitting = false,
       wizardMode = false,
       wizardStepIndex = 0,
-      showSatCodes = true,
     },
     ref,
   ) {
     const isEditMode = !!vehicle;
     const wizardActive = Boolean(wizardMode && !isEditMode);
     const ws = wizardStepIndex;
+    const [showValidationSummary, setShowValidationSummary] = useState(false);
+
+    // CP3.1: alta exige PermSCT/NumPermisoSCT/ConfigVehicular/PesoBruto/AseguraRespCivil/PolizaRespCivil
+    // (SoT paquete `validateVehicleForCartaPorteStamp`). En edición usamos el
+    // schema laxo para no bloquear ediciones puntuales sobre vehículos legacy.
+    const requireCartaPorteFields = !isEditMode;
+    const activeSchema = requireCartaPorteFields
+      ? createVehicleSchema
+      : editVehicleFormSchema;
 
     const form = useForm<CreateVehicleFormData, unknown, CreateVehicleFormData>({
-      resolver: zodResolver(createVehicleSchema) as Resolver<CreateVehicleFormData>,
+      resolver: zodResolver(activeSchema) as Resolver<CreateVehicleFormData>,
       defaultValues: vehicle ? formDataFromVehicle(vehicle) : defaultValues,
+      mode: "onChange",
     });
+    // Destructurar `formState` arriba garantiza que RHF subscribe `errors` / `isValid`
+    // (proxy lazy de v7): sin esto, accesos como `form.formState.isValid` en JSX
+    // pueden no re-renderizar tras un `trigger()` fallido.
+    const { control, handleSubmit: rhfHandleSubmit, trigger, formState } = form;
+    const validationMessages = collectFieldErrorMessages(formState.errors);
+    const shouldShowValidationSummary =
+      showValidationSummary && validationMessages.length > 0;
+
     const remolquesFieldArray = useFieldArray({
-      control: form.control,
+      control,
       name: "remolques",
     });
 
-    const handleSubmit = form.handleSubmit((data) => {
+    const handleSubmit = rhfHandleSubmit((data) => {
       onSubmit(data);
     });
 
@@ -290,17 +298,20 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         triggerStepValidation: async (stepIndex: number) => {
           const fields = VEHICLE_CREATE_WIZARD_STEP_FIELDS[stepIndex];
           if (!fields?.length) return true;
-          return form.trigger(fields);
+          const ok = await trigger(fields, { shouldFocus: true });
+          if (!ok) setShowValidationSummary(true);
+          else setShowValidationSummary(false);
+          return ok;
         },
         requestSubmit: () => {
-          void form.handleSubmit(onSubmit)();
+          void rhfHandleSubmit(onSubmit)();
         },
       }),
-      [form, onSubmit],
+      [trigger, rhfHandleSubmit, onSubmit],
     );
 
     return (
-      <Form {...form}>
+      <FormProvider {...form}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div
             className={cn(
@@ -308,6 +319,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               wizardActive && ws !== 0 && "hidden",
             )}
             data-wizard-panel="0"
+            aria-hidden={wizardActive && ws !== 0}
           >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* IDENTIFICACIÓN */}
@@ -318,59 +330,26 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           description="Datos básicos de identificación del vehículo"
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
-            {/* Número de Unidad */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="unitNumber"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Número de Unidad *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      placeholder="Ej: U-001"
-                      {...field}
-                      disabled={isEditMode}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Número de Unidad"
+              required
+              placeholder="Ej: U-001"
+              disabled={isEditMode}
             />
-
-            {/* Placa */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="licensePlate"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Placa *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input placeholder="Ej: ABC-123-A" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Placa"
+              required
+              placeholder="Ej: ABC-123-A"
             />
-
-            {/* VIN */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="vin"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>VIN / Serie</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      placeholder="Número de serie del vehículo"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="VIN / Serie"
+              placeholder="Número de serie del vehículo"
             />
         </FormSectionCard>
 
@@ -383,139 +362,53 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           description="Especificaciones del vehículo"
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
-            {/* Marca */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="brand"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Marca *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input placeholder="Ej: Kenworth" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Marca"
+              required
+              placeholder="Ej: Kenworth"
             />
-
-            {/* Modelo */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="model"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Modelo *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input placeholder="Ej: T680" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Modelo"
+              required
+              placeholder="Ej: T680"
             />
-
-            {/* Año */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="year"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Año *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1900}
-                      max={new Date().getFullYear() + 1}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Año"
+              required
+              min={1900}
+              max={new Date().getFullYear() + 1}
             />
-
-            {/* Tipo */}
-            <FormField
-              control={form.control}
+            <VehicleGridSelect
+              control={control}
               name="type"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Tipo *</FormLabel>
-                  <FormGridGrowSpacer />
-                  <Select
-                    onValueChange={(value) => {
-                      if (value) field.onChange(value);
-                    }}
-                    value={field.value ?? undefined}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {(Object.values(VehicleType) as VehicleTypeValue[]).map(
-                        (value) => (
-                          <SelectItem key={value} value={value}>
-                            {VEHICLE_TYPE_LABELS[value]}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+              label="Tipo"
+              required
+              placeholder="Seleccionar tipo"
+              options={(Object.values(VehicleType) as VehicleTypeValue[]).map(
+                (value) => ({
+                  value,
+                  label: VEHICLE_TYPE_LABELS[value],
+                }),
               )}
             />
-
-            {/* Color */}
-            <FormField
-              control={form.control}
+            <VehicleGridInput
+              control={control}
               name="color"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Color</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input placeholder="Ej: Blanco" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Color"
+              placeholder="Ej: Blanco"
             />
-
-            {/* Kilometraje */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="currentMileage"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Kilometraje actual</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="Opcional — 0 si nuevo"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value !== "" ? Number(e.target.value) : undefined,
-                        )
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Kilometraje actual"
+              min={0}
+              placeholder="Opcional — 0 si nuevo"
             />
         </FormSectionCard>
           </div>
@@ -526,6 +419,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               wizardActive && ws !== 1 && "hidden",
             )}
             data-wizard-panel="1"
+            aria-hidden={wizardActive && ws !== 1}
           >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CAPACIDADES */}
@@ -536,118 +430,45 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           description="Capacidad de carga y consumo de combustible"
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
-            {/* Capacidad de Carga */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="loadCapacity"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Carga (ton)</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      placeholder="Ej: 28.5"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Mantener string vacío o número - Zod lo transformará
-                        field.onChange(val === "" ? null : parseFloat(val));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Carga (ton)"
+              step="0.01"
+              min={0}
+              placeholder="Ej: 28.5"
+              emptyAs="null"
+              parse={(val) => parseFloat(val)}
             />
-
-            {/* Capacidad de Volumen */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="volumeCapacity"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Volumen (m3)</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      placeholder="Ej: 120"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Mantener string vacío o número - Zod lo transformará
-                        field.onChange(val === "" ? null : parseFloat(val));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Volumen (m3)"
+              step="0.01"
+              min={0}
+              placeholder="Ej: 120"
+              emptyAs="null"
+              parse={(val) => parseFloat(val)}
             />
-
-            {/* Capacidad del Tanque */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="fuelTankCapacity"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>Tanque (L)</FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      placeholder="Ej: 750"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Mantener string vacío o número - Zod lo transformará
-                        field.onChange(val === "" ? null : parseFloat(val));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Tanque (L)"
+              step="0.01"
+              min={0}
+              placeholder="Ej: 750"
+              emptyAs="null"
+              parse={(val) => parseFloat(val)}
             />
-
-            {/* Rendimiento Esperado */}
-            <FormField
-              control={form.control}
+            <VehicleGridNumberInput
+              control={control}
               name="expectedFuelEfficiency"
-              render={({ field }) => (
-                <FormItem className={FORM_GRID_ITEM_CLASS}>
-                  <FormLabel>
-                    Rendimiento (km/L)
-                  </FormLabel>
-                  <FormGridGrowSpacer />
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      placeholder="Ej: 2.8"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Mantener string vacío o número - Zod lo transformará
-                        field.onChange(val === "" ? null : parseFloat(val));
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Rendimiento (km/L)"
+              step="0.01"
+              min={0}
+              placeholder="Ej: 2.8"
+              emptyAs="null"
+              parse={(val) => parseFloat(val)}
             />
         </FormSectionCard>
 
@@ -665,69 +486,42 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               Responsabilidad civil
             </p>
             <div className="grid items-start gap-4 sm:grid-cols-3">
-              {/* AseguraRespCivil */}
-              <FormField
-                control={form.control}
+              <VehicleGridInput
+                control={control}
                 name="insuranceCompany"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Aseguradora Resp. Civil"
-                        satCode="AseguraRespCivil"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <Input placeholder="Ej: Qualitas, GNP, HDI" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={
+                  <SatFieldLabel
+                    label="Aseguradora Resp. Civil"
+                    satCode="AseguraRespCivil"
+                    showSatCode={false}
+                  />
+                }
+                placeholder="Ej: Qualitas, GNP, HDI"
+                required={requireCartaPorteFields}
               />
-
-              {/* PolizaRespCivil */}
-              <FormField
-                control={form.control}
+              <VehicleGridInput
+                control={control}
                 name="insurancePolicy"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Póliza Resp. Civil"
-                        satCode="PolizaRespCivil"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <Input placeholder="Número de póliza" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={
+                  <SatFieldLabel
+                    label="Póliza Resp. Civil"
+                    satCode="PolizaRespCivil"
+                    showSatCode={false}
+                  />
+                }
+                placeholder="Número de póliza"
+                required={requireCartaPorteFields}
               />
-
-              {/* Vencimiento — campo administrativo, no es atributo Carta Porte */}
-              <FormField
-                control={form.control}
+              <VehicleGridInput
+                control={control}
                 name="insuranceExpiry"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Vencimiento del Seguro"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={
+                  <SatFieldLabel
+                    label="Vencimiento del Seguro"
+                    showSatCode={false}
+                  />
+                }
+                type="date"
               />
             </div>
 
@@ -736,73 +530,52 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               Permiso SCT
             </p>
             <div className="grid items-start gap-4 sm:grid-cols-3">
-              {/* PermSCT */}
-              <FormField
-                control={form.control}
+              <VehicleGridCatalogSlot
+                control={control}
                 name="satTipoPermisoCode"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Tipo de Permiso SCT"
-                        satCode="PermSCT"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <TipoPermisoSelect
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                        placeholder="Seleccionar tipo de permiso"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                label={
+                  <SatFieldLabel
+                    label="Tipo de Permiso SCT"
+                    satCode="PermSCT"
+                    showSatCode={false}
+                  />
+                }
+                required={requireCartaPorteFields}
+              >
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <TipoPermisoSelect
+                    triggerId={resolvedId}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Seleccionar tipo de permiso"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
                 )}
-              />
-
-              {/* NumPermisoSCT */}
-              <FormField
-                control={form.control}
+              </VehicleGridCatalogSlot>
+              <VehicleGridInput
+                control={control}
                 name="sctPermitNumber"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Número de Permiso SCT"
-                        satCode="NumPermisoSCT"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <Input placeholder="Número de permiso" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={
+                  <SatFieldLabel
+                    label="Número de Permiso SCT"
+                    satCode="NumPermisoSCT"
+                    showSatCode={false}
+                  />
+                }
+                placeholder="Número de permiso"
+                required={requireCartaPorteFields}
               />
-
-              {/* Vencimiento — campo administrativo */}
-              <FormField
-                control={form.control}
+              <VehicleGridInput
+                control={control}
                 name="sctPermitExpiry"
-                render={({ field }) => (
-                  <FormItem className={FORM_GRID_ITEM_CLASS}>
-                    <FormLabel>
-                      <SatFieldLabel
-                        label="Vencimiento del Permiso"
-                        showSatCode={showSatCodes}
-                      />
-                    </FormLabel>
-                    <FormGridGrowSpacer />
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={
+                  <SatFieldLabel
+                    label="Vencimiento del Permiso"
+                    showSatCode={false}
+                  />
+                }
+                type="date"
               />
             </div>
         </FormSectionCard>
@@ -814,6 +587,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               wizardActive && ws !== 2 && "hidden",
             )}
             data-wizard-panel="2"
+            aria-hidden={wizardActive && ws !== 2}
           >
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CARTA PORTE 3.1 — AUTOTRANSPORTE */}
@@ -834,8 +608,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Se usa automáticamente al generar Carta Porte. Placa y año se
-                toman del vehículo.
+                {requireCartaPorteFields
+                  ? "Los campos marcados con * son obligatorios para que el vehículo sea timbrable en Carta Porte 3.1. Placa y año del vehículo se reutilizan en el XML."
+                  : "Se usa automáticamente al generar Carta Porte. Placa y año se toman del vehículo. Completa los campos vacíos para que el vehículo sea timbrable."}
               </AlertDescription>
             </Alert>
 
@@ -845,70 +620,45 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 Identificación Vehicular
               </p>
               <div className="grid items-start gap-4 sm:grid-cols-2">
-                {/* ConfigVehicular */}
-                <FormField
-                  control={form.control}
+                <VehicleGridCatalogSlot
+                  control={control}
                   name="satConfigAutotransporteCode"
-                  render={({ field }) => (
-                    <FormItem className={FORM_GRID_ITEM_CLASS}>
-                      <FormLabel>
-                        <SatFieldLabel
-                          label="Configuración Vehicular"
-                          satCode="ConfigVehicular"
-                          showSatCode={showSatCodes}
-                        />
-                      </FormLabel>
-                      <FormGridGrowSpacer />
-                      <FormControl>
-                        <ConfigAutotransporteSelect
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          placeholder="Seleccionar configuración"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  label={
+                    <SatFieldLabel
+                      label="Configuración Vehicular"
+                      satCode="ConfigVehicular"
+                      showSatCode={false}
+                    />
+                  }
+                  required={requireCartaPorteFields}
+                >
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <ConfigAutotransporteSelect
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Seleccionar configuración"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
-
-                {/* PesoBrutoVehicular */}
-                <FormField
-                  control={form.control}
+                </VehicleGridCatalogSlot>
+                <VehicleGridNumberInput
+                  control={control}
                   name="pesoBrutoVehicular"
-                  render={({ field }) => (
-                    <FormItem className={FORM_GRID_ITEM_CLASS}>
-                      <FormLabel>
-                        <SatFieldLabel
-                          label="Peso Bruto Vehicular (ton)"
-                          satCode="PesoBrutoVehicular"
-                          showSatCode={showSatCodes}
-                        />
-                      </FormLabel>
-                      <FormGridGrowSpacer />
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min={0}
-                          max={9999.999}
-                          placeholder="Ej: 35"
-                          value={field.value ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "") {
-                              field.onChange(undefined);
-                              return;
-                            }
-                            const n = parsePesoBrutoVehicularFormInput(val);
-                            field.onChange(
-                              n === undefined ? undefined : n,
-                            );
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label={
+                    <SatFieldLabel
+                      label="Peso Bruto Vehicular (ton)"
+                      satCode="PesoBrutoVehicular"
+                      showSatCode={false}
+                    />
+                  }
+                  step="0.001"
+                  min={0}
+                  max={9999.999}
+                  placeholder="Ej: 35"
+                  parse={(val) => parsePesoBrutoVehicularFormInput(val)}
+                  required={requireCartaPorteFields}
                 />
               </div>
             </div>
@@ -944,46 +694,48 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                       key={field.id}
                       className="grid items-start gap-4 rounded-md border p-3 sm:grid-cols-2"
                     >
-                      <FormField
-                        control={form.control}
+                      <VehicleGridCatalogSlot
+                        control={control}
                         name={`remolques.${index}.satSubTipoRemCode`}
-                        render={({ field }) => (
-                          <FormItem className={FORM_GRID_ITEM_CLASS}>
-                            <FormLabel>
-                              <SatFieldLabel
-                                label={`SubTipoRem #${index + 1}`}
-                                satCode="SubTipoRem"
-                                showSatCode={showSatCodes}
-                              />
-                            </FormLabel>
-                            <FormGridGrowSpacer />
-                            <FormControl>
-                              <SubTipoRemSelect
-                                value={field.value ?? ""}
-                                onValueChange={field.onChange}
-                                placeholder="Seleccionar subtipo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                        label={
+                          <SatFieldLabel
+                            label={`SubTipoRem #${index + 1}`}
+                            satCode="SubTipoRem"
+                            showSatCode={false}
+                          />
+                        }
+                      >
+                        {({ field, fieldState, resolvedId, errorMessage }) => (
+                          <SubTipoRemSelect
+                            triggerId={resolvedId}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Seleccionar subtipo"
+                            error={Boolean(fieldState.error)}
+                            {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                          />
                         )}
-                      />
-
-                      <FormField
-                        control={form.control}
+                      </VehicleGridCatalogSlot>
+                      <Controller
+                        control={control}
                         name={`remolques.${index}.licensePlate`}
-                        render={({ field }) => (
-                          <FormItem className={FORM_GRID_ITEM_CLASS}>
-                            <FormLabel>
-                              <SatFieldLabel
-                                label={`Placa remolque #${index + 1}`}
-                                satCode="Placa"
-                                showSatCode={showSatCodes}
-                              />
-                            </FormLabel>
-                            <FormGridGrowSpacer />
-                            <FormControl>
+                        render={({ field, fieldState }) => {
+                          const fieldId = `remolques.${index}.licensePlate`;
+                          const errorMessage = fieldState.error?.message;
+                          return (
+                            <VehicleGridField
+                              fieldId={fieldId}
+                              label={
+                                <SatFieldLabel
+                                  label={`Placa remolque #${index + 1}`}
+                                  satCode="Placa"
+                                  showSatCode={false}
+                                />
+                              }
+                              errorMessage={errorMessage}
+                            >
                               <Input
+                                id={fieldId}
                                 placeholder="Ej: REM1234"
                                 value={field.value ?? ""}
                                 onChange={(e) =>
@@ -993,11 +745,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                                       .replace(/[^A-Z0-9]/g, ""),
                                   )
                                 }
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
+                                error={Boolean(fieldState.error)}
+                                {...getFieldErrorAriaProps(fieldId, errorMessage)}
                               />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                            </VehicleGridField>
+                          );
+                        }}
                       />
 
                       <div className="sm:col-span-2 flex justify-end">
@@ -1028,51 +784,29 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
 
               {/* Medio Ambiente */}
               <div className="grid items-start gap-4 sm:grid-cols-2 mb-4">
-                {/* AseguraMedioAmbiente */}
-                <FormField
-                  control={form.control}
+                <VehicleGridInput
+                  control={control}
                   name="aseguraMedioAmbiente"
-                  render={({ field }) => (
-                    <FormItem className={FORM_GRID_ITEM_CLASS}>
-                      <FormLabel>
-                        <SatFieldLabel
-                          label="Aseguradora Medio Ambiente"
-                          satCode="AseguraMedioAmbiente"
-                          showSatCode={showSatCodes}
-                        />
-                      </FormLabel>
-                      <FormGridGrowSpacer />
-                      <FormControl>
-                        <Input
-                          placeholder="Aseguradora por defecto"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label={
+                    <SatFieldLabel
+                      label="Aseguradora Medio Ambiente"
+                      satCode="AseguraMedioAmbiente"
+                      showSatCode={false}
+                    />
+                  }
+                  placeholder="Aseguradora por defecto"
                 />
-
-                {/* PolizaMedioAmbiente */}
-                <FormField
-                  control={form.control}
+                <VehicleGridInput
+                  control={control}
                   name="polizaMedioAmbiente"
-                  render={({ field }) => (
-                    <FormItem className={FORM_GRID_ITEM_CLASS}>
-                      <FormLabel>
-                        <SatFieldLabel
-                          label="Póliza Medio Ambiente"
-                          satCode="PolizaMedioAmbiente"
-                          showSatCode={showSatCodes}
-                        />
-                      </FormLabel>
-                      <FormGridGrowSpacer />
-                      <FormControl>
-                        <Input placeholder="Póliza por defecto" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label={
+                    <SatFieldLabel
+                      label="Póliza Medio Ambiente"
+                      satCode="PolizaMedioAmbiente"
+                      showSatCode={false}
+                    />
+                  }
+                  placeholder="Póliza por defecto"
                 />
               </div>
 
@@ -1087,9 +821,21 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           <div
             className={cn(!wizardActive || ws !== 3 ? "hidden" : undefined)}
             data-wizard-panel="3"
+            aria-hidden={!wizardActive || ws !== 3}
           >
             <VehicleCreateWizardSummary />
           </div>
+
+          {shouldShowValidationSummary ? (
+            <FormValidationSummary
+              messages={validationMessages}
+              title={
+                wizardActive
+                  ? "Revisa la información del vehículo"
+                  : "Revisa los siguientes campos"
+              }
+            />
+          ) : null}
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* SUBMIT (solo edición o formulario completo sin wizard) */}
@@ -1112,7 +858,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           </div>
         )}
       </form>
-    </Form>
+      </FormProvider>
   );
   },
 );
