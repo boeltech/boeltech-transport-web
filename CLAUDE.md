@@ -45,7 +45,7 @@ En `src/widgets/layout/ui/AppLayout.tsx` (exterior → interior):
 
 ### Page shells
 
-Nuevas páginas en `presentation/pages` usan `@shared/ui/page-shells` (`ListPageShell`, `DetailPageShell`, `FormPageShell`, `WizardPageShell`, `SettingsPageShell`). No importar primitivas wizard sueltas desde páginas.
+Nuevas páginas en `presentation/pages` usan `@shared/ui/page-shells` (`ListPageShell`, `DetailPageShell`, `FormPageShell`, `WizardPageShell`, `SettingsPageShell`). No importar primitivas wizard sueltas desde páginas. Alta por pasos: `src/shared/ui/page-shells/README.md` · `D:\cowork\boeltech\erp-transport\docs\design-system\wizard-page-pattern.md`.
 
 Detalle + Sheet + master-detail: skill `.agents/skills/detail-sheet-master-detail/SKILL.md` · ref. `ClientDetailPage`.
 
@@ -53,11 +53,15 @@ Detalle + Sheet + master-detail: skill `.agents/skills/detail-sheet-master-detai
 
 Edición: cargar data antes de montar el form; **`defaultValues`** (no solo `values`); `key={id}` al cambiar entidad; opcionales → `undefined` + `RHFSelect` con sentinela `__none__`. Ref.: `EmployeeFormPage`, `RHFSelect`, `AddressInput`.
 
+### Validación UX en formularios
+
+Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles, `FormValidationSummary` tras `trigger` fallido (wizards sin toast al avanzar). Primitivos: `@shared/ui/form` · guías: `form-validation-pattern.md` y `wizard-page-pattern.md` en `docs/design-system/` · regla Cursor: `.cursor/rules/form-validation-ux.mdc`.
+
 ### Direcciones y SAT
 
-- Diseño: `D:\cowork\boeltech\erp-transport\design\address-reusable-2026-04-21.md`
+- Direcciones: `D:\cowork\boeltech\erp-transport\design\sdd\addresses\README.md` · ADR-0042 · UI: `src/shared/ui/address-input/README.md`
 - Parse del paquete: `src/shared/cfdi/addressPayloadBridge.ts` — no duplicar reglas SAT.
-- UI: `src/shared/ui/address-input/`
+- UI: `src/shared/ui/address-input/` — `variant` (UX CP31) + `formContext` (negocio); obligatoriedad XSD: `src/shared/validation/cp31DomicilioUx.ts`
 - Rollout direcciones v0.3: `D:\cowork\boeltech\erp-transport\docs\direcciones\address-cfdi-domain-v03-rollout.md`
 
 ### RBAC
@@ -75,12 +79,14 @@ Edición: cargar data antes de montar el form; **`defaultValues`** (no solo `val
 | Tema | Ruta |
 |---|---|
 | Índice general | `D:\cowork\boeltech\erp-transport\docs\README.md` |
-| Design system | `...\docs\design-system\` + `...\design\propuesta-shells-ux-ui-erp-t.md` |
+| Design system | `...\docs\design-system\` + `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
+| Wizards (alta) | `src/shared/ui/page-shells/README.md` · `...\docs\design-system\wizard-page-pattern.md` |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
+| Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |
 | ADR-0043 | `...\docs\adr-0043\` |
 | Carta Porte 3.1 | `...\docs\carta-porte-3.1\` |
-| Tracking (propuesta) | `D:\cowork\boeltech\erp-transport\design\tracking-system-proposal.md` |
+| Tracking (propuesta archivada) | `D:\cowork\boeltech\erp-transport\planes\cerrados\tracking-system-proposal.md` |
 
 **Skill compartido:** `D:\boeltech\dev\workspace\clients\transporte\skills\boeltech-erp-development\`
 
