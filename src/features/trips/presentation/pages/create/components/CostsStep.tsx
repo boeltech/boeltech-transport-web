@@ -11,12 +11,16 @@ import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 import { TripExpenseEditableList } from "../../../components/trip-costs";
 import { Input } from "@shared/ui/input";
 
-import { getSheetKindForCategory, type TripExpenseSheetKind } from "./expenseCategories";
+import {
+  getSheetKindForCategory,
+  isIndirectExpenseCategory,
+  isOperationalExpenseCategory,
+  TripExpenseSheet,
+  TripWizardFinancialSummary,
+  buildTripWizardFinancialSnapshot,
+  type TripExpenseSheetKind,
+} from "../../../components/trip-financial";
 import { wizardHasContractingClient } from "./validation";
-import { isIndirectExpenseCategory, isOperationalExpenseCategory } from "./financialSummary";
-import { TripExpenseSheet } from "./TripExpenseSheet";
-import { TripWizardFinancialSummary } from "./TripWizardFinancialSummary";
-import { buildTripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
 import type { TripExpenseFormValues, TripWizardFormValues } from "./validation";
 import { wizardCopy } from "../../../copy";
 

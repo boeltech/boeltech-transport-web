@@ -42,6 +42,22 @@ export function formValuesToUpdateExpenseInput(
   };
 }
 
+import type { TripExpenseListItem } from "./TripExpenseEditableList";
+
+export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseListItem[] {
+  return expenses.map((expense) => ({
+    id: expense.id,
+    category: expense.category,
+    description: expense.description,
+    amount: expense.amount,
+    vendorName: expense.vendorName ?? undefined,
+    status: expense.status,
+    isEstimated: expense.isEstimated,
+    expenseDate: expense.expenseDate,
+    hasReceipt: expense.hasReceipt,
+  }));
+}
+
 export function tripExpensesToWizardLines(
   expenses: TripExpense[],
 ): Array<{

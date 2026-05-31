@@ -36,12 +36,12 @@ export { BasicInfoStep } from "./BasicInfoStep";
 export { RouteStep } from "./RouteStep";
 export { CargoStep } from "./CargoStep";
 export { CostsStep } from "./CostsStep";
-export { TripExpenseSheet } from "./TripExpenseSheet";
-export type { TripExpenseSheetKind } from "./expenseCategories";
+export { TripExpenseSheet } from "../../../components/trip-financial";
+export type { TripExpenseSheetKind } from "../../../components/trip-financial";
 export { SummaryStep } from "./SummaryStep";
-export { TripWizardFinancialSummary } from "./TripWizardFinancialSummary";
+export { TripWizardFinancialSummary } from "../../../components/trip-financial";
 export { TripWizardExpenseReadOnlyCard } from "./TripWizardExpenseReadOnlyCard";
-export { buildTripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
+export { buildTripWizardFinancialSnapshot } from "../../../components/trip-financial";
 export {
   formatWizardStopAddressLine,
   formatWizardStopCityLine,

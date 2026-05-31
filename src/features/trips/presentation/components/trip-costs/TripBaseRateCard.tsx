@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DollarSign } from "lucide-react";
 
-import { useUpdateTrip } from "@features/trips/application/hooks/trip/useUpdateTrip";
+import { useUpdateTrip } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -13,8 +13,7 @@ import {
   validateCostsStep,
   wizardHasContractingClient,
 } from "../../pages/create/components/validation";
-import { formatMxCurrency } from "../../pages/create/components/financialSummary";
-import type { TripWizardExpenseLine } from "../../pages/create/components/tripWizardFinancialSnapshot";
+import { formatMxCurrency, type TripWizardExpenseLine } from "../trip-financial";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.costs;
@@ -35,14 +34,13 @@ function parseDraftBaseRate(draft: string): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-export function TripBaseRateCard({
+function TripBaseRateCardEditor({
   tripId,
   baseRate,
   cfdiDocumentIntent,
   clientId,
   expenseLines,
-  readOnly,
-}: TripBaseRateCardProps) {
+}: Omit<TripBaseRateCardProps, "readOnly">) {
   const { toast } = useToast();
   const [draft, setDraft] = useState(() =>
     baseRate > 0 ? String(baseRate) : "",
@@ -61,11 +59,6 @@ export function TripBaseRateCard({
       });
     },
   });
-
-  useEffect(() => {
-    setDraft(baseRate > 0 ? String(baseRate) : "");
-    setFieldError(null);
-  }, [baseRate]);
 
   const baseRateRequired =
     cfdiDocumentIntent === "ingreso" && wizardHasContractingClient(clientId);
@@ -115,6 +108,71 @@ export function TripBaseRateCard({
   };
 
   return (
+    <div className="space-y-4">
+      <FormFieldShell
+        fieldId="trip-detail-base-rate"
+        className="max-w-sm"
+        label={copy.label.baseRateInput}
+        required={baseRateRequired}
+        description={
+          cfdiDocumentIntent === "traslado"
+            ? copy.hint.baseRateTraslado
+            : baseRateRequired
+              ? copy.hint.baseRateIngresoRequired
+              : copy.hint.baseRateIngresoOptional
+        }
+        errorMessage={fieldError ?? undefined}
+      >
+        <Input
+          id="trip-detail-base-rate"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          disabled={updateTrip.isPending}
+          error={Boolean(fieldError)}
+          {...getFieldErrorAriaProps(
+            "trip-detail-base-rate",
+            fieldError ?? undefined,
+          )}
+        />
+      </FormFieldShell>
+      {isDirty ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSave()}
+            disabled={updateTrip.isPending}
+          >
+            {updateTrip.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleCancel}
+            disabled={updateTrip.isPending}
+          >
+            {copy.action.cancel}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function TripBaseRateCard({
+  tripId,
+  baseRate,
+  cfdiDocumentIntent,
+  clientId,
+  expenseLines,
+  readOnly,
+}: TripBaseRateCardProps) {
+  return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
@@ -130,59 +188,14 @@ export function TripBaseRateCard({
             value={formatMxCurrency(baseRate)}
           />
         ) : (
-          <div className="space-y-4">
-            <FormFieldShell
-              fieldId="trip-detail-base-rate"
-              className="max-w-sm"
-              label={copy.label.baseRateInput}
-              required={baseRateRequired}
-              description={
-                cfdiDocumentIntent === "traslado"
-                  ? copy.hint.baseRateTraslado
-                  : baseRateRequired
-                    ? copy.hint.baseRateIngresoRequired
-                    : copy.hint.baseRateIngresoOptional
-              }
-              errorMessage={fieldError ?? undefined}
-            >
-              <Input
-                id="trip-detail-base-rate"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                disabled={updateTrip.isPending}
-                error={Boolean(fieldError)}
-                {...getFieldErrorAriaProps(
-                  "trip-detail-base-rate",
-                  fieldError ?? undefined,
-                )}
-              />
-            </FormFieldShell>
-            {isDirty ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void handleSave()}
-                  disabled={updateTrip.isPending}
-                >
-                  {updateTrip.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={updateTrip.isPending}
-                >
-                  {copy.action.cancel}
-                </Button>
-              </div>
-            ) : null}
-          </div>
+          <TripBaseRateCardEditor
+            key={baseRate}
+            tripId={tripId}
+            baseRate={baseRate}
+            cfdiDocumentIntent={cfdiDocumentIntent}
+            clientId={clientId}
+            expenseLines={expenseLines}
+          />
         )}
       </CardContent>
     </Card>

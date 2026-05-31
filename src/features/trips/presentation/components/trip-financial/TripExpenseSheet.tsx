@@ -42,8 +42,8 @@ import {
   getDefaultCategoryForKind,
   type TripExpenseSheetKind,
 } from "./expenseCategories";
-import { tripExpenseSchema, type TripExpenseFormValues } from "./validation";
-import { wizardCopy } from "../../../copy";
+import { tripExpenseSchema, type TripExpenseFormValues } from "../../pages/create/components/validation";
+import { wizardCopy } from "../../copy";
 
 const copy = wizardCopy.expense;
 

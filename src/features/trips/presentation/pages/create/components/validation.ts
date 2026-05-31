@@ -30,7 +30,7 @@ import {
   isIndirectExpenseCategory,
   isOperationalExpenseCategory,
   type ExpenseCategory,
-} from "./financialSummary";
+} from "../../../components/trip-financial";
 
 /** Parada vinculada a fila `addresses` (Fase 4) — el backend puede omitir captura manual SAT. */
 export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {

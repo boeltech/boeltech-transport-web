@@ -28,14 +28,12 @@ import { Skeleton } from "@shared/ui/skeleton";
 import {
   getSheetKindForCategory,
   type TripExpenseSheetKind,
-} from "../../pages/create/components/expenseCategories";
-import {
   isIndirectExpenseCategory,
   isOperationalExpenseCategory,
-} from "../../pages/create/components/financialSummary";
-import { TripExpenseSheet } from "../../pages/create/components/TripExpenseSheet";
-import { TripWizardFinancialSummary } from "../../pages/create/components/TripWizardFinancialSummary";
-import { buildTripWizardFinancialSnapshot } from "../../pages/create/components/tripWizardFinancialSnapshot";
+  TripExpenseSheet,
+  TripWizardFinancialSummary,
+  buildTripWizardFinancialSnapshot,
+} from "../trip-financial";
 import type { TripExpenseFormValues } from "../../pages/create/components/validation";
 import { TripCostsCategoryBreakdown } from "./TripCostsCategoryBreakdown";
 import { TripExpenseEditableList } from "./TripExpenseEditableList";
@@ -43,6 +41,7 @@ import {
   formValuesToCreateExpenseInput,
   formValuesToUpdateExpenseInput,
   tripExpenseToFormValues,
+  tripExpensesToListItems,
   tripExpensesToWizardLines,
 } from "./tripExpenseFormBridge";
 import { tripDetailCopy } from "../../copy";
@@ -152,6 +151,15 @@ export function TripDetailCostsTab({
     () =>
       expenses.filter((expense) => isIndirectExpenseCategory(expense.category)),
     [expenses],
+  );
+
+  const operationalListItems = useMemo(
+    () => tripExpensesToListItems(operationalItems),
+    [operationalItems],
+  );
+  const indirectListItems = useMemo(
+    () => tripExpensesToListItems(indirectItems),
+    [indirectItems],
   );
 
   const financialSnapshot = useMemo(
@@ -274,7 +282,7 @@ export function TripDetailCostsTab({
             </CardHeader>
             <CardContent>
               <TripExpenseEditableList
-                items={operationalItems}
+                items={operationalListItems}
                 showDetailMeta
                 readOnly={expensesReadOnly}
                 emptyTitle={copy.state.emptyOperationalTitle}
@@ -309,7 +317,7 @@ export function TripDetailCostsTab({
             </CardHeader>
             <CardContent>
               <TripExpenseEditableList
-                items={indirectItems}
+                items={indirectListItems}
                 showDetailMeta
                 readOnly={expensesReadOnly}
                 emptyTitle={copy.state.emptyIndirectTitle}

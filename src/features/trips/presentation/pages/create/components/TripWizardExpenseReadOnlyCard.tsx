@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { EmptyState } from "@shared/ui/feedback-states";
 
-import { EXPENSE_CATEGORY_MAP } from "./expenseCategories";
-import { formatMxCurrency } from "./financialSummary";
-import type { TripWizardExpenseLine } from "./tripWizardFinancialSnapshot";
+import {
+  EXPENSE_CATEGORY_MAP,
+  formatMxCurrency,
+  type TripWizardExpenseLine,
+} from "../../../components/trip-financial";
 import type { TripExpenseFormValues } from "./validation";
 
 export interface TripWizardExpenseReadOnlyCardProps {

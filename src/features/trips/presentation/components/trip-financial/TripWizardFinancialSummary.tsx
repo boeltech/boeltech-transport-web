@@ -7,7 +7,7 @@ import { cn } from "@shared/lib/utils/cn";
 
 import { formatMxCurrency } from "./financialSummary";
 import type { TripWizardExpenseLine, TripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
-import { wizardCopy } from "../../../copy";
+import { wizardCopy } from "../../copy";
 
 const copy = wizardCopy.costs.financialSummary;
 

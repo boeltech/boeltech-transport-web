@@ -41,9 +41,11 @@ import { cn } from "@shared/lib/utils/cn";
 
 import type { TripWizardFormValues } from "./validation";
 import { wizardHasContractingClient } from "./validation";
-import { buildTripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
-import { TripWizardFinancialSummary } from "./TripWizardFinancialSummary";
-import { formatMxCurrency } from "./financialSummary";
+import {
+  buildTripWizardFinancialSnapshot,
+  formatMxCurrency,
+  TripWizardFinancialSummary,
+} from "../../../components/trip-financial";
 import { SummaryReviewSection } from "./SummaryReviewSection";
 import { wizardCopy } from "../../../copy";
 import {
