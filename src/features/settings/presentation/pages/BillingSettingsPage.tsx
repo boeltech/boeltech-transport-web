@@ -29,6 +29,7 @@ import {
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
+import { FieldInlineError } from "@shared/ui/form";
 import {
   Select,
   SelectContent,
@@ -325,11 +326,7 @@ function PacProviderConfig({
             placeholder="usuario@empresa.com"
             disabled
           />
-          {form.formState.errors.pacUsername && (
-            <p className="text-sm text-destructive mt-1">
-              {form.formState.errors.pacUsername.message}
-            </p>
-          )}
+          <FieldInlineError fieldId="pacUsername" message={form.formState.errors.pacUsername?.message} />
         </div>
 
         <div>
@@ -530,11 +527,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                         único proveedor disponible por ahora.
                       </p>
                     )}
-                  {form.formState.errors.pacProvider && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.pacProvider.message}
-                    </p>
-                  )}
+                  <FieldInlineError fieldId="pacProvider" message={form.formState.errors.pacProvider?.message} />
                 </div>
 
                 {/* Sub-panel específico del PAC seleccionado */}
@@ -569,11 +562,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   form.setValue("defaultUsoCfdi", value, { shouldDirty: true })
                 }
               />
-              {form.formState.errors.defaultUsoCfdi && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.defaultUsoCfdi.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="defaultUsoCfdi" message={form.formState.errors.defaultUsoCfdi?.message} />
             </div>
 
             {/* Forma de Pago — catálogo SAT dinámico */}
@@ -589,11 +578,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   })
                 }
               />
-              {form.formState.errors.defaultFormaPago && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.defaultFormaPago.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="defaultFormaPago" message={form.formState.errors.defaultFormaPago?.message} />
             </div>
 
             {/* Método de Pago — catálogo SAT dinámico */}
@@ -609,11 +594,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   })
                 }
               />
-              {form.formState.errors.defaultMetodoPago && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.defaultMetodoPago.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="defaultMetodoPago" message={form.formState.errors.defaultMetodoPago?.message} />
             </div>
           </div>
         </SettingsCard>
@@ -695,11 +676,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Para transporte de carga por carretera usa{" "}
                 <code className="font-mono">78101800</code>
               </p>
-              {form.formState.errors.claveProductoServicio && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.claveProductoServicio.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="claveProductoServicio" message={form.formState.errors.claveProductoServicio?.message} />
             </div>
 
             {/* Clave unidad — búsqueda en catálogo SAT grande */}
@@ -722,11 +699,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Para servicios de transporte usa{" "}
                 <code className="font-mono">E48</code>
               </p>
-              {form.formState.errors.claveUnidad && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.claveUnidad.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="claveUnidad" message={form.formState.errors.claveUnidad?.message} />
             </div>
 
             {/* Moneda — solo MXN/USD son relevantes para transporte nacional */}
@@ -757,11 +730,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.moneda && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.moneda.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="moneda" message={form.formState.errors.moneda?.message} />
             </div>
 
             {/* Tasa IVA */}
@@ -788,11 +757,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.tasaIva && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.tasaIva.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="tasaIva" message={form.formState.errors.tasaIva?.message} />
             </div>
           </div>
         </SettingsCard>
@@ -818,11 +783,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 Usa una serie diferente a la de tus facturas normales (ej:{" "}
                 <code className="font-mono">CP</code>)
               </p>
-              {form.formState.errors.serieCartaPorte && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.serieCartaPorte.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="serieCartaPorte" message={form.formState.errors.serieCartaPorte?.message} />
             </div>
 
             <div>
@@ -838,11 +799,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 })}
                 placeholder="1"
               />
-              {form.formState.errors.folioInicialCartaPorte && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.folioInicialCartaPorte.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="folioInicialCartaPorte" message={form.formState.errors.folioInicialCartaPorte?.message} />
             </div>
 
             {settings && (

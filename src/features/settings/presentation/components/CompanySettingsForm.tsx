@@ -6,28 +6,42 @@
  * Ubicación: src/features/settings/ui/components/CompanySettingsForm.tsx
  */
 
-import { memo, useCallback, useEffect } from "react";
-import { useForm, useWatch, type Resolver } from "react-hook-form";
+import { memo, useCallback, useEffect, useState } from "react";
+import { useForm, useWatch, type FieldErrors, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Globe, Loader2 } from "lucide-react";
+import { Globe, Loader2, MapPin } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Alert, AlertDescription } from "@shared/ui/alert";
-import { Switch } from "@shared/ui/switch";
-import { AddressInput, EntityAddressForm } from "@shared/ui/address-input";
-import { addressSchema } from "@shared/validation/addressSchema";
-import { RegimenFiscalSelect } from "@features/catalogs";
-import type { ClientAddress } from "@features/clients/domain";
 import {
-  clientAddressFormDataToCreateDto,
-  defaultClientAddressFormValues,
-  type ClientAddressFormData,
-} from "@features/clients/presentation/validation/clientAddressSchema";
-import type { CreateClientAddressDTO } from "@features/clients/domain";
+  AddressInput,
+  EntityAddressForm,
+  buildGeocodingEntityFormSection,
+} from "@shared/ui/address-input";
+import { buildLugarExpedicionEntityFormSection } from "./LugarExpedicionFormSection";
+import { RegimenFiscalSelect } from "@features/catalogs";
+import {
+  FieldInlineError,
+  FormValidationSummary,
+  RHFCatalogField,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
+import type { ClientAddress } from "@features/clients/domain";
+import { useToast } from "@shared/hooks/useToast";
+import {
+  collectFieldErrorMessages,
+  formatFormValidationToastDescription,
+} from "@shared/utils/formErrors";
+import {
+  companyFiscalFormSchema,
+  companyFiscalFormToCreateDto,
+  validateCompanyFiscalAddressFormComplete,
+  type CompanyFiscalFormData,
+} from "../validation/companyFiscalAddressSchema";
 
 import { SettingsCard } from "./SettingsLayout";
 import {
@@ -43,11 +57,7 @@ import type {
 // VALIDATION SCHEMA
 // ============================================================================
 
-const companyFiscalSchema = addressSchema.safeExtend({
-  addressType: z.literal("company"),
-  isPrimary: z.literal(true),
-  id: z.string().optional(),
-});
+const companyFiscalSchema = companyFiscalFormSchema;
 
 const companySettingsSchema = z
   .object({
@@ -116,18 +126,28 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
   settings: CompanySettings;
 }) {
   const updateMutation = useUpdateCompanySettings();
+  const { toast } = useToast();
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const form = useForm<CompanySettingsFormData, unknown, CompanySettingsFormData>({
     resolver: zodResolver(companySettingsSchema) as Resolver<CompanySettingsFormData>,
     defaultValues: mapSettingsToForm(settings),
+    mode: "onChange",
   });
-  const regimenFiscal = useWatch({ control: form.control, name: "regimenFiscal" });
+
+  const {
+    formState: { errors, isValid, isDirty, isSubmitting },
+  } = form;
+  const isSaving = updateMutation.isPending || isSubmitting;
+  const validationMessages = collectFieldErrorMessages(errors);
+  const shouldShowValidationSummary = showValidationSummary && !isValid;
   const fiscalStateCode = useWatch({ control: form.control, name: "fiscal.satStateCode" });
   const fiscalMunicipalityCode = useWatch({
     control: form.control,
     name: "fiscal.satMunicipalityCode",
   });
   const fiscalPostalCode = useWatch({ control: form.control, name: "fiscal.postalCode" });
+  const fiscalAddress = useWatch({ control: form.control, name: "fiscal" });
   const expideDesdeOtroCp = useWatch({
     control: form.control,
     name: "expideDesdeOtroCp",
@@ -144,10 +164,59 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
     }
   }, [expideDesdeOtroCp, fiscalPostalCode, form]);
 
-  const onSubmit = useCallback(
+  const applyFiscalFieldErrors = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      for (const [key, message] of Object.entries(fieldErrors)) {
+        if (!key || !message) continue;
+        form.setError(`fiscal.${key}` as `fiscal.${keyof CompanyFiscalFormData}`, {
+          type: "sat",
+          message,
+        });
+      }
+    },
+    [form],
+  );
+
+  const handleInvalidSubmit = useCallback(
+    (fieldErrors: FieldErrors<CompanySettingsFormData>) => {
+      setShowValidationSummary(true);
+      void form.trigger(undefined, { shouldFocus: true });
+      toast({
+        title: "Revisa el formulario",
+        description: formatFormValidationToastDescription(fieldErrors),
+        variant: "destructive",
+      });
+    },
+    [form, toast],
+  );
+
+  const handleValidSubmit = useCallback(
     async (data: CompanySettingsFormData) => {
+      const fiscalResult = await validateCompanyFiscalAddressFormComplete(data.fiscal, {
+        requireCoordinates: false,
+      });
+      if (!fiscalResult.ok) {
+        applyFiscalFieldErrors(fiscalResult.fieldErrors);
+        setShowValidationSummary(true);
+        const fiscalMessages = Object.values(fiscalResult.fieldErrors).filter(
+          (message): message is string => Boolean(message),
+        );
+        toast({
+          title: "Revisa el formulario",
+          description:
+            fiscalMessages.length > 0
+              ? fiscalMessages.slice(0, 3).join(" · ")
+              : "Corrige los campos del domicilio fiscal antes de continuar.",
+          variant: "destructive",
+        });
+        void form.trigger("fiscal", { shouldFocus: true });
+        return;
+      }
+
+      setShowValidationSummary(false);
+
       const existingId = data.fiscal.id ?? settings.fiscalAddress?.id;
-      const fiscalPayload = tenantFiscalFormToCreateDto(data.fiscal);
+      const fiscalPayload = companyFiscalFormToCreateDto(data.fiscal);
 
       const dto: UpdateCompanySettingsDTO = {
         legalName: data.legalName,
@@ -166,17 +235,18 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
 
       try {
         const result = await updateMutation.mutateAsync(dto);
-        if (result.data.fiscalAddress?.id) {
-          form.setValue("fiscal.id", result.data.fiscalAddress.id, {
-            shouldDirty: false,
-          });
-        }
+        form.reset(mapSettingsToForm(result.data));
       } catch {
         // El hook ya muestra toast de error
       }
     },
-    [form, settings.fiscalAddress?.id, updateMutation],
+    [applyFiscalFieldErrors, form, settings.fiscalAddress?.id, toast, updateMutation],
   );
+
+  const handleCancel = useCallback(() => {
+    setShowValidationSummary(false);
+    form.reset(mapSettingsToForm(settings));
+  }, [form, settings]);
 
   const showLegacyHint =
     settings.legacyCompanyAddress && !settings.fiscalAddress;
@@ -191,7 +261,10 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
   ].join(":");
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={form.handleSubmit(handleValidSubmit, handleInvalidSubmit)}
+      className="space-y-6"
+    >
       {/* Datos de la empresa */}
       <SettingsCard
         title="Datos de la empresa"
@@ -207,12 +280,16 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
               id="legalName"
               {...form.register("legalName")}
               placeholder="Transportes ABC S.A. de C.V."
+              error={Boolean(form.formState.errors.legalName)}
+              {...getFieldErrorAriaProps(
+                "legalName",
+                form.formState.errors.legalName?.message,
+              )}
             />
-            {form.formState.errors.legalName && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.legalName.message}
-              </p>
-            )}
+            <FieldInlineError
+              fieldId="legalName"
+              message={form.formState.errors.legalName?.message}
+            />
           </div>
 
           {/* Nombre Comercial */}
@@ -235,35 +312,29 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
               {...form.register("rfc")}
               placeholder="ABC123456XYZ"
               className="uppercase"
+              error={Boolean(form.formState.errors.rfc)}
+              {...getFieldErrorAriaProps("rfc", form.formState.errors.rfc?.message)}
             />
-            {form.formState.errors.rfc && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.rfc.message}
-              </p>
-            )}
+            <FieldInlineError fieldId="rfc" message={form.formState.errors.rfc?.message} />
           </div>
 
-          {/* Régimen Fiscal (catálogo SAT c_RegimenFiscal) */}
-          <div>
-            <Label htmlFor="regimenFiscal">
-              Régimen Fiscal <span className="text-destructive">*</span>
-            </Label>
-            <RegimenFiscalSelect
-              value={regimenFiscal ?? ""}
-              onValueChange={(value) => {
-                form.setValue("regimenFiscal", value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
-              placeholder="Seleccionar régimen"
-            />
-            {form.formState.errors.regimenFiscal && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.regimenFiscal.message}
-              </p>
+          <RHFCatalogField
+            control={form.control}
+            name="regimenFiscal"
+            label="Régimen Fiscal"
+            required
+          >
+            {({ field, fieldState, resolvedId, errorMessage }) => (
+              <RegimenFiscalSelect
+                triggerId={resolvedId}
+                value={field.value}
+                onValueChange={field.onChange}
+                placeholder="Seleccionar régimen"
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+              />
             )}
-          </div>
+          </RHFCatalogField>
 
           {/* Email */}
           <div>
@@ -275,12 +346,10 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
               type="email"
               {...form.register("email")}
               placeholder="contacto@empresa.com"
+              error={Boolean(form.formState.errors.email)}
+              {...getFieldErrorAriaProps("email", form.formState.errors.email?.message)}
             />
-            {form.formState.errors.email && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.email.message}
-              </p>
-            )}
+            <FieldInlineError fieldId="email" message={form.formState.errors.email?.message} />
           </div>
 
           {/* Teléfono */}
@@ -303,13 +372,17 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
                 {...form.register("website")}
                 placeholder="https://www.empresa.com"
                 className="pl-9"
+                error={Boolean(form.formState.errors.website)}
+                {...getFieldErrorAriaProps(
+                  "website",
+                  form.formState.errors.website?.message,
+                )}
               />
             </div>
-            {form.formState.errors.website && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.website.message}
-              </p>
-            )}
+            <FieldInlineError
+              fieldId="website"
+              message={form.formState.errors.website?.message}
+            />
           </div>
         </div>
       </SettingsCard>
@@ -332,129 +405,133 @@ const CompanySettingsFormLoaded = memo(function CompanySettingsFormLoaded({
         <EntityAddressForm
           asForm={false}
           className="space-y-4"
-          formContext="billingOnCreate"
-          addressMode="cfdi"
-          infoMessage="Esta direccion se usara para CFDI y operaciones fiscales."
+          formContext="companyFiscal"
+          addressVariant="carta-porte"
+          infoMessage="Domicilio fiscal de la empresa para facturación y operación del tenant."
           satStateCode={fiscalStateCode}
           satMunicipalityCode={fiscalMunicipalityCode}
           postalCode={fiscalPostalCode}
           showGlobalNotice
           hideLocationSectionTitle
+          locationSectionTitle="Domicilio"
+          preAddressSections={[
+            {
+              id: "company-fiscal-location-name",
+              title: (
+                <span>
+                  Nombre del lugar <span className="text-destructive text-xs">*</span>
+                </span>
+              ),
+              icon: <MapPin className="h-4 w-4" />,
+              content: (
+                <div className="space-y-1.5">
+                  <Input
+                    id="fiscal.locationName"
+                    placeholder="Ej: Matriz fiscal, Oficinas centrales"
+                    disabled={form.formState.isSubmitting}
+                    error={Boolean(form.formState.errors.fiscal?.locationName)}
+                    {...form.register("fiscal.locationName")}
+                    {...getFieldErrorAriaProps(
+                      "fiscal.locationName",
+                      form.formState.errors.fiscal?.locationName?.message,
+                    )}
+                  />
+                  <FieldInlineError
+                    fieldId="fiscal.locationName"
+                    message={form.formState.errors.fiscal?.locationName?.message}
+                  />
+                </div>
+              ),
+            },
+          ]}
           addressInputSection={
             <>
               <AddressInput<CompanySettingsFormData>
                 key={fiscalAddressHydrationKey}
-                mode="cfdi"
+                variant="carta-porte"
+                formContext="companyFiscal"
+                addressType="company"
                 control={form.control}
                 setValue={form.setValue}
                 namePrefix="fiscal"
                 layout="compact"
-                showLatLng
                 showPrimaryToggle={false}
+                hideInformativeAlerts
                 embedded
                 disabled={form.formState.isSubmitting}
               />
-              {form.formState.errors.fiscal && (
-                <p className="text-sm text-destructive mt-2">
-                  Revisa los campos de domicilio fiscal.
-                </p>
-              )}
             </>
           }
-        />
-
-        <div className="space-y-3 border-t border-border pt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">
-                Lugar de expedición (CFDI)
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Código postal del lugar de expedición de facturas (atributo{" "}
-                <code className="font-mono">LugarExpedicion</code> en CFDI 4.0).
-              </p>
-            </div>
-            <div className="flex items-center gap-2 sm:shrink-0">
-              <Switch
-                id="expideDesdeOtroCp"
-                checked={Boolean(expideDesdeOtroCp)}
-                disabled={form.formState.isSubmitting}
-                onCheckedChange={(checked) => {
-                  form.setValue("expideDesdeOtroCp", checked, { shouldDirty: true });
-                  if (!checked) {
-                    const cp = fiscalPostalCode?.trim() ?? "";
-                    if (cp.length === 5) {
-                      form.setValue("lugarExpedicion", cp, { shouldDirty: true });
-                    }
+          postAddressSections={[
+            buildGeocodingEntityFormSection({
+              address: {
+                street: fiscalAddress?.street,
+                exteriorNumber: fiscalAddress?.exteriorNumber,
+                interiorNumber: fiscalAddress?.interiorNumber,
+                postalCode: fiscalAddress?.postalCode,
+                satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
+                satStateCode: fiscalAddress?.satStateCode,
+                satCountryCode: fiscalAddress?.satCountryCode,
+              },
+              latitude: fiscalAddress?.latitude,
+              longitude: fiscalAddress?.longitude,
+              latitudeError: form.formState.errors.fiscal?.latitude?.message,
+              onCoordinatesChange: (coords) => {
+                form.setValue("fiscal.latitude", coords.latitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                form.setValue("fiscal.longitude", coords.longitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              },
+              disabled: form.formState.isSubmitting,
+            }),
+            buildLugarExpedicionEntityFormSection({
+              expideDesdeOtroCp: Boolean(expideDesdeOtroCp),
+              fiscalPostalCode,
+              lugarExpedicionError: form.formState.errors.lugarExpedicion?.message,
+              fiscalPostalCodeError: form.formState.errors.fiscal?.postalCode?.message,
+              disabled: form.formState.isSubmitting,
+              onExpideDesdeOtroCpChange: (checked) => {
+                form.setValue("expideDesdeOtroCp", checked, { shouldDirty: true });
+                if (!checked) {
+                  const cp = fiscalPostalCode?.trim() ?? "";
+                  if (cp.length === 5) {
+                    form.setValue("lugarExpedicion", cp, { shouldDirty: true });
                   }
-                }}
-              />
-              <Label
-                htmlFor="expideDesdeOtroCp"
-                className="cursor-pointer text-sm font-normal"
-              >
-                Expido desde otro código postal
-              </Label>
-            </div>
-          </div>
-
-          {expideDesdeOtroCp ? (
-            <div className="space-y-2">
-              <Label htmlFor="lugarExpedicion">
-                Código postal de expedición{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lugarExpedicion"
-                {...form.register("lugarExpedicion")}
-                placeholder="03100"
-                maxLength={5}
-                inputMode="numeric"
-                className="w-40"
-                disabled={form.formState.isSubmitting}
-              />
-              {form.formState.errors.lugarExpedicion && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.lugarExpedicion.message}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                Se usará el mismo CP del domicilio fiscal:{" "}
-                <span className="font-medium text-foreground tabular-nums">
-                  {fiscalPostalCode?.length === 5 ? fiscalPostalCode : "—"}
-                </span>
-              </p>
-              {form.formState.errors.fiscal?.postalCode && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.fiscal.postalCode.message}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+                }
+              },
+              lugarExpedicionRegister: form.register("lugarExpedicion"),
+            }),
+          ]}
+        />
       </SettingsCard>
 
+      {shouldShowValidationSummary ? (
+        <FormValidationSummary messages={validationMessages} />
+      ) : null}
+
       {/* Actions */}
-      <div className="flex justify-end gap-4">
+      <div className="flex items-center justify-end gap-4 border-t pt-4">
         <Button
           type="button"
           variant="outline"
-          onClick={() => form.reset()}
-          disabled={!form.formState.isDirty || form.formState.isSubmitting}
+          onClick={handleCancel}
+          disabled={!isDirty || isSaving}
         >
           Cancelar
         </Button>
-        <Button
-          type="submit"
-          disabled={!form.formState.isDirty || form.formState.isSubmitting}
-        >
-          {(form.formState.isSubmitting || updateMutation.isPending) && (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        <Button type="submit" disabled={!isDirty || isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            "Guardar Cambios"
           )}
-          Guardar cambios
         </Button>
       </div>
     </form>
@@ -498,10 +575,11 @@ function CompanySettingsFormSkeleton() {
 // HELPERS
 // ============================================================================
 
-function defaultFiscalForm(): CompanySettingsFormData["fiscal"] {
+function defaultFiscalForm(): CompanyFiscalFormData {
   return {
     addressType: "company",
     isPrimary: true,
+    locationName: "",
     street: "",
     exteriorNumber: "",
     interiorNumber: null,
@@ -511,6 +589,7 @@ function defaultFiscalForm(): CompanySettingsFormData["fiscal"] {
     satStateCode: "",
     satMunicipalityCode: "",
     satLocalityCode: null,
+    localityName: null,
     satNeighborhoodCode: null,
     neighborhoodName: null,
     latitude: null,
@@ -518,13 +597,12 @@ function defaultFiscalForm(): CompanySettingsFormData["fiscal"] {
   };
 }
 
-function clientAddressToFiscalForm(
-  ca: ClientAddress,
-): CompanySettingsFormData["fiscal"] {
+function clientAddressToFiscalForm(ca: ClientAddress): CompanyFiscalFormData {
   return {
     id: ca.id,
     addressType: "company",
     isPrimary: true,
+    locationName: ca.locationName?.trim() ?? "",
     street: ca.street ?? "",
     exteriorNumber: ca.exteriorNumber ?? "",
     interiorNumber: ca.interiorNumber ?? null,
@@ -534,6 +612,7 @@ function clientAddressToFiscalForm(
     satStateCode: ca.satStateCode ?? "",
     satMunicipalityCode: ca.satMunicipalityCode ?? "",
     satLocalityCode: ca.satLocalityCode ?? null,
+    localityName: ca.localityName ?? null,
     satNeighborhoodCode: ca.satNeighborhoodCode ?? null,
     neighborhoodName: ca.neighborhoodName ?? null,
     latitude: ca.latitude ?? null,
@@ -541,14 +620,13 @@ function clientAddressToFiscalForm(
   };
 }
 
-function legacyToFiscalForm(
-  legacy: CompanyAddress,
-): CompanySettingsFormData["fiscal"] {
+function legacyToFiscalForm(legacy: CompanyAddress): CompanyFiscalFormData {
   const refParts = [legacy.municipality, legacy.city, legacy.state].filter(
     Boolean,
   );
   return {
     ...defaultFiscalForm(),
+    locationName: "Domicilio fiscal",
     street: legacy.street,
     exteriorNumber: legacy.exteriorNumber,
     interiorNumber: legacy.interiorNumber,
@@ -557,18 +635,6 @@ function legacyToFiscalForm(
     satStateCode: legacy.stateCode || "",
     reference: refParts.length ? refParts.join(", ") : null,
   };
-}
-
-/** DTO de domicilio fiscal del tenant sin depender de campos extra del formulario de cliente. */
-function tenantFiscalFormToCreateDto(
-  fiscal: CompanySettingsFormData["fiscal"],
-): CreateClientAddressDTO {
-  return clientAddressFormDataToCreateDto({
-    ...defaultClientAddressFormValues,
-    ...fiscal,
-    addressType: "company",
-    isPrimary: true,
-  } satisfies ClientAddressFormData);
 }
 
 function shouldExpideDesdeOtroCp(
