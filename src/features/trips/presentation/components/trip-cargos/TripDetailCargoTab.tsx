@@ -20,7 +20,7 @@ import {
   CARGO_STATUS_LABELS,
   TripStatus,
 } from "@features/trips/domain";
-import { formatCurrency } from "@/features/trips";
+import { formatCurrency } from "@features/trips";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";

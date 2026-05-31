@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { useUpdateTrip } from "@features/trips/application/hooks/trip/useUpdateTrip";
+import { useUpdateTrip } from "@features/trips/application";
 import type { Trip } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
@@ -21,18 +21,28 @@ export interface TripScheduleInlineEditorProps {
   readOnly: boolean;
 }
 
-export function TripScheduleInlineEditor({
-  trip,
-  readOnly,
-}: TripScheduleInlineEditorProps) {
-  const { id: tripId, scheduledDeparture, scheduledArrival } = trip;
-  const { toast } = useToast();
-  const [draft, setDraft] = useState<TripScheduleFormValues>(() => ({
-    scheduledDeparture: utcIsoToLocalInput(scheduledDeparture.toISOString()),
-    scheduledArrival: scheduledArrival
-      ? utcIsoToLocalInput(scheduledArrival.toISOString())
+function tripScheduleSyncKey(trip: Trip): string {
+  return [
+    trip.updatedAt.getTime(),
+    trip.scheduledDeparture.getTime(),
+    trip.scheduledArrival?.getTime() ?? "",
+  ].join("-");
+}
+
+function tripToScheduleFormValues(trip: Trip): TripScheduleFormValues {
+  return {
+    scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
+    scheduledArrival: trip.scheduledArrival
+      ? utcIsoToLocalInput(trip.scheduledArrival.toISOString())
       : "",
-  }));
+  };
+}
+
+function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
+  const { id: tripId } = trip;
+  const persisted = tripToScheduleFormValues(trip);
+  const { toast } = useToast();
+  const [draft, setDraft] = useState<TripScheduleFormValues>(persisted);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
   const updateTrip = useUpdateTrip({
@@ -47,23 +57,6 @@ export function TripScheduleInlineEditor({
       });
     },
   });
-
-  useEffect(() => {
-    setDraft({
-      scheduledDeparture: utcIsoToLocalInput(scheduledDeparture.toISOString()),
-      scheduledArrival: scheduledArrival
-        ? utcIsoToLocalInput(scheduledArrival.toISOString())
-        : "",
-    });
-    setFieldError(null);
-  }, [trip.updatedAt, scheduledDeparture, scheduledArrival]);
-
-  const persisted: TripScheduleFormValues = {
-    scheduledDeparture: utcIsoToLocalInput(scheduledDeparture.toISOString()),
-    scheduledArrival: scheduledArrival
-      ? utcIsoToLocalInput(scheduledArrival.toISOString())
-      : "",
-  };
 
   const isDirty =
     draft.scheduledDeparture !== persisted.scheduledDeparture ||
@@ -94,23 +87,6 @@ export function TripScheduleInlineEditor({
     setDraft(persisted);
     setFieldError(null);
   };
-
-  if (readOnly) {
-    return (
-      <>
-        <InfoRow
-          variant="inline"
-          label="Salida"
-          value={formatDateTime(scheduledDeparture.toISOString())}
-        />
-        <InfoRow
-          variant="inline"
-          label="Llegada estimada"
-          value={formatDateTime(scheduledArrival?.toISOString())}
-        />
-      </>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -143,7 +119,9 @@ export function TripScheduleInlineEditor({
           disabled={updateTrip.isPending}
         />
       </FormFieldShell>
-      {fieldError ? <FieldInlineError>{fieldError}</FieldInlineError> : null}
+      {fieldError ? (
+        <FieldInlineError fieldId="trip-schedule-form" message={fieldError} />
+      ) : null}
       {isDirty ? (
         <div className="flex flex-wrap gap-2">
           <Button
@@ -166,5 +144,36 @@ export function TripScheduleInlineEditor({
         </div>
       ) : null}
     </div>
+  );
+}
+
+export function TripScheduleInlineEditor({
+  trip,
+  readOnly,
+}: TripScheduleInlineEditorProps) {
+  const { scheduledDeparture, scheduledArrival } = trip;
+
+  if (readOnly) {
+    return (
+      <>
+        <InfoRow
+          variant="inline"
+          label="Salida"
+          value={formatDateTime(scheduledDeparture.toISOString())}
+        />
+        <InfoRow
+          variant="inline"
+          label="Llegada estimada"
+          value={formatDateTime(scheduledArrival?.toISOString())}
+        />
+      </>
+    );
+  }
+
+  return (
+    <TripScheduleInlineEditorEditable
+      key={tripScheduleSyncKey(trip)}
+      trip={trip}
+    />
   );
 }

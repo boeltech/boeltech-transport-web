@@ -34,3 +34,5 @@ export { useTrip } from "./trip/useTrip";
 export { useTrips } from "./trip/useTrips";
 export { useUpdateTrip } from "./trip/useUpdateTrip";
 export { useUpdateTripStatus } from "./trip/useUpdateTripStatus";
+
+export { useTripStops } from "./stop/useTripStops";

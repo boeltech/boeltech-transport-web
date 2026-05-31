@@ -12,7 +12,7 @@ import type { ClientRef, Trip } from "@features/trips/domain";
 import {
   formatDuration,
   formatMileage,
-} from "@/features/trips";
+} from "@features/trips";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -43,7 +43,7 @@ function ClientContractCard({
   cfdiDocumentIntent,
 }: {
   client?: ClientRef;
-  clientId: string;
+  clientId: string | null;
   cfdiDocumentIntent: Trip["cfdiDocumentIntent"];
 }) {
   return (

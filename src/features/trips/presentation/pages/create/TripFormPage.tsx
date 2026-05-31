@@ -45,7 +45,7 @@ import {
   useUpdateTrip,
   StopType,
   TripCreationError,
-} from "@/features/trips";
+} from "@features/trips";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
@@ -75,10 +75,10 @@ import { wizardCopy } from "../../copy";
 const shell = wizardCopy.shell;
 const route = wizardCopy.route;
 const cargo = wizardCopy.cargo;
-import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import { buildUpdateTripInputFromWizardValues } from "./wizardToUpdateTripInput";
+import { mapTripToWizardFormValues } from "./tripFormMappers";
 import {
   summarizeTripApiPayloadErrors,
   validateCreateTripApiPayload,
@@ -220,173 +220,7 @@ export function TripFormPage() {
   // ============================================
   useEffect(() => {
     if (existingTrip && isEditMode) {
-      // Mapear stops del backend (adaptado para campos SAT)
-      const mappedStops = (existingTrip.stops || []).map((stop) => ({
-        id: stop.id,
-        sequenceOrder: stop.sequenceOrder,
-        stopType: (Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType]) as (
-          | "origin"
-          | "pickup"
-          | "delivery"
-          | "waypoint"
-          | "destination"
-        )[],
-        clientId: stop.clientId ?? "",
-        clientAddressId: stop.clientAddressId ?? stop.addressId ?? "",
-        addressId: stop.addressId ?? "",
-        locationName: stop.locationName || undefined,
-        // Campos Carta Porte (SAT)
-        satCountryCode: stop.satCountryCode ?? "MEX",
-        satStateCode: stop.satEstadoCode || "",
-        satMunicipalityCode: stop.satMunicipioCode || "",
-        postalCode: stop.postalCode || "",
-        satLocalityCode: stop.satLocalidadCode || undefined,
-        satNeighborhoodCode: stop.satColoniaCode || undefined,
-        neighborhoodName: stop.colonia || undefined,
-        cityName: stop.city || undefined,
-        street: stop.street || undefined,
-        exteriorNumber: stop.exteriorNumber || undefined,
-        interiorNumber: stop.interiorNumber || undefined,
-        reference: stop.reference || undefined,
-        rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
-        nombreRemitenteDestinatario:
-          stop.nombreRemitenteDestinatario || undefined,
-        deliveryRfcRemitenteDestinatario:
-          stop.deliveryRfcRemitenteDestinatario ?? "",
-        deliveryNombreRemitenteDestinatario:
-          stop.deliveryNombreRemitenteDestinatario ?? "",
-        remitentePartnerId: stop.remitentePartnerId ?? "",
-        destinatarioPartnerId: stop.destinatarioPartnerId ?? "",
-        distanceFromPreviousKm: stop.distanceFromPreviousKm ?? undefined,
-        distanceSource: stop.distanceSource ?? undefined,
-        distanceProvider: stop.distanceProvider ?? undefined,
-        distanceConfidence: stop.distanceConfidence ?? undefined,
-        distanceComputedAt: stop.distanceComputedAt
-          ? stop.distanceComputedAt.toISOString()
-          : undefined,
-        // Contacto
-        contactName: stop.contactName || undefined,
-        contactPhone: stop.contactPhone || undefined,
-        notes: stop.notes || undefined,
-        // Coordenadas
-        latitude: stop.latitude || undefined,
-        longitude: stop.longitude || undefined,
-        estimatedArrival: stop.estimatedArrival
-          ? utcIsoToLocalInput(stop.estimatedArrival.toISOString())
-          : undefined,
-      }));
-
-      // Mapear cargos del backend con movements
-      const mappedCargos = (existingTrip.cargos || []).map((cargo) => ({
-        id: cargo.id,
-        clientId: cargo.clientId,
-        description: cargo.description,
-        weight: cargo.weight ?? undefined,
-        units: cargo.units ?? undefined,
-        weightInKg: cargo.weightInKg ?? undefined,
-        declaredValue: cargo.declaredValue ?? undefined,
-        isInsured:
-          (cargo.declaredValue ?? 0) > 0 ||
-          !!cargo.aseguraCarga ||
-          !!cargo.polizaCarga,
-        aseguraCarga: cargo.aseguraCarga ?? undefined,
-        polizaCarga: cargo.polizaCarga ?? undefined,
-        movements: (cargo.movements || []).map((m) => ({
-          stopIndex: m.stopIndex,
-          movementType: m.movementType,
-          weight: m.weight ?? undefined,
-          units: m.units ?? undefined,
-          notes: m.notes ?? undefined,
-        })),
-        notes: cargo.notes ?? undefined,
-        specialInstructions: cargo.specialInstructions ?? undefined,
-        // Carta Porte
-        satProductCode: cargo.satProductCode ?? undefined,
-        satProductDescription: cargo.satProductDescription ?? undefined,
-        satUnitCode: cargo.satUnitCode ?? undefined,
-        satUnitName: cargo.satUnitName ?? undefined,
-        currency: cargo.currency ?? "MXN",
-        hazardousMaterial: cargo.hazardousMaterial ?? false,
-        requiresHazmat: cargo.hazardousMaterial ?? false,
-        hazardousMaterialCode: cargo.hazardousMaterialCode ?? undefined,
-        packagingType: cargo.packagingType ?? undefined,
-        packagingDescription: cargo.packagingDescription ?? undefined,
-        sectorRequirements: {},
-        sectorCofepris: cargo.sectorCofepris ?? undefined,
-        nombreIngredienteActivo: cargo.nombreIngredienteActivo ?? undefined,
-        nomQuimico: cargo.nomQuimico ?? undefined,
-        denominacionGenericaProd: cargo.denominacionGenericaProd ?? undefined,
-        denominacionDistintivaProd:
-          cargo.denominacionDistintivaProd ?? undefined,
-        fabricante: cargo.fabricante ?? undefined,
-        fechaCaducidad: cargo.fechaCaducidad ?? undefined,
-        loteMedicamento: cargo.loteMedicamento ?? undefined,
-        formaFarmaceutica: cargo.formaFarmaceutica ?? undefined,
-        condicionesEspTransp: cargo.condicionesEspTransp ?? undefined,
-        registroSanitarioFolioAutorizacion:
-          cargo.registroSanitarioFolioAutorizacion ?? undefined,
-        permisoImportacion: cargo.permisoImportacion ?? undefined,
-        folioImpoVucem: cargo.folioImpoVucem ?? undefined,
-        numCas: cargo.numCas ?? undefined,
-        razonSocialEmpImp: cargo.razonSocialEmpImp ?? undefined,
-        numRegSanPlagCofepris: cargo.numRegSanPlagCofepris ?? undefined,
-        datosFabricante: cargo.datosFabricante ?? undefined,
-        datosFormulador: cargo.datosFormulador ?? undefined,
-        datosMaquilador: cargo.datosMaquilador ?? undefined,
-        usoAutorizado: cargo.usoAutorizado ?? undefined,
-      }));
-
-      const mappedExpenses = (existingTrip.expenses || []).map((expense) => ({
-        id: expense.id,
-        category: expense.category as
-          | "fuel"
-          | "tolls"
-          | "driver_allowance"
-          | "lodging"
-          | "loading_unloading"
-          | "parking"
-          | "maintenance"
-          | "insurance"
-          | "permits"
-          | "other",
-        description: expense.description,
-        amount: expense.amount,
-        currency: "MXN" as const,
-        expenseDate: expense.expenseDate
-          ? utcIsoToLocalInput(expense.expenseDate.toISOString())
-          : undefined,
-        location: expense.location || undefined,
-        vendorName: expense.vendorName || undefined,
-        notes: expense.notes || undefined,
-        isEstimated: true,
-      }));
-      const mappedInternalStaff = (existingTrip.internalStaff || []).map(
-        (member) => ({
-          employeeId: member.employeeId,
-          isPaymentResponsible: member.isPaymentResponsible ?? false,
-          paymentNotes: member.paymentNotes ?? undefined,
-        }),
-      );
-
-      form.reset({
-        vehicleId: existingTrip.vehicleId,
-        driverId: existingTrip.driverId,
-        clientId: existingTrip.clientId || "",
-        cfdiDocumentIntent: existingTrip.cfdiDocumentIntent ?? "ingreso",
-        scheduledDeparture: utcIsoToLocalInput(
-          existingTrip.scheduledDeparture.toISOString(),
-        ),
-        scheduledArrival: existingTrip.scheduledArrival
-          ? utcIsoToLocalInput(existingTrip.scheduledArrival.toISOString())
-          : "",
-        startMileage: existingTrip.mileage.start ?? undefined,
-        stops: mappedStops,
-        cargos: mappedCargos,
-        expenses: mappedExpenses,
-        internalStaff: mappedInternalStaff,
-        baseRate: existingTrip.costs.baseRate ?? undefined,
-        notes: existingTrip.notes || "",
-      });
+      form.reset(mapTripToWizardFormValues(existingTrip));
     }
   }, [existingTrip, isEditMode, form]);
 
@@ -532,38 +366,38 @@ export function TripFormPage() {
     const cargosWithoutDeliveries: string[] = [];
     const errors: string[] = [];
 
-    for (const cargo of currentCargos) {
-      const movements = cargo.movements || [];
+    for (const cargoRow of currentCargos) {
+      const movements = cargoRow.movements || [];
       const deliveries = movements.filter((m) => m.movementType === "delivery");
 
       if (deliveries.length === 0) {
-        cargosWithoutDeliveries.push(cargo.description);
+        cargosWithoutDeliveries.push(cargoRow.description);
         continue;
       }
 
       // Validar concordancia de peso
-      if (cargo.weight != null && cargo.weight > 0) {
+      if (cargoRow.weight != null && cargoRow.weight > 0) {
         const totalDeliveryWeight = deliveries.reduce(
           (sum, d) => sum + (d.weight || 0),
           0,
         );
 
-        if (totalDeliveryWeight > cargo.weight) {
+        if (totalDeliveryWeight > cargoRow.weight) {
           errors.push(
             cargo.validation.weightExceeded(
-              cargo.description,
+              cargoRow.description,
               totalDeliveryWeight,
-              cargo.weight,
+              cargoRow.weight,
             ),
           );
-        } else if (totalDeliveryWeight < cargo.weight) {
-          const pendingWeight = cargo.weight - totalDeliveryWeight;
+        } else if (totalDeliveryWeight < cargoRow.weight) {
+          const pendingWeight = cargoRow.weight - totalDeliveryWeight;
           errors.push(
             cargo.validation.weightPending(
-              cargo.description,
+              cargoRow.description,
               pendingWeight,
               totalDeliveryWeight,
-              cargo.weight,
+              cargoRow.weight,
             ),
           );
         }
@@ -902,7 +736,6 @@ export function TripFormPage() {
               form={form}
               cargosFieldArray={cargosFieldArray}
               clients={clients}
-              isLoadingClients={isLoadingClients}
             />
           );
         case 3:

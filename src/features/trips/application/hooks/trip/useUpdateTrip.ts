@@ -12,7 +12,8 @@ import { createUpdateTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 
 /**
- * Hook para actualizar viaje
+ * Hook para actualizar viaje.
+ * Cache: merge optimista en detalle vía setQueryData; invalidación solo de listados.
  */
 export function useUpdateTrip(
   options?: UseMutationOptions<
@@ -59,20 +60,19 @@ export function useUpdateTrip(
       }
       return result.data;
     },
-    onSuccess: async (updatedTrip, variables, context) => {
+    onSuccess: async (updatedTrip, variables, onMutateResult, context) => {
       const { id } = variables;
       queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), (previous) =>
         mergeTripDetail(previous, updatedTrip),
       );
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-      await onSuccessExternal?.(updatedTrip, variables, context);
+      await onSuccessExternal?.(updatedTrip, variables, onMutateResult, context);
     },
-    onError: async (error, variables, context) => {
-      await onErrorExternal?.(error, variables, context);
+    onError: async (error, variables, onMutateResult, context) => {
+      await onErrorExternal?.(error, variables, onMutateResult, context);
     },
-    onSettled: async (data, error, variables, context) => {
-      await onSettledExternal?.(data, error, variables, context);
+    onSettled: async (data, error, variables, onMutateResult, context) => {
+      await onSettledExternal?.(data, error, variables, onMutateResult, context);
     },
     ...restOptions,
   });

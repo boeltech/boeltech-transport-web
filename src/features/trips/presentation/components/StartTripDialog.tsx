@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Play } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
@@ -67,12 +67,6 @@ function StartTripDialogBody({
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setOccurredAt(defaultOccurredAtLocal());
-    setGps(null);
-    setTimeError(null);
-  }, [tripId]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(vehicleId ?? "", {
     enabled: !!vehicleId,

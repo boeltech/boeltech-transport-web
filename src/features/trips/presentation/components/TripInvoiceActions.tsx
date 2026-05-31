@@ -25,7 +25,7 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
 import type { Trip } from "@features/trips/domain";
-import { getTripInvoicingBadgeConfig } from "@/features/trips";
+import { getTripInvoicingBadgeConfig } from "@features/trips";
 
 // ============================================================================
 // TYPES

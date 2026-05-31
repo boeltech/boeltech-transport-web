@@ -1,6 +1,11 @@
 import { Flag, MapPin, Navigation, Package } from "lucide-react";
 
-import type { CargoStatusType, TripCargo, TripStop } from "@features/trips/domain";
+import type {
+  CargoStatusType,
+  StopTypeValue,
+  TripCargo,
+  TripStop,
+} from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { cn } from "@shared/lib/utils/cn";
@@ -31,7 +36,7 @@ type PickupCategory = "origin" | "waypoint" | "destination";
 
 function hasStopType(
   stopType: TripStop["stopType"],
-  target: string,
+  target: StopTypeValue,
 ): boolean {
   const types = Array.isArray(stopType) ? stopType : [stopType];
   return types.includes(target);

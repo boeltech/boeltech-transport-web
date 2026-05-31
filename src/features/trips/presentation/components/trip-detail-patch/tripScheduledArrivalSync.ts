@@ -18,7 +18,7 @@ export function isDestinationStop(stop: TripStop): boolean {
 
 /** Valores datetime-local para override de programación del viaje. */
 export function buildScheduleOverrideFromTrip(
-  trip: Trip,
+  _trip: Trip,
   schedule: TripScheduleFormValues,
 ): { scheduledDeparture: string; scheduledArrival: string } {
   return {
