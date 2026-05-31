@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Building2, Info } from "lucide-react";
@@ -16,13 +16,13 @@ import { Checkbox } from "@shared/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Separator } from "@shared/ui/separator";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  FormFieldShell,
+  FormValidationSummary,
+  RHFCatalogField,
+  RHFTextField,
+  getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import {
   Select,
   SelectContent,
@@ -107,6 +107,7 @@ export function CreateInvoicePage() {
 
   // Client selector state — independent of trip prefill
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
@@ -173,7 +174,10 @@ export function CreateInvoicePage() {
       total: 0,
       notes: "",
     },
+    mode: "onChange",
   });
+
+  const { control } = form;
 
   // Watch fields for auto-calculation
   const subtotal = useWatch({ control: form.control, name: "subtotal" });
@@ -529,8 +533,18 @@ export function CreateInvoicePage() {
       title={shellTitle}
       subtitle={shellSubtitle}
     >
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(
+            (values) => {
+              setShowValidationSummary(false);
+              onSubmit(values);
+            },
+            () => {
+              setShowValidationSummary(true);
+            },
+          )}
+          className="space-y-6"
+        >
           {/* RECEPTOR */}
           <Card>
             <CardHeader className="pb-3">
@@ -586,91 +600,74 @@ export function CreateInvoicePage() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
+                <Controller
+                  control={control}
                   name="receiver_rfc"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>RFC</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="XAXX010101000"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(e.target.value.toUpperCase())
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  render={({ field, fieldState }) => (
+                    <FormFieldShell
+                      fieldId="receiver_rfc"
+                      label="RFC"
+                      errorMessage={fieldState.error?.message}
+                    >
+                      <Input
+                        id="receiver_rfc"
+                        placeholder="XAXX010101000"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        error={Boolean(fieldState.error)}
+                        {...getFieldErrorAriaProps(
+                          "receiver_rfc",
+                          fieldState.error?.message,
+                        )}
+                      />
+                    </FormFieldShell>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
+                <RHFTextField
+                  control={control}
                   name="receiver_postal_code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código Postal (domicilio fiscal)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="12345" maxLength={5} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Código Postal (domicilio fiscal)"
+                  placeholder="12345"
+                  maxLength={5}
                 />
               </div>
 
-              <FormField
-                control={form.control}
+              <RHFTextField
+                control={control}
                 name="receiver_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre / Razón Social</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nombre del receptor" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Nombre / Razón Social"
+                placeholder="Nombre del receptor"
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
+                <RHFCatalogField
+                  control={control}
                   name="receiver_tax_regime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Régimen Fiscal</FormLabel>
-                      <FormControl>
-                        <RegimenFiscalSelect
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Selecciona régimen"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  label="Régimen Fiscal"
+                >
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <RegimenFiscalSelect
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Selecciona régimen"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="cfdi_usage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Uso CFDI</FormLabel>
-                      <FormControl>
-                        <UsoCfdiSelect
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Selecciona uso"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                </RHFCatalogField>
+                <RHFCatalogField control={control} name="cfdi_usage" label="Uso CFDI">
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <UsoCfdiSelect
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Selecciona uso"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
+                </RHFCatalogField>
               </div>
             </CardContent>
           </Card>
@@ -684,61 +681,44 @@ export function CreateInvoicePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="payment_form"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Forma de Pago</FormLabel>
-                      <FormControl>
-                        <FormaPagoSelect
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Selecciona"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <RHFCatalogField control={control} name="payment_form" label="Forma de Pago">
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <FormaPagoSelect
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Selecciona"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="payment_method"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Método de Pago</FormLabel>
-                      <FormControl>
-                        <MetodoPagoSelect
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Selecciona"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                </RHFCatalogField>
+                <RHFCatalogField control={control} name="payment_method" label="Método de Pago">
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <MetodoPagoSelect
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Selecciona"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Moneda</FormLabel>
-                      <FormControl>
-                        <CatalogSelect
-                          typeCode="sat_moneda"
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          placeholder="Selecciona moneda"
-                          displayFormat="code-name"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                </RHFCatalogField>
+                <RHFCatalogField control={control} name="currency" label="Moneda">
+                  {({ field, fieldState, resolvedId, errorMessage }) => (
+                    <CatalogSelect
+                      typeCode="sat_moneda"
+                      triggerId={resolvedId}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Selecciona moneda"
+                      displayFormat="code-name"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                    />
                   )}
-                />
+                </RHFCatalogField>
               </div>
             </CardContent>
           </Card>
@@ -752,158 +732,150 @@ export function CreateInvoicePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="subtotal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subtotal</FormLabel>
-                      <FormControl>
+                {(
+                  [
+                    ["subtotal", "Subtotal"],
+                    ["discount", "Descuento"],
+                    ["total", "Total"],
+                  ] as const
+                ).map(([name, label]) => (
+                  <Controller
+                    key={name}
+                    control={control}
+                    name={name}
+                    render={({ field, fieldState }) => (
+                      <FormFieldShell
+                        fieldId={name}
+                        label={label}
+                        errorMessage={fieldState.error?.message}
+                      >
                         <Input
+                          id={name}
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          {...field}
+                          value={field.value ?? ""}
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value) || 0)
                           }
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          error={Boolean(fieldState.error)}
+                          {...getFieldErrorAriaProps(name, fieldState.error?.message)}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="discount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descuento</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
+                      </FormFieldShell>
+                    )}
+                  />
+                ))}
+                <Controller
+                  control={control}
                   name="total_tax"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        IVA{" "}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          ({(taxRate * 100).toFixed(0)}%)
-                        </span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="total"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  render={({ field, fieldState }) => (
+                    <FormFieldShell
+                      fieldId="total_tax"
+                      label={
+                        <>
+                          IVA{" "}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({(taxRate * 100).toFixed(0)}%)
+                          </span>
+                        </>
+                      }
+                      errorMessage={fieldState.error?.message}
+                    >
+                      <Input
+                        id="total_tax"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        error={Boolean(fieldState.error)}
+                        {...getFieldErrorAriaProps(
+                          "total_tax",
+                          fieldState.error?.message,
+                        )}
+                      />
+                    </FormFieldShell>
                   )}
                 />
               </div>
 
               {/* IVA Retenido — persona moral (Art. 1-A LIVA) */}
               <div className="space-y-3">
-                <FormField
-                  control={form.control}
+                <Controller
+                  control={control}
                   name="apply_retained_tax"
                   render={({ field }) => (
-                    <FormItem className="flex items-start gap-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                          }}
-                        />
-                      </FormControl>
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id="apply_retained_tax"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                       <div className="space-y-0.5">
-                        <FormLabel className="font-normal cursor-pointer">
+                        <label
+                          htmlFor="apply_retained_tax"
+                          className="cursor-pointer text-sm font-medium leading-none"
+                        >
                           Aplica retención IVA 4% (persona moral)
-                        </FormLabel>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        </label>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Info className="h-3 w-3 shrink-0" />
                           Art. 1-A LIVA — autotransporte terrestre de carga
                         </p>
                       </div>
-                    </FormItem>
+                    </div>
                   )}
                 />
 
-                {isPersonaMoral && (
+                {isPersonaMoral ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
+                    <Controller
+                      control={control}
                       name="retained_tax"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            IVA Retenido{" "}
-                            <span className="text-xs text-muted-foreground font-normal">
-                              (4%)
-                            </span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                      render={({ field, fieldState }) => (
+                        <FormFieldShell
+                          fieldId="retained_tax"
+                          label={
+                            <>
+                              IVA Retenido{" "}
+                              <span className="text-xs font-normal text-muted-foreground">
+                                (4%)
+                              </span>
+                            </>
+                          }
+                          errorMessage={fieldState.error?.message}
+                        >
+                          <Input
+                            id="retained_tax"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value) || 0)
+                            }
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                            error={Boolean(fieldState.error)}
+                            {...getFieldErrorAriaProps(
+                              "retained_tax",
+                              fieldState.error?.message,
+                            )}
+                          />
+                        </FormFieldShell>
                       )}
                     />
                   </div>
-                )}
+                ) : null}
               </div>
 
               <p className="text-xs text-muted-foreground">
@@ -921,23 +893,22 @@ export function CreateInvoicePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <FormField
-                control={form.control}
+              <RHFTextField
+                control={control}
                 name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        placeholder="Notas internas, referencias, observaciones..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Notas internas"
+                placeholder="Notas internas, referencias, observaciones..."
               />
             </CardContent>
           </Card>
+
+          {showValidationSummary &&
+          collectFieldErrorMessages(form.formState.errors).length > 0 ? (
+            <FormValidationSummary
+              title="Revisa los datos de la factura"
+              messages={collectFieldErrorMessages(form.formState.errors)}
+            />
+          ) : null}
 
           <Separator />
 
@@ -961,7 +932,6 @@ export function CreateInvoicePage() {
             </Button>
           </div>
         </form>
-      </Form>
     </InvoiceFormPageShell>
   );
 }

@@ -11,6 +11,5 @@ export { InvoiceFormPageShell } from "./InvoiceFormPageShell";
 export { InvoicesSummaryCards } from "./InvoicesSummaryCards";
 export {
   INVOICE_STATUS_CONFIG,
-  invoiceStatusConfig,
   getInvoiceStatusConfig,
 } from "./invoiceStatusConfig";

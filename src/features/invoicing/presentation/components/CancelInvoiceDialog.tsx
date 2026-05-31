@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,23 +9,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@shared/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { Input } from "@shared/ui/input";
 import { Button } from "@shared/ui/button";
+import {
+  FormValidationSummary,
+  RHFSelectField,
+  RHFTextField,
+} from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useCancelInvoice } from "@features/invoicing/application";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -64,6 +55,7 @@ interface Props {
 
 export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
   const { toast } = useToast();
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const form = useForm<FormValues, unknown, FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -72,10 +64,13 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
       cancellation_code: "02",
       replacement_cfdi_uuid: undefined,
     },
+    mode: "onChange",
   });
 
+  const { control } = form;
+
   const cancellationCode = useWatch({
-    control: form.control,
+    control,
     name: "cancellation_code",
   });
 
@@ -100,16 +95,24 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
-    mutate({
-      id: invoiceId,
-      payload: {
-        cancellationReason: values.cancellation_reason,
-        cancellationCode: values.cancellation_code,
+  const handleFormSubmit = form.handleSubmit(
+    (values) => {
+      setShowValidationSummary(false);
+      mutate({
+        id: invoiceId,
+        payload: {
+          cancellationReason: values.cancellation_reason,
+          cancellationCode: values.cancellation_code,
           replacementCfdiUuid: values.replacement_cfdi_uuid || undefined,
-      },
-    });
-  };
+        },
+      });
+    },
+    () => {
+      setShowValidationSummary(true);
+    },
+  );
+
+  const validationMessages = collectFieldErrorMessages(form.formState.errors);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -123,90 +126,58 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
           proporcionar el motivo de cancelación.
         </p>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="cancellation_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Motivo SAT</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona motivo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {MOTIVOS.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          <RHFSelectField
+            control={control}
+            name="cancellation_code"
+            label="Motivo SAT"
+            required
+            placeholder="Selecciona motivo"
+            options={MOTIVOS}
+          />
+
+          <RHFTextField
+            control={control}
+            name="cancellation_reason"
+            label="Descripción"
+            required
+            placeholder="Describe el motivo de cancelación..."
+          />
+
+          {cancellationCode === "01" ? (
+            <RHFTextField
+              control={control}
+              name="replacement_cfdi_uuid"
+              label="UUID de CFDI sustitución"
+              required
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             />
+          ) : null}
 
-            <FormField
-              control={form.control}
-              name="cancellation_reason"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Describe el motivo de cancelación..."
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          {showValidationSummary && validationMessages.length > 0 ? (
+            <FormValidationSummary
+              title="Revisa los datos de cancelación"
+              messages={validationMessages}
             />
+          ) : null}
 
-            {cancellationCode === "01" && (
-              <FormField
-                control={form.control}
-                name="replacement_cfdi_uuid"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>UUID de CFDI sustitución</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Volver
-              </Button>
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={isPending}
-              >
-                {isPending ? "Cancelando..." : "Confirmar cancelación"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Volver
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={isPending}
+            >
+              {isPending ? "Cancelando..." : "Confirmar cancelación"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

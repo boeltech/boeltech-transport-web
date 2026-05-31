@@ -35,9 +35,6 @@ export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, StatusConfig> = {
   }),
 };
 
-/** @deprecated Usar `INVOICE_STATUS_CONFIG` */
-export const invoiceStatusConfig = INVOICE_STATUS_CONFIG;
-
 export const InvoiceStatusBadge =
   createStatusBadgeComponent(INVOICE_STATUS_CONFIG);
 

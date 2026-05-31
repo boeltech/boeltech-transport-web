@@ -101,6 +101,9 @@ interface ApiInvoice {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  updated_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   can_substitute_invoice?: boolean;
 }
 
@@ -270,6 +273,9 @@ export function mapInvoice(raw: unknown): Invoice {
     createdAt: invoice.created_at,
     updatedAt: invoice.updated_at,
     createdBy: invoice.created_by,
+    updatedBy: invoice.updated_by ?? null,
+    createdByName: invoice.created_by_name ?? null,
+    updatedByName: invoice.updated_by_name ?? null,
   };
 }
 

@@ -190,7 +190,11 @@ export function InvoiceDetailPage() {
       metadata={{
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
-        createdBy: invoice.createdBy ?? undefined,
+        createdBy:
+          invoice.createdByName?.trim() ||
+          invoice.createdBy?.trim() ||
+          undefined,
+        updatedBy: invoice.updatedByName?.trim() || undefined,
       }}
     >
       {invoice.parentInvoiceId && (

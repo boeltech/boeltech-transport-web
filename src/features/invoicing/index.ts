@@ -53,6 +53,5 @@ export {
   SubstituteInvoiceDialog,
   FinanceSummaryCards,
   INVOICE_STATUS_CONFIG,
-  invoiceStatusConfig,
   getInvoiceStatusConfig,
 } from "./presentation/components";

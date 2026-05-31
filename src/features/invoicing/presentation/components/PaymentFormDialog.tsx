@@ -1,4 +1,5 @@
-import { useForm, type Resolver } from "react-hook-form";
+import { useState } from "react";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -8,25 +9,21 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@shared/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
 import { Button } from "@shared/ui/button";
+import { Input } from "@shared/ui/input";
+import {
+  FormFieldShell,
+  FormValidationSummary,
+  RHFCatalogField,
+  RHFTextField,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { FormaPagoSelect } from "@features/catalogs/presentation/components";
 import { useRegisterPayment } from "@features/invoicing/application";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import type { Invoice } from "@features/invoicing/domain";
-
-// ============================================================================
-// SCHEMA
-// ============================================================================
 
 const schema = z.object({
   amount: z.coerce
@@ -43,10 +40,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 interface Props {
   invoice: Invoice;
   open: boolean;
@@ -55,6 +48,7 @@ interface Props {
 
 export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
   const { toast } = useToast();
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
   const remainingBalance = Number(invoice.balanceDue.toFixed(2));
   const hasPendingBalance = remainingBalance > 0;
 
@@ -67,7 +61,10 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
       reference: "",
       notes: "",
     },
+    mode: "onChange",
   });
+
+  const { control } = form;
 
   const { mutate, isPending } = useRegisterPayment(invoice.id, {
     onSuccess: () => {
@@ -84,7 +81,7 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const submitValues = (values: FormValues) => {
     if (!hasPendingBalance) {
       toast({
         variant: "destructive",
@@ -114,6 +111,18 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
     });
   };
 
+  const handleFormSubmit = form.handleSubmit(
+    (values) => {
+      setShowValidationSummary(false);
+      submitValues(values);
+    },
+    () => {
+      setShowValidationSummary(true);
+    },
+  );
+
+  const validationMessages = collectFieldErrorMessages(form.formState.errors);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -140,115 +149,98 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
           </p>
         )}
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto (MXN)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        max={remainingBalance}
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        disabled={!hasPendingBalance}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="amount"
+                  label="Monto (MXN)"
+                  required
+                  errorMessage={fieldState.error?.message}
+                >
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    max={remainingBalance}
+                    placeholder="0.00"
+                    disabled={!hasPendingBalance}
+                    value={field.value ?? ""}
+                    onChange={(event) =>
+                      field.onChange(parseFloat(event.target.value) || 0)
+                    }
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps("amount", fieldState.error?.message)}
+                  />
+                </FormFieldShell>
+              )}
+            />
+            <RHFTextField
+              control={control}
+              name="payment_date"
+              label="Fecha de pago"
+              required
+              type="date"
+              disabled={!hasPendingBalance}
+            />
+          </div>
+
+          <RHFCatalogField control={control} name="payment_form" label="Forma de pago" required>
+            {({ field, fieldState, resolvedId, errorMessage }) => (
+              <FormaPagoSelect
+                triggerId={resolvedId}
+                value={field.value}
+                onValueChange={field.onChange}
+                placeholder="Selecciona forma de pago"
+                disabled={!hasPendingBalance}
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps(resolvedId, errorMessage)}
               />
+            )}
+          </RHFCatalogField>
 
-              <FormField
-                control={form.control}
-                name="payment_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha de pago</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={!hasPendingBalance} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+          <RHFTextField
+            control={control}
+            name="reference"
+            label="Referencia (opcional)"
+            placeholder="Número de transferencia, cheque..."
+            disabled={!hasPendingBalance}
+          />
 
-            <FormField
-              control={form.control}
-              name="payment_form"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Forma de pago</FormLabel>
-                  <FormControl>
-                    <FormaPagoSelect
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona forma de pago"
-                      disabled={!hasPendingBalance}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <RHFTextField
+            control={control}
+            name="notes"
+            label="Notas (opcional)"
+            placeholder="Notas adicionales"
+            disabled={!hasPendingBalance}
+          />
+
+          {showValidationSummary && validationMessages.length > 0 ? (
+            <FormValidationSummary
+              title="Revisa los datos del pago"
+              messages={validationMessages}
             />
+          ) : null}
 
-            <FormField
-              control={form.control}
-              name="reference"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Referencia (opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Número de transferencia, cheque..."
-                      {...field}
-                      disabled={!hasPendingBalance}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Notas adicionales"
-                      {...field}
-                      disabled={!hasPendingBalance}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending || !hasPendingBalance}>
-                {isPending ? "Guardando..." : "Registrar pago"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending || !hasPendingBalance}>
+              {isPending ? "Guardando..." : "Registrar pago"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
