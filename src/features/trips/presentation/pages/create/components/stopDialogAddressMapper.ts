@@ -1,5 +1,5 @@
 /**
- * Mapeo entre valores del diálogo de parada (campos SAT en inglés, addressSchema)
+ * Mapeo entre valores del diálogo de parada (campos SAT en inglés, tripStopSchema)
  * y el modelo del wizard (`TripStopFormValues` canónico en inglés).
  * Fase C — integración de `AddressInput` compartido.
  */
@@ -27,7 +27,7 @@ export type StopDialogFormValues = {
   clientAddressId: string;
   addressId: string;
   locationName: string;
-  /** Campos alineados a `addressSchema` (inglés) para `AddressInput`. */
+  /** Campos alineados a `tripStopSchema` (inglés) para `AddressInput`. */
   id?: string;
   addressType: "trip_stop";
   isPrimary: false;
@@ -40,6 +40,7 @@ export type StopDialogFormValues = {
   satStateCode: string;
   satMunicipalityCode: string;
   satLocalityCode: string | null;
+  localityName: string | null;
   satNeighborhoodCode: string | null;
   neighborhoodName: string | null;
   latitude: number | null;
@@ -107,6 +108,7 @@ export function getEmptyStopDialogValues(): StopDialogFormValues {
     satStateCode: "",
     satMunicipalityCode: "",
     satLocalityCode: null,
+    localityName: null,
     satNeighborhoodCode: null,
     neighborhoodName: null,
     latitude: null,
@@ -147,6 +149,7 @@ export function clientAddressToDialogSlice(
     satLocalityCode: addr.satLocalityCode
       ? shortSatCode(addr.satLocalityCode)
       : null,
+    localityName: addr.localityName ?? null,
     satNeighborhoodCode: addr.satNeighborhoodCode
       ? shortSatCode(addr.satNeighborhoodCode)
       : null,
@@ -181,6 +184,7 @@ export function tripStopToDialogValues(stop: Partial<StopFormData>): StopDialogF
     satStateCode: stop.satStateCode ?? "",
     satMunicipalityCode: stop.satMunicipalityCode ?? "",
     satLocalityCode: stop.satLocalityCode || null,
+    localityName: stop.localityName ?? null,
     satNeighborhoodCode: stop.satNeighborhoodCode || null,
     neighborhoodName: stop.neighborhoodName ?? null,
     latitude: stop.latitude ?? null,
@@ -222,6 +226,7 @@ export function dialogToStopFormData(v: StopDialogFormValues): StopFormData {
     satMunicipalityCode: v.satMunicipalityCode,
     postalCode: v.postalCode,
     satLocalityCode: v.satLocalityCode ?? undefined,
+    localityName: v.localityName ?? undefined,
     satNeighborhoodCode: v.satNeighborhoodCode ?? undefined,
     neighborhoodName: v.neighborhoodName ?? undefined,
     cityName: v.cityName || undefined,
@@ -267,9 +272,11 @@ export function mergeDialogWithClientCatalog(
 
   const slice = clientAddressToDialogSlice(selected);
   const fiscal = resolveRemitenteFiscalFromClientAddress(selected, clientFiscalFallback);
+  /** Catálogo primero; el estado del formulario (ediciones en sesión) tiene prioridad. */
   const merged: StopDialogFormValues = {
-    ...w,
     ...slice,
+    ...w,
+    addressId: w.addressId || selected.id,
     rfcRemitenteDestinatario: useAddressFiscalData
       ? fiscal.rfcRemitenteDestinatario
       : w.rfcRemitenteDestinatario,

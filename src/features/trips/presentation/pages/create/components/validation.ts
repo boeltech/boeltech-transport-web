@@ -16,12 +16,21 @@
 import { z } from "zod";
 
 import { isUnifiedAddressId } from "@features/trips/domain";
-import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import { LOCATION_CAPTURE_LABELS } from "../../../copy/wizard/routeCopy";
+import { wizardCopy } from "../../../copy";
+
+const shell = wizardCopy.shell;
 import {
   getMissingSectorRequiredFields,
   isHazmatRequired,
   sectorFieldLabels,
 } from "./cargoRegulatory";
+import {
+  computeFinancialSummary,
+  isIndirectExpenseCategory,
+  isOperationalExpenseCategory,
+  type ExpenseCategory,
+} from "./financialSummary";
 
 /** Parada vinculada a fila `addresses` (Fase 4) — el backend puede omitir captura manual SAT. */
 export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
@@ -66,7 +75,11 @@ export const tripStopSchema = z
   addressId: z.union([z.literal(""), z.string().uuid()]).optional(),
 
   // ── Identificación del lugar ────────────────────────────────────────────
-  locationName: z.string().optional(), // Nombre del lugar (ej: "Bodega Central")
+  locationName: z
+    .string()
+    .trim()
+    .min(1, "El nombre del lugar es requerido")
+    .max(200, "El nombre del lugar es muy largo"),
 
   // ── Ubicación SAT (Carta Porte 3.1) ─────────────────────────────────────
   /**
@@ -101,6 +114,11 @@ export const tripStopSchema = z
    * OPCIONAL - Usado principalmente en zonas rurales
    */
   satLocalityCode: z.string().optional(),
+
+  /**
+   * Nombre de localidad (texto libre / catálogo SAT)
+   */
+  localityName: z.string().max(120, "Nombre de localidad muy largo").optional(),
 
   /**
    * Nombre del municipio (texto del catálogo SAT).
@@ -272,7 +290,7 @@ export const cargoMovementSchema = z.object({
 export const tripCargoSchema = z.object({
   id: z.string().optional(),
 
-  // Cliente asociado
+  // Dueño comercial ERP (v1: centinela resuelto en API; no es RFC de Ubicacion CP)
   clientId: z.string().optional(),
 
   // Clasificación SAT (Carta Porte 3.1)
@@ -555,7 +573,7 @@ export const tripExpenseSchema = z.object({
 
   // Descripción y monto
   description: z.string().min(1, "Descripción requerida"),
-  amount: z.coerce.number().min(0, "El monto no puede ser negativo"),
+  amount: z.coerce.number().min(0.01, "El monto debe ser mayor a cero"),
   currency: z.literal("MXN").default("MXN"),
 
   // Proveedor (opcional, para referencia operativa)
@@ -581,6 +599,96 @@ export const internalStaffSchema = z.object({
     .optional()
     .or(z.literal("")),
 });
+
+// ============================================================================
+// COSTS STEP VALIDATION (paso 4 — planeación, no CP)
+// ============================================================================
+
+export type CostsStepValidationResult = {
+  isValid: boolean;
+  message?: string;
+  warning?: string;
+};
+
+export type CostsStepValidationInput = {
+  baseRate?: number;
+  expenses?: Array<{ category: string; amount?: number }>;
+  cfdiDocumentIntent?: "ingreso" | "traslado";
+  clientId?: string;
+};
+
+export function wizardHasContractingClient(clientId: string | undefined): boolean {
+  return Boolean(clientId?.trim() && clientId !== "no-client");
+}
+
+/**
+ * Reglas de negocio del paso Costos (no bloqueantes para CP/API):
+ * 1. Ingreso + cliente → tarifa base obligatoria y &gt; 0.
+ * 2. Traslado → tarifa base opcional.
+ * 3. Margen crítico (&lt;10%) → advertencia, no bloquea.
+ * Además: si capturan tarifa, debe ser &gt; 0.
+ */
+export function validateCostsStep(
+  values: CostsStepValidationInput,
+): CostsStepValidationResult {
+  const intent = values.cfdiDocumentIntent ?? "ingreso";
+  const baseRate = values.baseRate;
+  const hasClient = wizardHasContractingClient(values.clientId);
+
+  const hasPositiveBaseRate =
+    typeof baseRate === "number" &&
+    !Number.isNaN(baseRate) &&
+    baseRate >= 0.01;
+
+  if (
+    baseRate != null &&
+    typeof baseRate === "number" &&
+    !Number.isNaN(baseRate) &&
+    baseRate < 0.01
+  ) {
+    return {
+      isValid: false,
+      message: "La tarifa base debe ser mayor a cero.",
+    };
+  }
+
+  if (intent === "ingreso" && hasClient && !hasPositiveBaseRate) {
+    return {
+      isValid: false,
+      message:
+        "Indica la tarifa base (mayor a cero) para viajes de ingreso con cliente.",
+    };
+  }
+
+  const expenses = values.expenses ?? [];
+  const totalOperationalCosts = expenses
+    .filter((expense) =>
+      isOperationalExpenseCategory(expense.category as ExpenseCategory),
+    )
+    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const totalIndirectExpenses = expenses
+    .filter((expense) =>
+      isIndirectExpenseCategory(expense.category as ExpenseCategory),
+    )
+    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const totalExpenses = totalOperationalCosts + totalIndirectExpenses;
+  const rateForSummary = hasPositiveBaseRate ? baseRate : 0;
+
+  const financial = computeFinancialSummary(rateForSummary, totalExpenses, {
+    totalOperationalCosts,
+    totalIndirectExpenses,
+  });
+
+  if (financial.health === "critical") {
+    return {
+      isValid: true,
+      warning:
+        "El margen estimado está por debajo del 10%. Revisa la tarifa o los conceptos antes de continuar.",
+    };
+  }
+
+  return { isValid: true };
+}
 
 // ============================================================================
 // FULL WIZARD SCHEMA
@@ -632,6 +740,20 @@ export const tripWizardSchema = z.object({
       assigned.add(id);
     }
   }
+
+  const costsValidation = validateCostsStep({
+    baseRate: data.baseRate,
+    expenses: data.expenses,
+    cfdiDocumentIntent: data.cfdiDocumentIntent,
+    clientId: data.clientId,
+  });
+  if (!costsValidation.isValid && costsValidation.message) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["baseRate"],
+      message: costsValidation.message,
+    });
+  }
 });
 
 // ============================================================================
@@ -652,8 +774,8 @@ export type TripWizardFormValues = z.infer<typeof tripWizardSchema>;
 export const WIZARD_STEPS = [
   {
     id: "basic",
-    title: "Información",
-    description: "Asignaciones y programación",
+    title: shell.step.basic.title,
+    description: shell.step.basic.description,
     fields: [
       "vehicleId",
       "driverId",
@@ -666,29 +788,31 @@ export const WIZARD_STEPS = [
   },
   {
     id: "route",
-    title: "Ruta",
-    description: "Paradas del viaje",
+    title: shell.step.route.title,
+    description: shell.step.route.description,
     fields: ["stops"],
   },
   {
     id: "cargo",
-    title: "Cargas",
-    description: "Mercancías a transportar",
+    title: shell.step.cargo.title,
+    description: shell.step.cargo.description,
     fields: ["cargos"],
   },
   {
     id: "costs",
-    title: "Costos",
-    description: "Gastos estimados",
+    title: shell.step.costs.title,
+    description: shell.step.costs.description,
     fields: ["expenses", "baseRate"],
   },
   {
     id: "summary",
-    title: "Resumen",
-    description: "Confirmar y crear",
+    title: shell.step.summary.title,
+    description: shell.step.summary.description,
     fields: ["notes"],
   },
 ];
+
+export const WIZARD_STEP_FIELDS = WIZARD_STEPS.map((step) => step.fields);
 
 // ============================================================================
 // DEFAULT VALUES
@@ -726,6 +850,7 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   satMunicipalityCode: "",
   postalCode: "",
   satLocalityCode: "",
+  localityName: "",
   satNeighborhoodCode: "",
   cityName: "",
   neighborhoodName: "",

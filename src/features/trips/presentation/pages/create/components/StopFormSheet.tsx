@@ -1,36 +1,35 @@
 /**
- * StopFormDialog - Dialog para agregar/editar paradas
+ * StopFormSheet - Sheet lateral para agregar/editar paradas
  * Clean Architecture - Presentation Layer
  *
- * Fase C: ubicación capturada con `AddressInput` compartido (addressSchema / SAT en inglés)
+ * Fase C: ubicación capturada con `AddressInput` + validación `tripStopSchema` / paquete SAT
  * y mapeo a `TripStopFormValues` del wizard.
  *
- * Ubicación: src/features/trips/presentation/pages/create/components/StopFormDialog.tsx
+ * Patrón UI: Sheet lateral derecho con secciones en `FormSectionCard` (alineado con
+ * `ClientAddressForm` / `EmployeeFormInner`). Reemplaza al antiguo `StopFormDialog`,
+ * que estaba acotado por el tamaño máximo de un Dialog.
+ *
+ * Ubicación: src/features/trips/presentation/pages/create/components/StopFormSheet.tsx
  */
 
 import {
-  forwardRef,
   useState,
   useEffect,
   useCallback,
   useMemo,
   useRef,
-  type RefObject,
-  type ReactNode,
-  type ComponentType,
 } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@shared/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
-import { Textarea } from "@shared/ui/text-area";
 import { Label } from "@shared/ui/label";
 import {
   Select,
@@ -41,25 +40,47 @@ import {
 } from "@shared/ui/select";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Switch } from "@shared/ui/switch";
-import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
+  AddressGeocodingSectionContent,
+  AddressGeocodingSectionTitle,
   EntityAddressForm,
-  AddressGeolocationPanel,
+  GEOCODING_SECTION_ID,
   resolveGeolocationPanelMode,
+  type EntityAddressFormSection,
 } from "@shared/ui/address-input";
+import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
 import {
   MapPin,
   Navigation,
   Flag,
   AlertCircle,
   Phone,
-  ChevronDown,
   Milestone,
-  MapPinned,
   ScrollText,
+  Building2,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import {
+  FormFieldShell,
+  FormValidationSummary,
+  RHFTextField,
+  RHFTextareaField,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
+import { FormSectionCard } from "@shared/ui/form-section-card";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
 import AddressInput from "@shared/ui/address-input/AddressInput";
+import { useToast } from "@shared/hooks";
 
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
 import {
@@ -80,7 +101,18 @@ import {
   clientAddressToDialogSlice,
   resolveRemitenteFiscalFromClientAddress,
 } from "./stopDialogAddressMapper";
-import { validateTripStopInlineAddress } from "@shared/cfdi/addressPayloadBridge";
+import {
+  detachStopFromClientCatalog,
+  resolveClientAddressFormContextForCatalog,
+  stopDialogDiffersFromClientCatalog,
+  stopDialogToClientAddressFormData,
+  stopDialogToClientAddressUpdateDto,
+} from "./stopClientAddressWriteBack";
+import { validateClientAddressFormComplete } from "@features/clients/presentation/validation/clientAddressSchema";
+import {
+  getTripStopFiscalMissingLabels,
+  validateTripStopAddressComplete,
+} from "../validation/tripStopAddressValidation";
 import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
 import {
   RFC_PUBLICO_GENERAL,
@@ -91,11 +123,6 @@ import {
   type CfdiDocumentIntent,
 } from "./stopDialogFiscalCopy";
 import { PartnerSnapshotPicker } from "@features/partners";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { Separator } from "@shared/ui/separator";
 
 export type {
@@ -108,7 +135,7 @@ export type {
 // TYPES
 // ============================================================================
 
-export interface StopFormDialogProps {
+export interface StopFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: StopFormData) => void;
@@ -128,172 +155,86 @@ const STOP_OPERATION_OPTIONS = [
   },
 ];
 
-type StopDialogHighlightKey =
-  | "stopCategory"
-  | "waypointOperations"
-  | "addressSat"
-  | "geolocation"
-  | "estimatedArrival"
-  | "distance";
-
-function missingMessagesToHighlightKeys(missing: string[]): Set<StopDialogHighlightKey> {
-  const keys = new Set<StopDialogHighlightKey>();
-  for (const m of missing) {
-    switch (m) {
-      case "Tipo de parada":
-        keys.add("stopCategory");
-        break;
-      case "Operación de escala":
-        keys.add("waypointOperations");
-        break;
-      case LOCATION_CAPTURE_LABELS.country:
-      case LOCATION_CAPTURE_LABELS.state:
-      case LOCATION_CAPTURE_LABELS.municipality:
-      case "Código postal":
-        keys.add("addressSat");
-        break;
-      case "Geolocalización en mapa":
-        keys.add("geolocation");
-        break;
-      case "Hora estimada de llegada":
-        keys.add("estimatedArrival");
-        break;
-      case "Distancia desde parada anterior":
-        keys.add("distance");
-        break;
-      default:
-        break;
-    }
-  }
-  return keys;
-}
-
-function sectionHighlightClass(
-  attempted: boolean,
-  keys: Set<StopDialogHighlightKey>,
-  section: StopDialogHighlightKey,
-): string | undefined {
-  if (!attempted || !keys.has(section)) return undefined;
-  return "rounded-lg ring-2 ring-destructive ring-offset-2 ring-offset-background";
-}
-
-/** Orden visual del formulario: primer error con resaltado activo recibe scroll. */
-const HIGHLIGHT_SCROLL_ORDER: StopDialogHighlightKey[] = [
-  "stopCategory",
-  "waypointOperations",
-  "addressSat",
-  "geolocation",
-  "distance",
-  "estimatedArrival",
-];
-
-type StopSectionRefs = {
-  stopCategory: RefObject<HTMLDivElement | null>;
-  waypointOperations: RefObject<HTMLDivElement | null>;
-  addressSat: RefObject<HTMLDivElement | null>;
-  geoDistance: RefObject<HTMLDivElement | null>;
-  estimatedArrival: RefObject<HTMLDivElement | null>;
-};
-
-function scrollToFirstHighlightedSection(
-  keys: Set<StopDialogHighlightKey>,
-  refs: StopSectionRefs,
-  fallbackEl: HTMLElement | null,
-) {
-  for (const key of HIGHLIGHT_SCROLL_ORDER) {
-    if (!keys.has(key)) continue;
-    const el =
-      key === "stopCategory"
-        ? refs.stopCategory.current
-        : key === "waypointOperations"
-          ? refs.waypointOperations.current
-          : key === "addressSat"
-            ? refs.addressSat.current
-            : key === "geolocation" || key === "distance"
-              ? refs.geoDistance.current
-              : refs.estimatedArrival.current;
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-  }
-  fallbackEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-type StopDialogSectionProps = {
-  /** Se mantiene para compatibilidad pero ya no se renderiza. */
-  step?: string;
-  title: string;
-  icon?: ComponentType<{ className?: string }>;
-  headerExtra?: ReactNode;
-  children: ReactNode;
-  className?: string;
-  contentClassName?: string;
-};
-
 /**
- * Sección ligera: solo un título con icono y espacio debajo.
- * Menos pesado que cards anidadas — optimizado para formularios en diálogos.
+ * Mapea cada label de campo faltante al nombre del campo RHF correspondiente
+ * (cuando aplique). Devuelve `null` para mensajes sin control 1:1 (categorías,
+ * operaciones, dirección SAT, geolocalización, distancia); esos siguen apareciendo
+ * en el `FormValidationSummary` al final del formulario.
  */
-const StopDialogSection = forwardRef<HTMLElement, StopDialogSectionProps>(
-  function StopDialogSection(
-    { title, icon: Icon, headerExtra, children, className, contentClassName },
-    ref,
-  ) {
-    return (
-      <section ref={ref} className={cn("space-y-4", className)}>
-        <header className="flex items-center gap-2">
-          {Icon ? (
-            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          ) : null}
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
-        </header>
-        <div className={cn("space-y-4", contentClassName)}>{children}</div>
-      </section>
-    );
-  },
-);
-StopDialogSection.displayName = "StopDialogSection";
+function missingLabelToFieldName(
+  missing: string,
+): keyof StopDialogFormValues | null {
+  switch (missing) {
+    case "Nombre del lugar":
+      return "locationName";
+    case LOCATION_CAPTURE_LABELS.country:
+      return "satCountryCode";
+    case LOCATION_CAPTURE_LABELS.state:
+      return "satStateCode";
+    case LOCATION_CAPTURE_LABELS.postalCode:
+      return "postalCode";
+    case "Confirmación Geográfica":
+      // En el contexto `trip_stop` (SoT: matriz-reglas-cp31-por-capas.md) lat/lng son
+      // obligatorias; `AddressInput` ya muestra error inline en ambos campos cuando
+      // `profileUx.requireCoordinates` es true. Aquí mapeamos a `latitude`; el handler
+      // también setea error en `longitude` para resaltar ambos controles.
+      return "latitude";
+    case "Hora estimada de llegada":
+      return "estimatedArrival";
+    case "RFC remitente/destinatario":
+      return "rfcRemitenteDestinatario";
+    case "Nombre remitente/destinatario":
+      return "nombreRemitenteDestinatario";
+    case "RFC destinatario (descarga)":
+      return "deliveryRfcRemitenteDestinatario";
+    case "Nombre destinatario (descarga)":
+      return "deliveryNombreRemitenteDestinatario";
+    default:
+      return null;
+  }
+}
 
-/** Superficie anidada suave (sin borde grueso, solo fondo ligerísimo). */
-const STOP_NESTED_SURFACE =
-  "rounded-md bg-muted/30 px-3 py-2.5 dark:bg-muted/20";
+/** Lista cerrada de campos RHF que `handlePrimaryFooterAction` administra al marcar
+ * errores. Se limpian primero para evitar mensajes obsoletos en re-submits. */
+const STOP_MANAGED_FIELD_ERRORS: readonly (keyof StopDialogFormValues)[] = [
+  "locationName",
+  "satCountryCode",
+  "satStateCode",
+  "postalCode",
+  "latitude",
+  "longitude",
+  "estimatedArrival",
+  "rfcRemitenteDestinatario",
+  "nombreRemitenteDestinatario",
+  "deliveryRfcRemitenteDestinatario",
+  "deliveryNombreRemitenteDestinatario",
+];
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function StopFormDialog({
+export function StopFormSheet({
   open,
   onOpenChange,
   onSubmit,
   initialData,
   mode = "create",
   cfdiDocumentIntent = "ingreso",
-}: StopFormDialogProps) {
+}: StopFormSheetProps) {
   const [attemptedSubmitValidation, setAttemptedSubmitValidation] = useState(false);
   const validationAlertRef = useRef<HTMLDivElement | null>(null);
-  const stopCategorySectionRef = useRef<HTMLDivElement | null>(null);
-  const waypointOperationsSectionRef = useRef<HTMLDivElement | null>(null);
-  const addressSatSectionRef = useRef<HTMLDivElement | null>(null);
-  const geoDistanceSectionRef = useRef<HTMLDivElement | null>(null);
-  const estimatedArrivalSectionRef = useRef<HTMLDivElement | null>(null);
-  const sectionRefs = useMemo<StopSectionRefs>(
-    () => ({
-      stopCategory: stopCategorySectionRef,
-      waypointOperations: waypointOperationsSectionRef,
-      addressSat: addressSatSectionRef,
-      geoDistance: geoDistanceSectionRef,
-      estimatedArrival: estimatedArrivalSectionRef,
-    }),
-    [],
-  );
   const [useAddressFiscalData, setUseAddressFiscalData] = useState(true);
   const [useClientAddressPrefill, setUseClientAddressPrefill] = useState(false);
-  /** Con precarga desde cliente: formulario de dirección colapsado por defecto; el usuario puede expandirlo. */
-  const [addressDetailsOpen, setAddressDetailsOpen] = useState(false);
   const [inlineSatError, setInlineSatError] = useState<string | null>(null);
+  const [clientAddressPersistDialogOpen, setClientAddressPersistDialogOpen] =
+    useState(false);
+  const [pendingStopSubmit, setPendingStopSubmit] = useState<{
+    merged: StopFormData;
+    formValues: StopDialogFormValues;
+  } | null>(null);
+  const [isPersistingClientAddress, setIsPersistingClientAddress] = useState(false);
+  const { toast } = useToast();
   const hasInitializedFiscalModeRef = useRef(false);
   const wasDialogOpenRef = useRef(false);
   const lastSyncedCatalogIdRef = useRef<string | null>(null);
@@ -303,29 +244,18 @@ export function StopFormDialog({
     mode: "onChange",
   });
 
-  const { control, reset, setValue, getValues, handleSubmit } = form;
+  const { control, reset, setValue, getValues, handleSubmit, setError, clearErrors } =
+    form;
 
   const clientId = useWatch({ control, name: "clientId" }) ?? "";
   const clientAddressId = useWatch({ control, name: "clientAddressId" }) ?? "";
-  const addressId = useWatch({ control, name: "addressId" }) ?? "";
 
   const { data: clients = [] } = useActiveClients();
   const { data: addresses = [] } = useClientAddresses(clientId);
   const { data: selectedAddressFull } = useClientAddress(clientId, clientAddressId);
-  const writeBackAddressMutation = useUpdateClientAddress({ silent: true });
+  const writeBackAddressMutation = useUpdateClientAddress();
   const selectedAddress = selectedAddressFull ?? undefined;
-  const eligibleAddresses = useMemo(
-    () =>
-      addresses.filter(
-        (address) =>
-          address.isCartaPorteReady !== false &&
-          !address.geolocationPending &&
-          address.latitude != null &&
-          address.longitude != null,
-      ),
-    [addresses],
-  );
-  const ineligibleAddressCount = addresses.length - eligibleAddresses.length;
+  const clientAddresses = addresses;
 
   const clientFiscalFallback = useMemo(() => {
     if (!clientId) return null;
@@ -470,18 +400,6 @@ export function StopFormDialog({
       ),
     [clientFiscalFallback, watched, selectedAddress, useAddressFiscalData],
   );
-  const selectedIneligibleAddress = useMemo(
-    () =>
-      addresses.find(
-        (address) =>
-          address.id === displayStop.clientAddressId &&
-          (address.geolocationPending ||
-            address.latitude == null ||
-            address.longitude == null),
-      ),
-    [addresses, displayStop.clientAddressId],
-  );
-
   const handleClientChange = useCallback(
     (nextClientId: string) => {
       const actualClientId = nextClientId === "no-client" ? "" : nextClientId;
@@ -497,6 +415,7 @@ export function StopFormDialog({
       setValue("satMunicipalityCode", "");
       setValue("postalCode", "");
       setValue("satLocalityCode", null);
+      setValue("localityName", null);
       setValue("satNeighborhoodCode", null);
       setValue("neighborhoodName", null);
       setValue("cityName", "");
@@ -534,6 +453,7 @@ export function StopFormDialog({
         setValue("satMunicipalityCode", "");
         setValue("postalCode", "");
         setValue("satLocalityCode", null);
+        setValue("localityName", null);
         setValue("satNeighborhoodCode", null);
         setValue("neighborhoodName", null);
         setValue("cityName", "");
@@ -573,10 +493,7 @@ export function StopFormDialog({
     (checked: boolean) => {
       setUseClientAddressPrefill(checked);
 
-      if (checked) {
-        setAddressDetailsOpen(false);
-        return;
-      }
+      if (checked) return;
 
       hasInitializedFiscalModeRef.current = false;
       lastSyncedCatalogIdRef.current = null;
@@ -604,7 +521,6 @@ export function StopFormDialog({
 
   const resetDialogUiState = useCallback(() => {
     setAttemptedSubmitValidation(false);
-    setAddressDetailsOpen(false);
     setInlineSatError(null);
   }, []);
 
@@ -621,6 +537,26 @@ export function StopFormDialog({
     onOpenChange(false);
   }, [onOpenChange, resetDialogUiState]);
 
+  const applyStopFieldErrors = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      for (const [key, message] of Object.entries(fieldErrors)) {
+        setError(key as keyof StopDialogFormValues, {
+          type: "manual",
+          message,
+        });
+      }
+    },
+    [setError],
+  );
+
+  const completeStopSubmit = useCallback(
+    (payload: StopFormData) => {
+      onSubmit(payload);
+      closeDialog();
+    },
+    [closeDialog, onSubmit],
+  );
+
   const submitDialog = handleSubmit(async (values) => {
     const merged = mergeDialogWithClientCatalog(
       values,
@@ -629,52 +565,114 @@ export function StopFormDialog({
       clientFiscalFallback,
     );
 
-    if (!stopHasUnifiedAddressId(merged)) {
-      const sat = await validateTripStopInlineAddress(
-        merged as unknown as Record<string, unknown>,
-        { requireCoordinates: true },
+    const validation = await validateTripStopAddressComplete(
+      merged as unknown as Record<string, unknown>,
+      { requireCoordinates: true },
+    );
+    if (!validation.ok) {
+      applyStopFieldErrors(validation.fieldErrors);
+      const satKeys = [
+        "satCountryCode",
+        "satStateCode",
+        "satMunicipalityCode",
+        "postalCode",
+        "latitude",
+        "longitude",
+      ];
+      const hasSatFieldError = satKeys.some((k) => validation.fieldErrors[k]);
+      setInlineSatError(
+        hasSatFieldError
+          ? (validation.errors[0]?.message ??
+              "Completa los campos SAT obligatorios para este código postal.")
+          : null,
       );
-      if (!sat.ok) {
-        setInlineSatError(
-          sat.errors[0]?.message ??
-            "Completa los campos SAT obligatorios para este código postal.",
-        );
-        setAttemptedSubmitValidation(true);
-        return;
-      }
+      setAttemptedSubmitValidation(true);
+      return;
     }
     setInlineSatError(null);
 
-    const shouldWriteBackCoords =
+    const shouldAskPersistChoice =
       Boolean(merged.clientId) &&
       stopHasUnifiedAddressId(merged) &&
-      merged.latitude != null &&
-      merged.longitude != null &&
-      (
-        selectedAddress?.latitude == null ||
-        selectedAddress?.longitude == null ||
-        selectedAddress.latitude !== merged.latitude ||
-        selectedAddress.longitude !== merged.longitude
-      );
+      selectedAddress != null &&
+      stopDialogDiffersFromClientCatalog(values, selectedAddress);
 
-    if (shouldWriteBackCoords) {
-      try {
-        await writeBackAddressMutation.mutateAsync({
-          clientId: merged.clientId as string,
-          addressId: merged.addressId as string,
-          data: {
-            latitude: merged.latitude,
-            longitude: merged.longitude,
-          },
-        });
-      } catch {
-        // No bloquear la captura de la parada si falla el write-back.
-      }
+    if (shouldAskPersistChoice) {
+      setPendingStopSubmit({ merged, formValues: values });
+      setClientAddressPersistDialogOpen(true);
+      return;
     }
 
-    onSubmit(merged);
-    closeDialog();
+    completeStopSubmit(merged);
   });
+
+  const resetClientAddressPersistDialog = useCallback(() => {
+    setClientAddressPersistDialogOpen(false);
+    setPendingStopSubmit(null);
+    setIsPersistingClientAddress(false);
+  }, []);
+
+  const handlePersistClientAddress = useCallback(async () => {
+    if (!pendingStopSubmit?.merged.clientId || !selectedAddress) return;
+
+    setIsPersistingClientAddress(true);
+    try {
+      const formData = stopDialogToClientAddressFormData(
+        pendingStopSubmit.formValues,
+        selectedAddress,
+      );
+      const clientValidation = await validateClientAddressFormComplete(formData, {
+        context: resolveClientAddressFormContextForCatalog(selectedAddress),
+        intent: "update",
+        requireCoordinates: false,
+      });
+      if (!clientValidation.ok) {
+        applyStopFieldErrors(clientValidation.fieldErrors);
+        setAttemptedSubmitValidation(true);
+        resetClientAddressPersistDialog();
+        toast({
+          title: "No se pudo actualizar la dirección del cliente",
+          description:
+            "Revisa los campos del domicilio antes de guardar en el catálogo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await writeBackAddressMutation.mutateAsync({
+        clientId: pendingStopSubmit.merged.clientId,
+        addressId: selectedAddress.id,
+        data: stopDialogToClientAddressUpdateDto(
+          pendingStopSubmit.formValues,
+          selectedAddress,
+        ),
+      });
+
+      completeStopSubmit(pendingStopSubmit.merged);
+      resetClientAddressPersistDialog();
+    } catch {
+      toast({
+        title: "Error al actualizar la dirección",
+        description: "La parada no se guardó. Intenta de nuevo.",
+        variant: "destructive",
+      });
+      resetClientAddressPersistDialog();
+    }
+  }, [
+    applyStopFieldErrors,
+    completeStopSubmit,
+    pendingStopSubmit,
+    resetClientAddressPersistDialog,
+    selectedAddress,
+    toast,
+    writeBackAddressMutation,
+  ]);
+
+  const handleUseAddressForStopOnly = useCallback(() => {
+    if (!pendingStopSubmit) return;
+    completeStopSubmit(detachStopFromClientCatalog(pendingStopSubmit.merged));
+    resetClientAddressPersistDialog();
+  }, [completeStopSubmit, pendingStopSubmit, resetClientAddressPersistDialog]);
 
   const getAvailableOperations = () => {
     const cat = displayStop.stopCategory;
@@ -705,6 +703,7 @@ export function StopFormDialog({
     }
 
     if (!stopHasUnifiedAddressId(d)) {
+      if (!d.locationName?.trim()) missing.push("Nombre del lugar");
       if (!d.satCountryCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.country);
       if (!d.satStateCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.state);
       if (!/^\d{5}$/.test(d.postalCode?.trim() ?? "")) {
@@ -717,8 +716,10 @@ export function StopFormDialog({
     }
 
     if (d.latitude == null || d.longitude == null) {
-      missing.push("Geolocalización en mapa");
+      missing.push("Confirmación Geográfica");
     }
+
+    missing.push(...getTripStopFiscalMissingLabels(d));
 
     return missing;
   }, [displayStop]);
@@ -727,62 +728,67 @@ export function StopFormDialog({
     () => getMissingRequiredFields(),
     [getMissingRequiredFields],
   );
-  const highlightKeys = useMemo(
-    () => missingMessagesToHighlightKeys(missingRequiredFields),
-    [missingRequiredFields],
-  );
 
   const validationActive =
     attemptedSubmitValidation && missingRequiredFields.length > 0;
 
   const handlePrimaryFooterAction = useCallback(() => {
+    clearErrors(STOP_MANAGED_FIELD_ERRORS as unknown as Parameters<typeof clearErrors>[0]);
+
     const missing = getMissingRequiredFields();
     if (missing.length > 0) {
       setAttemptedSubmitValidation(true);
-      const keys = missingMessagesToHighlightKeys(missing);
-      if (
-        useClientAddressPrefill &&
-        (keys.has("addressSat") ||
-          keys.has("geolocation") ||
-          keys.has("distance"))
-      ) {
-        setAddressDetailsOpen(true);
+      for (const label of missing) {
+        const fieldName = missingLabelToFieldName(label);
+        if (!fieldName) continue;
+        setError(fieldName, { type: "manual", message: `${label} es obligatorio` });
+      }
+      if (missing.includes("Confirmación Geográfica")) {
+        setError("longitude", {
+          type: "manual",
+          message: "Confirmación Geográfica es obligatorio",
+        });
       }
       return;
     }
     setAttemptedSubmitValidation(false);
     void submitDialog();
-  }, [getMissingRequiredFields, submitDialog, useClientAddressPrefill]);
+  }, [
+    clearErrors,
+    getMissingRequiredFields,
+    setError,
+    submitDialog,
+    useClientAddressPrefill,
+  ]);
 
   useEffect(() => {
-    if (!validationActive) return;
+    if (!validationActive && !inlineSatError) return;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        scrollToFirstHighlightedSection(
-          highlightKeys,
-          sectionRefs,
-          validationAlertRef.current,
-        );
+        validationAlertRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [validationActive, missingRequiredFields, highlightKeys, sectionRefs]);
+  }, [validationActive, inlineSatError]);
 
   const showWaypointArrivalWarning =
     displayStop.stopCategory === "waypoint" && !displayStop.estimatedArrival;
 
-  const isAddressLocked = useClientAddressPrefill && !!displayStop.clientAddressId;
-  const isFiscalDataLocked = isAddressLocked && useAddressFiscalData;
-  const catalogHasStoredCoordinates =
-    isAddressLocked &&
-    selectedAddress?.latitude != null &&
-    selectedAddress?.longitude != null;
+  const hasClientAddressPrefill =
+    useClientAddressPrefill && Boolean(displayStop.clientAddressId);
+  const catalogMissingCoordinates =
+    hasClientAddressPrefill &&
+    (selectedAddress?.latitude == null || selectedAddress?.longitude == null);
+  /** Solo datos fiscales opcionales desde catálogo; domicilio y geo siempre editables con prefill. */
+  const isFiscalDataLocked = hasClientAddressPrefill && useAddressFiscalData;
+  const showMissingGeolocationNotice = catalogMissingCoordinates;
   const geolocationPanelMode = resolveGeolocationPanelMode({
     isOriginStop:
       displayStop.stopCategory === "origin" ||
       Boolean(displayStop.stopType?.includes("origin")),
-    hasClientPrefill: isAddressLocked,
-    catalogHasStoredCoordinates,
   });
 
   const fiscalUiContext = useMemo(
@@ -837,166 +843,152 @@ export function StopFormDialog({
     setValue("destinatarioPartnerId", "");
   }, [displayStop.stopCategory, displayStop.stopType, getValues, setValue]);
 
-  const addressInputMode = stopHasUnifiedAddressId({ addressId }) ? "cfdi" : "carta-porte";
+  const addressInputVariant = "carta-porte" as const;
 
-  const addressSatHighlightClass = sectionHighlightClass(
-    validationActive,
-    highlightKeys,
-    "addressSat",
-  );
-  const geoDistanceHighlightClass = cn(
-    sectionHighlightClass(validationActive, highlightKeys, "geolocation"),
-    sectionHighlightClass(validationActive, highlightKeys, "distance"),
-  );
+  const preAddressSections: EntityAddressFormSection[] = [
+    {
+      id: "stop-location-context",
+      title: "Nombre del lugar",
+      icon: <MapPin className="h-4 w-4" />,
+      content: (
+        <Controller
+          name="locationName"
+          control={control}
+          render={({ field, fieldState }) => {
+            const fieldId = "stop-locationName";
+            const errorMessage = fieldState.error?.message;
+            return (
+              <FormFieldShell
+                fieldId={fieldId}
+                label="Nombre del lugar"
+                required
+                errorMessage={errorMessage}
+              >
+                <Input
+                  id={fieldId}
+                  placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
+                  error={Boolean(fieldState.error)}
+                  {...field}
+                  value={field.value ?? ""}
+                  {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                />
+              </FormFieldShell>
+            );
+          }}
+        />
+      ),
+    },
+  ];
+
+  const postAddressSections: EntityAddressFormSection[] = [
+    {
+      id: GEOCODING_SECTION_ID,
+      title: <AddressGeocodingSectionTitle />,
+      icon: <MapPin className="h-4 w-4" />,
+      contentClassName: "space-y-4",
+      content: (
+        <AddressGeocodingSectionContent
+          address={{
+            locationName: displayStop.locationName,
+            street: displayStop.street,
+            exteriorNumber: displayStop.exteriorNumber,
+            interiorNumber: displayStop.interiorNumber,
+            postalCode: displayStop.postalCode,
+            satMunicipalityCode: displayStop.satMunicipalityCode,
+            satStateCode: displayStop.satStateCode,
+            satCountryCode: displayStop.satCountryCode,
+          }}
+          latitude={displayStop.latitude}
+          longitude={displayStop.longitude}
+          onCoordinatesChange={(coords) => {
+            setValue("latitude", coords.latitude, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setValue("longitude", coords.longitude, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+          }}
+          previousPoint={{
+            latitude: displayStop.previousStopLatitude,
+            longitude: displayStop.previousStopLongitude,
+            label: displayStop.previousStopLabel,
+          }}
+          distanceFromPreviousKm={displayStop.distanceFromPreviousKm}
+          onDistanceChange={(distanceKm) => {
+            setValue("distanceFromPreviousKm", distanceKm, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            if (distanceKm === undefined) {
+              setValue("distanceSource", undefined, { shouldDirty: true });
+              setValue("distanceProvider", undefined, { shouldDirty: true });
+              setValue("distanceConfidence", undefined, { shouldDirty: true });
+              setValue("distanceComputedAt", undefined, { shouldDirty: true });
+            }
+          }}
+          onDistanceMetaChange={(meta) => {
+            setValue("distanceSource", meta.source, { shouldDirty: true });
+            setValue("distanceProvider", meta.provider, { shouldDirty: true });
+            setValue("distanceConfidence", meta.confidence, { shouldDirty: true });
+            setValue("distanceComputedAt", meta.computedAt, { shouldDirty: true });
+          }}
+          panelMode={geolocationPanelMode}
+          distanceDisabled={!geolocationPanelMode.distanceEditable}
+        />
+      ),
+    },
+  ];
 
   const entityAddressForm = (
     <EntityAddressForm
       asForm={false}
       className="space-y-4"
-      formContext="additional"
-      addressMode={addressInputMode}
-      infoMessage=""
+      formContext="tripStop"
+      addressVariant={addressInputVariant}
+      infoMessage={ADDRESS_FORM_COPY.tripStop.globalInfoMessage}
       satStateCode={noticeSatStateCode}
       satMunicipalityCode={noticeSatMunicipalityCode}
       postalCode={noticePostalCode}
-      showGlobalNotice={!isAddressLocked}
-      hideLocationSectionTitle
-      locationSectionTitle="Ubicación fiscal y domicilio"
-      preAddressSections={[
-        {
-          id: "stop-location-context",
-          title: "Nombre del lugar",
-          content: (
-            <div className="space-y-1.5">
-              <Controller
-                name="locationName"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
-                    disabled={isAddressLocked}
-                    {...field}
-                  />
-                )}
-              />
-            </div>
-          ),
-        },
-      ]}
+      showGlobalNotice={!hasClientAddressPrefill}
+      locationSectionTitle="Domicilio"
+      preAddressSections={preAddressSections}
       addressInputSection={
-        <>
-          <AddressInput<StopDialogFormValues>
-            mode={addressInputMode}
-            control={control}
-            setValue={setValue}
-            namePrefix=""
-            layout="compact"
-            showLatLng
-            disabled={isAddressLocked}
-            hideInformativeAlerts={isAddressLocked}
-          />
-          <div ref={geoDistanceSectionRef} className={cn(geoDistanceHighlightClass)}>
-            <AddressGeolocationPanel
-              address={{
-                locationName: displayStop.locationName,
-                street: displayStop.street,
-                exteriorNumber: displayStop.exteriorNumber,
-                interiorNumber: displayStop.interiorNumber,
-                postalCode: displayStop.postalCode,
-                satMunicipalityCode: displayStop.satMunicipalityCode,
-                satStateCode: displayStop.satStateCode,
-                satCountryCode: displayStop.satCountryCode,
-              }}
-              latitude={displayStop.latitude}
-              longitude={displayStop.longitude}
-              onCoordinatesChange={(coords) => {
-                setValue("latitude", coords.latitude, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-                setValue("longitude", coords.longitude, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
-              previousPoint={{
-                latitude: displayStop.previousStopLatitude,
-                longitude: displayStop.previousStopLongitude,
-                label: displayStop.previousStopLabel,
-              }}
-              distanceFromPreviousKm={displayStop.distanceFromPreviousKm}
-              onDistanceChange={(distanceKm) => {
-                setValue("distanceFromPreviousKm", distanceKm, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-                if (distanceKm === undefined) {
-                  setValue("distanceSource", undefined, { shouldDirty: true });
-                  setValue("distanceProvider", undefined, { shouldDirty: true });
-                  setValue("distanceConfidence", undefined, { shouldDirty: true });
-                  setValue("distanceComputedAt", undefined, { shouldDirty: true });
-                }
-              }}
-              onDistanceMetaChange={(meta) => {
-                setValue("distanceSource", meta.source, {
-                  shouldDirty: true,
-                });
-                setValue("distanceProvider", meta.provider, {
-                  shouldDirty: true,
-                });
-                setValue("distanceConfidence", meta.confidence, {
-                  shouldDirty: true,
-                });
-                setValue("distanceComputedAt", meta.computedAt, {
-                  shouldDirty: true,
-                });
-              }}
-              showSearchControls={geolocationPanelMode.showSearchControls}
-              showDistanceSection={geolocationPanelMode.showDistanceSection}
-              distanceEditable={geolocationPanelMode.distanceEditable}
-            />
-          </div>
-        </>
+        <AddressInput<StopDialogFormValues>
+          variant={addressInputVariant}
+          formContext="tripStop"
+          control={control}
+          setValue={setValue}
+          namePrefix=""
+          layout="compact"
+          hideInformativeAlerts={hasClientAddressPrefill}
+        />
       }
+      postAddressSections={postAddressSections}
     />
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="pr-8">
-              {mode === "edit" ? "Editar parada" : "Agregar parada"}
-            </DialogTitle>
-            <DialogDescription>
-              Ubicación, operaciones y datos fiscales de la parada.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="divide-y divide-border/50 [&>*]:pt-5 [&>*:first-child]:pt-0">
-          {validationActive ? (
-            <Alert ref={validationAlertRef} variant="destructive" aria-live="polite">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <p className="font-medium">Faltan datos obligatorios</p>
-                <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-sm">
-                  {missingRequiredFields.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {inlineSatError ? (
-            <Alert variant="destructive" aria-live="polite">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{inlineSatError}</AlertDescription>
-            </Alert>
-          ) : null}
-          <StopDialogSection
-            ref={stopCategorySectionRef}
-            step="01"
+    <>
+    <Sheet open={open} onOpenChange={handleDialogOpenChange}>
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+      >
+        <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4">
+          <SheetTitle className="pr-8">
+            {mode === "edit" ? "Editar parada" : "Agregar parada"}
+          </SheetTitle>
+          <SheetDescription>
+            Ubicación, operaciones y datos fiscales de la parada.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+          <FormSectionCard
             title="Tipo de parada"
-            icon={Milestone}
+            icon={<Milestone className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
           <div
@@ -1008,11 +1000,6 @@ export function StopFormDialog({
                 "bg-muted/40",
               displayStop.stopCategory === "destination" &&
                 "bg-destructive-soft/60",
-              sectionHighlightClass(
-                validationActive,
-                highlightKeys,
-                "stopCategory",
-              ),
             )}
           >
               {displayStop.stopCategory === "origin" && (
@@ -1045,17 +1032,7 @@ export function StopFormDialog({
           </div>
 
           {displayStop.stopCategory === "waypoint" && (
-            <div
-              ref={waypointOperationsSectionRef}
-              className={cn(
-                "space-y-2",
-                sectionHighlightClass(
-                  validationActive,
-                  highlightKeys,
-                  "waypointOperations",
-                ),
-              )}
-            >
+            <div className="space-y-2">
               <Label className="text-sm">Operaciones en esta parada *</Label>
               <div className="grid grid-cols-2 gap-3">
                 {getAvailableOperations().map((option) => {
@@ -1092,18 +1069,15 @@ export function StopFormDialog({
               </div>
             </div>
           )}
-          </StopDialogSection>
+          </FormSectionCard>
 
-          <StopDialogSection
-            ref={addressSatSectionRef}
-            step="02"
-            title="Ubicación y recorrido"
-            icon={MapPinned}
-            className={cn(addressSatHighlightClass)}
-            contentClassName="space-y-5"
+          <FormSectionCard
+            title="Origen de la dirección"
+            icon={<Building2 className="h-4 w-4" />}
+            description="Reutiliza una dirección del cliente o captura una nueva. Si modificas un domicilio precargado, al guardar podrás actualizar el catálogo del cliente o usarlo solo en esta parada."
+            contentClassName="space-y-4"
           >
-          <div className="space-y-4">
-            <div className={cn("flex items-center justify-between gap-3", STOP_NESTED_SURFACE)}>
+            <div className="flex items-center justify-between gap-3">
               <Label htmlFor="useClientAddressPrefill" className="cursor-pointer text-sm">
                 Precargar dirección desde cliente
               </Label>
@@ -1115,18 +1089,14 @@ export function StopFormDialog({
             </div>
 
             {useClientAddressPrefill && (
-              <div className={cn("space-y-3", STOP_NESTED_SURFACE)}>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Cliente y domicilio
-                </p>
-
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label>Cliente</Label>
+                  <Label htmlFor="stop-client">Cliente</Label>
                   <Select
                     value={displayStop.clientId || "no-client"}
                     onValueChange={handleClientChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="stop-client">
                       <SelectValue placeholder="Seleccionar cliente..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -1141,87 +1111,72 @@ export function StopFormDialog({
                   </Select>
                 </div>
 
-                {displayStop.clientId && eligibleAddresses.length > 0 && (
+                {displayStop.clientId && clientAddresses.length > 0 && (
                   <div className="space-y-1.5">
-                    <Label>Dirección del cliente</Label>
+                    <Label htmlFor="stop-client-address">Dirección del cliente</Label>
                     <Select
                       value={displayStop.clientAddressId || "manual-entry"}
                       onValueChange={handleAddressSelect}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="stop-client-address">
                         <SelectValue placeholder="Seleccionar dirección..." />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="manual-entry">Ingresar manualmente</SelectItem>
-                        {selectedIneligibleAddress ? (
-                          <SelectItem value={selectedIneligibleAddress.id}>
-                            {selectedIneligibleAddress.locationName || "Dirección seleccionada"} ·
-                            Geo pendiente
-                          </SelectItem>
-                        ) : null}
-                        {eligibleAddresses.map((address) => (
-                          <SelectItem key={address.id} value={address.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                {address.locationName || address.address}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {address.city}
-                                {address.state && `, ${address.state}`} -{" "}
-                                {ADDRESS_TYPE_LABELS[address.addressType]}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {clientAddresses.map((address) => {
+                          const geoPending =
+                            address.geolocationPending ||
+                            address.latitude == null ||
+                            address.longitude == null;
+                          return (
+                            <SelectItem key={address.id} value={address.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {address.locationName || address.address}
+                                  {geoPending ? " · Geo pendiente" : ""}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {address.city}
+                                  {address.state && `, ${address.state}`} -{" "}
+                                  {ADDRESS_TYPE_LABELS[address.addressType]}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
-                    {ineligibleAddressCount > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {ineligibleAddressCount} dirección(es) ocultas por geolocalización
-                        pendiente.
-                      </p>
-                    ) : null}
                   </div>
                 )}
 
-                {displayStop.clientId && eligibleAddresses.length === 0 && (
+                {displayStop.clientId && clientAddresses.length === 0 && (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Sin direcciones elegibles (geo completa) — captura manualmente.
+                    Este cliente no tiene direcciones registradas — captura manualmente.
                   </p>
                 )}
               </div>
             )}
-          </div>
+          </FormSectionCard>
 
-          <div className="space-y-4">
-            {useClientAddressPrefill ? (
-              <Collapsible open={addressDetailsOpen} onOpenChange={setAddressDetailsOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-between gap-2 text-muted-foreground"
-                  >
-                    <span className="text-xs">Domicilio, mapa y distancia</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        addressDetailsOpen && "rotate-180",
-                      )}
-                    />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 pt-3">{entityAddressForm}</CollapsibleContent>
-              </Collapsible>
-            ) : (
-              entityAddressForm
-            )}
-          </div>
-          </StopDialogSection>
+          {showMissingGeolocationNotice ? (
+            <Alert variant="warning">
+              <AlertTitle>Falta geolocalización en la dirección precargada</AlertTitle>
+              <AlertDescription>
+                Esta dirección del cliente no tiene latitud / longitud registradas.
+                Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y
+                cumplir Carta Porte 3.1.
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-          <StopDialogSection step="03" title="Datos fiscales" icon={ScrollText} contentClassName="space-y-4">
+          {entityAddressForm}
+
+          <FormSectionCard
+            title="Datos fiscales"
+            icon={<ScrollText className="h-4 w-4" />}
+            contentClassName="space-y-4"
+          >
             <p className="text-xs text-muted-foreground">
               {primaryFiscalCopy.sectionHint ?? primaryFiscalCopy.sectionTitle}
             </p>
@@ -1233,8 +1188,8 @@ export function StopFormDialog({
               </p>
             )}
 
-            {isAddressLocked && (
-              <div className={cn("flex items-center justify-between gap-3", STOP_NESTED_SURFACE)}>
+            {hasClientAddressPrefill && (
+              <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="useAddressFiscalData" className="cursor-pointer text-sm">
                   Usar datos fiscales de la dirección
                 </Label>
@@ -1268,37 +1223,46 @@ export function StopFormDialog({
                     }}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>{primaryFiscalCopy.rfcLabel}</Label>
-                  <Controller
-                    name="rfcRemitenteDestinatario"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        placeholder={primaryFiscalCopy.rfcPlaceholder}
-                        className="uppercase"
-                        maxLength={13}
-                        disabled={isFiscalDataLocked}
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      />
-                    )}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Nombre / razón social</Label>
-                  <Controller
-                    name="nombreRemitenteDestinatario"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        placeholder={primaryFiscalCopy.nombrePlaceholder}
-                        disabled={isFiscalDataLocked}
-                        {...field}
-                      />
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="rfcRemitenteDestinatario"
+                  control={control}
+                  render={({ field, fieldState }) => {
+                    const fieldId = "stop-rfcRemitenteDestinatario";
+                    const errorMessage = fieldState.error?.message;
+                    return (
+                      <FormFieldShell
+                        fieldId={fieldId}
+                        label={primaryFiscalCopy.rfcLabel}
+                        required
+                        errorMessage={errorMessage}
+                      >
+                        <Input
+                          id={fieldId}
+                          placeholder={primaryFiscalCopy.rfcPlaceholder}
+                          className="uppercase"
+                          maxLength={13}
+                          disabled={isFiscalDataLocked}
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.toUpperCase())
+                          }
+                          error={Boolean(fieldState.error)}
+                          {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                        />
+                      </FormFieldShell>
+                    );
+                  }}
+                />
+                <RHFTextField
+                  control={control}
+                  name="nombreRemitenteDestinatario"
+                  fieldId="stop-nombreRemitenteDestinatario"
+                  label="Nombre / razón social"
+                  required
+                  placeholder={primaryFiscalCopy.nombrePlaceholder}
+                  disabled={isFiscalDataLocked}
+                />
               </div>
             ) : (
               <div className="space-y-4">
@@ -1324,37 +1288,46 @@ export function StopFormDialog({
                         }}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{primaryFiscalCopy.rfcLabel}</Label>
-                      <Controller
-                        name="rfcRemitenteDestinatario"
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            placeholder={primaryFiscalCopy.rfcPlaceholder}
-                            className="uppercase"
-                            maxLength={13}
-                            disabled={isFiscalDataLocked}
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                          />
-                        )}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Nombre / razón social</Label>
-                      <Controller
-                        name="nombreRemitenteDestinatario"
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            placeholder={primaryFiscalCopy.nombrePlaceholder}
-                            disabled={isFiscalDataLocked}
-                            {...field}
-                          />
-                        )}
-                      />
-                    </div>
+                    <Controller
+                      name="rfcRemitenteDestinatario"
+                      control={control}
+                      render={({ field, fieldState }) => {
+                        const fieldId = "stop-rfcRemitenteDestinatario";
+                        const errorMessage = fieldState.error?.message;
+                        return (
+                          <FormFieldShell
+                            fieldId={fieldId}
+                            label={primaryFiscalCopy.rfcLabel}
+                            required
+                            errorMessage={errorMessage}
+                          >
+                            <Input
+                              id={fieldId}
+                              placeholder={primaryFiscalCopy.rfcPlaceholder}
+                              className="uppercase"
+                              maxLength={13}
+                              disabled={isFiscalDataLocked}
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(e.target.value.toUpperCase())
+                              }
+                              error={Boolean(fieldState.error)}
+                              {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                            />
+                          </FormFieldShell>
+                        );
+                      }}
+                    />
+                    <RHFTextField
+                      control={control}
+                      name="nombreRemitenteDestinatario"
+                      fieldId="stop-nombreRemitenteDestinatario"
+                      label="Nombre / razón social"
+                      required
+                      placeholder={primaryFiscalCopy.nombrePlaceholder}
+                      disabled={isFiscalDataLocked}
+                    />
                   </div>
                 ) : null}
 
@@ -1397,155 +1370,237 @@ export function StopFormDialog({
                         }}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>
-                        {waypointHasPickup ? deliveryFiscalCopy.rfcLabel : primaryFiscalCopy.rfcLabel}
-                      </Label>
-                      <Controller
-                        name={
-                          waypointHasPickup
-                            ? "deliveryRfcRemitenteDestinatario"
-                            : "rfcRemitenteDestinatario"
-                        }
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            placeholder={
-                              waypointHasPickup
-                                ? deliveryFiscalCopy.rfcPlaceholder
-                                : primaryFiscalCopy.rfcPlaceholder
-                            }
-                            className="uppercase"
-                            maxLength={13}
-                            disabled={waypointHasPickup ? false : isFiscalDataLocked}
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    {(() => {
+                      const isDualField = waypointHasPickup;
+                      const rfcName = isDualField
+                        ? ("deliveryRfcRemitenteDestinatario" as const)
+                        : ("rfcRemitenteDestinatario" as const);
+                      const nombreName = isDualField
+                        ? ("deliveryNombreRemitenteDestinatario" as const)
+                        : ("nombreRemitenteDestinatario" as const);
+                      const rfcLabel = isDualField
+                        ? deliveryFiscalCopy.rfcLabel
+                        : primaryFiscalCopy.rfcLabel;
+                      const rfcPlaceholder = isDualField
+                        ? deliveryFiscalCopy.rfcPlaceholder
+                        : primaryFiscalCopy.rfcPlaceholder;
+                      const nombreLabel = isDualField
+                        ? "Nombre / razón social (descarga)"
+                        : "Nombre / razón social";
+                      const nombrePlaceholder = isDualField
+                        ? deliveryFiscalCopy.nombrePlaceholder
+                        : primaryFiscalCopy.nombrePlaceholder;
+                      const fieldsDisabled = isDualField ? false : isFiscalDataLocked;
+                      const rfcFieldId = `stop-${rfcName}`;
+                      const nombreFieldId = `stop-${nombreName}`;
+                      return (
+                        <>
+                          <Controller
+                            name={rfcName}
+                            control={control}
+                            render={({ field, fieldState }) => {
+                              const errorMessage = fieldState.error?.message;
+                              return (
+                                <FormFieldShell
+                                  fieldId={rfcFieldId}
+                                  label={rfcLabel}
+                                  required
+                                  errorMessage={errorMessage}
+                                >
+                                  <Input
+                                    id={rfcFieldId}
+                                    placeholder={rfcPlaceholder}
+                                    className="uppercase"
+                                    maxLength={13}
+                                    disabled={fieldsDisabled}
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value.toUpperCase())
+                                    }
+                                    error={Boolean(fieldState.error)}
+                                    {...getFieldErrorAriaProps(
+                                      rfcFieldId,
+                                      errorMessage,
+                                    )}
+                                  />
+                                </FormFieldShell>
+                              );
+                            }}
                           />
-                        )}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>
-                        {waypointHasPickup ? "Nombre / razón social (descarga)" : "Nombre / razón social"}
-                      </Label>
-                      <Controller
-                        name={
-                          waypointHasPickup
-                            ? "deliveryNombreRemitenteDestinatario"
-                            : "nombreRemitenteDestinatario"
-                        }
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            placeholder={
-                              waypointHasPickup
-                                ? deliveryFiscalCopy.nombrePlaceholder
-                                : primaryFiscalCopy.nombrePlaceholder
-                            }
-                            disabled={waypointHasPickup ? false : isFiscalDataLocked}
-                            {...field}
+                          <RHFTextField
+                            control={control}
+                            name={nombreName}
+                            fieldId={nombreFieldId}
+                            label={nombreLabel}
+                            required
+                            placeholder={nombrePlaceholder}
+                            disabled={fieldsDisabled}
                           />
-                        )}
-                      />
-                    </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : null}
               </div>
             )}
-          </StopDialogSection>
+          </FormSectionCard>
 
-          <StopDialogSection step="04" title="Contacto y planificación" icon={Phone} contentClassName="space-y-4">
+          <FormSectionCard
+            title="Contacto y planificación"
+            icon={<Phone className="h-4 w-4" />}
+            contentClassName="space-y-4"
+          >
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Nombre contacto</Label>
-                <Controller
-                  name="contactName"
-                  control={control}
-                  render={({ field }) => (
-                    <Input placeholder="Nombre del contacto en sitio" {...field} />
-                  )}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Teléfono</Label>
-                <Controller
-                  name="contactPhone"
-                  control={control}
-                  render={({ field }) => <Input placeholder="Teléfono" {...field} />}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Notas / instrucciones</Label>
-              <Controller
-                name="notes"
+              <RHFTextField
                 control={control}
-                render={({ field }) => (
-                  <Textarea
-                    placeholder="Instrucciones especiales de entrega, horarios, acceso..."
-                    rows={3}
-                    {...field}
-                  />
-                )}
+                name="contactName"
+                fieldId="stop-contactName"
+                label="Nombre contacto"
+                placeholder="Nombre del contacto en sitio"
+              />
+              <RHFTextField
+                control={control}
+                name="contactPhone"
+                fieldId="stop-contactPhone"
+                label="Teléfono"
+                placeholder="Teléfono"
               />
             </div>
 
-          {displayStop.stopCategory !== "origin" ? (
-              <div
-                ref={estimatedArrivalSectionRef}
-                className={cn(
-                  "space-y-2",
-                  sectionHighlightClass(
-                    validationActive,
-                    highlightKeys,
-                    "estimatedArrival",
-                  ),
-                )}
-              >
-                <Label>
-                  {displayStop.stopCategory === "destination"
-                    ? "Hora estimada de llegada"
-                    : "Hora estimada en esta escala"}
-                  {displayStop.stopCategory === "destination" && (
-                    <span className="text-destructive ml-1">*</span>
-                  )}
-                </Label>
-                <Controller
-                  name="estimatedArrival"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      type="datetime-local"
-                      value={field.value ? field.value.slice(0, 16) : ""}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? `${e.target.value}:00` : undefined)
-                      }
-                    />
-                  )}
-                />
-                {showWaypointArrivalWarning ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <AlertCircle className="h-3 w-3 shrink-0" aria-hidden />
-                    Se interpolará automáticamente si no se captura.
-                  </p>
-                ) : null}
-              </div>
-          ) : null}
-          </StopDialogSection>
+            <RHFTextareaField
+              control={control}
+              name="notes"
+              fieldId="stop-notes"
+              label="Notas / instrucciones"
+              placeholder="Instrucciones especiales de entrega, horarios, acceso..."
+              rows={3}
+            />
 
+          {displayStop.stopCategory !== "origin" ? (
+              <Controller
+                name="estimatedArrival"
+                control={control}
+                render={({ field, fieldState }) => {
+                    const fieldId = "stop-estimatedArrival";
+                    const errorMessage = fieldState.error?.message;
+                    const isDestination =
+                      displayStop.stopCategory === "destination";
+                    const label = isDestination
+                      ? "Hora estimada de llegada"
+                      : "Hora estimada en esta escala";
+                    return (
+                      <FormFieldShell
+                        fieldId={fieldId}
+                        label={label}
+                        required={isDestination}
+                        errorMessage={errorMessage}
+                        description={
+                          !errorMessage && showWaypointArrivalWarning
+                            ? "Se interpolará automáticamente si no se captura."
+                            : undefined
+                        }
+                      >
+                        <Input
+                          id={fieldId}
+                          type="datetime-local"
+                          value={field.value ? field.value.slice(0, 16) : ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value ? `${e.target.value}:00` : undefined,
+                            )
+                          }
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          error={Boolean(fieldState.error)}
+                          {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                        />
+                      </FormFieldShell>
+                    );
+                  }}
+                />
+          ) : null}
+          </FormSectionCard>
+
+          {validationActive || inlineSatError ? (
+            <div ref={validationAlertRef}>
+              <FormValidationSummary
+                title={
+                  validationActive
+                    ? "Faltan datos obligatorios en la parada"
+                    : "Revisa la dirección de la parada"
+                }
+                messages={
+                  validationActive
+                    ? missingRequiredFields
+                    : inlineSatError
+                      ? [inlineSatError]
+                      : []
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
-          <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => closeDialog()}>
-              Cancelar
+        <SheetFooter className="shrink-0 gap-2 border-t bg-background px-6 py-4">
+          <Button type="button" variant="outline" onClick={() => closeDialog()}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={() => handlePrimaryFooterAction()}>
+            {mode === "edit" ? "Guardar Cambios" : "Agregar Parada"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+
+      <AlertDialog
+        open={clientAddressPersistDialogOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) resetClientAddressPersistDialog();
+          else setClientAddressPersistDialogOpen(true);
+        }}
+      >
+        <AlertDialogContent className="max-w-[min(100vw-2rem,24rem)] gap-5 overflow-hidden sm:max-w-md">
+          <AlertDialogHeader className="space-y-3 text-left">
+            <AlertDialogTitle className="text-balance leading-snug">
+              ¿Actualizar la dirección del cliente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-pretty leading-relaxed">
+              Modificaste el domicilio precargado del cliente. Puedes guardar los cambios en
+              el catálogo del cliente o usar esta versión solo para esta parada del viaje.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
+            <AlertDialogAction
+              className="mt-0 w-full sm:mt-0"
+              disabled={isPersistingClientAddress}
+              onClick={(event) => {
+                event.preventDefault();
+                void handlePersistClientAddress();
+              }}
+            >
+              {isPersistingClientAddress ? "Guardando…" : "Actualizar en el cliente"}
+            </AlertDialogAction>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={isPersistingClientAddress}
+              onClick={handleUseAddressForStopOnly}
+            >
+              Solo en esta parada
             </Button>
-            <Button type="button" onClick={() => handlePrimaryFooterAction()}>
-              {mode === "edit" ? "Guardar Cambios" : "Agregar Parada"}
-            </Button>
-          </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <AlertDialogCancel
+              className="mt-0 w-full sm:mt-0"
+              disabled={isPersistingClientAddress}
+            >
+              Volver al formulario
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

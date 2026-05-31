@@ -42,6 +42,9 @@ import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
 import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import { wizardCopy } from "../../../copy";
+
+const copy = wizardCopy.route;
 import {
   applySegmentDistanceResultsToStops,
   buildRouteSegmentsForBatch,
@@ -68,10 +71,10 @@ import {
 import { StopType, type StopTypeValue } from "@features/trips";
 import { getStopTypeBadgeClasses, getStopTypeConfig } from "../../../uiHelpers";
 import {
-  StopFormDialog,
+  StopFormSheet,
   type StopFormData,
   type StopCategory,
-} from "./StopFormDialog";
+} from "./StopFormSheet";
 
 // ============================================================================
 // TYPES
@@ -127,7 +130,7 @@ function formatStopAddress(stop: TripStopFormValues): {
   }
 
   return {
-    primary: parts.join(", ") || "Sin dirección especificada",
+    primary: parts.join(", ") || copy.label.noAddress,
     secondary: locationParts.join(", "),
   };
 }
@@ -253,9 +256,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
       if (segments.length === 0) {
         toast({
-          title: "Sin coordenadas suficientes",
-          description:
-            "Confirma geolocalización en todas las paradas para calcular distancias.",
+          title: copy.toast.insufficientCoordinatesTitle,
+          description: copy.toast.insufficientCoordinatesBody,
           variant: "warning",
         });
         setOverwriteManualDialogOpen(false);
@@ -264,9 +266,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
       if (segments.length < expectedSegmentCount) {
         toast({
-          title: "Distancia parcial",
-          description:
-            "Algunos tramos no tienen coordenadas en ambas paradas; solo se actualizaron los tramos completos.",
+          title: copy.toast.partialDistanceTitle,
+          description: copy.toast.partialDistanceBody,
           variant: "warning",
         });
       }
@@ -285,9 +286,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         });
       } catch {
         toast({
-          title: "Error al calcular distancias",
-          description:
-            "No se pudieron actualizar los tramos. Intenta de nuevo.",
+          title: copy.toast.distanceErrorTitle,
+          description: copy.toast.distanceErrorBody,
           variant: "error",
         });
       } finally {
@@ -523,8 +523,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       stopType: stopTypes,
       clientId: data.clientId || undefined,
       clientAddressId: data.clientAddressId || undefined,
-      addressId: data.addressId?.trim() || "",
-      locationName: data.locationName,
+      addressId: data.addressId?.trim() || undefined,
+      locationName: data.locationName ?? "",
       // Campos Carta Porte (unificados - sin campos legacy)
       satCountryCode: data.satCountryCode || "MEX",
       satStateCode: data.satStateCode || "",
@@ -783,9 +783,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     const stops = form.getValues("stops") || [];
     const pendingActions: string[] = [];
 
-    if (!hasOrigin) pendingActions.push("Agregar origen");
-    if (!hasDestination) pendingActions.push("Agregar destino");
-    if (!hasWaypoints) pendingActions.push("Evaluar si requiere escalas");
+    if (!hasOrigin) pendingActions.push(copy.action.addOrigin);
+    if (!hasDestination) pendingActions.push(copy.action.addDestination);
+    if (!hasWaypoints) pendingActions.push(copy.action.evaluateWaypoints);
 
     const incompleteCount = stops.reduce((count, stop, index) => {
       const stopType = stop.stopType ?? [];
@@ -796,15 +796,15 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           : "waypoint";
       const missing = getStopMissingFields(stop, type);
       if (missing.length > 0) {
-        const label = stop.locationName || `Parada #${index + 1}`;
-        pendingActions.push(`Completar ${label} (${missing.join(", ")})`);
+        const label = stop.locationName || copy.format.stopHash(index + 1);
+        pendingActions.push(copy.format.completeStop(label, missing.join(", ")));
         return count + 1;
       }
       return count;
     }, 0);
 
     const nextAction =
-      pendingActions[0] ?? "Ruta lista. Ya puedes avanzar a Cargas.";
+      pendingActions[0] ?? copy.action.routeReady;
 
     return {
       totalStops: stops.length,
@@ -932,7 +932,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   <Badge
                     variant="outline"
                     className="text-xs border-success/30 text-success-soft-foreground"
-                    title="Ubicación ligada a un domicilio guardado; la configuración fiscal se toma de ese registro."
+                    title={copy.hint.savedAddress}
                   >
                     <FileText className="h-3 w-3 mr-1" />
                     Domicilio guardado
@@ -1136,8 +1136,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             <div className="space-y-1">
               <SectionHeadingWithHint
                 noTitleWrap
-                title={<p className="text-sm font-medium">Guía rápida de ruta</p>}
-                hintLabel="Guía rápida de ruta"
+                title={<p className="text-sm font-medium">{copy.section.quickGuide}</p>}
+                hintLabel={copy.section.quickGuide}
                 hint={
                   <>
                     Resume qué falta para completar la ruta y sugiere la siguiente acción. Usa los botones de la derecha
@@ -1177,8 +1177,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 )}
               >
                 {guidanceSummary.incompleteCount > 0
-                  ? `${guidanceSummary.incompleteCount} pendientes`
-                  : "Todo completo"}
+                  ? copy.state.pendingCount(guidanceSummary.incompleteCount)
+                  : copy.state.allComplete}
               </Badge>
             </div>
           </div>
@@ -1190,7 +1190,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Navigation className="h-5 w-5 text-success" />
-            Origen
+            {copy.section.origin}
             <span className="text-xs font-normal text-muted-foreground">
               (1 parada)
             </span>
@@ -1201,8 +1201,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             ? renderStopCard(originIndex, "origin")
             : renderEmptyBlock(
                 "origin",
-                "Sin parada de origen",
-                "Agregue el punto de inicio del viaje",
+                copy.state.noOriginTitle,
+                copy.state.noOriginHint,
                 <Navigation className="h-6 w-6 text-success" />,
               )}
         </CardContent>
@@ -1243,8 +1243,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           ) : (
             renderEmptyBlock(
               "waypoint",
-                "Sin escalas intermedias",
-                "Las escalas son opcionales. Puedes agregarlas para carga o descarga parcial",
+                copy.state.noWaypointsTitle,
+                copy.state.noWaypointsHint,
               <MapPin className="h-6 w-6 text-gray-600" />,
             )
           )}
@@ -1267,8 +1267,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             ? renderStopCard(destinationIndex, "destination")
             : renderEmptyBlock(
                 "destination",
-                "Sin parada de destino",
-                "Agregue el punto final del viaje",
+                copy.state.noDestinationTitle,
+                copy.state.noDestinationHint,
                 <Flag className="h-6 w-6 text-destructive" />,
               )}
         </CardContent>
@@ -1277,8 +1277,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs dark:bg-muted/15">
         <SectionHeadingWithHint
           noTitleWrap
-          title={<span className="font-medium text-muted-foreground">Reglas de la ruta</span>}
-          hintLabel="Reglas de la ruta"
+          title={
+            <span className="font-medium text-muted-foreground">
+              {copy.section.routeRules}
+            </span>
+          }
+          hintLabel={copy.section.routeRules}
           hintContentClassName="max-w-sm text-left [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4"
           hint={
             <>
@@ -1294,8 +1298,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </li>
                 <li>
                   {cfdiDocumentIntent === "traslado"
-                    ? "En traslado, revise en cada parada quién entrega y quién recibe según la operación real."
-                    : "En ingreso, el cliente que contrata el viaje suele ser la referencia principal; las demás contrapartes por ubicación se capturan en cada parada."}
+                    ? copy.hint.trasladoFiscal
+                    : copy.hint.ingresoFiscal}
                 </li>
               </ul>
             </>
@@ -1303,8 +1307,8 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         />
       </div>
 
-      {/* Dialog para agregar/editar parada */}
-      <StopFormDialog
+      {/* Sheet lateral para agregar/editar parada */}
+      <StopFormSheet
         open={isDialogOpen}
         onOpenChange={(open) => {
           setIsDialogOpen(open);

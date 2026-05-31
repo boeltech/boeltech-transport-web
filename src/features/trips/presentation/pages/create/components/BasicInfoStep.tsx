@@ -16,16 +16,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFieldArray, type UseFormReturn } from "react-hook-form";
+import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from "@shared/ui/form";
+import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 import {
   Select,
   SelectContent,
@@ -232,6 +225,7 @@ export function BasicInfoStep({
   isLoadingDrivers,
   isLoadingClients,
 }: BasicInfoStepProps) {
+  const { control } = form;
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
   const watchedInternalStaff = form.watch("internalStaff");
@@ -431,28 +425,36 @@ export function BasicInfoStep({
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">
-            {/* Vehículo */}
-            <FormField
-              control={form.control}
+            <Controller
+              control={control}
               name="vehicleId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vehículo *</FormLabel>
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="vehicleId"
+                  label="Vehículo"
+                  required
+                  errorMessage={fieldState.error?.message}
+                >
                   <Select
                     onValueChange={(value) => value && field.onChange(value)}
                     value={field.value ?? ""}
                     disabled={isLoadingVehicles}
                   >
-                    <FormControl>
-                      <SelectTrigger>
-                        {isLoadingVehicles ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
-                        )}
-                        <SelectValue placeholder="Seleccionar vehículo" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <SelectTrigger
+                      id="vehicleId"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "vehicleId",
+                        fieldState.error?.message,
+                      )}
+                    >
+                      {isLoadingVehicles ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                      <SelectValue placeholder="Seleccionar vehículo" />
+                    </SelectTrigger>
                     <SelectContent>
                       {vehicles.length === 0 && !isLoadingVehicles ? (
                         <SelectItem value="no-vehicles" disabled>
@@ -504,33 +506,40 @@ export function BasicInfoStep({
                       )}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
+                </FormFieldShell>
               )}
             />
 
-            {/* Conductor */}
-            <FormField
-              control={form.control}
+            <Controller
+              control={control}
               name="driverId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Conductor *</FormLabel>
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="driverId"
+                  label="Conductor"
+                  required
+                  errorMessage={fieldState.error?.message}
+                >
                   <Select
                     onValueChange={(value) => value && field.onChange(value)}
                     value={field.value ?? ""}
                     disabled={isLoadingDrivers}
                   >
-                    <FormControl>
-                      <SelectTrigger>
-                        {isLoadingDrivers ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                        )}
-                        <SelectValue placeholder="Seleccionar conductor" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <SelectTrigger
+                      id="driverId"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "driverId",
+                        fieldState.error?.message,
+                      )}
+                    >
+                      {isLoadingDrivers ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                      <SelectValue placeholder="Seleccionar conductor" />
+                    </SelectTrigger>
                     <SelectContent>
                       {drivers.length === 0 && !isLoadingDrivers ? (
                         <SelectItem value="no-drivers" disabled>
@@ -589,43 +598,52 @@ export function BasicInfoStep({
                       )}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
+                </FormFieldShell>
               )}
             />
 
-            {/* Cliente que contrata */}
-            <FormField
-              control={form.control}
+            <Controller
+              control={control}
               name="clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <SectionHeadingWithHint
-                    noTitleWrap
-                    title={<FormLabel>Cliente que contrata *</FormLabel>}
-                    hintLabel="Cliente que contrata"
-                    hint={
-                      <>
-                        Quién contrata el servicio de transporte. Quién entrega y quién recibe en cada ubicación se
-                        captura por parada en el paso Ruta.
-                      </>
-                    }
-                  />
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="clientId"
+                  label={
+                    <SectionHeadingWithHint
+                      noTitleWrap
+                      title="Cliente que contrata"
+                      hintLabel="Cliente que contrata"
+                      required
+                      hint={
+                        <>
+                          Quién contrata el servicio de transporte. Quién entrega y quién recibe en cada ubicación se
+                          captura por parada en el paso Ruta.
+                        </>
+                      }
+                    />
+                  }
+                  errorMessage={fieldState.error?.message}
+                >
                   <Select
                     onValueChange={(value) => value && field.onChange(value)}
                     value={field.value ?? ""}
                     disabled={isLoadingClients}
                   >
-                    <FormControl>
-                      <SelectTrigger>
-                        {isLoadingClients ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
-                        )}
-                        <SelectValue placeholder="Seleccionar cliente" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <SelectTrigger
+                      id="clientId"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "clientId",
+                        fieldState.error?.message,
+                      )}
+                    >
+                      {isLoadingClients ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                      )}
+                      <SelectValue placeholder="Seleccionar cliente" />
+                    </SelectTrigger>
                     <SelectContent>
                       {clients.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
@@ -634,46 +652,55 @@ export function BasicInfoStep({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
+                </FormFieldShell>
               )}
             />
 
-            <FormField
-              control={form.control}
+            <Controller
+              control={control}
               name="cfdiDocumentIntent"
-              render={({ field }) => (
-                <FormItem className="sm:col-span-3">
-                  <SectionHeadingWithHint
-                    noTitleWrap
-                    title={<FormLabel>Tipo de comprobante del viaje</FormLabel>}
-                    hintLabel="Tipo de comprobante del viaje"
-                    hint={
-                      <>
-                        Indica si el servicio se documentará principalmente como ingreso (factura de servicio) o como
-                        traslado (movimiento entre ubicaciones). Ajusta etiquetas en Ruta y paradas; el timbrado validará
-                        los datos finos.
-                      </>
-                    }
-                  />
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="cfdiDocumentIntent"
+                  className="sm:col-span-3"
+                  label={
+                    <SectionHeadingWithHint
+                      noTitleWrap
+                      title="Tipo de comprobante del viaje"
+                      hintLabel="Tipo de comprobante del viaje"
+                      hint={
+                        <>
+                          Indica si el servicio se documentará principalmente como ingreso (factura de servicio) o como
+                          traslado (movimiento entre ubicaciones). Ajusta etiquetas en Ruta y paradas; el timbrado validará
+                          los datos finos.
+                        </>
+                      }
+                    />
+                  }
+                  errorMessage={fieldState.error?.message}
+                >
                   <Select
                     onValueChange={(value) =>
                       value && field.onChange(value as "ingreso" | "traslado")
                     }
                     value={field.value ?? "ingreso"}
                   >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tipo de comprobante" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <SelectTrigger
+                      id="cfdiDocumentIntent"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "cfdiDocumentIntent",
+                        fieldState.error?.message,
+                      )}
+                    >
+                      <SelectValue placeholder="Tipo de comprobante" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ingreso">Ingreso — factura de servicio</SelectItem>
                       <SelectItem value="traslado">Traslado — movimiento entre ubicaciones</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
+                </FormFieldShell>
               )}
             />
           </div>
@@ -813,11 +840,11 @@ export function BasicInfoStep({
               </Button>
             </div>
 
-            {addStaffError && (
-              <p className="text-sm text-destructive" role="alert">
+            {addStaffError ? (
+              <p className="text-xs text-destructive" role="alert">
                 {addStaffError}
               </p>
-            )}
+            ) : null}
           </div>
 
           <div className="rounded-md border">
@@ -902,75 +929,102 @@ export function BasicInfoStep({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            <FormField
-              control={form.control}
+            <Controller
+              control={control}
               name="scheduledDeparture"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Salida Programada *</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="scheduledArrival"
-              render={({ field }) => (
-                <FormItem>
-                  <SectionHeadingWithHint
-                    noTitleWrap
-                    title={<FormLabel>Llegada estimada</FormLabel>}
-                    hintLabel="Llegada estimada"
-                    hint={
-                      <>
-                        Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos
-                        puntos, se actualiza el otro.
-                      </>
-                    }
-                  />
-                  <FormControl>
-                    <Input type="datetime-local" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="startMileage"
-              render={({ field }) => {
-                const vehicleCurrentMileage = form.watch(
-                  "vehicleCurrentMileage",
-                );
-                return (
-                  <FormItem>
-                    <FormLabel>Kilometraje Inicial</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </FormControl>
-                    {vehicleCurrentMileage !== undefined && (
-                      <FormDescription>
-                        Kilometraje actual:{" "}
-                        {vehicleCurrentMileage.toLocaleString()} km
-                      </FormDescription>
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="scheduledDeparture"
+                  label="Salida Programada"
+                  required
+                  errorMessage={fieldState.error?.message}
+                >
+                  <Input
+                    id="scheduledDeparture"
+                    type="datetime-local"
+                    {...field}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "scheduledDeparture",
+                      fieldState.error?.message,
                     )}
-                    <FormMessage />
-                  </FormItem>
+                  />
+                </FormFieldShell>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="scheduledArrival"
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="scheduledArrival"
+                  label={
+                    <SectionHeadingWithHint
+                      noTitleWrap
+                      title="Llegada estimada"
+                      hintLabel="Llegada estimada"
+                      hint={
+                        <>
+                          Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos
+                          puntos, se actualiza el otro.
+                        </>
+                      }
+                    />
+                  }
+                  errorMessage={fieldState.error?.message}
+                >
+                  <Input
+                    id="scheduledArrival"
+                    type="datetime-local"
+                    {...field}
+                    value={field.value ?? ""}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "scheduledArrival",
+                      fieldState.error?.message,
+                    )}
+                  />
+                </FormFieldShell>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="startMileage"
+              render={({ field, fieldState }) => {
+                const vehicleCurrentMileage = form.watch("vehicleCurrentMileage");
+                return (
+                  <FormFieldShell
+                    fieldId="startMileage"
+                    label="Kilometraje Inicial"
+                    errorMessage={fieldState.error?.message}
+                    description={
+                      vehicleCurrentMileage !== undefined
+                        ? `Kilometraje actual: ${vehicleCurrentMileage.toLocaleString()} km`
+                        : undefined
+                    }
+                  >
+                    <Input
+                      id="startMileage"
+                      type="number"
+                      placeholder="0"
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : undefined,
+                        )
+                      }
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "startMileage",
+                        fieldState.error?.message,
+                      )}
+                    />
+                  </FormFieldShell>
                 );
               }}
             />

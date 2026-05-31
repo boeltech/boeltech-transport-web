@@ -4,7 +4,6 @@
 import { describe, expect, it } from "vitest";
 import {
   createTripSchema,
-  finishTripSchema,
   tripQuerySchema,
   updateTripSchema,
   updateTripStatusSchema,
@@ -13,13 +12,11 @@ import { deepToCamel, deepToSnake } from "@shared/api/utils/case-transformer";
 
 import type {
   CreateTripInput,
-  FinishTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
 } from "@features/trips/domain";
 import {
   validateCreateTripApiPayload,
-  validateFinishTripApiPayload,
   validateTripQueryApiPayload,
   validateUpdateTripApiPayload,
   validateUpdateTripStatusApiPayload,
@@ -82,7 +79,7 @@ describe("Trip API payload contract (create)", () => {
   });
 });
 
-describe("Trip API payload contract (update/status/finish/query)", () => {
+describe("Trip API payload contract (update/status/query)", () => {
   it("validateUpdateTripApiPayload matches updateTripSchema.safeParse", () => {
     const updateInput: UpdateTripInput = {
       originCity: "Guadalajara",
@@ -111,17 +108,6 @@ describe("Trip API payload contract (update/status/finish/query)", () => {
     };
     const wrapper = validateUpdateTripStatusApiPayload(statusInput);
     const direct = updateTripStatusSchema.safeParse(deepToSnake(statusInput));
-    expect(wrapper.ok).toBe(direct.success);
-  });
-
-  it("validateFinishTripApiPayload matches finishTripSchema.safeParse", () => {
-    const finishInput: FinishTripInput = {
-      endMileage: 2450,
-      actualArrival: "2026-05-10T18:30:00.000Z",
-      notes: "Fin de viaje",
-    };
-    const wrapper = validateFinishTripApiPayload(finishInput);
-    const direct = finishTripSchema.safeParse(deepToSnake(finishInput));
     expect(wrapper.ok).toBe(direct.success);
   });
 

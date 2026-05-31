@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import type {
   CreateTripInput,
-  FinishTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
 } from "@features/trips/domain";
@@ -12,7 +11,6 @@ import {
   formatTripApiValidationForUser,
   summarizeTripApiPayloadErrors,
   validateCreateTripApiPayload,
-  validateFinishTripApiPayload,
   validateTripQueryApiPayload,
   validateUpdateTripApiPayload,
   validateUpdateTripStatusApiPayload,
@@ -119,17 +117,6 @@ describe("validateUpdateTripStatusApiPayload", () => {
   it("acepta status transitions payload válidos", () => {
     const input: UpdateTripStatusInput = { status: "in_progress" };
     expect(validateUpdateTripStatusApiPayload(input)).toEqual({ ok: true });
-  });
-});
-
-describe("validateFinishTripApiPayload", () => {
-  it("acepta finish payload válido", () => {
-    const input: FinishTripInput = {
-      endMileage: 5021,
-      actualArrival: "2026-05-10T12:00:00.000Z",
-      notes: "Cierre manual",
-    };
-    expect(validateFinishTripApiPayload(input)).toEqual({ ok: true });
   });
 });
 

@@ -72,13 +72,11 @@
 
 import type {
   CreateTripInput,
-  FinishTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
 } from "@features/trips/domain";
 import {
   createTripSchema,
-  finishTripSchema,
   formatZodError,
   tripQuerySchema,
   updateTripSchema,
@@ -121,12 +119,6 @@ export function validateUpdateTripStatusApiPayload(
   return parseSchemaResult(updateTripStatusSchema.safeParse(deepToSnake(input)));
 }
 
-export function validateFinishTripApiPayload(
-  input: FinishTripInput,
-): TripApiPayloadValidation {
-  return parseSchemaResult(finishTripSchema.safeParse(deepToSnake(input)));
-}
-
 export function validateTripQueryApiPayload(
   query: Record<string, unknown>,
 ): TripApiPayloadValidation {
@@ -159,7 +151,7 @@ export function summarizeTripApiPayloadErrors(
 }
 
 /**
- * Mensajes de validación API en lenguaje no técnico (edición rápida y toasts).
+ * Mensajes de validación API en lenguaje no técnico (edición contextual y toasts).
  * Si no reconoce rutas concretas, delega en `summarizeTripApiPayloadErrors`.
  */
 export function formatTripApiValidationForUser(

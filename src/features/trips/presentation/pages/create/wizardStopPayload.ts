@@ -86,6 +86,7 @@ export function mapWizardStopsToCreateInput(
       satStateCode: stop.satStateCode,
       satMunicipalityCode: stop.satMunicipalityCode,
       satLocalityCode: stop.satLocalityCode || undefined,
+      locality_name: stop.localityName || undefined,
       satNeighborhoodCode: stop.satNeighborhoodCode || undefined,
       colonia: stop.neighborhoodName || undefined,
       street: stop.street || undefined,

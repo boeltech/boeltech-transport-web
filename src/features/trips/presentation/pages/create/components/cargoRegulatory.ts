@@ -34,6 +34,10 @@ export const sectorFieldLabels: Record<keyof CargoSectorRequirements, string> = 
   usoAutorizado: "Uso autorizado",
 };
 
+/**
+ * ¿Hay que exigir campos hazmat al validar? (usuario marcó MP o catálogo lo obliga).
+ * Para bloquear desmarcar el checkbox en UI, usar solo `requiresHazmat`, no esta función.
+ */
 export function isHazmatRequired(flags: {
   hazardousMaterial?: boolean;
   requiresHazmat?: boolean;

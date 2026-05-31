@@ -18,18 +18,25 @@
  * Ubicación: src/pages/trips/create/TripFormPage.tsx
  */
 
-import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useForm, useFieldArray, type UseFormReturn } from "react-hook-form";
+import {
+  FormProvider,
+  useForm,
+  useFieldArray,
+  type UseFormReturn,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent } from "@shared/ui/card";
 import {
   WizardPageShell,
   type WizardFormRef,
+  type WizardStepRenderHelpers,
 } from "@shared/ui/page-shells/WizardPageShell";
-import { Form } from "@shared/ui/form";
+import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { Skeleton } from "@shared/ui/skeleton";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { FormValidationSummary } from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 // Feature hooks
 import {
@@ -51,6 +58,7 @@ import {
   tripWizardSchemaWithCreateApiAlignment,
   tripWizardSchemaWithUpdateApiAlignment,
   WIZARD_STEPS,
+  WIZARD_STEP_FIELDS,
   defaultWizardFormValues,
   BasicInfoStep,
   RouteStep,
@@ -58,13 +66,15 @@ import {
   CostsStep,
   SummaryStep,
   validateRouteStep,
+  validateCostsStep,
   stopHasUnifiedAddressId,
 } from "./components";
 import type { TripWizardFormValues } from "./components";
-import {
-  LOCATION_CAPTURE_LABELS,
-  ROUTE_CAPTURE_LABELS,
-} from "./components/wizardCopy";
+import { wizardCopy } from "../../copy";
+
+const shell = wizardCopy.shell;
+const route = wizardCopy.route;
+const cargo = wizardCopy.cargo;
 import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
@@ -86,28 +96,28 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
     const missing: string[] = [];
 
     if (!stopHasUnifiedAddressId(stop)) {
-      if (!stop.satCountryCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.country);
-      if (!stop.satStateCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.state);
+      if (!stop.satCountryCode?.trim()) missing.push(route.label.country);
+      if (!stop.satStateCode?.trim()) missing.push(route.label.state);
       if (!stop.satMunicipalityCode?.trim()) {
-        missing.push(LOCATION_CAPTURE_LABELS.municipality);
+        missing.push(route.label.municipality);
       }
       if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
-        missing.push(LOCATION_CAPTURE_LABELS.postalCode);
+        missing.push(route.label.postalCode);
       }
     }
 
     const isDestination = stop.stopType.includes("destination");
     if (isDestination && !stop.estimatedArrival) {
-      missing.push(ROUTE_CAPTURE_LABELS.estimatedArrival);
+      missing.push(route.label.estimatedArrival);
     }
 
     if (stop.latitude == null || stop.longitude == null) {
-      missing.push(ROUTE_CAPTURE_LABELS.geolocation);
+      missing.push(route.label.geolocation);
     }
 
     if (missing.length > 0) {
-      const stopLabel = stop.locationName || `Parada ${index + 1}`;
-      messages.push(`${stopLabel}: completa ${missing.join(", ")}`);
+      const stopLabel = stop.locationName || route.format.stopFallback(index);
+      messages.push(route.format.stopCompleteMissing(stopLabel, missing.join(", ")));
     }
   });
 
@@ -117,32 +127,26 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
 function validateStopsCpReady(stops: TripWizardFormValues["stops"]): string[] {
   const issues: string[] = [];
   stops.forEach((stop, index) => {
-    const stopLabel = stop.locationName || `Parada ${index + 1}`;
+    const stopLabel = stop.locationName || route.format.stopFallback(index);
     if (stop.latitude == null || stop.longitude == null) {
-      issues.push(`${stopLabel}: falta geolocalización`);
+      issues.push(route.format.stopMissingGeolocation(stopLabel));
     }
     if (
       index > 0 &&
       stop.distanceFromPreviousKm === undefined &&
       stop.distanceFromPreviousKm !== 0
     ) {
-      issues.push(`${stopLabel}: falta distancia desde parada anterior`);
+      issues.push(route.format.stopMissingDistance(stopLabel));
     }
   });
   return issues;
 }
 
-function getStepErrorHint(stepIndex: number): string {
-  if (stepIndex === 0) {
-    return "Revisa asignaciones y datos de contratación para continuar.";
-  }
-  if (stepIndex === 1) {
-    return "Aún hay paradas con datos pendientes. Usa el botón Completar en cada una para continuar.";
-  }
-  if (stepIndex === 2) {
-    return "Aún hay mercancías o entregas pendientes por asignar.";
-  }
-  return "Hay información pendiente en este paso.";
+function getStepValidationSummaryTitle(stepIndex: number): string {
+  return (
+    shell.validation.stepSummaryTitles[stepIndex] ??
+    shell.validation.stepSummaryFallback
+  );
 }
 
 // ============================================================================
@@ -156,8 +160,10 @@ export function TripFormPage() {
   const isEditMode = !!id;
   const formRef = useRef<WizardFormRef | null>(null);
 
-  // Estado del wizard
-  const [stepErrors, setStepErrors] = useState<Record<number, boolean>>({});
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [extraValidationMessages, setExtraValidationMessages] = useState<string[]>(
+    [],
+  );
 
   // ============================================
   // Queries para cargar datos de los selects
@@ -395,12 +401,12 @@ export function TripFormPage() {
 
   const updateMutation = useUpdateTrip({
     onSuccess: () => {
-      toast({ title: "Viaje actualizado", variant: "success" });
+      toast({ title: shell.toast.tripUpdated, variant: "success" });
       navigate(`/trips/${id}`);
     },
     onError: (error) => {
       toast({
-        title: "Error al actualizar",
+        title: shell.toast.updateError,
         description: error.message,
         variant: "error",
       });
@@ -429,7 +435,7 @@ export function TripFormPage() {
     if (validation.warnings.length > 0) {
       validation.warnings.forEach((warning) => {
         toast({
-          title: "Información",
+          title: shell.toast.infoTitle,
           description: warning,
           variant: "warning",
         });
@@ -454,8 +460,7 @@ export function TripFormPage() {
     if (!currentCargos.length) {
       return {
         isValid: false,
-        message:
-          "Agrega al menos una mercancía para construir el nodo Mercancias del comprobante.",
+        message: cargo.validation.requireCargo,
       };
     }
 
@@ -466,8 +471,7 @@ export function TripFormPage() {
     if (totalGrossWeight <= 0) {
       return {
         isValid: false,
-        message:
-          "El peso bruto total de las mercancías debe ser mayor a cero.",
+        message: cargo.validation.requireWeight,
       };
     }
 
@@ -479,15 +483,14 @@ export function TripFormPage() {
       .map((stop, index) => ({
         index,
         hasPickup: stop.stopType.includes(StopType.PICKUP),
-        label: stop.locationName || `Parada #${index + 1}`,
+        label: stop.locationName || route.format.stopHash(index),
       }))
       .filter((s) => s.hasPickup);
 
     if (pickupStopIndices.length === 0) {
       return {
         isValid: false,
-        message:
-          "No hay paradas con operación de carga. Regrese al paso de Ruta para configurarlas.",
+        message: cargo.validation.noPickupStops,
       };
     }
 
@@ -506,11 +509,11 @@ export function TripFormPage() {
 
     if (stopsWithoutCargos.length > 0) {
       const stopLabels = stopsWithoutCargos
-        .map((s) => `Parada #${s.index + 1} (${s.label})`)
+        .map((s) => cargo.format.stopPickupLabel(s.index, s.label))
         .join(", ");
       return {
         isValid: false,
-        message: `Las siguientes paradas de carga no tienen mercancías registradas: ${stopLabels}`,
+        message: cargo.validation.pickupWithoutCargo(stopLabels),
       };
     }
 
@@ -547,12 +550,21 @@ export function TripFormPage() {
 
         if (totalDeliveryWeight > cargo.weight) {
           errors.push(
-            `"${cargo.description}": el peso total de entregas (${totalDeliveryWeight} kg) excede el peso de la carga (${cargo.weight} kg)`,
+            cargo.validation.weightExceeded(
+              cargo.description,
+              totalDeliveryWeight,
+              cargo.weight,
+            ),
           );
         } else if (totalDeliveryWeight < cargo.weight) {
           const pendingWeight = cargo.weight - totalDeliveryWeight;
           errors.push(
-            `"${cargo.description}": faltan ${pendingWeight} kg por asignar a puntos de entrega (${totalDeliveryWeight}/${cargo.weight} kg)`,
+            cargo.validation.weightPending(
+              cargo.description,
+              pendingWeight,
+              totalDeliveryWeight,
+              cargo.weight,
+            ),
           );
         }
       }
@@ -591,17 +603,21 @@ export function TripFormPage() {
           isValid: true,
           warning:
             cargosWithoutDeliveries.length === 1
-              ? `La carga "${cargoNames}" no tiene punto de entrega asignado. Se entregará en la única parada de descarga del viaje.`
-              : `Las cargas ${cargoNames} no tienen punto de entrega asignado. Se entregarán en la única parada de descarga del viaje.`,
+              ? cargo.validation.implicitDeliverySingle(cargoNames)
+              : cargo.validation.implicitDeliveryMultiple(cargoNames),
         };
       }
 
       const cargoNames = cargosWithoutDeliveries
-        .map((name) => `"${name}"`)
+        .map((name) => cargo.format.quotedName(name))
         .join(", ");
       return {
         isValid: false,
-        message: `${cargosWithoutDeliveries.length === 1 ? "La carga" : "Las cargas"} ${cargoNames} ${cargosWithoutDeliveries.length === 1 ? "no tiene" : "no tienen"} puntos de entrega asignados. Existen ${deliveryStopCount} paradas de descarga en la ruta, por lo que debe especificar a cuál ${cargosWithoutDeliveries.length === 1 ? "se entregará" : "se entregarán"}.`,
+        message: cargo.validation.missingDeliveryPoints(
+          cargoNames,
+          cargosWithoutDeliveries.length === 1,
+          deliveryStopCount,
+        ),
       };
     }
 
@@ -613,30 +629,21 @@ export function TripFormPage() {
   // ============================================
 
   const validateCurrentStep = useCallback(async (stepIndex: number): Promise<boolean> => {
-    const currentStepConfig = WIZARD_STEPS[stepIndex];
-    const fieldsToValidate = currentStepConfig.fields;
+    const fieldsToValidate = WIZARD_STEP_FIELDS[stepIndex] ?? [];
+    const extraMessages: string[] = [];
 
-    // Validación de campos del schema
     const result = await form.trigger(
       fieldsToValidate as (keyof TripWizardFormValues)[],
+      { shouldFocus: true },
     );
 
-    // Regla de negocio: el cliente principal siempre es obligatorio.
     if (stepIndex === 0) {
       const selectedClientId = form.getValues("clientId");
       if (!selectedClientId || selectedClientId === "no-client") {
         form.setError("clientId", {
           type: "manual",
-          message: "Selecciona el cliente que contrata el viaje",
+          message: shell.validation.selectClient,
         });
-        toast({
-          title: "Cliente requerido",
-          description:
-            "Selecciona quién contrata este viaje antes de continuar.",
-          variant: "error",
-        });
-        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-        return false;
       }
 
       const selectedDriverId = form.getValues("driverId");
@@ -651,91 +658,86 @@ export function TripFormPage() {
         if (!empId) continue;
 
         if (seenEmployeeIds.has(empId)) {
-          toast({
-            title: "Equipo de apoyo inválido",
-            description:
-              "No puedes agregar el mismo empleado dos veces en el equipo de apoyo.",
-            variant: "error",
-          });
-          setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-          return false;
+          extraMessages.push(shell.validation.duplicateSupportStaff);
+          break;
         }
         seenEmployeeIds.add(empId);
 
-        if (
-          primaryDriverEmployeeId &&
-          empId === primaryDriverEmployeeId
-        ) {
-          toast({
-            title: "Equipo de apoyo inválido",
-            description:
-              "El conductor principal no puede figurar también en el equipo de apoyo.",
-            variant: "error",
-          });
-          setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-          return false;
+        if (primaryDriverEmployeeId && empId === primaryDriverEmployeeId) {
+          extraMessages.push(shell.validation.driverInSupportStaff);
+          break;
         }
       }
     }
 
-    // Validación adicional para el paso de RUTA (step 1)
     if (stepIndex === 1) {
       const routeValidation = validateRouteStepHandler();
 
       if (!routeValidation.isValid) {
-        toast({
-          title: "Ruta pendiente de completar",
-          description: routeValidation.message,
-          variant: "error",
-        });
-        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-        return false;
-      }
-
-      if (!result) {
+        extraMessages.push(
+          routeValidation.message ?? shell.validation.routeIncomplete,
+        );
+      } else if (!result) {
         const routeMessages = getRouteValidationMessages(form.getValues());
-        toast({
-          title: "Completa las paradas para continuar",
-          description:
-            routeMessages.length > 0
-              ? `${routeMessages.slice(0, 2).join(". ")}. Abre cada parada con el botón Completar.`
-              : "Hay campos requeridos sin completar. Abre cada parada con el botón Completar.",
-          variant: "error",
-        });
-        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-        return false;
+        if (routeMessages.length > 0) {
+          extraMessages.push(...routeMessages.slice(0, 4));
+        } else {
+          extraMessages.push(shell.validation.routeFieldsIncomplete);
+        }
       }
     }
 
-    // Validación adicional para el paso de CARGAS (step 2)
     if (stepIndex === 2) {
       const cargoValidation = validateCargoStep();
 
       if (!cargoValidation.isValid) {
+        extraMessages.push(
+          cargoValidation.message ?? shell.validation.cargoIncomplete,
+        );
+      } else if (cargoValidation.warning) {
         toast({
-          title: "Cargas incompletas",
-          description: cargoValidation.message,
-          variant: "error",
-        });
-        setStepErrors((prev) => ({ ...prev, [stepIndex]: true }));
-        return false;
-      }
-
-      if (cargoValidation.warning) {
-        toast({
-          title: "Entrega con destino implícito",
+          title: shell.toast.implicitDeliveryTitle,
           description: cargoValidation.warning,
           variant: "warning",
         });
       }
     }
 
-    setStepErrors((prev) => ({
-      ...prev,
-      [stepIndex]: !result,
-    }));
+    if (stepIndex === 3) {
+      const costsValidation = validateCostsStep(form.getValues());
 
-    return result;
+      if (!costsValidation.isValid) {
+        if (costsValidation.message) {
+          form.setError("baseRate", {
+            type: "manual",
+            message: costsValidation.message,
+          });
+          extraMessages.push(costsValidation.message);
+        }
+      } else if (costsValidation.warning) {
+        toast({
+          title: shell.toast.marginWarningTitle,
+          description: costsValidation.warning,
+          variant: "warning",
+        });
+      }
+    }
+
+    const clientId = form.getValues("clientId");
+    const clientMissing =
+      stepIndex === 0 && (!clientId || clientId === "no-client");
+    const isValid =
+      result && extraMessages.length === 0 && !clientMissing;
+
+    if (!isValid) {
+      setExtraValidationMessages(extraMessages);
+      setShowValidationSummary(true);
+      return false;
+    }
+
+    setExtraValidationMessages([]);
+    setShowValidationSummary(false);
+    return true;
   }, [form, validateRouteStepHandler, validateCargoStep, toast, availableDrivers]);
 
   // ============================================
@@ -750,7 +752,7 @@ export function TripFormPage() {
     const cpReadinessIssues = validateStopsCpReady(data.stops || []);
     if (cpReadinessIssues.length > 0) {
       toast({
-        title: "Ruta incompleta para generar el comprobante",
+        title: shell.toast.routeCpIncompleteTitle,
         description: cpReadinessIssues.slice(0, 2).join(". "),
         variant: "error",
       });
@@ -766,7 +768,7 @@ export function TripFormPage() {
       const updateApiCheck = validateUpdateTripApiPayload(preparedData);
       if (!updateApiCheck.ok) {
         toast({
-          title: "El viaje no cumple la validación del servidor",
+          title: shell.toast.serverValidationTitle,
           description: summarizeTripApiPayloadErrors(updateApiCheck.fieldErrors),
           variant: "error",
         });
@@ -786,7 +788,7 @@ export function TripFormPage() {
     const createApiCheck = validateCreateTripApiPayload(wizardPayload);
     if (!createApiCheck.ok) {
       toast({
-        title: "El viaje no cumple la validación del servidor",
+        title: shell.toast.serverValidationTitle,
         description: summarizeTripApiPayloadErrors(createApiCheck.fieldErrors),
         variant: "error",
       });
@@ -797,7 +799,7 @@ export function TripFormPage() {
       const result = await createMutation.mutateAsync(wizardPayload);
 
       toast({
-        title: "Viaje creado exitosamente",
+        title: shell.toast.tripCreated,
         variant: "success",
       });
 
@@ -805,15 +807,15 @@ export function TripFormPage() {
     } catch (error) {
       if (error instanceof TripCreationError) {
         toast({
-          title: "Error al crear viaje",
+          title: shell.toast.createError,
           description: error.message,
           variant: "error",
         });
       } else {
         toast({
-          title: "Error al crear viaje",
+          title: shell.toast.createError,
           description:
-            error instanceof Error ? error.message : "Error desconocido",
+            error instanceof Error ? error.message : shell.toast.unknownError,
           variant: "error",
         });
       }
@@ -828,18 +830,16 @@ export function TripFormPage() {
   ]);
 
   const handleSubmit = useCallback(async () => {
-    const isValid = await form.trigger();
+    const isValid = await form.trigger(undefined, { shouldFocus: true });
     if (isValid) {
+      setShowValidationSummary(false);
+      setExtraValidationMessages([]);
       const data = form.getValues();
       await onSubmit(data);
     } else {
-      toast({
-        title: "Formulario incompleto",
-        description: "Por favor complete todos los campos requeridos",
-        variant: "error",
-      });
+      setShowValidationSummary(true);
     }
-  }, [form, onSubmit, toast]);
+  }, [form, onSubmit]);
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const shellSteps = useMemo(
@@ -855,34 +855,32 @@ export function TripFormPage() {
   const shellHeader = useMemo(
     () => ({
       backHref: "/trips",
-      backLabel: "Volver",
+      backLabel: shell.page.backLabel,
       icon: <Route className="h-5 w-5" />,
-      title: isEditMode ? "Editar Viaje" : "Nuevo Viaje",
+      title: isEditMode ? shell.page.editTitle : shell.page.createTitle,
       subtitle: isEditMode
-        ? `Editando ${existingTrip?.tripCode ?? ""}`.trim()
-        : "Complete los pasos para crear un viaje",
+        ? shell.page.editSubtitle(existingTrip?.tripCode ?? "")
+        : shell.page.createSubtitle,
     }),
     [isEditMode, existingTrip?.tripCode],
   );
 
-  useLayoutEffect(() => {
-    formRef.current = {
-      triggerStepValidation: validateCurrentStep,
-      requestSubmit: () => {
-        void handleSubmit();
-      },
-    };
-    return () => {
-      formRef.current = null;
-    };
-  }, [validateCurrentStep, handleSubmit]);
+  const requestWizardSubmit = useCallback(() => {
+    void handleSubmit();
+  }, [handleSubmit]);
+
+  useWizardFormRef({
+    formRef,
+    triggerStepValidation: validateCurrentStep,
+    requestSubmit: requestWizardSubmit,
+  });
 
   // ============================================
   // Render step content
   // ============================================
 
   const renderStepContent = useCallback(
-    (currentStep: number) => {
+    (currentStep: number, helpers?: WizardStepRenderHelpers) => {
       switch (currentStep) {
         case 0:
           return (
@@ -927,6 +925,7 @@ export function TripFormPage() {
               vehicles={vehicles}
               drivers={availableDrivers}
               clients={clients}
+              onGoToStep={helpers?.goToStep ?? (() => undefined)}
             />
           );
         default:
@@ -947,21 +946,42 @@ export function TripFormPage() {
     ],
   );
 
-  const renderStep = useCallback(
-    (currentStep: number) => (
-      <Form key={id ?? "create"} {...form}>
-        <form onSubmit={(e) => e.preventDefault()}>
-          <div className="min-h-[400px]">{renderStepContent(currentStep)}</div>
+  const validationSummaryMessages = useMemo(() => {
+    const fieldMessages = collectFieldErrorMessages(form.formState.errors);
+    const merged = [...fieldMessages, ...extraValidationMessages];
+    return [...new Set(merged)];
+  }, [form.formState.errors, extraValidationMessages]);
 
-          {stepErrors[currentStep] ? (
-            <AlertWithIcon variant="destructive" className="mt-4">
-              {getStepErrorHint(currentStep)}
-            </AlertWithIcon>
+  const renderStep = useCallback(
+    (currentStep: number, helpers?: WizardStepRenderHelpers) => (
+      <FormProvider key={id ?? "create"} {...form}>
+        <form onSubmit={(e) => e.preventDefault()}>
+          {currentStep < WIZARD_STEPS.length - 1 ? (
+            <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
+              Completa los campos obligatorios del paso para continuar.
+            </p>
+          ) : null}
+          <div className="min-h-[400px]">
+            {renderStepContent(currentStep, helpers)}
+          </div>
+
+          {showValidationSummary && validationSummaryMessages.length > 0 ? (
+            <div
+              className="mt-6 border-t border-border/60 pt-6"
+              role="region"
+              aria-label={shell.submit.validationAriaLabel}
+            >
+              <FormValidationSummary
+                className="mb-0"
+                title={getStepValidationSummaryTitle(currentStep)}
+                messages={validationSummaryMessages}
+              />
+            </div>
           ) : null}
         </form>
-      </Form>
+      </FormProvider>
     ),
-    [form, renderStepContent, stepErrors, id],
+    [form, renderStepContent, id, showValidationSummary, validationSummaryMessages],
   );
 
   if (isEditMode && isLoadingTrip) {
@@ -975,13 +995,16 @@ export function TripFormPage() {
       header={shellHeader}
       renderStep={renderStep}
       isSubmitting={isSubmitting}
-      submitLabel={isEditMode ? "Guardar Cambios" : "Crear Viaje"}
-      submittingLabel={isEditMode ? "Guardando..." : "Creando..."}
-      stepsAriaLabel="Pasos para crear o editar un viaje"
+      submitLabel={isEditMode ? shell.submit.save : shell.submit.create}
+      submittingLabel={isEditMode ? shell.submit.saving : shell.submit.creating}
+      stepsAriaLabel={shell.submit.stepsAriaLabel}
       onCancel={() => navigate(-1)}
       onHeaderBack={() => navigate(-1)}
       headerBackMode="exit"
       className="pb-8"
+      resolveContainerClassName={(step) =>
+        step === WIZARD_STEPS.length - 1 ? "max-w-6xl" : undefined
+      }
     />
   );
 }

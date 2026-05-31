@@ -1,20 +1,11 @@
 /**
- * SummaryStep - Paso 5 del Wizard
- * Resumen: Confirmación antes de crear el viaje
+ * SummaryStep - Paso 5 del wizard de viajes
+ * Revisión tipo checkout: secciones por paso + rail financiero sticky.
  */
 
+import { useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import { Textarea } from "@shared/ui/text-area";
-import { Separator } from "@shared/ui/separator";
-import { Badge } from "@shared/ui/badge";
+import { Controller, useWatch } from "react-hook-form";
 import {
   Truck,
   User,
@@ -22,35 +13,71 @@ import {
   Calendar,
   MapPin,
   Package,
-  Receipt,
   FileText,
   Navigation,
   Flag,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   FileCheck,
   Scale,
   Milestone,
+  Users,
+  Gauge,
+  AlertCircle,
+  CircleDollarSign,
+  Receipt,
+  Box,
 } from "lucide-react";
-import type { TripWizardFormValues } from "./validation";
-import type { DriverListItem } from "@features/drivers";
-import { formatDateTime } from "@shared/utils/dateUtils";
-import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
-import {
-  computeFinancialSummary,
-  formatMxCurrency,
-  isIndirectExpenseCategory,
-  isOperationalExpenseCategory,
-} from "./financialSummary";
 
-interface SummaryStepProps {
+import type { DriverListItem } from "@features/drivers";
+import { formatDateTimeFromLocalInput } from "@shared/utils/dateUtils";
+import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
+import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FormSectionCard } from "@shared/ui/form-section-card";
+import { Textarea } from "@shared/ui/text-area";
+import { cn } from "@shared/lib/utils/cn";
+
+import type { TripWizardFormValues } from "./validation";
+import { wizardHasContractingClient } from "./validation";
+import { buildTripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
+import { TripWizardFinancialSummary } from "./TripWizardFinancialSummary";
+import { formatMxCurrency } from "./financialSummary";
+import { SummaryReviewSection } from "./SummaryReviewSection";
+import { wizardCopy } from "../../../copy";
+import {
+  buildSummaryPickupStops,
+  formatSummaryStopHeaderLabel,
+  getCargosForPickupStop,
+} from "./summaryWizardHelpers";
+import {
+  formatWizardStopAddressLine,
+  formatWizardStopCityLine,
+  getWizardStopRoleLabel,
+} from "./wizardStopFormat";
+
+const summary = wizardCopy.summary;
+
+const CFDI_INTENT_LABELS: Record<"ingreso" | "traslado", string> = {
+  ingreso: "Ingreso",
+  traslado: "Traslado",
+};
+
+const WIZARD_STEP = {
+  info: 0,
+  route: 1,
+  cargo: 2,
+  costs: 3,
+} as const;
+
+export interface SummaryStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
   vehicles: Array<{ id: string; unitNumber: string; licensePlate: string }>;
   drivers: DriverListItem[];
   clients: Array<{ id: string; legalName: string }>;
+  onGoToStep: (stepIndex: number) => void;
 }
 
 export function SummaryStep({
@@ -58,238 +85,306 @@ export function SummaryStep({
   vehicles,
   drivers,
   clients,
+  onGoToStep,
 }: SummaryStepProps) {
-  const values = form.watch();
+  const vehicleId = useWatch({ control: form.control, name: "vehicleId" });
+  const driverId = useWatch({ control: form.control, name: "driverId" });
+  const clientId = useWatch({ control: form.control, name: "clientId" });
+  const cfdiDocumentIntent = useWatch({
+    control: form.control,
+    name: "cfdiDocumentIntent",
+  });
+  const scheduledDeparture = useWatch({
+    control: form.control,
+    name: "scheduledDeparture",
+  });
+  const scheduledArrival = useWatch({
+    control: form.control,
+    name: "scheduledArrival",
+  });
+  const startMileage = useWatch({ control: form.control, name: "startMileage" });
+  const stops = useWatch({ control: form.control, name: "stops" }) ?? [];
+  const cargos = useWatch({ control: form.control, name: "cargos" }) ?? [];
+  const expenses = useWatch({ control: form.control, name: "expenses" }) ?? [];
+  const baseRate = useWatch({ control: form.control, name: "baseRate" });
+  const internalStaff = useWatch({ control: form.control, name: "internalStaff" }) ?? [];
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  const intent = cfdiDocumentIntent === "traslado" ? "traslado" : "ingreso";
+  const hasContractingClient = wizardHasContractingClient(clientId);
 
   const getVehicleName = (id: string) => {
     const vehicle = vehicles.find((v) => v.id === id);
-    return vehicle ? `${vehicle.unitNumber} - ${vehicle.licensePlate}` : "No seleccionado";
+    return vehicle ? `${vehicle.unitNumber} · ${vehicle.licensePlate}` : "—";
   };
 
   const getDriverName = (id: string) => {
     const driver = drivers.find((d) => d.id === id);
     return driver
       ? `${driver.employee.firstName} ${driver.employee.lastName}`
-      : "No seleccionado";
+      : "—";
   };
 
   const getClientName = (id?: string) => {
-    if (!id) return "Sin cliente";
-    const client = clients.find((c) => c.id === id);
-    return client?.legalName || "Cliente no encontrado";
+    if (!id || id === "no-client") return summary.label.noClient;
+    return clients.find((c) => c.id === id)?.legalName ?? "—";
   };
 
-  const getStopLabel = (stopType: string[]): { primary: string; operation: string } => {
-    if (stopType.includes("origin")) return { primary: "Origen", operation: "Carga" };
-    if (stopType.includes("destination")) return { primary: "Destino", operation: "Descarga" };
-    const ops: string[] = [];
-    if (stopType.includes("pickup")) ops.push("Carga");
-    if (stopType.includes("delivery")) ops.push("Descarga");
-    return { primary: "Escala", operation: ops.join(" / ") || "Paso" };
+  const getSupportEmployeeLabel = (employeeId: string) => {
+    const asDriver = drivers.find((d) => d.employeeId === employeeId);
+    if (asDriver) {
+      return `${asDriver.employee.firstName} ${asDriver.employee.lastName}`;
+    }
+    return summary.label.supportStaff;
   };
 
-  // ── Route calculations ──────────────────────────────────────────────────────
-
-  const stops = values.stops ?? [];
-  const totalDistanceKm = stops.reduce(
-    (sum, stop, i) => (i > 0 ? sum + (stop.distanceFromPreviousKm || 0) : sum),
-    0,
+  const totalDistanceKm = useMemo(
+    () =>
+      stops.reduce(
+        (sum, stop, index) =>
+          index > 0 ? sum + (stop.distanceFromPreviousKm || 0) : sum,
+        0,
+      ),
+    [stops],
   );
 
-  // ── Financial calculations ──────────────────────────────────────────────────
+  const pickupStops = useMemo(
+    () => buildSummaryPickupStops(stops, clients),
+    [stops, clients],
+  );
 
-  const baseRate = values.baseRate || 0;
-  const totalOperationalCosts =
-    values.expenses?.reduce(
-      (sum, expense) =>
-        isOperationalExpenseCategory(expense.category)
-          ? sum + (expense.amount || 0)
-          : sum,
-      0,
-    ) || 0;
-  const totalIndirectExpenses =
-    values.expenses?.reduce(
-      (sum, expense) =>
-        isIndirectExpenseCategory(expense.category)
-          ? sum + (expense.amount || 0)
-          : sum,
-      0,
-    ) || 0;
-  const totalExpenses = totalOperationalCosts + totalIndirectExpenses;
-  const financial = computeFinancialSummary(baseRate, totalExpenses, {
-    totalOperationalCosts,
-    totalIndirectExpenses,
-  });
+  const financialSnapshot = useMemo(
+    () => buildTripWizardFinancialSnapshot(baseRate, expenses),
+    [baseRate, expenses],
+  );
 
-  // ── Cargo aggregates ────────────────────────────────────────────────────────
-
-  const cargos = values.cargos ?? [];
+  const { financial } = financialSnapshot;
   const totalWeightKg = cargos.reduce((sum, c) => sum + (c.weightInKg || 0), 0);
   const hasHazmat = cargos.some((c) => c.hazardousMaterial);
   const insuredCargos = cargos.filter(
     (c) => (c.declaredValue ?? 0) > 0 || !!c.aseguraCarga || !!c.polizaCarga,
   ).length;
 
+  const missingBaseRateForIngreso =
+    intent === "ingreso" &&
+    hasContractingClient &&
+    (baseRate == null || baseRate < 0.01);
+
+  const marginChipClass =
+    financial.health === "healthy"
+      ? "border-success/40 bg-success-soft text-success-soft-foreground"
+      : financial.health === "warning"
+        ? "border-warning/40 bg-warning-soft text-warning-soft-foreground"
+        : financial.health === "critical"
+          ? "border-destructive/40 bg-destructive-soft text-destructive-soft-foreground"
+          : "border-border bg-muted text-muted-foreground";
+
   return (
     <div className="space-y-6">
-      {/* Resumen General */}
-      <Card className="border-primary/50">
-        <CardHeader className="bg-primary/5">
-          <CardTitle className="text-lg">
-            <SectionHeadingWithHint
-              title={
-                <>
-                  <FileText className="h-5 w-5 shrink-0" />
-                  Resumen del Viaje
-                </>
-              }
-              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
-              hintLabel="Revisión final"
-              hint={
-                <>
-                  Última vista de asignaciones, ruta, cargas y costos antes de crear o guardar el viaje. Corrige
-                  cualquier dato en los pasos anteriores si algo no coincide.
-                </>
-              }
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Confirmar viaje</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Revisa cada sección antes de crear o guardar. Usa Editar para corregir un paso.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="outline">{CFDI_INTENT_LABELS[intent]}</Badge>
+        <Badge variant="outline" className="max-w-[200px] truncate">
+          {getClientName(clientId)}
+        </Badge>
+        <Badge variant="outline">
+          {stops.length} parada{stops.length !== 1 ? "s" : ""}
+          {totalDistanceKm > 0
+            ? ` · ${totalDistanceKm.toLocaleString("es-MX")} km`
+            : ""}
+        </Badge>
+        <Badge variant="outline">
+          {cargos.length} carga{cargos.length !== 1 ? "s" : ""}
+          {totalWeightKg > 0
+            ? ` · ${totalWeightKg.toLocaleString("es-MX")} kg`
+            : ""}
+        </Badge>
+        {financial.marginPct != null ? (
+          <Badge variant="outline" className={marginChipClass}>
+            Margen {financial.marginPct.toFixed(1)}%
+          </Badge>
+        ) : null}
+        {hasHazmat ? (
+          <Badge variant="outline" className="border-warning/40 text-warning">
+            Material peligroso
+          </Badge>
+        ) : null}
+      </div>
+
+      {(missingBaseRateForIngreso || financial.health === "critical") && (
+        <div className="space-y-3">
+          {missingBaseRateForIngreso ? (
+            <DetailAlertCard
+              severity="warning"
+              icon={<AlertCircle className="h-4 w-4" />}
+              title={summary.alert.baseRatePendingTitle}
+              items={[{ text: summary.alert.baseRatePendingBody }]}
             />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {/* Asignaciones */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-              Asignaciones
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-muted">
-                  <Truck className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Unidad</p>
-                  <p className="font-medium">{getVehicleName(values.vehicleId)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-muted">
-                  <User className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Conductor</p>
-                  <p className="font-medium">{getDriverName(values.driverId)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-muted">
-                  <Building2 className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cliente Principal</p>
-                  <p className="font-medium">{getClientName(values.clientId || "")}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          ) : null}
+          {financial.health === "critical" ? (
+            <DetailAlertCard
+              severity="critical"
+              icon={<AlertCircle className="h-4 w-4" />}
+              title={summary.alert.marginCriticalTitle}
+              items={[{ text: summary.alert.marginCriticalBody }]}
+            />
+          ) : null}
+        </div>
+      )}
 
-          <Separator className="my-6" />
-
-          {/* Programación */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-              Programación
-            </h4>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          <SummaryReviewSection
+            title={summary.section.info}
+            icon={<FileText className="h-4 w-4" />}
+            stepIndex={WIZARD_STEP.info}
+            onGoToStep={onGoToStep}
+          >
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-success-soft">
-                  <Calendar className="h-4 w-4 text-success" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Salida Programada</p>
-                  <p className="font-medium">{formatDateTime(values.scheduledDeparture)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-info-soft">
-                  <Calendar className="h-4 w-4 text-info" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Llegada Estimada (Destino)</p>
-                  <p className="font-medium">
-                    {values.scheduledArrival
-                      ? formatDateTime(values.scheduledArrival)
-                      : <span className="text-muted-foreground text-sm">Capturar en parada de destino</span>}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className="my-6" />
-
-          {/* Ruta */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Ruta
-              </h4>
-              {totalDistanceKm > 0 && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Milestone className="h-3.5 w-3.5" />
-                  <span className="font-medium">{totalDistanceKm.toLocaleString("es-MX")} km totales</span>
-                </div>
-              )}
+              <InfoRow
+                variant="stacked"
+                icon={<Truck className="h-4 w-4" />}
+                label="Unidad"
+                value={getVehicleName(vehicleId)}
+              />
+              <InfoRow
+                variant="stacked"
+                icon={<User className="h-4 w-4" />}
+                label="Conductor"
+                value={getDriverName(driverId)}
+              />
+              <InfoRow
+                variant="stacked"
+                icon={<Building2 className="h-4 w-4" />}
+                label={summary.label.mainClient}
+                value={getClientName(clientId)}
+              />
+              <InfoRow
+                variant="stacked"
+                icon={<FileText className="h-4 w-4" />}
+                label={summary.label.cfdiDocument}
+                value={
+                  intent === "traslado"
+                    ? summary.format.trasladoDocument
+                    : summary.format.ingresoDocument
+                }
+              />
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InfoRow
+                variant="stacked"
+                icon={<Calendar className="h-4 w-4" />}
+                label={summary.label.scheduledDeparture}
+                value={formatDateTimeFromLocalInput(scheduledDeparture)}
+              />
+              <InfoRow
+                variant="stacked"
+                icon={<Calendar className="h-4 w-4" />}
+                label={summary.label.estimatedArrival}
+                value={
+                  scheduledArrival
+                    ? formatDateTimeFromLocalInput(scheduledArrival)
+                    : summary.state.captureAtDestination
+                }
+              />
+            </div>
+
+            {startMileage != null && startMileage > 0 ? (
+              <InfoRow
+                variant="inline"
+                icon={<Gauge className="h-4 w-4" />}
+                label={summary.label.startMileage}
+                value={`${startMileage.toLocaleString("es-MX")} km`}
+              />
+            ) : null}
+
+            {internalStaff.length > 0 ? (
+              <div className="rounded-lg border bg-muted/20 px-3 py-3">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  Equipo de apoyo ({internalStaff.length})
+                </div>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {internalStaff.map((row, index) => (
+                    <li key={row.employeeId ?? index}>
+                      {getSupportEmployeeLabel(row.employeeId)}
+                      {row.isPaymentResponsible ? (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Responsable de pago
+                        </Badge>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </SummaryReviewSection>
+
+          <SummaryReviewSection
+            title={summary.section.route}
+            icon={<MapPin className="h-4 w-4" />}
+            count={stops.length}
+            stepIndex={WIZARD_STEP.route}
+            onGoToStep={onGoToStep}
+          >
             {stops.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin paradas registradas</p>
+              <EmptyState icon={<MapPin />} size="sm" title={summary.state.noStops} />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-0">
                 {stops.map((stop, index) => {
-                  const { primary, operation } = getStopLabel(stop.stopType);
+                  const { primary, operation } = getWizardStopRoleLabel(stop.stopType);
                   const isOrigin = stop.stopType.includes("origin");
                   const isDestination = stop.stopType.includes("destination");
-                  const locationDisplay =
-                    stop.locationName ||
-                    (stop.street ? `${stop.street}${stop.exteriorNumber ? ` ${stop.exteriorNumber}` : ""}` : null) ||
-                    stop.postalCode ||
-                    "Dirección no especificada";
+                  const isLast = index === stops.length - 1;
 
                   return (
-                    <div key={index} className="flex items-start gap-3">
-                      <div
-                        className={`mt-0.5 p-1.5 rounded-full shrink-0 ${
-                          isOrigin
-                            ? "bg-success-soft"
-                            : isDestination
-                              ? "bg-destructive-soft"
-                              : "bg-muted"
-                        }`}
-                      >
-                        {isOrigin ? (
-                          <Navigation className="h-3.5 w-3.5 text-success" />
-                        ) : isDestination ? (
-                          <Flag className="h-3.5 w-3.5 text-destructive" />
-                        ) : (
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
+                    <div key={index} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={cn(
+                            "shrink-0 rounded-full p-1.5",
+                            isOrigin
+                              ? "bg-success-soft"
+                              : isDestination
+                                ? "bg-destructive-soft"
+                                : "bg-muted",
+                          )}
+                        >
+                          {isOrigin ? (
+                            <Navigation className="h-3.5 w-3.5 text-success" />
+                          ) : isDestination ? (
+                            <Flag className="h-3.5 w-3.5 text-destructive" />
+                          ) : (
+                            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </div>
+                        {!isLast ? (
+                          <div className="my-1 w-px min-h-6 flex-1 bg-border" aria-hidden />
+                        ) : null}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm truncate">{locationDisplay}</p>
-                          <Badge variant="outline" className="text-xs shrink-0">
+                      <div className={cn("min-w-0 flex-1", !isLast && "pb-4")}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">
+                            {stop.locationName || formatWizardStopAddressLine(stop)}
+                          </p>
+                          <Badge variant="outline" className="text-xs">
                             {primary}
                           </Badge>
-                          <Badge variant="secondary" className="text-xs shrink-0">
+                          <Badge variant="secondary" className="text-xs">
                             {operation}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {stop.satStateCode && `${stop.satStateCode}`}
-                          {stop.postalCode && stop.locationName && ` · CP ${stop.postalCode}`}
-                          {index > 0 && stop.distanceFromPreviousKm
-                            ? ` · ${stop.distanceFromPreviousKm} km desde parada anterior`
+                          {formatWizardStopCityLine(stop)}
+                          {stop.postalCode ? ` · CP ${stop.postalCode}` : ""}
+                          {index > 0 && stop.distanceFromPreviousKm != null
+                            ? ` · ${stop.distanceFromPreviousKm} km desde anterior`
                             : ""}
                         </p>
                       </div>
@@ -298,240 +393,277 @@ export function SummaryStep({
                 })}
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </SummaryReviewSection>
 
-      {/* Cargas y Gastos */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Cargas */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Package className="h-4 w-4" /> Cargas
-              <Badge variant="secondary" className="ml-auto">
-                {cargos.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <SummaryReviewSection
+            title={summary.section.cargo}
+            icon={<Package className="h-4 w-4" />}
+            count={cargos.length}
+            stepIndex={WIZARD_STEP.cargo}
+            onGoToStep={onGoToStep}
+          >
             {cargos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Sin cargas registradas
-              </p>
-            ) : (
+              <EmptyState icon={<Package />} size="sm" title={summary.state.noCargo} />
+            ) : pickupStops.length === 0 ? (
               <div className="space-y-2">
                 {cargos.map((cargo, index) => (
-                  <div
-                    key={index}
-                    className="p-2 rounded bg-muted/50 space-y-0.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate flex-1">{cargo.description}</p>
-                      {cargo.hazardousMaterial && (
-                        <Badge variant="destructive" className="text-xs shrink-0">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Peligroso
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {cargo.satProductCode && (
-                        <span className="font-mono">{cargo.satProductCode}</span>
-                      )}
-                      {cargo.weightInKg != null && cargo.weightInKg > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Scale className="h-3 w-3" />
-                          {cargo.weightInKg} kg
-                        </span>
-                      )}
-                      {cargo.clientId && (
-                        <span>{getClientName(cargo.clientId)}</span>
-                      )}
-                    </div>
-                    {(cargo.aseguraCarga || cargo.polizaCarga) && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {cargo.aseguraCarga ? (
-                          <span>Seguro: {cargo.aseguraCarga}</span>
-                        ) : null}
-                        {cargo.polizaCarga ? (
-                          <span className="font-mono">Poliza: {cargo.polizaCarga}</span>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                <Separator className="my-2" />
-
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Scale className="h-3.5 w-3.5" />
-                    <span>Peso total:</span>
-                  </div>
-                  <span className="font-medium">
-                    {totalWeightKg > 0 ? `${totalWeightKg.toLocaleString("es-MX")} kg` : "No registrado"}
-                  </span>
-                </div>
-
-                {hasHazmat && (
-                  <div className="flex items-center gap-2 mt-2 p-2 rounded bg-destructive/10 text-destructive text-xs">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                    <span>Este viaje incluye materiales peligrosos. Verifique documentación.</span>
-                  </div>
-                )}
-                {insuredCargos > 0 && (
-                  <div className="flex items-center gap-2 mt-2 p-2 rounded bg-info-soft text-info-soft-foreground text-xs">
-                    <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      {insuredCargos} carga{insuredCargos !== 1 ? "s" : ""} con datos de
-                      seguro de carga.
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Gastos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Receipt className="h-4 w-4" /> Gastos Estimados
-              <Badge variant="secondary" className="ml-auto">
-                {values.expenses?.length || 0}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!values.expenses || values.expenses.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Sin gastos registrados
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {values.expenses.slice(0, 5).map((expense, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 rounded bg-muted/50"
-                  >
-                    <p className="text-sm truncate flex-1">{expense.description}</p>
-                    <span className="font-medium text-destructive shrink-0 ml-2">
-                      {formatMxCurrency(expense.amount)}
-                    </span>
-                  </div>
-                ))}
-                {values.expenses.length > 5 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    +{values.expenses.length - 5} gastos más
+                  <p key={cargo.id ?? index} className="text-sm">
+                    {cargo.description}
                   </p>
-                )}
-                <Separator className="my-2" />
-                <div className="flex items-center justify-between font-medium">
-                  <span>Total Gastos:</span>
-                  <span className="text-destructive">{formatMxCurrency(totalExpenses)}</span>
-                </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pickupStops.map((pickupStop) => {
+                  const stopCargos = getCargosForPickupStop(cargos, pickupStop.index);
+                  const StopIcon =
+                    pickupStop.category === "origin"
+                      ? Navigation
+                      : pickupStop.category === "destination"
+                        ? Flag
+                        : MapPin;
+
+                  return (
+                    <div
+                      key={pickupStop.index}
+                      className={cn(
+                        "rounded-lg border p-3",
+                        pickupStop.category === "origin" && "border-success/30",
+                        pickupStop.category === "destination" && "border-destructive/30",
+                      )}
+                    >
+                      <div className="mb-2 flex items-start gap-2">
+                        <StopIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            Parada #{pickupStop.index + 1}
+                            {pickupStop.locationName
+                              ? ` · ${pickupStop.locationName}`
+                              : ""}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {pickupStop.address} · {pickupStop.city}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="ml-auto shrink-0 text-xs">
+                          {stopCargos.length}
+                        </Badge>
+                      </div>
+
+                      {stopCargos.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          Sin mercancías en esta parada de carga.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {stopCargos.map((cargo, cargoIndex) => {
+                            const deliveries = (cargo.movements ?? []).filter(
+                              (m) => m.movementType === "delivery",
+                            );
+                            return (
+                              <div
+                                key={cargo.id ?? cargoIndex}
+                                className={cn(
+                                  "rounded-md bg-muted/50 p-2",
+                                  cargo.hazardousMaterial &&
+                                    "border border-warning/30 bg-warning-soft/20",
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <p className="flex-1 truncate text-sm font-medium">
+                                    {cargo.description}
+                                  </p>
+                                  {cargo.hazardousMaterial ? (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Peligroso
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  {cargo.satProductCode ? (
+                                    <span className="font-mono">{cargo.satProductCode}</span>
+                                  ) : null}
+                                  {cargo.weightInKg != null && cargo.weightInKg > 0 ? (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Scale className="h-3 w-3" />
+                                      {cargo.weightInKg} kg
+                                    </span>
+                                  ) : null}
+                                  {cargo.units != null && cargo.units > 0 ? (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Box className="h-3 w-3" />
+                                      {cargo.units} {cargo.satUnitName || "uds"}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {deliveries.length > 0 ? (
+                                  <div className="mt-1.5 flex flex-wrap gap-1">
+                                    {deliveries.map((delivery, delIdx) => (
+                                      <Badge
+                                        key={delIdx}
+                                        variant="outline"
+                                        className="text-xs font-normal"
+                                      >
+                                        Entrega:{" "}
+                                        {formatSummaryStopHeaderLabel(
+                                          delivery.stopIndex,
+                                          stops,
+                                        )}
+                                        {delivery.weight != null
+                                          ? ` · ${delivery.weight} kg`
+                                          : ""}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Rentabilidad Estimada */}
-      <Card
-        className={
-          financial.margin >= 0 ? "border-success/50" : "border-destructive/50"
-        }
-      >
-        <CardHeader
-          className={
-            financial.margin >= 0 ? "bg-success/5" : "bg-destructive/5"
-          }
-        >
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5" /> Resumen financiero estimado
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Tarifa Base</p>
-              <p className="text-lg font-semibold">
-                {formatMxCurrency(financial.baseRate)}
+            {totalWeightKg > 0 ? (
+              <InfoRow
+                variant="inline"
+                icon={<Scale className="h-4 w-4" />}
+                label={summary.label.totalGrossWeight}
+                value={`${totalWeightKg.toLocaleString("es-MX")} kg`}
+              />
+            ) : null}
+            {hasHazmat ? (
+              <p className="flex items-center gap-2 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Incluye material peligroso — verifique documentación.
               </p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Costos + Gastos</p>
-              <p className="text-lg font-semibold text-destructive">
-                {formatMxCurrency(financial.totalExpenses)}
+            ) : null}
+            {insuredCargos > 0 ? (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                {insuredCargos} carga{insuredCargos !== 1 ? "s" : ""} con seguro de carga.
               </p>
-            </div>
-            <div
-              className={`text-center p-4 rounded-lg ${
-                financial.margin >= 0
-                  ? "bg-success-soft"
-                  : "bg-destructive-soft"
-              }`}
-            >
-              <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                {financial.margin >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-success" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-destructive" />
-                )}
-                Margen Estimado
-              </p>
-              <p
-                className={`text-xl font-bold ${financial.margin >= 0 ? "text-success" : "text-destructive"}`}
-              >
-                {formatMxCurrency(financial.margin)}
-              </p>
-              {financial.marginPct !== null && (
-                <p className="text-xs text-muted-foreground">
-                  Margen: {financial.marginPct.toFixed(1)}%
+            ) : null}
+          </SummaryReviewSection>
+
+          <SummaryReviewSection
+            title={summary.section.costs}
+            icon={<CircleDollarSign className="h-4 w-4" />}
+            count={expenses.length}
+            stepIndex={WIZARD_STEP.costs}
+            onGoToStep={onGoToStep}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-info/30 bg-info-soft/30 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CircleDollarSign className="h-4 w-4" />
+                  Costos operativos
+                </div>
+                <p className="mt-1 text-lg font-semibold">
+                  {financialSnapshot.operationalCosts.length === 0
+                    ? "—"
+                    : formatMxCurrency(financialSnapshot.totalOperationalCosts)}
                 </p>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  {financialSnapshot.operationalCosts.length} concepto
+                  {financialSnapshot.operationalCosts.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="rounded-lg border border-warning/30 bg-warning-soft/30 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Receipt className="h-4 w-4" />
+                  Gastos indirectos
+                </div>
+                <p className="mt-1 text-lg font-semibold">
+                  {financialSnapshot.indirectExpenses.length === 0
+                    ? "—"
+                    : formatMxCurrency(financialSnapshot.totalIndirectExpenses)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {financialSnapshot.indirectExpenses.length} concepto
+                  {financialSnapshot.indirectExpenses.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="mt-4 space-y-1 text-sm text-muted-foreground">
-            <div className="flex items-center justify-between">
-              <span>Costos operativos</span>
-              <span>-{formatMxCurrency(financial.totalOperationalCosts)}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">Tarifa base</span>
+              <span className="font-medium">
+                {financial.baseRate > 0
+                  ? formatMxCurrency(financial.baseRate)
+                  : intent === "traslado"
+                    ? summary.state.optionalTraslado
+                    : summary.state.notCaptured}
+              </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Gastos indirectos</span>
-              <span>-{formatMxCurrency(financial.totalIndirectExpenses)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-sm"
+              onClick={() => onGoToStep(WIZARD_STEP.costs)}
+            >
+              Ver detalle de conceptos en Costos
+            </Button>
+          </SummaryReviewSection>
 
-      {/* Notas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Notas Adicionales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Observaciones del viaje</FormLabel>
-                <FormControl>
+          <FormSectionCard title={summary.section.notes} contentClassName="space-y-4">
+            <Controller
+              control={form.control}
+              name="notes"
+              render={({ field, fieldState }) => (
+                <FormFieldShell
+                  fieldId="notes"
+                  label={summary.label.tripNotes}
+                  errorMessage={fieldState.error?.message}
+                >
                   <Textarea
-                    placeholder="Instrucciones especiales, comentarios, etc..."
+                    id="notes"
+                    placeholder={summary.placeholder.notes}
                     className="min-h-[100px]"
                     {...field}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps("notes", fieldState.error?.message)}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </CardContent>
-      </Card>
+                </FormFieldShell>
+              )}
+            />
+          </FormSectionCard>
+        </div>
+
+        <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+          <TripWizardFinancialSummary snapshot={financialSnapshot} />
+          <div className="rounded-lg border bg-muted/20 px-3 py-3 text-sm">
+            <p className="font-medium">Totales de carga</p>
+            <div className="mt-2 space-y-1 text-muted-foreground">
+              <div className="flex justify-between gap-2">
+                <span>Mercancías</span>
+                <span className="font-medium text-foreground">{cargos.length}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Peso bruto</span>
+                <span className="font-medium text-foreground">
+                  {totalWeightKg > 0
+                    ? `${totalWeightKg.toLocaleString("es-MX")} kg`
+                    : "—"}
+                </span>
+              </div>
+              {totalDistanceKm > 0 ? (
+                <div className="flex justify-between gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <Milestone className="h-3.5 w-3.5" />
+                    Distancia
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {totalDistanceKm.toLocaleString("es-MX")} km
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

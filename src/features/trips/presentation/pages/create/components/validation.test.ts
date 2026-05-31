@@ -4,6 +4,8 @@ import {
   tripStopSchema,
   tripCargoSchema,
   tripExpenseSchema,
+  tripWizardSchema,
+  validateCostsStep,
   validateRouteStep,
   type TripStopFormValues,
 } from "./validation";
@@ -347,5 +349,90 @@ describe("tripExpenseSchema — moneda", () => {
       currency: "USD",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects zero amount", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("validateCostsStep", () => {
+  it("requires base rate for ingreso with contracting client", () => {
+    const result = validateCostsStep({
+      cfdiDocumentIntent: "ingreso",
+      clientId: "client-uuid",
+      baseRate: undefined,
+      expenses: [],
+    });
+    expect(result.isValid).toBe(false);
+    expect(result.message).toMatch(/tarifa base/i);
+  });
+
+  it("does not require base rate for traslado", () => {
+    const result = validateCostsStep({
+      cfdiDocumentIntent: "traslado",
+      clientId: "client-uuid",
+      baseRate: undefined,
+      expenses: [],
+    });
+    expect(result.isValid).toBe(true);
+    expect(result.warning).toBeUndefined();
+  });
+
+  it("rejects zero base rate when captured", () => {
+    const result = validateCostsStep({
+      cfdiDocumentIntent: "traslado",
+      baseRate: 0,
+      expenses: [],
+    });
+    expect(result.isValid).toBe(false);
+    expect(result.message).toMatch(/mayor a cero/i);
+  });
+
+  it("warns on critical margin without blocking", () => {
+    const result = validateCostsStep({
+      cfdiDocumentIntent: "ingreso",
+      clientId: "client-uuid",
+      baseRate: 1000,
+      expenses: [
+        {
+          category: "fuel",
+          amount: 500,
+        },
+        {
+          category: "tolls",
+          amount: 450,
+        },
+      ],
+    });
+    expect(result.isValid).toBe(true);
+    expect(result.warning).toMatch(/margen estimado/i);
+  });
+});
+
+describe("tripWizardSchema — paso costos", () => {
+  it("adds baseRate issue on ingreso with client and missing tariff", () => {
+    const result = tripWizardSchema.safeParse({
+      vehicleId: "v1",
+      driverId: "d1",
+      clientId: "client-1",
+      cfdiDocumentIntent: "ingreso",
+      scheduledDeparture: "2026-05-27T10:00:00.000Z",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const baseRateIssue = result.error.issues.find((i) =>
+      i.path.includes("baseRate"),
+    );
+    expect(baseRateIssue?.message).toMatch(/tarifa base/i);
   });
 });
