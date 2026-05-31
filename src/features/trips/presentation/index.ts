@@ -9,7 +9,6 @@ export {
   TripCardSkeleton,
   TripActions,
   TripInvoiceActions,
-  TripQuickEditSheet,
   TripTrackingMap,
   TripTrackingTab,
   TripTable,
@@ -45,9 +44,27 @@ export {
   tripStopSchema,
   // tripWizardFormSchema,
 } from "./pages/create/components";
-export { FinishTripPage } from "./pages/FinishTripPage";
+export { FinishTripRedirect } from "./pages/FinishTripRedirect";
 export { TripDetailPage } from "./pages/TripDetailPage";
 export { TripsListPage } from "./pages/TripsListPage";
 
-// UI Helpers & Constants
+// Copy (ACC)
+export {
+  formatAccLine,
+  tripDetailCopy,
+  trackingCopy,
+  operationCopy,
+  routeCopy,
+  cargoCopy,
+  costsCopy,
+  historyCopy,
+  shellCopy,
+  wizardCopy,
+  expenseCopy,
+  fiscalCopy,
+  summaryCopy,
+  LOCATION_CAPTURE_LABELS,
+  ROUTE_CAPTURE_LABELS,
+} from "./copy";
+export type { CopyAcc, TrackingCopyAcc } from "./copy";
 export * from "./uiHelpers";

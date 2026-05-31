@@ -26,8 +26,6 @@ import {
   Calendar,
   Truck,
   User,
-  Play,
-  CheckCircle,
   XCircle,
   Pencil,
   Trash2,
@@ -44,8 +42,6 @@ interface TripCardProps {
   onView?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onStart?: (id: string) => void;
-  onFinish?: (id: string) => void;
   onCancel?: (id: string) => void;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
@@ -57,8 +53,6 @@ export const TripCard = memo(function TripCard({
   onView,
   onEdit,
   onDelete,
-  onStart,
-  onFinish,
   onCancel,
   isSelected,
   onSelect,
@@ -66,8 +60,6 @@ export const TripCard = memo(function TripCard({
 }: TripCardProps) {
   const canEdit = canEditTrip(trip.status);
   const canDelete = canDeleteTrip(trip.status);
-  const canStart = trip.status === TripStatus.SCHEDULED;
-  const canFinish = trip.status === TripStatus.IN_PROGRESS;
   const canCancel =
     trip.status === TripStatus.SCHEDULED ||
     trip.status === TripStatus.IN_PROGRESS;
@@ -151,26 +143,6 @@ export const TripCard = memo(function TripCard({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              {canStart && onStart && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStart(trip.id);
-                  }}
-                >
-                  <Play className="mr-2 h-4 w-4 text-warning" /> Iniciar
-                </DropdownMenuItem>
-              )}
-              {canFinish && onFinish && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFinish(trip.id);
-                  }}
-                >
-                  <CheckCircle className="mr-2 h-4 w-4 text-success" /> Finalizar
-                </DropdownMenuItem>
-              )}
               {canCancel && onCancel && (
                 <DropdownMenuItem
                   onClick={(e) => {

@@ -64,7 +64,6 @@ import {
   TripTable,
   TripCard,
   TripCardSkeleton,
-  StartTripDialog,
 } from "../components";
 import { TRIP_STATUS_CONFIG } from "../index";
 import { formatDate } from "@shared/utils/dateUtils";
@@ -109,11 +108,6 @@ export function TripsListPage() {
 
   // Estado para diálogos de confirmación
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [pendingStartTrip, setPendingStartTrip] = useState<{
-    id: string;
-    tripCode: string;
-    vehicleId: string;
-  } | null>(null);
   const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
@@ -238,24 +232,6 @@ export function TripsListPage() {
     if (pendingDeleteId) deleteMutation.mutate(pendingDeleteId);
     setPendingDeleteId(null);
   }, [pendingDeleteId, deleteMutation]);
-
-  const handleStart = useCallback(
-    (id: string) => {
-      const trip = trips.find((item) => item.id === id);
-      if (!trip) return;
-      setPendingStartTrip({
-        id: trip.id,
-        tripCode: trip.tripCode,
-        vehicleId: trip.vehicle.id,
-      });
-    },
-    [trips],
-  );
-
-  const handleFinish = useCallback(
-    (id: string) => navigate(`/trips/${id}/finish`),
-    [navigate],
-  );
 
   const handleCancel = useCallback((id: string) => {
     setCancelReason("");
@@ -666,8 +642,6 @@ export function TripsListPage() {
             onView={handleView}
             onEdit={canEdit ? handleEdit : undefined}
             onDelete={canDelete ? handleDelete : undefined}
-            onStart={handleStart}
-            onFinish={handleFinish}
             onCancel={handleCancel}
           />
         )}
@@ -679,8 +653,6 @@ export function TripsListPage() {
               onView={handleView}
               onEdit={canEdit ? handleEdit : undefined}
               onDelete={canDelete ? handleDelete : undefined}
-              onStart={handleStart}
-              onFinish={handleFinish}
               onCancel={handleCancel}
             />
           ))
@@ -736,18 +708,6 @@ export function TripsListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <StartTripDialog
-        tripId={pendingStartTrip?.id ?? ""}
-        tripCode={pendingStartTrip?.tripCode ?? ""}
-        vehicleId={pendingStartTrip?.vehicleId}
-        open={!!pendingStartTrip}
-        onOpenChange={(open) => !open && setPendingStartTrip(null)}
-        onSuccess={() => {
-          toast({ title: "Viaje iniciado", variant: "success" });
-          refetch();
-        }}
-      />
 
       {/* ================================================================ */}
       {/* DIÁLOGO: Cancelar viaje con motivo                               */}

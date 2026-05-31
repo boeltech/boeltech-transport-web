@@ -38,8 +38,6 @@ interface TripTableProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onSchedule?: (id: string) => void;
-  onStart?: (id: string) => void;
-  onFinish?: (id: string) => void;
   onCancel?: (id: string) => void;
 }
 
@@ -140,8 +138,6 @@ export function TripTable({
   onEdit,
   onDelete,
   onSchedule,
-  onStart,
-  onFinish,
   onCancel,
 }: TripTableProps) {
   // Loading state
@@ -243,8 +239,6 @@ export function TripTable({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onSchedule={onSchedule}
-                  onStart={onStart}
-                  onFinish={onFinish}
                   onCancel={onCancel}
                 />
               </TableCell>

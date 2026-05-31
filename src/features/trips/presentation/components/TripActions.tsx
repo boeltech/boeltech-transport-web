@@ -9,7 +9,7 @@
  *    <TripActions trip={trip} onView={...} onEdit={...} />
  *
  * 2. Con props individuales (para TripDetailPage):
- *    <TripActions tripId={id} tripCode={code} status={status} variant="detailMenu" onQuickEdit={...} />
+ *    <TripActions tripId={id} tripCode={code} status={status} variant="detailMenu" />
  *
  * Ubicación: src/features/trips/presentation/components/TripActions.tsx
  */
@@ -52,7 +52,6 @@ import {
   useCancelTrip,
   useDeleteTrip,
 } from "../../application";
-import { StartTripDialog } from "./StartTripDialog";
 import {
   TripStatus,
   type TripListItem,
@@ -64,14 +63,11 @@ import {
   Eye,
   Pencil,
   Trash2,
-  Play,
-  CheckCircle,
   XCircle,
   Calendar,
   Loader2,
   ChevronDown,
   Truck,
-  Edit3,
 } from "lucide-react";
 
 // ============================================================================
@@ -96,8 +92,6 @@ interface TripIndividualProps {
   tripId: string;
   tripCode: string;
   status: TripStatusType;
-  vehicleId?: string;
-  tripStartMileage?: number | null;
 }
 
 /**
@@ -106,8 +100,6 @@ interface TripIndividualProps {
 interface CommonProps {
   /** Variante de visualización: dropdown (tabla), buttons (legacy), detailMenu (detalle con disparador «Operación»). */
   variant?: "dropdown" | "buttons" | "detailMenu";
-  /** En `detailMenu`: abre edición rápida (Sheet) desde el menú Operación. */
-  onQuickEdit?: () => void;
   /** Callback para ver detalles (solo en modo dropdown desde tabla) */
   onView?: (id: string) => void;
   /** Callback para editar (solo en modo dropdown desde tabla) */
@@ -116,10 +108,6 @@ interface CommonProps {
   onDelete?: (id: string) => void;
   /** Callback para programar (solo en modo dropdown desde tabla) */
   onSchedule?: (id: string) => void;
-  /** Callback para iniciar (solo en modo dropdown desde tabla) */
-  onStart?: (id: string) => void;
-  /** Callback para finalizar (solo en modo dropdown desde tabla) */
-  onFinish?: (id: string) => void;
   /** Callback para cancelar (solo en modo dropdown desde tabla) */
   onCancel?: (id: string) => void;
   /** Callback después de una acción exitosa; recibe el viaje actualizado cuando aplique. */
@@ -134,8 +122,8 @@ type TripActionsProps = CommonProps & (TripObjectProps | TripIndividualProps);
 
 const VALID_TRANSITIONS: Record<TripStatusType, string[]> = {
   [TripStatus.DRAFT]: ["schedule", "cancel", "delete"],
-  [TripStatus.SCHEDULED]: ["start", "cancel"],
-  [TripStatus.IN_PROGRESS]: ["finish", "cancel"],
+  [TripStatus.SCHEDULED]: ["cancel"],
+  [TripStatus.IN_PROGRESS]: ["cancel"],
   [TripStatus.COMPLETED]: [],
   [TripStatus.CANCELLED]: [],
 };
@@ -152,13 +140,10 @@ const EDITABLE_STATUSES: TripStatusType[] = [
 export function TripActions(props: TripActionsProps) {
   const {
     variant = "dropdown",
-    onQuickEdit,
     onView,
     onEdit,
     onDelete,
     onSchedule,
-    onStart,
-    onFinish,
     onCancel,
     onActionComplete,
   } = props;
@@ -167,19 +152,6 @@ export function TripActions(props: TripActionsProps) {
   const id = props.trip?.id ?? props.tripId!;
   const code = props.trip?.tripCode ?? props.tripCode!;
   const currentStatus = props.trip?.status ?? props.status!;
-  const vehicleId =
-    props.trip && "vehicleId" in props.trip
-      ? props.trip.vehicleId
-      : props.trip
-        ? props.trip.vehicle.id
-        : props.vehicleId;
-  const tripStartMileage =
-    props.trip && "mileage" in props.trip
-      ? props.trip.mileage.start
-      : "tripStartMileage" in props
-        ? (props.tripStartMileage ?? null)
-        : null;
-
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -199,8 +171,6 @@ export function TripActions(props: TripActionsProps) {
     title: "",
     description: "",
   });
-
-  const [startDialogOpen, setStartDialogOpen] = useState(false);
 
   const [cancelDialog, setCancelDialog] = useState<{
     open: boolean;
@@ -279,8 +249,6 @@ export function TripActions(props: TripActionsProps) {
   const validTransitions = VALID_TRANSITIONS[currentStatus] || [];
 
   const canSchedule = validTransitions.includes("schedule") && canUpdate;
-  const canStart = validTransitions.includes("start") && canUpdate;
-  const canFinish = validTransitions.includes("finish") && canUpdate;
   const canCancelTrip = validTransitions.includes("cancel") && canUpdate;
   const canEditTrip = EDITABLE_STATUSES.includes(currentStatus) && canUpdate;
   const canDeleteTrip = validTransitions.includes("delete") && canDelete;
@@ -310,12 +278,7 @@ export function TripActions(props: TripActionsProps) {
   };
 
   const hasNoActions =
-    !canSchedule &&
-    !canStart &&
-    !canFinish &&
-    !canCancelTrip &&
-    !canEditTrip &&
-    !canDeleteTrip;
+    !canSchedule && !canCancelTrip && !canEditTrip && !canDeleteTrip;
 
   const tripActionDialogs = (
     <>
@@ -352,16 +315,6 @@ export function TripActions(props: TripActionsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <StartTripDialog
-        tripId={id}
-        tripCode={code}
-        vehicleId={vehicleId}
-        tripStartMileage={tripStartMileage}
-        open={startDialogOpen}
-        onOpenChange={setStartDialogOpen}
-        onSuccess={onActionComplete}
-      />
 
       <Dialog
         open={cancelDialog.open}
@@ -425,10 +378,7 @@ export function TripActions(props: TripActionsProps) {
 
   if (variant === "dropdown") {
     const hasStateActions =
-      (canSchedule && onSchedule) ||
-      (canStart && onStart) ||
-      (canFinish && onFinish) ||
-      (canCancelTrip && onCancel);
+      (canSchedule && onSchedule) || (canCancelTrip && onCancel);
 
     return (
       <DropdownMenu>
@@ -467,20 +417,6 @@ export function TripActions(props: TripActionsProps) {
                 </DropdownMenuItem>
               )}
 
-              {canStart && onStart && (
-                <DropdownMenuItem onClick={() => onStart(id)}>
-                  <Play className="mr-2 h-4 w-4 text-success" />
-                  Iniciar viaje
-                </DropdownMenuItem>
-              )}
-
-              {canFinish && onFinish && (
-                <DropdownMenuItem onClick={() => onFinish(id)}>
-                  <CheckCircle className="mr-2 h-4 w-4 text-success" />
-                  Finalizar viaje
-                </DropdownMenuItem>
-              )}
-
               {canCancelTrip && onCancel && (
                 <DropdownMenuItem
                   onClick={() => onCancel(id)}
@@ -516,7 +452,7 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
 
   if (variant === "detailMenu") {
-    const hasMenuContent = Boolean(onQuickEdit) || !hasNoActions;
+    const hasMenuContent = !hasNoActions;
     if (!hasMenuContent) {
       return null;
     }
@@ -532,13 +468,6 @@ export function TripActions(props: TripActionsProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {onQuickEdit ? (
-              <DropdownMenuItem onSelect={() => onQuickEdit()}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edición rápida
-              </DropdownMenuItem>
-            ) : null}
-
             {canEditTrip ? (
               <DropdownMenuItem
                 onSelect={() => navigate(`/trips/${id}/edit`)}
@@ -549,8 +478,8 @@ export function TripActions(props: TripActionsProps) {
               </DropdownMenuItem>
             ) : null}
 
-            {(onQuickEdit || canEditTrip) &&
-            (canSchedule || canStart || canFinish || canCancelTrip || canDeleteTrip) ? (
+            {canEditTrip &&
+            (canSchedule || canCancelTrip || canDeleteTrip) ? (
               <DropdownMenuSeparator />
             ) : null}
 
@@ -569,26 +498,6 @@ export function TripActions(props: TripActionsProps) {
               >
                 <Calendar className="mr-2 h-4 w-4 text-info" />
                 Programar
-              </DropdownMenuItem>
-            ) : null}
-
-            {canStart ? (
-              <DropdownMenuItem
-                onSelect={() => setStartDialogOpen(true)}
-                disabled={isLoading}
-              >
-                <Play className="mr-2 h-4 w-4 text-success" />
-                Iniciar viaje
-              </DropdownMenuItem>
-            ) : null}
-
-            {canFinish ? (
-              <DropdownMenuItem
-                onSelect={() => navigate(`/trips/${id}/finish`)}
-                disabled={isLoading}
-              >
-                <CheckCircle className="mr-2 h-4 w-4 text-success" />
-                Finalizar
               </DropdownMenuItem>
             ) : null}
 
@@ -663,34 +572,6 @@ export function TripActions(props: TripActionsProps) {
               <Calendar className="mr-2 h-4 w-4" />
             )}
             Programar
-          </Button>
-        )}
-
-        {/* Iniciar */}
-        {canStart && (
-          <Button
-            size="sm"
-            onClick={() => setStartDialogOpen(true)}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="mr-2 h-4 w-4" />
-            )}
-            Iniciar Viaje
-          </Button>
-        )}
-
-        {/* Finalizar */}
-        {canFinish && (
-          <Button
-            size="sm"
-            onClick={() => navigate(`/trips/${id}/finish`)}
-            disabled={isLoading}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Finalizar
           </Button>
         )}
 
