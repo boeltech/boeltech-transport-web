@@ -4,11 +4,13 @@
 import type { SharedAddressContext, ValidationError } from "@boeltech/cfdi-domain";
 import {
   parseAddressFormValues,
-  parseCreateAddressBody,
-  parseUpdateAddressBody,
   validateInlineStopAddressSat,
   validationErrorsToRecord,
 } from "@boeltech/cfdi-domain/validadores/address-payload-result";
+import {
+  parseAddressFormCreate,
+  parseAddressFormUpdate,
+} from "@boeltech/cfdi-domain/validadores/address-form-profiles";
 import { createCatalogProviderRest } from "./catalogProviderRest";
 
 export { validationErrorsToRecord };
@@ -19,22 +21,31 @@ const FORM_FIELD_BY_SAT_PATH: Record<string, string> = {
   sat_state_code: "satStateCode",
   sat_municipality_code: "satMunicipalityCode",
   sat_locality_code: "satLocalityCode",
+  locality_name: "localityName",
   sat_neighborhood_code: "satNeighborhoodCode",
   postal_code: "postalCode",
   street: "street",
   exterior_number: "exteriorNumber",
   interior_number: "interiorNumber",
   reference: "reference",
+  location_name: "locationName",
   latitude: "latitude",
   longitude: "longitude",
   geolocation_pending: "geolocationPending",
+  rfc_remitente_destinatario: "rfcRemitenteDestinatario",
+  nombre_remitente_destinatario: "nombreRemitenteDestinatario",
+  delivery_rfc_remitente_destinatario: "deliveryRfcRemitenteDestinatario",
+  delivery_nombre_remitente_destinatario: "deliveryNombreRemitenteDestinatario",
 };
 
+/** Opciones de parseo al guardar. SAT = XSD Domicilio CP31 (`carta_porte_31` fijo). */
 export interface ParseClientAddressFormOptions {
+  /** Perfil de negocio (calle opcional, coords, location_name). */
   context?: SharedAddressContext;
-  mode?: "cfdi" | "carta_porte_31";
   requireCoordinates?: boolean;
 }
+
+const CP31_PARSE_MODE = "carta_porte_31" as const;
 
 export function clientAddressFormToSnakePayload(
   form: Record<string, unknown>,
@@ -88,11 +99,11 @@ export async function parseClientAddressFormCreate(
   const context = options.context ?? toCfdiContext(addressType);
   const provider = createCatalogProviderRest();
 
-  const result = await parseCreateAddressBody(snake, {
-    mode: options.mode ?? "carta_porte_31",
+  const result = await parseAddressFormCreate(form, {
+    mode: CP31_PARSE_MODE,
     provider,
     context,
-    requireCoordinates: options.requireCoordinates ?? false,
+    requireCoordinates: options.requireCoordinates,
   });
 
   if (!result.ok) {
@@ -118,11 +129,11 @@ export async function parseClientAddressFormUpdate(
   const context = options.context ?? toCfdiContext(addressType);
   const provider = createCatalogProviderRest();
 
-  const result = await parseUpdateAddressBody(snake, {
-    mode: options.mode ?? "carta_porte_31",
+  const result = await parseAddressFormUpdate(patch, {
+    mode: CP31_PARSE_MODE,
     provider,
     context,
-    requireCoordinates: options.requireCoordinates ?? false,
+    requireCoordinates: options.requireCoordinates,
   });
 
   if (!result.ok) {
@@ -146,8 +157,9 @@ export async function validateTripStopInlineAddress(
 > {
   const provider = createCatalogProviderRest();
   const payload = clientAddressFormToSnakePayload({
+    addressType: "trip_stop",
     ...stop,
-    sat_country_code: stop.satCountryCode ?? stop.sat_country_code ?? "MEX",
+    satCountryCode: stop.satCountryCode ?? stop.sat_country_code ?? "MEX",
   });
 
   const result = await validateInlineStopAddressSat(payload, {

@@ -1,6 +1,14 @@
 import type { PostalCodeLookupResult } from "@shared/ui/address-input/use-postal-code-lookup";
+import {
+  getCp31DomicilioUxRequirements,
+  type AddressUxVariant,
+} from "./cp31DomicilioUx";
 
-export type AddressCaptureMode = "cfdi" | "carta-porte" | "personal" | "basic";
+export type {
+  AddressUxVariant,
+  Cp31DomicilioUxRequirements,
+} from "./cp31DomicilioUx";
+export { getCp31DomicilioUxRequirements } from "./cp31DomicilioUx";
 
 export type PostalLookupStatus =
   | "idle"
@@ -9,14 +17,8 @@ export type PostalLookupStatus =
   | "not_found"
   | "error";
 
-export interface AddressModeRequirements {
-  requireMunicipality: boolean;
-  requireLocality: boolean;
-  requireNeighborhood: boolean;
-}
-
-export interface AddressReadinessInput {
-  mode: AddressCaptureMode;
+export interface Cp31DomicilioReadinessInput {
+  variant: AddressUxVariant;
   satCountryCode?: string | null;
   satStateCode?: string | null;
   satMunicipalityCode?: string | null;
@@ -24,62 +26,6 @@ export interface AddressReadinessInput {
   satNeighborhoodCode?: string | null;
   postalCode?: string | null;
   postalLookupStatus?: PostalLookupStatus;
-}
-
-const ADDRESS_MODE_REQUIREMENTS: Record<AddressCaptureMode, AddressModeRequirements> = {
-  "carta-porte": {
-    requireMunicipality: false,
-    requireLocality: false,
-    requireNeighborhood: false,
-  },
-  cfdi: {
-    requireMunicipality: true,
-    requireLocality: false,
-    requireNeighborhood: false,
-  },
-  personal: {
-    requireMunicipality: true,
-    requireLocality: false,
-    requireNeighborhood: false,
-  },
-  basic: {
-    requireMunicipality: true,
-    requireLocality: false,
-    requireNeighborhood: false,
-  },
-};
-
-/**
- * Reglas condicionales por CP (alineadas a `@boeltech/cfdi-domain` / SDD CP31).
- */
-export function getAddressRequirementsFromPostalLookup(
-  lookup: PostalCodeLookupResult | null | undefined,
-  mode: AddressCaptureMode,
-): AddressModeRequirements {
-  if (!lookup?.found) {
-    return {
-      requireMunicipality: false,
-      requireLocality: false,
-      requireNeighborhood: false,
-    };
-  }
-
-  const isCartaPorte = mode === "carta-porte";
-  return {
-    requireMunicipality: Boolean(lookup.municipalityCode?.trim()),
-    requireLocality: isCartaPorte && lookup.localities.length > 0,
-    requireNeighborhood: isCartaPorte && lookup.neighborhoods.length > 0,
-  };
-}
-
-export function resolveAddressModeRequirements(
-  mode: AddressCaptureMode,
-  lookup?: PostalCodeLookupResult | null,
-): AddressModeRequirements {
-  if (mode === "carta-porte" && lookup) {
-    return getAddressRequirementsFromPostalLookup(lookup, mode);
-  }
-  return getAddressModeRequirements(mode);
 }
 
 function hasCountry(value: string | null | undefined): boolean {
@@ -106,15 +52,10 @@ function hasValidPostalCode(value: string | null | undefined): boolean {
   return /^\d{5}$/.test((value ?? "").trim());
 }
 
-export function getAddressModeRequirements(mode: AddressCaptureMode): AddressModeRequirements {
-  return ADDRESS_MODE_REQUIREMENTS[mode];
-}
-
-export function isAddressReadyForMode(
-  input: AddressReadinessInput,
-  lookup?: PostalCodeLookupResult | null,
+export function isCp31DomicilioReady(
+  input: Cp31DomicilioReadinessInput,
 ): boolean {
-  const requirements = resolveAddressModeRequirements(input.mode, lookup);
+  const requirements = getCp31DomicilioUxRequirements(input.variant);
   const hasSatBase =
     hasCountry(input.satCountryCode) &&
     hasState(input.satStateCode) &&
@@ -131,7 +72,7 @@ export function isAddressReadyForMode(
     return false;
   }
 
-  if (input.mode === "carta-porte") {
+  if (input.variant === "carta-porte") {
     const status = input.postalLookupStatus ?? "idle";
     return status === "success" || status === "not_found";
   }
@@ -140,11 +81,12 @@ export function isAddressReadyForMode(
 }
 
 export function isCartaPorteSatMinimumMet(
-  input: AddressReadinessInput,
-  lookup?: PostalCodeLookupResult | null,
+  input: Cp31DomicilioReadinessInput,
+  _lookup?: PostalCodeLookupResult | null,
 ): boolean {
-  if (input.mode !== "carta-porte") return false;
+  void _lookup;
+  if (input.variant !== "carta-porte") return false;
   const status = input.postalLookupStatus ?? "idle";
   if (status !== "success") return false;
-  return isAddressReadyForMode(input, lookup);
+  return isCp31DomicilioReady(input);
 }

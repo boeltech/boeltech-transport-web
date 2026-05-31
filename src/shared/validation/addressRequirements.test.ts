@@ -1,57 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import type { PostalCodeLookupResult } from "@shared/ui/address-input/use-postal-code-lookup";
-import {
-  getAddressRequirementsFromPostalLookup,
-  isAddressReadyForMode,
-} from "./addressRequirements";
+import { getCp31DomicilioUxRequirements, isCp31DomicilioReady } from "./addressRequirements";
 
-const lookup44100: PostalCodeLookupResult = {
-  postalCode: "44100",
-  found: true,
-  stateCode: "JAL",
-  stateName: "Jalisco",
-  municipalityCode: "039",
-  municipalityName: "Guadalajara",
-  localities: [{ code: "01", name: "Guadalajara" }],
-  neighborhoods: [{ code: "0441", name: "Americana" }],
-};
-
-describe("addressRequirements (CP condicional)", () => {
-  it("requires municipality/locality/neighborhood for carta-porte when lookup has them", () => {
-    const req = getAddressRequirementsFromPostalLookup(lookup44100, "carta-porte");
-    expect(req.requireMunicipality).toBe(true);
-    expect(req.requireLocality).toBe(true);
-    expect(req.requireNeighborhood).toBe(true);
+describe("addressRequirements (carta-porte / personal = XSD CP31)", () => {
+  it("personal no exige municipio", () => {
+    const req = getCp31DomicilioUxRequirements("personal");
+    expect(req.requireMunicipality).toBe(false);
+    expect(req.recommendMunicipality).toBe(true);
   });
 
-  it("is not ready until locality/neighborhood filled when required", () => {
-    const ready = isAddressReadyForMode(
-      {
-        mode: "carta-porte",
-        satCountryCode: "MEX",
-        satStateCode: "JAL",
-        satMunicipalityCode: "039",
-        postalCode: "44100",
-        postalLookupStatus: "success",
-      },
-      lookup44100,
-    );
-    expect(ready).toBe(false);
+  it("carta-porte no exige municipio/localidad/colonia (XSD)", () => {
+    const req = getCp31DomicilioUxRequirements("carta-porte");
+    expect(req.requireMunicipality).toBe(false);
+    expect(req.requireLocality).toBe(false);
+    expect(req.requireNeighborhood).toBe(false);
+    expect(req.recommendMunicipality).toBe(true);
+  });
 
-    const readyFull = isAddressReadyForMode(
-      {
-        mode: "carta-porte",
-        satCountryCode: "MEX",
-        satStateCode: "JAL",
-        satMunicipalityCode: "039",
-        satLocalityCode: "01",
-        satNeighborhoodCode: "0441",
-        postalCode: "44100",
-        postalLookupStatus: "success",
-      },
-      lookup44100,
-    );
-    expect(readyFull).toBe(true);
+  it("is ready with país/estado/CP when lookup succeeded (sin localidad/colonia)", () => {
+    const ready = isCp31DomicilioReady({
+      variant: "carta-porte",
+      satCountryCode: "MEX",
+      satStateCode: "JAL",
+      postalCode: "44100",
+      postalLookupStatus: "success",
+    });
+    expect(ready).toBe(true);
+  });
+
+  it("personal no exige gate de lookup de CP", () => {
+    const ready = isCp31DomicilioReady({
+      variant: "personal",
+      satCountryCode: "MEX",
+      satStateCode: "JAL",
+      postalCode: "44100",
+      postalLookupStatus: "idle",
+    });
+    expect(ready).toBe(true);
   });
 });
