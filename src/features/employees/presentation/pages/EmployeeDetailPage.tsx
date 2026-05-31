@@ -4,7 +4,7 @@ import {
   useState,
   type ReactElement,
 } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   User,
   AlertCircle,
@@ -15,6 +15,7 @@ import {
   FileWarning,
   Info,
   Shield,
+  Truck,
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
@@ -37,6 +38,7 @@ import {
   isNssMissing,
   shouldHintEventualContract,
 } from "../helpers/employeeDetailKpis";
+import { buildEmployeeDriverRoleAlert } from "../helpers/employeeDriverRoleAlert";
 
 // ============================================================================
 // PAGE
@@ -167,6 +169,53 @@ export function EmployeeDetailPage() {
       );
     }
 
+    if (!terminated && employee.driverRole) {
+      const driverAlert = buildEmployeeDriverRoleAlert(employee.driverRole);
+      cards.push(
+        <DetailAlertCard
+          key="driver-role"
+          severity={driverAlert.severity}
+          icon={
+            driverAlert.severity === "warning" ? (
+              <AlertTriangle className="h-5 w-5" />
+            ) : (
+              <Truck className="h-5 w-5" />
+            )
+          }
+          title={driverAlert.title}
+          items={[
+            ...driverAlert.items,
+            {
+              text: (
+                <>
+                  Ver ficha en{" "}
+                  <Link
+                    to={`/drivers/${employee.driverRole.driverId}`}
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Conductores
+                  </Link>
+                  {employee.driverRole.activeTripCount > 0 ? (
+                    <>
+                      {" "}
+                      o revisar{" "}
+                      <Link
+                        to="/trips"
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Viajes
+                      </Link>
+                    </>
+                  ) : null}
+                  .
+                </>
+              ),
+            },
+          ]}
+        />,
+      );
+    }
+
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
   }, [employee, comparisonNowMs]);
@@ -267,7 +316,11 @@ export function EmployeeDetailPage() {
       metadata={{
         createdAt: employee.createdAt,
         updatedAt: employee.updatedAt,
-        createdBy: employee.createdBy ?? undefined,
+        createdBy:
+          employee.createdByName?.trim() ||
+          employee.createdBy?.trim() ||
+          undefined,
+        updatedBy: employee.updatedByName?.trim() || undefined,
       }}
     />
   );

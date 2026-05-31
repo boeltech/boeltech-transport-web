@@ -1,4 +1,16 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  isValidElement,
+  useCallback,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useForm,
@@ -11,19 +23,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Textarea } from "@shared/ui/text-area";
-import { Label } from "@shared/ui/label";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import {
+  FormFieldShell,
+  FormValidationSummary,
+  getFieldErrorAriaProps,
+  stripTrailingAsteriskFromLabel,
+} from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import {
   WizardNavigationBar,
   WizardProgressCard,
   WizardSteps,
 } from "@shared/ui/wizard";
-import type { WizardStep } from "@shared/ui/wizard";
+import type { WizardFormRef } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import {
-  ArrowLeft,
   CheckCircle,
   Loader2,
   User,
@@ -36,7 +53,6 @@ import {
   Building2,
   ClipboardCheck,
 } from "lucide-react";
-import { EmployeeEditHeader } from "./edit/EmployeeEditHeader";
 import {
   useCreateEmployee,
   useUpdateEmployee,
@@ -51,11 +67,17 @@ import {
   createEmployeeAddress,
   updateEmployeeAddress,
 } from "../../infrastructure/employeeAddressRepository";
-import { AddressInput, EntityAddressForm } from "@shared/ui/address-input";
 import {
-  clientAddressFormDataToCreateDto,
-  type ClientAddressFormData,
-} from "@features/clients/presentation/validation/clientAddressSchema";
+  AddressInput,
+  EntityAddressForm,
+  buildGeocodingEntityFormSection,
+} from "@shared/ui/address-input";
+import {
+  employeePersonalFormToCreateDto,
+  employeePersonalFormToUpdateDto,
+  isEmployeeDomicilioDirty,
+  validateEmployeePersonalAddressFormComplete,
+} from "../validation/employeePersonalAddressSchema";
 import {
   GENDER_OPTIONS,
   MARITAL_STATUS_OPTIONS,
@@ -77,6 +99,7 @@ import {
   defaultEmployeeFormValues,
   type EmployeeFormData,
 } from "../validation/employeeSchema";
+import { EMPLOYEE_WIZARD_STEPS } from "./employeeWizardSteps";
 
 type EmployeeFormValues = EmployeeFormData;
 
@@ -84,13 +107,12 @@ type TabKey = "personal" | "contact" | "employment" | "compensation";
 
 const TAB_ORDER: TabKey[] = ["personal", "contact", "employment", "compensation"];
 
-const EMPLOYEE_WIZARD_STEPS: WizardStep[] = [
-  { id: "personal", title: "Personal", description: "Identidad y datos fiscales" },
-  { id: "contact", title: "Contacto", description: "Medios y domicilio" },
-  { id: "employment", title: "Laboral", description: "Puesto y condiciones" },
-  { id: "compensation", title: "Compensación", description: "Salario y banco" },
-  { id: "review", title: "Revisión", description: "Confirmar antes de guardar" },
-];
+const EDIT_SECTION_IDS: Record<TabKey, string> = {
+  personal: "employee-edit-personal",
+  contact: "employee-edit-contact",
+  employment: "employee-edit-employment",
+  compensation: "employee-edit-compensation",
+};
 
 const EMPLOYEE_REVIEW_STEP_INDEX = EMPLOYEE_WIZARD_STEPS.length - 1;
 
@@ -187,35 +209,83 @@ function EmployeeWizardReview({
 function FormField({
   label,
   error,
+  fieldId,
+  required: requiredProp,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   error?: string;
+  fieldId?: string;
+  /** Si no se pasa, se infiere de un `*` al final del `label` (solo en strings). */
+  required?: boolean;
   children: ReactNode;
 }) {
+  const labelText = typeof label === "string" ? label : "";
+  const resolvedId =
+    fieldId ??
+    (stripTrailingAsteriskFromLabel(labelText)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "field");
+
+  const child = Children.only(children);
+  const enhancedChild =
+    isValidElement(child) && child.type !== RHFSelect
+      ? cloneElement(child as ReactElement<Record<string, unknown>>, {
+          id: (child.props as { id?: string }).id ?? resolvedId,
+          ...getFieldErrorAriaProps(resolvedId, error),
+          ...(error ? { error: true } : {}),
+        })
+      : child;
+
   return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+    <FormFieldShell
+      fieldId={resolvedId}
+      label={label}
+      required={requiredProp}
+      errorMessage={error}
+    >
+      {enhancedChild}
+    </FormFieldShell>
   );
 }
 
-export function EmployeeFormInner({
-  id,
-  isEditing,
-  existing,
-}: {
+interface EmployeeFormInnerProps {
   id?: string;
   isEditing: boolean;
   existing?: Employee;
-}) {
+  /** Edición: cancelar y volver al detalle (footer, patrón Driver/Client). */
+  onCancel?: () => void;
+  /** Edición: tras guardado exitoso (empleado + domicilio). */
+  onSaveSuccess?: () => void;
+  /** Create: cuando el shell externo controla pasos y navegación. */
+  embeddedInWizardShell?: boolean;
+  /** Índice de paso del shell externo (create). */
+  wizardStepIndex?: number;
+  /** Notifica al contenedor estado de submit (para deshabilitar navegación shell). */
+  onSubmittingChange?: (isSubmitting: boolean) => void;
+}
+
+export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProps>(function EmployeeFormInner({
+  id,
+  isEditing,
+  existing,
+  onCancel,
+  onSaveSuccess,
+  embeddedInWizardShell = false,
+  wizardStepIndex = 0,
+  onSubmittingChange,
+}, ref) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [currentWizardStep, setCurrentWizardStep] = useState(0);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const wizardControlledByShell = !isEditing && embeddedInWizardShell;
+  const activeWizardStep = wizardControlledByShell
+    ? wizardStepIndex
+    : currentWizardStep;
 
   /**
    * Solo `defaultValues` (no prop `values`): en edición el contenedor ya espera a `existing`
@@ -241,7 +311,15 @@ export function EmployeeFormInner({
   const form = useForm<EmployeeFormValues, unknown, EmployeeFormValues>({
     resolver: zodResolver(employeeSchema) as Resolver<EmployeeFormValues>,
     defaultValues: initialFormValues,
+    mode: "onChange",
   });
+  const {
+    formState: { errors: formErrors, isValid: isFormValid, isDirty, dirtyFields },
+  } = form;
+
+  useEffect(() => {
+    onSubmittingChange?.(form.formState.isSubmitting);
+  }, [form.formState.isSubmitting, onSubmittingChange]);
   const watchedFormValues = useWatch({ control: form.control });
 
   const watchedDepartment = useWatch({ control: form.control, name: "department" });
@@ -263,6 +341,51 @@ export function EmployeeFormInner({
     control: form.control,
     name: "domicilio.postalCode",
   });
+  const domicilioValues = useWatch({
+    control: form.control,
+    name: "domicilio",
+  });
+
+  const onDomicilioCoordinatesChange = useCallback(
+    (coords: { latitude: number; longitude: number }) => {
+      form.setValue("domicilio.latitude", coords.latitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      form.setValue("domicilio.longitude", coords.longitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    [form],
+  );
+
+  const domicilioPostAddressSections = useMemo(
+    () => [
+      buildGeocodingEntityFormSection({
+        address: {
+          street: domicilioValues?.street,
+          exteriorNumber: domicilioValues?.exteriorNumber,
+          interiorNumber: domicilioValues?.interiorNumber,
+          postalCode: domicilioValues?.postalCode,
+          satMunicipalityCode: domicilioValues?.satMunicipalityCode,
+          satStateCode: domicilioValues?.satStateCode,
+          satCountryCode: domicilioValues?.satCountryCode,
+        },
+        latitude: domicilioValues?.latitude,
+        longitude: domicilioValues?.longitude,
+        latitudeError: form.formState.errors.domicilio?.latitude?.message,
+        onCoordinatesChange: onDomicilioCoordinatesChange,
+        disabled: form.formState.isSubmitting,
+      }),
+    ],
+    [
+      domicilioValues,
+      form.formState.errors.domicilio?.latitude?.message,
+      form.formState.isSubmitting,
+      onDomicilioCoordinatesChange,
+    ],
+  );
   const departmentOptions = useMemo(
     () => withLegacyCatalogOption(DEPARTMENT_OPTIONS, watchedDepartment),
     [watchedDepartment],
@@ -284,24 +407,75 @@ export function EmployeeFormInner({
     [watchedEmergencyRelationship],
   );
 
-  const handleInvalidSubmit = (errs: FieldErrors<EmployeeFormValues>) => {
-    const errorKeys = Object.keys(errs);
-    const firstErrorTab = TAB_ORDER.find((tab) =>
-      TAB_FIELDS[tab].some((f) => errorKeys.includes(f)),
-    );
-    if (firstErrorTab) {
-      setCurrentWizardStep(TAB_ORDER.indexOf(firstErrorTab));
-    }
-  };
+  const applyDomicilioFieldErrors = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      for (const [key, message] of Object.entries(fieldErrors)) {
+        if (!key || !message) continue;
+        form.setError(`domicilio.${key}` as `domicilio.${keyof EmployeeFormValues["domicilio"]}`, {
+          type: "sat",
+          message,
+        });
+      }
+    },
+    [form],
+  );
+
+  const validationMessages = collectFieldErrorMessages(formErrors);
+  const shouldShowValidationSummary = showValidationSummary && !isFormValid;
+
+  const scrollToEditSection = useCallback((tab: TabKey) => {
+    document
+      .getElementById(EDIT_SECTION_IDS[tab])
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handleInvalidSubmit = useCallback(
+    (errs: FieldErrors<EmployeeFormValues>) => {
+      const errorKeys = Object.keys(errs);
+      const firstErrorTab = TAB_ORDER.find((tab) =>
+        TAB_FIELDS[tab].some(
+          (f) => errorKeys.includes(f) || errorKeys.some((k) => k.startsWith(`${f}.`)),
+        ),
+      );
+      if (firstErrorTab) {
+        if (isEditing) {
+          scrollToEditSection(firstErrorTab);
+        } else if (!wizardControlledByShell) {
+          setCurrentWizardStep(TAB_ORDER.indexOf(firstErrorTab));
+        }
+      }
+      setShowValidationSummary(true);
+    },
+    [isEditing, scrollToEditSection, wizardControlledByShell],
+  );
 
   const validateWizardStep = useCallback(
     async (stepIndex: number) => {
       if (stepIndex >= EMPLOYEE_REVIEW_STEP_INDEX) return true;
       const tab = TAB_ORDER[stepIndex];
       const fields = TAB_FIELDS[tab] as (keyof EmployeeFormValues)[];
-      return form.trigger(fields);
+      const ok = await form.trigger(fields, { shouldFocus: true });
+      if (!ok) {
+        setShowValidationSummary(true);
+        return false;
+      }
+
+      if (tab === "contact") {
+        const domicilioResult = await validateEmployeePersonalAddressFormComplete(
+          form.getValues("domicilio"),
+          { requireCoordinates: false },
+        );
+        if (!domicilioResult.ok) {
+          applyDomicilioFieldErrors(domicilioResult.fieldErrors);
+          setShowValidationSummary(true);
+          return false;
+        }
+      }
+
+      setShowValidationSummary(false);
+      return true;
     },
-    [form],
+    [applyDomicilioFieldErrors, form],
   );
 
   const handleWizardStepClick = useCallback(
@@ -338,9 +512,9 @@ export function EmployeeFormInner({
   }, []);
 
   const isWizardLastStep =
-    !isEditing && currentWizardStep === EMPLOYEE_REVIEW_STEP_INDEX;
+    !isEditing && activeWizardStep === EMPLOYEE_REVIEW_STEP_INDEX;
 
-  const onSubmit = async (values: EmployeeFormValues) => {
+  const onSubmit = useCallback(async (values: EmployeeFormValues) => {
     const clean = <T extends Record<string, unknown>>(obj: T): T =>
       Object.fromEntries(
         Object.entries(obj).map(([k, v]) => [k, v === "" ? undefined : v]),
@@ -357,11 +531,27 @@ export function EmployeeFormInner({
       clean(employeeRest as Record<string, unknown>),
     );
 
-    const addressDto = clientAddressFormDataToCreateDto({
-      ...domicilio,
-      addressType: "personal",
-      isPrimary: true,
-    } as ClientAddressFormData);
+    const domicilioDirty = isEmployeeDomicilioDirty(dirtyFields);
+    const shouldPersistDomicilio =
+      !isEditing || domicilioDirty || !existing?.personalAddress?.id;
+
+    if (shouldPersistDomicilio) {
+      const domicilioResult = await validateEmployeePersonalAddressFormComplete(domicilio, {
+        requireCoordinates: false,
+      });
+      if (!domicilioResult.ok) {
+        applyDomicilioFieldErrors(domicilioResult.fieldErrors);
+        if (isEditing) {
+          scrollToEditSection("contact");
+        } else if (!wizardControlledByShell) {
+          setCurrentWizardStep(TAB_ORDER.indexOf("contact"));
+        }
+        setShowValidationSummary(true);
+        return;
+      }
+    }
+    const addressCreateDto = employeePersonalFormToCreateDto(domicilio);
+    const addressUpdateDto = employeePersonalFormToUpdateDto(domicilio);
 
     try {
       if (isEditing) {
@@ -370,10 +560,12 @@ export function EmployeeFormInner({
 
         try {
           const addrId = existing?.personalAddress?.id;
-          if (addrId) {
-            await updateEmployeeAddress(id!, addrId, addressDto);
-          } else {
-            await createEmployeeAddress(id!, addressDto);
+          if (shouldPersistDomicilio) {
+            if (addrId) {
+              await updateEmployeeAddress(id!, addrId, addressUpdateDto);
+            } else {
+              await createEmployeeAddress(id!, addressCreateDto);
+            }
           }
         } catch (addressError) {
           const message =
@@ -392,8 +584,12 @@ export function EmployeeFormInner({
         await queryClient.invalidateQueries({
           queryKey: employeeQueryKeys.detail(id!),
         });
-        toast({ title: "Empleado actualizado correctamente" });
-        navigate(`/employees/${id}`);
+        if (onSaveSuccess) {
+          onSaveSuccess();
+        } else {
+          toast({ title: "Empleado actualizado correctamente" });
+          navigate(`/employees/${id}`);
+        }
         return;
       }
 
@@ -406,7 +602,7 @@ export function EmployeeFormInner({
       const result = await createMutation.mutateAsync(dto);
       const newId = result.data.id;
       try {
-        await createEmployeeAddress(newId, addressDto);
+        await createEmployeeAddress(newId, addressCreateDto);
         await queryClient.invalidateQueries({
           queryKey: employeeQueryKeys.detail(newId),
         });
@@ -432,54 +628,56 @@ export function EmployeeFormInner({
         variant: "destructive",
       });
     }
-  };
+  }, [
+    applyDomicilioFieldErrors,
+    createMutation,
+    dirtyFields,
+    existing,
+    existing?.personalAddress?.id,
+    id,
+    isEditing,
+    navigate,
+    onSaveSuccess,
+    queryClient,
+    scrollToEditSection,
+    toast,
+    updateMutation,
+    wizardControlledByShell,
+  ]);
+
+  const requestWizardSubmit = useCallback(() => {
+    void form.handleSubmit(onSubmit, handleInvalidSubmit)();
+  }, [form, onSubmit, handleInvalidSubmit]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      triggerStepValidation: validateWizardStep,
+      requestSubmit: requestWizardSubmit,
+    }),
+    [requestWizardSubmit, validateWizardStep],
+  );
 
   const stepPanelClass = (stepIndex: number) => {
     if (isEditing) return "";
     if (stepIndex === EMPLOYEE_REVIEW_STEP_INDEX) {
-      return cn(currentWizardStep !== EMPLOYEE_REVIEW_STEP_INDEX && "hidden");
+      return cn(activeWizardStep !== EMPLOYEE_REVIEW_STEP_INDEX && "hidden");
     }
-    return cn(currentWizardStep !== stepIndex && "hidden");
+    return cn(activeWizardStep !== stepIndex && "hidden");
   };
 
-  return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
-      {isEditing ? (
-        <EmployeeEditHeader
-          title="Editar empleado"
-          subtitle={existing?.fullName}
-          onBack={() => navigate(`/employees/${id}`)}
-          isDirty={form.formState.isDirty}
-          isSubmitting={form.formState.isSubmitting}
-          onDiscard={() => {
-            if (!existing) return;
-            if (!form.formState.isDirty) return;
-            if (!window.confirm("Se descartarán los cambios no guardados. ¿Deseas continuar?")) {
-              return;
-            }
-            form.reset(employeeToFormValues(existing));
-          }}
-          onSave={() => {
-            void form.handleSubmit(onSubmit, handleInvalidSubmit)();
-          }}
-        />
-      ) : (
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/employees")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Nuevo empleado</h1>
-          </div>
-        </div>
-      )}
+  const showEditFormActions = isEditing && Boolean(onCancel);
 
-      <form onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} className="space-y-4">
-        {!isEditing && (
+  return (
+    <form
+      onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
+      className="space-y-6"
+    >
+        {!isEditing && !wizardControlledByShell && (
           <WizardProgressCard>
             <WizardSteps
               steps={EMPLOYEE_WIZARD_STEPS}
-              currentStep={currentWizardStep}
+              currentStep={activeWizardStep}
               onStepClick={handleWizardStepClick}
               allowNavigation
               ariaLabel="Pasos para registrar un empleado"
@@ -489,6 +687,7 @@ export function EmployeeFormInner({
         <div
           id="employee-edit-personal"
           className={cn("space-y-4", stepPanelClass(0))}
+          aria-hidden={!isEditing && activeWizardStep !== 0}
         >
           <FormSectionCard
             title="Datos personales"
@@ -496,13 +695,15 @@ export function EmployeeFormInner({
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField
-              label="Nombre(s) *"
+              label="Nombre(s)"
+              required
               error={form.formState.errors.first_name?.message}
             >
               <Input {...form.register("first_name")} placeholder="Juan" />
             </FormField>
             <FormField
-              label="Apellido paterno *"
+              label="Apellido paterno"
+              required
               error={form.formState.errors.last_name?.message}
             >
               <Input {...form.register("last_name")} placeholder="García" />
@@ -592,6 +793,7 @@ export function EmployeeFormInner({
         <div
           id="employee-edit-contact"
           className={cn("space-y-4", stepPanelClass(1))}
+          aria-hidden={!isEditing && activeWizardStep !== 1}
         >
           <FormSectionCard
             title="Datos de contacto"
@@ -625,25 +827,31 @@ export function EmployeeFormInner({
           <EntityAddressForm
             asForm={false}
             className="space-y-4"
-            formContext="additional"
-            addressMode="personal"
+            formContext="employeePersonal"
+            addressVariant="personal"
             infoMessage="Captura el domicilio personal del empleado."
             satStateCode={domicilioSatStateCode}
             satMunicipalityCode={domicilioSatMunicipalityCode}
             postalCode={domicilioPostalCode}
             showGlobalNotice
+            hideLocationSectionTitle={false}
             locationSectionTitle="Domicilio"
             addressInputSection={
               <AddressInput<EmployeeFormValues>
-                mode="personal"
+                variant="personal"
+                formContext="employeePersonal"
+                addressType="personal"
                 control={form.control}
                 setValue={form.setValue}
                 namePrefix="domicilio"
                 layout="compact"
-                showLatLng
                 showPrimaryToggle={false}
+                hideInformativeAlerts
+                embedded
+                disabled={form.formState.isSubmitting}
               />
             }
+            postAddressSections={domicilioPostAddressSections}
           />
 
           <FormSectionCard
@@ -676,6 +884,7 @@ export function EmployeeFormInner({
         <div
           id="employee-edit-employment"
           className={cn("space-y-4", stepPanelClass(2))}
+          aria-hidden={!isEditing && activeWizardStep !== 2}
         >
           <FormSectionCard
             title="Información laboral"
@@ -683,12 +892,13 @@ export function EmployeeFormInner({
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField
-              label="Fecha de ingreso *"
+              label="Fecha de ingreso"
+              required
               error={form.formState.errors.hire_date?.message}
             >
               <Input type="date" {...form.register("hire_date")} />
             </FormField>
-            <FormField label="Tipo de contrato *">
+            <FormField label="Tipo de contrato" required>
               <RHFSelect
                 control={form.control}
                 name="employment_type"
@@ -747,6 +957,7 @@ export function EmployeeFormInner({
         <div
           id="employee-edit-compensation"
           className={cn("space-y-4", stepPanelClass(3))}
+          aria-hidden={!isEditing && activeWizardStep !== 3}
         >
           <FormSectionCard
             title="Salario"
@@ -812,14 +1023,50 @@ export function EmployeeFormInner({
         </div>
 
         {!isEditing && (
-          <div className={cn(stepPanelClass(EMPLOYEE_REVIEW_STEP_INDEX))}>
+          <div
+            className={cn(stepPanelClass(EMPLOYEE_REVIEW_STEP_INDEX))}
+            aria-hidden={activeWizardStep !== EMPLOYEE_REVIEW_STEP_INDEX}
+          >
             <EmployeeWizardReview values={watchedFormValues as EmployeeFormValues} />
           </div>
         )}
 
-        {!isEditing && (
+        {shouldShowValidationSummary ? (
+          <FormValidationSummary
+            title={
+              isEditing
+                ? "Revisa los siguientes campos"
+                : "Revisa los datos del empleado"
+            }
+            messages={validationMessages}
+          />
+        ) : null}
+
+        {showEditFormActions ? (
+          <div className="flex items-center justify-end gap-4 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={form.formState.isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting || !isDirty}
+            >
+              {form.formState.isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Guardar Cambios
+            </Button>
+          </div>
+        ) : null}
+
+        {!isEditing && !wizardControlledByShell && (
           <WizardNavigationBar
-            canGoBack={currentWizardStep > 0}
+            canGoBack={activeWizardStep > 0}
             isLastStep={isWizardLastStep}
             onPrevious={handleWizardPrevious}
             onCancel={() => navigate("/employees")}
@@ -831,10 +1078,11 @@ export function EmployeeFormInner({
             submitIcon={<CheckCircle className="mr-2 h-4 w-4" />}
           />
         )}
-      </form>
-    </div>
+    </form>
   );
-}
+});
+
+EmployeeFormInner.displayName = "EmployeeFormInner";
 
 function employeeToFormValues(employee: Employee): EmployeeFormValues {
   const normalizeOptionalSelect = (value: string | null | undefined) => {
@@ -928,6 +1176,7 @@ function employeeToDomicilioForm(
     satStateCode: addr.satStateCode ?? "",
     satMunicipalityCode: addr.satMunicipalityCode ?? "",
     satLocalityCode: addr.satLocalityCode ?? null,
+    localityName: addr.localityName ?? null,
     satNeighborhoodCode: addr.satNeighborhoodCode ?? null,
     neighborhoodName: addr.neighborhoodName ?? null,
     latitude: addr.latitude ?? null,

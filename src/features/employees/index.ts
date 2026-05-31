@@ -38,4 +38,5 @@ export {
   EmployeesListPage,
   EmployeeDetailPage,
   EmployeeFormPage,
+  EmployeeEditPage,
 } from "./presentation";

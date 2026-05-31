@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -35,6 +35,7 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
+import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import { useTerminateEmployee } from "../../application/hooks/useEmployees";
 import type { EmployeeListItem, TerminateEmployeeDTO } from "../../domain/entities";
 import {
@@ -44,6 +45,19 @@ import {
   UserX,
   Loader2,
 } from "lucide-react";
+const EMPLOYEE_DRIVER_TERMINATION_CODES = new Set([
+  "EMPLOYEE_DRIVER_ON_TRIP",
+  "EMPLOYEE_DRIVER_HAS_ACTIVE_TRIPS",
+  "EMPLOYEE_IS_ACTIVE_DRIVER",
+]);
+
+function terminationErrorDescription(error: unknown): string {
+  const message = getErrorMessage(error);
+  if (isApiError(error) && error.code && EMPLOYEE_DRIVER_TERMINATION_CODES.has(error.code)) {
+    return `${message} Puede revisar el módulo Conductores o la lista de Viajes.`;
+  }
+  return message;
+}
 
 // ============================================================================
 // TYPES
@@ -101,10 +115,9 @@ export function EmployeeActions({
       onActionComplete?.();
       onTerminate?.(id);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Error desconocido";
       toast({
         title: "Error al dar de baja",
-        description: message,
+        description: terminationErrorDescription(error),
         variant: "destructive",
       });
     }
@@ -251,9 +264,29 @@ function TerminateDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>¿Dar de baja a este empleado?</AlertDialogTitle>
-          <AlertDialogDescription>
-            El empleado <strong>{name}</strong> será marcado como dado de baja.
-            Esta acción puede revertirse editando su estado.
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                El empleado <strong className="text-foreground">{name}</strong> será
+                marcado como dado de baja. Esta acción puede revertirse editando su
+                estado.
+              </p>
+              <p>
+                Si está registrado como conductor y no tiene viajes activos ni está en
+                viaje, su rol de conductor se dará de baja automáticamente.
+              </p>
+              <p>
+                Si la baja falla por viajes pendientes, revise{" "}
+                <Link to="/trips" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Viajes
+                </Link>{" "}
+                o{" "}
+                <Link to="/drivers" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Conductores
+                </Link>
+                .
+              </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
 

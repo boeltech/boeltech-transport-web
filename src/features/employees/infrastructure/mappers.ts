@@ -133,6 +133,17 @@ function mapEmployeeToDomain(raw: ApiEmployeeResponse): Employee {
     updatedAt: raw.updated_at,
     createdBy: raw.created_by,
     updatedBy: raw.updated_by,
+    createdByName: raw.created_by_name ?? null,
+    updatedByName: raw.updated_by_name ?? null,
+    driverRole: raw.driver_role
+      ? {
+          driverId: raw.driver_role.driver_id,
+          driverStatus: raw.driver_role.driver_status,
+          activeTripCount: raw.driver_role.active_trip_count,
+          activeTripCodes: raw.driver_role.active_trip_codes,
+          blocksEmployeeTermination: raw.driver_role.blocks_employee_termination,
+        }
+      : null,
   };
 }
 

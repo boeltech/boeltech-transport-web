@@ -109,6 +109,18 @@ export interface ApiEmployeeResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
+  driver_role?: ApiEmployeeDriverRole | null;
+}
+
+/** Rol de conductor activo vinculado al empleado (detalle GET /employees/:id). */
+export interface ApiEmployeeDriverRole {
+  driver_id: string;
+  driver_status: string;
+  active_trip_count: number;
+  active_trip_codes: string[];
+  blocks_employee_termination: boolean;
 }
 
 /** Tipo para el selector de driver (endpoint legacy) */
@@ -205,6 +217,19 @@ export interface Employee {
   updatedAt: string;
   createdBy: string | null;
   updatedBy: string | null;
+  /** Nombre completo del usuario creador (LEFT JOIN users). */
+  createdByName: string | null;
+  /** Nombre completo del usuario que realizó la última actualización. */
+  updatedByName: string | null;
+  driverRole: EmployeeDriverRole | null;
+}
+
+export interface EmployeeDriverRole {
+  driverId: string;
+  driverStatus: string;
+  activeTripCount: number;
+  activeTripCodes: string[];
+  blocksEmployeeTermination: boolean;
 }
 
 /** Empleado para selector de driver */

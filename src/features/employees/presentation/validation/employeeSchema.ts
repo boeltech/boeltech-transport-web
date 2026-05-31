@@ -13,7 +13,11 @@
  */
 
 import { z } from "zod";
-import { addressSchema } from "@shared/validation/addressSchema";
+import {
+  defaultEmployeePersonalAddressValues,
+  employeePersonalAddressFormSchema,
+  type EmployeePersonalAddressFormData,
+} from "./employeePersonalAddressSchema";
 
 // ============================================================================
 // Constants
@@ -69,12 +73,7 @@ const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const digits11Regex = /^\d{11}$/;
 const digits18Regex = /^\d{18}$/;
 
-const employeeDomicilioSchema = addressSchema.safeExtend({
-  addressType: z.literal("personal"),
-  isPrimary: z.literal(true),
-  /** API puede usar UUID u otro identificador */
-  id: z.string().optional(),
-});
+const employeeDomicilioSchema = employeePersonalAddressFormSchema;
 
 export const employeeSchema = z.object({
   // ========================================
@@ -247,27 +246,14 @@ export const employeeSchema = z.object({
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>;
 
+export type { EmployeePersonalAddressFormData };
+
 // ============================================================================
 // Default Values
 // ============================================================================
 
-export const defaultEmployeeDomicilio: EmployeeFormData["domicilio"] = {
-  addressType: "personal",
-  isPrimary: true,
-  street: "",
-  exteriorNumber: "",
-  interiorNumber: null,
-  reference: null,
-  postalCode: "",
-  satCountryCode: "MEX",
-  satStateCode: "",
-  satMunicipalityCode: "",
-  satLocalityCode: null,
-  satNeighborhoodCode: null,
-  neighborhoodName: null,
-  latitude: null,
-  longitude: null,
-};
+export const defaultEmployeeDomicilio: EmployeePersonalAddressFormData =
+  defaultEmployeePersonalAddressValues;
 
 export const defaultEmployeeFormValues: EmployeeFormData = {
   first_name: "",
