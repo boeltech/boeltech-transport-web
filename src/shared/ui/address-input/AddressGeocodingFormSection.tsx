@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
-import { MapPin } from "lucide-react";
-
 import type { LatLng } from "@shared/geolocation";
 import { FieldInlineError } from "@shared/ui/form";
 
 import { AddressGeolocationPanel } from "./AddressGeolocationPanel";
 import type { AddressGeolocationPanelProps } from "./AddressGeolocationPanel";
-import type { EntityAddressFormSection } from "./EntityAddressForm";
 import type { GeolocationPanelMode } from "./geolocationPanelMode";
 
 export const GEOCODING_SECTION_ID = "geographic-confirmation";
@@ -87,17 +84,4 @@ export function AddressGeocodingSectionContent({
       />
     </>
   );
-}
-
-/** Misma presentación que secciones operativas: `FormSectionCard` vía `EntityAddressForm`. */
-export function buildGeocodingEntityFormSection(
-  props: AddressGeocodingSectionContentProps,
-): EntityAddressFormSection {
-  return {
-    id: GEOCODING_SECTION_ID,
-    title: <AddressGeocodingSectionTitle />,
-    icon: <MapPin className="h-4 w-4" />,
-    contentClassName: "space-y-4",
-    content: <AddressGeocodingSectionContent {...props} />,
-  };
 }

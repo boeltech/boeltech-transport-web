@@ -6,7 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { FieldInlineError, getFieldErrorAriaProps } from "./FieldInlineError";
+import { FieldInlineError } from "./FieldInlineError";
+import { getFieldErrorAriaProps } from "./fieldErrorAria";
 
 export type RHFSelectOption = {
   value: string;

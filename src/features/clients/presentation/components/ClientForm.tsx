@@ -16,7 +16,7 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";

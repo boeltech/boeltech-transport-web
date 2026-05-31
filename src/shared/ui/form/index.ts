@@ -1,9 +1,6 @@
 export * from "./form";
-export {
-  FieldInlineError,
-  getFieldErrorAriaProps,
-  getRegisterFieldErrorProps,
-} from "./FieldInlineError";
+export { FieldInlineError } from "./FieldInlineError";
+export { getFieldErrorAriaProps, getRegisterFieldErrorProps } from "./fieldErrorAria";
 export {
   normalizeRequiredFieldLabel,
   reactNodeHasRequiredMark,

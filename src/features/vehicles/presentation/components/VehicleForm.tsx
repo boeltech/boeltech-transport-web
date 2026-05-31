@@ -36,7 +36,7 @@ import { FormValidationSummary } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
-import { getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
+import { getFieldErrorAriaProps } from "@shared/ui/form";
 
 import {
   createVehicleSchema,

@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
-import { Receipt } from "lucide-react";
-
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
-import type { EntityAddressFormSection } from "@shared/ui/address-input";
-
 export const LUGAR_EXPEDICION_SECTION_ID = "lugar-expedicion-cfdi";
 
 export const LUGAR_EXPEDICION_HINT =
@@ -88,17 +84,4 @@ export function LugarExpedicionSectionContent({
       )}
     </>
   );
-}
-
-/** Misma presentación que «Ubicación en mapa»: `FormSectionCard` vía `EntityAddressForm`. */
-export function buildLugarExpedicionEntityFormSection(
-  props: LugarExpedicionSectionContentProps,
-): EntityAddressFormSection {
-  return {
-    id: LUGAR_EXPEDICION_SECTION_ID,
-    title: <LugarExpedicionSectionTitle />,
-    icon: <Receipt className="h-4 w-4" />,
-    contentClassName: "space-y-4",
-    content: <LugarExpedicionSectionContent {...props} />,
-  };
 }

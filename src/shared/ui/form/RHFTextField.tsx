@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 import { FormFieldShell } from "./FormFieldShell";
-import { getFieldErrorAriaProps } from "./FieldInlineError";
+import { getFieldErrorAriaProps } from "./fieldErrorAria";
 import { Input } from "@shared/ui/input";
 
 export type RHFTextFieldProps<TFieldValues extends FieldValues> = {

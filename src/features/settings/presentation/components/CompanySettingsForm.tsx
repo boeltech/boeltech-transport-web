@@ -22,7 +22,7 @@ import {
   EntityAddressForm,
   buildGeocodingEntityFormSection,
 } from "@shared/ui/address-input";
-import { buildLugarExpedicionEntityFormSection } from "./LugarExpedicionFormSection";
+import { buildLugarExpedicionEntityFormSection } from "./buildLugarExpedicionEntityFormSection";
 import { RegimenFiscalSelect } from "@features/catalogs";
 import {
   FieldInlineError,

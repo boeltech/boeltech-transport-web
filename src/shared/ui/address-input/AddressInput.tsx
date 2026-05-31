@@ -36,7 +36,7 @@ import {
   type PostalLookupStatus,
 } from "@shared/validation/addressRequirements";
 import { resolveAddressFormFieldRequirements } from "@shared/validation/addressFormProfileUx";
-import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 
 const LAYOUT_CLASS: Record<AddressInputLayout, string> = {
   "single-column": "grid-cols-1",
@@ -1092,7 +1092,6 @@ function addressInputPropsAreEqual(
 ): boolean {
   return (
     prev.variant === next.variant &&
-    prev.mode === next.mode &&
     prev.formContext === next.formContext &&
     prev.addressType === next.addressType &&
     prev.control === next.control &&

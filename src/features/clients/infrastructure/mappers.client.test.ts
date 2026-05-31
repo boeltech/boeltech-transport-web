@@ -30,6 +30,8 @@ const snakeClient: ClientApiResponse = {
   updated_at: "2026-01-02T00:00:00.000Z",
   created_by: null,
   updated_by: null,
+  created_by_name: null,
+  updated_by_name: null,
 };
 
 describe("client mappers (mapSingleResponse / mapPaginatedResponse)", () => {

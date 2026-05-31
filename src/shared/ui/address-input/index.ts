@@ -4,10 +4,10 @@ export { default as AddressGeolocationPanel } from "./AddressGeolocationPanel";
 export {
   AddressGeocodingSectionContent,
   AddressGeocodingSectionTitle,
-  buildGeocodingEntityFormSection,
   GEOCODING_OPTIONAL_HINT,
   GEOCODING_SECTION_ID,
 } from "./AddressGeocodingFormSection";
+export { buildGeocodingEntityFormSection } from "./buildGeocodingEntityFormSection";
 export type { AddressGeocodingSectionContentProps } from "./AddressGeocodingFormSection";
 export { AddressPreview } from "./AddressPreview";
 export { AddressFormNotice } from "./AddressFormNotice";

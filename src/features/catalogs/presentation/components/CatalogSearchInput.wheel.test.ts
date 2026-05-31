@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleCatalogResultsListWheel } from "./CatalogSearchInput";
+import { handleCatalogResultsListWheel } from "./catalogSearchInputWheel";
 
 function wheelEvent(deltaY: number): WheelEvent {
   return { deltaY, stopPropagation: vi.fn(), preventDefault: vi.fn() } as unknown as WheelEvent;

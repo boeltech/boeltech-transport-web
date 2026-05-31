@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { FormFieldShell } from "./FormFieldShell";
-import { getFieldErrorAriaProps } from "./FieldInlineError";
+import { getFieldErrorAriaProps } from "./fieldErrorAria";
 
 export type RHFSelectFieldOption = {
   value: string;
