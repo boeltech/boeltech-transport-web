@@ -56,25 +56,21 @@ import {
   AlertTriangle,
   ChevronDown,
   FileText,
-  Gauge,
   MessageSquare,
   Plus,
-  Scale,
   ShieldCheck,
   Trash2,
   Truck,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { CargoMovementSheetPickupContext, CargoMovementSheetProductSection, CargoMovementSheetQuantityWeightSection } from "./cargo-movement";
 import { useToast } from "@shared/hooks";
 
 import {
-  ProductoServicioCPSearch,
-  UnidadMedidaSearch,
   MaterialPeligrosoSearch,
   TipoEmbalajeSelect,
 } from "@features/catalogs";
 import {
-  extractCargoRegulatoryFlags,
   getMissingSectorRequiredFields,
   hasAnySectorFieldValue,
   sectorFieldLabels,
@@ -239,8 +235,14 @@ function collectFormErrorMessages(
 // COMPONENT
 // ============================================================================
 
-export function CargoMovementSheet({
-  open,
+function initialDeliveryAssignments(
+  initialValues: TripCargoFormValues | null | undefined,
+): CargoMovementFormValues[] {
+  if (!initialValues) return [];
+  return (initialValues.movements ?? []).filter((m) => m.movementType === "delivery");
+}
+
+function CargoMovementSheetSession({
   onOpenChange,
   pickupStop,
   availableDeliveryStops,
@@ -249,7 +251,7 @@ export function CargoMovementSheet({
   vehicleCapacityKg,
   baselineWeightKg,
   onSubmit,
-}: CargoMovementSheetProps) {
+}: Omit<CargoMovementSheetProps, "open">) {
   const { error: showErrorToast } = useToast();
   const catalogHydrateKeyRef = useRef<string | null>(null);
 
@@ -268,35 +270,16 @@ export function CargoMovementSheet({
     mode: "onSubmit",
     shouldUnregister: false,
   });
-  const { control, handleSubmit, reset, setValue, getValues, formState } = form;
+  const { control, handleSubmit, setValue, getValues, formState } = form;
 
   // Estado fuera del schema: entregas posteriores
-  const [deliveryAssignments, setDeliveryAssignments] = useState<
-    CargoMovementFormValues[]
-  >([]);
-  const [hazmatSectionOpen, setHazmatSectionOpen] = useState(false);
+  const [deliveryAssignments, setDeliveryAssignments] = useState(
+    () => initialDeliveryAssignments(initialValues),
+  );
+  const [hazmatSectionOpen, setHazmatSectionOpen] = useState(
+    () => !!initialValues?.hazardousMaterial,
+  );
   const [showSummary, setShowSummary] = useState(false);
-
-  // Re-inicializar al abrir o cambiar la entidad
-  useEffect(() => {
-    if (!open) {
-      setShowSummary(false);
-      catalogHydrateKeyRef.current = null;
-      return;
-    }
-    reset(defaultValues);
-    if (initialValues) {
-      const existingDeliveries = (initialValues.movements ?? []).filter(
-        (m) => m.movementType === "delivery",
-      );
-      setDeliveryAssignments(existingDeliveries);
-      setHazmatSectionOpen(!!initialValues.hazardousMaterial);
-    } else {
-      setDeliveryAssignments([]);
-      setHazmatSectionOpen(false);
-    }
-    setShowSummary(false);
-  }, [open, defaultValues, initialValues, reset]);
 
   // ============================================================================
   // Watchers
@@ -439,7 +422,6 @@ export function CargoMovementSheet({
 
   // Hidrata flags regulatorios al cambiar el producto SAT seleccionado.
   useEffect(() => {
-    if (!open) return;
     const code = satProductCode?.trim();
     if (!code) return;
     const currentRequirements = getValues("sectorRequirements") ?? {};
@@ -481,7 +463,7 @@ export function CargoMovementSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, satProductCode, editingIndex, getValues, setValue]);
+  }, [satProductCode, editingIndex, getValues, setValue]);
 
   // ============================================================================
   // Capacity projection
@@ -607,7 +589,6 @@ export function CargoMovementSheet({
   // ============================================================================
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
@@ -620,250 +601,26 @@ export function CargoMovementSheet({
             Formulario de mercancía: producto y unidad de medida, cantidad y
             peso, seguro, material peligroso, entregas y observaciones.
           </SheetDescription>
-          {pickupStop && (
-            <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">
-                Parada #{pickupStop.index + 1}
-              </span>
-              : {pickupStop.locationName || pickupStop.address}
-              {pickupStop.clientName && ` · ${pickupStop.clientName}`}
-            </div>
-          )}
+          <CargoMovementSheetPickupContext pickupStop={pickupStop} />
         </SheetHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
-          {/* ========== SECCIÓN: PRODUCTO Y UNIDAD ========== */}
-          <FormSectionCard
-            title="Producto y unidad de medida"
-            icon={<FileText className="h-4 w-4" />}
-            contentClassName="space-y-4"
-          >
-            <Controller
-              control={control}
-              name="satProductCode"
-              render={({ field, fieldState }) => {
-                const errorMessage = fieldState.error?.message;
-                return (
-                  <FormFieldShell
-                    fieldId="cargo-sat-product"
-                    label="Producto o servicio transportado"
-                    required
-                    description="Elija del catálogo de mercancías y servicios; puede buscar por nombre o por clave. El sistema enlaza la clave al timbrado."
-                    errorMessage={errorMessage}
-                  >
-                    <ProductoServicioCPSearch
-                      value={field.value || null}
-                      onSelect={(item) => {
-                        const flags = extractCargoRegulatoryFlags(item.metadata);
-                        setValue("satProductCode", item.code, { shouldDirty: true });
-                        setValue("satProductDescription", item.name, {
-                          shouldDirty: true,
-                        });
-                        if (!getValues("description")?.trim()) {
-                          setValue("description", item.name, { shouldDirty: true });
-                        }
-                        setValue("requiresHazmat", flags.requiresHazmat, {
-                          shouldDirty: true,
-                        });
-                        if (flags.requiresHazmat) {
-                          setValue("hazardousMaterial", true, { shouldDirty: true });
-                          setHazmatSectionOpen(true);
-                        }
-                        setValue(
-                          "sectorRequirements",
-                          flags.sectorRequirements ?? {},
-                          { shouldDirty: true },
-                        );
-                      }}
-                      onClear={() => {
-                        setValue("satProductCode", "", { shouldDirty: true });
-                        setValue("satProductDescription", "", { shouldDirty: true });
-                        setValue("requiresHazmat", false, { shouldDirty: true });
-                        setValue("sectorRequirements", {}, { shouldDirty: true });
-                      }}
-                    />
-                  </FormFieldShell>
-                );
-              }}
-            />
+          <CargoMovementSheetProductSection
+            control={control}
+            setValue={setValue}
+            getValues={getValues}
+            onHazmatSectionOpen={() => setHazmatSectionOpen(true)}
+          />
 
-            <RHFTextField
-              control={control}
-              name="description"
-              fieldId="cargo-description"
-              label="Descripción de la mercancía"
-              required
-              placeholder="Se completa al elegir del catálogo; puede editarla..."
-              description="Se completa al elegir el producto del catálogo; puede ajustarla para mayor detalle operativo."
-            />
-
-            <Controller
-              control={control}
-              name="satUnitCode"
-              render={({ field, fieldState }) => {
-                const errorMessage = fieldState.error?.message;
-                return (
-                  <FormFieldShell
-                    fieldId="cargo-sat-unit"
-                    label="Unidad de medida"
-                    required
-                    description="El sistema conserva la unidad elegida del catálogo para la documentación fiscal."
-                    errorMessage={errorMessage}
-                  >
-                    <UnidadMedidaSearch
-                      value={field.value || null}
-                      onSelect={(item) => {
-                        setValue("satUnitCode", item.code, { shouldDirty: true });
-                        setValue("satUnitName", item.name, { shouldDirty: true });
-                      }}
-                      onClear={() => {
-                        setValue("satUnitCode", "", { shouldDirty: true });
-                        setValue("satUnitName", "", { shouldDirty: true });
-                      }}
-                    />
-                  </FormFieldShell>
-                );
-              }}
-            />
-
-            <Controller
-              control={control}
-              name="currency"
-              render={({ field }) => (
-                <FormFieldShell
-                  fieldId="cargo-currency"
-                  label="Moneda SAT"
-                  description="En v1 nacional se usa MXN por defecto para la mercancía."
-                >
-                  <Input
-                    id="cargo-currency"
-                    value={field.value || "MXN"}
-                    disabled
-                    className="bg-muted"
-                  />
-                </FormFieldShell>
-              )}
-            />
-          </FormSectionCard>
-
-          {/* ========== SECCIÓN: CANTIDAD Y PESO ========== */}
-          <FormSectionCard
-            title="Cantidad y peso"
-            icon={<Scale className="h-4 w-4" />}
-            contentClassName="space-y-4"
-          >
-            <div className="grid gap-4 sm:grid-cols-2 [&_label]:min-h-5">
-              <Controller
-                control={control}
-                name="units"
-                render={({ field, fieldState }) => {
-                  const errorMessage = fieldState.error?.message;
-                  return (
-                    <FormFieldShell
-                      fieldId="cargo-units"
-                      label="Cantidad"
-                      required
-                      errorMessage={errorMessage}
-                    >
-                      <div className="flex gap-2">
-                        <Input
-                          id="cargo-units"
-                          type="number"
-                          min="1"
-                          placeholder="0"
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value ? Number(e.target.value) : undefined,
-                            )
-                          }
-                          onBlur={field.onBlur}
-                          className="flex-1"
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps("cargo-units", errorMessage)}
-                        />
-                        <span className="flex items-center text-sm text-muted-foreground min-w-[60px]">
-                          {satUnitName}
-                        </span>
-                      </div>
-                    </FormFieldShell>
-                  );
-                }}
-              />
-
-              <Controller
-                control={control}
-                name="weightInKg"
-                render={({ field, fieldState }) => {
-                  const errorMessage = fieldState.error?.message;
-                  return (
-                    <FormFieldShell
-                      fieldId="cargo-weight-kg"
-                      label="Peso total (kg)"
-                      required
-                      errorMessage={errorMessage}
-                    >
-                      <div className="flex gap-2">
-                        <Input
-                          id="cargo-weight-kg"
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value ? Number(e.target.value) : undefined,
-                            )
-                          }
-                          onBlur={field.onBlur}
-                          className="flex-1"
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps("cargo-weight-kg", errorMessage)}
-                        />
-                        <span
-                          className="flex min-w-[60px] items-center text-sm invisible select-none"
-                          aria-hidden
-                        >
-                          {satUnitName}
-                        </span>
-                      </div>
-                    </FormFieldShell>
-                  );
-                }}
-              />
-            </div>
-
-            {/* Advertencia proyectada de capacidad */}
-            {wouldExceedCapacity && vehicleCapacityKg && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive-soft border border-destructive/30">
-                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-destructive-soft-foreground">
-                  <p className="font-medium">
-                    ¡Esta carga excederá la capacidad del vehículo!
-                  </p>
-                  <p className="mt-1">
-                    Peso proyectado: {formatWeight(projectedWeight)} /{" "}
-                    {formatWeight(vehicleCapacityKg)} (
-                    {((projectedWeight / vehicleCapacityKg) * 100).toFixed(1)}%)
-                  </p>
-                </div>
-              </div>
-            )}
-            {!wouldExceedCapacity && isNearCapacityProjection && vehicleCapacityKg && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-warning-soft border border-warning/30">
-                <Gauge className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-warning-soft-foreground">
-                  <p className="font-medium">Capacidad casi al límite</p>
-                  <p className="mt-1">
-                    Peso proyectado: {formatWeight(projectedWeight)} /{" "}
-                    {formatWeight(vehicleCapacityKg)} (
-                    {((projectedWeight / vehicleCapacityKg) * 100).toFixed(1)}%)
-                  </p>
-                </div>
-              </div>
-            )}
-          </FormSectionCard>
+          <CargoMovementSheetQuantityWeightSection
+            control={control}
+            satUnitName={satUnitName}
+            wouldExceedCapacity={wouldExceedCapacity}
+            isNearCapacityProjection={isNearCapacityProjection}
+            vehicleCapacityKg={vehicleCapacityKg ?? undefined}
+            projectedWeight={projectedWeight}
+            formatWeight={formatWeight}
+          />
 
           {/* ========== SECCIÓN: SEGURO ========== */}
           <FormSectionCard
@@ -1306,6 +1063,31 @@ export function CargoMovementSheet({
           </Button>
         </SheetFooter>
       </SheetContent>
+  );
+}
+
+export function CargoMovementSheet({
+  open,
+  onOpenChange,
+  pickupStop,
+  initialValues,
+  editingIndex,
+  ...rest
+}: CargoMovementSheetProps) {
+  const sessionKey = `${editingIndex ?? "new"}-${pickupStop?.index ?? 0}-${initialValues?.satProductCode ?? ""}`;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {open ? (
+        <CargoMovementSheetSession
+          key={sessionKey}
+          onOpenChange={onOpenChange}
+          pickupStop={pickupStop}
+          initialValues={initialValues}
+          editingIndex={editingIndex}
+          {...rest}
+        />
+      ) : null}
     </Sheet>
   );
 }

@@ -46,11 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
-import type {
-  TripWizardFormValues,
-  TripCargoFormValues,
-  TripStopFormValues,
-} from "./validation";
+import type { TripWizardFormValues, TripCargoFormValues } from "./validation";
 import { StopType } from "@features/trips";
 import { useVehicle } from "@features/vehicles/application";
 import { CargoMovementSheet } from "./CargoMovementSheet";
@@ -67,7 +63,6 @@ interface CargoStepProps {
   form: UseFormReturn<TripWizardFormValues>;
   cargosFieldArray: UseFieldArrayReturn<TripWizardFormValues, "cargos">;
   clients: Array<{ id: string; legalName: string }>;
-  isLoadingClients: boolean;
 }
 
 interface PickupStopInfo {
@@ -99,7 +94,6 @@ export function CargoStep({
   form,
   cargosFieldArray,
   clients,
-  isLoadingClients,
 }: CargoStepProps) {
   const { fields, append, remove, update } = cargosFieldArray;
   const [isCargoDialogOpen, setIsCargoDialogOpen] = useState(false);

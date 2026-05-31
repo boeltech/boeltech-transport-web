@@ -31,14 +31,6 @@ import {
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { Checkbox } from "@shared/ui/checkbox";
 import { Switch } from "@shared/ui/switch";
 import {
   AddressGeocodingSectionContent,
@@ -51,15 +43,10 @@ import {
 import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
 import {
   MapPin,
-  Navigation,
-  Flag,
   AlertCircle,
   Phone,
-  Milestone,
   ScrollText,
-  Building2,
 } from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
 import {
   FormFieldShell,
   FormValidationSummary,
@@ -68,6 +55,7 @@ import {
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import { StopFormSheetCategorySection, StopFormSheetAddressOriginSection } from "./stop-form";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   AlertDialog,
@@ -88,7 +76,6 @@ import {
   useClientAddress,
 } from "@features/clients/application/hooks/useClientAddresses";
 import { useUpdateClientAddress } from "@features/clients/application/hooks/useUpdateClientAddress";
-import { ADDRESS_TYPE_LABELS } from "@features/clients/domain/entities";
 
 import type { TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
@@ -986,178 +973,21 @@ export function StopFormSheet({
         </SheetHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
-          <FormSectionCard
-            title="Tipo de parada"
-            icon={<Milestone className="h-4 w-4" />}
-            contentClassName="space-y-4"
-          >
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5",
-              displayStop.stopCategory === "origin" &&
-                "bg-success-soft/60",
-              displayStop.stopCategory === "waypoint" &&
-                "bg-muted/40",
-              displayStop.stopCategory === "destination" &&
-                "bg-destructive-soft/60",
-            )}
-          >
-              {displayStop.stopCategory === "origin" && (
-                <>
-                  <Navigation className="h-5 w-5 shrink-0 text-success" />
-                  <div>
-                    <p className="text-sm font-medium">Parada de origen</p>
-                    <p className="text-xs text-muted-foreground">Solo carga de mercancía</p>
-                  </div>
-                </>
-              )}
-              {displayStop.stopCategory === "waypoint" && (
-                <>
-                  <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Escala intermedia</p>
-                    <p className="text-xs text-muted-foreground">Carga, descarga o ambas</p>
-                  </div>
-                </>
-              )}
-              {displayStop.stopCategory === "destination" && (
-                <>
-                  <Flag className="h-5 w-5 shrink-0 text-destructive" />
-                  <div>
-                    <p className="text-sm font-medium">Parada de destino</p>
-                    <p className="text-xs text-muted-foreground">Solo descarga de mercancía</p>
-                  </div>
-                </>
-              )}
-          </div>
+          <StopFormSheetCategorySection
+            displayStop={displayStop}
+            getAvailableOperations={getAvailableOperations}
+            onOperationToggle={handleOperationToggle}
+          />
 
-          {displayStop.stopCategory === "waypoint" && (
-            <div className="space-y-2">
-              <Label className="text-sm">Operaciones en esta parada *</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {getAvailableOperations().map((option) => {
-                  const OpIcon = option.icon;
-                  const isChecked =
-                    displayStop.stopType?.includes(
-                      option.value as TripStopFormValues["stopType"][number],
-                    ) ?? false;
-
-                  return (
-                    <div
-                      key={option.value}
-                      className={cn(
-                        "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors",
-                        isChecked && "border-primary bg-primary/5",
-                      )}
-                      onClick={() => handleOperationToggle(option.value)}
-                    >
-                      <Checkbox
-                        id={`operation-${option.value}`}
-                        checked={isChecked}
-                        onCheckedChange={() => {}}
-                      />
-                      <label
-                        htmlFor={`operation-${option.value}`}
-                        className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
-                      >
-                        <OpIcon className={cn("h-4 w-4", option.color)} />
-                        {option.label}
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          </FormSectionCard>
-
-          <FormSectionCard
-            title="Origen de la dirección"
-            icon={<Building2 className="h-4 w-4" />}
-            description="Reutiliza una dirección del cliente o captura una nueva. Si modificas un domicilio precargado, al guardar podrás actualizar el catálogo del cliente o usarlo solo en esta parada."
-            contentClassName="space-y-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="useClientAddressPrefill" className="cursor-pointer text-sm">
-                Precargar dirección desde cliente
-              </Label>
-              <Switch
-                id="useClientAddressPrefill"
-                checked={useClientAddressPrefill}
-                onCheckedChange={handleClientAddressPrefillToggle}
-              />
-            </div>
-
-            {useClientAddressPrefill && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="stop-client">Cliente</Label>
-                  <Select
-                    value={displayStop.clientId || "no-client"}
-                    onValueChange={handleClientChange}
-                  >
-                    <SelectTrigger id="stop-client">
-                      <SelectValue placeholder="Seleccionar cliente..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no-client">Sin cliente</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.legalName}
-                          {client.tradeName && ` (${client.tradeName})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {displayStop.clientId && clientAddresses.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="stop-client-address">Dirección del cliente</Label>
-                    <Select
-                      value={displayStop.clientAddressId || "manual-entry"}
-                      onValueChange={handleAddressSelect}
-                    >
-                      <SelectTrigger id="stop-client-address">
-                        <SelectValue placeholder="Seleccionar dirección..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual-entry">Ingresar manualmente</SelectItem>
-                        {clientAddresses.map((address) => {
-                          const geoPending =
-                            address.geolocationPending ||
-                            address.latitude == null ||
-                            address.longitude == null;
-                          return (
-                            <SelectItem key={address.id} value={address.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {address.locationName || address.address}
-                                  {geoPending ? " · Geo pendiente" : ""}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {address.city}
-                                  {address.state && `, ${address.state}`} -{" "}
-                                  {ADDRESS_TYPE_LABELS[address.addressType]}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {displayStop.clientId && clientAddresses.length === 0 && (
-                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Este cliente no tiene direcciones registradas — captura manualmente.
-                  </p>
-                )}
-              </div>
-            )}
-          </FormSectionCard>
+          <StopFormSheetAddressOriginSection
+            useClientAddressPrefill={useClientAddressPrefill}
+            onClientAddressPrefillToggle={handleClientAddressPrefillToggle}
+            displayStop={displayStop}
+            clients={clients}
+            clientAddresses={clientAddresses}
+            onClientChange={handleClientChange}
+            onAddressSelect={handleAddressSelect}
+          />
 
           {showMissingGeolocationNotice ? (
             <Alert variant="warning">
