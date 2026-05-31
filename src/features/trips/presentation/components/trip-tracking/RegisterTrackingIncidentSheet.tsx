@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { useRegisterTrackingEvent } from "@features/trips/application";
@@ -57,12 +57,11 @@ function randomIdempotencyKey() {
     : undefined;
 }
 
-export function RegisterTrackingIncidentSheet({
+function RegisterTrackingIncidentSheetBody({
   tripId,
   referenceStop,
-  open,
   onOpenChange,
-}: RegisterTrackingIncidentSheetProps) {
+}: Omit<RegisterTrackingIncidentSheetProps, "open">) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [description, setDescription] = useState("");
@@ -84,16 +83,6 @@ export function RegisterTrackingIncidentSheet({
       });
     },
   });
-
-  useEffect(() => {
-    if (!open) return;
-    setOccurredAt(defaultOccurredAtLocal());
-    setDescription("");
-    setSeverity("medium");
-    setRequiresAssistance(false);
-    setGps(null);
-    setFieldError(null);
-  }, [open]);
 
   const handleSubmit = () => {
     if (!description.trim()) {
@@ -124,20 +113,8 @@ export function RegisterTrackingIncidentSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            Registrar incidente
-          </SheetTitle>
-          <SheetDescription>
-            Documenta un evento adverso en el timeline. Marca si requiere asistencia
-            inmediata.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-4 py-2">
+    <>
+      <div className="flex-1 space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="tracking-incident-occurred-at">Fecha y hora</Label>
             <div className="flex flex-wrap gap-2">
@@ -234,6 +211,38 @@ export function RegisterTrackingIncidentSheet({
             Registrar incidente
           </Button>
         </SheetFooter>
+    </>
+  );
+}
+
+export function RegisterTrackingIncidentSheet({
+  tripId,
+  referenceStop,
+  open,
+  onOpenChange,
+}: RegisterTrackingIncidentSheetProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Registrar incidente
+          </SheetTitle>
+          <SheetDescription>
+            Documenta un evento adverso en el timeline. Marca si requiere asistencia
+            inmediata.
+          </SheetDescription>
+        </SheetHeader>
+
+        {open ? (
+          <RegisterTrackingIncidentSheetBody
+            key="tracking-incident"
+            tripId={tripId}
+            referenceStop={referenceStop}
+            onOpenChange={onOpenChange}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );

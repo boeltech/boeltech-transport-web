@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StickyNote } from "lucide-react";
 
 import { useRegisterTrackingEvent } from "@features/trips/application";
@@ -42,12 +42,11 @@ function randomIdempotencyKey() {
     : undefined;
 }
 
-export function RegisterTrackingNoteSheet({
+function RegisterTrackingNoteSheetBody({
   tripId,
   referenceStop,
-  open,
   onOpenChange,
-}: RegisterTrackingNoteSheetProps) {
+}: Omit<RegisterTrackingNoteSheetProps, "open">) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [note, setNote] = useState("");
@@ -67,14 +66,6 @@ export function RegisterTrackingNoteSheet({
       });
     },
   });
-
-  useEffect(() => {
-    if (!open) return;
-    setOccurredAt(defaultOccurredAtLocal());
-    setNote("");
-    setGps(null);
-    setFieldError(null);
-  }, [open]);
 
   const handleSubmit = () => {
     if (!note.trim()) {
@@ -100,19 +91,8 @@ export function RegisterTrackingNoteSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <StickyNote className="h-5 w-5 text-primary" />
-            Nota operativa
-          </SheetTitle>
-          <SheetDescription>
-            Añade una anotación al timeline del viaje sin impacto fiscal directo.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-4 py-2">
+    <>
+      <div className="flex-1 space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="tracking-note-occurred-at">Fecha y hora</Label>
             <div className="flex flex-wrap gap-2">
@@ -174,6 +154,37 @@ export function RegisterTrackingNoteSheet({
             Guardar nota
           </Button>
         </SheetFooter>
+    </>
+  );
+}
+
+export function RegisterTrackingNoteSheet({
+  tripId,
+  referenceStop,
+  open,
+  onOpenChange,
+}: RegisterTrackingNoteSheetProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <StickyNote className="h-5 w-5 text-primary" />
+            Nota operativa
+          </SheetTitle>
+          <SheetDescription>
+            Añade una anotación al timeline del viaje sin impacto fiscal directo.
+          </SheetDescription>
+        </SheetHeader>
+
+        {open ? (
+          <RegisterTrackingNoteSheetBody
+            key="tracking-note"
+            tripId={tripId}
+            referenceStop={referenceStop}
+            onOpenChange={onOpenChange}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );

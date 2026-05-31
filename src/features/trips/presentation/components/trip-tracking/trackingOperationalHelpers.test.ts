@@ -8,37 +8,38 @@ import {
   resolveTrackingNextAction,
 } from "./trackingOperationalHelpers";
 
+const STOP_DEFAULTS = {
+  id: "stop-1",
+  tenantId: "tenant-1",
+  tripId: "trip-1",
+  sequenceOrder: 1,
+  stopType: [StopType.ORIGIN],
+  addressId: null,
+  clientId: null,
+  clientAddressId: null,
+  address: "",
+  city: "",
+  state: null,
+  postalCode: null,
+  latitude: null,
+  longitude: null,
+  locationName: null,
+  contactName: null,
+  contactPhone: null,
+  estimatedArrival: null,
+  actualArrival: null,
+  estimatedDeparture: null,
+  actualDeparture: null,
+  status: "pending",
+  notes: null,
+  idUbicacion: null,
+  rfcRemitenteDestinatario: null,
+  distanceFromPreviousKm: null,
+  distanceSource: null,
+} as const;
+
 function stop(overrides: Partial<TripStop> & Pick<TripStop, "id" | "sequenceOrder" | "stopType">): TripStop {
-  return {
-    id: "stop-1",
-    tenantId: "tenant-1",
-    tripId: "trip-1",
-    sequenceOrder: 1,
-    stopType: [StopType.ORIGIN],
-    addressId: null,
-    clientId: null,
-    clientAddressId: null,
-    address: "",
-    city: "",
-    state: null,
-    postalCode: null,
-    latitude: null,
-    longitude: null,
-    locationName: null,
-    contactName: null,
-    contactPhone: null,
-    estimatedArrival: null,
-    actualArrival: null,
-    estimatedDeparture: null,
-    actualDeparture: null,
-    status: "pending",
-    notes: null,
-    idUbicacion: null,
-    rfcRemitenteDestinatario: null,
-    distanceFromPreviousKm: null,
-    distanceSource: null,
-    ...overrides,
-  } as TripStop;
+  return { ...STOP_DEFAULTS, ...overrides } as TripStop;
 }
 
 describe("trackingOperationalHelpers", () => {

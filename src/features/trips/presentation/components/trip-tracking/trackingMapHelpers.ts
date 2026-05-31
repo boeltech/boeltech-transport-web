@@ -22,19 +22,19 @@ const ROUTE_SOURCE_ID = "trip-tracking-route-source";
 export { ROUTE_LAYER_ID, ROUTE_SOURCE_ID };
 
 export function buildStopMarkers(stops: readonly TripStop[]): TrackingMapStopMarker[] {
-  return stops
-    .map((stop, index) => {
-      if (stop.latitude == null || stop.longitude == null) return null;
-      return {
-        id: stop.id,
-        order: index + 1,
-        latitude: stop.latitude,
-        longitude: stop.longitude,
-        label: stop.locationName || `Parada ${index + 1}`,
-        sublabel: stop.city || stop.address || undefined,
-      };
-    })
-    .filter((item): item is TrackingMapStopMarker => item != null);
+  const markers: TrackingMapStopMarker[] = [];
+  for (const [index, stop] of stops.entries()) {
+    if (stop.latitude == null || stop.longitude == null) continue;
+    markers.push({
+      id: stop.id,
+      order: index + 1,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      label: stop.locationName || `Parada ${index + 1}`,
+      sublabel: stop.city || stop.address || undefined,
+    });
+  }
+  return markers;
 }
 
 export function buildEventMarkers(
@@ -51,7 +51,7 @@ export function buildEventMarkers(
 }
 
 export function isRouteGeoJson(
-  value: Record<string, unknown> | null | undefined,
+  value: unknown,
 ): value is GeoJSON.FeatureCollection | GeoJSON.Feature | GeoJSON.Geometry {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: string }).type;

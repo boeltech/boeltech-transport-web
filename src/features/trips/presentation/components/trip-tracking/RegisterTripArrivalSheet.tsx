@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import type { TripStop } from "@features/trips/domain";
@@ -56,17 +56,21 @@ function randomIdempotencyKey() {
     : undefined;
 }
 
-export function RegisterTripArrivalSheet({
+type RegisterTripArrivalSheetBodyProps = Omit<RegisterTripArrivalSheetProps, "open" | "displayOrder"> & {
+  title: string;
+  tooltip?: string;
+};
+
+function RegisterTripArrivalSheetBody({
   tripId,
   tripCode,
   vehicleId,
   tripStartMileage,
   destinationStop,
-  displayOrder,
-  open,
   onOpenChange,
   onSuccess,
-}: RegisterTripArrivalSheetProps) {
+  tooltip,
+}: RegisterTripArrivalSheetBodyProps) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
@@ -74,7 +78,7 @@ export function RegisterTripArrivalSheet({
   const [closureNotes, setClosureNotes] = useState("");
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(vehicleId ?? "", {
-    enabled: !!vehicleId && open,
+    enabled: !!vehicleId,
   });
 
   const suggestedMileage = resolveSuggestedStartMileage(
@@ -101,23 +105,6 @@ export function RegisterTripArrivalSheet({
       });
     },
   });
-
-  useEffect(() => {
-    if (!open) return;
-    setOccurredAt(defaultOccurredAtLocal());
-    setGps(null);
-    setTimeError(null);
-    setClosureNotes("");
-  }, [open, tripId, destinationStop?.id]);
-
-  const title = formatTripArrivalButtonLabel(
-    destinationStop ?? undefined,
-    displayOrder,
-  );
-  const tooltip =
-    destinationStop && displayOrder != null
-      ? formatStopActionTooltip(destinationStop, displayOrder)
-      : undefined;
 
   const handleConfirm = () => {
     const parsed = mileageField.parseValue();
@@ -173,31 +160,12 @@ export function RegisterTripArrivalSheet({
         : null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-start gap-2 pr-6">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="inline-flex items-center gap-1.5">
-              {title}
-              <HintIcon label="Finalizar viaje">
-                Registra el evento fiscal de llegada final, cierra cargas y costos
-                operativos, libera unidad y conductor, y marca el viaje como completado.
-                Requiere odómetro final.
-              </HintIcon>
-            </span>
-          </SheetTitle>
-          <SheetDescription>
-            Captura la hora de cierre, el odómetro final y, si aplica, la ubicación
-            del evento.
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      {tooltip ? (
+        <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
+      ) : null}
 
-        {tooltip ? (
-          <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
-        ) : null}
-
-        <div className="flex-1 space-y-4 py-2">
+      <div className="flex-1 space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="trip-arrival-occurred-at">Fecha y hora de llegada</Label>
             <div className="flex flex-wrap gap-2">
@@ -283,6 +251,65 @@ export function RegisterTripArrivalSheet({
             Finalizar viaje
           </Button>
         </SheetFooter>
+    </>
+  );
+}
+
+export function RegisterTripArrivalSheet({
+  tripId,
+  tripCode,
+  vehicleId,
+  tripStartMileage,
+  destinationStop,
+  displayOrder,
+  open,
+  onOpenChange,
+  onSuccess,
+}: RegisterTripArrivalSheetProps) {
+  const title = formatTripArrivalButtonLabel(
+    destinationStop ?? undefined,
+    displayOrder,
+  );
+  const tooltip =
+    destinationStop && displayOrder != null
+      ? formatStopActionTooltip(destinationStop, displayOrder)
+      : undefined;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="flex items-start gap-2 pr-6">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <span className="inline-flex items-center gap-1.5">
+              {title}
+              <HintIcon label="Finalizar viaje">
+                Registra el evento fiscal de llegada final, cierra cargas y costos
+                operativos, libera unidad y conductor, y marca el viaje como completado.
+                Requiere odómetro final.
+              </HintIcon>
+            </span>
+          </SheetTitle>
+          <SheetDescription>
+            Captura la hora de cierre, el odómetro final y, si aplica, la ubicación
+            del evento.
+          </SheetDescription>
+        </SheetHeader>
+
+        {open ? (
+          <RegisterTripArrivalSheetBody
+            key={`${tripId}-${destinationStop?.id ?? "trip"}`}
+            tripId={tripId}
+            tripCode={tripCode}
+            vehicleId={vehicleId}
+            tripStartMileage={tripStartMileage}
+            destinationStop={destinationStop}
+            onOpenChange={onOpenChange}
+            onSuccess={onSuccess}
+            title={title}
+            tooltip={tooltip}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );

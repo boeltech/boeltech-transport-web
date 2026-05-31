@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MapPin, Navigation } from "lucide-react";
 
 import type { TripStop } from "@features/trips/domain";
@@ -50,14 +50,19 @@ function randomIdempotencyKey() {
     : undefined;
 }
 
-export function RegisterStopTrackingEventSheet({
+type RegisterStopTrackingEventSheetBodyProps = {
+  tripId: string;
+  mode: StopTrackingEventMode;
+  stop: TripStop;
+  onOpenChange: (open: boolean) => void;
+};
+
+function RegisterStopTrackingEventSheetBody({
   tripId,
   mode,
   stop,
-  displayOrder,
-  open,
   onOpenChange,
-}: RegisterStopTrackingEventSheetProps) {
+}: RegisterStopTrackingEventSheetBodyProps) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [notes, setNotes] = useState("");
@@ -78,26 +83,7 @@ export function RegisterStopTrackingEventSheet({
     },
   });
 
-  useEffect(() => {
-    if (!open) return;
-    setOccurredAt(defaultOccurredAtLocal());
-    setNotes("");
-    setGps(null);
-    setFieldError(null);
-  }, [open, mode, stop?.id]);
-
-  const title =
-    mode === "arrival"
-      ? formatArrivalButtonLabel(stop ?? undefined, displayOrder)
-      : formatDepartureButtonLabel(stop ?? undefined, displayOrder);
-
-  const tooltip =
-    stop && displayOrder != null
-      ? formatStopActionTooltip(stop, displayOrder)
-      : undefined;
-
   const handleSubmit = () => {
-    if (!stop) return;
     if (!occurredAt.trim()) {
       setFieldError("Indica la fecha y hora del evento.");
       return;
@@ -116,6 +102,94 @@ export function RegisterStopTrackingEventSheet({
       },
     });
   };
+
+  return (
+    <>
+      <div className="flex-1 space-y-4 py-2">
+        <div className="space-y-2">
+          <Label htmlFor="tracking-event-occurred-at">Fecha y hora del evento</Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id="tracking-event-occurred-at"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              disabled={registerMutation.isPending}
+              aria-invalid={fieldError ? true : undefined}
+              className="min-w-[220px] flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
+              disabled={registerMutation.isPending}
+            >
+              Ahora
+            </Button>
+          </div>
+          {fieldError ? (
+            <p className="text-xs text-destructive">{fieldError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Hora civil México (mismo criterio que el wizard de viajes).
+            </p>
+          )}
+        </div>
+
+        <TrackingGpsCaptureSection
+          stop={stop}
+          value={gps}
+          onChange={setGps}
+          disabled={registerMutation.isPending}
+        />
+
+        <div className="space-y-2">
+          <Label htmlFor="tracking-event-notes">Notas (opcional)</Label>
+          <Textarea
+            id="tracking-event-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={registerMutation.isPending}
+            rows={3}
+            placeholder="Observaciones operativas…"
+          />
+        </div>
+      </div>
+
+      <SheetFooter className="gap-2 sm:gap-0">
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={registerMutation.isPending}
+        >
+          Cancelar
+        </Button>
+        <Button onClick={handleSubmit} disabled={registerMutation.isPending}>
+          Registrar
+        </Button>
+      </SheetFooter>
+    </>
+  );
+}
+
+export function RegisterStopTrackingEventSheet({
+  tripId,
+  mode,
+  stop,
+  displayOrder,
+  open,
+  onOpenChange,
+}: RegisterStopTrackingEventSheetProps) {
+  const title =
+    mode === "arrival"
+      ? formatArrivalButtonLabel(stop ?? undefined, displayOrder)
+      : formatDepartureButtonLabel(stop ?? undefined, displayOrder);
+
+  const tooltip =
+    stop && displayOrder != null
+      ? formatStopActionTooltip(stop, displayOrder)
+      : undefined;
 
   const Icon = mode === "arrival" ? MapPin : Navigation;
 
@@ -138,73 +212,15 @@ export function RegisterStopTrackingEventSheet({
           <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
         ) : null}
 
-        <div className="flex-1 space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="tracking-event-occurred-at">Fecha y hora del evento</Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id="tracking-event-occurred-at"
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-                disabled={registerMutation.isPending}
-                aria-invalid={fieldError ? true : undefined}
-                className="min-w-[220px] flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-                disabled={registerMutation.isPending}
-              >
-                Ahora
-              </Button>
-            </div>
-            {fieldError ? (
-              <p className="text-xs text-destructive">{fieldError}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Hora civil México (mismo criterio que el wizard de viajes).
-              </p>
-            )}
-          </div>
-
-          <TrackingGpsCaptureSection
+        {open && stop ? (
+          <RegisterStopTrackingEventSheetBody
+            key={`${mode}-${stop.id}`}
+            tripId={tripId}
+            mode={mode}
             stop={stop}
-            value={gps}
-            onChange={setGps}
-            disabled={registerMutation.isPending}
+            onOpenChange={onOpenChange}
           />
-
-          <div className="space-y-2">
-            <Label htmlFor="tracking-event-notes">Notas (opcional)</Label>
-            <Textarea
-              id="tracking-event-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={registerMutation.isPending}
-              rows={3}
-              placeholder="Observaciones operativas…"
-            />
-          </div>
-        </div>
-
-        <SheetFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={registerMutation.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!stop || registerMutation.isPending}
-          >
-            Registrar
-          </Button>
-        </SheetFooter>
+        ) : null}
       </SheetContent>
     </Sheet>
   );
