@@ -28,6 +28,7 @@ type AddressFormShape = {
     satStateCode: string;
     satMunicipalityCode: string;
     satLocalityCode: string;
+    localityName: string;
     satNeighborhoodCode: string;
     neighborhoodName: string;
     latitude: number | null;
@@ -39,6 +40,8 @@ type AddressFormShape = {
 function TestHarness(props: {
   onCartaPorteReadyChange?: (ready: boolean) => void;
   initialAddress?: Partial<AddressFormShape["address"]>;
+  formContext?: "billingOnCreate";
+  addressType?: string;
 }) {
   const form = useForm<AddressFormShape>({
     defaultValues: {
@@ -53,6 +56,7 @@ function TestHarness(props: {
         satStateCode: "",
         satMunicipalityCode: "",
         satLocalityCode: "",
+        localityName: "",
         satNeighborhoodCode: "",
         neighborhoodName: "",
         latitude: null,
@@ -65,7 +69,9 @@ function TestHarness(props: {
 
   return (
     <AddressInput
-      mode="carta-porte"
+      variant="carta-porte"
+      formContext={props.formContext}
+      addressType={props.addressType}
       control={form.control}
       namePrefix="address"
       onCartaPorteReadyChange={props.onCartaPorteReadyChange}
@@ -75,7 +81,7 @@ function TestHarness(props: {
 }
 
 describe("AddressInput", () => {
-  it("shows warning when SAT lookup has no complete neighborhood data", () => {
+  it("sin colonias en lookup: guía por placeholder manual, sin banner de validación", () => {
     vi.mocked(usePostalCodeLookup).mockReturnValue({
       data: {
         found: true,
@@ -104,10 +110,11 @@ describe("AddressInput", () => {
     render(<TestHarness />);
 
     expect(
-      screen.getByText(
-        /si tampoco hay resultados, captura colonia manual/i,
-      ),
+      screen.getByPlaceholderText(/captura colonia manual/i),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/si tampoco hay resultados, captura colonia manual/i),
+    ).not.toBeInTheDocument();
   });
 
   it("emits carta porte readiness callback", async () => {
@@ -168,7 +175,7 @@ describe("AddressInput", () => {
     expect(onReadyChange).toHaveBeenLastCalledWith(false);
   });
 
-  it("keeps manual neighborhood input when lookup returns catalog options", () => {
+  it("shows catalog colonia select and manual input when lookup has neighborhoods", () => {
     vi.mocked(usePostalCodeLookup).mockReturnValue({
       data: {
         found: true,
@@ -206,7 +213,124 @@ describe("AddressInput", () => {
     );
 
     expect(screen.getByDisplayValue("Colonia capturada manual")).toBeInTheDocument();
-    expect(screen.queryByText(/selecciona colonia/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/selecciona colonia/i)).toBeInTheDocument();
+  });
+
+  it("always shows manual locality input even when lookup has no localities", () => {
+    vi.mocked(usePostalCodeLookup).mockReturnValue({
+      data: {
+        found: true,
+        postalCode: "44100",
+        stateCode: "JAL",
+        stateName: "Jalisco",
+        municipalityCode: "039",
+        municipalityName: "Guadalajara",
+        localities: [],
+        neighborhoods: [],
+      } satisfies PostalCodeLookupResult,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof usePostalCodeLookup>);
+
+    vi.mocked(useSatCatalogs).mockReturnValue({
+      countries: [{ code: "MEX", name: "Mexico" }],
+      states: [{ code: "JAL", name: "Jalisco" }],
+      municipalities: [{ code: "039", name: "Guadalajara" }],
+      neighborhoodsByPostalCode: [],
+      isLoadingStates: false,
+      isLoadingMunicipalities: false,
+      isLoadingNeighborhoodsByPostalCode: false,
+    });
+
+    render(<TestHarness />);
+
+    expect(screen.getByPlaceholderText(/captura localidad manual/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/captura colonia manual/i)).toBeInTheDocument();
+  });
+
+  it("does not mark street as required in carta-porte billing profile", () => {
+    vi.mocked(usePostalCodeLookup).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof usePostalCodeLookup>);
+
+    vi.mocked(useSatCatalogs).mockReturnValue({
+      countries: [{ code: "MEX", name: "Mexico" }],
+      states: [],
+      municipalities: [],
+      neighborhoodsByPostalCode: [],
+      isLoadingStates: false,
+      isLoadingMunicipalities: false,
+      isLoadingNeighborhoodsByPostalCode: false,
+    });
+
+    render(
+      <TestHarness
+        formContext="billingOnCreate"
+        addressType="billing"
+      />,
+    );
+
+    const streetLabel = document.querySelector('label[for="address-street"]');
+    expect(streetLabel?.textContent?.trim()).toBe("Calle");
+    expect(streetLabel?.textContent).not.toMatch(/\*/);
+  });
+
+  it("marks street as required for branch context with carta-porte variant", () => {
+    vi.mocked(usePostalCodeLookup).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof usePostalCodeLookup>);
+
+    vi.mocked(useSatCatalogs).mockReturnValue({
+      countries: [{ code: "MEX", name: "Mexico" }],
+      states: [],
+      municipalities: [],
+      neighborhoodsByPostalCode: [],
+      isLoadingStates: false,
+      isLoadingMunicipalities: false,
+      isLoadingNeighborhoodsByPostalCode: false,
+    });
+
+    function BranchHarness() {
+      const form = useForm<AddressFormShape>({
+        defaultValues: {
+          address: {
+            addressType: "branch",
+            street: "",
+            exteriorNumber: "",
+            interiorNumber: "",
+            reference: "",
+            postalCode: "",
+            satCountryCode: "MEX",
+            satStateCode: "",
+            satMunicipalityCode: "",
+            satLocalityCode: "",
+            localityName: "",
+            satNeighborhoodCode: "",
+            neighborhoodName: "",
+            latitude: null,
+            longitude: null,
+            isPrimary: false,
+          },
+        },
+      });
+
+      return (
+        <AddressInput
+          variant="carta-porte"
+          addressType="branch"
+          control={form.control}
+          namePrefix="address"
+          showPrimaryToggle
+        />
+      );
+    }
+
+    render(<BranchHarness />);
+    expect(screen.getByText(/^Calle \*$/)).toBeInTheDocument();
   });
 
   it("keeps only numeric values in postal code input", async () => {

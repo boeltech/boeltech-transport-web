@@ -10,6 +10,8 @@
  * - FormPageShell      → edición simple (no wizard)
  * - WizardPageShell    → creación por pasos
  * - SettingsPageShell  → wrapper sobre SettingsLayout
+ *
+ * Guía wizards: ./README.md
  */
 
 export { ListPageShell } from "./ListPageShell";
@@ -36,6 +38,7 @@ export type {
   WizardFormRef,
   WizardPageShellHeader,
   WizardPageShellProps,
+  WizardStepRenderHelpers,
 } from "./WizardPageShell";
 
 export { SettingsPageShell } from "./SettingsPageShell";

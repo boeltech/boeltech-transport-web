@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -16,6 +16,18 @@ const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const DEFAULT_ZOOM = 4.5;
 const FOCUS_ZOOM = 15;
 
+function scheduleMapResize(map: mapboxgl.Map) {
+  requestAnimationFrame(() => {
+    map.resize();
+  });
+}
+
+/** Tras salir de `display:none` (wizard/tabs), un frame extra ayuda a medir bien el contenedor. */
+function scheduleMapResizeAfterReveal(map: mapboxgl.Map) {
+  scheduleMapResize(map);
+  requestAnimationFrame(() => scheduleMapResize(map));
+}
+
 export function AddressGeolocationMap({
   token,
   latitude,
@@ -24,15 +36,52 @@ export function AddressGeolocationMap({
   disabled = false,
   className,
 }: AddressGeolocationMapProps) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const onCoordinatesChangeRef = useRef(onCoordinatesChange);
+  const disabledRef = useRef(disabled);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    onCoordinatesChangeRef.current = onCoordinatesChange;
+  }, [onCoordinatesChange]);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+  }, [disabled]);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting);
+        setIsVisible(visible);
+        if (visible && mapRef.current) {
+          scheduleMapResizeAfterReveal(mapRef.current);
+        }
+      },
+      { threshold: 0 },
+    );
+    intersectionObserver.observe(shell);
+
+    return () => intersectionObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible || mapRef.current) return;
+
+    const container = containerRef.current;
+    const shell = shellRef.current;
+    if (!container || !shell) return;
+
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
-      container: containerRef.current,
+      container,
       style: "mapbox://styles/mapbox/streets-v12",
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
@@ -42,26 +91,40 @@ export function AddressGeolocationMap({
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
     map.on("click", (event) => {
-      if (disabled) return;
+      if (disabledRef.current) return;
       const coords = {
         latitude: Number(event.lngLat.lat.toFixed(6)),
         longitude: Number(event.lngLat.lng.toFixed(6)),
       };
-      onCoordinatesChange(coords);
+      onCoordinatesChangeRef.current(coords);
     });
 
+    const resize = () => scheduleMapResize(map);
+    map.on("load", resize);
+
+    const resizeObserver = new ResizeObserver(() => resize());
+    resizeObserver.observe(shell);
+    resizeObserverRef.current = resizeObserver;
+
     mapRef.current = map;
+    scheduleMapResizeAfterReveal(map);
+  }, [isVisible, token]);
+
+  useEffect(() => {
     return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       markerRef.current?.remove();
       markerRef.current = null;
-      map.remove();
+      mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [disabled, onCoordinatesChange, token]);
+  }, [token]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !isVisible) return;
+
     const hasCoordinates = latitude != null && longitude != null;
 
     if (!hasCoordinates) {
@@ -76,28 +139,35 @@ export function AddressGeolocationMap({
         .setLngLat(lngLat)
         .addTo(map);
       marker.on("dragend", () => {
-        if (disabled) return;
+        if (disabledRef.current) return;
         const dragged = marker.getLngLat();
-        onCoordinatesChange({
+        onCoordinatesChangeRef.current({
           latitude: Number(dragged.lat.toFixed(6)),
           longitude: Number(dragged.lng.toFixed(6)),
         });
       });
       markerRef.current = marker;
       map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 700 });
+      scheduleMapResize(map);
       return;
     }
 
     markerRef.current.setDraggable(!disabled);
     markerRef.current.setLngLat(lngLat);
     map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 500 });
-  }, [disabled, latitude, longitude, onCoordinatesChange]);
+    scheduleMapResize(map);
+  }, [disabled, isVisible, latitude, longitude]);
 
   return (
     <div
-      ref={containerRef}
-      className={cn("h-52 w-full overflow-hidden rounded-md border", className)}
-    />
+      ref={shellRef}
+      className={cn(
+        "relative h-52 w-full min-w-0 overflow-hidden rounded-md border bg-muted/30",
+        className,
+      )}
+    >
+      <div ref={containerRef} className="absolute inset-0 h-full w-full" />
+    </div>
   );
 }
 

@@ -11,7 +11,7 @@
  * - navegación (next, prev, click en step)
  * - scroll al inicio de la página al cambiar de paso
  * - confirmación final (valida todos los pasos previos)
- * - toast de "Revisa el formulario" cuando hay errores
+ * - deja el feedback de errores al formulario (inline + summary)
  *
  * El form debe exponer este ref para que el shell lo controle:
  *
@@ -27,6 +27,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -42,7 +43,6 @@ import {
   WizardSteps,
   type WizardStep,
 } from "@shared/ui/wizard";
-import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 
 // ============================================================================
@@ -54,6 +54,12 @@ export interface WizardFormRef {
   triggerStepValidation: (stepIndex: number) => Promise<boolean>;
   /** Disparar el submit del form. */
   requestSubmit: () => void;
+}
+
+/** Helpers expuestos a cada paso vía `renderStep` (p. ej. «Editar» en el resumen). */
+export interface WizardStepRenderHelpers {
+  /** Navega a un paso (0-indexed). No revalida pasos previos. */
+  goToStep: (stepIndex: number) => void;
 }
 
 export interface WizardPageShellHeader {
@@ -77,8 +83,14 @@ export interface WizardPageShellProps {
   header: WizardPageShellHeader;
 
   // ── Render del paso actual ────────────────────────────────────────────────
-  /** Recibe el índice del paso actual; retorna el JSX del paso. */
-  renderStep: (currentStep: number) => ReactNode;
+  /**
+   * Recibe el índice del paso actual y helpers de navegación.
+   * El shell siempre pasa `helpers`; otras features pueden ignorarlo.
+   */
+  renderStep: (
+    currentStep: number,
+    helpers?: WizardStepRenderHelpers,
+  ) => ReactNode;
 
   // ── Submit ────────────────────────────────────────────────────────────────
   isSubmitting: boolean;
@@ -100,6 +112,12 @@ export interface WizardPageShellProps {
   stepsAriaLabel?: string;
 
   className?: string;
+
+  /**
+   * Clases extra del contenedor principal según el paso activo.
+   * Útil para ensanchar solo el paso de revisión sin cambiar el resto del wizard.
+   */
+  resolveContainerClassName?: (currentStep: number) => string | undefined;
 }
 
 // ============================================================================
@@ -131,9 +149,9 @@ export const WizardPageShell = memo(function WizardPageShell({
   onHeaderBack,
   stepsAriaLabel = "Pasos del asistente",
   className,
+  resolveContainerClassName,
 }: WizardPageShellProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const isFirstStepRenderRef = useRef(true);
 
@@ -173,29 +191,13 @@ export const WizardPageShell = memo(function WizardPageShell({
     );
   }, [currentStep, lastStepIndex, formRef]);
 
-  const notifyValidationFailed = useCallback(() => {
-    toast({
-      title: "Revisa el formulario",
-      description: "Completa o corrige los campos obligatorios antes de continuar.",
-      variant: "destructive",
-    });
-  }, [toast]);
-
   const handleNext = useCallback(async () => {
     const ok = await validateCurrentStep();
-    if (!ok) {
-      notifyValidationFailed();
-      return;
-    }
+    if (!ok) return;
     if (currentStep < lastStepIndex) {
       setCurrentStep((s) => s + 1);
     }
-  }, [
-    validateCurrentStep,
-    currentStep,
-    lastStepIndex,
-    notifyValidationFailed,
-  ]);
+  }, [validateCurrentStep, currentStep, lastStepIndex]);
 
   const handlePrevious = useCallback(() => {
     if (currentStep > 0) setCurrentStep((s) => s - 1);
@@ -208,16 +210,13 @@ export const WizardPageShell = memo(function WizardPageShell({
         return;
       }
       const ok = await validateCurrentStep();
-      if (!ok) {
-        notifyValidationFailed();
-        return;
-      }
+      if (!ok) return;
       // Avance por clic: solo un paso a la vez (evita saltar datos obligatorios)
       setCurrentStep((prev) =>
         stepIndex > prev + 1 ? prev + 1 : stepIndex,
       );
     },
-    [currentStep, validateCurrentStep, notifyValidationFailed],
+    [currentStep, validateCurrentStep],
   );
 
   const handleConfirm = useCallback(async () => {
@@ -226,19 +225,33 @@ export const WizardPageShell = memo(function WizardPageShell({
       const ok = (await formRef.current?.triggerStepValidation(i)) ?? false;
       if (!ok) {
         setCurrentStep(i);
-        toast({
-          title: "Revisa el formulario",
-          description: "Corrige los errores en este paso antes de continuar.",
-          variant: "destructive",
-        });
         return;
       }
     }
     formRef.current?.requestSubmit();
-  }, [lastStepIndex, formRef, toast]);
+  }, [lastStepIndex, formRef]);
+
+  const goToStep = useCallback(
+    (stepIndex: number) => {
+      if (stepIndex < 0 || stepIndex > lastStepIndex) return;
+      setCurrentStep(stepIndex);
+    },
+    [lastStepIndex],
+  );
+
+  const stepRenderHelpers = useMemo<WizardStepRenderHelpers>(
+    () => ({ goToStep }),
+    [goToStep],
+  );
 
   return (
-    <div className={cn("mx-auto max-w-4xl space-y-6 p-6 pb-24", className)}>
+    <div
+      className={cn(
+        "mx-auto max-w-4xl space-y-6 p-6 pb-24",
+        resolveContainerClassName?.(currentStep),
+        className,
+      )}
+    >
       {/* ====================================================================
        * Header
        * ================================================================== */}
@@ -295,7 +308,7 @@ export const WizardPageShell = memo(function WizardPageShell({
             {steps[currentStep]?.title}
           </CardTitle>
         </CardHeader>
-        <CardContent>{renderStep(currentStep)}</CardContent>
+        <CardContent>{renderStep(currentStep, stepRenderHelpers)}</CardContent>
       </Card>
 
       {/* ====================================================================

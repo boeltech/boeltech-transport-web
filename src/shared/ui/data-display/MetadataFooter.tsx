@@ -18,10 +18,17 @@ export interface MetadataFooterProps {
   createdAt?: string | Date;
   /** Fecha de última actualización (Date o ISO string). */
   updatedAt?: string | Date;
-  /** Usuario que creó/actualizó (texto plano). */
+  /** Nombre del usuario que creó la entidad (texto plano). */
   createdBy?: string;
+  /**
+   * Nombre del usuario que realizó la última edición.
+   * Si coincide con `createdBy` o no se provee, no se renderiza (evita ruido).
+   */
+  updatedBy?: string;
   /** Etiqueta para createdBy ("Por:", "Creado por:", etc.). */
   byLabel?: string;
+  /** Etiqueta para updatedBy cuando difiera del creador. */
+  updatedByLabel?: string;
 }
 
 // ============================================================================
@@ -42,12 +49,25 @@ export function MetadataFooter({
   createdAt,
   updatedAt,
   createdBy,
+  updatedBy,
   byLabel = "Por:",
+  updatedByLabel = "Última edición por:",
 }: MetadataFooterProps) {
   const createdIso = toIso(createdAt);
   const updatedIso = toIso(updatedAt);
 
-  if (!createdIso && !updatedIso && !createdBy) {
+  const createdByNormalized = createdBy?.trim() || undefined;
+  const updatedByNormalized = updatedBy?.trim() || undefined;
+  // Mostrar "Última edición por" solo si difiere del creador y existe.
+  const showUpdatedBy =
+    !!updatedByNormalized && updatedByNormalized !== createdByNormalized;
+
+  if (
+    !createdIso &&
+    !updatedIso &&
+    !createdByNormalized &&
+    !showUpdatedBy
+  ) {
     return null;
   }
 
@@ -59,9 +79,14 @@ export function MetadataFooter({
           {updatedIso ? (
             <span>Actualizado: {formatDateTime(updatedIso)}</span>
           ) : null}
-          {createdBy ? (
+          {createdByNormalized ? (
             <span>
-              {byLabel} {createdBy}
+              {byLabel} {createdByNormalized}
+            </span>
+          ) : null}
+          {showUpdatedBy ? (
+            <span>
+              {updatedByLabel} {updatedByNormalized}
             </span>
           ) : null}
         </div>

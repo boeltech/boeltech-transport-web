@@ -1,9 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { cn } from "@shared/lib/utils/cn";
 import { config } from "@shared/config";
@@ -52,8 +59,34 @@ export interface AddressGeolocationPanelProps {
   readonly showDistanceSection?: boolean;
   /** Permite calcular tramo y mostrar controles accionables de distancia. */
   readonly distanceEditable?: boolean;
+  /** Deshabilita mapa, búsqueda y coordenadas (p. ej. catálogo con geo ya guardada). */
+  readonly coordinatesDisabled?: boolean;
+  /** Deshabilita solo el bloque «Distancia del tramo» (por defecto sigue `disabled`). */
+  readonly distanceDisabled?: boolean;
   readonly disabled?: boolean;
   readonly className?: string;
+  /**
+   * Sin borde/card propio: el título vive en la sección padre (`Confirmación Geográfica`).
+   */
+  readonly embedded?: boolean;
+}
+
+function buildGeocodingCandidateValue(
+  candidate: GeocodingCandidate,
+  index: number,
+): string {
+  return `geo-${index}-${candidate.position.latitude.toFixed(6)}-${candidate.position.longitude.toFixed(6)}`;
+}
+
+function geocodingCoordsMatch(
+  a: LatLng,
+  b: LatLng,
+  epsilon = 1e-5,
+): boolean {
+  return (
+    Math.abs(a.latitude - b.latitude) < epsilon &&
+    Math.abs(a.longitude - b.longitude) < epsilon
+  );
 }
 
 export function AddressGeolocationPanel({
@@ -68,9 +101,14 @@ export function AddressGeolocationPanel({
   showSearchControls = true,
   showDistanceSection,
   distanceEditable = true,
+  coordinatesDisabled,
+  distanceDisabled,
   disabled = false,
   className,
+  embedded = false,
 }: AddressGeolocationPanelProps) {
+  const mapAndCoordsDisabled = coordinatesDisabled ?? disabled;
+  const segmentDistanceDisabled = distanceDisabled ?? disabled;
   const providers = useMemo(() => createGeoProviderBundle(), []);
   const geocodeUseCase = useMemo(
     () => new ResolveStopGeolocationUseCase(providers.geocodingProvider),
@@ -83,6 +121,7 @@ export function AddressGeolocationPanel({
 
   const [manualSearchText, setManualSearchText] = useState("");
   const [candidates, setCandidates] = useState<GeocodingCandidate[]>([]);
+  const [selectedCandidateValue, setSelectedCandidateValue] = useState("");
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [distanceError, setDistanceError] = useState<string | null>(null);
   const [distanceMeta, setDistanceMeta] = useState<{
@@ -102,6 +141,7 @@ export function AddressGeolocationPanel({
   const handleSearch = async () => {
     setIsGeocoding(true);
     setGeocodeError(null);
+    setSelectedCandidateValue("");
     setCandidates([]);
     try {
       const outcome = await geocodeUseCase.execute(
@@ -126,10 +166,34 @@ export function AddressGeolocationPanel({
     }
   };
 
-  const handleSelectCandidate = (candidate: GeocodingCandidate) => {
+  const handleSelectCandidate = (candidate: GeocodingCandidate, index: number) => {
+    setSelectedCandidateValue(buildGeocodingCandidateValue(candidate, index));
     onCoordinatesChange(candidate.position);
     setGeocodeError(null);
   };
+
+  useEffect(() => {
+    if (candidates.length === 0) {
+      setSelectedCandidateValue("");
+      return;
+    }
+    if (!hasCoordinates) return;
+
+    const current: LatLng = {
+      latitude: latitude as number,
+      longitude: longitude as number,
+    };
+    const matchIndex = candidates.findIndex((candidate) =>
+      geocodingCoordsMatch(candidate.position, current),
+    );
+    if (matchIndex >= 0) {
+      setSelectedCandidateValue(
+        buildGeocodingCandidateValue(candidates[matchIndex], matchIndex),
+      );
+    } else {
+      setSelectedCandidateValue("");
+    }
+  }, [candidates, hasCoordinates, latitude, longitude]);
 
   const notifyManualDistanceEdit = () => {
     onDistanceMetaChange?.({
@@ -188,14 +252,28 @@ export function AddressGeolocationPanel({
   };
 
   return (
-    <div className={cn("space-y-3 rounded-md border p-3", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">Geolocalizacion</p>
+    <div
+      className={cn(
+        embedded ? "space-y-4" : "space-y-3 rounded-md border p-3",
+        className,
+      )}
+    >
+      {embedded ? (
+        <p className="text-muted-foreground text-xs">
+          Proveedor de mapa:{" "}
+          <span className="font-medium text-foreground">
+            {providers.providerId.toUpperCase()}
+          </span>
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-medium">Geolocalizacion</p>
+          </div>
+          <Badge variant="outline">{providers.providerId.toUpperCase()}</Badge>
         </div>
-        <Badge variant="outline">{providers.providerId.toUpperCase()}</Badge>
-      </div>
+      )}
 
       {showSearchControls ? (
         <div className="space-y-2">
@@ -206,13 +284,13 @@ export function AddressGeolocationPanel({
               value={manualSearchText}
               onChange={(event) => setManualSearchText(event.target.value)}
               placeholder="Refinar texto de busqueda (opcional)"
-              disabled={disabled}
+              disabled={mapAndCoordsDisabled}
             />
             <Button
               type="button"
               variant="outline"
               onClick={() => void handleSearch()}
-              disabled={disabled || isGeocoding}
+              disabled={mapAndCoordsDisabled || isGeocoding}
             >
               {isGeocoding ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -233,30 +311,43 @@ export function AddressGeolocationPanel({
 
       {showSearchControls && candidates.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Coincidencias sugeridas
-          </p>
-          <div className="space-y-2">
-            {candidates.map((candidate) => (
-              <button
-                key={`${candidate.label}-${candidate.position.latitude}-${candidate.position.longitude}`}
-                type="button"
-                className="w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-muted"
-                onClick={() => handleSelectCandidate(candidate)}
-                disabled={disabled}
-              >
-                <p className="font-medium">{candidate.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {candidate.position.latitude.toFixed(6)},{" "}
-                  {candidate.position.longitude.toFixed(6)}
-                </p>
-              </button>
-            ))}
-          </div>
+          <Label htmlFor="geo-candidate-select">Coincidencias sugeridas</Label>
+          <Select
+            value={selectedCandidateValue || undefined}
+            onValueChange={(value) => {
+              const index = candidates.findIndex(
+                (candidate, idx) =>
+                  buildGeocodingCandidateValue(candidate, idx) === value,
+              );
+              if (index < 0) return;
+              handleSelectCandidate(candidates[index], index);
+            }}
+            disabled={mapAndCoordsDisabled}
+          >
+            <SelectTrigger id="geo-candidate-select" className="h-auto min-h-9 py-2">
+              <SelectValue placeholder="Selecciona una coincidencia para ubicar en el mapa" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {candidates.map((candidate, index) => {
+                const value = buildGeocodingCandidateValue(candidate, index);
+                return (
+                  <SelectItem key={value} value={value} className="items-start py-2">
+                    <span className="flex flex-col gap-0.5 text-left">
+                      <span className="font-medium leading-snug">{candidate.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {candidate.position.latitude.toFixed(6)},{" "}
+                        {candidate.position.longitude.toFixed(6)}
+                      </span>
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <p className="text-xs text-muted-foreground">
           {hasCoordinates
             ? `Ubicacion confirmada: ${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`
@@ -268,7 +359,7 @@ export function AddressGeolocationPanel({
             latitude={latitude}
             longitude={longitude}
             onCoordinatesChange={onCoordinatesChange}
-            disabled={disabled}
+            disabled={mapAndCoordsDisabled}
           />
         ) : (
           <Alert variant="info">
@@ -305,7 +396,7 @@ export function AddressGeolocationPanel({
                 variant="outline"
                 onClick={() => void handleDistanceCalculation()}
                 disabled={
-                  disabled ||
+                  segmentDistanceDisabled ||
                   !distanceEditable ||
                   !hasCoordinates ||
                   !hasPreviousCoordinates ||
@@ -329,7 +420,7 @@ export function AddressGeolocationPanel({
                 min={0}
                 step={0.1}
                 placeholder="0"
-                disabled={disabled || !distanceEditable}
+                disabled={segmentDistanceDisabled || !distanceEditable}
                 value={
                   distanceFromPreviousKm != null && !Number.isNaN(distanceFromPreviousKm)
                     ? distanceFromPreviousKm

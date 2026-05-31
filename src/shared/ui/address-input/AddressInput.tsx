@@ -7,7 +7,7 @@ import {
   type Path,
   type UseFormSetValue,
 } from "react-hook-form";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -26,45 +26,23 @@ import type {
   AddressInputLayout,
   SavedAddressOption,
 } from "./AddressInput.types";
+import { addressInputContainerClass } from "./addressInputContainer";
 import { usePostalCodeLookup } from "./use-postal-code-lookup";
 import { useSatCatalogs } from "./use-sat-catalogs";
 import { AddressPreview } from "./AddressPreview";
 import {
-  isAddressReadyForMode,
-  isCartaPorteSatMinimumMet,
-  resolveAddressModeRequirements,
+  getCp31DomicilioUxRequirements,
+  isCp31DomicilioReady,
   type PostalLookupStatus,
 } from "@shared/validation/addressRequirements";
+import { resolveAddressFormFieldRequirements } from "@shared/validation/addressFormProfileUx";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
 
 const LAYOUT_CLASS: Record<AddressInputLayout, string> = {
   "single-column": "grid-cols-1",
   "two-column": "grid-cols-1 sm:grid-cols-2",
   compact: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
 };
-
-function getAddressFieldAriaProps(
-  fieldId: string,
-  message?: string,
-): { "aria-invalid": boolean; "aria-describedby"?: string } {
-  return {
-    "aria-invalid": Boolean(message),
-    ...(message ? { "aria-describedby": `${fieldId}-error` } : {}),
-  };
-}
-
-function AddressFieldInlineError({
-  fieldId,
-  message,
-}: {
-  fieldId: string;
-  message?: string;
-}) {
-  return message ? (
-    <p id={`${fieldId}-error`} className="text-destructive text-xs">
-      {message}
-    </p>
-  ) : null;
-}
 
 function getFieldPath(prefix: string, field: string): string {
   if (!prefix) return field;
@@ -157,6 +135,7 @@ function applySavedAddressWithSetValue<T extends FieldValues>(
     toShortSatCode(String(sel.satLocalityCode ?? "")) as never,
     APPLY_SAVED_OPTS,
   );
+  setValue(p("localityName"), (sel.localityName ?? "") as never, APPLY_SAVED_OPTS);
   setValue(
     p("satNeighborhoodCode"),
     toShortSatCode(String(sel.satNeighborhoodCode ?? "")) as never,
@@ -260,7 +239,15 @@ interface AddressStreetFieldsProps<T extends FieldValues> {
   control: Control<T>;
   namePrefix: string;
   disabled: boolean;
+  /** Sobreescribe `disabled` solo para inputs lat/lng (ver `AddressInputProps.disableCoordinates`). */
+  disableCoordinates?: boolean;
   showLatLng: boolean;
+  /** En `carta-porte` (CP31 mínimo) calle y número exterior son opcionales en paquete/UX. */
+  requireStreetFields: boolean;
+  /** En contextos operativos donde lat/lng son obligatorias (p. ej. `trip_stop` para
+   * cálculo de distancias y trazabilidad). SoT: `matriz-reglas-cp31-por-capas.md`
+   * y `@boeltech/cfdi-domain/validadores/address-form-profiles`. */
+  requireCoordinates: boolean;
 }
 
 /** Campos domicilio: aislados del bloque postal para reducir coste por tecla en calle. */
@@ -268,8 +255,12 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
   control,
   namePrefix,
   disabled,
+  disableCoordinates,
   showLatLng,
+  requireStreetFields,
+  requireCoordinates,
 }: AddressStreetFieldsProps<T>) {
+  const coordinatesDisabled = disableCoordinates ?? disabled;
   const streetField = useController({
     control,
     name: getFieldPath(namePrefix, "street") as Path<T>,
@@ -297,38 +288,42 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
   return (
     <div className="contents">
       <div className="space-y-2 sm:col-span-2 lg:col-span-2">
-        <Label htmlFor={`${namePrefix}-street`}>Calle *</Label>
+        <Label htmlFor={`${namePrefix}-street`}>
+          Calle {requireStreetFields ? "*" : ""}
+        </Label>
         <Input
           id={`${namePrefix}-street`}
           value={String(streetField.field.value ?? "")}
           onChange={(event) => streetField.field.onChange(event.target.value)}
           disabled={disabled}
           error={Boolean(streetField.fieldState.error)}
-          {...getAddressFieldAriaProps(
+          {...getFieldErrorAriaProps(
             `${namePrefix}-street`,
             streetField.fieldState.error?.message,
           )}
         />
-        <AddressFieldInlineError
+        <FieldInlineError
           fieldId={`${namePrefix}-street`}
           message={streetField.fieldState.error?.message}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`${namePrefix}-ext-number`}>Numero exterior *</Label>
+        <Label htmlFor={`${namePrefix}-ext-number`}>
+          Numero exterior {requireStreetFields ? "*" : ""}
+        </Label>
         <Input
           id={`${namePrefix}-ext-number`}
           value={String(exteriorField.field.value ?? "")}
           onChange={(event) => exteriorField.field.onChange(event.target.value)}
           disabled={disabled}
           error={Boolean(exteriorField.fieldState.error)}
-          {...getAddressFieldAriaProps(
+          {...getFieldErrorAriaProps(
             `${namePrefix}-ext-number`,
             exteriorField.fieldState.error?.message,
           )}
         />
-        <AddressFieldInlineError
+        <FieldInlineError
           fieldId={`${namePrefix}-ext-number`}
           message={exteriorField.fieldState.error?.message}
         />
@@ -357,7 +352,14 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
       {showLatLng ? (
         <>
           <div className="space-y-2">
-            <Label htmlFor={`${namePrefix}-latitude`}>Latitud</Label>
+            <Label htmlFor={`${namePrefix}-latitude`}>
+              Latitud{" "}
+              {requireCoordinates ? (
+                <span className="text-destructive">*</span>
+              ) : (
+                <span className="font-normal text-muted-foreground">(opcional)</span>
+              )}
+            </Label>
             <Input
               id={`${namePrefix}-latitude`}
               type="number"
@@ -377,12 +379,28 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
                   latitudeField.field.onChange(parsed);
                 }
               }}
-              disabled={disabled}
+              disabled={coordinatesDisabled}
               inputMode="decimal"
+              error={Boolean(latitudeField.fieldState.error)}
+              {...getFieldErrorAriaProps(
+                `${namePrefix}-latitude`,
+                latitudeField.fieldState.error?.message,
+              )}
+            />
+            <FieldInlineError
+              fieldId={`${namePrefix}-latitude`}
+              message={latitudeField.fieldState.error?.message}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${namePrefix}-longitude`}>Longitud</Label>
+            <Label htmlFor={`${namePrefix}-longitude`}>
+              Longitud{" "}
+              {requireCoordinates ? (
+                <span className="text-destructive">*</span>
+              ) : (
+                <span className="font-normal text-muted-foreground">(opcional)</span>
+              )}
+            </Label>
             <Input
               id={`${namePrefix}-longitude`}
               type="number"
@@ -402,8 +420,17 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
                   longitudeField.field.onChange(parsed);
                 }
               }}
-              disabled={disabled}
+              disabled={coordinatesDisabled}
               inputMode="decimal"
+              error={Boolean(longitudeField.fieldState.error)}
+              {...getFieldErrorAriaProps(
+                `${namePrefix}-longitude`,
+                longitudeField.fieldState.error?.message,
+              )}
+            />
+            <FieldInlineError
+              fieldId={`${namePrefix}-longitude`}
+              message={longitudeField.fieldState.error?.message}
             />
           </div>
         </>
@@ -420,24 +447,29 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   props: AddressInputProps<TFieldValues>,
 ) {
   const {
-    mode,
+    variant: variantProp,
+    formContext,
+    addressType: addressTypeProp,
     savedAddresses = [],
     onSelectSaved,
     layout = "compact",
     collapsible = false,
     defaultExpanded = true,
-    showLatLng = false,
+    showLatLng = true,
     showPrimaryToggle = false,
     autoFocusFirstField = false,
     onCartaPorteReadyChange,
     extraSlots,
     disabled = false,
+    disableCoordinates,
     hideInformativeAlerts = false,
     embedded = false,
     control,
     namePrefix,
     setValue,
   } = props;
+
+  const variant = variantProp ?? "carta-porte";
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const lastAppliedPostalCodeRef = useRef<string>("");
@@ -447,9 +479,29 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   const stateField = useAddressField(props, "satStateCode");
   const municipalityField = useAddressField(props, "satMunicipalityCode");
   const localityField = useAddressField(props, "satLocalityCode");
+  const localityNameField = useAddressField(props, "localityName");
   const neighborhoodField = useAddressField(props, "satNeighborhoodCode");
   const neighborhoodNameField = useAddressField(props, "neighborhoodName");
   const isPrimaryField = useAddressField(props, "isPrimary");
+
+  const addressTypePath = getFieldPath(namePrefix, "addressType") as Path<TFieldValues>;
+  const watchedAddressType = useWatch({
+    control,
+    name: addressTypePath,
+    disabled: addressTypeProp !== undefined,
+  });
+  const resolvedAddressType =
+    addressTypeProp ?? (watchedAddressType != null ? String(watchedAddressType) : undefined);
+
+  const profileUx = useMemo(
+    () =>
+      resolveAddressFormFieldRequirements({
+        formContext,
+        addressType: resolvedAddressType,
+        variant,
+      }),
+    [formContext, variant, resolvedAddressType],
+  );
 
   const postalLookup = usePostalCodeLookup(String(postalCodeField.field.value ?? ""));
   const {
@@ -481,9 +533,11 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     postalLookup.isLoading,
   ]);
   const requiredByMode = useMemo(
-    () => resolveAddressModeRequirements(mode, postalLookup.data),
-    [mode, postalLookup.data],
+    () => getCp31DomicilioUxRequirements(variant),
+    [variant],
   );
+  const requireStreetFields = profileUx.requireStreetFields;
+  const requiredMark = (required: boolean) => (required ? " *" : "");
   const catalogNeighborhoodOptions = useMemo(
     () =>
       (postalLookup.data?.neighborhoods.length ?? 0) > 0
@@ -501,69 +555,30 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   const hasPersistedNeighborhoodCode = Boolean(
     String(neighborhoodField.field.value ?? "").trim(),
   );
-  /** Colonia guardada solo como texto (sin código SAT) debe seguir en input manual. */
-  const prefersManualNeighborhood =
-    hasPersistedNeighborhoodName && !hasPersistedNeighborhoodCode;
-  const shouldUseManualNeighborhood =
-    prefersManualNeighborhood || !lookupHasNeighborhoods;
+  const lookupHasLocalities = (postalLookup.data?.localities.length ?? 0) > 0;
   const hasMultipleNeighborhoods =
     catalogNeighborhoodOptions.length > 1;
   const hasMultipleLocalities = (postalLookup.data?.localities.length ?? 0) > 1;
-  const hasNeighborhoodValue = Boolean(
-    neighborhoodField.field.value || neighborhoodNameField.field.value,
-  );
 
   const addressReadyForMode = useMemo(
     () =>
-      isAddressReadyForMode(
-        {
-          mode,
-          satCountryCode: String(countryField.field.value ?? ""),
-          satStateCode: String(stateField.field.value ?? ""),
-          satMunicipalityCode: String(municipalityField.field.value ?? ""),
-          satLocalityCode: String(localityField.field.value ?? ""),
-          satNeighborhoodCode: String(neighborhoodField.field.value ?? ""),
-          postalCode: String(postalCodeField.field.value ?? ""),
-          postalLookupStatus,
-        },
-        postalLookup.data,
-      ),
+      isCp31DomicilioReady({
+        variant,
+        satCountryCode: String(countryField.field.value ?? ""),
+        satStateCode: String(stateField.field.value ?? ""),
+        satMunicipalityCode: String(municipalityField.field.value ?? ""),
+        satLocalityCode: String(localityField.field.value ?? ""),
+        satNeighborhoodCode: String(neighborhoodField.field.value ?? ""),
+        postalCode: String(postalCodeField.field.value ?? ""),
+        postalLookupStatus,
+      }),
     [
       countryField.field.value,
       localityField.field.value,
-      mode,
+      variant,
       municipalityField.field.value,
       neighborhoodField.field.value,
       postalCodeField.field.value,
-      postalLookup.data,
-      postalLookupStatus,
-      stateField.field.value,
-    ],
-  );
-
-  const cartaPorteSatMinimumMet = useMemo(
-    () =>
-      isCartaPorteSatMinimumMet(
-        {
-          mode,
-          satCountryCode: String(countryField.field.value ?? ""),
-          satStateCode: String(stateField.field.value ?? ""),
-          satMunicipalityCode: String(municipalityField.field.value ?? ""),
-          satLocalityCode: String(localityField.field.value ?? ""),
-          satNeighborhoodCode: String(neighborhoodField.field.value ?? ""),
-          postalCode: String(postalCodeField.field.value ?? ""),
-          postalLookupStatus,
-        },
-        postalLookup.data,
-      ),
-    [
-      countryField.field.value,
-      localityField.field.value,
-      mode,
-      municipalityField.field.value,
-      neighborhoodField.field.value,
-      postalCodeField.field.value,
-      postalLookup.data,
       postalLookupStatus,
       stateField.field.value,
     ],
@@ -610,6 +625,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       Boolean(String(stateField.field.value ?? "").trim()) ||
       Boolean(String(municipalityField.field.value ?? "").trim()) ||
       Boolean(String(localityField.field.value ?? "").trim()) ||
+      Boolean(String(localityNameField.field.value ?? "").trim()) ||
       hasPersistedNeighborhoodCode ||
       hasPersistedNeighborhoodName;
 
@@ -620,6 +636,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     hasPersistedNeighborhoodCode,
     hasPersistedNeighborhoodName,
     localityField.field.value,
+    localityNameField.field.value,
     municipalityField.field.value,
     neighborhoodField.field.value,
     neighborhoodNameField.field.value,
@@ -644,8 +661,10 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     if (data.municipalityCode && municipalityEmpty) {
       municipalityField.field.onChange(toShortSatCode(data.municipalityCode));
     }
-    if (data.localities.length === 1 && localityEmpty) {
+    const localityNameEmpty = !String(localityNameField.field.value ?? "").trim();
+    if (data.localities.length === 1 && localityEmpty && localityNameEmpty) {
       localityField.field.onChange(toShortSatCode(data.localities[0]?.code ?? ""));
+      localityNameField.field.onChange(data.localities[0]?.name ?? "");
     }
     if (
       data.neighborhoods.length === 1 &&
@@ -659,6 +678,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     lastAppliedPostalCodeRef.current = data.postalCode;
   }, [
     localityField.field,
+    localityNameField.field,
     municipalityField.field,
     neighborhoodField.field,
     neighborhoodNameField.field,
@@ -668,14 +688,13 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   ]);
 
   useEffect(() => {
-    if (mode !== "carta-porte" || !onCartaPorteReadyChange) return;
+    if (variant !== "carta-porte" || !onCartaPorteReadyChange) return;
     onCartaPorteReadyChange(addressReadyForMode);
-  }, [addressReadyForMode, mode, onCartaPorteReadyChange]);
+  }, [addressReadyForMode, variant, onCartaPorteReadyChange]);
 
-  const containerClass = cn("space-y-4", {
-    "rounded-lg border p-4": !embedded,
-    "opacity-70": disabled,
-  });
+  const containerClass = embedded
+    ? cn("space-y-4", disabled && "opacity-70")
+    : addressInputContainerClass(disabled);
 
   const content = (
     <div className={containerClass}>
@@ -693,7 +712,9 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       <div className={cn("grid gap-3", LAYOUT_CLASS[layout])}>
         <div className="contents">
         <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-postal-code`}>Codigo postal *</Label>
+          <Label htmlFor={`${props.namePrefix}-postal-code`}>
+            Codigo postal{requiredMark(profileUx.requirePostalCode)}
+          </Label>
           <Input
             id={`${props.namePrefix}-postal-code`}
             value={String(postalCodeField.field.value ?? "")}
@@ -726,19 +747,21 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             autoFocus={autoFocusFirstField}
             disabled={disabled}
             error={Boolean(postalCodeField.fieldState.error)}
-            {...getAddressFieldAriaProps(
+            {...getFieldErrorAriaProps(
               `${props.namePrefix}-postal-code`,
               postalCodeField.fieldState.error?.message,
             )}
           />
-          <AddressFieldInlineError
+          <FieldInlineError
             fieldId={`${props.namePrefix}-postal-code`}
             message={postalCodeField.fieldState.error?.message}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-country`}>Pais *</Label>
+          <Label htmlFor={`${props.namePrefix}-country`}>
+            Pais{requiredMark(profileUx.requireCountry)}
+          </Label>
           <Select
             value={String(countryField.field.value ?? "MEX")}
             onValueChange={countryField.field.onChange}
@@ -758,7 +781,9 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-state`}>Estado *</Label>
+          <Label htmlFor={`${props.namePrefix}-state`}>
+            Estado{requiredMark(profileUx.requireState)}
+          </Label>
           <Select
             value={String(stateField.field.value ?? "")}
             onValueChange={(value) => {
@@ -770,7 +795,14 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             }}
             disabled={disabled}
           >
-            <SelectTrigger id={`${props.namePrefix}-state`}>
+            <SelectTrigger
+              id={`${props.namePrefix}-state`}
+              error={Boolean(stateField.fieldState.error)}
+              {...getFieldErrorAriaProps(
+                `${props.namePrefix}-state`,
+                stateField.fieldState.error?.message,
+              )}
+            >
               <SelectValue placeholder="Selecciona estado" />
             </SelectTrigger>
             <SelectContent>
@@ -781,7 +813,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               ))}
             </SelectContent>
           </Select>
-          <AddressFieldInlineError
+          <FieldInlineError
             fieldId={`${props.namePrefix}-state`}
             message={stateField.fieldState.error?.message}
           />
@@ -790,8 +822,8 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         <div className="space-y-2">
           <Label htmlFor={`${props.namePrefix}-municipality`}>
             Municipio {requiredByMode.requireMunicipality ? "*" : ""}
-            {mode === "carta-porte" ? (
-              <span className="font-normal text-muted-foreground"> (opcional)</span>
+            {requiredByMode.recommendMunicipality && !requiredByMode.requireMunicipality ? (
+              <span className="font-normal text-muted-foreground"> (recomendado)</span>
             ) : null}
           </Label>
           {/*
@@ -810,7 +842,14 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             }}
             disabled={disabled || isLoadingMunicipalities}
           >
-            <SelectTrigger id={`${props.namePrefix}-municipality`}>
+            <SelectTrigger
+              id={`${props.namePrefix}-municipality`}
+              error={Boolean(municipalityField.fieldState.error)}
+              {...getFieldErrorAriaProps(
+                `${props.namePrefix}-municipality`,
+                municipalityField.fieldState.error?.message,
+              )}
+            >
               <SelectValue placeholder="Selecciona municipio" />
             </SelectTrigger>
             <SelectContent>
@@ -821,7 +860,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               ))}
             </SelectContent>
           </Select>
-          <AddressFieldInlineError
+          <FieldInlineError
             fieldId={`${props.namePrefix}-municipality`}
             message={municipalityField.fieldState.error?.message}
           />
@@ -831,27 +870,64 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
           <Label htmlFor={`${props.namePrefix}-locality`}>
             Localidad {requiredByMode.requireLocality ? "*" : ""}
           </Label>
-          <Select
-            value={localityCatalogValue}
-            onValueChange={(value) =>
-              localityField.field.onChange(toShortSatCode(value))
+          {lookupHasLocalities ? (
+            <Select
+              value={localityCatalogValue}
+              onValueChange={(value) => {
+                const selected = (postalLookup.data?.localities ?? []).find(
+                  (item) => item.code === value,
+                );
+                localityField.field.onChange(toShortSatCode(value));
+                localityNameField.field.onChange(selected?.name ?? "");
+              }}
+              disabled={disabled}
+            >
+              <SelectTrigger
+                id={`${props.namePrefix}-locality`}
+                error={Boolean(localityField.fieldState.error)}
+                {...getFieldErrorAriaProps(
+                  `${props.namePrefix}-locality`,
+                  localityField.fieldState.error?.message,
+                )}
+              >
+                <SelectValue placeholder="Selecciona localidad (catalogo SAT)" />
+              </SelectTrigger>
+              <SelectContent>
+                {(postalLookup.data?.localities ?? []).map((locality) => (
+                  <SelectItem key={locality.code} value={locality.code}>
+                    {locality.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          <Input
+            id={`${props.namePrefix}-locality-manual`}
+            value={String(localityNameField.field.value ?? "")}
+            onChange={(event) => {
+              localityNameField.field.onChange(event.target.value);
+              if (event.target.value.trim()) {
+                localityField.field.onChange("");
+              }
+            }}
+            disabled={disabled}
+            placeholder={
+              lookupHasLocalities
+                ? "O captura localidad manual"
+                : "Captura localidad manual"
             }
-            disabled={disabled || (postalLookup.data?.localities.length ?? 0) === 0}
-          >
-            <SelectTrigger id={`${props.namePrefix}-locality`}>
-              <SelectValue placeholder="Selecciona localidad" />
-            </SelectTrigger>
-            <SelectContent>
-              {(postalLookup.data?.localities ?? []).map((locality) => (
-                <SelectItem key={locality.code} value={locality.code}>
-                  {locality.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <AddressFieldInlineError
+            error={Boolean(localityNameField.fieldState.error)}
+            {...getFieldErrorAriaProps(
+              `${props.namePrefix}-locality-manual`,
+              localityNameField.fieldState.error?.message,
+            )}
+          />
+          <FieldInlineError
             fieldId={`${props.namePrefix}-locality`}
-            message={localityField.fieldState.error?.message}
+            message={
+              localityField.fieldState.error?.message ??
+              localityNameField.fieldState.error?.message
+            }
           />
         </div>
 
@@ -859,20 +935,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
           <Label htmlFor={`${props.namePrefix}-neighborhood`}>
             Colonia {requiredByMode.requireNeighborhood ? "*" : ""}
           </Label>
-          {shouldUseManualNeighborhood ? (
-            <Input
-              id={`${props.namePrefix}-neighborhood`}
-              value={String(neighborhoodNameField.field.value ?? "")}
-              onChange={(event) => neighborhoodNameField.field.onChange(event.target.value)}
-              disabled={disabled}
-              placeholder="Captura colonia manual"
-              error={Boolean(neighborhoodNameField.fieldState.error)}
-              {...getAddressFieldAriaProps(
-                `${props.namePrefix}-neighborhood`,
-                neighborhoodNameField.fieldState.error?.message,
-              )}
-            />
-          ) : (
+          {lookupHasNeighborhoods ? (
             <Select
               key={`${props.namePrefix}-neighborhood-${neighborhoodCatalogValue}-${catalogNeighborhoodOptions.length}-${isLoadingNeighborhoodsByPostalCode ? 1 : 0}`}
               value={neighborhoodCatalogValue}
@@ -885,8 +948,15 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               }}
               disabled={disabled || isLoadingNeighborhoodsByPostalCode}
             >
-              <SelectTrigger id={`${props.namePrefix}-neighborhood`}>
-                <SelectValue placeholder="Selecciona colonia" />
+              <SelectTrigger
+                id={`${props.namePrefix}-neighborhood`}
+                error={Boolean(neighborhoodField.fieldState.error)}
+                {...getFieldErrorAriaProps(
+                  `${props.namePrefix}-neighborhood`,
+                  neighborhoodField.fieldState.error?.message,
+                )}
+              >
+                <SelectValue placeholder="Selecciona colonia (catalogo SAT)" />
               </SelectTrigger>
               <SelectContent>
                 {catalogNeighborhoodOptions.map((neighborhood) => (
@@ -896,8 +966,29 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
                 ))}
               </SelectContent>
             </Select>
-          )}
-          <AddressFieldInlineError
+          ) : null}
+          <Input
+            id={`${props.namePrefix}-neighborhood-manual`}
+            value={String(neighborhoodNameField.field.value ?? "")}
+            onChange={(event) => {
+              neighborhoodNameField.field.onChange(event.target.value);
+              if (event.target.value.trim()) {
+                neighborhoodField.field.onChange("");
+              }
+            }}
+            disabled={disabled}
+            placeholder={
+              lookupHasNeighborhoods
+                ? "O captura colonia manual"
+                : "Captura colonia manual"
+            }
+            error={Boolean(neighborhoodNameField.fieldState.error)}
+            {...getFieldErrorAriaProps(
+              `${props.namePrefix}-neighborhood-manual`,
+              neighborhoodNameField.fieldState.error?.message,
+            )}
+          />
+          <FieldInlineError
             fieldId={`${props.namePrefix}-neighborhood`}
             message={neighborhoodNameField.fieldState.error?.message}
           />
@@ -908,7 +999,10 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
           control={control}
           namePrefix={namePrefix}
           disabled={disabled}
+          disableCoordinates={disableCoordinates}
           showLatLng={showLatLng}
+          requireStreetFields={requireStreetFields}
+          requireCoordinates={profileUx.requireCoordinates}
         />
       </div>
 
@@ -925,27 +1019,6 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         <Alert variant="info">
           <AlertDescription>
             Consultando catalogo SAT para el codigo postal...
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {hasPostalLookupData && !postalLookupFound && (
-        <Alert variant="warning">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            El CP no existe en el catalogo SAT. Captura manualmente estado,
-            municipio y colonia para continuar.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {hasPostalLookupData && postalLookupFound && !lookupHasNeighborhoods && (
-        <Alert variant="warning">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            CP sin coincidencia completa en lookup directo. Se intento cargar
-            colonias desde catalogo SAT; si tampoco hay resultados, captura
-            colonia manual.
           </AlertDescription>
         </Alert>
       )}
@@ -969,26 +1042,6 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
           <AlertDescription>
             Se encontraron multiples localidades para el CP. Selecciona la que
             corresponda.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {cartaPorteSatMinimumMet && !hideInformativeAlerts && (
-        <Alert variant="success">
-          <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>
-            Minimo SAT de ubicacion cubierto (pais, estado, codigo postal).
-            Municipio, localidad y colonia son opcionales en el complemento si no
-            se envian.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {mode === "carta-porte" && requiredByMode.requireNeighborhood && !hasNeighborhoodValue && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Para Carta Porte debes seleccionar colonia SAT o capturar colonia
-            manual si no hay catalogo.
           </AlertDescription>
         </Alert>
       )}
@@ -1038,7 +1091,10 @@ function addressInputPropsAreEqual(
   next: AddressInputProps<FieldValues>,
 ): boolean {
   return (
+    prev.variant === next.variant &&
     prev.mode === next.mode &&
+    prev.formContext === next.formContext &&
+    prev.addressType === next.addressType &&
     prev.control === next.control &&
     prev.setValue === next.setValue &&
     prev.namePrefix === next.namePrefix &&
@@ -1053,6 +1109,7 @@ function addressInputPropsAreEqual(
     prev.onCartaPorteReadyChange === next.onCartaPorteReadyChange &&
     prev.extraSlots === next.extraSlots &&
     prev.disabled === next.disabled &&
+    prev.disableCoordinates === next.disableCoordinates &&
     prev.hideInformativeAlerts === next.hideInformativeAlerts &&
     prev.embedded === next.embedded
   );

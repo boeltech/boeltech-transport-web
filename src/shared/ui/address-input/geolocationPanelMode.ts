@@ -1,8 +1,9 @@
 export interface ResolveGeolocationPanelModeInput {
   isOriginStop: boolean;
-  hasClientPrefill: boolean;
-  /** True when the selected client address row already had lat/lng persisted in the catalog (not only filled in-session via geocode). */
-  catalogHasStoredCoordinates: boolean;
+  /** @deprecated Ya no restringe la UI; se conserva por compatibilidad de llamadas. */
+  hasClientPrefill?: boolean;
+  /** @deprecated Ya no restringe la UI; se conserva por compatibilidad de llamadas. */
+  catalogHasStoredCoordinates?: boolean;
 }
 
 export interface GeolocationPanelMode {
@@ -17,29 +18,11 @@ export interface GeolocationPanelMode {
 export function resolveGeolocationPanelMode(
   input: ResolveGeolocationPanelModeInput,
 ): GeolocationPanelMode {
-  const { isOriginStop, hasClientPrefill, catalogHasStoredCoordinates } = input;
-
-  if (isOriginStop) {
-    if (hasClientPrefill && catalogHasStoredCoordinates) {
-      return {
-        showSearchControls: false,
-        showDistanceSection: false,
-        distanceEditable: false,
-      };
-    }
-
+  if (input.isOriginStop) {
     return {
       showSearchControls: true,
       showDistanceSection: false,
       distanceEditable: false,
-    };
-  }
-
-  if (hasClientPrefill && catalogHasStoredCoordinates) {
-    return {
-      showSearchControls: false,
-      showDistanceSection: true,
-      distanceEditable: true,
     };
   }
 

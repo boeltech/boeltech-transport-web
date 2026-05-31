@@ -64,6 +64,8 @@ export interface DetailPageShellTabItem {
   value: string;
   label: ReactNode;
   content: ReactNode;
+  /** Mantiene el panel montado al cambiar de tab (p. ej. mapas Mapbox). */
+  forceMount?: boolean;
 }
 
 export interface DetailPageShellTabs {
@@ -246,6 +248,7 @@ export const DetailPageShell = memo(function DetailPageShell({
             <TabsContent
               key={tab.value}
               value={tab.value}
+              forceMount={tab.forceMount || undefined}
               className="space-y-4 mt-4"
             >
               {tab.content}

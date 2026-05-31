@@ -40,13 +40,14 @@ export function WizardNavigationBar({
         variant="outline"
         onClick={onPrevious}
         disabled={!canGoBack}
+        aria-label="Anterior"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Anterior
       </Button>
 
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} aria-label="Cancelar">
           Cancelar
         </Button>
 
@@ -55,6 +56,7 @@ export function WizardNavigationBar({
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting || disableSubmit}
+            aria-label={submitLabel}
           >
             {isSubmitting ? (
               submittingContent ?? "Guardando..."
@@ -66,7 +68,12 @@ export function WizardNavigationBar({
             )}
           </Button>
         ) : (
-          <Button type="button" onClick={onNext} disabled={isSubmitting || disableNext}>
+          <Button
+            type="button"
+            onClick={onNext}
+            disabled={isSubmitting || disableNext}
+            aria-label="Siguiente"
+          >
             Siguiente
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

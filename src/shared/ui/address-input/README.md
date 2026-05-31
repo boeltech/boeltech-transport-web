@@ -1,13 +1,24 @@
-# AddressInput (Fase 1)
+# AddressInput
 
 Componente compartido para captura de direcciones SAT-first en el ERP Transporte.
 
 ## Objetivo
 
 Centralizar la captura de direcciones en una sola UI reutilizable, con cascadas
-de catalogos SAT y validacion consistente con `addressSchema`.
+de catálogos SAT y validación al guardar vía `@boeltech/cfdi-domain` (`addressPayloadBridge`).
 
-## Ubicacion
+## Variantes y contexto
+
+| Eje | Valores | Responsabilidad |
+|-----|---------|-----------------|
+| **`variant`** | `carta-porte` \| `personal` | UX en vivo: asteriscos XSD CP31, recomendación de municipio, `onCartaPorteReadyChange` (solo `carta-porte` exige lookup de CP para readiness). |
+| **`formContext`** | `billingOnCreate`, `additional`, `companyFiscal`, `employeePersonal`, `tripStop`, … | Perfil de negocio: calle opcional, `location_name`, coordenadas (`trip_stop`). |
+
+**SAT al guardar:** siempre XSD Domicilio CP31 (`carta_porte_31`) en el paquete; `context` en el bridge define reglas operativas adicionales.
+
+SoT obligatoriedad XSD: `src/shared/validation/cp31DomicilioUx.ts` + `@boeltech/cfdi-domain/reglas/cp31-domicilio-xsd.ts`.
+
+## Ubicación
 
 - `AddressInput.tsx`
 - `AddressInput.types.ts`
@@ -16,34 +27,15 @@ de catalogos SAT y validacion consistente con `addressSchema`.
 - `use-sat-catalogs.ts`
 - `index.ts`
 
-## Modos soportados
-
-- `basic`: captura general sin restricciones adicionales de Carta Porte.
-- `personal`: variante relajada para direccion personal.
-- `cfdi`: enfocado a direccion fiscal CFDI.
-- `carta-porte`: activa validacion visual de readiness para Carta Porte.
-
-### Regla de bloque operativo por modo
-
-El bloque de datos operativos de direccion (contacto, telefono, email, horario,
-notas, instrucciones) **no es universal**. Su visibilidad debe responder al
-escenario:
-
-- `carta-porte`: mostrar bloque completo (aplica para direccion operativa).
-- `cfdi`: mostrar bloque opcional (preferible colapsado por defecto).
-- `personal` y `basic`: ocultar bloque para evitar ruido de captura.
-
-> Esta regla ya esta aplicada en el demo de `/dev/address-input`.
-
 ## Reglas de cascada
 
-1. **CP (5 digitos)**
+1. **CP (5 dígitos)**
    - Dispara lookup `GET /catalogs/sat/by-postal-code/:cp`.
    - Autocompleta estado y municipio cuando hay match.
    - Carga localidad/colonia candidatas.
 2. **Colonia**
    - Prioridad 1: colonias del lookup por CP.
-   - Prioridad 2: catalogo `sat_colonia` por `parent_code=postalCode`.
+   - Prioridad 2: catálogo `sat_colonia` por `parent_code=postalCode`.
    - Prioridad 3: captura manual (`neighborhoodName`) si no hay opciones SAT.
 3. **Cambio de estado**
    - Limpia municipio, localidad y colonia para evitar inconsistencias.
@@ -52,77 +44,48 @@ escenario:
 
 ## Contrato de props (resumen)
 
-- `mode`: `basic | personal | cfdi | carta-porte`
+- `variant`: `carta-porte` | `personal` (requerido)
+- `formContext`: perfil UX alineado a `ADDRESS_FORM_PARSE_PROFILES`
 - `control`: control de `react-hook-form`
 - `namePrefix`: prefijo de campos anidados (`address`, `fiscalAddress`, etc.)
 - `savedAddresses`: lista opcional para prefilling
-- `onSelectSaved`: callback al seleccionar direccion guardada
-- `onCartaPorteReadyChange`: callback de readiness
+- `onSelectSaved`: callback al seleccionar dirección guardada
+- `onCartaPorteReadyChange`: callback de readiness (solo `carta-porte`)
 - `showLatLng`, `showPrimaryToggle`, `layout`, `collapsible`
 
 ## Accesibilidad
 
 - Campos con `Label` + `htmlFor`.
 - `aria-invalid` y `aria-describedby` en errores.
-- Orden de tab natural segun flujo de captura.
+- Orden de tab natural según flujo de captura.
 
 ## Pruebas asociadas
 
-- `src/shared/validation/addressSchema.test.ts`
+- `src/shared/validation/cp31DomicilioUx.test.ts`
+- `src/shared/validation/addressFormUx.test.ts`
+- Schemas por feature: `clientAddressSchema`, `companyFiscalAddressSchema`, `employeePersonalAddressSchema`
 - `src/shared/ui/address-input/AddressInput.test.tsx`
 
 ## Estado actual
 
-Este componente representa la **fundacion de Fase 1**.
-La integracion en formularios productivos (`clients`, `employees`, `settings`,
-`trips`) queda para fases posteriores.
+Integrado en formularios productivos:
 
-## Base UX para EntityAddressForm (fase previa)
+- `ClientAddressForm` (`variant="carta-porte"`)
+- `CompanySettingsForm` (`variant="carta-porte"`)
+- `EmployeeFormInner` (`variant="personal"`)
+- `StopFormDialog` (`variant="carta-porte"`)
 
-Antes de extraer `EntityAddressForm`, el formulario de clientes ya adopta estas
-reglas reutilizables:
+Errores: `FieldInlineError` + `error` en controles + `getFieldErrorAriaProps`.
+SAT al guardar: `@shared/cfdi/addressPayloadBridge` (sin duplicar reglas en Zod local).
 
-1. **Single Source of Truth para mensajes globales**
-   - Componente: `AddressFormNotice.tsx`
-   - Resolucion por prioridad: `error > warning > info`
-   - Solo se muestra un banner global a la vez.
+## EntityAddressForm
 
-2. **Copy centralizado por contexto**
-   - Archivo: `addressFormCopy.ts`
-   - Contextos iniciales:
-     - `billingOnCreate`
-     - `additional`
-   - Evita hardcodear microcopy en formularios de modulo.
+- `AddressFormNotice.tsx` + `addressFormNoticeRules.ts`
+- Copy: `addressFormCopy.ts`
+- Props: `formContext`, `addressVariant`, secciones pre/post `AddressInput`
 
-3. **Secciones estables del formulario**
-   - Contexto de direccion (tipo/principal + nombre del lugar)
-   - Ubicacion SAT y domicilio (`AddressInput`)
-   - Datos fiscales operativos
-   - Contacto y operacion
+### Mensajes en `AddressInput` (2026-05)
 
-4. **Validacion en dos niveles**
-   - Nivel global: `AddressFormNotice`
-   - Nivel campo: mensajes inline del schema/RHF
-
-### Criterios de extraccion para `EntityAddressForm`
-
-Cuando al menos 2 modulos adicionales requieran este mismo cascaron de secciones,
-extraer un componente shared con esta firma minima:
-
-- `context` (reglas de visibilidad y bloqueos)
-- `copy` (catalogo de microcopy)
-- `noticeRules` (reglas globales de feedback)
-- `sections` (habilitar/deshabilitar bloques)
-
-Con eso, cada modulo solo aporta DTO/schema/contrato de negocio, sin duplicar
-estructura visual ni mensajes.
-
-## Demo de referencia
-
-- Ruta: `/dev/address-input`
-- Incluye escenarios por pestañas:
-  - Cliente/Paradas (`carta-porte`)
-  - Solo CFDI (`cfdi`)
-  - Personal/Basico (`personal`)
-- Incluye panel lateral para validar cascada SAT en tiempo real
-  (CP, estado, municipio, colonia SAT/manual).
+- **Banners:** solo lookup en vuelo (error de consulta, cargando) y, si aplica, CP con varias colonias/localidades.
+- **Obligatoriedad:** asteriscos en label + `FieldInlineError` (Zod/paquete en el formulario padre); sin banners de validación duplicados.
+- **Banner global (`AddressFormNotice`):** copy de contexto (`addressFormCopy`); no repite errores de municipio/CP/estado.
