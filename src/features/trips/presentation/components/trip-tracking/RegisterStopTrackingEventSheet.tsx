@@ -1,0 +1,211 @@
+import { useEffect, useState } from "react";
+import { MapPin, Navigation } from "lucide-react";
+
+import type { TripStop } from "@features/trips/domain";
+import { useRegisterTrackingEvent } from "@features/trips/application";
+import { useToast } from "@shared/hooks";
+import { Button } from "@shared/ui/button";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
+import { Textarea } from "@shared/ui/text-area/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
+
+import {
+  formatArrivalButtonLabel,
+  formatDepartureButtonLabel,
+  formatStopActionTooltip,
+} from "../trackingActionLabels";
+import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import {
+  trackingGpsToEventFields,
+  type TrackingGpsCapture,
+} from "./trackingGpsCapture";
+
+export type StopTrackingEventMode = "arrival" | "departure";
+
+type RegisterStopTrackingEventSheetProps = {
+  tripId: string;
+  mode: StopTrackingEventMode;
+  stop: TripStop | null;
+  displayOrder: number | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+function defaultOccurredAtLocal(): string {
+  return utcIsoToLocalInput(new Date().toISOString());
+}
+
+function randomIdempotencyKey() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : undefined;
+}
+
+export function RegisterStopTrackingEventSheet({
+  tripId,
+  mode,
+  stop,
+  displayOrder,
+  open,
+  onOpenChange,
+}: RegisterStopTrackingEventSheetProps) {
+  const { toast } = useToast();
+  const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
+  const [notes, setNotes] = useState("");
+  const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  const registerMutation = useRegisterTrackingEvent({
+    onSuccess: () => {
+      toast({ title: "Evento de seguimiento registrado", variant: "success" });
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "No se pudo registrar el evento",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setOccurredAt(defaultOccurredAtLocal());
+    setNotes("");
+    setGps(null);
+    setFieldError(null);
+  }, [open, mode, stop?.id]);
+
+  const title =
+    mode === "arrival"
+      ? formatArrivalButtonLabel(stop ?? undefined, displayOrder)
+      : formatDepartureButtonLabel(stop ?? undefined, displayOrder);
+
+  const tooltip =
+    stop && displayOrder != null
+      ? formatStopActionTooltip(stop, displayOrder)
+      : undefined;
+
+  const handleSubmit = () => {
+    if (!stop) return;
+    if (!occurredAt.trim()) {
+      setFieldError("Indica la fecha y hora del evento.");
+      return;
+    }
+
+    setFieldError(null);
+    registerMutation.mutate({
+      tripId,
+      event: {
+        eventType: mode === "arrival" ? "stop_arrived" : "stop_departed",
+        stopId: stop.id,
+        occurredAt: localInputToUtcIso(occurredAt),
+        notes: notes.trim() || undefined,
+        idempotencyKey: randomIdempotencyKey(),
+        ...trackingGpsToEventFields(gps),
+      },
+    });
+  };
+
+  const Icon = mode === "arrival" ? MapPin : Navigation;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="flex items-start gap-2 pr-6">
+            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <span>{title}</span>
+          </SheetTitle>
+          <SheetDescription>
+            {mode === "arrival"
+              ? "Registra la llegada a la parada con la fecha y hora en que ocurrió."
+              : "Registra la salida de la escala con la fecha y hora en que ocurrió."}
+          </SheetDescription>
+        </SheetHeader>
+
+        {tooltip ? (
+          <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
+        ) : null}
+
+        <div className="flex-1 space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="tracking-event-occurred-at">Fecha y hora del evento</Label>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                id="tracking-event-occurred-at"
+                type="datetime-local"
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+                disabled={registerMutation.isPending}
+                aria-invalid={fieldError ? true : undefined}
+                className="min-w-[220px] flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOccurredAt(defaultOccurredAtLocal())}
+                disabled={registerMutation.isPending}
+              >
+                Ahora
+              </Button>
+            </div>
+            {fieldError ? (
+              <p className="text-xs text-destructive">{fieldError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Hora civil México (mismo criterio que el wizard de viajes).
+              </p>
+            )}
+          </div>
+
+          <TrackingGpsCaptureSection
+            stop={stop}
+            value={gps}
+            onChange={setGps}
+            disabled={registerMutation.isPending}
+          />
+
+          <div className="space-y-2">
+            <Label htmlFor="tracking-event-notes">Notas (opcional)</Label>
+            <Textarea
+              id="tracking-event-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={registerMutation.isPending}
+              rows={3}
+              placeholder="Observaciones operativas…"
+            />
+          </div>
+        </div>
+
+        <SheetFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={registerMutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!stop || registerMutation.isPending}
+          >
+            Registrar
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}

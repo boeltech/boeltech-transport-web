@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
-import { useToast } from "@shared/hooks/useToast";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailTimeline } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDateTime } from "@shared/utils/dateUtils";
@@ -10,17 +10,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Loader2,
   MapPin,
   Navigation,
   Play,
+  RefreshCw,
   Route,
   StickyNote,
 } from "lucide-react";
 import { getOrderedStops, type TripStatusType } from "@features/trips/domain";
-import {
-  useRegisterTrackingEvent,
-  useTripTimeline,
-} from "@features/trips/application";
+import { useTripTimeline } from "@features/trips/application";
 import { formatStopTimelineLabel } from "../uiHelpers";
 import {
   formatArrivalButtonLabel,
@@ -37,7 +36,19 @@ import {
 } from "./trackingStopEligibility";
 import { TripTrackingMap } from "./TripTrackingMap";
 import { StartTripDialog } from "./StartTripDialog";
-import { RegisterTripArrivalDialog } from "./RegisterTripArrivalDialog";
+import {
+  formatDataUpdatedAgo,
+  getTrackingScopeAlertItems,
+  RegisterStopTrackingEventSheet,
+  RegisterTripArrivalSheet,
+  RegisterTrackingIncidentSheet,
+  RegisterTrackingNoteSheet,
+  getTrackingEventTimelineBody,
+  getTrackingIncidentTimelineMeta,
+  TripTrackingOperationalItinerary,
+  trackingCopy,
+} from "./trip-tracking";
+import { isOriginStop } from "./trackingStopEligibility";
 
 interface TripTrackingTabProps {
   tripId: string;
@@ -47,12 +58,6 @@ interface TripTrackingTabProps {
   status: TripStatusType;
 }
 
-function randomIdempotencyKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : undefined;
-}
-
 export function TripTrackingTab({
   tripId,
   tripCode,
@@ -60,22 +65,21 @@ export function TripTrackingTab({
   tripStartMileage,
   status,
 }: TripTrackingTabProps) {
-  const { toast } = useToast();
   const [startDialogOpen, setStartDialogOpen] = useState(false);
-  const [tripArrivalDialogOpen, setTripArrivalDialogOpen] = useState(false);
+  const [tripArrivalSheetOpen, setTripArrivalSheetOpen] = useState(false);
+  const [arrivalSheetOpen, setArrivalSheetOpen] = useState(false);
+  const [departureSheetOpen, setDepartureSheetOpen] = useState(false);
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false);
+  const [incidentSheetOpen, setIncidentSheetOpen] = useState(false);
+  const [refreshTickMs, setRefreshTickMs] = useState(() => Date.now());
+
   const timelineQuery = useTripTimeline(tripId);
-  const registerEventMutation = useRegisterTrackingEvent({
-    onSuccess: () => {
-      toast({ title: "Evento de seguimiento registrado", variant: "success" });
-    },
-    onError: (error) => {
-      toast({
-        title: "No se pudo registrar el evento",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+
+  useEffect(() => {
+    if (status !== "in_progress") return;
+    const id = window.setInterval(() => setRefreshTickMs(Date.now()), 10_000);
+    return () => window.clearInterval(id);
+  }, [status]);
   const timeline = timelineQuery.data;
   const orderedStops = useMemo(
     () => (timeline ? getOrderedStops(timeline.stops) : []),
@@ -167,6 +171,48 @@ export function TripTrackingTab({
       destinationClosureOrder,
     );
   }, [destinationAwaitingClosure, destinationClosureOrder]);
+
+  const scopeAlertItems = useMemo(
+    () =>
+      getTrackingScopeAlertItems(
+        status,
+        timeline?.trip.hasOpenIncident ?? false,
+      ),
+    [status, timeline?.trip.hasOpenIncident],
+  );
+
+  const originStop = useMemo(
+    () => orderedStops.find((stop) => isOriginStop(stop)),
+    [orderedStops],
+  );
+  const referenceStopForGps = useMemo(
+    () =>
+      activeEscalaForDeparture ??
+      nextStopForArrival ??
+      destinationAwaitingClosure ??
+      null,
+    [
+      activeEscalaForDeparture,
+      nextStopForArrival,
+      destinationAwaitingClosure,
+    ],
+  );
+  const updatedAgoLabel = useMemo(() => {
+    if (!timelineQuery.dataUpdatedAt) return null;
+    return formatDataUpdatedAgo(timelineQuery.dataUpdatedAt, refreshTickMs);
+  }, [timelineQuery.dataUpdatedAt, refreshTickMs]);
+
+  const tripScheduleTimes = useMemo(
+    () =>
+      timeline
+        ? {
+            scheduledDeparture: timeline.trip.scheduledDeparture ?? undefined,
+            actualDeparture: timeline.trip.actualDeparture,
+          }
+        : undefined,
+    [timeline],
+  );
+
   const latestEvent = timeline?.events[0] ?? null;
 
   if (timelineQuery.isLoading) {
@@ -197,75 +243,69 @@ export function TripTrackingTab({
     );
   }
 
-  const handleArriveStop = () => {
-    if (!nextStopForArrival) return;
-    registerEventMutation.mutate({
-      tripId,
-      event: {
-        eventType: "stop_arrived",
-        stopId: nextStopForArrival.id,
-        occurredAt: new Date().toISOString(),
-        idempotencyKey: randomIdempotencyKey(),
-      },
-    });
-  };
-
-  const handleDepartStop = () => {
-    if (!activeEscalaForDeparture) return;
-    registerEventMutation.mutate({
-      tripId,
-      event: {
-        eventType: "stop_departed",
-        stopId: activeEscalaForDeparture.id,
-        occurredAt: new Date().toISOString(),
-        idempotencyKey: randomIdempotencyKey(),
-      },
-    });
-  };
-
-  const handleCreateNote = () => {
-    const note = window.prompt("Nota operativa:");
-    if (!note?.trim()) return;
-    registerEventMutation.mutate({
-      tripId,
-      event: {
-        eventType: "note",
-        notes: note.trim(),
-        occurredAt: new Date().toISOString(),
-        idempotencyKey: randomIdempotencyKey(),
-      },
-    });
-  };
-
-  const handleCreateIncident = () => {
-    const description = window.prompt("Describe el incidente:");
-    if (!description?.trim()) return;
-    registerEventMutation.mutate({
-      tripId,
-      event: {
-        eventType: "incident",
-        occurredAt: new Date().toISOString(),
-        idempotencyKey: randomIdempotencyKey(),
-        payload: {
-          incident_type: "other",
-          severity: "medium",
-          description: description.trim(),
-          requires_assistance: false,
-        },
-      },
-    });
-  };
-
-  const isBusy = registerEventMutation.isPending;
   const canStart = status === "scheduled";
   const canOperateStops = status === "in_progress";
   const canArrive = canOperateStops && !!nextStopForArrival;
   const canDepart = canOperateStops && !!activeEscalaForDeparture;
   const canCloseAtDestination =
     canOperateStops && !!destinationAwaitingClosure;
+  const startButtonTitle = canStart
+    ? undefined
+    : trackingCopy.error.startRequiresScheduled;
+  const arriveButtonTitle = canArrive
+    ? arrivalButtonTitle
+    : trackingCopy.error.arriveRequiresInProgress;
+  const departButtonTitle = canDepart
+    ? departureButtonTitle
+    : trackingCopy.error.departRequiresEscala;
+  const closeButtonTitle = canCloseAtDestination
+    ? tripArrivalButtonTitle
+    : trackingCopy.error.closeRequiresDestination;
+  const registerButtonTitle = canOperateStops
+    ? undefined
+    : trackingCopy.error.registerRequiresInProgress;
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {status === "in_progress" ? (
+            <Badge variant="secondary" className="text-xs">
+              {trackingCopy.state.live}
+            </Badge>
+          ) : null}
+          {updatedAgoLabel ? (
+            <span>Actualizado {updatedAgoLabel}</span>
+          ) : null}
+          {timelineQuery.isFetching ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {trackingCopy.state.syncing}
+            </span>
+          ) : null}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => timelineQuery.refetch()}
+          disabled={timelineQuery.isFetching}
+        >
+          {timelineQuery.isFetching ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          {trackingCopy.action.refresh}
+        </Button>
+      </div>
+
+      <DetailAlertCard
+        severity={timeline.trip.hasOpenIncident ? "warning" : "info"}
+        icon={<Route className="h-4 w-4" />}
+        title={trackingCopy.section.status}
+        items={scopeAlertItems}
+      />
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -320,87 +360,105 @@ export function TripTrackingTab({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Route className="h-4 w-4 text-primary" />
-            Acciones de seguimiento
-          </CardTitle>
-          <CardDescription>
-            Al iniciar el viaje se registran la salida del origen en el timeline.
-            En escalas: llegada y salida. En destino: llegada y luego «Cerrar en
-            destino» (odómetro final) para completar la parada y el viaje.
-            El historial de estados del viaje está en la pestaña Historial.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => setStartDialogOpen(true)}
-            disabled={!canStart || isBusy}
-          >
-            <Play className="mr-2 h-4 w-4" />
-            Iniciar viaje
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleArriveStop}
-            disabled={!canArrive || isBusy}
-            title={arrivalButtonTitle}
-            className="max-w-full sm:max-w-xs"
-          >
-            <MapPin className="mr-2 h-4 w-4 shrink-0" />
-            <span className="truncate">{arrivalButtonLabel}</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDepartStop}
-            disabled={!canDepart || isBusy}
-            title={departureButtonTitle}
-            className="max-w-full sm:max-w-xs"
-          >
-            <Navigation className="mr-2 h-4 w-4 shrink-0" />
-            <span className="truncate">{departureButtonLabel}</span>
-          </Button>
-          <Button
-            variant="default"
-            onClick={() => setTripArrivalDialogOpen(true)}
-            disabled={!canCloseAtDestination || isBusy}
-            title={tripArrivalButtonTitle}
-            className="max-w-full sm:max-w-xs"
-          >
-            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0" />
-            <span className="truncate">{tripArrivalButtonLabel}</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCreateNote}
-            disabled={!canOperateStops || isBusy}
-          >
-            <StickyNote className="mr-2 h-4 w-4" />
-            Nota
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCreateIncident}
-            disabled={!canOperateStops || isBusy}
-          >
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Incidente
-          </Button>
-          {timeline.trip.hasOpenIncident ? (
-            <Badge variant="destructive" className="ml-auto">
-              Incidente abierto
-            </Badge>
-          ) : null}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+        <TripTrackingOperationalItinerary
+          stops={orderedStops}
+          tripStatus={status}
+          tripTimes={tripScheduleTimes}
+        />
+
+        <Card className="xl:sticky xl:top-24">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Play className="h-4 w-4 text-primary" />
+              {trackingCopy.section.actions}
+            </CardTitle>
+            <CardDescription>{trackingCopy.hint.actionsScope}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Operativas
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Button
+                  onClick={() => setStartDialogOpen(true)}
+                  disabled={!canStart}
+                  title={startButtonTitle}
+                  className="justify-start sm:w-auto"
+                >
+                  <Play className="mr-2 h-4 w-4 shrink-0" />
+                  {trackingCopy.action.start}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setArrivalSheetOpen(true)}
+                  disabled={!canArrive}
+                  title={arriveButtonTitle}
+                  className="justify-start sm:max-w-xs"
+                >
+                  <MapPin className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{arrivalButtonLabel}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setDepartureSheetOpen(true)}
+                  disabled={!canDepart}
+                  title={departButtonTitle}
+                  className="justify-start sm:max-w-xs"
+                >
+                  <Navigation className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{departureButtonLabel}</span>
+                </Button>
+                <Button
+                  variant={canCloseAtDestination ? "default" : "outline"}
+                  onClick={() => setTripArrivalSheetOpen(true)}
+                  disabled={!canCloseAtDestination}
+                  title={closeButtonTitle}
+                  className="justify-start sm:max-w-xs"
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{tripArrivalButtonLabel}</span>
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Registro
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNoteSheetOpen(true)}
+                  disabled={!canOperateStops}
+                  title={registerButtonTitle}
+                >
+                  <StickyNote className="mr-2 h-4 w-4" />
+                  {trackingCopy.action.note}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIncidentSheetOpen(true)}
+                  disabled={!canOperateStops}
+                  title={registerButtonTitle}
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  {trackingCopy.action.incident}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
-              Timeline operativo
+              {trackingCopy.section.timeline}
             </CardTitle>
             {latestEvent ? (
               <CardDescription>
@@ -414,7 +472,7 @@ export function TripTrackingTab({
               </CardDescription>
             ) : (
               <CardDescription>
-                Sin eventos operativos registrados aun.
+                {trackingCopy.state.noEvents} operativos registrados.
               </CardDescription>
             )}
           </CardHeader>
@@ -442,6 +500,11 @@ export function TripTrackingTab({
                               ? Navigation
                               : MapPin;
                   const EventIcon = eventIcon;
+                  const timelineBody = getTrackingEventTimelineBody(event);
+                  const incidentMeta =
+                    event.eventType === "incident"
+                      ? getTrackingIncidentTimelineMeta(event)
+                      : [];
                   return {
                     id: event.id,
                     icon: <EventIcon className="h-4 w-4" />,
@@ -461,23 +524,46 @@ export function TripTrackingTab({
                             {formatDateTime(event.occurredAt.toISOString())}
                           </p>
                         </div>
-                        {event.notes ? (
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {event.notes}
-                          </p>
+                        {event.latitude != null ||
+                        timelineBody ||
+                        incidentMeta.length > 0 ||
+                        event.stopId ? (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs text-muted-foreground">
+                              Ver detalle
+                            </summary>
+                            {event.latitude != null && event.longitude != null ? (
+                              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                                GPS: {event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}
+                                {event.accuracyMeters != null
+                                  ? ` · ~${Math.round(event.accuracyMeters)} m`
+                                  : null}
+                              </p>
+                            ) : null}
+                            {timelineBody ? (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {timelineBody}
+                              </p>
+                            ) : null}
+                            {incidentMeta.length > 0 ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {incidentMeta.join(" · ")}
+                              </p>
+                            ) : null}
+                            {event.stopId ? (() => {
+                              const stopLabel = stopTimelineLabelsById.get(event.stopId);
+                              if (!stopLabel) return null;
+                              return (
+                                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                  <p>{stopLabel.primary}</p>
+                                  {stopLabel.secondary ? (
+                                    <p>{stopLabel.secondary}</p>
+                                  ) : null}
+                                </div>
+                              );
+                            })() : null}
+                          </details>
                         ) : null}
-                        {event.stopId ? (() => {
-                          const stopLabel = stopTimelineLabelsById.get(event.stopId);
-                          if (!stopLabel) return null;
-                          return (
-                            <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                              <p>{stopLabel.primary}</p>
-                              {stopLabel.secondary ? (
-                                <p>{stopLabel.secondary}</p>
-                              ) : null}
-                            </div>
-                          );
-                        })() : null}
                       </div>
                     ),
                   };
@@ -489,6 +575,8 @@ export function TripTrackingTab({
 
         <TripTrackingMap
           stops={orderedStops}
+          events={timeline.events}
+          routeGeojson={timeline.map.routeGeojson}
           lastKnownPosition={timeline.map.lastKnownPosition}
         />
       </div>
@@ -498,16 +586,47 @@ export function TripTrackingTab({
         tripCode={tripCode}
         vehicleId={vehicleId}
         tripStartMileage={tripStartMileage}
+        originStop={originStop}
         open={startDialogOpen}
         onOpenChange={setStartDialogOpen}
       />
-      <RegisterTripArrivalDialog
+      <RegisterTripArrivalSheet
         tripId={tripId}
         tripCode={tripCode}
         vehicleId={vehicleId}
         tripStartMileage={tripStartMileage}
-        open={tripArrivalDialogOpen}
-        onOpenChange={setTripArrivalDialogOpen}
+        destinationStop={destinationAwaitingClosure ?? null}
+        displayOrder={destinationClosureOrder}
+        open={tripArrivalSheetOpen}
+        onOpenChange={setTripArrivalSheetOpen}
+      />
+      <RegisterStopTrackingEventSheet
+        tripId={tripId}
+        mode="arrival"
+        stop={nextStopForArrival ?? null}
+        displayOrder={nextArrivalOrder}
+        open={arrivalSheetOpen}
+        onOpenChange={setArrivalSheetOpen}
+      />
+      <RegisterStopTrackingEventSheet
+        tripId={tripId}
+        mode="departure"
+        stop={activeEscalaForDeparture ?? null}
+        displayOrder={activeDepartureOrder}
+        open={departureSheetOpen}
+        onOpenChange={setDepartureSheetOpen}
+      />
+      <RegisterTrackingNoteSheet
+        tripId={tripId}
+        referenceStop={referenceStopForGps}
+        open={noteSheetOpen}
+        onOpenChange={setNoteSheetOpen}
+      />
+      <RegisterTrackingIncidentSheet
+        tripId={tripId}
+        referenceStop={referenceStopForGps}
+        open={incidentSheetOpen}
+        onOpenChange={setIncidentSheetOpen}
       />
     </div>
   );

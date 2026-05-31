@@ -13,13 +13,19 @@ export function useStartTrip(
   options?: UseMutationOptions<
     Trip,
     Error,
-    { id: string; mileage?: number; latitude?: number; longitude?: number }
+    {
+      id: string;
+      mileage?: number;
+      latitude?: number;
+      longitude?: number;
+      occurredAt?: string;
+    }
   >,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, mileage, latitude, longitude }) => {
+    mutationFn: async ({ id, mileage, latitude, longitude, occurredAt }) => {
       if (mileage === undefined) {
         throw new Error(
           "El kilometraje inicial es requerido para iniciar el viaje.",
@@ -30,6 +36,7 @@ export function useStartTrip(
         mileage,
         latitude,
         longitude,
+        occurredAt,
       });
 
       const trip = await tripRepository.findById(id);

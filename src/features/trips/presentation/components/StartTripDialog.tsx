@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Loader2, Play } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
@@ -14,11 +15,21 @@ import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { useToast } from "@shared/hooks";
 import { useStartTrip } from "@features/trips/application";
 import { useVehicle } from "@features/vehicles/application";
-import type { Trip } from "@features/trips/domain";
+import type { Trip, TripStop } from "@features/trips/domain";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import {
   resolveSuggestedStartMileage,
   useSuggestedMileageField,
 } from "./startTripMileage";
+import { TrackingGpsCaptureSection } from "./trip-tracking/TrackingGpsCaptureSection";
+import {
+  trackingGpsToEventFields,
+  type TrackingGpsCapture,
+} from "./trip-tracking/trackingGpsCapture";
+
+function defaultOccurredAtLocal(): string {
+  return utcIsoToLocalInput(new Date().toISOString());
+}
 
 export interface StartTripDialogProps {
   tripId: string;
@@ -26,6 +37,8 @@ export interface StartTripDialogProps {
   vehicleId?: string;
   /** Kilometraje inicial ya persistido en el viaje (wizard / edición). */
   tripStartMileage?: number | null;
+  /** Parada origen para ofrecer coords. guardadas al iniciar. */
+  originStop?: Pick<TripStop, "latitude" | "longitude"> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (trip: Trip) => void;
@@ -36,6 +49,7 @@ interface StartTripDialogBodyProps {
   tripCode: string;
   vehicleId?: string;
   tripStartMileage?: number | null;
+  originStop?: Pick<TripStop, "latitude" | "longitude"> | null;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (trip: Trip) => void;
 }
@@ -45,10 +59,20 @@ function StartTripDialogBody({
   tripCode,
   vehicleId,
   tripStartMileage,
+  originStop,
   onOpenChange,
   onSuccess,
 }: StartTripDialogBodyProps) {
   const { toast } = useToast();
+  const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
+  const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOccurredAt(defaultOccurredAtLocal());
+    setGps(null);
+    setTimeError(null);
+  }, [tripId]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(vehicleId ?? "", {
     enabled: !!vehicleId,
@@ -91,9 +115,19 @@ function StartTripDialogBody({
       return;
     }
 
+    if (!occurredAt.trim()) {
+      setTimeError("Indica la fecha y hora de salida.");
+      return;
+    }
+    setTimeError(null);
+
+    const gpsFields = trackingGpsToEventFields(gps);
     startMutation.mutate({
       id: tripId,
       mileage: parsed,
+      occurredAt: localInputToUtcIso(occurredAt),
+      latitude: gpsFields.latitude,
+      longitude: gpsFields.longitude,
     });
   };
 
@@ -125,23 +159,60 @@ function StartTripDialogBody({
           El viaje pasará a en curso; registra el kilometraje inicial del odómetro.
         </DialogDescription>
       </DialogHeader>
-      <div className="py-4 space-y-2">
-        <Label htmlFor="start-mileage">Kilometraje inicial</Label>
-        <Input
-          id="start-mileage"
-          type="number"
-          min={0}
-          placeholder="Ej: 150000"
-          value={mileageField.value}
-          onChange={(e) => mileageField.onValueChange(e.target.value)}
-          className="mt-2"
+      <div className="py-4 space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="start-occurred-at">Fecha y hora de salida</Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id="start-occurred-at"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              disabled={startMutation.isPending}
+              aria-invalid={timeError ? true : undefined}
+              className="min-w-[220px] flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
+              disabled={startMutation.isPending}
+            >
+              Ahora
+            </Button>
+          </div>
+          {timeError ? (
+            <p className="text-xs text-destructive">{timeError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Hora civil México.</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="start-mileage">Kilometraje inicial</Label>
+          <Input
+            id="start-mileage"
+            type="number"
+            min={0}
+            placeholder="Ej: 150000"
+            value={mileageField.value}
+            onChange={(e) => mileageField.onValueChange(e.target.value)}
+            disabled={startMutation.isPending}
+          />
+          {isLoadingVehicle ? (
+            <p className="text-xs text-muted-foreground">Cargando kilometraje del vehículo…</p>
+          ) : mileageSourceHint ? (
+            <p className="text-xs text-muted-foreground">{mileageSourceHint}</p>
+          ) : null}
+        </div>
+
+        <TrackingGpsCaptureSection
+          stop={originStop}
+          value={gps}
+          onChange={setGps}
           disabled={startMutation.isPending}
         />
-        {isLoadingVehicle ? (
-          <p className="text-xs text-muted-foreground">Cargando kilometraje del vehículo…</p>
-        ) : mileageSourceHint ? (
-          <p className="text-xs text-muted-foreground">{mileageSourceHint}</p>
-        ) : null}
       </div>
       <DialogFooter>
         <Button
@@ -169,13 +240,14 @@ export function StartTripDialog({
   tripCode,
   vehicleId,
   tripStartMileage,
+  originStop,
   open,
   onOpenChange,
   onSuccess,
 }: StartTripDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         {open ? (
           <StartTripDialogBody
             key={tripId}
@@ -183,6 +255,7 @@ export function StartTripDialog({
             tripCode={tripCode}
             vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            originStop={originStop}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

@@ -7,6 +7,7 @@ import {
   formatStopTimelineLabel,
   type StopTimelineLabel,
 } from "../uiHelpers";
+import { trackingCopy } from "@features/trips/presentation/copy";
 
 function normalizeStopTypes(
   stopType: StopTypeValue | StopTypeValue[],
@@ -36,7 +37,7 @@ export function formatArrivalButtonLabel(
   stop: TripStop | undefined,
   displayOrder: number | undefined,
 ): string {
-  const base = "Registrar llegada";
+  const base = trackingCopy.action.arrive;
   if (!stop || displayOrder == null) return base;
   return `${base} — ${formatStopActionShortLabel(stop, displayOrder)}`;
 }
@@ -45,7 +46,7 @@ export function formatDepartureButtonLabel(
   stop: TripStop | undefined,
   displayOrder: number | undefined,
 ): string {
-  const base = "Registrar salida";
+  const base = trackingCopy.action.depart;
   if (!stop || displayOrder == null) return base;
   return `${base} — ${formatStopActionShortLabel(stop, displayOrder)}`;
 }
@@ -54,7 +55,7 @@ export function formatTripArrivalButtonLabel(
   stop: TripStop | undefined,
   displayOrder: number | undefined,
 ): string {
-  const base = "Cerrar en destino";
+  const base = trackingCopy.action.close;
   if (!stop || displayOrder == null) return base;
   return `${base} — ${formatStopActionShortLabel(stop, displayOrder)}`;
 }
