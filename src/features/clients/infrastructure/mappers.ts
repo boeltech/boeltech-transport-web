@@ -100,7 +100,7 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     legalName: raw.legalName,
     tradeName: raw.tradeName ?? undefined,
     taxId: raw.taxId,
-    taxRegime: raw.taxRegime ?? undefined,
+    taxRegime: raw.taxRegime,
     contactName: raw.contactName ?? undefined,
     contactPosition: raw.contactPosition ?? undefined,
     phone: raw.phone ?? undefined,
@@ -116,6 +116,8 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     updatedAt: raw.updatedAt,
     createdBy: raw.createdBy ?? undefined,
     updatedBy: raw.updatedBy ?? undefined,
+    createdByName: raw.createdByName ?? undefined,
+    updatedByName: raw.updatedByName ?? undefined,
   };
 }
 
@@ -150,11 +152,6 @@ export function mapPaginatedClients(
  */
 export function mapClientFromApi(response: ClientApiResponse): Client {
   return mapClientToDomain(deepToCamel(response));
-}
-
-/** @deprecated Use {@link mapPaginatedClients} o `mapClientListItemFromApi`. */
-export function mapClientListItem(response: ClientListItemApiResponse): ClientListItem {
-  return mapClientListItemToDomain(deepToCamel(response));
 }
 
 // ============================================================================
@@ -194,6 +191,7 @@ function mapClientAddressToDomain(
     satStateCode: firstNonEmpty(raw.satStateCode, raw.satEstadoCode),
     satMunicipalityCode: firstNonEmpty(raw.satMunicipalityCode, raw.satMunicipioCode),
     satLocalityCode: firstNonEmpty(raw.satLocalityCode),
+    localityName: firstNonEmpty(raw.localityName),
     satNeighborhoodCode: firstNonEmpty(raw.satNeighborhoodCode, raw.satColoniaCode),
     neighborhoodName: firstNonEmpty(raw.neighborhoodName),
     postalCode: raw.postalCode ?? undefined,
@@ -246,6 +244,7 @@ function mapClientAddressListItemToDomain(
     satStateCode: firstNonEmpty(raw.satStateCode, raw.satEstadoCode),
     satMunicipalityCode: firstNonEmpty(raw.satMunicipalityCode, raw.satMunicipioCode),
     satLocalityCode: firstNonEmpty(raw.satLocalityCode),
+    localityName: firstNonEmpty(raw.localityName),
     satNeighborhoodCode: firstNonEmpty(raw.satNeighborhoodCode, raw.satColoniaCode),
     neighborhoodName: firstNonEmpty(raw.neighborhoodName),
     postalCode: raw.postalCode ?? undefined,
@@ -301,20 +300,6 @@ export function mapClientAddressFromApi(
   return mapClientAddressToDomain(deepToCamel(response));
 }
 
-/** @deprecated Use {@link mapClientAddressList} con el envelope completo. */
-export function mapClientAddressListItem(
-  response: ClientAddressApiResponse,
-): ClientAddressListItem {
-  return mapClientAddressListItemToDomain(deepToCamel(response));
-}
-
-/** @deprecated Use {@link mapClientAddressList} con el envelope completo. */
-export function mapClientAddresses(
-  responses: ClientAddressApiResponse[],
-): ClientAddressListItem[] {
-  return responses.map((item) => mapClientAddressListItemToDomain(deepToCamel(item)));
-}
-
 // ============================================================================
 // CLIENT MAPPERS: DOMAIN → API (toApi*)
 // ============================================================================
@@ -337,8 +322,7 @@ export function toApiCreateClient(
   const tradeName = apiOptionalTrimmedString(dto.tradeName);
   if (tradeName !== undefined) payload.trade_name = tradeName;
 
-  const taxRegime = apiOptionalTrimmedString(dto.taxRegime);
-  if (taxRegime !== undefined) payload.tax_regime = taxRegime;
+  payload.tax_regime = dto.taxRegime.trim();
 
   const contactName = apiOptionalTrimmedString(dto.contactName);
   if (contactName !== undefined) payload.contact_name = contactName;
@@ -418,6 +402,7 @@ export function toApiCreateClientAddress(
     satStateCode: dto.satStateCode,
     satMunicipalityCode: dto.satMunicipalityCode,
     satLocalityCode: dto.satLocalityCode,
+    localityName: dto.localityName,
     satNeighborhoodCode: dto.satNeighborhoodCode,
     neighborhoodName: dto.neighborhoodName,
     postalCode: dto.postalCode,

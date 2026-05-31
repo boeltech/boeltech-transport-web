@@ -69,6 +69,7 @@ import { ClientAddressDetailView } from "./ClientAddressDetailView";
 import {
   clientAddressFormDataToCreateDto,
   clientAddressFormDataToUpdateDto,
+  validateClientAddressFormComplete,
   type ClientAddressFormData,
 } from "../validation/clientAddressSchema";
 
@@ -212,6 +213,16 @@ export function ClientAddressMasterDetail({
     const valid = await formRef.current?.triggerValidation();
     if (!valid || !formData) return;
 
+    const packageResult = await validateClientAddressFormComplete(formData, {
+      context: "additional",
+      requireCoordinates: false,
+      intent: mode === "edit" ? "update" : "create",
+    });
+    if (!packageResult.ok) {
+      formRef.current?.applySatFieldErrors(packageResult.fieldErrors);
+      return;
+    }
+
     if (mode === "create") {
       createMutation.mutate(
         {
@@ -304,14 +315,29 @@ export function ClientAddressMasterDetail({
   >(() => {
     if (effectiveMode !== "edit" || !selectedAddressFull) return undefined;
     const a = selectedAddressFull;
+    const additionalAddressTypes = [
+      "billing",
+      "shipping",
+      "pickup",
+      "warehouse",
+      "office",
+      "other",
+    ] as const;
+    const formAddressType = (
+      additionalAddressTypes as readonly string[]
+    ).includes(a.addressType)
+      ? (a.addressType as ClientAddressFormData["addressType"])
+      : "other";
+
     return {
-      addressType: a.addressType,
+      addressType: formAddressType,
       isPrimary: a.isPrimary,
       locationName: a.locationName ?? "",
       satCountryCode: a.satCountryCode ?? "MEX",
       satStateCode: a.satStateCode ?? "",
       satMunicipalityCode: a.satMunicipalityCode ?? "",
       satLocalityCode: a.satLocalityCode ?? null,
+      localityName: a.localityName ?? null,
       satNeighborhoodCode: a.satNeighborhoodCode ?? null,
       neighborhoodName: a.neighborhoodName ?? null,
       postalCode: a.postalCode ?? "",

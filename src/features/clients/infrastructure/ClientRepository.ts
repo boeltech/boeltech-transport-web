@@ -40,6 +40,13 @@ import {
   toApiCreateClient,
   toApiUpdateClient,
 } from "./mappers";
+import { isV1CargoPlaceholderClientCode } from "../domain/placeholderClient";
+
+function withoutV1CargoPlaceholderClients(
+  items: ClientListItem[],
+): ClientListItem[] {
+  return items.filter((c) => !isV1CargoPlaceholderClientCode(c.clientCode));
+}
 
 // ============================================================================
 // CONSTANTS
@@ -77,7 +84,11 @@ class ClientRepository implements IClientRepository {
       ApiPaginatedResponse<ClientListItemApiResponse>
     >(`${BASE_URL}?${params.toString()}`);
 
-    return mapPaginatedClients(response);
+    const mapped = mapPaginatedClients(response);
+    return {
+      ...mapped,
+      data: withoutV1CargoPlaceholderClients(mapped.data),
+    };
   }
 
   /**
@@ -116,7 +127,7 @@ class ClientRepository implements IClientRepository {
       ApiPaginatedResponse<ClientListItemApiResponse>
     >(`${BASE_URL}?${params.toString()}`);
 
-    return mapPaginatedClients(response).data;
+    return withoutV1CargoPlaceholderClients(mapPaginatedClients(response).data);
   }
 
   /**

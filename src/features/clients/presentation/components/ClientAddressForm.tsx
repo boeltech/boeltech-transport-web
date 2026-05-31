@@ -29,9 +29,9 @@ import {
   type UseFormSetValue,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { Textarea } from "@shared/ui/text-area";
 import {
   Select,
   SelectContent,
@@ -43,23 +43,21 @@ import { Switch } from "@shared/ui/switch";
 import {
   EntityAddressForm,
   AddressInput,
-  AddressGeolocationPanel,
   ADDRESS_FORM_COPY,
+  buildGeocodingEntityFormSection,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
-import { MapPin, User } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { resolveAddressFormFieldRequirements } from "@shared/validation/addressFormProfileUx";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
-import {
-  createGeoProviderBundle,
-  ResolveStopGeolocationUseCase,
-} from "@shared/geolocation";
-import { FormValidationSummary } from "./FormValidationSummary";
+import { FormValidationSummary } from "@shared/ui/form";
 
-import { ADDRESS_TYPE_LABELS, type AddressType } from "../../domain";
 import {
   applyClientAddressFormContext,
-  clientAddressFormSchema,
+  billingAddressFormSchema,
+  additionalAddressFormSchema,
+  CLIENT_ADDRESS_TYPES,
   type ClientAddressFormContext,
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,
@@ -73,6 +71,8 @@ import { ADDRESS_TYPE_CONFIG } from "../config/clientConfig";
 
 export interface ClientAddressFormRef {
   triggerValidation: () => Promise<boolean>;
+  /** Errores SAT (p. ej. estado/CP obligatorios XSD) en campos del formulario. */
+  applySatFieldErrors: (fieldErrors: Record<string, string>) => void;
 }
 
 export interface ClientAddressFormProps {
@@ -130,6 +130,7 @@ const CLIENT_ADDRESS_NOTIFY_KEYS = [
   "satStateCode",
   "satMunicipalityCode",
   "satLocalityCode",
+  "localityName",
   "satNeighborhoodCode",
   "neighborhoodName",
   "latitude",
@@ -159,12 +160,14 @@ function clientAddressValuesNotifyKey(
 }
 
 function LocationAddressFields({
-  mode,
+  formContext,
+  addressType,
   control,
   setValue,
   disabled,
 }: {
-  mode: "carta-porte" | "cfdi";
+  formContext: ClientAddressFormContext;
+  addressType?: string;
   control: Control<ClientAddressFormData>;
   setValue: UseFormSetValue<ClientAddressFormData>;
   disabled: boolean;
@@ -172,13 +175,15 @@ function LocationAddressFields({
   return (
     <>
       <AddressInput<ClientAddressFormData>
-        mode={mode}
+        variant="carta-porte"
+        formContext={formContext}
+        addressType={addressType}
         control={control}
         setValue={setValue}
         namePrefix=""
         layout="compact"
-        showLatLng
         showPrimaryToggle={false}
+        hideInformativeAlerts
         disabled={disabled}
       />
     </>
@@ -206,11 +211,6 @@ const ClientAddressFormRoot = forwardRef<
   },
   ref,
 ) {
-  const providers = useMemo(() => createGeoProviderBundle(), []);
-  const geocodeUseCase = useMemo(
-    () => new ResolveStopGeolocationUseCase(providers.geocodingProvider),
-    [providers.geocodingProvider],
-  );
   const isBillingContext = formContext === "billingOnCreate";
   const copy = ADDRESS_FORM_COPY[formContext];
   const contextConfig = isBillingContext
@@ -218,21 +218,14 @@ const ClientAddressFormRoot = forwardRef<
         forceAddressType: true,
         forcePrimary: true,
         showTypeSection: false,
-        mode: "carta-porte" as const,
       }
     : {
         forceAddressType: false,
         forcePrimary: false,
         showTypeSection: true,
-        mode: "carta-porte" as const,
       };
 
-  const hasClientFiscalData = Boolean(clientRfc || clientName);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
-  const [useClientFiscalData, setUseClientFiscalData] = useState(
-    hasClientFiscalData,
-  );
-  const hasInitializedFiscalModeRef = useRef(false);
 
   // Se usa un único schema para evitar incompatibilidades de tipos entre variantes.
   // Para dirección fiscal, se fuerzan valores en runtime.
@@ -240,8 +233,12 @@ const ClientAddressFormRoot = forwardRef<
     ? defaultBillingAddressFormValues
     : defaultClientAddressFormValues;
 
+  const addressFormSchema = isBillingContext
+    ? billingAddressFormSchema
+    : additionalAddressFormSchema;
+
   const form = useForm<ClientAddressFormData, unknown, ClientAddressFormData>({
-    resolver: zodResolver(clientAddressFormSchema) as Resolver<ClientAddressFormData>,
+    resolver: zodResolver(addressFormSchema) as Resolver<ClientAddressFormData>,
     defaultValues: {
       ...defaults,
       ...defaultValues,
@@ -260,59 +257,50 @@ const ClientAddressFormRoot = forwardRef<
     setValue,
     handleSubmit,
     trigger,
+    setError,
+    clearErrors,
+    setFocus,
     formState: { errors, isValid },
   } = form;
 
   const validationMessages = collectFieldErrorMessages(errors);
   const shouldShowValidationSummary = showValidationSummary && !isValid;
 
-  const tryAutoGeocodeIfMissingCoords = useCallback(async (): Promise<boolean> => {
-    const values = form.getValues();
-    if (values.latitude != null && values.longitude != null) return true;
-
-    const outcome = await geocodeUseCase.execute(
-      {
-        street: values.street,
-        exteriorNumber: values.exteriorNumber,
-        interiorNumber: values.interiorNumber,
-        postalCode: values.postalCode,
-        satMunicipalityCode: values.satMunicipalityCode,
-        satStateCode: values.satStateCode,
-        satCountryCode: values.satCountryCode,
-        locationName: values.locationName,
-      },
-      5,
-    );
-
-    if (!outcome.ok || outcome.data.candidates.length === 0) {
-      return false;
-    }
-
-    const highConfidence = outcome.data.candidates.find(
-      (candidate) => (candidate.relevance ?? 0) >= 0.85,
-    );
-    if (!highConfidence) return false;
-
-    setValue("latitude", highConfidence.position.latitude, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("longitude", highConfidence.position.longitude, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    return true;
-  }, [form, geocodeUseCase, setValue]);
-
-  useImperativeHandle(ref, () => ({
-    triggerValidation: async () => {
-      await tryAutoGeocodeIfMissingCoords();
-      const ok = await trigger(undefined, { shouldFocus: true });
-      if (!ok) setShowValidationSummary(true);
-      else setShowValidationSummary(false);
-      return ok;
+  const applySatFieldErrors = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      const satKeys = Object.keys(fieldErrors).filter(Boolean);
+      if (satKeys.length > 0) {
+        clearErrors(satKeys as (keyof ClientAddressFormData)[]);
+        for (const [key, message] of Object.entries(fieldErrors)) {
+          if (!key || !message) continue;
+          setError(key as keyof ClientAddressFormData, {
+            type: "sat",
+            message,
+          });
+        }
+        setShowValidationSummary(true);
+        const firstKey = satKeys[0];
+        if (firstKey) {
+          void setFocus(firstKey as keyof ClientAddressFormData);
+        }
+      }
     },
-  }), [trigger, tryAutoGeocodeIfMissingCoords]);
+    [clearErrors, setError, setFocus],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      triggerValidation: async () => {
+        const ok = await trigger(undefined, { shouldFocus: true });
+        if (!ok) setShowValidationSummary(true);
+        else setShowValidationSummary(false);
+        return ok;
+      },
+      applySatFieldErrors,
+    }),
+    [applySatFieldErrors, trigger],
+  );
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -338,57 +326,38 @@ const ClientAddressFormRoot = forwardRef<
   const satMunicipalityCode = formValues.satMunicipalityCode ?? "";
   const postalCode = formValues.postalCode ?? "";
 
-  // Inicializar modo de uso de datos fiscales con base en valores existentes.
-  // Si la dirección ya tenía un remitente/destinatario diferente al cliente,
-  // mantenemos el modo manual para no sobreescribir datos históricos.
+  const profileUx = useMemo(
+    () =>
+      resolveAddressFormFieldRequirements({
+        formContext,
+        addressType: formValues.addressType,
+        variant: "carta-porte",
+      }),
+    [formContext, formValues.addressType],
+  );
+
+  // Pre-llenar remitente/destinatario desde el cliente si el formulario viene vacío (sin UI operativa).
   useEffect(() => {
-    if (!hasClientFiscalData || hasInitializedFiscalModeRef.current) return;
-
-    const normalizeRfc = (value?: string) =>
-      (value ?? "")
-        .trim()
-        .toUpperCase();
-    const normalizeName = (value?: string) =>
-      (value ?? "")
-        .trim()
-        .toLowerCase();
-
-    const currentRfc = normalizeRfc(formValues.rfcRemitenteDestinatario);
-    const currentName = normalizeName(formValues.nombreRemitenteDestinatario);
-    const clientRfcNormalized = normalizeRfc(clientRfc);
-    const clientNameNormalized = normalizeName(clientName);
-
-    const hasCurrentValues = Boolean(currentRfc || currentName);
-    const matchesClientData =
-      (!clientRfcNormalized || currentRfc === clientRfcNormalized) &&
-      (!clientNameNormalized || currentName === clientNameNormalized);
-
-    queueMicrotask(() =>
-      setUseClientFiscalData(!hasCurrentValues || matchesClientData),
-    );
-    hasInitializedFiscalModeRef.current = true;
+    if (!clientRfc && !clientName) return;
+    const currentRfc = (formValues.rfcRemitenteDestinatario ?? "").trim();
+    const currentName = (formValues.nombreRemitenteDestinatario ?? "").trim();
+    if (!currentRfc && clientRfc) {
+      setValue("rfcRemitenteDestinatario", clientRfc.toUpperCase(), {
+        shouldDirty: false,
+      });
+    }
+    if (!currentName && clientName) {
+      setValue("nombreRemitenteDestinatario", clientName, {
+        shouldDirty: false,
+      });
+    }
   }, [
     clientName,
     clientRfc,
     formValues.nombreRemitenteDestinatario,
     formValues.rfcRemitenteDestinatario,
-    hasClientFiscalData,
+    setValue,
   ]);
-
-  useEffect(() => {
-    if (!useClientFiscalData || !hasClientFiscalData) return;
-
-    if (clientRfc) {
-      setValue("rfcRemitenteDestinatario", clientRfc.toUpperCase(), {
-        shouldValidate: true,
-      });
-    }
-    if (clientName) {
-      setValue("nombreRemitenteDestinatario", clientName, {
-        shouldValidate: true,
-      });
-    }
-  }, [clientName, clientRfc, hasClientFiscalData, setValue, useClientFiscalData]);
 
   // Notificar cambios al padre (onChange no va en deps: identidad inestable → bucle infinito con setState del padre).
   // Dedup por contenido: useWatch puede entregar nueva referencia en renders sin cambios reales de valores.
@@ -415,7 +384,7 @@ const ClientAddressFormRoot = forwardRef<
   if (contextConfig.showTypeSection) {
     preAddressSections.push({
       id: "address-context-additional",
-      title: "Contexto de direccion",
+      title: "Identificación del lugar",
       icon: <MapPin className="h-4 w-4" />,
       content: (
         <>
@@ -437,7 +406,7 @@ const ClientAddressFormRoot = forwardRef<
                       <SelectValue placeholder="Seleccione tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(ADDRESS_TYPE_LABELS) as AddressType[]).map((type) => {
+                      {CLIENT_ADDRESS_TYPES.map((type) => {
                         const config = ADDRESS_TYPE_CONFIG[type];
                         const Icon = config.icon;
                         return (
@@ -455,12 +424,26 @@ const ClientAddressFormRoot = forwardRef<
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="locationName">Nombre del Lugar</Label>
+              <Label htmlFor="locationName">
+                Nombre del Lugar{" "}
+                {profileUx.requireLocationName ? (
+                  <span className="text-destructive">*</span>
+                ) : null}
+              </Label>
               <Input
                 id="locationName"
                 placeholder={copy.locationNamePlaceholder}
                 disabled={disabled}
+                error={Boolean(errors.locationName)}
                 {...register("locationName")}
+                {...getFieldErrorAriaProps(
+                  "locationName",
+                  errors.locationName?.message,
+                )}
+              />
+              <FieldInlineError
+                fieldId="locationName"
+                message={errors.locationName?.message}
               />
             </div>
           </div>
@@ -488,215 +471,80 @@ const ClientAddressFormRoot = forwardRef<
   if (isBillingContext) {
     preAddressSections.push({
       id: "address-context-billing",
-      title: "Contexto de direccion",
+      title: "Identificación del lugar",
       icon: <MapPin className="h-4 w-4" />,
       content: (
         <div className="space-y-2">
-          <Label htmlFor="locationName">Nombre del Lugar</Label>
+          <Label htmlFor="locationName">
+            Nombre del Lugar <span className="text-destructive">*</span>
+          </Label>
           <Input
             id="locationName"
             placeholder={copy.locationNamePlaceholder}
             disabled={disabled}
+            error={Boolean(errors.locationName)}
             {...register("locationName")}
+            {...getFieldErrorAriaProps(
+              "locationName",
+              errors.locationName?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="locationName"
+            message={errors.locationName?.message}
           />
         </div>
       ),
     });
   }
 
-  const geoError = errors.latitude?.message;
+  const geocodingSection = buildGeocodingEntityFormSection({
+    address: {
+      locationName: formValues.locationName,
+      street: formValues.street,
+      exteriorNumber: formValues.exteriorNumber,
+      interiorNumber: formValues.interiorNumber,
+      postalCode: formValues.postalCode,
+      satMunicipalityCode: formValues.satMunicipalityCode,
+      satStateCode: formValues.satStateCode,
+      satCountryCode: formValues.satCountryCode,
+    },
+    latitude: formValues.latitude,
+    longitude: formValues.longitude,
+    latitudeError: errors.latitude?.message,
+    onCoordinatesChange: (coords) => {
+      setValue("latitude", coords.latitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("longitude", coords.longitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    disabled,
+  });
 
-  const postAddressSections: EntityAddressFormSection[] = [
-    {
-      id: "geo-confirmation",
-      title: (
-        <span className="inline-flex items-center gap-2">
-          Confirmación geográfica
-          <span className="text-destructive text-xs font-normal">*</span>
-        </span>
-      ),
-      icon: <MapPin className="h-4 w-4" />,
-      content: (
-        <>
-          {geoError && (
-            <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              {geoError}
-            </p>
-          )}
-          <AddressGeolocationPanel
-            address={{
-              locationName: formValues.locationName,
-              street: formValues.street,
-              exteriorNumber: formValues.exteriorNumber,
-              interiorNumber: formValues.interiorNumber,
-              postalCode: formValues.postalCode,
-              satMunicipalityCode: formValues.satMunicipalityCode,
-              satStateCode: formValues.satStateCode,
-              satCountryCode: formValues.satCountryCode,
-            }}
-            latitude={formValues.latitude}
-            longitude={formValues.longitude}
-            onCoordinatesChange={(coords) => {
-              setValue("latitude", coords.latitude, {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
-              setValue("longitude", coords.longitude, {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
-            }}
-            disabled={disabled}
-          />
-        </>
-      ),
-    },
-    {
-      id: "fiscal-operational",
-      title: "Datos fiscales operativos",
-      icon: <User className="h-4 w-4" />,
-      content: (
-        <>
-          <p className="text-sm text-muted-foreground">{copy.cartaPorteDescription}</p>
-          <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
-            <div className="space-y-1">
-              <Label htmlFor="useClientFiscalData" className="cursor-pointer">
-                Usar datos fiscales del cliente
-              </Label>
-              <p className="text-xs text-muted-foreground">{copy.fiscalDataDescription}</p>
-            </div>
-            <Switch
-              id="useClientFiscalData"
-              checked={useClientFiscalData}
-              onCheckedChange={setUseClientFiscalData}
-              disabled={disabled || !hasClientFiscalData}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="rfcRemitenteDestinatario">RFC Remitente/Destinatario</Label>
-              <Input
-                id="rfcRemitenteDestinatario"
-                placeholder="RFC del remitente o destinatario"
-                className="uppercase"
-                maxLength={13}
-                disabled={disabled || useClientFiscalData}
-                {...register("rfcRemitenteDestinatario", {
-                  onChange: (e) => {
-                    e.target.value = e.target.value.toUpperCase();
-                  },
-                })}
-              />
-              <p className="text-xs text-muted-foreground">{copy.fiscalRfcHint}</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nombreRemitenteDestinatario">
-                Nombre Remitente/Destinatario
-              </Label>
-              <Input
-                id="nombreRemitenteDestinatario"
-                placeholder="Nombre o razón social"
-                disabled={disabled || useClientFiscalData}
-                {...register("nombreRemitenteDestinatario")}
-              />
-            </div>
-          </div>
-        </>
-      ),
-    },
-    {
-      id: "contact-operation",
-      title: "Contacto en esta ubicación",
-      icon: <User className="h-4 w-4" />,
-      content: (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="contactName">Nombre</Label>
-              <Input
-                id="contactName"
-                placeholder="Nombre del contacto"
-                disabled={disabled}
-                {...register("contactName")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactPhone">Teléfono</Label>
-              <Input
-                id="contactPhone"
-                placeholder="55 1234 5678"
-                disabled={disabled}
-                {...register("contactPhone")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactEmail">Email</Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                placeholder="contacto@ejemplo.com"
-                disabled={disabled}
-                {...register("contactEmail")}
-              />
-              {errors.contactEmail && (
-                <p className="text-sm text-destructive">{errors.contactEmail.message}</p>
-              )}
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="businessHours">Horario de Atención</Label>
-              <Input
-                id="businessHours"
-                placeholder="Ej: Lun-Vie 9:00-18:00"
-                disabled={disabled}
-                {...register("businessHours")}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="specialInstructions">Instrucciones Especiales</Label>
-              <Textarea
-                id="specialInstructions"
-                placeholder="Instrucciones de acceso, requisitos de seguridad, etc."
-                rows={2}
-                disabled={disabled}
-                {...register("specialInstructions")}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                placeholder="Notas adicionales sobre esta dirección"
-                rows={2}
-                disabled={disabled}
-                {...register("notes")}
-              />
-            </div>
-          </div>
-        </>
-      ),
-    },
-  ];
+  const postAddressSections = [geocodingSection];
 
   return (
     <EntityAddressForm
       onSubmit={handleSubmit(handleFormSubmit)}
       className={cn("space-y-6", className)}
       formContext={formContext}
-      addressMode={contextConfig.mode}
+      addressVariant="carta-porte"
+      addressType={formValues.addressType}
       infoMessage={copy.globalInfoMessage}
       satStateCode={satStateCode}
       satMunicipalityCode={satMunicipalityCode}
       postalCode={postalCode}
-      hasClientFiscalData={hasClientFiscalData}
-      useClientFiscalData={useClientFiscalData}
       hideLocationSectionTitle={hideLocationSectionTitle}
+      locationSectionTitle="Domicilio"
       preAddressSections={preAddressSections}
       addressInputSection={
         <LocationAddressFields
-          mode={contextConfig.mode}
+          formContext={formContext}
+          addressType={formValues.addressType}
           control={control}
           setValue={setValue}
           disabled={disabled}
@@ -707,7 +555,9 @@ const ClientAddressFormRoot = forwardRef<
       {shouldShowValidationSummary ? (
         <FormValidationSummary
           messages={validationMessages}
-          title="Revisa la dirección fiscal"
+          title={
+            isBillingContext ? "Revisa la dirección fiscal" : "Revisa la dirección"
+          }
         />
       ) : null}
     </EntityAddressForm>

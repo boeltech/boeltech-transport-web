@@ -16,7 +16,6 @@ export {
   // Client mappers
   mapClient,
   mapClientFromApi,
-  mapClientListItem,
   mapPaginatedClients,
   toApiCreateClient,
   toApiUpdateClient,
@@ -25,8 +24,6 @@ export {
   mapClientAddressList,
   mapClientAddressListToDomain,
   mapClientAddressFromApi,
-  mapClientAddressListItem,
-  mapClientAddresses,
   toApiCreateClientAddress,
   toApiUpdateClientAddress,
 } from "./mappers";

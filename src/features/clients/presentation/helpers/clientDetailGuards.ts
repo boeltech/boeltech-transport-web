@@ -1,18 +1,15 @@
-import type { Client } from "../../domain";
+import { isClientTaxIdFormatInvalid } from "@boeltech/cfdi-domain/validadores/client";
 
-const RFC_SHAPE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+import type { Client } from "../../domain";
 
 /**
  * True si el RFC no cumple longitud/formato esperado por tipo SAT.
  */
 export function isClientTaxIdFormatSuspicious(client: Client): boolean {
-  const raw = client.taxId?.trim() ?? "";
-  if (!raw) return true;
-  const rfc = raw.toUpperCase();
-  if (!RFC_SHAPE.test(rfc)) return true;
-  if (client.type === "company" && rfc.length !== 12) return true;
-  if (client.type === "individual" && rfc.length !== 13) return true;
-  return false;
+  return isClientTaxIdFormatInvalid({
+    type: client.type,
+    taxId: client.taxId,
+  });
 }
 
 /**

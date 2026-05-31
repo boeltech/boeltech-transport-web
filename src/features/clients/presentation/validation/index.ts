@@ -20,7 +20,7 @@ export {
 
 // Client Address Form Schema
 export {
-  clientAddressFormSchema,
+  additionalAddressFormSchema,
   billingAddressFormSchema,
   updateClientAddressFormSchema,
   defaultClientAddressFormValues,
@@ -29,9 +29,10 @@ export {
   clientAddressFormDataToCreateDto,
   clientAddressFormDataToUpdateDto,
   validateClientAddressFormComplete,
-  validateClientAddressSatRules,
   mapValidationErrorsToRHF,
+  CLIENT_ADDRESS_TYPES,
   type ClientAddressFormData,
   type BillingAddressFormData,
   type UpdateClientAddressFormData,
+  type ClientAddressTypeValue,
 } from "./clientAddressSchema";

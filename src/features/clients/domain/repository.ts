@@ -5,6 +5,9 @@
  * Define los contratos (interfaces) para los repositorios y los DTOs
  * para transferencia de datos entre capas.
  *
+ * **Soft delete:** el API filtra `deleted_at IS NULL` en lecturas; los clientes
+ * eliminados no aparecen en listados ni detalle. El dominio web no modela `deletedAt`.
+ *
  * IMPORTANTE:
  * - Las funciones `toApi*` convierten a snake_case para el backend
  * - Los DTOs del dominio usan camelCase
@@ -73,7 +76,7 @@ export interface CreateClientDTO {
   legalName: string;
   tradeName?: string;
   taxId: string; // RFC
-  taxRegime?: string; // Régimen fiscal
+  taxRegime: string; // Régimen fiscal
 
   // Contacto principal
   contactName?: string;
@@ -120,8 +123,10 @@ export interface CreateClientAddressDTO {
   // ═══════════════════════════════════════════════════════════════════════════
   satCountryCode?: string;
   satStateCode: string;
-  satMunicipalityCode: string;
+  /** c_Municipio (opcional XSD CP3.1, `use="optional"`). */
+  satMunicipalityCode?: string | null;
   satLocalityCode?: string;
+  localityName?: string;
   satNeighborhoodCode?: string;
   neighborhoodName?: string;
   postalCode: string;
@@ -136,11 +141,13 @@ export interface CreateClientAddressDTO {
   rfcRemitenteDestinatario?: string;
   nombreRemitenteDestinatario?: string;
 
-  // Coordenadas (opcionales)
-  latitude?: number;
-  longitude?: number;
+  // Coordenadas (opcionales). `null` indica intención explícita de limpiar el valor
+  // existente al actualizar (sin null el merge en backend conservaría las coords
+  // previas y dispararía GEOLOCATION_PENDING_CONFLICT al fijar `geolocationPending=true`).
+  latitude?: number | null;
+  longitude?: number | null;
   geolocationPending?: boolean;
-  geocodingSource?: "manual" | "mapbox" | "google" | "nominatim";
+  geocodingSource?: "manual" | "mapbox" | "google" | "nominatim" | null;
 
   // Contacto en esta dirección
   contactName?: string;
@@ -270,7 +277,7 @@ export interface ClientApiResponse {
   legal_name: string;
   trade_name: string | null;
   tax_id: string;
-  tax_regime: string | null;
+  tax_regime: string;
   // Contacto
   contact_name: string | null;
   contact_position: string | null;
@@ -290,6 +297,8 @@ export interface ClientApiResponse {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
 }
 
 /**
@@ -322,6 +331,7 @@ export interface ClientAddressApiResponse {
   sat_state_code?: string | null;
   sat_municipality_code?: string | null;
   sat_locality_code?: string | null;
+  locality_name?: string | null;
   sat_neighborhood_code?: string | null;
   neighborhood_name?: string | null;
   /** Lectura compatible si aún existe respuesta antigua */

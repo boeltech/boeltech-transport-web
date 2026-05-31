@@ -293,7 +293,9 @@ export function ClientDetailPage() {
       metadata={{
         createdAt: client.createdAt,
         updatedAt: client.updatedAt,
-        createdBy: client.createdBy ?? undefined,
+        createdBy:
+          client.createdByName?.trim() || client.createdBy?.trim() || undefined,
+        updatedBy: client.updatedByName?.trim() || undefined,
       }}
     />
   );

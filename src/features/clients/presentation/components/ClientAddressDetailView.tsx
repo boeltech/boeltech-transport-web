@@ -5,7 +5,7 @@
  * Vista read-only del panel detail en el master-detail de direcciones.
  * Muestra todos los campos de la dirección seleccionada con `InfoRow`
  * variant="inline" (estilo editorial, denso, copyable para identificadores)
- * y opcionalmente los botones de acción: Editar y Eliminar (`readOnly`).
+ * Acciones (Marcar principal, Editar, Eliminar) en el header del panel (`readOnly` las oculta).
  *
  * Cuando el usuario hace click en "Editar", el componente padre
  * (`ClientAddressMasterDetail`) muta este panel al `ClientAddressForm`
@@ -76,13 +76,15 @@ export function ClientAddressDetailView({
     .filter(Boolean)
     .join(" · ");
 
+  const showActions = !readOnly && Boolean(onEdit && onDelete);
+
   return (
     <div className={cn("flex flex-col gap-5", className)}>
       {/* ────────────────────────────────────────────────────────────────── */}
       {/* Header                                                             */}
       {/* ────────────────────────────────────────────────────────────────── */}
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
+      <header className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <div
             className={cn(
               "flex h-10 w-10 shrink-0 items-center justify-center rounded-md",
@@ -92,7 +94,7 @@ export function ClientAddressDetailView({
             <TypeIcon className={cn("h-5 w-5", typeConfig.color)} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold truncate">
+            <h3 className="truncate text-base font-semibold">
               {address.locationName || typeConfig.label}
             </h3>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -140,6 +142,41 @@ export function ClientAddressDetailView({
             </div>
           </div>
         </div>
+
+        {showActions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            {!address.isPrimary && onSetPrimary ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onSetPrimary}
+                disabled={isPending}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Marcar principal
+              </Button>
+            ) : null}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onEdit}
+              disabled={isPending}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              disabled={isPending}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </Button>
+          </div>
+        ) : null}
       </header>
 
       {/* ────────────────────────────────────────────────────────────────── */}
@@ -286,41 +323,6 @@ export function ClientAddressDetailView({
             </div>
           ) : null}
         </section>
-      ) : null}
-
-      {!readOnly && onEdit && onDelete ? (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {!address.isPrimary && onSetPrimary ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onSetPrimary}
-              disabled={isPending}
-            >
-              <Star className="mr-2 h-4 w-4" />
-              Marcar principal
-            </Button>
-          ) : null}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onEdit}
-            disabled={isPending}
-          >
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDelete}
-            disabled={isPending}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </Button>
-        </div>
       ) : null}
     </div>
   );

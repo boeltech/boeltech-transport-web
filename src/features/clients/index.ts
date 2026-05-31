@@ -124,7 +124,6 @@ export {
 export {
   clientFormSchema,
   defaultClientFormValues,
-  clientAddressFormSchema,
   billingAddressFormSchema,
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,

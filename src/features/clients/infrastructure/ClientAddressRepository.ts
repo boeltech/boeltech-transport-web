@@ -7,10 +7,10 @@
  * Endpoints (anidados bajo /clients/:clientId):
  * - GET    …/addresses          → { data: Address[] }  (ver API Response Standard)
  * - GET    …/addresses/:id      → { data: Address }
- * - POST   …/addresses          → 201 { data: Address }
- * - PUT    …/addresses/:id      → { data: Address }
- * - PATCH  …/addresses/:id/primary → acción atómica de primaria
- * - DELETE …/addresses/:id      → acción
+ * - POST   …/addresses          → 201 { data: Address, message }
+ * - PUT    …/addresses/:id      → { data: Address, message }
+ * - PATCH  …/addresses/:id/primary → { message }
+ * - DELETE …/addresses/:id      → { message }
  *
  * Contrato backend (fuente de verdad): `boeltech-transport-api` →
  * `src/modules/commercial/clients/client-address.controller.ts` (siempre envelope `data` en lecturas/altas/edición de recurso).

@@ -14,6 +14,12 @@
  * Ubicación: src/features/clients/domain/entities.ts
  */
 
+import {
+  getCartaPorteListBadgeMissingFields,
+  isCartaPorteListBadgeReady,
+  toSharedAddressInput,
+} from "@boeltech/cfdi-domain";
+
 // ============================================================================
 // ENUMS / UNION TYPES
 // ============================================================================
@@ -33,7 +39,7 @@ export type ClientType = "individual" | "company";
 export type PaymentTerms = "cash" | "credit";
 
 /**
- * Tipo de dirección (tabla unificada `addresses`, alineado a addressSchema SAT).
+ * Tipo de dirección (tabla unificada `addresses`, alineado a catálogos SAT / ADR-0043).
  */
 export type AddressType =
   | "billing"
@@ -66,7 +72,7 @@ export interface Client {
   legalName: string;
   tradeName?: string;
   taxId: string; // RFC
-  taxRegime?: string; // Régimen fiscal SAT
+  taxRegime: string; // Régimen fiscal SAT
 
   // Contacto principal
   contactName?: string;
@@ -81,10 +87,8 @@ export interface Client {
   creditDays: number;
   creditLimit?: number;
 
-  // Estado
+  // Estado (`isActive` refleja operación; baja lógica en API vía `deleted_at` — no expuesto en GET)
   isActive: boolean;
-  /** Si el API envía `deleted_at`, el cliente está dado de baja (soft delete). */
-  deletedAt?: string;
   notes?: string;
 
   // Auditoría
@@ -92,6 +96,10 @@ export interface Client {
   updatedAt: string;
   createdBy?: string;
   updatedBy?: string;
+  /** Nombre completo del usuario creador (LEFT JOIN users) — null si no disponible. */
+  createdByName?: string;
+  /** Nombre completo del usuario que realizó la última actualización. */
+  updatedByName?: string;
 }
 
 /**
@@ -150,6 +158,7 @@ export interface ClientAddress {
   satStateCode?: string;
   satMunicipalityCode?: string;
   satLocalityCode?: string;
+  localityName?: string;
   satNeighborhoodCode?: string;
   neighborhoodName?: string;
   postalCode?: string;
@@ -210,6 +219,7 @@ export interface ClientAddressListItem {
   satStateCode?: string;
   satMunicipalityCode?: string;
   satLocalityCode?: string;
+  localityName?: string;
   satNeighborhoodCode?: string;
   neighborhoodName?: string;
   postalCode?: string;
@@ -434,30 +444,29 @@ export function formatClientAddress(address: ClientAddress): string {
   return parts.join(", ") || address.address || "Sin dirección";
 }
 
-/**
- * Mínimo de domicilio alineado al complemento Carta Porte 3.1 (SAT):
- * en el nodo Domicilio, país, estado y código postal son los atributos base;
- * municipio, localidad y colonia son opcionales en el esquema si no se envían.
- *
- * Aquí solo exigimos país (por defecto MEX si no viene), estado y CP válido (5 dígitos).
- */
-export function isCartaPorteReady(address: ClientAddress): boolean {
-  const country = (address.satCountryCode ?? "").trim() || "MEX";
-  const estado = (address.satStateCode ?? "").trim();
-  const cp = (address.postalCode ?? "").trim();
-  return Boolean(country && estado && /^\d{5}$/.test(cp));
+function clientAddressToListBadgeInput(
+  address: Pick<
+    ClientAddress,
+    "satCountryCode" | "satStateCode" | "satMunicipalityCode" | "postalCode"
+  >,
+) {
+  return toSharedAddressInput({
+    satCountryCode: address.satCountryCode,
+    satStateCode: address.satStateCode,
+    satMunicipalityCode: address.satMunicipalityCode,
+    postalCode: address.postalCode,
+  });
 }
 
 /**
- * Campos del mínimo SAT que aún faltan (para tooltips / mensajes).
+ * Badge de listado: delega en `isCartaPorteListBadgeReady` del paquete (mismo criterio que API `is_carta_porte_ready`).
+ * Preferir `address.isCartaPorteReady` del API cuando exista. Bloqueo SAT completo: `parseClientAddressFormCreate` / `AddressInput`.
  */
+export function isCartaPorteReady(address: ClientAddress): boolean {
+  return isCartaPorteListBadgeReady(clientAddressToListBadgeInput(address));
+}
+
+/** Campos faltantes del badge de listado (tooltips cuando no hay flag del API). */
 export function getCartaPorteMissingFields(address: ClientAddress): string[] {
-  const missing: string[] = [];
-
-  if (!(address.satStateCode ?? "").trim()) missing.push("Estado");
-
-  const cp = (address.postalCode ?? "").trim();
-  if (!/^\d{5}$/.test(cp)) missing.push("Código postal");
-
-  return missing;
+  return getCartaPorteListBadgeMissingFields(clientAddressToListBadgeInput(address));
 }

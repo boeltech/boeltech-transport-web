@@ -39,7 +39,6 @@ export {
 } from "./validation/clientSchema";
 
 export {
-  clientAddressFormSchema,
   billingAddressFormSchema,
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,

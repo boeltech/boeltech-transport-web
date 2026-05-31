@@ -4,8 +4,9 @@
  *
  * Edición de datos generales del cliente (mismo patrón que DriverEditPage / EditVehiclePage).
  * Las direcciones se gestionan en el detalle del cliente (tab Direcciones).
- * Excepción explícita: el padre mantiene ruta `/clients/:id/edit` en lugar de
- * sheet contextual para conservar la navegación de edición de formularios largos.
+ * Excepción UX (Opción A): edición del padre en `/clients/:id/edit` (página completa),
+ * no Sheet en detalle. Direcciones solo en `ClientDetailPage` (tab master-detail).
+ * Decisión: `erp-transport/docs/auditorias/clientes-ux-edicion-padre.md`
  *
  * Ubicación: src/features/clients/presentation/pages/ClientEditPage.tsx
  */

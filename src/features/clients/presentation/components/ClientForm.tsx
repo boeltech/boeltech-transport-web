@@ -16,6 +16,7 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form/FieldInlineError";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
@@ -36,7 +37,7 @@ import {
   formatFormValidationToastDescription,
 } from "@shared/utils/formErrors";
 import { RegimenFiscalSelect } from "@features/catalogs";
-import { FormValidationSummary } from "./FormValidationSummary";
+import { FormValidationSummary } from "@shared/ui/form";
 
 import {
   CLIENT_TYPE_LABELS,
@@ -154,7 +155,8 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   }, [mode, client, defaultValues]);
 
   const form = useForm<ClientFormData, unknown, ClientFormData>({
-    resolver: zodResolver(clientFormSchema) as Resolver<ClientFormData>,
+    // Schema del paquete (Zod 4); @hookform/resolvers tipa Zod 3 — cast acotado al formulario.
+    resolver: zodResolver(clientFormSchema as never) as Resolver<ClientFormData>,
     defaultValues: initialFormValues,
     mode: "onChange",
   });
@@ -241,14 +243,18 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Controller
             name="type"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <Select
                 key={mode === "edit" ? `type-${field.value}` : "type"}
                 value={field.value}
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="type"
+                  error={Boolean(fieldState.error)}
+                  {...getFieldErrorAriaProps("type", fieldState.error?.message)}
+                >
                   <SelectValue placeholder="Seleccione el tipo de cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,9 +268,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
               </Select>
             )}
           />
-          {errors.type && (
-            <p className="text-sm text-destructive">{errors.type.message}</p>
-          )}
+          <FieldInlineError fieldId="type" message={errors.type?.message} />
         </div>
       </FormSectionCard>
 
@@ -277,10 +281,14 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Label htmlFor="legalName">
             Razón Social <span className="text-destructive">*</span>
           </Label>
-          <Input id="legalName" disabled={disabled} {...register("legalName")} />
-          {errors.legalName && (
-            <p className="text-sm text-destructive">{errors.legalName.message}</p>
-          )}
+          <Input
+            id="legalName"
+            disabled={disabled}
+            error={Boolean(errors.legalName)}
+            {...register("legalName")}
+            {...getFieldErrorAriaProps("legalName", errors.legalName?.message)}
+          />
+          <FieldInlineError fieldId="legalName" message={errors.legalName?.message} />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="tradeName">Nombre Comercial</Label>
@@ -295,40 +303,49 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             className="uppercase"
             maxLength={13}
             disabled={disabled}
+            error={Boolean(errors.taxId)}
             {...register("taxId", {
               onChange: (e) => {
                 e.target.value = e.target.value.toUpperCase();
               },
             })}
+            {...getFieldErrorAriaProps("taxId", errors.taxId?.message)}
           />
           <p className="text-xs text-muted-foreground">
             {clientType === "company"
               ? "12 caracteres para persona moral"
               : "13 caracteres para persona física"}
           </p>
-          {errors.taxId && (
-            <p className="text-sm text-destructive">{errors.taxId.message}</p>
-          )}
+          <FieldInlineError fieldId="taxId" message={errors.taxId?.message} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="taxRegime">Régimen Fiscal</Label>
+          <Label htmlFor="taxRegime">
+            Régimen Fiscal <span className="text-destructive">*</span>
+          </Label>
           <Controller
             name="taxRegime"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <RegimenFiscalSelect
                 key={
                   mode === "edit"
                     ? `taxRegime-${field.value || "empty"}`
                     : "taxRegime"
                 }
+                triggerId="taxRegime"
+                error={Boolean(fieldState.error)}
                 value={field.value || ""}
                 onValueChange={field.onChange}
                 disabled={disabled}
                 placeholder="Seleccione régimen"
+                {...getFieldErrorAriaProps(
+                  "taxRegime",
+                  fieldState.error?.message,
+                )}
               />
             )}
           />
+          <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
       </FormSectionCard>
 
@@ -367,10 +384,15 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Correo Electrónico</Label>
-          <Input id="email" type="email" disabled={disabled} {...register("email")} />
-          {errors.email && (
-            <p className="text-sm text-destructive">{errors.email.message}</p>
-          )}
+          <Input
+            id="email"
+            type="email"
+            disabled={disabled}
+            error={Boolean(errors.email)}
+            {...register("email")}
+            {...getFieldErrorAriaProps("email", errors.email?.message)}
+          />
+          <FieldInlineError fieldId="email" message={errors.email?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="billingEmail">Correo de Facturación</Label>
@@ -378,11 +400,11 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             id="billingEmail"
             type="email"
             disabled={disabled}
+            error={Boolean(errors.billingEmail)}
             {...register("billingEmail")}
+            {...getFieldErrorAriaProps("billingEmail", errors.billingEmail?.message)}
           />
-          {errors.billingEmail && (
-            <p className="text-sm text-destructive">{errors.billingEmail.message}</p>
-          )}
+          <FieldInlineError fieldId="billingEmail" message={errors.billingEmail?.message} />
         </div>
       </FormSectionCard>
 
@@ -398,7 +420,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Controller
             name="paymentTerms"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <Select
                 key={
                   mode === "edit"
@@ -409,7 +431,14 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="paymentTerms"
+                  error={Boolean(fieldState.error)}
+                  {...getFieldErrorAriaProps(
+                    "paymentTerms",
+                    fieldState.error?.message,
+                  )}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -421,9 +450,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
               </Select>
             )}
           />
-          {errors.paymentTerms && (
-            <p className="text-sm text-destructive">{errors.paymentTerms.message}</p>
-          )}
+          <FieldInlineError fieldId="paymentTerms" message={errors.paymentTerms?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="creditDays">
@@ -435,7 +462,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Controller
             name="creditDays"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <Input
                 id="creditDays"
                 type="number"
@@ -443,13 +470,16 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                 max={180}
                 disabled={disabled || paymentTerms !== "credit"}
                 value={field.value}
+                error={Boolean(fieldState.error)}
                 onChange={(e) => field.onChange(Number(e.target.value))}
+                {...getFieldErrorAriaProps(
+                  "creditDays",
+                  fieldState.error?.message,
+                )}
               />
             )}
           />
-          {errors.creditDays && (
-            <p className="text-sm text-destructive">{errors.creditDays.message}</p>
-          )}
+          <FieldInlineError fieldId="creditDays" message={errors.creditDays?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="creditLimit">Límite de Crédito</Label>
@@ -476,15 +506,25 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       <FormSectionCard title="Notas" icon={<FileText className="h-4 w-4" />}>
         <div className="space-y-2">
           <Label htmlFor="notes">Notas Adicionales</Label>
-          <Textarea id="notes" rows={3} disabled={disabled} {...register("notes")} />
-          {errors.notes && (
-            <p className="text-sm text-destructive">{errors.notes.message}</p>
-          )}
+          <Textarea
+            id="notes"
+            rows={3}
+            disabled={disabled}
+            error={Boolean(errors.notes)}
+            {...register("notes")}
+            {...getFieldErrorAriaProps("notes", errors.notes?.message)}
+          />
+          <FieldInlineError fieldId="notes" message={errors.notes?.message} />
         </div>
       </FormSectionCard>
 
       {shouldShowValidationSummary ? (
-        <FormValidationSummary messages={validationMessages} />
+        <FormValidationSummary
+          messages={validationMessages}
+          title={
+            onChange ? "Revisa la información del cliente" : "Revisa los siguientes campos"
+          }
+        />
       ) : null}
 
       {showFormActions ? (

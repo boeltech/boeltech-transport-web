@@ -1,7 +1,6 @@
 import {
   startTransition,
   useCallback,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +12,7 @@ import {
   type WizardFormRef,
 } from "@shared/ui/page-shells/WizardPageShell";
 import { cn } from "@shared/lib/utils/cn";
+import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { useCreateClient } from "../../application";
 import {
   CLIENT_TYPE_LABELS,
@@ -46,6 +46,12 @@ const WIZARD_STEPS = [
     title: "Revisi\u00f3n",
     description: "Confirmar antes de crear el cliente",
   },
+];
+
+const CLIENT_CREATE_WIZARD_STEP_FIELDS: ReadonlyArray<readonly string[]> = [
+  ["type", "legalName", "taxId", "taxRegime", "paymentTerms", "creditDays"],
+  ["street", "exteriorNumber", "postalCode", "satStateCode", "satMunicipalityCode"],
+  [],
 ];
 
 function validateClientDraft(data: ClientFormData | null | undefined): boolean {
@@ -116,12 +122,16 @@ export function ClientCreatePage() {
 
     const satResult = await validateClientAddressFormComplete(snapshot, {
       context: "billingOnCreate",
-      requireCoordinates: true,
+      requireCoordinates: false,
     });
     if (!satResult.ok) {
+      addressFormRef.current?.applySatFieldErrors(satResult.fieldErrors);
+      const hasInlineSatErrors = Object.keys(satResult.fieldErrors).length > 0;
       setSatValidationError(
-        satResult.errors[0]?.message ??
-          "No se pudo validar la dirección fiscal contra reglas SAT.",
+        hasInlineSatErrors
+          ? null
+          : (satResult.errors[0]?.message ??
+              "No se pudo validar la direccin fiscal."),
       );
       return false;
     }
@@ -138,7 +148,7 @@ export function ClientCreatePage() {
       legalName: clientSnapshot.legalName,
       tradeName: clientSnapshot.tradeName || undefined,
       taxId: clientSnapshot.taxId,
-      taxRegime: clientSnapshot.taxRegime || undefined,
+      taxRegime: clientSnapshot.taxRegime,
       contactName: clientSnapshot.contactName || undefined,
       contactPosition: clientSnapshot.contactPosition || undefined,
       phone: clientSnapshot.phone || undefined,
@@ -167,27 +177,32 @@ export function ClientCreatePage() {
     );
   }, [clientData, addressData, createClientMutation, navigate]);
 
-  useLayoutEffect(() => {
-    formRef.current = {
-      triggerStepValidation: async (stepIndex: number) => {
-        if (stepIndex === 0) return validateClientStep();
-        if (stepIndex === 1) return validateAddressStep();
-        return true;
-      },
-      requestSubmit: () => {
-        void (async () => {
-          const clientOk = await validateClientStep();
-          if (!clientOk) return;
-          const addressOk = await validateAddressStep();
-          if (!addressOk) return;
-          submitCreate();
-        })();
-      },
-    };
-    return () => {
-      formRef.current = null;
-    };
-  }, [validateClientStep, validateAddressStep, submitCreate]);
+  const validateWizardStep = useCallback(
+    async (stepIndex: number): Promise<boolean> => {
+      const stepFields = CLIENT_CREATE_WIZARD_STEP_FIELDS[stepIndex] ?? [];
+      if (stepFields.length === 0) return true;
+      if (stepIndex === 0) return validateClientStep();
+      if (stepIndex === 1) return validateAddressStep();
+      return true;
+    },
+    [validateAddressStep, validateClientStep],
+  );
+
+  const requestWizardSubmit = useCallback(() => {
+    void (async () => {
+      const clientOk = await validateClientStep();
+      if (!clientOk) return;
+      const addressOk = await validateAddressStep();
+      if (!addressOk) return;
+      submitCreate();
+    })();
+  }, [submitCreate, validateAddressStep, validateClientStep]);
+
+  useWizardFormRef({
+    formRef,
+    triggerStepValidation: validateWizardStep,
+    requestSubmit: requestWizardSubmit,
+  });
 
   const isSubmitting = createClientMutation.isPending;
   const handleCancel = useCallback(() => navigate("/clients"), [navigate]);
