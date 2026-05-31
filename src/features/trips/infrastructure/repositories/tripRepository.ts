@@ -19,7 +19,6 @@ import {
 } from "@shared/api";
 import type {
   CreateTripInput,
-  FinishTripInput,
   ITripRepository,
   PaginatedResult,
   UpdateTripInput,
@@ -43,7 +42,6 @@ import {
 } from "../api/mappers";
 import {
   summarizeTripApiPayloadErrors,
-  validateFinishTripApiPayload,
   validateTripQueryApiPayload,
   validateUpdateTripStatusApiPayload,
 } from "@features/trips/presentation/pages/create/validateTripApiPayload";
@@ -151,28 +149,6 @@ export class TripRepository implements ITripRepository {
 
     const response = await apiClient.patch<{ data: ApiTripResponse }>(
       `${TRIPS_ENDPOINT}/${id}/status`,
-      input,
-    );
-
-    return mapTripResponse(response);
-  }
-
-  /**
-   * Finaliza un viaje
-   */
-  async finish(
-    id: string,
-    input: FinishTripInput,
-  ): Promise<MappedSingleResult<Trip>> {
-    const finishValidation = validateFinishTripApiPayload(input);
-    if (!finishValidation.ok) {
-      throw new Error(
-        summarizeTripApiPayloadErrors(finishValidation.fieldErrors, 2),
-      );
-    }
-
-    const response = await apiClient.post<{ data: ApiTripResponse }>(
-      `${TRIPS_ENDPOINT}/${id}/finish`,
       input,
     );
 

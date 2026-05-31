@@ -175,7 +175,6 @@ export type {
   CreateTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
-  FinishTripInput,
   CancelTripInput,
 
   // Result Types
@@ -229,6 +228,12 @@ export type {
 
 export { isUnifiedAddressId } from "./stopAddress";
 
+export {
+  V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL,
+  V1_CARGO_PLACEHOLDER_CLIENT_CODE,
+  isV1CargoPlaceholderClientId,
+} from "./v1CargoPlaceholderClient";
+
 // ============================================================================
 // ROUTE VALIDATION
 // ============================================================================
@@ -256,7 +261,7 @@ export {
   canDeleteStop,
   canDeleteTrip,
   canEditTrip,
-  canFinishTrip,
+  canManageTripExpenses,
   canMarkStopVisited,
   canModifyStops,
   canStartTrip,
@@ -270,7 +275,6 @@ export {
   isTripActive,
   validateDateRange,
   validateDepartureNotInPast,
-  validateFinishTripData,
   validateMileageRange,
   validateStatusTransition,
   validateStopOrder,

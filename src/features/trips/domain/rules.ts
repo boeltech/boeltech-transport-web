@@ -13,9 +13,9 @@ import type { DomainResult, ValidationResult } from "@shared/utils/errorMapper";
 import {
   canTransitionTo as canTransitionToShared,
   canEditTrip as canEditTripShared,
+  canManageTripExpenses as canManageTripExpensesShared,
   canDeleteTrip as canDeleteTripShared,
   canStartTrip as canStartTripShared,
-  canFinishTrip as canFinishTripShared,
   getAvailableTransitions as getAvailableTransitionsShared,
   isTerminalStatus as isTerminalStatusShared,
   calculateTotalCost as calculateTotalCostShared,
@@ -85,6 +85,14 @@ export function canEditTrip(status: TripStatusType): boolean {
 }
 
 /**
+ * Verifica si se pueden registrar o modificar gastos/costos del viaje.
+ * Incluye `in_progress` para captura operativa; excluye estados terminales.
+ */
+export function canManageTripExpenses(status: TripStatusType): boolean {
+  return canManageTripExpensesShared(status);
+}
+
+/**
  * Verifica si un viaje puede ser eliminado
  * Solo viajes en draft pueden eliminarse
  */
@@ -97,13 +105,6 @@ export function canDeleteTrip(status: TripStatusType): boolean {
  */
 export function canStartTrip(status: TripStatusType): boolean {
   return canStartTripShared(status);
-}
-
-/**
- * Verifica si un viaje puede finalizarse
- */
-export function canFinishTrip(status: TripStatusType): boolean {
-  return canFinishTripShared(status);
 }
 
 /**
@@ -339,95 +340,6 @@ export function canMarkStopVisited(tripStatus: TripStatusType): boolean {
 // ============================================================================
 // BUSINESS VALIDATIONS
 // ============================================================================
-
-/**
- * Valida los datos para finalizar un viaje
- */
-export function validateFinishTripData(
-  trip: Trip,
-  endMileage: number,
-  actualArrival?: Date | string,
-): ValidationResult {
-  // Verificar que el viaje esté en curso
-  if (trip.status !== TripStatus.IN_PROGRESS) {
-    return {
-      success: false,
-      error: {
-        code: "TRIP_NOT_IN_PROGRESS",
-        message: "Solo se pueden finalizar viajes en curso",
-      },
-    };
-  }
-
-  // Validar kilometraje final
-  if (endMileage === undefined || endMileage === null) {
-    return {
-      success: false,
-      error: {
-        code: "END_MILEAGE_REQUIRED",
-        message: "El kilometraje final es requerido",
-      },
-    };
-  }
-
-  if (endMileage < 0) {
-    return {
-      success: false,
-      error: {
-        code: "INVALID_END_MILEAGE",
-        message: "El kilometraje final no puede ser negativo",
-      },
-    };
-  }
-
-  // Validar que el kilometraje final sea mayor al inicial
-  if (trip.mileage.start !== null && endMileage < trip.mileage.start) {
-    return {
-      success: false,
-      error: {
-        code: "END_MILEAGE_LESS_THAN_START",
-        message: "El kilometraje final no puede ser menor al inicial",
-      },
-    };
-  }
-
-  // Validar fecha de llegada
-  if (!actualArrival) {
-    return {
-      success: false,
-      error: {
-        code: "ACTUAL_ARRIVAL_REQUIRED",
-        message: "La fecha de llegada es requerida",
-      },
-    };
-  }
-
-  const arrivalDate =
-    typeof actualArrival === "string" ? new Date(actualArrival) : actualArrival;
-
-  if (isNaN(arrivalDate.getTime())) {
-    return {
-      success: false,
-      error: {
-        code: "INVALID_ARRIVAL_DATE",
-        message: "La fecha de llegada no es válida",
-      },
-    };
-  }
-
-  // Validar que la llegada sea posterior a la salida
-  if (trip.actualDeparture && arrivalDate <= trip.actualDeparture) {
-    return {
-      success: false,
-      error: {
-        code: "ARRIVAL_BEFORE_DEPARTURE",
-        message: "La fecha de llegada debe ser posterior a la de salida",
-      },
-    };
-  }
-
-  return { success: true };
-}
 
 /**
  * Valida que la fecha de llegada sea posterior a la salida

@@ -94,9 +94,9 @@ const TripFormPage = lazy(() =>
     }),
   ),
 );
-const FinishTripPage = lazy(() =>
-  import("@features/trips/presentation/pages/FinishTripPage").then((m) => ({
-    default: m.FinishTripPage,
+const FinishTripRedirect = lazy(() =>
+  import("@features/trips/presentation/pages/FinishTripRedirect").then((m) => ({
+    default: m.FinishTripRedirect,
   })),
 );
 const TripDetailPage = lazy(() =>
@@ -174,6 +174,11 @@ const EmployeeDetailPage = lazy(() =>
 const EmployeeFormPage = lazy(() =>
   import("@features/employees").then((m) => ({
     default: m.EmployeeFormPage,
+  })),
+);
+const EmployeeEditPage = lazy(() =>
+  import("@features/employees").then((m) => ({
+    default: m.EmployeeEditPage,
   })),
 );
 
@@ -393,7 +398,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/trips/:id/finish",
-                element: withSuspense(FinishTripPage),
+                element: withSuspense(FinishTripRedirect),
               },
             ],
           },
@@ -498,7 +503,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/employees/:id/edit",
-                element: withSuspense(EmployeeFormPage),
+                element: withSuspense(EmployeeEditPage),
               },
             ],
           },

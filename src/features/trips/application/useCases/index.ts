@@ -94,11 +94,6 @@ export {
   createDeleteTripUseCase,
 } from "./trip/DeleteTripUseCase";
 export {
-  type IFinishTripUseCase,
-  FinishTripUseCase,
-  createFinishTripUseCase,
-} from "./trip/FinishTripUseCase";
-export {
   type IGetTripByIdUseCase,
   GetTripByIdUseCase,
   createGetTripByIdUseCase,

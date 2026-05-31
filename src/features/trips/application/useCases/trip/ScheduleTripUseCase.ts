@@ -91,13 +91,13 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       };
     }
 
-    // Validar que tenga fecha de llegada programada
+    // Validar que tenga fecha de llegada estimada
     if (!trip.scheduledArrival) {
       return {
         success: false,
         error: {
           code: "MISSING_SCHEDULED_ARRIVAL",
-          message: "El viaje debe tener una fecha de llegada programada",
+          message: "El viaje debe tener una fecha de llegada estimada",
         },
       };
     }

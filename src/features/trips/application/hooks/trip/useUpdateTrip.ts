@@ -23,6 +23,33 @@ export function useUpdateTrip(
 ) {
   const queryClient = useQueryClient();
   const updateTripUseCase = createUpdateTripUseCase(tripRepository);
+  const {
+    onSuccess: onSuccessExternal,
+    onError: onErrorExternal,
+    onSettled: onSettledExternal,
+    ...restOptions
+  } = options ?? {};
+
+  function mergeTripDetail(previous: Trip | undefined, updated: Trip): Trip {
+    if (!previous) return updated;
+    return {
+      ...previous,
+      ...updated,
+      // El PATCH puede devolver payload parcial sin relaciones del detalle.
+      vehicle: updated.vehicle ?? previous.vehicle,
+      driver: updated.driver ?? previous.driver,
+      client: updated.client ?? previous.client,
+      internalStaff:
+        updated.internalStaff && updated.internalStaff.length > 0
+          ? updated.internalStaff
+          : previous.internalStaff,
+      stops: updated.stops ?? previous.stops,
+      cargos: updated.cargos ?? previous.cargos,
+      expenses: updated.expenses ?? previous.expenses,
+      statusHistory: updated.statusHistory ?? previous.statusHistory,
+      profitability: updated.profitability ?? previous.profitability,
+    };
+  }
 
   return useMutation({
     mutationFn: async ({ id, data }) => {
@@ -32,10 +59,21 @@ export function useUpdateTrip(
       }
       return result.data;
     },
-    onSuccess: (updatedTrip, { id }) => {
-      queryClient.setQueryData(tripQueryKeys.detail(id), updatedTrip);
+    onSuccess: async (updatedTrip, variables, context) => {
+      const { id } = variables;
+      queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), (previous) =>
+        mergeTripDetail(previous, updatedTrip),
+      );
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await onSuccessExternal?.(updatedTrip, variables, context);
     },
-    ...options,
+    onError: async (error, variables, context) => {
+      await onErrorExternal?.(error, variables, context);
+    },
+    onSettled: async (data, error, variables, context) => {
+      await onSettledExternal?.(data, error, variables, context);
+    },
+    ...restOptions,
   });
 }

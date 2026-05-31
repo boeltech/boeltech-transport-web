@@ -23,7 +23,6 @@ import type {
   CreateTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
-  FinishTripInput,
   // CreateStopInput,
   // UpdateStopInput,
   CreateCargoInput,
@@ -84,11 +83,6 @@ export interface ITripRepository {
     id: string,
     input: UpdateTripStatusInput,
   ): Promise<MappedSingleResult<Trip>>;
-
-  /**
-   * Finaliza un viaje
-   */
-  finish(id: string, input: FinishTripInput): Promise<MappedSingleResult<Trip>>;
 
   /**
    * Elimina un viaje (solo drafts)

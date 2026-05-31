@@ -28,7 +28,6 @@ export { useCancelTrip } from "./trip/useCancelTrip";
 export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";
 
 export { useDeleteTrip } from "./trip/useDeleteTrip";
-export { useFinishTrip } from "./trip/useFinishTrip";
 export { TripActionError, useScheduleTrip } from "./trip/useScheduleTrip";
 export { useStartTrip } from "./trip/useStartTrip";
 export { useTrip } from "./trip/useTrip";

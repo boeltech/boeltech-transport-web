@@ -350,8 +350,9 @@ export interface CreateStopInput {
   contactName?: string;
   contactPhone?: string;
 
-  // Tiempo estimado
-  estimatedArrival?: string; // ISO 8601
+  // Tiempos estimados (ISO 8601)
+  estimatedArrival?: string;
+  estimatedDeparture?: string;
 
   // Notas
   notes?: string;
@@ -597,17 +598,6 @@ export interface UpdateTripStatusInput {
   latitude?: number;
   longitude?: number;
   reason?: string;
-}
-
-/**
- * Input para finalizar un viaje
- */
-export interface FinishTripInput {
-  endMileage: number;
-  actualArrival?: string; // ISO 8601
-  notes?: string;
-  latitude?: number;
-  longitude?: number;
 }
 
 /**

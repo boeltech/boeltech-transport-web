@@ -56,9 +56,9 @@ export {
   canTransitionTo,
   getAvailableTransitions,
   canEditTrip,
+  canManageTripExpenses,
   canDeleteTrip,
   canStartTrip,
-  canFinishTrip,
   canCancelTrip,
   calculateDistance,
   calculateTripDuration,
@@ -74,7 +74,6 @@ export {
   useUpdateTrip,
   useUpdateTripStatus,
   useStartTrip,
-  useFinishTrip,
   useCancelTrip,
   useDeleteTrip,
   useRegisterTrackingEvent,
@@ -92,7 +91,7 @@ export {
 
 //Pages
 export {
-  FinishTripPage,
+  FinishTripRedirect,
   TripDetailPage,
   TripFormPage,
   TripsListPage,
