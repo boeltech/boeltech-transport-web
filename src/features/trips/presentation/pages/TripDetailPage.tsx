@@ -11,12 +11,12 @@
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
  */
 
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactElement } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { Badge } from "@shared/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   DetailTimeline,
   DetailAlertCard,
@@ -39,18 +39,16 @@ import {
 import {
   useTrip,
   useTripTimeline,
-  // Nuevos hooks para cargas y gastos
   useTripCargos,
   useTripExpenses,
   useTripExpensesSummary,
-  // Helpers
   calculateDistance,
   calculateTripDuration,
   formatDuration,
   formatMileage,
   formatCurrency,
   formatTripRouteSubtitle,
-} from "@/features/trips";
+} from "@features/trips";
 
 // ── Domain Types ───────────────────────────────────────────────────────────
 import {
@@ -67,19 +65,27 @@ import {
   getTripStatusConfig,
   TripActions,
   TripInvoiceActions,
-  TripTrackingTab,
   TripStatusBadge,
 } from "@features/trips/presentation";
-import { TripFiscalSection } from "../components/TripFiscalSection";
-import { TripDetailCostsTab } from "../components/trip-costs";
 import {
-  TripDetailCargoTab,
-} from "../components/trip-cargos";
+  TripTrackingTabLazy,
+  TripDetailCargoTabLazy,
+  TripDetailCostsTabLazy,
+  TripDetailTabFallback,
+} from "./TripDetailLazyTabs";
+import { TripFiscalSection } from "../components/TripFiscalSection";
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { tripDetailCopy } from "../copy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { getTripDetailAccess } from "./tripDetailAccess";
+import {
+  resolveTripDetailTab,
+  shouldFetchTripCargos,
+  shouldFetchTripExpenses,
+  shouldFetchTripExpensesSummary,
+  shouldFetchTripTimelineForShell,
+} from "./tripDetailQueryGating";
 
 const shell = tripDetailCopy.shell;
 const history = tripDetailCopy.history;
@@ -99,24 +105,6 @@ function hasStopType(
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-
-const TRIP_DETAIL_TAB_VALUES = [
-  "overview",
-  "route",
-  "tracking",
-  "cargo",
-  "costs",
-  "history",
-] as const;
-
-type TripDetailTabValue = (typeof TRIP_DETAIL_TAB_VALUES)[number];
-
-function resolveTripDetailTab(raw: string | null): TripDetailTabValue {
-  if (raw && TRIP_DETAIL_TAB_VALUES.includes(raw as TripDetailTabValue)) {
-    return raw as TripDetailTabValue;
-  }
-  return "overview";
-}
 
 export function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -138,37 +126,34 @@ export function TripDetailPage() {
   } = useTrip(tripId);
 
   const { data: trackingTimeline } = useTripTimeline(tripId, {
-    enabled:
-      !!tripId &&
-      (trip?.status === TripStatus.IN_PROGRESS ||
-        trip?.status === TripStatus.COMPLETED),
+    enabled: shouldFetchTripTimelineForShell(activeTab, tripId, trip?.status),
   });
   const hasOpenTrackingIncident =
     trackingTimeline?.trip.hasOpenIncident === true;
 
-  // Query de cargas (endpoint separado)
+  const fetchCargos = shouldFetchTripCargos(activeTab, tripId);
+  const fetchExpenses = shouldFetchTripExpenses(activeTab, tripId);
+
   const {
     data: cargos = [],
     isLoading: isLoadingCargos,
     isError: isErrorCargos,
     refetch: refetchCargos,
   } = useTripCargos(tripId, {
-    enabled: !!tripId,
+    enabled: fetchCargos,
   });
 
-  // Query de gastos (endpoint separado)
   const {
     data: expenses = [],
     isLoading: isLoadingExpenses,
     isError: isErrorExpenses,
     refetch: refetchExpenses,
   } = useTripExpenses(tripId, {
-    enabled: !!tripId,
+    enabled: fetchExpenses,
   });
 
-  // Query de resumen de gastos
   const { data: expensesSummary } = useTripExpensesSummary(tripId, {
-    enabled: !!tripId,
+    enabled: shouldFetchTripExpensesSummary(activeTab, tripId),
   });
 
   // Stops del viaje (vienen en el trip o se pueden obtener separados)
@@ -203,10 +188,10 @@ export function TripDetailPage() {
           key="fiscal-attention"
           severity="critical"
           icon={<Receipt className="h-5 w-5" />}
-          title="Atención fiscal requerida"
+          title={shell.alert.fiscalAttentionTitle}
           items={[
             {
-              text: "Este viaje requiere revisión fiscal. Consulte la sección Fiscal, la factura ligada o los pendientes SAT antes de continuar la operación.",
+              text: shell.alert.fiscalAttentionBody,
             },
           ]}
         />,
@@ -216,12 +201,15 @@ export function TripDetailPage() {
     if (trip.status === TripStatus.SCHEDULED) {
       const missing: { label?: string; text: string }[] = [];
       if (!trip.vehicle) {
-        missing.push({ label: "Vehículo", text: "Sin unidad asignada." });
+        missing.push({
+          label: shell.alert.assignmentVehicleLabel,
+          text: shell.alert.assignmentVehicleMissing,
+        });
       }
       if (!trip.driver) {
         missing.push({
-          label: "Conductor",
-          text: "Sin conductor asignado.",
+          label: shell.alert.assignmentDriverLabel,
+          text: shell.alert.assignmentDriverMissing,
         });
       }
       if (missing.length > 0) {
@@ -230,7 +218,7 @@ export function TripDetailPage() {
             key="assignment-incomplete"
             severity="warning"
             icon={<AlertTriangle className="h-5 w-5" />}
-            title="Viaje programado sin asignación completa"
+            title={shell.alert.assignmentIncompleteTitle}
             items={missing}
           />,
         );
@@ -249,10 +237,10 @@ export function TripDetailPage() {
           key="eta-passed"
           severity="warning"
           icon={<Clock className="h-5 w-5" />}
-          title="Tiempo de llegada estimado superado"
+          title={shell.alert.etaPassedTitle}
           items={[
             {
-              label: "Llegada estimada",
+              label: shell.alert.etaPassedLabel,
               text: formatDateTime(trip.scheduledArrival.toISOString()),
             },
           ]}
@@ -267,14 +255,14 @@ export function TripDetailPage() {
       const missing: { label?: string; text: string }[] = [];
       if (!trip.vehicle) {
         missing.push({
-          label: "Vehículo",
-          text: "Sin datos de unidad en el viaje.",
+          label: shell.alert.assignmentVehicleLabel,
+          text: shell.alert.operationVehicleMissing,
         });
       }
       if (!trip.driver) {
         missing.push({
-          label: "Conductor",
-          text: "Sin datos de conductor en el viaje.",
+          label: shell.alert.assignmentDriverLabel,
+          text: shell.alert.operationDriverMissing,
         });
       }
       if (missing.length > 0) {
@@ -283,7 +271,7 @@ export function TripDetailPage() {
             key="operation-missing"
             severity="critical"
             icon={<AlertTriangle className="h-5 w-5" />}
-            title="Datos de operación incompletos"
+            title={shell.alert.operationIncompleteTitle}
             items={missing}
           />,
         );
@@ -360,8 +348,12 @@ export function TripDetailPage() {
   const duration = calculateTripDuration(trip);
   const progress = calculateStopsProgress(stops);
 
-  const cargoCount = cargos.length;
-  const totalCargoWeight = cargos.reduce((sum, c) => sum + (c.weight || 0), 0);
+  const cargoCount = fetchCargos
+    ? cargos.length
+    : (trip.cargos?.length ?? 0);
+  const totalCargoWeight = fetchCargos
+    ? cargos.reduce((sum, c) => sum + (c.weight || 0), 0)
+    : (trip.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0) ?? 0);
   const pickupStops = orderedStops.filter((stop) => hasStopType(stop.stopType, "pickup"));
 
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
@@ -413,11 +405,13 @@ export function TripDetailPage() {
                     lines.push(...f.suggestedActions);
                   }
                   if (f.cfdiUuid) {
-                    lines.push(`UUID CFDI: ${f.cfdiUuid}`);
+                    lines.push(shell.alert.postCancelFiscalCfdiUuid(f.cfdiUuid));
                   }
-                  lines.push(`Estado factura: ${f.invoiceStatus}`);
+                  lines.push(
+                    shell.alert.postCancelFiscalInvoiceStatus(f.invoiceStatus),
+                  );
                   setPostCancelFiscal({
-                    title: "Acción fiscal pendiente tras la cancelación",
+                    title: shell.alert.postCancelFiscalTitle,
                     lines,
                   });
                 }
@@ -443,7 +437,7 @@ export function TripDetailPage() {
       }
       stats={[
         {
-          title: "Distancia",
+          title: shell.stat.distance,
           value:
             distance != null && distance > 0
               ? `${distance.toLocaleString("es-MX")} km`
@@ -452,7 +446,7 @@ export function TripDetailPage() {
           icon: <Navigation className="h-5 w-5" />,
         },
         {
-          title: "Duración",
+          title: shell.stat.duration,
           value: duration ? formatDuration(duration) : "—",
           tone: "info",
           icon: <Clock className="h-5 w-5" />,
@@ -464,11 +458,11 @@ export function TripDetailPage() {
           icon: <Package className="h-5 w-5" />,
           description:
             totalCargoWeight > 0
-              ? `${totalCargoWeight.toLocaleString("es-MX")} kg total`
+              ? shell.stat.cargoWeightTotal(totalCargoWeight)
               : undefined,
         },
         {
-          title: "Tarifa base",
+          title: shell.stat.baseRate,
           value: trip.costs.baseRate > 0 ? formatCurrency(trip.costs.baseRate) : "—",
           tone: "success",
           icon: <DollarSign className="h-5 w-5" />,
@@ -541,15 +535,16 @@ export function TripDetailPage() {
               </span>
             ),
             content: (
-              <TripTrackingTab
-                tripId={trip.id}
-                tripCode={trip.tripCode}
-                vehicleId={trip.vehicleId}
-                tripStartMileage={trip.mileage.start}
-                status={trip.status}
-              />
+              <Suspense fallback={<TripDetailTabFallback />}>
+                <TripTrackingTabLazy
+                  tripId={trip.id}
+                  tripCode={trip.tripCode}
+                  vehicleId={trip.vehicleId}
+                  tripStartMileage={trip.mileage.start}
+                  status={trip.status}
+                />
+              </Suspense>
             ),
-            forceMount: true,
           },
           {
             value: "cargo",
@@ -567,18 +562,20 @@ export function TripDetailPage() {
               </span>
             ),
             content: (
-              <TripDetailCargoTab
-                tripId={trip.id}
-                tripStatus={trip.status}
-                cargos={cargos}
-                orderedStops={orderedStops}
-                pickupStops={pickupStops}
-                isLoading={isLoadingCargos}
-                isError={isErrorCargos}
-                canEditStructural={canEditStructural}
-                onRetry={() => refetchCargos()}
-                onCargosChanged={() => refetchCargos()}
-              />
+              <Suspense fallback={<TripDetailTabFallback />}>
+                <TripDetailCargoTabLazy
+                  tripId={trip.id}
+                  tripStatus={trip.status}
+                  cargos={cargos}
+                  orderedStops={orderedStops}
+                  pickupStops={pickupStops}
+                  isLoading={isLoadingCargos}
+                  isError={isErrorCargos}
+                  canEditStructural={canEditStructural}
+                  onRetry={() => refetchCargos()}
+                  onCargosChanged={() => refetchCargos()}
+                />
+              </Suspense>
             ),
           },
           {
@@ -594,22 +591,24 @@ export function TripDetailPage() {
               </span>
             ),
             content: (
-              <TripDetailCostsTab
-                tripId={tripId}
-                tripStatus={trip.status}
-                baseRate={trip.costs.baseRate}
-                cfdiDocumentIntent={trip.cfdiDocumentIntent}
-                clientId={trip.client?.id}
-                vehicleId={trip.vehicle?.id}
-                stops={orderedStops}
-                expenses={expenses}
-                expensesSummary={expensesSummary}
-                isLoading={isLoadingExpenses}
-                isError={isErrorExpenses}
-                onRetry={() => refetchExpenses()}
-                canEditBaseRate={canEditBaseRate}
-                canManageExpenses={canManageExpensesOnTrip}
-              />
+              <Suspense fallback={<TripDetailTabFallback />}>
+                <TripDetailCostsTabLazy
+                  tripId={tripId}
+                  tripStatus={trip.status}
+                  baseRate={trip.costs.baseRate}
+                  cfdiDocumentIntent={trip.cfdiDocumentIntent}
+                  clientId={trip.client?.id}
+                  vehicleId={trip.vehicle?.id}
+                  stops={orderedStops}
+                  expenses={expenses}
+                  expensesSummary={expensesSummary}
+                  isLoading={isLoadingExpenses}
+                  isError={isErrorExpenses}
+                  onRetry={() => refetchExpenses()}
+                  canEditBaseRate={canEditBaseRate}
+                  canManageExpenses={canManageExpensesOnTrip}
+                />
+              </Suspense>
             ),
           },
           {

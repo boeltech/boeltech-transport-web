@@ -51,7 +51,7 @@ Fuente de verdad: `tripDetailCopy` en `copy/tripDetail/index.ts`.
 | 3 | Ruta | `routeCopy.ts` | `TripDetailRouteTab` | Hecho |
 | 4 | Cargas | `cargoCopy.ts` | `TripDetailCargoTab` | Hecho |
 | 5 | Costos | `costsCopy.ts` | `TripDetailCostsTab`, hijos | Hecho |
-| 6 | Historial + shell | `historyCopy.ts`, `shellCopy.ts` | `TripDetailPage` header/tabs/alertas/historial | Hecho |
+| 6 | Historial + shell | `historyCopy.ts`, `shellCopy.ts` | `TripDetailPage` header/tabs/alertas/historial/KPIs | Hecho |
 | 6b | Sub-componentes detalle | `routeCopy`, `cargoCopy`, `costsCopy.financialSummary` | stop cards, sheets, cargo views, resumen financiero | Hecho |
 
 ### Copy residual cerrado (detalle)
@@ -60,7 +60,9 @@ Fuente de verdad: `tripDetailCopy` en `copy/tripDetail/index.ts`.
 - **Cargas:** `TripDetailCargoItemCard`, `TripDetailCargoByPickupView`, `tripCargoDetailHelpers`
 - **Costos:** `TripWizardFinancialSummary` (compartido wizard/detalle vía `costsCopy.financialSummary`)
 
-Pendiente fuera de detalle: `TripExpenseSheet`, alertas fiscales/operativas del shell (`TripDetailPage.tripAlerts`), KPIs restantes del header.
+Pendiente fuera de detalle: copy residual en sheets de tracking (toasts) y wizard (`BasicInfoStep`, `StopFormSheet`, `CargoStep`, `CargoMovementSheet`).
+
+Módulo financiero compartido wizard/detalle: `presentation/components/trip-financial/`.
 
 ### Checklist por fase
 
