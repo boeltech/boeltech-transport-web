@@ -190,13 +190,6 @@ export const STATUS_COLORS_SOLID: Record<CanonicalColorVariant, ColorPreset> = {
   },
 };
 
-/**
- * @deprecated Usa `STATUS_COLORS_SOFT` o `STATUS_COLORS_SOLID` directamente.
- * Mantenido como alias para evitar romper imports históricos.
- */
-export const STATUS_COLORS: Record<CanonicalColorVariant, ColorPreset> =
-  STATUS_COLORS_SOFT;
-
 // ============================================================================
 // HELPER FUNCTION
 // ============================================================================

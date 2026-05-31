@@ -23,21 +23,11 @@ import {
   DialogTitle,
 } from "@shared/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  FormValidationSummary,
+  RHFSelectField,
+  RHFTextField,
 } from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useToast } from "@shared/hooks";
 
 const roleEnum = z.enum(
@@ -67,6 +57,7 @@ export function InviteUserDialog({
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const roleOptions = useMemo(() => {
     if (!user?.role) return [];
@@ -86,7 +77,10 @@ export function InviteUserDialog({
       firstName: "",
       lastName: "",
     },
+    mode: "onChange",
   });
+
+  const { control } = form;
 
   useEffect(() => {
     if (!open || !user?.role) return;
@@ -96,6 +90,7 @@ export function InviteUserDialog({
       firstName: "",
       lastName: "",
     });
+    setShowValidationSummary(false);
   }, [open, user?.role, form]);
 
   const handleOpenChange = useCallback(
@@ -108,6 +103,7 @@ export function InviteUserDialog({
           firstName: "",
           lastName: "",
         });
+        setShowValidationSummary(false);
       }
     },
     [defaultRole, form, onOpenChange],
@@ -143,6 +139,18 @@ export function InviteUserDialog({
     [handleOpenChange, onInvited, toast],
   );
 
+  const handleFormSubmit = form.handleSubmit(
+    (data) => {
+      setShowValidationSummary(false);
+      void onSubmit(data);
+    },
+    () => {
+      setShowValidationSummary(true);
+    },
+  );
+
+  const validationMessages = collectFieldErrorMessages(form.formState.errors);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -157,97 +165,68 @@ export function InviteUserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Correo</FormLabel>
-                  <FormControl>
-                    <Input type="email" autoComplete="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          <RHFTextField
+            control={control}
+            name="email"
+            label="Correo"
+            required
+            type="email"
+            autoComplete="email"
+          />
+
+          <RHFSelectField
+            control={control}
+            name="role"
+            label="Rol"
+            required
+            placeholder="Rol"
+            options={roleOptions.map((o) => ({
+              value: o.value,
+              label: o.label,
+            }))}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <RHFTextField
+              control={control}
+              name="firstName"
+              label="Nombre (opcional)"
             />
-
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rol</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Rol" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roleOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <RHFTextField
+              control={control}
+              name="lastName"
+              label="Apellido (opcional)"
             />
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre (opcional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Apellido (opcional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+          {showValidationSummary && validationMessages.length > 0 ? (
+            <FormValidationSummary
+              title="Revisa los datos de la invitación"
+              messages={validationMessages}
+            />
+          ) : null}
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  "Enviando…"
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Enviar invitación
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                "Enviando…"
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Enviar invitación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

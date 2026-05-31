@@ -136,6 +136,9 @@ export function UserDetailPage() {
       metadata={{
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        createdBy:
+          user.createdByName?.trim() || user.createdBy?.trim() || undefined,
+        updatedBy: user.updatedByName?.trim() || undefined,
       }}
     >
       <div className="space-y-4">

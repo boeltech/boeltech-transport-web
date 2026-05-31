@@ -25,11 +25,9 @@ import {
 } from "@shared/ui/card";
 import {
   Form,
-  FormControl,
   FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  FormFieldShell,
+  getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import {
@@ -252,86 +250,100 @@ export function PasswordChangeSection() {
                 <FormField
                   control={passwordForm.control}
                   name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contraseña actual</FormLabel>
-                      <div className="flex min-w-0 flex-1 gap-2">
-                        <FormControl>
+                  render={({ field, fieldState }) => {
+                    const fieldId = "currentPassword";
+                    const errorMessage = fieldState.error?.message;
+                    return (
+                      <FormFieldShell
+                        fieldId={fieldId}
+                        label="Contraseña actual"
+                        errorMessage={errorMessage}
+                      >
+                        <div className="flex min-w-0 flex-1 gap-2">
                           <Input
+                            id={fieldId}
                             {...field}
                             type={showCurrentPassword ? "text" : "password"}
                             autoComplete="current-password"
                             disabled={isPasswordSaving}
                             className="min-w-0 flex-1"
+                            error={Boolean(fieldState.error)}
+                            {...getFieldErrorAriaProps(fieldId, errorMessage)}
                           />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          aria-label={
-                            showCurrentPassword
-                              ? "Ocultar contraseña"
-                              : "Mostrar contraseña"
-                          }
-                          disabled={isPasswordSaving}
-                          onClick={() =>
-                            setShowCurrentPassword((prev) => !prev)
-                          }
-                        >
-                          {showCurrentPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="space-y-3">
-                  <FormField
-                    control={passwordForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nueva contraseña</FormLabel>
-                        <div className="flex min-w-0 flex-1 gap-2">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type={showNewPassword ? "text" : "password"}
-                              autoComplete="new-password"
-                              disabled={isPasswordSaving}
-                              className="min-w-0 flex-1"
-                            />
-                          </FormControl>
                           <Button
                             type="button"
                             variant="outline"
                             size="icon"
                             className="shrink-0"
                             aria-label={
-                              showNewPassword
+                              showCurrentPassword
                                 ? "Ocultar contraseña"
                                 : "Mostrar contraseña"
                             }
                             disabled={isPasswordSaving}
-                            onClick={() => setShowNewPassword((v) => !v)}
+                            onClick={() =>
+                              setShowCurrentPassword((prev) => !prev)
+                            }
                           >
-                            {showNewPassword ? (
+                            {showCurrentPassword ? (
                               <EyeOff className="h-4 w-4" />
                             ) : (
                               <Eye className="h-4 w-4" />
                             )}
                           </Button>
                         </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                      </FormFieldShell>
+                    );
+                  }}
+                />
+
+                <div className="space-y-3">
+                  <FormField
+                    control={passwordForm.control}
+                    name="newPassword"
+                    render={({ field, fieldState }) => {
+                      const fieldId = "newPassword";
+                      const errorMessage = fieldState.error?.message;
+                      return (
+                        <FormFieldShell
+                          fieldId={fieldId}
+                          label="Nueva contraseña"
+                          errorMessage={errorMessage}
+                        >
+                          <div className="flex min-w-0 flex-1 gap-2">
+                            <Input
+                              id={fieldId}
+                              {...field}
+                              type={showNewPassword ? "text" : "password"}
+                              autoComplete="new-password"
+                              disabled={isPasswordSaving}
+                              className="min-w-0 flex-1"
+                              error={Boolean(fieldState.error)}
+                              {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="shrink-0"
+                              aria-label={
+                                showNewPassword
+                                  ? "Ocultar contraseña"
+                                  : "Mostrar contraseña"
+                              }
+                              disabled={isPasswordSaving}
+                              onClick={() => setShowNewPassword((v) => !v)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormFieldShell>
+                      );
+                    }}
                   />
 
                   <PasswordRequirementsList password={newPasswordValue} />
@@ -352,56 +364,62 @@ export function PasswordChangeSection() {
                 <FormField
                   control={passwordForm.control}
                   name="confirmNewPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar nueva contraseña</FormLabel>
-                      <div className="flex min-w-0 flex-1 gap-2">
-                        <FormControl>
+                  render={({ field, fieldState }) => {
+                    const fieldId = "confirmNewPassword";
+                    const confirmMismatch =
+                      confirmValue.length > 0 &&
+                      newPasswordValue.length > 0 &&
+                      newPasswordValue !== confirmValue;
+                    const errorMessage =
+                      fieldState.error?.message ??
+                      (confirmMismatch ? "Las contraseñas no coinciden" : undefined);
+                    return (
+                      <FormFieldShell
+                        fieldId={fieldId}
+                        label="Confirmar nueva contraseña"
+                        errorMessage={errorMessage}
+                      >
+                        <div className="flex min-w-0 flex-1 gap-2">
                           <Input
+                            id={fieldId}
                             {...field}
                             type={showConfirmPassword ? "text" : "password"}
                             autoComplete="new-password"
                             disabled={isPasswordSaving}
                             className="min-w-0 flex-1"
+                            error={Boolean(errorMessage)}
+                            {...getFieldErrorAriaProps(fieldId, errorMessage)}
                           />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          aria-label={
-                            showConfirmPassword
-                              ? "Ocultar contraseña"
-                              : "Mostrar contraseña"
-                          }
-                          disabled={isPasswordSaving}
-                          onClick={() =>
-                            setShowConfirmPassword((prev) => !prev)
-                          }
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {confirmValue.length > 0 &&
-                        newPasswordValue.length > 0 &&
-                        newPasswordValue !== confirmValue && (
-                          <p className="text-sm text-destructive" role="alert">
-                            Las contraseñas no coinciden
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0"
+                            aria-label={
+                              showConfirmPassword
+                                ? "Ocultar contraseña"
+                                : "Mostrar contraseña"
+                            }
+                            disabled={isPasswordSaving}
+                            onClick={() =>
+                              setShowConfirmPassword((prev) => !prev)
+                            }
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {passwordsMatch && (
+                          <p className="text-sm text-success">
+                            Las contraseñas coinciden
                           </p>
                         )}
-                      {passwordsMatch && (
-                        <p className="text-sm text-success">
-                          Las contraseñas coinciden
-                        </p>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                      </FormFieldShell>
+                    );
+                  }}
                 />
 
                 <SheetFooter className="flex-col gap-2 sm:flex-row sm:justify-end">

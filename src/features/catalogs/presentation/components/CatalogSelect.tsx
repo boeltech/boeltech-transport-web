@@ -67,6 +67,12 @@ export interface CatalogSelectProps {
    * Clases CSS adicionales
    */
   className?: string;
+  /** `id` del trigger (enlazar con `<Label htmlFor>`). */
+  triggerId?: string;
+  /** Borde/anillo de error (alineado a `Input` / `SelectTrigger`). */
+  error?: boolean;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   /**
    * Mostrar código junto al nombre
    */
@@ -96,8 +102,12 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
       placeholder = "Seleccione una opción",
       disabled = false,
       className,
+      triggerId,
+      error = false,
       showCode = false,
       displayFormat = "name",
+      "aria-invalid": ariaInvalid,
+      "aria-describedby": ariaDescribedBy,
     },
     ref,
   ) => {
@@ -140,9 +150,16 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
     if (isError) {
       return (
         <Select disabled>
-          <SelectTrigger className={className} ref={ref}>
-            <SelectValue placeholder="Error al cargar opciones" />
-          </SelectTrigger>
+        <SelectTrigger
+          id={triggerId}
+          className={className}
+          error={error}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          ref={ref}
+        >
+          <SelectValue placeholder="Error al cargar opciones" />
+        </SelectTrigger>
         </Select>
       );
     }
@@ -161,7 +178,14 @@ export const CatalogSelect = forwardRef<HTMLButtonElement, CatalogSelectProps>(
         }}
         disabled={disabled || !options?.length}
       >
-        <SelectTrigger className={className} ref={ref}>
+        <SelectTrigger
+          id={triggerId}
+          className={className}
+          error={error}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          ref={ref}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

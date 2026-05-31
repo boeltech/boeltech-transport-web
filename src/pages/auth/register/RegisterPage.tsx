@@ -27,6 +27,11 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getFieldErrorAriaProps,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { apiClient } from "@shared/api";
 import { tokenStorage } from "@features/auth/infrastructure";
 import { registerSchema, type RegisterFormData, type TenantData } from "@features/auth";
@@ -283,15 +288,17 @@ const RegisterPage = () => {
                       id="companyName"
                       placeholder="Mi Empresa de Transporte"
                       className="pl-10"
-                      error={!!errors.companyName}
                       {...register("companyName")}
+                      {...getRegisterFieldErrorProps(
+                        "companyName",
+                        errors.companyName?.message,
+                      )}
                     />
                   </div>
-                  {errors.companyName && (
-                    <p className="text-sm text-destructive">
-                      {errors.companyName.message}
-                    </p>
-                  )}
+                  <FieldInlineError
+                    fieldId="companyName"
+                    message={errors.companyName?.message}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -300,9 +307,23 @@ const RegisterPage = () => {
                     <Input
                       id="subdomain"
                       placeholder="mi-empresa"
-                      error={!!errors.subdomain || subdomainAvailable === false}
                       {...register("subdomain")}
                       onChange={handleSubdomainChange}
+                      error={
+                        Boolean(errors.subdomain?.message) ||
+                        subdomainAvailable === false
+                      }
+                      {...(errors.subdomain?.message
+                        ? getFieldErrorAriaProps(
+                            "subdomain",
+                            errors.subdomain.message,
+                          )
+                        : subdomainAvailable === false
+                          ? {
+                              "aria-invalid": true as const,
+                              "aria-describedby": "subdomain-availability-error",
+                            }
+                          : { "aria-invalid": false as const })}
                     />
                     {isCheckingSubdomain && (
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -311,13 +332,15 @@ const RegisterPage = () => {
                       <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
                     )}
                   </div>
-                  {errors.subdomain && (
-                    <p className="text-sm text-destructive">
-                      {errors.subdomain.message}
-                    </p>
-                  )}
-                  {subdomainAvailable === false && (
-                    <p className="text-sm text-destructive">
+                  <FieldInlineError
+                    fieldId="subdomain"
+                    message={errors.subdomain?.message}
+                  />
+                  {subdomainAvailable === false && !errors.subdomain && (
+                    <p
+                      id="subdomain-availability-error"
+                      className="text-destructive text-xs"
+                    >
                       Este identificador no está disponible.
                       {subdomainSuggestion && (
                         <button
@@ -362,28 +385,32 @@ const RegisterPage = () => {
                     <Input
                       id="firstName"
                       placeholder="Juan"
-                      error={!!errors.firstName}
                       {...register("firstName")}
+                      {...getRegisterFieldErrorProps(
+                        "firstName",
+                        errors.firstName?.message,
+                      )}
                     />
-                    {errors.firstName && (
-                      <p className="text-sm text-destructive">
-                        {errors.firstName.message}
-                      </p>
-                    )}
+                    <FieldInlineError
+                      fieldId="firstName"
+                      message={errors.firstName?.message}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Apellido</Label>
                     <Input
                       id="lastName"
                       placeholder="Pérez"
-                      error={!!errors.lastName}
                       {...register("lastName")}
+                      {...getRegisterFieldErrorProps(
+                        "lastName",
+                        errors.lastName?.message,
+                      )}
                     />
-                    {errors.lastName && (
-                      <p className="text-sm text-destructive">
-                        {errors.lastName.message}
-                      </p>
-                    )}
+                    <FieldInlineError
+                      fieldId="lastName"
+                      message={errors.lastName?.message}
+                    />
                   </div>
                 </div>
 
@@ -396,15 +423,11 @@ const RegisterPage = () => {
                       type="email"
                       placeholder="tu@email.com"
                       className="pl-10"
-                      error={!!errors.email}
                       {...register("email")}
+                      {...getRegisterFieldErrorProps("email", errors.email?.message)}
                     />
                   </div>
-                  {errors.email && (
-                    <p className="text-sm text-destructive">
-                      {errors.email.message}
-                    </p>
-                  )}
+                  <FieldInlineError fieldId="email" message={errors.email?.message} />
                 </div>
 
                 <div className="space-y-2">
@@ -415,8 +438,11 @@ const RegisterPage = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       className="pr-10"
-                      error={!!errors.password}
                       {...register("password")}
+                      {...getRegisterFieldErrorProps(
+                        "password",
+                        errors.password?.message,
+                      )}
                     />
                     <button
                       type="button"
@@ -431,11 +457,10 @@ const RegisterPage = () => {
                       )}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="text-sm text-destructive">
-                      {errors.password.message}
-                    </p>
-                  )}
+                  <FieldInlineError
+                    fieldId="password"
+                    message={errors.password?.message}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -446,8 +471,11 @@ const RegisterPage = () => {
                       type={showConfirm ? "text" : "password"}
                       placeholder="••••••••"
                       className="pr-10"
-                      error={!!errors.confirmPassword}
                       {...register("confirmPassword")}
+                      {...getRegisterFieldErrorProps(
+                        "confirmPassword",
+                        errors.confirmPassword?.message,
+                      )}
                     />
                     <button
                       type="button"
@@ -462,11 +490,10 @@ const RegisterPage = () => {
                       )}
                     </button>
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive">
-                      {errors.confirmPassword.message}
-                    </p>
-                  )}
+                  <FieldInlineError
+                    fieldId="confirmPassword"
+                    message={errors.confirmPassword?.message}
+                  />
                 </div>
 
                 <div className="flex gap-2">
@@ -550,11 +577,10 @@ const RegisterPage = () => {
                     </p>
                   </div>
                 </div>
-                {errors.acceptTerms && (
-                  <p className="text-sm text-destructive">
-                    {errors.acceptTerms.message}
-                  </p>
-                )}
+                <FieldInlineError
+                  fieldId="acceptTerms"
+                  message={errors.acceptTerms?.message}
+                />
 
                 <div className="flex gap-2">
                   <Button

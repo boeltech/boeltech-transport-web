@@ -14,7 +14,7 @@
  * />
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "@shared/hooks/use-debounce";
 import { Input } from "@shared/ui/input";
 import { Button } from "@shared/ui/button";
@@ -31,6 +31,26 @@ import { Search, X, Check, Loader2 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { useCatalogSearch, useCatalogItem } from "../../application/hooks";
 import type { CatalogItem, CatalogTypeCodeValue } from "../../domain";
+
+/**
+ * En Sheet/Dialog: la lista consume el scroll; en los extremos se evita que la rueda mueva el fondo.
+ * Solo aplica preventDefault si hay overflow; con pocos ítems no hay scroll y React usa listener pasivo.
+ */
+export function handleCatalogResultsListWheel(
+  el: HTMLElement,
+  e: WheelEvent,
+): void {
+  e.stopPropagation();
+  const { scrollTop, scrollHeight, clientHeight } = el;
+  if (scrollHeight <= clientHeight + 1) {
+    return;
+  }
+  const atTop = scrollTop <= 0;
+  const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+  if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
+    e.preventDefault();
+  }
+}
 
 // ============================================================================
 // TYPES
@@ -113,6 +133,19 @@ export function CatalogSearchInput({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, debounceMs);
   const inputRef = useRef<HTMLInputElement>(null);
+  const commandListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = commandListRef.current;
+    if (!el || !open) return;
+
+    const onWheel = (e: WheelEvent) => {
+      handleCatalogResultsListWheel(el, e);
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [open]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // Data Fetching
@@ -227,7 +260,7 @@ export function CatalogSearchInput({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <div className={cn("relative", className)}>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -252,12 +285,13 @@ export function CatalogSearchInput({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
+        className="z-[100] w-[var(--radix-popover-trigger-width)] p-0"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onWheel={(e) => e.stopPropagation()}
       >
         <Command shouldFilter={false}>
-          <CommandList>
+          <CommandList ref={commandListRef}>
             {debouncedSearch.length < 2 ? (
               <CommandEmpty>
                 Escriba al menos 2 caracteres para buscar

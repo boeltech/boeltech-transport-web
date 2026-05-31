@@ -23,6 +23,10 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { invitationsApi } from "../../infrastructure/invitationsApi";
 import {
   acceptInvitationFormSchema,
@@ -251,10 +255,15 @@ export function AcceptInvitationPage() {
                   id="firstName"
                   autoComplete="given-name"
                   {...register("firstName")}
+                  {...getRegisterFieldErrorProps(
+                    "firstName",
+                    errors.firstName?.message,
+                  )}
                 />
-                {errors.firstName && (
-                  <p className="text-destructive text-sm">{errors.firstName.message}</p>
-                )}
+                <FieldInlineError
+                  fieldId="firstName"
+                  message={errors.firstName?.message}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Apellido</Label>
@@ -262,10 +271,15 @@ export function AcceptInvitationPage() {
                   id="lastName"
                   autoComplete="family-name"
                   {...register("lastName")}
+                  {...getRegisterFieldErrorProps(
+                    "lastName",
+                    errors.lastName?.message,
+                  )}
                 />
-                {errors.lastName && (
-                  <p className="text-destructive text-sm">{errors.lastName.message}</p>
-                )}
+                <FieldInlineError
+                  fieldId="lastName"
+                  message={errors.lastName?.message}
+                />
               </div>
             </div>
 
@@ -277,6 +291,10 @@ export function AcceptInvitationPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   {...register("password")}
+                  {...getRegisterFieldErrorProps(
+                    "password",
+                    errors.password?.message,
+                  )}
                 />
                 <button
                   type="button"
@@ -291,9 +309,10 @@ export function AcceptInvitationPage() {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-destructive text-sm">{errors.password.message}</p>
-              )}
+              <FieldInlineError
+                fieldId="password"
+                message={errors.password?.message}
+              />
             </div>
 
             <div className="space-y-2">
@@ -304,6 +323,10 @@ export function AcceptInvitationPage() {
                   type={showConfirm ? "text" : "password"}
                   autoComplete="new-password"
                   {...register("confirmPassword")}
+                  {...getRegisterFieldErrorProps(
+                    "confirmPassword",
+                    errors.confirmPassword?.message,
+                  )}
                 />
                 <button
                   type="button"
@@ -318,11 +341,10 @@ export function AcceptInvitationPage() {
                   )}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="text-destructive text-sm">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
+              <FieldInlineError
+                fieldId="confirmPassword"
+                message={errors.confirmPassword?.message}
+              />
             </div>
 
             {error && (

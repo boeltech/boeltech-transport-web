@@ -22,6 +22,10 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { apiClient } from "@shared/api";
 import {
   resetPasswordSchema,
@@ -221,8 +225,11 @@ const ResetPasswordPage = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   className="pr-10"
-                  error={!!errors.password}
                   {...register("password")}
+                  {...getRegisterFieldErrorProps(
+                    "password",
+                    errors.password?.message,
+                  )}
                 />
                 <button
                   type="button"
@@ -237,11 +244,10 @@ const ResetPasswordPage = () => {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">
-                  {errors.password.message}
-                </p>
-              )}
+              <FieldInlineError
+                fieldId="password"
+                message={errors.password?.message}
+              />
               <p className="text-xs text-muted-foreground">
                 Mínimo 8 caracteres, una mayúscula, una minúscula y un número
               </p>
@@ -256,8 +262,11 @@ const ResetPasswordPage = () => {
                   type={showConfirm ? "text" : "password"}
                   placeholder="••••••••"
                   className="pr-10"
-                  error={!!errors.confirmPassword}
                   {...register("confirmPassword")}
+                  {...getRegisterFieldErrorProps(
+                    "confirmPassword",
+                    errors.confirmPassword?.message,
+                  )}
                 />
                 <button
                   type="button"
@@ -272,11 +281,10 @@ const ResetPasswordPage = () => {
                   )}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
+              <FieldInlineError
+                fieldId="confirmPassword"
+                message={errors.confirmPassword?.message}
+              />
             </div>
 
             {/* Submit */}

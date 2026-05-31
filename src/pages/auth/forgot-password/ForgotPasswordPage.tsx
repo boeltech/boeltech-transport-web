@@ -15,6 +15,10 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { apiClient } from "@shared/api";
 import { tokenStorage } from "@features/auth/infrastructure";
 import {
@@ -126,14 +130,16 @@ const ForgotPasswordPage = () => {
                 id="subdomain"
                 type="text"
                 placeholder="mi-empresa"
-                error={!!errors.subdomain}
                 {...register("subdomain")}
+                {...getRegisterFieldErrorProps(
+                  "subdomain",
+                  errors.subdomain?.message,
+                )}
               />
-              {errors.subdomain && (
-                <p className="text-sm text-destructive">
-                  {errors.subdomain.message}
-                </p>
-              )}
+              <FieldInlineError
+                fieldId="subdomain"
+                message={errors.subdomain?.message}
+              />
             </div>
 
             {/* Email */}
@@ -146,15 +152,11 @@ const ForgotPasswordPage = () => {
                   type="email"
                   placeholder="tu@email.com"
                   className="pl-10"
-                  error={!!errors.email}
                   {...register("email")}
+                  {...getRegisterFieldErrorProps("email", errors.email?.message)}
                 />
               </div>
-              {errors.email && (
-                <p className="text-sm text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="email" message={errors.email?.message} />
             </div>
 
             {/* Submit */}

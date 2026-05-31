@@ -110,6 +110,27 @@ export function formatTime(isoString: string | null | undefined): string {
   });
 }
 
+const DATETIME_LOCAL_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+/**
+ * Muestra un valor de `<input type="datetime-local">` del wizard (hora civil México,
+ * sin `Z`) con el mismo criterio que `localInputToUtcIso` al enviar al API.
+ * Si el valor ya es ISO con zona, delega en `formatDateTime`.
+ */
+export function formatDateTimeFromLocalInput(
+  value: string | null | undefined,
+): string {
+  if (!value?.trim()) return "—";
+  const trimmed = value.trim();
+  if (
+    hasExplicitTimeZoneOffset(trimmed) ||
+    !DATETIME_LOCAL_INPUT_PATTERN.test(trimmed)
+  ) {
+    return formatDateTime(trimmed);
+  }
+  return formatDateTime(localInputToUtcIso(trimmed));
+}
+
 // ──────────────────────────────────────────────
 // CONSTRUCCIÓN para formularios → API
 // ──────────────────────────────────────────────
@@ -350,7 +371,8 @@ export function suggestNextVersion(
 // │  <input type="date">      → string "YYYY-MM-DD"                 │
 // │  <input type="datetime-local"> → string "YYYY-MM-DDTHH:mm"      │
 // └────────────────────┬────────────────────────────────────────────┘
-//                      │  toApi*() usa localInputToUtcIso()
+//                      │  toApi*() / resumen wizard: localInputToUtcIso()
+//                      │  display wizard: formatDateTimeFromLocalInput()
 //                      ▼
 // ┌─────────────────────────────────────────────────────────────────┐
 // │  REQUEST al backend (snake_case)                                │

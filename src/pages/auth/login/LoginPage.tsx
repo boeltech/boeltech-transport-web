@@ -15,6 +15,10 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 
 import { authApi, tokenStorage } from "@features/auth/infrastructure";
 import { loginSchema, type LoginFormData } from "@features/auth";
@@ -162,16 +166,19 @@ const LoginPage = () => {
                   type="text"
                   placeholder="mi-empresa"
                   autoComplete="organization"
-                  error={!!errors.subdomain}
                   className="pl-10"
                   {...register("subdomain")}
+                  {...getRegisterFieldErrorProps(
+                    "subdomain",
+                    errors.subdomain?.message,
+                  )}
                 />
               </div>
-              {errors.subdomain ? (
-                <p className="text-sm text-destructive">
-                  {errors.subdomain.message}
-                </p>
-              ) : (
+              <FieldInlineError
+                fieldId="subdomain"
+                message={errors.subdomain?.message}
+              />
+              {!errors.subdomain && (
                 <p className="text-xs text-muted-foreground">
                   Identificador de tu empresa
                 </p>
@@ -186,14 +193,10 @@ const LoginPage = () => {
                 type="email"
                 placeholder="tu@email.com"
                 autoComplete="email"
-                error={!!errors.email}
                 {...register("email")}
+                {...getRegisterFieldErrorProps("email", errors.email?.message)}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
+              <FieldInlineError fieldId="email" message={errors.email?.message} />
             </div>
 
             {/* Campo Password */}
@@ -213,9 +216,12 @@ const LoginPage = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  error={!!errors.password}
                   className="pr-10"
                   {...register("password")}
+                  {...getRegisterFieldErrorProps(
+                    "password",
+                    errors.password?.message,
+                  )}
                 />
                 <button
                   type="button"
@@ -233,11 +239,10 @@ const LoginPage = () => {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">
-                  {errors.password.message}
-                </p>
-              )}
+              <FieldInlineError
+                fieldId="password"
+                message={errors.password?.message}
+              />
             </div>
 
             {/* Botón Submit */}

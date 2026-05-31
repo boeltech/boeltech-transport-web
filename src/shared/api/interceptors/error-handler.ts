@@ -71,7 +71,7 @@ const FIELD_LABELS: Record<string, string> = {
   vehicle_id: "Vehículo",
   driver_id: "Conductor",
   scheduled_departure: "Salida programada",
-  scheduled_arrival: "Llegada programada",
+  scheduled_arrival: "Llegada estimada",
   origin: "Origen",
   destination: "Destino",
   // Generales
@@ -126,6 +126,16 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   LICENSE_NUMBER_EXISTS: "El número de licencia ya está registrado",
   CURP_EXISTS: "El CURP ya está registrado",
   RFC_EMPLOYEE_EXISTS: "El RFC ya está registrado",
+  EMPLOYEE_DRIVER_ON_TRIP:
+    "No se puede dar de baja al empleado mientras está en viaje como conductor. Finalice o cancele el viaje en curso.",
+  EMPLOYEE_DRIVER_HAS_ACTIVE_TRIPS:
+    "No se puede dar de baja al empleado con viajes activos como conductor. Complete o cancele esos viajes primero.",
+  EMPLOYEE_IS_ACTIVE_DRIVER:
+    "No se puede dar de baja al empleado mientras sigue registrado como conductor activo. Revise Conductores o los viajes asignados.",
+
+  // ── Empleados ──────────────────────────────────────────────────────────────
+  EMPLOYEE_NOT_FOUND: "Empleado no encontrado",
+  EMPLOYEE_ALREADY_TERMINATED: "El empleado ya está dado de baja",
 
   // ── Facturación ────────────────────────────────────────────────────────────
   TRIP_ALREADY_INVOICED: "El viaje ya está vinculado a una factura activa",
@@ -144,6 +154,7 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",
+  CLIENT_NOT_ASSIGNABLE: "El cliente no puede asignarse a este viaje",
   RFC_EXISTS: "El RFC ya está registrado",
   CLIENT_CODE_EXISTS: "El código de cliente ya existe",
 

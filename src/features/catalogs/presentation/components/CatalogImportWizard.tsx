@@ -51,6 +51,12 @@ import {
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import {
+  FormFieldShell,
+  FormValidationSummary,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import {
   useCatalogImportWizard,
   useCatalogType,
 } from "../../application/hooks";
@@ -106,6 +112,7 @@ export function CatalogImportWizard({
   const [step, setStep] = useState<WizardStep>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   // Obtener el tipo de catálogo con su versión actual
   const { data: catalogType, isLoading: isLoadingType } =
@@ -474,7 +481,7 @@ export function CatalogImportWizard({
         <div className="flex justify-between">
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Atrás
+            Anterior
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleClose}>
@@ -491,7 +498,16 @@ export function CatalogImportWizard({
   };
 
   const renderImportStep = () => (
-    <form onSubmit={form.handleSubmit(handleImport)} className="space-y-6">
+    <form
+      onSubmit={form.handleSubmit(
+        (data) => {
+          setShowValidationSummary(false);
+          handleImport(data);
+        },
+        () => setShowValidationSummary(true),
+      )}
+      className="space-y-6"
+    >
       {/* Current version info */}
       {catalogType?.currentVersion && (
         <Alert>
@@ -508,40 +524,45 @@ export function CatalogImportWizard({
         </Alert>
       )}
 
-      {/* Version */}
-      <div className="space-y-2">
-        <Label htmlFor="version">
-          Nueva versión <span className="text-destructive">*</span>
-        </Label>
+      <FormFieldShell
+        fieldId="version"
+        label="Nueva versión"
+        required
+        errorMessage={form.formState.errors.version?.message}
+        description={
+          <>
+            Formato sugerido: X.Y.YYYYMMDD (ej: {suggestedVersion})
+          </>
+        }
+      >
         <Input
           id="version"
           placeholder="ej: 1.0.20260325"
+          error={Boolean(form.formState.errors.version)}
           {...form.register("version")}
+          {...getFieldErrorAriaProps(
+            "version",
+            form.formState.errors.version?.message,
+          )}
         />
-        <p className="text-xs text-muted-foreground">
-          Formato sugerido: X.Y.YYYYMMDD (ej: {suggestedVersion})
-        </p>
-        {form.formState.errors.version && (
-          <p className="text-sm text-destructive">
-            {form.formState.errors.version.message}
-          </p>
-        )}
-      </div>
+      </FormFieldShell>
 
-      {/* Source URL */}
-      <div className="space-y-2">
-        <Label htmlFor="sourceUrl">URL de origen (opcional)</Label>
+      <FormFieldShell
+        fieldId="sourceUrl"
+        label="URL de origen (opcional)"
+        errorMessage={form.formState.errors.sourceUrl?.message}
+      >
         <Input
           id="sourceUrl"
           placeholder="https://www.sat.gob.mx/..."
+          error={Boolean(form.formState.errors.sourceUrl)}
           {...form.register("sourceUrl")}
+          {...getFieldErrorAriaProps(
+            "sourceUrl",
+            form.formState.errors.sourceUrl?.message,
+          )}
         />
-        {form.formState.errors.sourceUrl && (
-          <p className="text-sm text-destructive">
-            {form.formState.errors.sourceUrl.message}
-          </p>
-        )}
-      </div>
+      </FormFieldShell>
 
       {/* Notes */}
       <div className="space-y-2">
@@ -617,11 +638,18 @@ export function CatalogImportWizard({
         </AlertDescription>
       </Alert>
 
+      {showValidationSummary && !form.formState.isValid ? (
+        <FormValidationSummary
+          messages={collectFieldErrorMessages(form.formState.errors)}
+          title="Revisa la configuración de importación"
+        />
+      ) : null}
+
       {/* Actions */}
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Atrás
+          Anterior
         </Button>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={handleClose}>
@@ -760,7 +788,7 @@ export function CatalogImportWizard({
 
         {/* Progress */}
         <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
+          <div className="flex justify-between text-xs text-muted-foreground" aria-live="polite">
             <span>Paso {Object.keys(stepTitles).indexOf(step) + 1} de 4</span>
             <span>{stepProgress[step]}%</span>
           </div>

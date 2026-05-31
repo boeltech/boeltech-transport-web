@@ -30,6 +30,16 @@ export interface User {
   readonly lastLogin: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /**
+   * Auditoría: `created_by` y `updated_by` son self-FK contra `users(id)` con
+   * trigger `users_self_attribute_audit_columns` que autorrellena con `id`
+   * cuando el INSERT viene sin actor (registro inicial de tenant). NULL solo
+   * si el actor fue eliminado.
+   */
+  readonly createdBy: string | null;
+  readonly updatedBy: string | null;
+  readonly createdByName: string | null;
+  readonly updatedByName: string | null;
 }
 
 export interface UserFilters {

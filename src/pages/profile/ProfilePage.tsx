@@ -21,15 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@shared/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
+import { RHFTextField } from "@shared/ui/form";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks/useToast";
 import { mapBackendError } from "@shared/utils/errorMapper";
@@ -126,61 +118,30 @@ function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
+                  <RHFTextField
                     control={form.control}
                     name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            autoComplete="given-name"
-                            disabled={isSaving}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Nombre"
+                    autoComplete="given-name"
+                    disabled={isSaving}
                   />
-                  <FormField
+                  <RHFTextField
                     control={form.control}
                     name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apellido</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            autoComplete="family-name"
-                            disabled={isSaving}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Apellido"
+                    autoComplete="family-name"
+                    disabled={isSaving}
                   />
                 </div>
-                <FormField
+                <RHFTextField
                   control={form.control}
                   name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Correo electrónico</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="email"
-                          autoComplete="email"
-                          disabled={isSaving}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Correo electrónico"
+                  type="email"
+                  autoComplete="email"
+                  disabled={isSaving}
                 />
                 <div className="flex justify-end">
                   <Button
@@ -200,8 +161,7 @@ function ProfilePage() {
                     )}
                   </Button>
                 </div>
-              </form>
-            </Form>
+            </form>
           </CardContent>
         </Card>
 

@@ -20,6 +20,5 @@ export type {
 export {
   STATUS_COLORS_SOFT,
   STATUS_COLORS_SOLID,
-  STATUS_COLORS, // @deprecated alias of STATUS_COLORS_SOFT
   createStatusConfig,
 } from "./types";

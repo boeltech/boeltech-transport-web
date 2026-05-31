@@ -36,6 +36,13 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   DRIVER_LICENSE_EXPIRED:
     "La licencia del conductor ha expirado. Seleccione otro conductor o actualice la licencia.",
   DRIVER_TERMINATED: "No se puede modificar un conductor dado de baja",
+  EMPLOYEE_DRIVER_ON_TRIP:
+    "No se puede dar de baja al empleado mientras está en viaje como conductor. Finalice o cancele el viaje en curso.",
+  EMPLOYEE_DRIVER_HAS_ACTIVE_TRIPS:
+    "No se puede dar de baja al empleado con viajes activos como conductor. Complete o cancele esos viajes primero.",
+  /** @deprecated Código legacy; el API ya valida viajes activos / on_trip */
+  EMPLOYEE_IS_ACTIVE_DRIVER:
+    "No se puede dar de baja al empleado mientras sigue registrado como conductor activo. Revise Conductores o los viajes asignados.",
   EMPLOYEE_NUMBER_EXISTS: "El número de empleado ya existe",
   LICENSE_NUMBER_EXISTS: "El número de licencia ya está registrado",
   CURP_EXISTS: "El CURP ya está registrado",
@@ -44,6 +51,7 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
 
   // ===== CLIENTES =====
   CLIENT_NOT_FOUND: "El cliente seleccionado no existe",
+  CLIENT_NOT_ASSIGNABLE: "El cliente no puede asignarse a este viaje",
   CLIENT_INACTIVE: "El cliente seleccionado no está activo",
   CLIENT_HAS_ACTIVE_TRIPS: "No se puede eliminar un cliente con viajes activos",
   TAX_ID_EXISTS: "El RFC ya está registrado",
@@ -134,9 +142,6 @@ export interface DomainError {
   readonly message: string;
   readonly field?: string;
 }
-
-/** @deprecated Usar `ApiErrorResponse.error` (unión string | objeto) */
-export type ApiErrorResponseWithNested = ApiErrorResponse;
 
 function pickStringMessage(...candidates: unknown[]): string | undefined {
   for (const c of candidates) {
@@ -250,7 +255,7 @@ function handleAxiosError(error: AxiosError<ApiErrorResponse>): MappedError {
   if (responseData) {
     // Estructura 1: error.response.data.error = { code, message, statusCode }
     // Esta es la estructura de tu backend
-    const nestedError = (responseData as ApiErrorResponseWithNested).error;
+    const nestedError = (responseData as ApiErrorResponse).error;
 
     if (nestedError && typeof nestedError === "object") {
       const code =
