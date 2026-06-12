@@ -14,17 +14,13 @@
 import { memo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Bell,
   Search,
   Menu,
-  Moon,
-  Sun,
   User,
   Settings,
   LogOut,
   HelpCircle,
   Building2,
-  Monitor,
 } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
@@ -36,18 +32,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from "@/shared/ui/dropdown-menu";
+import { ThemeCycleButton } from "@/shared/ui/theme";
 
 import { useAuth } from "@/shared/hooks/useAuth";
-import { useTheme } from "@/shared/hooks/useTheme";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { getUserFullName, getUserInitials } from "@/shared/lib/userHelpers";
 import { GlobalCommandMenu } from "./GlobalCommandMenu";
+import { NotificationInboxButton } from "@features/notifications";
 
 // ============================================
 // Types
@@ -74,7 +66,6 @@ interface UserWithTenant {
 
 export const Header = memo(function Header({ className }: HeaderProps) {
   const { user, logout } = useAuth();
-  const { mode, setMode, toggleTheme, isDark } = useTheme();
   const { isCollapsed, openMobile } = useSidebar();
   const [commandOpen, setCommandOpen] = useState(false);
 
@@ -133,49 +124,15 @@ export const Header = memo(function Header({ className }: HeaderProps) {
           ========================================== */}
       <div className="flex items-center gap-2">
         {/* Notificaciones */}
-        <NotificationButton />
+        <NotificationInboxButton />
 
-        {/* Toggle de tema (simple) */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-        >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          <span className="sr-only">Cambiar tema</span>
-        </Button>
+        {/* Ciclo de tema: system → light → dark */}
+        <ThemeCycleButton />
 
         {/* Menú de usuario */}
-        <UserMenu
-          user={user}
-          themeMode={mode}
-          onThemeChange={setMode}
-          onLogout={logout}
-        />
+        <UserMenu user={user} onLogout={logout} />
       </div>
     </header>
-  );
-});
-
-// ============================================
-// Notification Button
-// ============================================
-
-const NotificationButton = memo(function NotificationButton() {
-  // TODO: Integrar con sistema de notificaciones real
-  const notificationCount = 3;
-
-  return (
-    <Button variant="ghost" size="icon" className="relative">
-      <Bell className="h-5 w-5" />
-      <span className="sr-only">Notificaciones</span>
-      {notificationCount > 0 && (
-        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-          {notificationCount > 9 ? "9+" : notificationCount}
-        </span>
-      )}
-    </Button>
   );
 });
 
@@ -185,17 +142,10 @@ const NotificationButton = memo(function NotificationButton() {
 
 interface UserMenuProps {
   user: UserWithTenant | null | undefined;
-  themeMode: "light" | "dark" | "system";
-  onThemeChange: (mode: "light" | "dark" | "system") => void;
   onLogout: () => void;
 }
 
-const UserMenu = memo(function UserMenu({
-  user,
-  themeMode,
-  onThemeChange,
-  onLogout,
-}: UserMenuProps) {
+const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -245,41 +195,6 @@ const UserMenu = memo(function UserMenu({
           </Link>
         </DropdownMenuItem>
 
-        {/* Submenú de Tema */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            {themeMode === "dark" ? (
-              <Moon className="mr-2 h-4 w-4" />
-            ) : themeMode === "light" ? (
-              <Sun className="mr-2 h-4 w-4" />
-            ) : (
-              <Monitor className="mr-2 h-4 w-4" />
-            )}
-            Tema
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={themeMode}
-              onValueChange={(value) =>
-                onThemeChange(value as "light" | "dark" | "system")
-              }
-            >
-              <DropdownMenuRadioItem value="light">
-                <Sun className="mr-2 h-4 w-4" />
-                Claro
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">
-                <Moon className="mr-2 h-4 w-4" />
-                Oscuro
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system">
-                <Monitor className="mr-2 h-4 w-4" />
-                Sistema
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
         <DropdownMenuItem>
           <HelpCircle className="mr-2 h-4 w-4" />
           Ayuda
@@ -298,3 +213,4 @@ const UserMenu = memo(function UserMenu({
     </DropdownMenu>
   );
 });
+

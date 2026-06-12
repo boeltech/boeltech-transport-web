@@ -2,10 +2,10 @@
 /**
  * Application Routes
  *
- * Configuraci+¦n de rutas con React Router.
- * Incluye lazy loading, guards de autenticaci+¦n y permisos.
+ * ConfiguraciÃ³n de rutas con React Router.
+ * Incluye lazy loading, guards de autenticaciÃ³n y permisos.
  *
- * Ubicaci+¦n: src/app/router/routes.tsx
+ * UbicaciÃ³n: src/app/router/routes.tsx
  */
 
 import {
@@ -63,7 +63,7 @@ function withSuspense(
 }
 
 // ============================================
-// Lazy Loading de P+íginas
+// Lazy Loading de PÃ¡ginas
 // ============================================
 
 // Root & Landing
@@ -109,7 +109,7 @@ const TripsListPage = lazy(() =>
     default: m.TripsListPage,
   })),
 );
-// NOTE: Trip edit reuses TripFormPage ÔÇö it detects edit mode via :id param
+// NOTE: Trip edit reuses TripFormPage â€” it detects edit mode via :id param
 // const TripEditPage = lazy(() => import("@/pages/trips/edit"));
 
 // Vehicles
@@ -230,6 +230,7 @@ const InvoiceDetailPage = lazy(() =>
 const CreateInvoicePage = lazy(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
 );
+
 const ApprovalInboxPage = lazy(() =>
   import("@features/approvals").then((m) => ({ default: m.ApprovalInboxPage })),
 );
@@ -259,13 +260,19 @@ const UserEditPage = lazy(() =>
 // Settings (Admin)
 // const SettingsPage = lazy(() => import("@/pages/settings"));
 
-// Profile (autoservicio ÔÇö todos los autenticados)
+// Profile (autoservicio â€” todos los autenticados)
 const ProfilePage = lazy(() => import("@/pages/profile"));
+
+const NotificationsInboxPage = lazy(() =>
+  import("@features/notifications").then((m) => ({
+    default: m.NotificationsInboxPage,
+  })),
+);
 
 // Design System (gated a admin)
 const DesignSystemPage = lazy(() => import("@/pages/design-system"));
 
-// Onboarding guiado (post-invite / primera sesi+¦n heur+¡stica)
+// Onboarding guiado (post-invite / primera sesiÃ³n heurÃ­stica)
 const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
 
 // Errors
@@ -274,7 +281,7 @@ const ForbiddenPage = lazy(() => import("@/pages/errors/forbidden"));
 const ServerErrorPage = lazy(() => import("@/pages/errors/server-error"));
 const MaintenancePage = lazy(() => import("@/pages/errors/maintenance"));
 
-/** Routes backed by gitignored `src/pages/dev/` ÔÇö only registered in Vite dev */
+/** Routes backed by gitignored `src/pages/dev/` â€” only registered in Vite dev */
 const devOnlyAppChildRoutes = import.meta.env.DEV
   ? ([
       {
@@ -290,7 +297,7 @@ const devOnlyAppChildRoutes = import.meta.env.DEV
 
 export const router = createBrowserRouter([
   // ==========================================
-  // Ruta Ra+¡z - Redirect din+ímico
+  // Ruta RaÃ­z - Redirect dinÃ¡mico
   // ==========================================
   {
     path: "/",
@@ -299,7 +306,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Landing Page (P+¦blica)
+  // Landing Page (PÃºblica)
   // ==========================================
   {
     path: "/welcome",
@@ -308,7 +315,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Rutas P+¦blicas (Auth)
+  // Rutas PÃºblicas (Auth)
   // ==========================================
   {
     element: withSuspense(AuthLayout),
@@ -338,7 +345,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Rutas Privadas (requieren autenticaci+¦n)
+  // Rutas Privadas (requieren autenticaciÃ³n)
   // ==========================================
   {
     element: <PrivateRoute />,
@@ -365,12 +372,16 @@ export const router = createBrowserRouter([
             element: withSuspense(ProfilePage),
           },
           {
+            path: "/notifications",
+            element: withSuspense(NotificationsInboxPage),
+          },
+          {
             path: "/onboarding",
             element: withSuspense(OnboardingPage),
           },
 
           // ========================================
-          // M+¦dulo: Trips (Viajes)
+          // MÃ³dulo: Trips (Viajes)
           // ========================================
           {
             element: <ModuleRoute module="trips" />,
@@ -417,7 +428,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Vehicles (Veh+¡culos)
+          // MÃ³dulo: Vehicles (VehÃ­culos)
           // ========================================
           {
             element: <ModuleRoute module="vehicles" />,
@@ -447,7 +458,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Drivers (Conductores)
+          // MÃ³dulo: Drivers (Conductores)
           // ========================================
           {
             element: <ModuleRoute module="drivers" />,
@@ -477,7 +488,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Employees (Empleados)
+          // MÃ³dulo: Employees (Empleados)
           // ========================================
           {
             element: <ModuleRoute module="employees" />,
@@ -512,7 +523,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Clients (Clientes)
+          // MÃ³dulo: Clients (Clientes)
           // ========================================
           {
             element: <ModuleRoute module="clients" />,
@@ -542,7 +553,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Branches (Sucursales)
+          // MÃ³dulo: Branches (Sucursales)
           // ========================================
           {
             element: <ModuleRoute module="branches" />,
@@ -577,7 +588,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Maintenance (Mantenimiento)
+          // MÃ³dulo: Maintenance (Mantenimiento)
           // ========================================
           {
             element: <ModuleRoute module="maintenance" />,
@@ -599,7 +610,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Fuel (Combustible)
+          // MÃ³dulo: Fuel (Combustible)
           // ========================================
           {
             element: <ModuleRoute module="fuel" />,
@@ -621,7 +632,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Invoices / Finance (Facturaci+¦n)
+          // MÃ³dulo: Invoices / Finance (FacturaciÃ³n)
           // ========================================
           {
             element: <ModuleRoute module="invoices" />,
@@ -656,7 +667,20 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Reports (Reportes)
+          // MÃ³dulo: Finance Approvals (Aprobaciones)
+          // ========================================
+          {
+            element: <ModuleRoute module="finance_approvals" />,
+            children: [
+              {
+                path: "/finance/approvals",
+                element: withSuspense(ApprovalInboxPage),
+              },
+            ],
+          },
+
+          // ========================================
+          // MÃ³dulo: Reports (Reportes)
           // ========================================
           {
             element: <ModuleRoute module="reports" />,
@@ -669,7 +693,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Users (Admin)
+          // MÃ³dulo: Users (Admin)
           // ========================================
           {
             element: <ModuleRoute module="users" />,
@@ -708,7 +732,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // M+¦dulo: Settings
+          // MÃ³dulo: Settings
           // ========================================
           {
             element: <ModuleRoute module="settings" />,
@@ -725,8 +749,8 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // Design System ÔÇö gated a admin
-          // Referencia visual viva (tokens, tipograf+¡a, componentes).
+          // Design System â€” gated a admin
+          // Referencia visual viva (tokens, tipografÃ­a, componentes).
           // ========================================
           {
             element: <AdminRoute />,
@@ -743,7 +767,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // P+íginas de Error (acceso directo)
+  // PÃ¡ginas de Error (acceso directo)
   // ==========================================
   {
     path: "/forbidden",
@@ -766,3 +790,4 @@ export const router = createBrowserRouter([
     element: withSuspense(NotFoundPage),
   },
 ]);
+
