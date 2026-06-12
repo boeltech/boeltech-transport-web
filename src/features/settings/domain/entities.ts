@@ -225,6 +225,7 @@ export const SettingsSection = {
   CATALOGS: "catalogs",
   BILLING: "billing",
   NOTIFICATIONS: "notifications",
+  DASHBOARD_LAYOUTS: "dashboard-layouts",
   SECURITY: "security",
   INTEGRATIONS: "integrations",
 } as const;
@@ -237,6 +238,7 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.CATALOGS]: "Catálogos",
   [SettingsSection.BILLING]: "Facturación",
   [SettingsSection.NOTIFICATIONS]: "Notificaciones",
+  [SettingsSection.DASHBOARD_LAYOUTS]: "Dashboard",
   [SettingsSection.SECURITY]: "Seguridad",
   [SettingsSection.INTEGRATIONS]: "Integraciones",
 };

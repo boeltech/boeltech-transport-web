@@ -46,6 +46,12 @@ const IntegrationsSettingsPage = lazy(() =>
   })),
 );
 
+const DashboardLayoutsSettingsPage = lazy(() =>
+  import("./pages/DashboardLayoutsSettingsPage").then((m) => ({
+    default: m.DashboardLayoutsSettingsPage,
+  })),
+);
+
 // ============================================================================
 // LAZY LOADED PAGES - Catalogs (from catalogs feature)
 // ============================================================================
@@ -160,6 +166,20 @@ export function SettingsRoutes() {
               fallback={<Navigate to="/forbidden" replace />}
             >
               <NotificationsSettingsPage />
+            </PermissionGuard>
+          }
+        />
+
+        {/* Dashboard layouts by role */}
+        <Route
+          path="dashboard-layouts"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <DashboardLayoutsSettingsPage />
             </PermissionGuard>
           }
         />

@@ -11,6 +11,7 @@ import {
   Database,
   FileText,
   Bell,
+  LayoutDashboard,
   Shield,
   Plug,
   type LucideIcon,
@@ -74,6 +75,14 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Preferencias de alertas y notificaciones",
     path: "/settings/notifications",
     icon: Bell,
+    permission: { module: "settings", action: "update" },
+  },
+  {
+    id: SettingsSection.DASHBOARD_LAYOUTS,
+    label: "Dashboard",
+    description: "Orden y visibilidad de widgets por rol",
+    path: "/settings/dashboard-layouts",
+    icon: LayoutDashboard,
     permission: { module: "settings", action: "update" },
   },
   {
