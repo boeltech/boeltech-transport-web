@@ -33,6 +33,29 @@ export interface DashboardStats {
     total_cost_this_month: number;
     total_base_rate_this_month: number;
   };
+  financial_month: FinancialMonth;
+}
+
+export interface FinancialMonth {
+  trip_count: number;
+  budgeted_revenue: number;
+  actual_revenue: number;
+  budgeted_cost: number;
+  actual_cost: number;
+  budgeted_margin: number;
+  actual_margin: number;
+  revenue_variance: number;
+  cost_variance: number;
+  margin_variance: number;
+  trips_with_pending_expenses: number;
+}
+
+export interface FinancialTrendData {
+  periods: string[];
+  budgeted_revenue: number[];
+  actual_revenue: number[];
+  budgeted_cost: number[];
+  actual_cost: number[];
 }
 
 // ============================================
@@ -80,6 +103,18 @@ export interface DashboardData {
   stats: DashboardStats;
   alerts: DashboardAlert[];
   recent_trips: RecentTrip[];
+}
+
+export interface TripsByDayPoint {
+  day: string;
+  completed: number;
+  cancelled: number;
+  inProgress: number;
+  total: number;
+}
+
+export interface TripsByDayData {
+  points: TripsByDayPoint[];
 }
 
 // ============================================

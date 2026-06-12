@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api";
+import { devRefetchIntervalMs } from "@/shared/config/devPolling";
 import { useAuth } from "@/features/auth";
 import type { DashboardData } from "../../domain/types";
 
@@ -33,6 +34,10 @@ const dashboardApi = {
 export const dashboardQueryKeys = {
   all: ["dashboard"] as const,
   stats: () => [...dashboardQueryKeys.all, "stats"] as const,
+  tripsByDay: (days: number) =>
+    [...dashboardQueryKeys.all, "trips-by-day", days] as const,
+  financialTrend: (months: number) =>
+    [...dashboardQueryKeys.all, "financial-trend", months] as const,
 };
 
 // ============================================
@@ -51,6 +56,6 @@ export function useDashboard() {
     queryFn: dashboardApi.get,
     enabled: isAuthenticated,
     staleTime: 60_000, // 1 minuto
-    refetchInterval: isAuthenticated ? 60_000 : false, // Solo con sesión válida
+    refetchInterval: devRefetchIntervalMs(isAuthenticated ? 60_000 : false),
   });
 }
