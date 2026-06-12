@@ -41,6 +41,7 @@ import {
   buildSubstitutionCorrectionsDiff,
   defaultSubstituteInvoiceSheetValues,
   hasSubstitutionAmountDirtyFields,
+  type SubstitutionCorrectionsDirtyFields,
   substituteInvoiceSheetSchema,
   type SubstituteInvoiceSheetValues,
 } from "../validation/substitutionCorrectionsSchema";
@@ -78,7 +79,9 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
   const { control, setValue, formState } = form;
   const { dirtyFields } = formState;
   const tripCorrections = useWatch({ control, name: "trip_corrections" }) ?? [];
-  const amountsEdited = hasSubstitutionAmountDirtyFields(dirtyFields);
+  const substitutionDirtyFields =
+    dirtyFields as SubstitutionCorrectionsDirtyFields;
+  const amountsEdited = hasSubstitutionAmountDirtyFields(substitutionDirtyFields);
 
   const { mutate, isPending } = useSubstituteStampedInvoice(invoice.id, {
     onSuccess: (data) => {
@@ -140,7 +143,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
         invoice,
         values,
         stopsById,
-        dirtyFields,
+        substitutionDirtyFields,
       );
       mutate({
         cancellationReason: values.cancellationReason.trim(),

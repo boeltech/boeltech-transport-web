@@ -3,6 +3,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ProfitabilityTab } from "@features/finance/presentation/pages/ProfitabilityTab";
 import type { ProfitabilityTripsResponse } from "@features/finance/domain";
@@ -75,9 +76,11 @@ function renderTab() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <ProfitabilityTab queriesEnabled />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={["/finance?tab=profitability"]}>
+      <QueryClientProvider client={queryClient}>
+        <ProfitabilityTab queriesEnabled />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 

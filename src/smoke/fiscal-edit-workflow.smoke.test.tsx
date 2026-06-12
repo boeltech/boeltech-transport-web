@@ -159,7 +159,13 @@ function createTrip(stops: TripStop[]): Trip {
     originState: "NL",
     destinationCity: "Saltillo",
     destinationState: "COAH",
-    cargo: { description: "Carga demo", weight: 1000, volume: null },
+    cargo: {
+      description: "Carga demo",
+      weight: 1000,
+      volume: null,
+      units: null,
+      value: null,
+    },
     costs: {
       fuel: 0,
       tolls: 0,
@@ -194,7 +200,7 @@ function createTrip(stops: TripStop[]): Trip {
     createdByName: "Admin Demo",
     updatedByName: "Admin Demo",
     stops,
-  } as Trip;
+  } as unknown as Trip;
 }
 
 function createInvoice(): Invoice {
@@ -246,7 +252,11 @@ function createInvoice(): Invoice {
         tripCode: "V-SMOKE-001",
         clientName: "Cliente Demo",
         scheduledDeparture: "2026-06-01T08:00:00.000Z",
-        routeSummary: "Monterrey → Saltillo",
+        originCity: "Monterrey",
+        originState: "NL",
+        destinationCity: "Saltillo",
+        destinationState: "COAH",
+        baseRate: 1000,
       },
     ],
     payments: [],
@@ -258,7 +268,7 @@ function createInvoice(): Invoice {
     updatedBy: "user-1",
     createdByName: "Admin Demo",
     updatedByName: "Admin Demo",
-  } as Invoice;
+  } as unknown as Invoice;
 }
 
 function renderInvoiceActions(trip: Trip) {

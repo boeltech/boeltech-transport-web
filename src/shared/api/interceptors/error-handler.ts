@@ -22,13 +22,21 @@ export interface ValidationFieldError {
   message: string;
 }
 
+export type ApiErrorDetails =
+  | {
+      issues?: ZodIssue[];
+      [key: string]: unknown;
+    }
+  | ReadonlyArray<{
+      code: string;
+      message: string;
+      path: string;
+    }>;
+
 export interface ApiErrorResponse {
   error: string;
   code?: string;
-  details?: {
-    issues?: ZodIssue[];
-    [key: string]: unknown;
-  };
+  details?: ApiErrorDetails;
 }
 
 // ============================================================================
@@ -215,6 +223,18 @@ const PAC_USER_MESSAGES: Record<string, string> = {
     "No se pudo timbrar: la fecha de emisión del borrador supera las 72 horas que permite el SAT. Vuelve a intentar el timbrado; el sistema actualiza la fecha automáticamente al timbrar.",
 };
 
+function normalizeApiErrorDetails(
+  details?: ApiErrorDetails,
+): Record<string, unknown> | undefined {
+  if (!details) {
+    return undefined;
+  }
+  if (Array.isArray(details)) {
+    return { issues: [...details] };
+  }
+  return details as Record<string, unknown>;
+}
+
 // ============================================================================
 // CLASE ApiError
 // ============================================================================
@@ -266,7 +286,13 @@ export class ApiError extends Error {
     const validationErrors = extractValidationErrors(details);
     const message = getMessageForError(status, code, data, validationErrors);
 
-    return new ApiError(message, status, code, details, validationErrors);
+    return new ApiError(
+      message,
+      status,
+      code,
+      normalizeApiErrorDetails(details),
+      validationErrors,
+    );
   }
 
   // Métodos de verificación

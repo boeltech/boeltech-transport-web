@@ -30,7 +30,7 @@ function buildStop(id: string): TripStop {
     sequenceOrder: 0,
     stopType: "origin",
     status: "pending",
-  } as TripStop;
+  } as unknown as TripStop;
 }
 
 describe("substitutionTripPrefetch", () => {

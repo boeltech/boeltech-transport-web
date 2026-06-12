@@ -137,7 +137,7 @@ function buildTripWithStop(): Trip {
     status: "pending",
     rfcRemitenteDestinatario: "OLDRFC123456",
     nombreRemitenteDestinatario: "Origen SA",
-  } as TripStop;
+  } as unknown as TripStop;
 
   return {
     id: TRIP_ID,

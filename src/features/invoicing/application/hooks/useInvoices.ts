@@ -7,6 +7,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  type Query,
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { devRefetchIntervalFn } from "@/shared/config/devPolling";
@@ -73,10 +74,10 @@ export const useInvoice = (id: string) => {
     queryFn: () => invoicingApi.getById(id),
     enabled: !!id,
     staleTime: 30_000,
-    refetchInterval: devRefetchIntervalFn((query) => {
+    refetchInterval: devRefetchIntervalFn((query: Query<Invoice, Error>) => {
       const invoice = query.state.data;
       const hasPendingRep = invoice?.payments.some(
-        (p) => p.repStatus === "pending",
+        (p: Payment) => p.repStatus === "pending",
       );
       return hasPendingRep ? 5_000 : false;
     }),

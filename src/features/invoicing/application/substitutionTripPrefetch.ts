@@ -7,12 +7,17 @@ import { createGetTripByIdUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
 
-const getTripByIdUseCase = createGetTripByIdUseCase(tripRepository);
+let getTripByIdUseCase: ReturnType<typeof createGetTripByIdUseCase> | undefined;
+
+function resolveGetTripByIdUseCase() {
+  getTripByIdUseCase ??= createGetTripByIdUseCase(tripRepository);
+  return getTripByIdUseCase;
+}
 
 const TRIP_DETAIL_STALE_MS = 1000 * 60 * 5;
 
 export async function fetchTripDetailForSubstitution(tripId: string): Promise<Trip> {
-  const result = await getTripByIdUseCase.execute(tripId);
+  const result = await resolveGetTripByIdUseCase().execute(tripId);
   if (!result.success) {
     throw new Error(result.error.message);
   }

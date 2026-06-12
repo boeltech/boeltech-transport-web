@@ -17,7 +17,7 @@ import { notificationsCopy } from "../copy/notificationsCopy";
 
 export function NotificationsInboxPage() {
   const navigate = useNavigate();
-  const { toastSuccess, toastError } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [filters, setFilters] = useState<ListNotificationsFilters>({
     status: "all",
     page: 1,
@@ -82,7 +82,9 @@ export function NotificationsInboxPage() {
       }
       toolbar={{
         filters: <NotificationFilters filters={filters} onChange={setFilters} />,
-        onRefresh: () => refetch(),
+        onRefresh: () => {
+          void refetch();
+        },
         isRefreshing: isFetching && !isLoading,
       }}
       primaryAction={{
