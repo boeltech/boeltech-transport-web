@@ -48,7 +48,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, refreshProfile } = useAuth();
-  const { isDark, setMode } = useTheme();
+  const { mode, setMode } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const wizardFormRef = useRef<WizardFormRef | null>(null);
@@ -133,9 +133,9 @@ export default function OnboardingPage() {
                 </div>
                 <Switch
                   id="ob-theme"
-                  checked={isDark}
+                  checked={mode === "dark"}
                   onCheckedChange={(checked) =>
-                    setMode(checked ? "dark" : "light")
+                    setMode(checked ? "dark" : "system")
                   }
                 />
               </div>
@@ -176,7 +176,7 @@ export default function OnboardingPage() {
           return null;
       }
     },
-    [displayName, roleLabel, isDark, setMode],
+    [displayName, roleLabel, mode, setMode],
   );
 
   return (

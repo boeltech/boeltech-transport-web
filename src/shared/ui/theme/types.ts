@@ -31,6 +31,8 @@ export interface ThemeContextValue {
   setMode: (mode: ThemeMode) => void;
   /** Alternar entre light/dark */
   toggleTheme: () => void;
+  /** Ciclar system → light → dark → system */
+  cycleMode: () => void;
 }
 
 /**

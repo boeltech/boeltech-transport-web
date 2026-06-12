@@ -43,10 +43,10 @@ export function Toaster({
       toastOptions={{
         style: {
           // Fondo sólido para evitar que el contenido de la página se mezcle
-          // visualmente con el toast.
-          background: "hsl(var(--card))",
-          color: "hsl(var(--foreground))",
-          border: "1px solid hsl(var(--border))",
+          // visualmente con el toast. Tokens OKLCH — usar var() directo.
+          background: "var(--card)",
+          color: "var(--foreground)",
+          border: "1px solid var(--border)",
           opacity: 1,
           backdropFilter: "none",
         },

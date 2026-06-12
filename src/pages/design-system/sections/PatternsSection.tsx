@@ -141,6 +141,132 @@ export function PatternsSection() {
         </CardContent>
       </Card>
 
+      {/* ChartCard pattern (ADR-0045) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Patrón de visualización (ChartCard)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Cualquier gráfico del ERP se envuelve en{" "}
+            <code className="font-mono text-xs">ChartCard</code> y consume
+            wrappers <code className="font-mono text-xs">Boeltech*Chart</code>{" "}
+            desde <code className="font-mono text-xs">@shared/ui/data-display</code>.
+            Las features <strong>nunca</strong> importan{" "}
+            <code className="font-mono text-xs">recharts</code> directamente.
+          </p>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <strong>Colores:</strong> siempre por token (
+              <code className="font-mono text-xs">chart-1..5</code> o semánticos{" "}
+              <code className="font-mono text-xs">success/warning/destructive</code>
+              ), nunca hex hardcoded.
+            </li>
+            <li>
+              <strong>Estados:</strong>{" "}
+              <code className="font-mono text-xs">isLoading</code> obligatorio;{" "}
+              <code className="font-mono text-xs">error</code> opcional con mensaje accesible.
+            </li>
+            <li>
+              <strong>Accesibilidad:</strong>{" "}
+              <code className="font-mono text-xs">aria-label</code> descriptivo en cada{" "}
+              <code className="font-mono text-xs">ChartCard</code>.
+            </li>
+            <li>
+              <strong>Sparkline:</strong> embeber en{" "}
+              <code className="font-mono text-xs">StatCard</code> vía prop{" "}
+              <code className="font-mono text-xs">trend</code> (sin ChartCard).
+            </li>
+            <li>
+              <strong>Dark mode:</strong> hereda tokens CSS automáticamente; validar light + dark.
+            </li>
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Cuándo:</strong> Dashboard, Finanzas,
+            detalle de entidad, ai-analysis — cualquier visualización de datos agregados.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Ejemplos en producción:</strong>{" "}
+            <code className="font-mono">features/dashboard/presentation/DashboardPage.tsx</code>,{" "}
+            <code className="font-mono">features/finance/presentation/components/FinanceSummaryCharts.tsx</code>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Referencia viva:</strong> sección{" "}
+            <code className="font-mono">Charts</code> del design system (demos con mock data).
+          </p>
+          <pre className="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 text-xs">
+            <code className="font-mono">{`import {
+  ChartCard,
+  BoeltechDonutChart,
+  BoeltechBarChart,
+} from "@shared/ui/data-display";
+
+<ChartCard
+  title="Estado de viajes"
+  description="Distribución operativa"
+  isLoading={isLoading}
+  aria-label="Gráfico de dona: estado de viajes"
+>
+  <BoeltechDonutChart data={data} series={series} />
+</ChartCard>`}</code>
+          </pre>
+        </CardContent>
+      </Card>
+
+      {/* Explicit transition action pattern (ADR-0046) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Patrón operativo — Acción con transición explícita</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Para acciones que cambian estado (paradas, cargas, operaciones de
+            seguimiento), el botón muestra <strong>label</strong> + subtexto
+            fijo con la transición (<code className="font-mono text-xs">Pendiente → En Tránsito</code>).
+            No depender de tooltips ni de color/ícono para comunicar el efecto.
+          </p>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <strong>Primitivos:</strong>{" "}
+              <code className="font-mono text-xs">StopActionInline</code>,{" "}
+              <code className="font-mono text-xs">CargoActionInline</code> + copy
+              centralizado en{" "}
+              <code className="font-mono text-xs">transitionCopy.ts</code>.
+            </li>
+            <li>
+              <strong>Accesibilidad:</strong>{" "}
+              <code className="font-mono text-xs">aria-describedby</code> apunta
+              al subtexto de transición.
+            </li>
+            <li>
+              <strong>Contexto:</strong> la acción vive junto a la entidad que
+              afecta (parada o carga), no en una barra lateral con botones
+              disabled.
+            </li>
+            <li>
+              <strong>Onboarding:</strong> leyendas de state machine visibles por
+              defecto, colapsables con{" "}
+              <code className="font-mono text-xs">localStorage</code>.
+            </li>
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Referencia:</strong>{" "}
+            <code className="font-mono">features/trips/presentation/components/TripTrackingTab.tsx</code>{" "}
+            (ADR-0046) · doc{" "}
+            <code className="font-mono">docs/viajes/tracking-tab-pattern.md</code>
+          </p>
+          <pre className="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 text-xs">
+            <code className="font-mono">{`import { StopActionInline } from "@features/trips/presentation/components/trip-tracking";
+
+<StopActionInline
+  label="Registrar salida — Parada 2 · Escala"
+  action="depart"
+  onClick={() => setDepartureSheetOpen(true)}
+/>`}</code>
+          </pre>
+        </CardContent>
+      </Card>
+
       {/* Typography hierarchy per shell */}
       <Card>
         <CardHeader>

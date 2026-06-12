@@ -1,6 +1,11 @@
 import { ErrorBoundary } from "@pages/errors/components/ErrorBoundary";
 // import "./styles/App.css";
-import { RouterProvider } from "@app/providers";
+import {
+  QueryProvider,
+  RouterProvider,
+  ThemeProvider,
+  ToastProvider,
+} from "@app/providers";
 
 /**
  * App
@@ -22,7 +27,13 @@ const App = () => {
         // }
       }}
     >
-      <RouterProvider />
+      <QueryProvider>
+        <ThemeProvider defaultMode="system">
+          <ToastProvider>
+            <RouterProvider />
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryProvider>
     </ErrorBoundary>
   );
 };

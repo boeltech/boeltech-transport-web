@@ -82,6 +82,59 @@ const THEME_OPTIONS: ThemeModeOption[] = [
   { value: "system", label: "Sistema", icon: Monitor },
 ];
 
+const THEME_CYCLE_LABELS: Record<ThemeMode, string> = {
+  system: "Sistema",
+  light: "Claro",
+  dark: "Oscuro",
+};
+
+const THEME_CYCLE_NEXT: Record<ThemeMode, string> = {
+  system: "claro",
+  light: "oscuro",
+  dark: "sistema",
+};
+
+function getThemeModeIcon(mode: ThemeMode): LucideIcon {
+  return THEME_OPTIONS.find((option) => option.value === mode)?.icon ?? Monitor;
+}
+
+// ============================================
+// ThemeCycleButton - Ciclo system → light → dark
+// ============================================
+
+interface ThemeCycleButtonProps {
+  size?: "sm" | "default" | "lg" | "icon";
+  variant?: "ghost" | "outline" | "default";
+  className?: string;
+}
+
+export const ThemeCycleButton = memo(function ThemeCycleButton({
+  size = "icon",
+  variant = "ghost",
+  className,
+}: ThemeCycleButtonProps) {
+  const { mode, cycleMode } = useTheme();
+  const Icon = getThemeModeIcon(mode);
+  const label = THEME_CYCLE_LABELS[mode];
+  const nextLabel = THEME_CYCLE_NEXT[mode];
+
+  return (
+    <Button
+      variant={variant}
+      size={size}
+      onClick={cycleMode}
+      className={className}
+      title={`Tema: ${label} (clic para ${nextLabel})`}
+      aria-label={`Tema: ${label}. Clic para cambiar a ${nextLabel}.`}
+    >
+      <Icon className="h-5 w-5" />
+      <span className="sr-only">
+        Tema {label}, siguiente {nextLabel}
+      </span>
+    </Button>
+  );
+});
+
 interface ThemeDropdownProps {
   /** Alineación del menú */
   align?: "start" | "center" | "end";

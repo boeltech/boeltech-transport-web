@@ -15,6 +15,11 @@
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { cn } from "@shared/lib/utils/cn";
 
 // ============================================================================
@@ -47,8 +52,14 @@ export interface StatCardProps {
   value: string | number;
   /** Icono lateral. */
   icon: ReactNode;
+  /**
+   * Contenido opcional entre valor y descripción (p. ej. `<Sparkline />`).
+   */
+  trend?: ReactNode;
   /** Descripción complementaria opcional debajo del valor. */
   description?: string;
+  /** Texto en tooltip al pasar el cursor sobre la tarjeta. */
+  tooltip?: string;
   /** Estado de carga; muestra skeletons en lugar del valor. */
   isLoading?: boolean;
   /**
@@ -81,13 +92,15 @@ export function StatCard({
   title,
   value,
   icon,
+  trend,
   description,
+  tooltip,
   isLoading = false,
   tone = "primary",
   className,
 }: StatCardProps) {
-  return (
-    <Card className={className}>
+  const card = (
+    <Card className={cn(tooltip && "cursor-help", className)}>
       <CardContent className="pt-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -97,6 +110,9 @@ export function StatCard({
             ) : (
               <p className="text-2xl font-bold tabular-nums">{value}</p>
             )}
+            {!isLoading && trend ? (
+              <div className="pt-1">{trend}</div>
+            ) : null}
             {description ? (
               <p className="text-xs text-muted-foreground">{description}</p>
             ) : null}
@@ -113,6 +129,17 @@ export function StatCard({
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (!tooltip) return card;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{card}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

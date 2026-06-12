@@ -8,13 +8,14 @@
  * Ubicación: src/shared/auth/infrastructure/PermissionProvider.tsx
  *
  * ORDEN DE PROVIDERS (importante mantener):
- * 1. QueryProvider
- * 2. AuthProvider
+ * App.tsx (global): QueryProvider → ThemeProvider → ToastProvider → Router
+ * AppLayout (shell autenticado):
+ * 1. AuthProvider
+ * 2. ProductOnboardingGate
  * 3. PermissionProvider ← ESTE
- * 4. ThemeProvider
- * 5. ToastProvider
- * 6. SidebarProvider
- * 7. LayoutShell
+ * 4. TooltipProvider
+ * 5. SidebarProvider
+ * 6. LayoutShell
  */
 
 import { useMemo, type ReactNode } from "react";

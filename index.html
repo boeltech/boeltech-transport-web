@@ -7,6 +7,25 @@
     <title>boeltech-transport-web</title>
   </head>
   <body>
+    <!-- Anti-FOUC: keep aligned with src/shared/ui/theme/themeRuntime.ts (THEME_STORAGE_KEY) -->
+    <script>
+      (function () {
+        try {
+          var storageKey = "boeltech-theme";
+          var mode = localStorage.getItem(storageKey) || "system";
+          var resolved =
+            mode === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : mode;
+          if (resolved === "dark" || resolved === "light") {
+            document.documentElement.classList.remove("light", "dark");
+            document.documentElement.classList.add(resolved);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/app/index.tsx"></script>
   </body>

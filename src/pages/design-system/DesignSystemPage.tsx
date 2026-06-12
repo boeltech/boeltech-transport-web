@@ -17,8 +17,6 @@
 
 import { useState } from "react";
 import {
-  Sun,
-  Moon,
   Palette,
   Type,
   Layers,
@@ -28,12 +26,14 @@ import {
   PanelRight,
   MessageSquareWarning,
   LayoutTemplate,
+  PanelLeft,
+  Map,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Wordmark } from "@shared/ui/brand";
-import { useTheme } from "@shared/hooks";
+import { ThemeCycleButton } from "@shared/ui/theme";
 import { ColorPaletteSection } from "./sections/ColorPaletteSection";
 import { TypographySection } from "./sections/TypographySection";
 import { ComponentsSection } from "./sections/ComponentsSection";
@@ -43,6 +43,8 @@ import { FeedbackSection } from "./sections/FeedbackSection";
 import { StatusSection } from "./sections/StatusSection";
 import { ChartPaletteSection } from "./sections/ChartPaletteSection";
 import { PatternsSection } from "./sections/PatternsSection";
+import { AppShellSection } from "./sections/AppShellSection";
+import { MapsEmbedsSection } from "./sections/MapsEmbedsSection";
 
 type SectionKey =
   | "colors"
@@ -53,7 +55,9 @@ type SectionKey =
   | "feedback"
   | "status"
   | "charts"
-  | "patterns";
+  | "app-shell"
+  | "patterns"
+  | "maps-embeds";
 
 interface SectionConfig {
   key: SectionKey;
@@ -122,11 +126,27 @@ const SECTIONS: readonly SectionConfig[] = [
     group: "Components",
   },
   {
+    key: "app-shell",
+    label: "App Shell",
+    icon: PanelLeft,
+    description:
+      "Chrome global: LayoutShell, sidebar, header, providers y toast",
+    group: "Patterns",
+  },
+  {
     key: "patterns",
     label: "Patrones",
     icon: LayoutTemplate,
     description:
       "Page shells, jerarquía tipográfica, spacing y master-detail",
+    group: "Patterns",
+  },
+  {
+    key: "maps-embeds",
+    label: "Mapas + embeds",
+    icon: Map,
+    description:
+      "Mapbox reactivo al tema, capas dinámicas y checklist para embeds externos",
     group: "Patterns",
   },
 ] as const;
@@ -135,7 +155,6 @@ const GROUPS = ["Foundations", "Components", "Patterns"] as const;
 
 export function DesignSystemPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>("colors");
-  const { resolvedTheme, toggleTheme } = useTheme();
   const activeConfig = SECTIONS.find((s) => s.key === activeSection);
 
   return (
@@ -164,22 +183,7 @@ export function DesignSystemPage() {
               .
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            aria-label={
-              resolvedTheme === "dark"
-                ? "Cambiar a modo claro"
-                : "Cambiar a modo oscuro"
-            }
-          >
-            {resolvedTheme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-          </Button>
+          <ThemeCycleButton variant="outline" />
         </div>
       </header>
 
@@ -242,7 +246,9 @@ export function DesignSystemPage() {
         {activeSection === "feedback" && <FeedbackSection />}
         {activeSection === "status" && <StatusSection />}
         {activeSection === "charts" && <ChartPaletteSection />}
+        {activeSection === "app-shell" && <AppShellSection />}
         {activeSection === "patterns" && <PatternsSection />}
+        {activeSection === "maps-embeds" && <MapsEmbedsSection />}
       </div>
     </div>
   );

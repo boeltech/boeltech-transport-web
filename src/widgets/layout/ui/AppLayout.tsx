@@ -1,9 +1,6 @@
-import { QueryProvider } from "@app/providers/QueryProvider";
 import { AuthProvider } from "@features/auth";
 import { ProductOnboardingGate } from "@app/router/guards/ProductOnboardingGate";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
-import { ThemeProvider } from "@app/providers/ThemeProvider";
-import { ToastProvider } from "@app/providers/ToastProvider";
 import { SidebarProvider } from "@app/providers/SidebarProvider";
 import { LayoutShell } from "./LayoutShell";
 import { TooltipProvider } from "@shared/ui/tooltip";
@@ -12,7 +9,7 @@ import { TooltipProvider } from "@shared/ui/tooltip";
  * AppLayout
  *
  * Layout principal para rutas privadas (autenticadas).
- * Incluye todos los providers necesarios y el layout visual.
+ * Incluye providers de auth/RBAC/sidebar y el layout visual.
  *
  * Estructura:
  * ┌─────────────────────────────────────────────────┐
@@ -24,38 +21,28 @@ import { TooltipProvider } from "@shared/ui/tooltip";
  * │            │                                    │
  * └────────────┴────────────────────────────────────┘
  *
- * Orden de Providers (de afuera hacia adentro):
- * 1. QueryProvider    - React Query para data fetching
- * 2. AuthProvider     - Autenticación (JWT, user, login/logout)
- * 3. PermissionProvider - RBAC (permisos basados en rol)
- * 4. ThemeProvider    - Dark/Light mode
- * 5. ToastProvider    - Notificaciones toast
- * 6. SidebarProvider  - Estado del sidebar (collapsed, mobile)
- * 7. LayoutShell      - UI: Sidebar + Header + Content
+ * Providers globales (App.tsx): Query → Theme → Toast → Router
  *
- * Cada provider puede acceder a los providers que lo envuelven:
- * - PermissionProvider puede usar useAuth()
- * - ToastProvider puede usar useTheme()
- * - LayoutShell puede usar todos los hooks
+ * Orden de Providers del shell autenticado (de afuera hacia adentro):
+ * 1. AuthProvider           - Autenticación (JWT, user, login/logout)
+ * 2. ProductOnboardingGate  - Gate de onboarding de producto
+ * 3. PermissionProvider     - RBAC (permisos basados en rol)
+ * 4. TooltipProvider        - Tooltips Radix
+ * 5. SidebarProvider        - Estado del sidebar (collapsed, mobile)
+ * 6. LayoutShell            - UI: Sidebar + Header + Content
  */
 export const AppLayout = () => {
   return (
-    <QueryProvider>
-      <AuthProvider>
-        <ProductOnboardingGate>
-          <PermissionProvider>
-            <ThemeProvider defaultMode="system">
-              <ToastProvider>
-                <TooltipProvider delayDuration={250}>
-                  <SidebarProvider>
-                    <LayoutShell />
-                  </SidebarProvider>
-                </TooltipProvider>
-              </ToastProvider>
-            </ThemeProvider>
-          </PermissionProvider>
-        </ProductOnboardingGate>
-      </AuthProvider>
-    </QueryProvider>
+    <AuthProvider>
+      <ProductOnboardingGate>
+        <PermissionProvider>
+          <TooltipProvider delayDuration={250}>
+            <SidebarProvider>
+              <LayoutShell />
+            </SidebarProvider>
+          </TooltipProvider>
+        </PermissionProvider>
+      </ProductOnboardingGate>
+    </AuthProvider>
   );
 };

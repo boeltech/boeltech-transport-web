@@ -17,7 +17,7 @@ import { Button } from "@/shared/ui/button";
 // import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuth } from "@features/auth";
 import { useSidebar } from "@/app/providers/SidebarProvider";
-import { useNavigation } from "../model/useNavigation";
+import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
 import type { NavItem } from "../model/types";
 
 // ============================================
@@ -27,7 +27,7 @@ import type { NavItem } from "../model/types";
 export const MobileSidebar = memo(function MobileSidebar() {
   const { user, logout } = useAuth();
   const { isMobileOpen, closeMobile } = useSidebar();
-  const { navigation, isItemActive } = useNavigation();
+  const { navigation, isItemActive } = useNavigationWithBadges();
 
   // Cerrar al presionar Escape
   useEffect(() => {

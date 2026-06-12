@@ -171,15 +171,15 @@
 
   /* ── Semantic — solid (CTA, botones, alerts fuertes) ────────── */
   /* Calibrado WCAG AA sobre --background light                 */
-  --success: oklch(0.55 0.14 155);
+  --success: oklch(0.50 0.14 155);
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.72 0.16 75);
   --warning-foreground: oklch(0.22 0.06 75);
-  --info: oklch(0.60 0.13 230);
+  --info: oklch(0.52 0.13 230);
   --info-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.985 0 0);
-  --neutral: oklch(0.65 0.02 250);
+  --neutral: oklch(0.50 0.02 250);
   --neutral-foreground: oklch(0.985 0 0);
 
   /* ── Semantic — soft (chips de estado, alerts informativos) ─── */
@@ -259,7 +259,7 @@
   --info-foreground: oklch(0.15 0.05 230);
   --destructive: oklch(0.68 0.20 27);
   --destructive-foreground: oklch(0.15 0.05 27);
-  --neutral: oklch(0.55 0.02 250);
+  --neutral: oklch(0.48 0.02 250);
   --neutral-foreground: oklch(0.96 0.005 250);
 
   /* ── Semantic — soft ───────────────────────────────────────── */
@@ -304,10 +304,14 @@
   }
   html {
     font-family: var(--font-sans);
+    color-scheme: light;
     /* Mejor renderizado tipográfico en macOS y Windows */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;

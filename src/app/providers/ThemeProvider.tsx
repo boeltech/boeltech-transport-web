@@ -16,7 +16,7 @@
 import {
   createContext,
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -27,6 +27,15 @@ import type {
   ThemeContextValue,
   ThemeProviderConfig,
 } from "@/shared/ui/theme/types";
+import {
+  applyResolvedThemeToDocument,
+  cycleThemeMode,
+  readStoredThemeMode,
+  resolveThemeFromMode,
+  THEME_DEFAULT_MODE,
+  THEME_STORAGE_KEY,
+  writeStoredThemeMode,
+} from "@/shared/ui/theme/themeRuntime";
 
 // ============================================
 // Context
@@ -35,83 +44,6 @@ import type {
 export const ThemeContext = createContext<ThemeContextValue | undefined>(
   undefined,
 );
-
-// ============================================
-// Constants
-// ============================================
-
-const DEFAULT_STORAGE_KEY = "boeltech-theme";
-const DEFAULT_MODE: ThemeMode = "system";
-
-// ============================================
-// Helpers
-// ============================================
-
-/**
- * Obtiene el tema guardado en localStorage
- */
-function getStoredTheme(storageKey: string): ThemeMode | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const stored = localStorage.getItem(storageKey);
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      return stored;
-    }
-  } catch {
-    // localStorage no disponible
-  }
-
-  return null;
-}
-
-/**
- * Guarda el tema en localStorage
- */
-function setStoredTheme(storageKey: string, mode: ThemeMode): void {
-  try {
-    localStorage.setItem(storageKey, mode);
-  } catch {
-    // localStorage no disponible
-  }
-}
-
-/**
- * Obtiene la preferencia del sistema
- */
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-/**
- * Resuelve el tema según el modo seleccionado
- */
-function resolveTheme(mode: ThemeMode): ResolvedTheme {
-  if (mode === "system") {
-    return getSystemTheme();
-  }
-  return mode;
-}
-
-/**
- * Aplica el tema al documento
- */
-function applyTheme(
-  theme: ResolvedTheme,
-  attribute: "class" | "data-theme",
-): void {
-  const root = window.document.documentElement;
-
-  if (attribute === "class") {
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-  } else {
-    root.setAttribute("data-theme", theme);
-  }
-}
 
 // ============================================
 // Provider
@@ -123,32 +55,27 @@ interface ThemeProviderProps extends ThemeProviderConfig {
 
 export function ThemeProvider({
   children,
-  defaultMode = DEFAULT_MODE,
-  storageKey = DEFAULT_STORAGE_KEY,
+  defaultMode = THEME_DEFAULT_MODE,
+  storageKey = THEME_STORAGE_KEY,
   attribute = "class",
 }: ThemeProviderProps) {
-  // Estado del modo seleccionado
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    return getStoredTheme(storageKey) ?? defaultMode;
+    return readStoredThemeMode(storageKey) ?? defaultMode;
   });
 
-  // Estado del tema resuelto
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    return resolveTheme(mode);
+    return resolveThemeFromMode(readStoredThemeMode(storageKey) ?? defaultMode);
   });
 
-  // Efecto para aplicar el tema y escuchar cambios del sistema
-  useEffect(() => {
+  useLayoutEffect(() => {
     const updateTheme = () => {
-      const resolved = resolveTheme(mode);
+      const resolved = resolveThemeFromMode(mode);
       setResolvedTheme(resolved);
-      applyTheme(resolved, attribute);
+      applyResolvedThemeToDocument(resolved, attribute);
     };
 
-    // Aplicar tema inicial
     updateTheme();
 
-    // Escuchar cambios en preferencia del sistema
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const handleSystemChange = () => {
@@ -161,22 +88,23 @@ export function ThemeProvider({
     return () => mediaQuery.removeEventListener("change", handleSystemChange);
   }, [mode, attribute]);
 
-  // Función para cambiar el modo
   const setMode = useCallback(
     (newMode: ThemeMode) => {
-      setStoredTheme(storageKey, newMode);
+      writeStoredThemeMode(newMode, storageKey);
       setModeState(newMode);
     },
     [storageKey],
   );
 
-  // Función para alternar entre light/dark
   const toggleTheme = useCallback(() => {
     const newMode = resolvedTheme === "dark" ? "light" : "dark";
     setMode(newMode);
   }, [resolvedTheme, setMode]);
 
-  // Valor del contexto memoizado
+  const cycleMode = useCallback(() => {
+    setMode(cycleThemeMode(mode));
+  }, [mode, setMode]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       mode,
@@ -185,8 +113,9 @@ export function ThemeProvider({
       isLight: resolvedTheme === "light",
       setMode,
       toggleTheme,
+      cycleMode,
     }),
-    [mode, resolvedTheme, setMode, toggleTheme],
+    [mode, resolvedTheme, setMode, toggleTheme, cycleMode],
   );
 
   return (

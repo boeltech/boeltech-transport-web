@@ -1,8 +1,4 @@
 import { Outlet } from "react-router-dom";
-import { QueryProvider } from "@app/providers/QueryProvider";
-import { ThemeProvider } from "@app/providers/ThemeProvider";
-import { ToastProvider } from "@app/providers/ToastProvider";
-import { Toaster } from "@shared/ui/toast";
 
 // ============================================
 // AuthLayout (para páginas de login, etc.)
@@ -12,7 +8,7 @@ import { Toaster } from "@shared/ui/toast";
  * AuthLayout
  *
  * Layout minimalista para páginas de autenticación.
- * Solo incluye Theme y Toast para feedback visual.
+ * Solo incluye el chrome visual; Query/Theme/Toast viven en App.tsx.
  *
  * NO incluye AuthProvider porque:
  * 1. Las páginas de auth no necesitan el contexto de usuario autenticado
@@ -21,18 +17,11 @@ import { Toaster } from "@shared/ui/toast";
  */
 const AuthLayout = () => {
   return (
-    <QueryProvider>
-      <ThemeProvider defaultMode="system">
-        <ToastProvider>
-          <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted">
-            <div className="w-full max-w-md p-6">
-              <Outlet />
-            </div>
-          </div>
-          <Toaster />
-        </ToastProvider>
-      </ThemeProvider>
-    </QueryProvider>
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted">
+      <div className="w-full max-w-md p-6">
+        <Outlet />
+      </div>
+    </div>
   );
 };
 

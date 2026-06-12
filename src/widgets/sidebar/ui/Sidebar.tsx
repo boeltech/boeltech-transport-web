@@ -27,7 +27,7 @@ import {
 // import { useAuth } from "@/shared/hooks/useAuth";
 import { useAuth } from "@features/auth";
 import { useSidebar } from "@/app/providers/SidebarProvider";
-import { useNavigation } from "../model/useNavigation";
+import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
 import type { NavGroup, NavItem } from "../model/types";
 
 // ============================================
@@ -37,7 +37,7 @@ import type { NavGroup, NavItem } from "../model/types";
 export const Sidebar = memo(function Sidebar() {
   const { user, logout } = useAuth();
   const { isCollapsed, toggle } = useSidebar();
-  const { navigation, isItemActive } = useNavigation();
+  const { navigation, isItemActive } = useNavigationWithBadges();
 
   return (
     <TooltipProvider delayDuration={0}>
