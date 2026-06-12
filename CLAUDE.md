@@ -8,11 +8,18 @@ Guía mínima para agentes en este repo. **Documentación detallada:** `D:\cowor
 npm run dev        # Vite HMR
 npm run build      # tsc -b && vite build
 npm run lint
-npm run test       # Vitest
-npm run test:watch
+npm run test       # Vitest (max 2 workers en local)
+npm run test:serial # Vitest 1 worker — máquinas 8 GB
+npm run test:watch # cerrar al terminar (proceso persistente)
+npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
+npm run test:smoke:notifications # smoke inbox campana + /notifications
+npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
 ```
 
-Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_API_URL`** (default `http://localhost:3000/api/v1`).
+Guía usuario aprobaciones: `D:\cowork\boeltech\erp-transport\docs\finanzas\aprobaciones-centralizadas-usuario.md`  
+Guía usuario RFC post-cierre: `D:\cowork\boeltech\erp-transport\docs\viajes\corregir-rfc-parada-postcierre-usuario.md`
+
+Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_API_URL`** (default `http://localhost:3000/api/v1`). Dev RAM: `VITE_DISABLE_DEV_POLLING` · runbook `docs/ci-build/dev-memory-runbook.md`.
 
 ## Architecture (resumen)
 
@@ -73,6 +80,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 - Fechas al API: **ISO 8601 string** — no `new Date()` antes de enviar.
 - Permisos en tablas: centralizar en componentes `*Actions`.
 - Columnas BD en inglés snake_case (misma convención que API).
+- Facturas timbradas: sustitución = **`SubstituteInvoiceSheet`** (no Dialog); cancelar/pago siguen en Dialog — ver `docs/design-system/patterns.md` § detalle fiscal.
 
 ## Documentación detallada (fuente única)
 
@@ -90,7 +98,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 **Skill compartido:** `D:\boeltech\dev\workspace\clients\transporte\skills\boeltech-erp-development\`
 
-**Skills locales:** `.agents/skills/` (`vercel-react-best-practices`, `frontend-design`, `detail-sheet-master-detail`).
+**Skills locales:** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `vercel-react-best-practices`, `detail-sheet-master-detail` (`.agents` only), `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub).
 
 ## Git
 
