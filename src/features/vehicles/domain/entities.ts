@@ -16,6 +16,7 @@
 
 export const VehicleStatus = {
   AVAILABLE: "available",
+  RESERVED: "reserved",
   ON_TRIP: "on_trip",
   IN_MAINTENANCE: "in_maintenance",
   OUT_OF_SERVICE: "out_of_service",
@@ -297,10 +298,12 @@ export const VALID_STATUS_TRANSITIONS: Record<
   VehicleStatusType[]
 > = {
   [VehicleStatus.AVAILABLE]: [
+    VehicleStatus.RESERVED,
     VehicleStatus.ON_TRIP,
     VehicleStatus.IN_MAINTENANCE,
     VehicleStatus.OUT_OF_SERVICE,
   ],
+  [VehicleStatus.RESERVED]: [VehicleStatus.AVAILABLE, VehicleStatus.ON_TRIP],
   [VehicleStatus.ON_TRIP]: [
     VehicleStatus.AVAILABLE,
     VehicleStatus.IN_MAINTENANCE,
@@ -321,6 +324,7 @@ export const VALID_STATUS_TRANSITIONS: Record<
 
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatusType, string> = {
   [VehicleStatus.AVAILABLE]: "Disponible",
+  [VehicleStatus.RESERVED]: "Reservado",
   [VehicleStatus.ON_TRIP]: "En Viaje",
   [VehicleStatus.IN_MAINTENANCE]: "En Mantenimiento",
   [VehicleStatus.OUT_OF_SERVICE]: "Fuera de Servicio",

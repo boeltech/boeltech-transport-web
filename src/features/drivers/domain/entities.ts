@@ -16,6 +16,7 @@ import type { TripStatusType } from "@features/trips";
 
 export const DriverStatus = {
   AVAILABLE: "available",
+  RESERVED: "reserved",
   ON_TRIP: "on_trip",
   RESTING: "resting",
   ON_VACATION: "on_vacation",
@@ -335,12 +336,14 @@ export const VALID_STATUS_TRANSITIONS: Record<
   DriverStatusType[]
 > = {
   [DriverStatus.AVAILABLE]: [
+    DriverStatus.RESERVED,
     DriverStatus.ON_TRIP,
     DriverStatus.RESTING,
     DriverStatus.ON_VACATION,
     DriverStatus.ON_LEAVE,
     DriverStatus.TERMINATED,
   ],
+  [DriverStatus.RESERVED]: [DriverStatus.AVAILABLE, DriverStatus.ON_TRIP],
   [DriverStatus.ON_TRIP]: [DriverStatus.AVAILABLE, DriverStatus.RESTING],
   [DriverStatus.RESTING]: [DriverStatus.AVAILABLE, DriverStatus.TERMINATED],
   [DriverStatus.ON_VACATION]: [DriverStatus.AVAILABLE],
@@ -355,6 +358,7 @@ export const VALID_STATUS_TRANSITIONS: Record<
 
 export const DRIVER_STATUS_LABELS: Record<DriverStatusType, string> = {
   [DriverStatus.AVAILABLE]: "Disponible",
+  [DriverStatus.RESERVED]: "Reservado",
   [DriverStatus.ON_TRIP]: "En Viaje",
   [DriverStatus.RESTING]: "Descansando",
   [DriverStatus.ON_VACATION]: "De Vacaciones",

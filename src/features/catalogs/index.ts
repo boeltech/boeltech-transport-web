@@ -102,6 +102,8 @@ export {
   useCatalogItem,
   useCatalogChildren,
   useRegimenFiscalLabel,
+  useFormaPagoLabel,
+  useMetodoPagoLabel,
 
   // Specialized hooks - Options (catálogos pequeños)
   // useEstadosOptions,

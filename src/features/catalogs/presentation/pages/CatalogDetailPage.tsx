@@ -303,10 +303,7 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
                 </Badge>
               )}
               {isLargeCatalog && (
-                <Badge
-                  variant="outline"
-                  className="text-amber-600 border-amber-300"
-                >
+                <Badge variant="warning" tone="soft">
                   <Database className="h-3 w-3 mr-1" />
                   Grande
                 </Badge>

@@ -3,8 +3,13 @@ import { UserPlus } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 import { useCreateUser } from "../../application";
 import { UserForm } from "../components";
+import { usersCopy } from "../copy/usersCopy";
 import { userFormToCreateDTO, type UserFormData } from "../validation/userSchema";
 
 export function UserCreatePage() {
@@ -15,16 +20,27 @@ export function UserCreatePage() {
   const createMutation = useCreateUser({
     onSuccess: (data) => {
       toast({
-        title: "Usuario creado",
+        title: usersCopy.create.toasts.successTitle,
         description: `${data.fullName} se registró correctamente`,
         variant: "success",
       });
       navigate("/users");
     },
     onError: (error) => {
+      if (isApiError(error) && error.code === "USER_LIMIT_REACHED") {
+        toast({
+          title: usersCopy.limitReached.title,
+          description: error.message || usersCopy.limitReached.description,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Error al crear usuario",
-        description: error.message,
+        title: usersCopy.create.toasts.errorTitle,
+        description: isApiError(error)
+          ? error.getDetailedMessage(3)
+          : getErrorMessage(error),
         variant: "destructive",
       });
     },

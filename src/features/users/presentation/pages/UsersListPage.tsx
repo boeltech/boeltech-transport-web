@@ -36,6 +36,7 @@ import {
   invitationsPendingQueryKey,
   type UserSortableColumn,
 } from "../components";
+import { ESSENTIAL_USER_LIMIT, usersCopy } from "../copy/usersCopy";
 
 type DateDraftState = {
   createdFrom: string;
@@ -161,6 +162,21 @@ export function UsersListPage() {
     sort,
   });
 
+  const canCreate = hasPermission("users", "create");
+
+  const { data: activeUsersData } = useUsers(
+    {
+      page: 1,
+      limit: 1,
+      filters: { status: UserStatus.ACTIVE },
+      sort: { field: "created_at", direction: "desc" },
+    },
+    { enabled: canCreate },
+  );
+
+  const activeUserCount = activeUsersData?.pagination.total ?? 0;
+  const userLimitReached = activeUserCount >= ESSENTIAL_USER_LIMIT;
+
   const updateStatusMutation = useUpdateUserStatus({
     onSuccess: () => {
       toast({
@@ -179,7 +195,6 @@ export function UsersListPage() {
   });
 
   const users = data?.data ?? [];
-  const canCreate = hasPermission("users", "create");
   const canUpdateStatus = hasPermission("users", "delete");
 
   const handleCreate = useCallback(() => navigate("/users/new"), [navigate]);
@@ -269,6 +284,8 @@ export function UsersListPage() {
         icon: <Plus className="h-4 w-4" />,
         onClick: handleCreate,
         visible: canCreate,
+        disabled: userLimitReached,
+        disabledTitle: usersCopy.limitReached.createDisabled,
       }}
       toolbar={{
         search: {
@@ -282,6 +299,10 @@ export function UsersListPage() {
                 type="button"
                 variant="outline"
                 className="hidden sm:inline-flex"
+                disabled={userLimitReached}
+                title={
+                  userLimitReached ? usersCopy.limitReached.inviteDisabled : undefined
+                }
                 onClick={() => setInviteDialogOpen(true)}
               >
                 <Mail className="mr-2 h-4 w-4" />
@@ -519,9 +540,11 @@ export function UsersListPage() {
           : "Comienza registrando el primer usuario de tu equipo.",
         cta: canCreate
           ? {
-              label: "Nuevo usuario",
+              label: userLimitReached
+                ? usersCopy.limitReached.createDisabled
+                : "Nuevo usuario",
               icon: <UserCog className="h-4 w-4" />,
-              onClick: handleCreate,
+              onClick: userLimitReached ? () => undefined : handleCreate,
             }
           : undefined,
         secondaryCta: filters.hasFilters || hasDateFilter

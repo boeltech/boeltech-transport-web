@@ -10,7 +10,7 @@
  * Domain DTO (camelCase) → toApiCreateDriver/toApiUpdateDriver → API Request (snake_case)
  */
 
-import { type DeepCamelCase } from "@shared/api/utils/case-transformer";
+import { deepToCamel, type DeepCamelCase } from "@shared/api/utils/case-transformer";
 import {
   mapSingleResponse,
   mapPaginatedResponse,
@@ -318,6 +318,17 @@ export function mapApiDriverTrip(
 // ============================================================================
 // PUBLIC MAPPERS
 // ============================================================================
+
+/**
+ * Mapea respuesta de lista sin paginación (GET /drivers/available).
+ */
+export function mapDriverListItemsResponse(
+  response: { data: ApiDriverListItemResponse[] },
+): DriverListItem[] {
+  return response.data.map((item) =>
+    mapDriverListItemToDomain(deepToCamel(item)),
+  );
+}
 
 /**
  * Mapea respuesta paginada de conductores para listado

@@ -1,9 +1,10 @@
-export { BranchActions, BranchForm, BranchTable, type BranchFormRef } from "./components";
+export { BranchActions, BranchCard, BranchCardSkeleton, BranchForm, BranchTable, type BranchFormRef } from "./components";
 export {
   BRANCH_STATUS_CONFIG,
   BranchStatusBadge,
   getBranchStatusLabel,
-} from "./config/branchStatusConfig";
+} from "./config";
+export { branchesCopy } from "./copy/branchesCopy";
 export {
   BranchCreatePage,
   BranchDetailPage,
@@ -16,4 +17,4 @@ export {
   branchFormToCreateDTO,
   branchFormToUpdateDTO,
   type BranchFormData,
-} from "./validation/branchSchema";
+} from "./validation";

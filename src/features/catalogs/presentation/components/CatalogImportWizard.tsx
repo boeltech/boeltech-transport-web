@@ -63,6 +63,7 @@ import {
 import {
   type CatalogImportOptions,
   type CatalogImportResult,
+  CatalogTypeCode,
   CATALOG_TYPE_LABELS,
 } from "../../domain";
 import { suggestNextVersion } from "@shared/utils/dateUtils";
@@ -308,7 +309,7 @@ export function CatalogImportWizard({
           dragActive
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/25 hover:border-primary/50",
-          file && "border-green-500 bg-green-50 dark:bg-green-950",
+          file && "border-success bg-success-soft",
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -317,7 +318,7 @@ export function CatalogImportWizard({
       >
         {file ? (
           <div className="flex flex-col items-center gap-2">
-            <FileSpreadsheet className="h-12 w-12 text-green-600" />
+            <FileSpreadsheet className="h-12 w-12 text-success" />
             <p className="font-medium">{file.name}</p>
             <p className="text-sm text-muted-foreground">
               {(file.size / 1024).toFixed(1)} KB
@@ -362,13 +363,33 @@ export function CatalogImportWizard({
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Formato del archivo CSV</AlertTitle>
         <AlertDescription>
-          El archivo debe contener columnas con los encabezados: <br />
-          <code className="text-xs bg-muted px-1 rounded">
-            codigo, nombre, descripcion, codigo_padre
-          </code>
-          <br />
-          También se aceptan variantes en inglés (code, name, description,
-          parent_code).
+          {typeCode === CatalogTypeCode.SAT_CODIGO_POSTAL ? (
+            <>
+              Para CP147 use el CSV exportado del catálogo SAT con columnas:{" "}
+              <br />
+              <code className="text-xs bg-muted px-1 rounded">
+                code, parent_code, municipio_code, localidad_code
+              </code>
+              <br />
+              También se aceptan encabezados originales SAT (
+              <code className="text-xs bg-muted px-1 rounded">
+                c_CodigoPostal, c_Estado, c_Municipio, c_Localidad
+              </code>
+              ). El nombre puede omitirse; se genera como{" "}
+              <code className="text-xs bg-muted px-1 rounded">CP {"{code}"}</code>
+              . Municipio/localidad vacíos o <code>0</code> se omiten en metadata.
+            </>
+          ) : (
+            <>
+              El archivo debe contener columnas con los encabezados: <br />
+              <code className="text-xs bg-muted px-1 rounded">
+                codigo, nombre, descripcion, codigo_padre
+              </code>
+              <br />
+              También se aceptan variantes en inglés (code, name, description,
+              parent_code).
+            </>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -391,29 +412,27 @@ export function CatalogImportWizard({
     return (
       <div className="space-y-6">
         {/* Summary */}
-        <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+        <Alert variant={validationResult.isValid ? "success" : "destructive"}>
           {validationResult.isValid ? (
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-4 w-4" />
           ) : (
-            <XCircle className="h-8 w-8 text-red-600" />
+            <XCircle className="h-4 w-4" />
           )}
-          <div>
-            <p className="font-medium">
-              {validationResult.isValid
-                ? "Archivo válido"
-                : "Archivo con errores"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {validationResult.validRows} de {validationResult.totalRows}{" "}
-              registros válidos
-            </p>
-          </div>
-        </div>
+          <AlertTitle>
+            {validationResult.isValid
+              ? "Archivo válido"
+              : "Archivo con errores"}
+          </AlertTitle>
+          <AlertDescription>
+            {validationResult.validRows} de {validationResult.totalRows}{" "}
+            registros válidos
+          </AlertDescription>
+        </Alert>
 
         {/* Errors */}
         {validationResult.errors.length > 0 && (
           <div className="space-y-2">
-            <p className="font-medium text-red-600">
+            <p className="font-medium text-destructive">
               Errores encontrados ({validationResult.errors.length}):
             </p>
             <div className="max-h-40 overflow-y-auto border rounded-lg">
@@ -428,7 +447,7 @@ export function CatalogImportWizard({
                   {validationResult.errors.slice(0, 10).map((err, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-mono">{err.row}</TableCell>
-                      <TableCell className="text-red-600">
+                      <TableCell className="text-destructive">
                         {err.errors.join(", ")}
                       </TableCell>
                     </TableRow>
@@ -614,7 +633,7 @@ export function CatalogImportWizard({
           />
           <Label
             htmlFor="deactivateMissing"
-            className="font-normal text-amber-600"
+            className="font-normal text-warning"
           >
             Desactivar registros que no estén en el archivo
           </Label>
@@ -670,31 +689,22 @@ export function CatalogImportWizard({
     return (
       <div className="space-y-6">
         {/* Result summary */}
-        <div
-          className={cn(
-            "flex items-center gap-4 p-6 rounded-lg",
-            importResult.success
-              ? "bg-green-50 dark:bg-green-950"
-              : "bg-red-50 dark:bg-red-950",
-          )}
-        >
+        <Alert variant={importResult.success ? "success" : "warning"}>
           {importResult.success ? (
-            <CheckCircle className="h-12 w-12 text-green-600" />
+            <CheckCircle className="h-4 w-4" />
           ) : (
-            <AlertTriangle className="h-12 w-12 text-amber-600" />
+            <AlertTriangle className="h-4 w-4" />
           )}
-          <div>
-            <p className="text-lg font-medium">
-              {importResult.success
-                ? "Importación completada"
-                : "Importación completada con errores"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Versión: {importResult.version} • Tiempo:{" "}
-              {(importResult.duration / 1000).toFixed(2)} segundos
-            </p>
-          </div>
-        </div>
+          <AlertTitle>
+            {importResult.success
+              ? "Importación completada"
+              : "Importación completada con errores"}
+          </AlertTitle>
+          <AlertDescription>
+            Versión: {importResult.version} • Tiempo:{" "}
+            {(importResult.duration / 1000).toFixed(2)} segundos
+          </AlertDescription>
+        </Alert>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -702,20 +712,20 @@ export function CatalogImportWizard({
             <p className="text-2xl font-bold">{importResult.totalRows}</p>
             <p className="text-sm text-muted-foreground">Total</p>
           </div>
-          <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900 text-center">
-            <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+          <div className="rounded-lg bg-success-soft p-4 text-center">
+            <p className="text-2xl font-bold text-success-soft-foreground">
               {importResult.insertedCount}
             </p>
             <p className="text-sm text-muted-foreground">Insertados</p>
           </div>
-          <div className="p-4 rounded-lg bg-blue-100 dark:bg-blue-900 text-center">
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+          <div className="rounded-lg bg-info-soft p-4 text-center">
+            <p className="text-2xl font-bold text-info-soft-foreground">
               {importResult.updatedCount}
             </p>
             <p className="text-sm text-muted-foreground">Actualizados</p>
           </div>
-          <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900 text-center">
-            <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+          <div className="rounded-lg bg-destructive-soft p-4 text-center">
+            <p className="text-2xl font-bold text-destructive-soft-foreground">
               {importResult.errorCount}
             </p>
             <p className="text-sm text-muted-foreground">Errores</p>
@@ -725,7 +735,7 @@ export function CatalogImportWizard({
         {/* Errors detail */}
         {importResult.errors.length > 0 && (
           <div className="space-y-2">
-            <p className="font-medium text-red-600">Errores:</p>
+            <p className="font-medium text-destructive">Errores:</p>
             <div className="max-h-40 overflow-y-auto border rounded-lg">
               <Table>
                 <TableHeader>
@@ -738,7 +748,7 @@ export function CatalogImportWizard({
                   {importResult.errors.slice(0, 20).map((err, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-mono">{err.row}</TableCell>
-                      <TableCell className="text-red-600">
+                      <TableCell className="text-destructive">
                         {err.errors.join(", ")}
                       </TableCell>
                     </TableRow>

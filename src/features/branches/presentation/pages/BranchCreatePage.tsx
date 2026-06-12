@@ -3,27 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast } from "@shared/hooks";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 import { useCreateBranch } from "../../application";
 import { BranchForm, type BranchFormRef } from "../components";
+import { branchesCopy } from "../copy/branchesCopy";
 import { branchFormToCreateDTO, type BranchFormData } from "../validation/branchSchema";
-
-const BRANCH_STEPS = [
-  {
-    id: "general",
-    title: "Información general",
-    description: "Código, nombre, estado y contacto",
-  },
-  {
-    id: "address",
-    title: "Dirección",
-    description: "Ubicación de la sucursal",
-  },
-  {
-    id: "review",
-    title: "Revisión",
-    description: "Confirmar datos antes de crear",
-  },
-];
 
 export function BranchCreatePage() {
   const navigate = useNavigate();
@@ -33,16 +20,27 @@ export function BranchCreatePage() {
   const createMutation = useCreateBranch({
     onSuccess: (data) => {
       toast({
-        title: "Sucursal creada",
-        description: `${data.name} se registró correctamente`,
+        title: branchesCopy.create.toasts.successTitle,
+        description: branchesCopy.create.toasts.success(data.name),
         variant: "success",
       });
-      navigate("/branches");
+      navigate(`/branches/${data.id}`);
     },
     onError: (error) => {
+      if (isApiError(error) && error.code === "BRANCH_LIMIT_REACHED") {
+        toast({
+          title: branchesCopy.limitReached.title,
+          description: error.message || branchesCopy.limitReached.description,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Error al crear sucursal",
-        description: error.message,
+        title: branchesCopy.create.toasts.errorTitle,
+        description: isApiError(error)
+          ? error.getDetailedMessage(3)
+          : getErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -58,10 +56,10 @@ export function BranchCreatePage() {
   const shellHeader = useMemo(
     () => ({
       backHref: "/branches",
-      backLabel: "Volver a sucursales",
+      backLabel: branchesCopy.create.backLabel,
       icon: <Building2 className="h-5 w-5" />,
-      title: "Nueva sucursal",
-      subtitle: "Registra una sucursal para operación",
+      title: branchesCopy.create.title,
+      subtitle: branchesCopy.create.subtitle,
     }),
     [],
   );
@@ -73,7 +71,7 @@ export function BranchCreatePage() {
       <>
         {currentStep < 2 ? (
           <p className="mb-4 max-w-md text-sm text-muted-foreground">
-            Completa los campos obligatorios del paso para continuar.
+            {branchesCopy.create.stepHint}
           </p>
         ) : null}
         <BranchForm
@@ -90,15 +88,16 @@ export function BranchCreatePage() {
 
   return (
     <WizardPageShell
-      steps={BRANCH_STEPS}
+      steps={[...branchesCopy.create.steps]}
       formRef={formRef}
       header={shellHeader}
+      headerBackMode="wizard"
       renderStep={renderStep}
       isSubmitting={isSubmitting}
-      submitLabel="Crear sucursal"
-      submittingLabel="Creando..."
+      submitLabel={branchesCopy.create.submitLabel}
+      submittingLabel={branchesCopy.create.submittingLabel}
       onCancel={() => navigate("/branches")}
-      stepsAriaLabel="Pasos para registrar sucursal"
+      stepsAriaLabel={branchesCopy.create.stepsAriaLabel}
     />
   );
 }

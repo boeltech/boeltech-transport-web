@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Building2, Plus, Search } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useListingFilters, useToast } from "@shared/hooks";
@@ -14,15 +14,20 @@ import {
 import {
   BranchStatus,
   BRANCH_STATUS_LABELS,
+  type BranchSortOptions,
   type BranchStatusType,
 } from "../../domain";
 import { useBranches, useDeleteBranch } from "../../application";
-import { BranchTable } from "../components";
+import { BranchCard, BranchCardSkeleton, BranchTable } from "../components";
+import { branchesCopy } from "../copy/branchesCopy";
+
+const DEFAULT_SORT_FIELD: BranchSortOptions["field"] = "name";
 
 export function BranchesListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const [searchParams, setSearchParams] = useSearchParams();
   const filters = useListingFilters<"status" | "main">({
     filters: {
       status: {},
@@ -30,13 +35,20 @@ export function BranchesListPage() {
     },
     chipLabels: {
       status: (value) =>
-        `Estado: ${BRANCH_STATUS_LABELS[value as BranchStatusType] ?? value}`,
-      main: (value) => `Tipo: ${value === "true" ? "Principal" : "Secundaria"}`,
+        branchesCopy.list.filters.statusChip(
+          BRANCH_STATUS_LABELS[value as BranchStatusType] ?? value,
+        ),
+      main: (value) =>
+        branchesCopy.list.filters.typeChip(value === "true"),
     },
   });
 
   const statusFilter = filters.filters.status as BranchStatusType | "";
   const mainFilter = filters.filters.main;
+  const sortBy =
+    (searchParams.get("sortBy") as BranchSortOptions["field"] | null) ??
+    DEFAULT_SORT_FIELD;
+  const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
 
   const { data, isLoading, isFetching, refetch } = useBranches({
     page: filters.page,
@@ -48,22 +60,22 @@ export function BranchesListPage() {
       isActive: true,
     },
     sort: {
-      field: "name",
-      direction: "asc",
+      field: sortBy,
+      direction: sortOrder,
     },
   });
 
   const deleteMutation = useDeleteBranch({
     onSuccess: () => {
       toast({
-        title: "Sucursal eliminada",
+        title: branchesCopy.list.toasts.deleteSuccess,
         variant: "success",
       });
       void refetch();
     },
     onError: (error) => {
       toast({
-        title: "Error al eliminar sucursal",
+        title: branchesCopy.list.toasts.deleteError,
         description: error.message,
         variant: "destructive",
       });
@@ -79,7 +91,7 @@ export function BranchesListPage() {
   const handleRefresh = useCallback(async () => {
     await refetch();
     toast({
-      title: "Lista actualizada",
+      title: branchesCopy.list.refreshSuccess,
       variant: "success",
     });
   }, [refetch, toast]);
@@ -92,12 +104,31 @@ export function BranchesListPage() {
     [canDelete, deleteMutation],
   );
 
+  const handleSortChange = useCallback(
+    (field: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        const currentSortBy = params.get("sortBy") || DEFAULT_SORT_FIELD;
+        const currentOrder = params.get("sortOrder") || "asc";
+        if (currentSortBy === field) {
+          params.set("sortOrder", currentOrder === "asc" ? "desc" : "asc");
+        } else {
+          params.set("sortBy", field);
+          params.set("sortOrder", "asc");
+        }
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
   return (
     <ListPageShell
-      title="Sucursales"
-      description="Catálogo de sucursales de la empresa"
+      title={branchesCopy.list.title}
+      description={branchesCopy.list.description}
       primaryAction={{
-        label: "Nueva sucursal",
+        label: branchesCopy.list.primaryAction,
         icon: <Plus className="h-4 w-4" />,
         onClick: handleCreate,
         visible: canCreate,
@@ -105,7 +136,7 @@ export function BranchesListPage() {
       toolbar={{
         search: {
           ...filters.searchProps,
-          placeholder: "Buscar sucursal...",
+          placeholder: branchesCopy.list.searchPlaceholder,
         },
         filters: (
           <>
@@ -114,10 +145,10 @@ export function BranchesListPage() {
               onValueChange={(value) => filters.setFilter("status", value)}
             >
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Estado" />
+                <SelectValue placeholder={branchesCopy.list.filters.status} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">{branchesCopy.list.filters.statusAll}</SelectItem>
                 <SelectItem value={BranchStatus.ACTIVE}>
                   {BRANCH_STATUS_LABELS[BranchStatus.ACTIVE]}
                 </SelectItem>
@@ -131,12 +162,12 @@ export function BranchesListPage() {
               onValueChange={(value) => filters.setFilter("main", value)}
             >
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Tipo" />
+                <SelectValue placeholder={branchesCopy.list.filters.type} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="true">Principal</SelectItem>
-                <SelectItem value="false">Secundaria</SelectItem>
+                <SelectItem value="all">{branchesCopy.list.filters.typeAll}</SelectItem>
+                <SelectItem value="true">{branchesCopy.list.filters.typeMain}</SelectItem>
+                <SelectItem value="false">{branchesCopy.list.filters.typeSecondary}</SelectItem>
               </SelectContent>
             </Select>
           </>
@@ -146,6 +177,7 @@ export function BranchesListPage() {
         activeFilterChips: filters.activeChips,
         onClearFilters: filters.clearAll,
         hasFilters: filters.hasFilters,
+        viewMode: filters.viewModeProps,
       }}
       isLoading={isLoading}
       items={branches}
@@ -160,30 +192,45 @@ export function BranchesListPage() {
           : undefined
       }
       onPageChange={filters.setPage}
-      entityLabelPlural="sucursales"
+      entityLabelPlural={branchesCopy.list.entityLabelPlural}
       renderTable={() => (
         <BranchTable
           branches={branches}
           isLoading={isLoading}
           onDelete={canDelete ? handleDelete : undefined}
+          isDeleting={deleteMutation.isPending}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={handleSortChange}
         />
       )}
+      renderCards={() =>
+        branches.map((branch) => (
+          <BranchCard
+            key={branch.id}
+            branch={branch}
+            onDelete={canDelete ? handleDelete : undefined}
+            isDeleting={deleteMutation.isPending}
+          />
+        ))
+      }
+      renderCardSkeleton={() => <BranchCardSkeleton />}
       emptyState={{
         icon: <Search className="h-10 w-10 text-muted-foreground" />,
-        title: "No se encontraron sucursales",
+        title: branchesCopy.list.empty.title,
         description: filters.hasFilters
-          ? "Intenta ajustar los filtros de búsqueda."
-          : "Comienza registrando la primera sucursal.",
+          ? branchesCopy.list.empty.descriptionFiltered
+          : branchesCopy.list.empty.descriptionDefault,
         cta: canCreate
           ? {
-              label: "Nueva sucursal",
+              label: branchesCopy.list.primaryAction,
               icon: <Building2 className="h-4 w-4" />,
               onClick: handleCreate,
             }
           : undefined,
         secondaryCta: filters.hasFilters
           ? {
-              label: "Limpiar filtros",
+              label: branchesCopy.list.empty.clearFilters,
               onClick: filters.clearAll,
               variant: "outline",
             }

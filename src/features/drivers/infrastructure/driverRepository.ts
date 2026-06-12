@@ -28,6 +28,7 @@ import {
 } from "../domain/repository";
 import {
   mapDriver,
+  mapDriverListItemsResponse,
   mapPaginatedDriverListItems,
   mapPaginatedDriverTrips,
   toApiCreateDriver,
@@ -99,12 +100,11 @@ export class DriverRepository implements IDriverRepository {
    * Obtiene conductores disponibles
    */
   async findAvailable(): Promise<DriverListItem[]> {
-    const response = await apiClient.get<
-      ApiPaginatedResponse<ApiDriverListItemResponse>
-    >(`${DRIVERS_ENDPOINT}/available`);
+    const response = await apiClient.get<{
+      data: ApiDriverListItemResponse[];
+    }>(`${DRIVERS_ENDPOINT}/available`);
 
-    const mapped = mapPaginatedDriverListItems(response);
-    return mapped.data;
+    return mapDriverListItemsResponse(response);
   }
 
   /**

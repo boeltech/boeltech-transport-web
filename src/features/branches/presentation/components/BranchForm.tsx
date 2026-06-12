@@ -5,6 +5,7 @@ import {
   FormProvider,
   useForm,
   useFormContext,
+  type FieldErrors,
   type Resolver,
 } from "react-hook-form";
 import { Building2, ClipboardCheck, Loader2, Save } from "lucide-react";
@@ -25,7 +26,12 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { FormSectionCard } from "@shared/ui/form-section-card";
-import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { useToast } from "@shared/hooks";
+import {
+  collectFieldErrorMessages,
+  formatFormValidationToastDescription,
+} from "@shared/utils/formErrors";
+import { branchesCopy } from "../copy/branchesCopy";
 import type { Branch } from "../../domain";
 import { BranchStatus, BRANCH_STATUS_LABELS } from "../../domain";
 import {
@@ -138,6 +144,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
     ref,
   ) {
     const wizardActive = Boolean(wizardMode && !branch);
+    const { toast } = useToast();
     const [showValidationSummary, setShowValidationSummary] = useState(false);
 
     const form = useForm<BranchFormData, unknown, BranchFormData>({
@@ -163,20 +170,44 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       [trigger],
     );
 
+    const handleInvalidSubmit = useCallback(
+      (fieldErrors: FieldErrors<BranchFormData>) => {
+        setShowValidationSummary(true);
+        void trigger(undefined, { shouldFocus: true });
+        toast({
+          title: branchesCopy.form.validationToastTitle,
+          description: formatFormValidationToastDescription(fieldErrors),
+          variant: "destructive",
+        });
+      },
+      [toast, trigger],
+    );
+
+    const handleValidSubmit = useCallback(
+      (data: BranchFormData) => {
+        setShowValidationSummary(false);
+        onSubmit(data);
+      },
+      [onSubmit],
+    );
+
     useImperativeHandle(
       ref,
       () => ({
         triggerStepValidation: runStepValidation,
         requestSubmit: () => {
-          void handleSubmit(onSubmit)();
+          void handleSubmit(handleValidSubmit, handleInvalidSubmit)();
         },
       }),
-      [handleSubmit, onSubmit, runStepValidation],
+      [handleInvalidSubmit, handleSubmit, handleValidSubmit, runStepValidation],
     );
 
     return (
       <FormProvider {...form}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}
+        className="space-y-6"
+      >
         <div
           className={cn("space-y-6", wizardActive && wizardStepIndex !== 0 && "hidden")}
           data-wizard-panel="0"
@@ -365,8 +396,8 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
             messages={validationMessages}
             title={
               wizardActive
-                ? "Revisa la información de la sucursal"
-                : "Revisa los siguientes campos"
+                ? branchesCopy.form.validationSummaryWizard
+                : branchesCopy.form.validationSummaryEdit
             }
           />
         ) : null}
@@ -377,12 +408,14 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
+                  {branchesCopy.form.submit.saving}
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  {branch ? "Guardar cambios" : "Crear sucursal"}
+                  {branch
+                    ? branchesCopy.form.submit.saveChanges
+                    : branchesCopy.form.submit.create}
                 </>
               )}
             </Button>

@@ -20,12 +20,14 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { usePermissions } from "@shared/permissions";
+import { branchesCopy } from "../copy/branchesCopy";
 
 interface BranchActionsProps {
   branchId: string;
   branchName: string;
   variant?: "dropdown" | "buttons";
   onDelete?: (id: string) => void;
+  isDeleting?: boolean;
 }
 
 export function BranchActions({
@@ -33,6 +35,7 @@ export function BranchActions({
   branchName,
   variant = "dropdown",
   onDelete,
+  isDeleting = false,
 }: BranchActionsProps) {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
@@ -46,6 +49,31 @@ export function BranchActions({
     setConfirmDeleteOpen(false);
   };
 
+  const deleteDialog = (
+    <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{branchesCopy.actions.deleteTitle}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {branchesCopy.actions.deleteDescription(branchName)}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>
+            {branchesCopy.actions.cancel}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            disabled={isDeleting}
+            onClick={handleDelete}
+          >
+            {isDeleting ? branchesCopy.actions.deleting : branchesCopy.actions.delete}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (variant === "buttons") {
     return (
       <>
@@ -57,39 +85,22 @@ export function BranchActions({
               onClick={() => navigate(`/branches/${branchId}/edit`)}
             >
               <Pencil className="mr-2 h-4 w-4" />
-              Editar
+              {branchesCopy.actions.edit}
             </Button>
           ) : null}
           {canDelete ? (
             <Button
               variant="destructive"
               size="sm"
+              disabled={isDeleting}
               onClick={() => setConfirmDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
+              {branchesCopy.actions.delete}
             </Button>
           ) : null}
         </div>
-        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar sucursal?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción eliminará la sucursal <strong>{branchName}</strong>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDelete}
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {deleteDialog}
       </>
     );
   }
@@ -106,12 +117,12 @@ export function BranchActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => navigate(`/branches/${branchId}`)}>
             <Eye className="mr-2 h-4 w-4" />
-            Ver detalle
+            {branchesCopy.actions.viewDetail}
           </DropdownMenuItem>
           {canUpdate ? (
             <DropdownMenuItem onClick={() => navigate(`/branches/${branchId}/edit`)}>
               <Pencil className="mr-2 h-4 w-4" />
-              Editar
+              {branchesCopy.actions.edit}
             </DropdownMenuItem>
           ) : null}
           {canDelete ? (
@@ -119,34 +130,17 @@ export function BranchActions({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
+                disabled={isDeleting}
                 onClick={() => setConfirmDeleteOpen(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
+                {branchesCopy.actions.delete}
               </DropdownMenuItem>
             </>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar sucursal?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará la sucursal <strong>{branchName}</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteDialog}
     </>
   );
 }

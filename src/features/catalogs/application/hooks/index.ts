@@ -74,3 +74,13 @@ export {
   useRegimenFiscalLabel,
   type UseRegimenFiscalLabelResult,
 } from "./useRegimenFiscalLabel";
+
+export {
+  useFormaPagoLabel,
+  type UseFormaPagoLabelResult,
+} from "./useFormaPagoLabel";
+
+export {
+  useMetodoPagoLabel,
+  type UseMetodoPagoLabelResult,
+} from "./useMetodoPagoLabel";

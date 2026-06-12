@@ -1,4 +1,5 @@
 import type { Employee } from "../../domain/entities";
+import { formatMxCurrencyNullable } from "@shared/utils/formatMxCurrency";
 
 export function formatEmployeeStreetLine(emp: Employee): string | null {
   const pa = emp.personalAddress;
@@ -25,11 +26,4 @@ export function formatEmployeeCityStateLine(emp: Employee): string | null {
   return [emp.city, emp.state].filter(Boolean).join(", ") || null;
 }
 
-export function formatMxCurrency(value: number | null | undefined): string | null {
-  if (value == null) return null;
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(value);
-}
-
+export const formatMxCurrency = formatMxCurrencyNullable;

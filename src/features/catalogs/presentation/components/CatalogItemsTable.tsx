@@ -196,18 +196,12 @@ function CatalogItemsTableBody({
                 ) : null}
                 <TableCell className="text-center">
                   {item.isActive ? (
-                    <Badge
-                      variant="outline"
-                      className="text-green-600 border-green-200 bg-green-50"
-                    >
+                    <Badge variant="success" tone="soft">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Activo
                     </Badge>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="text-red-600 border-red-200 bg-red-50"
-                    >
+                    <Badge variant="neutral" tone="soft">
                       <XCircle className="h-3 w-3 mr-1" />
                       Inactivo
                     </Badge>

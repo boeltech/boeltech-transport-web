@@ -7,6 +7,7 @@ import { Mail, Send } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { invitationsApi } from "@features/invitations";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { getRoleOptionsForUserManagementForm } from "@shared/constants/roles";
 import type { UserRole } from "@shared/constants/roles";
 import {
@@ -29,6 +30,7 @@ import {
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useToast } from "@shared/hooks";
+import { usersCopy } from "../copy/usersCopy";
 
 const roleEnum = z.enum(
   Object.values(ROLES) as [UserRole, ...UserRole[]],
@@ -127,8 +129,17 @@ export function InviteUserDialog({
         handleOpenChange(false);
         onInvited?.();
       } catch (err: unknown) {
+        if (isApiError(err) && err.code === "USER_LIMIT_REACHED") {
+          toast({
+            title: usersCopy.limitReached.title,
+            description: err.message || usersCopy.limitReached.description,
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "No se pudo enviar la invitación",
+          title: usersCopy.invite.toasts.errorTitle,
           description: mapBackendError(err).message,
           variant: "destructive",
         });

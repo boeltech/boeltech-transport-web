@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import {
   useForm,
   useWatch,
+  Controller,
   type Resolver,
   type FieldErrors,
 } from "react-hook-form";
@@ -27,6 +28,7 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   FormFieldShell,
   FormValidationSummary,
+  MoneyInput,
   getFieldErrorAriaProps,
   stripTrailingAsteriskFromLabel,
 } from "@shared/ui/form";
@@ -965,23 +967,24 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField label="Salario base">
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  className="pl-6"
-                  placeholder="18,000"
-                  {...form.register("base_salary", {
-                    setValueAs: (v) => {
-                      const cleaned = String(v).replace(/[^0-9.]/g, "");
-                      return cleaned === "" ? undefined : parseFloat(cleaned);
-                    },
-                  })}
-                />
-              </div>
+              <Controller
+                control={form.control}
+                name="base_salary"
+                render={({ field, fieldState }) => (
+                  <MoneyInput
+                    id="base_salary"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="$0.00"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "base_salary",
+                      fieldState.error?.message,
+                    )}
+                  />
+                )}
+              />
             </FormField>
             <FormField label="Periodicidad">
               <RHFSelect control={form.control} name="salary_type" options={SALARY_TYPE_OPTIONS} />

@@ -8,6 +8,7 @@
  * Ubicación: src/features/drivers/presentation/config/driverStatusConfig.ts
  */
 
+import { Truck } from "lucide-react";
 import {
   CheckCircle2,
   Clock,
@@ -36,6 +37,12 @@ export const DRIVER_STATUS_CONFIG: Record<DriverStatusType, StatusConfig> = {
     label: DRIVER_STATUS_LABELS[DriverStatus.AVAILABLE],
     icon: CheckCircle2,
     description: "Conductor disponible para asignación de viajes",
+  }),
+
+  [DriverStatus.RESERVED]: createStatusConfig("warning", {
+    label: DRIVER_STATUS_LABELS[DriverStatus.RESERVED],
+    icon: Truck,
+    description: "Conductor reservado para un viaje programado",
   }),
 
   [DriverStatus.ON_LEAVE]: createStatusConfig("info", {

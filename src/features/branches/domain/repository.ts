@@ -1,9 +1,4 @@
-import type {
-  MappedActionResult,
-  MappedPaginatedResult,
-  MappedSingleResult,
-} from "@shared/api";
-import type { Branch, BranchListItem, BranchQueryParams, BranchStatusType } from "./entities";
+import type { BranchStatusType } from "./entities";
 
 export interface CreateBranchDTO {
   code: string;
@@ -41,12 +36,4 @@ export interface UpdateBranchDTO {
   email?: string | null;
   managerName?: string | null;
   notes?: string | null;
-}
-
-export interface IBranchRepository {
-  findAll(params?: BranchQueryParams): Promise<MappedPaginatedResult<BranchListItem>>;
-  findById(id: string): Promise<MappedSingleResult<Branch | null>>;
-  create(data: CreateBranchDTO): Promise<MappedSingleResult<Branch>>;
-  update(id: string, data: UpdateBranchDTO): Promise<MappedSingleResult<Branch>>;
-  delete(id: string): Promise<MappedActionResult>;
 }

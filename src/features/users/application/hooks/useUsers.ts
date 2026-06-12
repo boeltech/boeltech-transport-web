@@ -12,12 +12,16 @@ interface MutationCallbacks<TData = unknown, TError = Error> {
   onError?: (error: TError) => void;
 }
 
-export const useUsers = (params?: UserQueryParams) =>
+export const useUsers = (
+  params?: UserQueryParams,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: userQueryKeys.list(params),
     queryFn: () => usersApi.getAll(params),
     staleTime: 30_000,
     placeholderData: (previousData) => previousData,
+    enabled: options?.enabled ?? true,
   });
 
 export const useUser = (id: string) =>

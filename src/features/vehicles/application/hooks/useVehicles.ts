@@ -18,10 +18,11 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
+import { isVehicleStartableStatus } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
 import { vehiclesApi } from "../../infrastructure";
 import {
   vehicleQueryKeys,
-  VehicleStatus,
+  VEHICLE_STATUS_LABELS,
   type VehicleQueryParams,
   type VehicleStatusType,
   type VehicleListItem,
@@ -113,14 +114,14 @@ export function useAssignableVehicles(
       // Reutiliza GET /vehicles con filtros
       const result = await vehiclesApi.getAll({
         filters: {
-          status: VehicleStatus.AVAILABLE,
           isActive: true,
         },
-        limit: 100, // Traer todos los disponibles
+        limit: 100,
       });
       return result.data.map(classifyVehicleForAssignment);
     },
-    staleTime: 1000 * 60 * 2, // 2 minutos
+    staleTime: 30_000,
+    refetchOnMount: true,
     ...options,
   });
 }
@@ -144,6 +145,14 @@ function hasDocText(value: string | null | undefined): boolean {
 function classifyVehicleForAssignment(
   vehicle: VehicleListItem,
 ): AssignableVehicleItem {
+  if (!isVehicleStartableStatus(vehicle.status)) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: VEHICLE_STATUS_LABELS[vehicle.status] ?? "No disponible",
+    };
+  }
+
   const hasInsurancePolicy = hasDocText(vehicle.insurancePolicy);
   const hasInsuranceExpiry = hasDocText(vehicle.insuranceExpiry);
   const hasSctNumber = hasDocText(vehicle.sctPermitNumber);
