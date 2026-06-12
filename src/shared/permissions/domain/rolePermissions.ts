@@ -52,6 +52,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.updateStatus",
       "trips.approve",
       "trips.export",
+      "trips_stops_fiscal.execute",
 
       // Vehículos - Control total
       "vehicles.read",
@@ -108,6 +109,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "expenses.read",
       "expenses.approve",
       "expenses.export",
+
+      // Aprobaciones centralizadas (hub /finance/approvals)
+      "finance_approvals.read",
+      "finance_approvals.update",
 
       // Facturas - Lectura
       "invoices.read",
@@ -174,6 +179,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "expenses.approve",
       "expenses.export",
 
+      // Aprobaciones centralizadas (hub /finance/approvals)
+      "finance_approvals.read",
+      "finance_approvals.update",
+
       // Facturas - Control total
       "invoices.read",
       "invoices.create",
@@ -181,6 +190,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "invoices.approve",
       "invoices.export",
       "invoices.execute", // Timbrado, envío
+
+      // Edición fiscal post-cierre (RFC parada)
+      "trips_stops_fiscal.execute",
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",

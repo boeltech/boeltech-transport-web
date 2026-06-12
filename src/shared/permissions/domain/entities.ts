@@ -17,6 +17,7 @@ import type { UserRole } from "@shared/constants/roles";
 export const MODULES = [
   "dashboard",
   "trips",
+  "trips_stops_fiscal",
   "vehicles",
   "drivers",
   "clients",
@@ -25,6 +26,7 @@ export const MODULES = [
   "maintenance",
   "fuel",
   "expenses",
+  "finance_approvals",
   "invoices",
   "payroll",
   "payments",
