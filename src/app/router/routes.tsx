@@ -236,7 +236,9 @@ const ApprovalInboxPage = lazy(() =>
 );
 
 // Reports
-// const ReportsPage = lazy(() => import("@/pages/reports"));
+const ReportsPage = lazy(() =>
+  import("@features/reports").then((m) => ({ default: m.ReportsPage })),
+);
 
 // Users (Admin)
 const UsersListPage = lazy(() =>
@@ -685,10 +687,10 @@ export const router = createBrowserRouter([
           {
             element: <ModuleRoute module="reports" />,
             children: [
-              // {
-              //   path: "/reports",
-              //   element: withSuspense(ReportsPage),
-              // },
+              {
+                path: "/reports",
+                element: withSuspense(ReportsPage),
+              },
             ],
           },
 
