@@ -5,3 +5,6 @@ export * from "@shared/geolocation/infrastructure/mapbox/MapboxDistanceMatrixAda
 export * from "@shared/geolocation/application/useCases/ResolveStopGeolocationUseCase";
 export * from "@shared/geolocation/application/useCases/CalculateSegmentDistanceUseCase";
 export * from "@shared/geolocation/application/useCases/CalculateSegmentsDistanceUseCase";
+export * from "@shared/geolocation/mapboxStyles";
+export * from "@shared/geolocation/mapboxThemeColors";
+export { useMapboxStyle } from "@shared/geolocation/application/hooks/useMapboxStyle";

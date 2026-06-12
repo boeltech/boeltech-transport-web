@@ -12,6 +12,8 @@ Primitivos para validación UX en formularios y wizards de alta (conductores, ve
 | `FormValidationSummary` | Alert con lista tras `trigger()` fallido |
 | `RHFSelect` | Select controlado con borde de error y ARIA |
 | `RHFTextField` | Input + label + error (Controller) |
+| `MoneyInput` | Captura de montos con prefijo MXN y formato moneda |
+| `RHFMoneyField` | MoneyInput + label + error (Controller) |
 | `RHFTextareaField` | Textarea + label + error |
 | `RHFSelectField` | Select con opciones `{ value, label }` |
 | `RHFCatalogField` | Catálogo SAT con error + ARIA |

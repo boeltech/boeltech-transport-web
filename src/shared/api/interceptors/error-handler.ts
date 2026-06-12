@@ -80,8 +80,30 @@ const FIELD_LABELS: Record<string, string> = {
   password: "Contraseña",
 };
 
+function normalizeIssuePath(path: unknown): string {
+  if (typeof path === "string" && path.trim().length > 0) return path.trim();
+  if (Array.isArray(path) && path.length > 0) {
+    return path.map(String).join(".");
+  }
+  return "general";
+}
+
 function getFieldLabel(field: string): string {
   if (FIELD_LABELS[field]) return FIELD_LABELS[field];
+
+  if (field.endsWith(".driver.rfc") || field === "driver.rfc") {
+    return "RFC del conductor";
+  }
+  if (
+    field.endsWith(".driver.license_number") ||
+    field === "driver.license_number"
+  ) {
+    return "Licencia del conductor";
+  }
+  if (field.endsWith(".driver.name") || field === "driver.name") {
+    return "Nombre del conductor";
+  }
+
   const lastSegment = field.split(".").pop() || field;
   if (FIELD_LABELS[lastSegment]) return FIELD_LABELS[lastSegment];
   return lastSegment
@@ -151,6 +173,13 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   TRIP_CODE_EXISTS: "El código de viaje ya existe",
   FISCAL_PRECONDITION_FAILED:
     "No se puede iniciar el viaje: falta cumplir la precondición fiscal (p. ej. factura timbrada). Revise la sección Fiscal o genere/timbre la factura del viaje.",
+  RESOURCE_BUSY_ON_OTHER_TRIP:
+    "El vehículo o conductor ya está asignado a otro viaje activo.",
+  VEHICLE_NOT_AVAILABLE:
+    "El vehículo no está disponible para iniciar o reservar el viaje.",
+  DRIVER_NOT_AVAILABLE:
+    "El conductor no está disponible para iniciar o reservar el viaje.",
+  TRIP_NOT_SCHEDULED: "Solo se puede iniciar un viaje en estado programado.",
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",
@@ -176,6 +205,14 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   UPDATE_FAILED: "Error al actualizar el registro",
   DELETE_FAILED: "Error al eliminar el registro",
   CREATE_FAILED: "Error al crear el registro",
+};
+
+/** Mensajes de timbrado PAC traducidos a lenguaje operativo (sin códigos ni XSD). */
+const PAC_USER_MESSAGES: Record<string, string> = {
+  CP132:
+    "No se pudo timbrar: el RFC de remitente o destinatario en una parada del viaje no está registrado ante el SAT. Revise en Viajes → Ruta todas las paradas (origen, escalas y destino) y use un RFC real y vigente del cliente o ubicación.",
+  PAC_ISSUED_AT_OUT_OF_RANGE:
+    "No se pudo timbrar: la fecha de emisión del borrador supera las 72 horas que permite el SAT. Vuelve a intentar el timbrado; el sistema actualiza la fecha automáticamente al timbrar.",
 };
 
 // ============================================================================
@@ -225,7 +262,7 @@ export class ApiError extends Error {
 
     const { status, data } = error.response;
     const code = data?.code;
-    const details = data?.details as Record<string, unknown> | undefined;
+    const details = data?.details;
     const validationErrors = extractValidationErrors(details);
     const message = getMessageForError(status, code, data, validationErrors);
 
@@ -255,11 +292,22 @@ export class ApiError extends Error {
   /** Mensaje corto para toast */
   getToastMessage(): string {
     if (!this.validationErrors.length) return this.message;
-    const first = this.validationErrors[0];
-    if (this.validationErrors.length === 1) {
-      return `${first.label}: ${first.message}`;
+
+    const detailMessages = this.validationErrors
+      .map((entry) => entry.message)
+      .filter((message) => message.trim().length > 0);
+
+    if (detailMessages.length === 1) {
+      return detailMessages[0];
     }
-    return `${first.label}: ${first.message} (+${this.validationErrors.length - 1} más)`;
+
+    if (detailMessages.length > 1) {
+      const first = detailMessages[0];
+      return `${first} (+${detailMessages.length - 1} más)`;
+    }
+
+    const first = this.validationErrors[0];
+    return `${first.label}: ${first.message}`;
   }
 
   /** Mensaje detallado con múltiples líneas */
@@ -296,17 +344,49 @@ export class ApiError extends Error {
 // FUNCIONES AUXILIARES
 // ============================================================================
 
-function extractValidationErrors(
-  details?: Record<string, unknown>,
-): ValidationFieldError[] {
+function extractValidationErrors(details?: unknown): ValidationFieldError[] {
   if (!details) return [];
 
+  if (Array.isArray(details)) {
+    const fromZod = mapZodIssues(details);
+    if (fromZod.length > 0) return fromZod;
+
+    if (
+      details.every(
+        (entry) =>
+          typeof entry === "object" &&
+          entry !== null &&
+          "message" in entry &&
+          typeof (entry as { message: unknown }).message === "string",
+      )
+    ) {
+      return details.map((entry) => {
+        const item = entry as {
+          message: string;
+          path?: string | (string | number)[];
+          code?: string;
+        };
+        const field = normalizeIssuePath(item.path);
+        return {
+          field,
+          label: getFieldLabel(field),
+          message: translateZodMessage(item.message),
+        };
+      });
+    }
+
+    return [];
+  }
+
+  if (typeof details !== "object") return [];
+
+  const record = details as Record<string, unknown>;
   let issues: ZodIssue[] | undefined;
 
   // Caso 1: details.message es un string JSON (tu caso actual)
-  if (typeof details.message === "string") {
+  if (typeof record.message === "string") {
     try {
-      const parsed = JSON.parse(details.message);
+      const parsed = JSON.parse(record.message);
       if (Array.isArray(parsed)) {
         issues = parsed as ZodIssue[];
       }
@@ -315,18 +395,32 @@ function extractValidationErrors(
     }
   }
   // Caso 2: details.message ya es un array
-  else if (Array.isArray(details.message)) {
-    issues = details.message as ZodIssue[];
+  else if (Array.isArray(record.message)) {
+    issues = record.message as ZodIssue[];
   }
   // Caso 3: details.issues es un array
-  else if (Array.isArray(details.issues)) {
-    issues = details.issues as ZodIssue[];
+  else if (Array.isArray(record.issues)) {
+    issues = record.issues as ZodIssue[];
   }
 
-  if (!issues || issues.length === 0) return [];
+  return mapZodIssues(issues ?? []);
+}
 
-  return issues.map((issue) => {
-    const field = issue.path?.join(".") || "general";
+function mapZodIssues(issues: unknown[]): ValidationFieldError[] {
+  if (issues.length === 0) return [];
+
+  const first = issues[0];
+  if (
+    typeof first !== "object" ||
+    first === null ||
+    !("message" in first) ||
+    !("path" in first)
+  ) {
+    return [];
+  }
+
+  return (issues as ZodIssue[]).map((issue) => {
+    const field = normalizeIssuePath(issue.path);
     return {
       field,
       label: getFieldLabel(field),
@@ -355,12 +449,108 @@ function translateZodMessage(message: string): string {
   return translations[message] || message;
 }
 
+function extractPacRawDescription(raw: unknown): string | null {
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as { description?: string };
+      if (typeof parsed?.description === "string" && parsed.description.trim()) {
+        return parsed.description.trim();
+      }
+    } catch {
+      return raw.trim();
+    }
+    return raw.trim();
+  }
+
+  if (!raw || typeof raw !== "object") return null;
+
+  const record = raw as { description?: string; detail?: string };
+  if (typeof record.description === "string" && record.description.trim()) {
+    return record.description.trim();
+  }
+
+  if (typeof record.detail === "string" && record.detail.trim()) {
+    try {
+      const items = JSON.parse(record.detail) as Array<{
+        Key?: string;
+        Value?: string;
+      }>;
+      const preferred =
+        items.find((item) => item.Key === "message")?.Value ??
+        items.find((item) => item.Key === "messageDetail")?.Value;
+      if (preferred?.trim()) return preferred.trim();
+    } catch {
+      return record.detail.trim();
+    }
+  }
+
+  return null;
+}
+
+function resolvePacErrorMessage(
+  code: string | undefined,
+  details: unknown,
+): string | null {
+  const record =
+    details && typeof details === "object" && !Array.isArray(details)
+      ? (details as Record<string, unknown>)
+      : null;
+
+  const pacRule =
+    typeof record?.pac_rule === "string" ? record.pac_rule : undefined;
+  const hint = typeof record?.hint === "string" ? record.hint.trim() : "";
+  const rawMessage = extractPacRawDescription(record?.raw);
+  const isPacError = code?.startsWith("PAC_") || Boolean(pacRule);
+
+  if (!isPacError) return null;
+
+  if (pacRule === "CP132" || code === "PAC_CP132_UBICACION_RFC_INVALID") {
+    return PAC_USER_MESSAGES.CP132;
+  }
+
+  if (code === "PAC_ISSUED_AT_OUT_OF_RANGE") {
+    return PAC_USER_MESSAGES.PAC_ISSUED_AT_OUT_OF_RANGE;
+  }
+
+  if (rawMessage) {
+    return hint && !rawMessage.includes(hint)
+      ? `${rawMessage} ${hint}`
+      : rawMessage;
+  }
+
+  return hint || null;
+}
+
 function getMessageForError(
   status: number,
   code: string | undefined,
   data: ApiErrorResponse | undefined,
   validationErrors: ValidationFieldError[],
 ): string {
+  if (code === "INVALID_RFC_AT_STOP") {
+    const details =
+      data?.details && typeof data.details === "object" && !Array.isArray(data.details)
+        ? (data.details as Record<string, unknown>)
+        : null;
+    const stopOrder =
+      typeof details?.stopOrder === "number" ? details.stopOrder : null;
+    if (stopOrder != null) {
+      return `RFC inválido en parada #${stopOrder}. Corrige el RFC antes de volver a timbrar.`;
+    }
+    return "RFC inválido en una parada del viaje. Corrige el RFC antes de volver a timbrar.";
+  }
+
+  const pacMessage = resolvePacErrorMessage(code, data?.details);
+  if (pacMessage) return pacMessage;
+
+  if (
+    status === 502 &&
+    typeof data?.error === "string" &&
+    data.error.toLowerCase().includes("72 horas")
+  ) {
+    return PAC_USER_MESSAGES.PAC_ISSUED_AT_OUT_OF_RANGE;
+  }
+
   // 1. Errores de validación: mostrar detalles de campos
   if (code === "VALIDATION_ERROR" && validationErrors.length > 0) {
     const first = validationErrors[0];

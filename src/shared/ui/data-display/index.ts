@@ -15,6 +15,9 @@ export type {
 export { StatCard } from "./StatCard";
 export type { StatCardProps, StatCardTone } from "./StatCard";
 
+export { MetricTrendCard } from "./MetricTrendCard";
+export type { MetricTrendCardProps } from "./MetricTrendCard";
+
 export { DocumentRow } from "./DocumentRow";
 export type { DocumentRowProps } from "./DocumentRow";
 
@@ -39,3 +42,8 @@ export type { DetailSectionProps } from "./DetailSection";
 
 export { SatFieldLabel } from "./SatFieldLabel";
 export type { SatFieldLabelProps } from "./SatFieldLabel";
+
+export { ChartCard } from "./ChartCard";
+export type { ChartCardProps } from "./ChartCard";
+
+export * from "./charts";

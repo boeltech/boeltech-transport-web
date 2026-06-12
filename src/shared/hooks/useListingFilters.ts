@@ -68,6 +68,16 @@ export interface UseListingFiltersOptions<TFilterKeys extends string> {
   searchDelayMs?: number;
   /** Modo de vista inicial. Por defecto "table". */
   initialViewMode?: ListingViewMode;
+  /**
+   * Query params que se conservan al llamar `clearAll` (p. ej. `tab` en Finanzas).
+   */
+  preserveParamsOnClear?: string[];
+  /**
+   * Valores por defecto de filtros; no cuentan como activos en `hasFilters` ni chips.
+   */
+  defaultFilterValues?: Partial<Record<TFilterKeys, string>>;
+  /** Si false, cambiar filtros no resetea `page` en la URL. Por defecto true. */
+  resetPageOnFilterChange?: boolean;
 }
 
 export interface UseListingFiltersResult<TFilterKeys extends string> {
@@ -107,6 +117,12 @@ export interface UseListingFiltersResult<TFilterKeys extends string> {
   activeChips: ActiveFilterChip[];
 }
 
+function isActiveFilterValue(value: string, defaultValue: string): boolean {
+  if (!value) return false;
+  if (value === "all") return defaultValue !== "all";
+  return value !== defaultValue;
+}
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -121,6 +137,9 @@ export function useListingFilters<TFilterKeys extends string = string>(
     pageParamName = "page",
     searchDelayMs = 300,
     initialViewMode = "table",
+    preserveParamsOnClear,
+    defaultFilterValues,
+    resetPageOnFilterChange = true,
   } = options;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -169,11 +188,11 @@ export function useListingFilters<TFilterKeys extends string = string>(
         const params = new URLSearchParams(prev);
         if (value && value !== "all") params.set(paramName, value);
         else params.delete(paramName);
-        params.set(pageParamName, "1");
+        if (resetPageOnFilterChange) params.set(pageParamName, "1");
         return params;
       });
     },
-    [filterDefinitions, pageParamName, setSearchParams],
+    [filterDefinitions, pageParamName, resetPageOnFilterChange, setSearchParams],
   );
 
   const setFilters = useCallback(
@@ -187,11 +206,11 @@ export function useListingFilters<TFilterKeys extends string = string>(
           if (value && value !== "all") params.set(paramName, value);
           else params.delete(paramName);
         }
-        params.set(pageParamName, "1");
+        if (resetPageOnFilterChange) params.set(pageParamName, "1");
         return params;
       });
     },
-    [filterDefinitions, pageParamName, setSearchParams],
+    [filterDefinitions, pageParamName, resetPageOnFilterChange, setSearchParams],
   );
 
   const setPage = useCallback(
@@ -207,17 +226,28 @@ export function useListingFilters<TFilterKeys extends string = string>(
   );
 
   const clearAll = useCallback(() => {
-    setSearchParams(new URLSearchParams());
-  }, [setSearchParams]);
+    setSearchInput("");
+    setSearchParams((prev) => {
+      if (!preserveParamsOnClear?.length) return new URLSearchParams();
+      const next = new URLSearchParams();
+      for (const key of preserveParamsOnClear) {
+        const value = prev.get(key);
+        if (value != null) next.set(key, value);
+      }
+      return next;
+    });
+  }, [preserveParamsOnClear, setSearchInput, setSearchParams]);
 
   // ── Estado derivado ────────────────────────────────────────────────────────
   const hasFilters = useMemo(() => {
     if (search.trim()) return true;
-    for (const value of Object.values(filters) as string[]) {
-      if (value) return true;
+    for (const [key] of filterEntries) {
+      const value = filters[key];
+      const defaultValue = defaultFilterValues?.[key] ?? "";
+      if (isActiveFilterValue(value, defaultValue)) return true;
     }
     return false;
-  }, [search, filters]);
+  }, [search, filters, filterEntries, defaultFilterValues]);
 
   // ── Chips ──────────────────────────────────────────────────────────────────
   const activeChips = useMemo<ActiveFilterChip[]>(() => {
@@ -233,7 +263,8 @@ export function useListingFilters<TFilterKeys extends string = string>(
 
     for (const [key, def] of filterEntries) {
       const value = filters[key];
-      if (!value) continue;
+      const defaultValue = defaultFilterValues?.[key] ?? "";
+      if (!isActiveFilterValue(value, defaultValue)) continue;
       const labelFn = chipLabels?.[key];
       if (!labelFn) continue;
       chips.push({
@@ -244,7 +275,15 @@ export function useListingFilters<TFilterKeys extends string = string>(
     }
 
     return chips;
-  }, [search, filters, filterEntries, chipLabels, setSearchInput, setFilter]);
+  }, [
+    search,
+    filters,
+    filterEntries,
+    defaultFilterValues,
+    chipLabels,
+    setSearchInput,
+    setFilter,
+  ]);
 
   // ── Props pre-armadas ──────────────────────────────────────────────────────
   const searchProps = useMemo(

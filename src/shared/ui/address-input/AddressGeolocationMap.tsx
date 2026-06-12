@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@shared/lib/utils/cn";
+import { useMapboxStyle } from "@shared/geolocation/application/hooks/useMapboxStyle";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -36,6 +37,7 @@ export function AddressGeolocationMap({
   disabled = false,
   className,
 }: AddressGeolocationMapProps) {
+  const mapboxStyle = useMapboxStyle();
   const shellRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -43,6 +45,7 @@ export function AddressGeolocationMap({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const onCoordinatesChangeRef = useRef(onCoordinatesChange);
   const disabledRef = useRef(disabled);
+  const prevMapboxStyleRef = useRef(mapboxStyle);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -52,6 +55,43 @@ export function AddressGeolocationMap({
   useEffect(() => {
     disabledRef.current = disabled;
   }, [disabled]);
+
+  const syncMarker = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !isVisible) return;
+
+    const hasCoordinates = latitude != null && longitude != null;
+
+    if (!hasCoordinates) {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      return;
+    }
+
+    const lngLat: [number, number] = [longitude as number, latitude as number];
+    if (!markerRef.current) {
+      const marker = new mapboxgl.Marker({ draggable: !disabledRef.current })
+        .setLngLat(lngLat)
+        .addTo(map);
+      marker.on("dragend", () => {
+        if (disabledRef.current) return;
+        const dragged = marker.getLngLat();
+        onCoordinatesChangeRef.current({
+          latitude: Number(dragged.lat.toFixed(6)),
+          longitude: Number(dragged.lng.toFixed(6)),
+        });
+      });
+      markerRef.current = marker;
+      map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 700 });
+      scheduleMapResize(map);
+      return;
+    }
+
+    markerRef.current.setDraggable(!disabledRef.current);
+    markerRef.current.setLngLat(lngLat);
+    map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 500 });
+    scheduleMapResize(map);
+  }, [isVisible, latitude, longitude]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -82,7 +122,7 @@ export function AddressGeolocationMap({
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
       container,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: mapboxStyle,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: true,
@@ -100,15 +140,19 @@ export function AddressGeolocationMap({
     });
 
     const resize = () => scheduleMapResize(map);
-    map.on("load", resize);
+    map.on("load", () => {
+      resize();
+      syncMarker();
+    });
 
     const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(shell);
     resizeObserverRef.current = resizeObserver;
 
     mapRef.current = map;
+    prevMapboxStyleRef.current = mapboxStyle;
     scheduleMapResizeAfterReveal(map);
-  }, [isVisible, token]);
+  }, [isVisible, mapboxStyle, syncMarker, token]);
 
   useEffect(() => {
     return () => {
@@ -123,40 +167,30 @@ export function AddressGeolocationMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !isVisible || prevMapboxStyleRef.current === mapboxStyle) return;
+
+    prevMapboxStyleRef.current = mapboxStyle;
+    markerRef.current?.remove();
+    markerRef.current = null;
+
+    map.setStyle(mapboxStyle);
+    map.once("style.load", () => {
+      syncMarker();
+      scheduleMapResize(map);
+    });
+  }, [isVisible, mapboxStyle, syncMarker]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !isVisible) return;
 
-    const hasCoordinates = latitude != null && longitude != null;
-
-    if (!hasCoordinates) {
-      markerRef.current?.remove();
-      markerRef.current = null;
+    if (!map.isStyleLoaded()) {
+      map.once("style.load", syncMarker);
       return;
     }
 
-    const lngLat: [number, number] = [longitude as number, latitude as number];
-    if (!markerRef.current) {
-      const marker = new mapboxgl.Marker({ draggable: !disabled })
-        .setLngLat(lngLat)
-        .addTo(map);
-      marker.on("dragend", () => {
-        if (disabledRef.current) return;
-        const dragged = marker.getLngLat();
-        onCoordinatesChangeRef.current({
-          latitude: Number(dragged.lat.toFixed(6)),
-          longitude: Number(dragged.lng.toFixed(6)),
-        });
-      });
-      markerRef.current = marker;
-      map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 700 });
-      scheduleMapResize(map);
-      return;
-    }
-
-    markerRef.current.setDraggable(!disabled);
-    markerRef.current.setLngLat(lngLat);
-    map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 500 });
-    scheduleMapResize(map);
-  }, [disabled, isVisible, latitude, longitude]);
+    syncMarker();
+  }, [disabled, isVisible, latitude, longitude, syncMarker]);
 
   return (
     <div

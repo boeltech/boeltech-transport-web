@@ -40,41 +40,10 @@ export function haversineKm(
  */
 const ROAD_FACTOR = 1.3;
 
-// ============================================================================
-// ALGORITMO DE INTERPOLACIÓN DE TIEMPOS (Carta Porte 3.1)
-// ============================================================================
-//
-// El SAT requiere FechaHoraSalidaLlegada por cada nodo Ubicacion:
-//   - Origen  → FechaHoraSalida  (= scheduledDeparture del viaje, capturado en Paso 1)
-//   - Escalas → FechaHoraLlegada + FechaHoraSalida
-//   - Destino → FechaHoraLlegada (= estimatedArrival, capturado en el dialog de destino)
-//
-// Cuando las escalas no tienen estimatedArrival capturado, el módulo de
-// Facturación debe calcularlos con el siguiente algoritmo:
-//
-//   Sea:
-//     T_total  = estimatedArrival(destino) − scheduledDeparture(origen)  [ms]
-//     D_total  = Σ distanceFromPreviousKm de todas las paradas (excepto origen)
-//
-//   Para cada escala i (índice 1..N-2, siendo N el total de paradas):
-//     D_acumulada(i) = Σ distanceFromPreviousKm[1..i]
-//     FechaHoraLlegada(i) = scheduledDeparture + (D_acumulada(i) / D_total) × T_total
-//     FechaHoraSalida(i)  = FechaHoraLlegada(i) + DWELL_TIME_MS
-//
-//   Constante recomendada:
-//     DWELL_TIME_MS = 30 * 60 * 1000  (30 minutos por defecto, configurable por parada)
-//
-//   Casos de borde:
-//   - Si D_total === 0 (ninguna parada tiene distancia), distribuir el tiempo
-//     de forma equitativa: cada escala recibe T_total / N segmentos.
-//   - Si la escala ya tiene estimatedArrival capturado manualmente, usarlo
-//     directamente sin interpolación.
-//   - Respetar siempre el formato ISO 8601 al construir las fechas.
-//
-// Este algoritmo está intencionalmente fuera del wizard (no se calcula en
-// tiempo real) para no complicar la captura operativa. Se ejecuta únicamente
-// al generar el XML del CFDI con complemento Carta Porte 3.1.
-// ============================================================================
+// Carta Porte 3.1 — resolución de FechaHoraSalidaLlegada e interpolación de escalas:
+// fuente única en `@boeltech/cfdi-domain/reglas/carta-porte-fechas` (`resolveUbicacionFechas`,
+// `interpolateStopTimes`, `toSatFechaH`). El API la consume al timbrar; el wizard no calcula
+// fechas en tiempo real.
 
 /**
  * Estima la distancia por carretera entre dos puntos a partir de sus coordenadas.

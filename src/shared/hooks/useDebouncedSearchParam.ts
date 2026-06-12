@@ -33,6 +33,10 @@ export function useDebouncedSearchParam(
   useEffect(() => {
     if (debouncedSearch === currentSearchValue) return;
 
+    // Tras limpiar filtros desde la URL, el debounce puede ir retrasado ~300ms
+    // y volvería a escribir el término anterior en searchParams.
+    if (currentSearchValue === "" && searchInput === "") return;
+
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev);
@@ -46,6 +50,7 @@ export function useDebouncedSearchParam(
   }, [
     currentSearchValue,
     debouncedSearch,
+    searchInput,
     paramName,
     resetPageParamName,
     setSearchParams,

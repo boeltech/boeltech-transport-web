@@ -86,6 +86,12 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   FINISH_FAILED: "Error al finalizar el viaje",
   GET_FAILED: "Error al obtener los datos",
 
+  // ===== PLAN / LÍMITES (WS-D) =====
+  USER_LIMIT_REACHED:
+    "Tu plan permite hasta 3 usuarios. Contacta a soporte para ampliar tu plan.",
+  BRANCH_LIMIT_REACHED:
+    "Tu plan permite 1 sucursal. Contacta a soporte para ampliar tu plan.",
+
   // ===== AUTENTICACIÓN Y AUTORIZACIÓN =====
   INVALID_CREDENTIALS:
     "Credenciales incorrectas. Verifica tu correo y contraseña.",
