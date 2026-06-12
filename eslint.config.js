@@ -38,4 +38,65 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ['src/features/finance/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@features/invoicing/*'],
+              message:
+                'Finance no debe importar de invoicing. Si necesitas un tipo o hook compartido, muevelo a @shared o al feature finance.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/features/invoicing/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@features/finance/*'],
+              message: 'Invoicing no debe importar de finance.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/features/**/*.{ts,tsx}'],
+    ignores: [
+      '**/*.test.*',
+      '**/uiHelpers.ts',
+      '**/ComponentsSection.tsx',
+      '**/CatalogTypeCard.tsx',
+      '**/TripDetailPage.tsx',
+      '**/CargoStep.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'Literal[value=/\\b(bg|text|border)-(red|blue|green|yellow|amber|emerald|gray|slate|white)-\\d/]',
+          message:
+            'Usa tokens del design system (p. ej. bg-destructive-soft, text-warning) en lugar de colores Tailwind crudos.',
+        },
+        {
+          selector:
+            'TemplateElement[value.raw=/\\b(bg|text|border)-(red|blue|green|yellow|amber|emerald|gray|slate|white)-\\d/]',
+          message:
+            'Usa tokens del design system (p. ej. bg-destructive-soft, text-warning) en lugar de colores Tailwind crudos.',
+        },
+      ],
+    },
+  },
 ])

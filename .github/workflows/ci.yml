@@ -28,6 +28,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Design token guardrail
+        run: npm run lint:design-tokens
+
+      - name: Dark mode smoke tests
+        run: npm run test:smoke:dark
+
+      - name: WCAG contrast audit (dark)
+        run: npm run audit:contrast
+
       - name: Unit tests
         run: npm run test
 

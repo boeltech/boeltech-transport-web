@@ -9,6 +9,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    pool: "forks",
+    maxWorkers: process.env.CI ? undefined : 2,
+    fileParallelism: process.env.VITEST_SERIAL !== "1",
   },
   resolve: {
     alias: {

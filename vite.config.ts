@@ -19,6 +19,12 @@ export default defineConfig({
     },
   },
 
+  server: {
+    watch: {
+      ignored: ["**/boeltech-cfdi-domain/dist/**"],
+    },
+  },
+
   // SOLO PARA CONFIG DE SHADCN/UI
   // resolve: {
   //   alias: {
