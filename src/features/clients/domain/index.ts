@@ -21,6 +21,10 @@ export type {
   AddressType,
   // Wizard
   ClientWizardStep,
+  ClientContact,
+  ClientSummary,
+  ClientTripHistoryItem,
+  ClientTripHistoryFilters,
 } from "./entities";
 
 // Constants & Labels
@@ -30,6 +34,7 @@ export {
   ADDRESS_TYPE_LABELS,
   ADDRESS_TYPE_VARIANTS,
   CLIENT_WIZARD_STEPS,
+  CLIENT_CONTACT_ROLE_LABELS,
   // Query Keys
   clientQueryKeys,
   // Type Guards
@@ -56,16 +61,23 @@ export type {
   // Address DTOs
   CreateClientAddressDTO,
   UpdateClientAddressDTO,
+  CreateClientContactDTO,
+  UpdateClientContactDTO,
   // Wizard DTOs
   CreateClientWithAddressDTO,
   CreateClientResult,
   // Repository Interfaces
   IClientRepository,
   IClientAddressRepository,
+  IClientContactRepository,
+  IClientHistoryRepository,
   // API Response Types
   ClientListItemApiResponse,
   ClientApiResponse,
   ClientAddressApiResponse,
+  ClientContactApiResponse,
+  ClientSummaryApiResponse,
+  ClientTripHistoryItemApiResponse,
   ClientAddressCartaPorteApiResponse,
   CreateClientApiResponse,
   UpdateClientApiResponse,

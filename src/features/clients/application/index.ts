@@ -19,6 +19,7 @@ export {
   createClientUseCase,
   CreateClientUseCase,
   CreateClientAddressFailedError,
+  CreateClientPrimaryContactFailedError,
 } from "./useCases/CreateClientUseCase";
 export {
   updateClientUseCase,
@@ -52,4 +53,13 @@ export { useCreateClientAddress } from "./hooks/useCreateClientAddress";
 export { useUpdateClientAddress } from "./hooks/useUpdateClientAddress";
 export { useDeleteClientAddress } from "./hooks/useDeleteClientAddress";
 export { useSetPrimaryClientAddress } from "./hooks/useSetPrimaryClientAddress";
+
+// Client contact hooks (WS-B)
+export { useClientContacts, useClientContact } from "./hooks/useClientContacts";
+export { useCreateClientContact } from "./hooks/useCreateClientContact";
+export { useUpdateClientContact } from "./hooks/useUpdateClientContact";
+export { useDeleteClientContact } from "./hooks/useDeleteClientContact";
+export { useSetPrimaryClientContact } from "./hooks/useSetPrimaryClientContact";
+export { useClientSummary } from "./hooks/useClientSummary";
+export { useClientTripHistory } from "./hooks/useClientTripHistory";
 

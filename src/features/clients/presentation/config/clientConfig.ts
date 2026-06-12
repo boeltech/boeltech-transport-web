@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ClientType, PaymentTerms, AddressType } from "../../domain";
+import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
 
 // ============================================================================
 // CLIENT TYPE CONFIG
@@ -317,12 +318,7 @@ export function getStatusConfig(isActive: boolean): StatusConfig {
  */
 export function formatCreditLimit(limit: number | undefined): string {
   if (!limit || limit === 0) return "Sin límite";
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(limit);
+  return formatMxCurrencyWhole(limit);
 }
 
 /**
@@ -332,3 +328,18 @@ export function formatCreditDays(days: number): string {
   if (days === 0) return "N/A";
   return `${days} días`;
 }
+
+// ============================================================================
+// CLIENT ADDRESS — DATOS FISCALES OPERATIVOS (CARTA PORTE)
+// ============================================================================
+
+export const CLIENT_ADDRESS_FISCAL_COPY = {
+  sectionTitle: "Datos fiscales operativos",
+  hint:
+    "RFC y nombre del remitente o destinatario en esta ubicación. Se usan al timbrar Carta Porte en viajes que referencien esta dirección.",
+  rfcLabel: "RFC remitente/destinatario",
+  rfcPlaceholder: "Ej. XAXX010101000",
+  nombreLabel: "Nombre o razón social",
+  nombrePlaceholder: "Como aparece ante el SAT",
+  useClientData: "Usar datos fiscales del cliente",
+} as const;

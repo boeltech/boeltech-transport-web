@@ -10,6 +10,8 @@
 // Repositories
 export { clientRepository } from "./ClientRepository";
 export { clientAddressRepository } from "./ClientAddressRepository";
+export { clientContactRepository } from "./ClientContactRepository";
+export { clientHistoryRepository } from "./ClientHistoryRepository";
 
 // Mappers
 export {

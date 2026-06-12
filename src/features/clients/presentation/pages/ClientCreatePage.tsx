@@ -170,6 +170,16 @@ export function ClientCreatePage() {
         billingAddress: clientAddressFormDataToCreateDto(addressSnapshot, {
           context: "billingOnCreate",
         }),
+        primaryContact: clientSnapshot.contactName?.trim()
+          ? {
+              fullName: clientSnapshot.contactName.trim(),
+              position: clientSnapshot.contactPosition?.trim() || null,
+              phone: clientSnapshot.phone?.trim() || null,
+              secondaryPhone: clientSnapshot.secondaryPhone?.trim() || null,
+              email: clientSnapshot.email?.trim() || null,
+              isPrimary: true,
+            }
+          : undefined,
       },
       {
         onSuccess: (result) => navigate(`/clients/${result.clientId}`),

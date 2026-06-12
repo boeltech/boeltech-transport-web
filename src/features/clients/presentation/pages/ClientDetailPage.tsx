@@ -18,22 +18,28 @@ import {
   Receipt,
   Timer,
   Wallet,
+  CalendarDays,
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
+import { formatDate } from "@shared/utils/dateUtils";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
 
-import { useClient, useClientAddresses } from "../../application";
-import type { Client } from "../../domain";
+import { useClient, useClientAddresses, useClientSummary } from "../../application";
+import type { Client, ClientSummary } from "../../domain";
 import { getClientDisplayName } from "../../domain";
 import {
   ClientActions,
   ClientAddressMasterDetail,
+  ClientContactsMasterDetail,
   ClientDetailCommercialTab,
   ClientDetailDataTab,
+  ClientTripHistoryTab,
 } from "../components";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
@@ -52,7 +58,11 @@ import {
 // HELPERS
 // ============================================================================
 
-function buildClientStats(client: Client): StatCardProps[] {
+function buildClientStats(
+  client: Client,
+  summary: ClientSummary | undefined,
+  summaryLoading: boolean,
+): StatCardProps[] {
   let creditValue: string;
   let creditDescription: string | undefined;
   if (client.paymentTerms === "cash") {
@@ -66,27 +76,52 @@ function buildClientStats(client: Client): StatCardProps[] {
     creditDescription = "Registra límite en edición";
   }
 
+  const statsCopy = clientDetailCopy.stats;
+
+  const lastTripValue = summaryLoading
+    ? "…"
+    : summary?.lastTripAt
+      ? formatDate(summary.lastTripAt)
+      : "—";
+
   return [
     {
-      title: "Viajes activos",
-      value: "—",
+      title: statsCopy.activeTrips,
+      value: summaryLoading ? "…" : (summary?.activeTrips ?? "—"),
       tone: "primary",
       icon: <Route className="h-5 w-5" />,
-      description: "Próximamente",
+      tooltip: statsCopy.operationalHint,
     },
     {
-      title: "Total facturado",
-      value: "—",
+      title: statsCopy.lastTrip,
+      value: lastTripValue,
+      tone: "neutral",
+      icon: <CalendarDays className="h-5 w-5" />,
+    },
+    {
+      title: statsCopy.revenue,
+      value: summaryLoading
+        ? "…"
+        : summary != null
+          ? formatMxCurrency(summary.totalRevenue)
+          : "—",
       tone: "success",
       icon: <Receipt className="h-5 w-5" />,
-      description: "Próximamente",
+      tooltip: statsCopy.revenueTooltip,
     },
     {
-      title: "Días prom. pago",
-      value: "—",
+      title: statsCopy.avgPaymentDays,
+      value: summaryLoading
+        ? "…"
+        : summary?.avgPaymentDays != null
+          ? `${Math.round(summary.avgPaymentDays)} d`
+          : "—",
       tone: "info",
       icon: <Timer className="h-5 w-5" />,
-      description: "Histórico de cobranza",
+      description:
+        summary?.avgPaymentDays != null
+          ? statsCopy.avgPaymentHint
+          : statsCopy.noPayments,
     },
     {
       title: "Crédito disponible",
@@ -120,12 +155,16 @@ export function ClientDetailPage() {
     enabled: !!clientId && !clientUnavailable,
   });
 
+  const summaryQuery = useClientSummary(clientId || undefined, {
+    enabled: !!clientId && !clientUnavailable,
+  });
+
   const [activeTab, setActiveTab] = useState("informacion");
 
   const clientStats = useMemo((): StatCardProps[] => {
     if (!client) return [];
-    return buildClientStats(client);
-  }, [client]);
+    return buildClientStats(client, summaryQuery.data, summaryQuery.isLoading);
+  }, [client, summaryQuery.data, summaryQuery.isLoading]);
 
   const clientAlerts = useMemo(() => {
     if (!client) return undefined;
@@ -267,6 +306,7 @@ export function ClientDetailPage() {
               <ClientDetailDataTab
                 client={client}
                 taxRegimeLabel={taxRegimeLabel}
+                onGoToContacts={() => setActiveTab("contacts")}
                 commercialSection={
                   <ClientDetailCommercialTab
                     client={client}
@@ -278,6 +318,11 @@ export function ClientDetailPage() {
             ),
           },
           {
+            value: "contacts",
+            label: "Contactos",
+            content: <ClientContactsMasterDetail clientId={client.id} />,
+          },
+          {
             value: "addresses",
             label: "Direcciones",
             content: (
@@ -287,6 +332,11 @@ export function ClientDetailPage() {
                 clientName={client.legalName}
               />
             ),
+          },
+          {
+            value: "history",
+            label: clientDetailCopy.history.tab,
+            content: <ClientTripHistoryTab clientId={client.id} />,
           },
         ],
       }}

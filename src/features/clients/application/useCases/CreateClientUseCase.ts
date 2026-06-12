@@ -8,7 +8,8 @@
  * FLUJO:
  * 1. Crear el cliente (POST /clients)
  * 2. Crear la dirección fiscal (POST /clients/:id/addresses)
- * 3. Retornar el resultado combinado
+ * 3. Crear contacto principal si se proporcionó (POST /clients/:id/contacts)
+ * 4. Retornar el resultado combinado
  *
  * Ubicación: src/features/clients/application/use-cases/CreateClientUseCase.ts
  */
@@ -16,6 +17,7 @@
 import {
   clientRepository,
   clientAddressRepository,
+  clientContactRepository,
 } from "../../infrastructure";
 import type {
   CreateClientDTO,
@@ -51,6 +53,31 @@ export class CreateClientAddressFailedError extends Error {
   }
 }
 
+/**
+ * Cliente y dirección creados, pero falló el contacto principal opcional.
+ */
+export class CreateClientPrimaryContactFailedError extends Error {
+  readonly clientId: string;
+  readonly clientCode: string;
+  readonly addressId: string;
+  readonly causeError: unknown;
+
+  constructor(
+    message: string,
+    clientId: string,
+    clientCode: string,
+    addressId: string,
+    causeError?: unknown,
+  ) {
+    super(message);
+    this.name = "CreateClientPrimaryContactFailedError";
+    this.clientId = clientId;
+    this.clientCode = clientCode;
+    this.addressId = addressId;
+    this.causeError = causeError;
+  }
+}
+
 // ============================================================================
 // USE CASE
 // ============================================================================
@@ -71,14 +98,12 @@ export class CreateClientUseCase {
 
     try {
       // 2. Crear la dirección fiscal
-      // Forzar addressType = 'billing' e isPrimary = true
       const addressData: CreateClientAddressDTO = {
         ...data.billingAddress,
         addressType: "billing",
         isPrimary: true,
       };
 
-      // Pre-llenar RFC y nombre del cliente si no se proporcionaron
       if (!addressData.rfcRemitenteDestinatario) {
         addressData.rfcRemitenteDestinatario = data.client.taxId;
       }
@@ -91,12 +116,37 @@ export class CreateClientUseCase {
         addressData,
       );
 
+      // 3. Contacto principal (tabla client_contacts)
+      if (data.primaryContact?.fullName?.trim()) {
+        try {
+          await clientContactRepository.create(clientId, {
+            ...data.primaryContact,
+            isPrimary: true,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "No se pudo registrar el contacto principal.";
+          throw new CreateClientPrimaryContactFailedError(
+            message,
+            clientId,
+            clientCode,
+            address.id,
+            error,
+          );
+        }
+      }
+
       return {
         clientId,
         clientCode,
         addressId: address.id,
       };
     } catch (error) {
+      if (error instanceof CreateClientPrimaryContactFailedError) {
+        throw error;
+      }
       const message =
         error instanceof Error
           ? error.message

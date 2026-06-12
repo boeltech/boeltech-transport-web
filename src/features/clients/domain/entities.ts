@@ -39,6 +39,67 @@ export type ClientType = "individual" | "company";
 export type PaymentTerms = "cash" | "credit";
 
 /**
+ * Contacto operativo del cliente (tabla `client_contacts`, WS-B).
+ */
+export interface ClientContact {
+  id: string;
+  tenantId: string;
+  clientId: string;
+  fullName: string;
+  position?: string;
+  email?: string;
+  phone?: string;
+  secondaryPhone?: string;
+  signsCartaPorte: boolean;
+  receivesInvoices: boolean;
+  authorizesPayments: boolean;
+  isPrimary: boolean;
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+export const CLIENT_CONTACT_ROLE_LABELS = {
+  signsCartaPorte: "Firma Carta Porte",
+  receivesInvoices: "Recibe facturas",
+  authorizesPayments: "Autoriza pagos",
+} as const;
+
+export interface ClientSummary {
+  activeTrips: number;
+  totalTrips: number;
+  excludedTrips: number;
+  totalRevenue: number;
+  avgPaymentDays: number | null;
+  lastTripAt: string | null;
+}
+
+export interface ClientTripHistoryItem {
+  tripId: string;
+  tripCode: string;
+  status: string;
+  originLabel: string | null;
+  destinationLabel: string | null;
+  scheduledDeparture: string | null;
+  revenue: number;
+  revenueSource: string | null;
+  projectedRevenue?: number;
+  financialBucket?: string;
+  invoiceStatus: string;
+}
+
+export interface ClientTripHistoryFilters {
+  page?: number;
+  limit?: number;
+  status?: string;
+  /** Incluye borradores y cancelados (por defecto solo cohorte operativa). */
+  includeExcluded?: boolean;
+}
+
+/**
  * Tipo de dirección (tabla unificada `addresses`, alineado a catálogos SAT / ADR-0043).
  */
 export type AddressType =
@@ -100,6 +161,9 @@ export interface Client {
   createdByName?: string;
   /** Nombre completo del usuario que realizó la última actualización. */
   updatedByName?: string;
+
+  /** Contacto principal desde `client_contacts` (WS-B). */
+  primaryContact?: ClientContact;
 }
 
 /**
@@ -330,6 +394,16 @@ export const clientQueryKeys = {
     [...clientQueryKeys.detail(clientId), "addresses"] as const,
   address: (clientId: string, addressId: string) =>
     [...clientQueryKeys.addresses(clientId), addressId] as const,
+
+  // Contactos (WS-B)
+  contacts: (clientId: string) =>
+    [...clientQueryKeys.detail(clientId), "contacts"] as const,
+  contact: (clientId: string, contactId: string) =>
+    [...clientQueryKeys.contacts(clientId), contactId] as const,
+  summary: (clientId: string) =>
+    [...clientQueryKeys.detail(clientId), "summary"] as const,
+  tripHistory: (clientId: string, filters?: ClientTripHistoryFilters) =>
+    [...clientQueryKeys.detail(clientId), "trip-history", filters ?? {}] as const,
 } as const;
 
 // ============================================================================

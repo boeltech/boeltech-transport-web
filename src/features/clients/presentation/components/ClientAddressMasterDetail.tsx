@@ -431,7 +431,7 @@ export function ClientAddressMasterDetail({
         // ────────────────────────────────────────────────────────────────────
         // Master-detail
         // ────────────────────────────────────────────────────────────────────
-        <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:gap-0">
+        <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:items-stretch md:gap-0">
           {/* ─── Master: lista compacta ──────────────────────────────────── */}
           <div className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2">
             {effectiveMode === "create" && !readOnly ? (
@@ -456,7 +456,7 @@ export function ClientAddressMasterDetail({
           </div>
 
           {/* ─── Detail: vista o formulario ──────────────────────────────── */}
-          <div className="bg-background md:rounded-r-md md:p-5">
+          <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
             {!readOnly && effectiveMode === "create" && !isMobile ? (
               <FormPanel
                 title="Nueva dirección"
@@ -650,7 +650,7 @@ export function ClientAddressMasterDetail({
 }
 
 // ============================================================================
-// SUB-COMPONENT: panel del formulario (altura natural; scroll la página/tab)
+// SUB-COMPONENT: panel del formulario (header/footer fijos; scroll en el cuerpo)
 // ============================================================================
 
 interface FormPanelProps {
@@ -673,15 +673,15 @@ function FormPanel({
   children,
 }: FormPanelProps) {
   return (
-    <div className="flex flex-col">
-      <header className="mb-4 border-b pb-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <header className="mb-4 shrink-0 border-b pb-3">
         <h3 className="text-base font-semibold">{title}</h3>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </header>
-      <div className="min-w-0">{children}</div>
-      <footer className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
+      <div className="min-h-0 flex-1 overflow-y-auto min-w-0">{children}</div>
+      <footer className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t pt-3">
         <Button variant="outline" onClick={onCancel} disabled={isPending}>
           Cancelar
         </Button>

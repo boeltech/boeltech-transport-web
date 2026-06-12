@@ -47,7 +47,8 @@ import {
   buildGeocodingEntityFormSection,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
-import { MapPin } from "lucide-react";
+import { FileText, MapPin } from "lucide-react";
+import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 import { resolveAddressFormFieldRequirements } from "@shared/validation/addressFormProfileUx";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
@@ -63,7 +64,12 @@ import {
   defaultBillingAddressFormValues,
   type ClientAddressFormData,
 } from "../validation/clientAddressSchema";
-import { ADDRESS_TYPE_CONFIG } from "../config/clientConfig";
+import {
+  ADDRESS_TYPE_CONFIG,
+  CLIENT_ADDRESS_FISCAL_COPY,
+} from "../config/clientConfig";
+
+const fiscalCopy = CLIENT_ADDRESS_FISCAL_COPY;
 
 // ============================================================================
 // TYPES
@@ -336,7 +342,7 @@ const ClientAddressFormRoot = forwardRef<
     [formContext, formValues.addressType],
   );
 
-  // Pre-llenar remitente/destinatario desde el cliente si el formulario viene vacío (sin UI operativa).
+  // Pre-llenar remitente/destinatario desde el cliente si el formulario viene vacío.
   useEffect(() => {
     if (!clientRfc && !clientName) return;
     const currentRfc = (formValues.rfcRemitenteDestinatario ?? "").trim();
@@ -498,6 +504,88 @@ const ClientAddressFormRoot = forwardRef<
     });
   }
 
+  const handleApplyClientFiscalData = useCallback(() => {
+    if (clientRfc) {
+      setValue("rfcRemitenteDestinatario", clientRfc.toUpperCase(), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+    if (clientName) {
+      setValue("nombreRemitenteDestinatario", clientName, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [clientName, clientRfc, setValue]);
+
+  const fiscalOperativoSection: EntityAddressFormSection = {
+    id: "client-address-fiscal-operativo",
+    title: fiscalCopy.sectionTitle,
+    icon: <FileText className="h-4 w-4" />,
+    content: (
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground">{fiscalCopy.hint}</p>
+        {clientRfc || clientName ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={handleApplyClientFiscalData}
+          >
+            {fiscalCopy.useClientData}
+          </Button>
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="rfcRemitenteDestinatario">{fiscalCopy.rfcLabel}</Label>
+            <Input
+              id="rfcRemitenteDestinatario"
+              placeholder={fiscalCopy.rfcPlaceholder}
+              className="uppercase"
+              maxLength={13}
+              disabled={disabled}
+              error={Boolean(errors.rfcRemitenteDestinatario)}
+              {...register("rfcRemitenteDestinatario", {
+                setValueAs: (value: string) =>
+                  typeof value === "string" ? value.toUpperCase() : value,
+              })}
+              {...getFieldErrorAriaProps(
+                "rfcRemitenteDestinatario",
+                errors.rfcRemitenteDestinatario?.message,
+              )}
+            />
+            <FieldInlineError
+              fieldId="rfcRemitenteDestinatario"
+              message={errors.rfcRemitenteDestinatario?.message}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="nombreRemitenteDestinatario">
+              {fiscalCopy.nombreLabel}
+            </Label>
+            <Input
+              id="nombreRemitenteDestinatario"
+              placeholder={fiscalCopy.nombrePlaceholder}
+              disabled={disabled}
+              error={Boolean(errors.nombreRemitenteDestinatario)}
+              {...register("nombreRemitenteDestinatario")}
+              {...getFieldErrorAriaProps(
+                "nombreRemitenteDestinatario",
+                errors.nombreRemitenteDestinatario?.message,
+              )}
+            />
+            <FieldInlineError
+              fieldId="nombreRemitenteDestinatario"
+              message={errors.nombreRemitenteDestinatario?.message}
+            />
+          </div>
+        </div>
+      </div>
+    ),
+  };
+
   const geocodingSection = buildGeocodingEntityFormSection({
     address: {
       locationName: formValues.locationName,
@@ -525,7 +613,7 @@ const ClientAddressFormRoot = forwardRef<
     disabled,
   });
 
-  const postAddressSections = [geocodingSection];
+  const postAddressSections = [geocodingSection, fiscalOperativoSection];
 
   return (
     <EntityAddressForm

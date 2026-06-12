@@ -16,7 +16,7 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FieldInlineError, MoneyInput, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
@@ -347,8 +347,23 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           />
           <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
+        {mode === "edit" ? (
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="billingEmail">Correo de Facturación</Label>
+            <Input
+              id="billingEmail"
+              type="email"
+              disabled={disabled}
+              error={Boolean(errors.billingEmail)}
+              {...register("billingEmail")}
+              {...getFieldErrorAriaProps("billingEmail", errors.billingEmail?.message)}
+            />
+            <FieldInlineError fieldId="billingEmail" message={errors.billingEmail?.message} />
+          </div>
+        ) : null}
       </FormSectionCard>
 
+      {mode !== "edit" ? (
       <FormSectionCard
         title="Contacto Principal"
         icon={<Phone className="h-4 w-4" />}
@@ -407,6 +422,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <FieldInlineError fieldId="billingEmail" message={errors.billingEmail?.message} />
         </div>
       </FormSectionCard>
+      ) : null}
 
       <FormSectionCard
         title="Términos Comerciales"
@@ -486,19 +502,19 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Controller
             name="creditLimit"
             control={control}
-            render={({ field }) => (
-              <Input
+            render={({ field, fieldState }) => (
+              <MoneyInput
                 id="creditLimit"
-                type="number"
-                min={0}
+                value={field.value}
+                onValueChange={field.onChange}
+                onBlur={field.onBlur}
                 disabled={disabled || paymentTerms !== "credit"}
-                value={field.value || ""}
-                onChange={(e) =>
-                  field.onChange(e.target.value ? Number(e.target.value) : undefined)
-                }
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps("creditLimit", fieldState.error?.message)}
               />
             )}
           />
+          <FieldInlineError fieldId="creditLimit" message={errors.creditLimit?.message} />
           <p className="text-xs text-muted-foreground">Dejar vacío para sin límite</p>
         </div>
       </FormSectionCard>

@@ -22,6 +22,10 @@ import type {
   ClientListItem,
   ClientAddress,
   ClientAddressListItem,
+  ClientContact,
+  ClientSummary,
+  ClientTripHistoryItem,
+  ClientTripHistoryFilters,
   ClientType,
   PaymentTerms,
   AddressType,
@@ -181,6 +185,9 @@ export interface CreateClientWithAddressDTO {
 
   // Dirección fiscal (Paso 2)
   billingAddress: CreateClientAddressDTO;
+
+  /** Contacto principal opcional (Paso 1 → POST /contacts con is_primary) */
+  primaryContact?: CreateClientContactDTO | null;
 }
 
 /**
@@ -299,6 +306,7 @@ export interface ClientApiResponse {
   updated_by: string | null;
   created_by_name: string | null;
   updated_by_name: string | null;
+  primary_contact?: ClientContactApiResponse | null;
 }
 
 /**
@@ -391,4 +399,99 @@ export interface CreateClientApiResponse {
 export interface UpdateClientApiResponse {
   message: string;
   data: ClientApiResponse;
+}
+
+// ============================================================================
+// CLIENT CONTACT DTOs (WS-B)
+// ============================================================================
+
+export interface CreateClientContactDTO {
+  fullName: string;
+  position?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  secondaryPhone?: string | null;
+  signsCartaPorte?: boolean;
+  receivesInvoices?: boolean;
+  authorizesPayments?: boolean;
+  isPrimary?: boolean;
+  notes?: string | null;
+}
+
+export interface UpdateClientContactDTO {
+  fullName?: string;
+  position?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  secondaryPhone?: string | null;
+  signsCartaPorte?: boolean;
+  receivesInvoices?: boolean;
+  authorizesPayments?: boolean;
+  isPrimary?: boolean;
+  notes?: string | null;
+}
+
+export interface ClientContactApiResponse {
+  id: string;
+  tenant_id: string;
+  client_id: string;
+  full_name: string;
+  position: string | null;
+  email: string | null;
+  phone: string | null;
+  secondary_phone: string | null;
+  signs_carta_porte: boolean;
+  receives_invoices: boolean;
+  authorizes_payments: boolean;
+  is_primary: boolean;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface ClientSummaryApiResponse {
+  active_trips: number;
+  total_trips: number;
+  excluded_trips: number;
+  total_revenue: number;
+  avg_payment_days: number | null;
+  last_trip_at: string | null;
+}
+
+export interface ClientTripHistoryItemApiResponse {
+  trip_id: string;
+  trip_code: string;
+  status: string;
+  origin_label: string | null;
+  destination_label: string | null;
+  scheduled_departure: string | null;
+  revenue: number;
+  revenue_source: string | null;
+  projected_revenue?: number;
+  financial_bucket?: string;
+  invoice_status: string;
+}
+
+export interface IClientContactRepository {
+  findByClientId(clientId: string): Promise<ClientContact[]>;
+  findById(clientId: string, contactId: string): Promise<ClientContact | null>;
+  create(clientId: string, data: CreateClientContactDTO): Promise<ClientContact>;
+  update(
+    clientId: string,
+    contactId: string,
+    data: UpdateClientContactDTO,
+  ): Promise<ClientContact>;
+  setPrimary(clientId: string, contactId: string): Promise<void>;
+  delete(clientId: string, contactId: string): Promise<void>;
+}
+
+export interface IClientHistoryRepository {
+  getSummary(clientId: string): Promise<ClientSummary>;
+  getTripHistory(
+    clientId: string,
+    filters?: ClientTripHistoryFilters,
+  ): Promise<PaginatedResult<ClientTripHistoryItem>>;
 }

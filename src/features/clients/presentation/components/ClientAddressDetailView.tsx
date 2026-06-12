@@ -79,11 +79,11 @@ export function ClientAddressDetailView({
   const showActions = !readOnly && Boolean(onEdit && onDelete);
 
   return (
-    <div className={cn("flex flex-col gap-5", className)}>
+    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
       {/* ────────────────────────────────────────────────────────────────── */}
       {/* Header                                                             */}
       {/* ────────────────────────────────────────────────────────────────── */}
-      <header className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex shrink-0 flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <div
             className={cn(
@@ -179,6 +179,8 @@ export function ClientAddressDetailView({
         ) : null}
       </header>
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-5 pt-5 pr-1">
       {/* ────────────────────────────────────────────────────────────────── */}
       {/* Datos de ubicación                                                  */}
       {/* ────────────────────────────────────────────────────────────────── */}
@@ -324,6 +326,8 @@ export function ClientAddressDetailView({
           ) : null}
         </section>
       ) : null}
+        </div>
+      </div>
     </div>
   );
 }

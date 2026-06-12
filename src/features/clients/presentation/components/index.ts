@@ -16,6 +16,13 @@ export { ClientActions } from "./ClientActions";
 export { ClientDetailDataTab } from "./ClientDetailDataTab";
 export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
 
+// Contact components (WS-B)
+export { ClientContactForm } from "./ClientContactForm";
+export { ClientContactListRow } from "./ClientContactListRow";
+export { ClientContactDetailView } from "./ClientContactDetailView";
+export { ClientContactsMasterDetail } from "./ClientContactsMasterDetail";
+export { ClientTripHistoryTab } from "./ClientTripHistoryTab";
+
 // Address components
 export { ClientAddressCard } from "./ClientAddressCard";
 export { ClientAddressForm } from "./ClientAddressForm";
@@ -31,3 +38,7 @@ export type { ClientAddressFormProps } from "./ClientAddressForm";
 export type { ClientAddressListRowProps } from "./ClientAddressListItem";
 export type { ClientAddressDetailViewProps } from "./ClientAddressDetailView";
 export type { ClientAddressMasterDetailProps } from "./ClientAddressMasterDetail";
+export type { ClientContactFormProps, ClientContactFormRef } from "./ClientContactForm";
+export type { ClientContactListRowProps } from "./ClientContactListRow";
+export type { ClientContactDetailViewProps } from "./ClientContactDetailView";
+export type { ClientContactsMasterDetailProps } from "./ClientContactsMasterDetail";

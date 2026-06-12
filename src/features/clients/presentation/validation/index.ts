@@ -36,3 +36,12 @@ export {
   type UpdateClientAddressFormData,
   type ClientAddressTypeValue,
 } from "./clientAddressSchema";
+
+export {
+  clientContactFormSchema,
+  defaultClientContactFormValues,
+  clientContactToFormValues,
+  clientContactFormDataToCreateDto,
+  clientContactFormDataToUpdateDto,
+  type ClientContactFormData,
+} from "./clientContactSchema";

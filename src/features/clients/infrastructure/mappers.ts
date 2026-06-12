@@ -118,6 +118,28 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     updatedBy: raw.updatedBy ?? undefined,
     createdByName: raw.createdByName ?? undefined,
     updatedByName: raw.updatedByName ?? undefined,
+    primaryContact: raw.primaryContact
+      ? {
+          id: raw.primaryContact.id,
+          tenantId: raw.primaryContact.tenantId,
+          clientId: raw.primaryContact.clientId,
+          fullName: raw.primaryContact.fullName,
+          position: raw.primaryContact.position ?? undefined,
+          email: raw.primaryContact.email ?? undefined,
+          phone: raw.primaryContact.phone ?? undefined,
+          secondaryPhone: raw.primaryContact.secondaryPhone ?? undefined,
+          signsCartaPorte: raw.primaryContact.signsCartaPorte,
+          receivesInvoices: raw.primaryContact.receivesInvoices,
+          authorizesPayments: raw.primaryContact.authorizesPayments,
+          isPrimary: raw.primaryContact.isPrimary,
+          isActive: raw.primaryContact.isActive,
+          notes: raw.primaryContact.notes ?? undefined,
+          createdAt: raw.primaryContact.createdAt,
+          updatedAt: raw.primaryContact.updatedAt,
+          createdBy: raw.primaryContact.createdBy ?? undefined,
+          updatedBy: raw.primaryContact.updatedBy ?? undefined,
+        }
+      : undefined,
   };
 }
 
