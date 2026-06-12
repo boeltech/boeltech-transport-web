@@ -5,8 +5,6 @@ export type {
   InvoiceListItem,
   InvoiceTripRef,
   Payment,
-  FinanceSummary,
-  AccountStatementItem,
   InvoicePrefill,
   PaginatedInvoices,
   CreateInvoicePayload,
@@ -26,8 +24,6 @@ export {
   useInvoices,
   useInvoice,
   useInvoicePayments,
-  useFinanceSummary,
-  useAccountStatement,
   useInvoicePrefill,
   useCreateInvoice,
   useUpdateInvoice,
@@ -42,7 +38,7 @@ export {
 export { invoicingApi } from "./infrastructure";
 
 // Presentation — pages
-export { FinancePage, InvoiceDetailPage, CreateInvoicePage } from "./presentation/pages";
+export { InvoiceDetailPage, CreateInvoicePage } from "./presentation/pages";
 
 // Presentation — components
 export {
@@ -50,8 +46,7 @@ export {
   InvoiceTable,
   PaymentFormDialog,
   CancelInvoiceDialog,
-  SubstituteInvoiceDialog,
-  FinanceSummaryCards,
+  SubstituteInvoiceSheet,
   INVOICE_STATUS_CONFIG,
   getInvoiceStatusConfig,
 } from "./presentation/components";

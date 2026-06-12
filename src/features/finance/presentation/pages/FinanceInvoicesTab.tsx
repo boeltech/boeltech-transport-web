@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FileText, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
@@ -10,53 +10,61 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { useListingFilters, useToast } from "@shared/hooks";
+import { useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
-  useInvoices,
+  useFinanceInvoicesList,
+  useFinanceListingFilters,
   useFinanceSummary,
-} from "@features/invoicing/application";
+} from "@features/finance/application";
+import type {
+  FinanceInvoiceListItem,
+  FinanceInvoiceStatus,
+} from "@features/finance/domain";
 import {
-  InvoiceStatusLabels,
-  type InvoiceListItem,
-  type InvoiceStatus,
-} from "@features/invoicing/domain";
-import { InvoiceTable, InvoicesSummaryCards } from "../components";
+  FinanceInvoiceListTable,
+  FinanceInvoicesSummaryCards,
+} from "../components";
+import { financeCopy } from "../copy";
 import {
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
-} from "../financeInvoiceFromTripCta";
+} from "../utils/financeInvoiceFromTripCta";
 
 interface FinanceInvoicesTabProps {
   showFinanceSummaryMetrics: boolean;
 }
 
+const invoiceStatusLabels = financeCopy.invoices.statusLabels;
+
 export function FinanceInvoicesTab({
   showFinanceSummaryMetrics,
 }: FinanceInvoicesTabProps) {
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
 
-  const filters = useListingFilters<"status">({
+  const filters = useFinanceListingFilters<"status">({
     filters: { status: {} },
     chipLabels: {
       status: (value) =>
-        `Estado: ${InvoiceStatusLabels[value as InvoiceStatus] ?? value}`,
+        financeCopy.invoices.filters.chipLabel(
+          invoiceStatusLabels[value as FinanceInvoiceStatus] ?? value,
+        ),
     },
   });
 
-  const statusFilter = filters.filters.status as InvoiceStatus | "";
+  const statusFilter = filters.filters.status as FinanceInvoiceStatus | "";
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useInvoices({
-    search: filters.search || undefined,
-    status: statusFilter || undefined,
-    page: filters.page,
-    limit: 20,
-  });
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useFinanceInvoicesList({
+      search: filters.search || undefined,
+      status: statusFilter || undefined,
+      page: filters.page,
+      limit: 20,
+    });
 
   const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
     enabled: showFinanceSummaryMetrics,
@@ -68,28 +76,19 @@ export function FinanceInvoicesTab({
     if (isError && error) {
       toast({
         variant: "destructive",
-        title: "Error al cargar facturas",
+        title: financeCopy.invoices.toasts.loadError,
         description: getErrorMessage(error),
       });
     }
   }, [isError, error, toast]);
 
-  const handleClearFilters = useCallback(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams();
-      const tab = prev.get("tab");
-      if (tab) next.set("tab", tab);
-      return next;
-    });
-  }, [setSearchParams]);
-
   const handleRefresh = useCallback(async () => {
     await refetch();
-    toast({ title: "Lista actualizada", variant: "success" });
+    toast({ title: financeCopy.invoices.toasts.refreshed, variant: "success" });
   }, [refetch, toast]);
 
   const handleKpiStatus = useCallback(
-    (status: InvoiceStatus) => {
+    (status: FinanceInvoiceStatus) => {
       const current = filters.filters.status;
       filters.setFilter("status", current === status ? "" : status);
     },
@@ -107,12 +106,10 @@ export function FinanceInvoicesTab({
 
   const kpiStrip =
     showFinanceSummaryMetrics ? (
-      <InvoicesSummaryCards
+      <FinanceInvoicesSummaryCards
         stamped={summary?.invoicesByStatus.stamped ?? 0}
         draft={summary?.invoicesByStatus.draft ?? 0}
-        cancellationPending={
-          summary?.invoicesByStatus.cancellationPending ?? 0
-        }
+        cancellationPending={summary?.invoicesByStatus.cancellationPending ?? 0}
         cancelled={summary?.invoicesByStatus.cancelled ?? 0}
         totalReceivable={summary?.totalReceivable ?? 0}
         isLoading={summaryLoading}
@@ -122,14 +119,14 @@ export function FinanceInvoicesTab({
     ) : undefined;
 
   return (
-    <ListPageShell<InvoiceListItem>
-      title="Facturas"
+    <ListPageShell<FinanceInvoiceListItem>
+      title={financeCopy.invoices.title}
       showHeader={false}
       beforeToolbar={kpiStrip}
       toolbar={{
         search: {
           ...filters.searchProps,
-          placeholder: "Buscar por cliente, RFC, folio...",
+          placeholder: financeCopy.invoices.searchPlaceholder,
         },
         filters: (
           <Select
@@ -139,14 +136,14 @@ export function FinanceInvoicesTab({
             }
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Estado" />
+              <SelectValue placeholder={financeCopy.invoices.filters.statusPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {(Object.keys(InvoiceStatusLabels) as InvoiceStatus[]).map(
+              <SelectItem value="all">{financeCopy.invoices.filters.all}</SelectItem>
+              {(Object.keys(invoiceStatusLabels) as FinanceInvoiceStatus[]).map(
                 (status) => (
                   <SelectItem key={status} value={status}>
-                    {InvoiceStatusLabels[status]}
+                    {invoiceStatusLabels[status]}
                   </SelectItem>
                 ),
               )}
@@ -166,7 +163,7 @@ export function FinanceInvoicesTab({
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
         activeFilterChips: filters.activeChips,
-        onClearFilters: handleClearFilters,
+        onClearFilters: filters.clearAll,
         hasFilters: filters.hasFilters,
       }}
       isLoading={isLoading}
@@ -182,9 +179,9 @@ export function FinanceInvoicesTab({
           : undefined
       }
       onPageChange={filters.setPage}
-      entityLabelPlural="facturas"
+      entityLabelPlural={financeCopy.invoices.entityLabelPlural}
       renderTable={() => (
-        <InvoiceTable
+        <FinanceInvoiceListTable
           invoices={invoices}
           isLoading={isLoading}
           onView={handleView}
@@ -192,9 +189,9 @@ export function FinanceInvoicesTab({
       )}
       emptyState={{
         icon: <FileText className="h-10 w-10 text-muted-foreground" />,
-        title: "No se encontraron facturas",
+        title: financeCopy.invoices.empty.title,
         description: filters.hasFilters
-          ? "Intenta ajustar los filtros de búsqueda"
+          ? financeCopy.invoices.empty.withFilters
           : FINANCE_INVOICE_FROM_TRIP_CTA.emptyDescription,
         cta: canInvoiceFromTrip
           ? {
@@ -205,8 +202,8 @@ export function FinanceInvoicesTab({
           : undefined,
         secondaryCta: filters.hasFilters
           ? {
-              label: "Limpiar filtros",
-              onClick: handleClearFilters,
+              label: financeCopy.invoices.empty.clearFilters,
+              onClick: filters.clearAll,
               variant: "outline",
             }
           : undefined,

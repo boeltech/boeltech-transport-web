@@ -2,10 +2,10 @@
 /**
  * Application Routes
  *
- * ConfiguraciÃ³n de rutas con React Router.
- * Incluye lazy loading, guards de autenticaciÃ³n y permisos.
+ * Configuraci+¦n de rutas con React Router.
+ * Incluye lazy loading, guards de autenticaci+¦n y permisos.
  *
- * UbicaciÃ³n: src/app/router/routes.tsx
+ * Ubicaci+¦n: src/app/router/routes.tsx
  */
 
 import {
@@ -63,7 +63,7 @@ function withSuspense(
 }
 
 // ============================================
-// Lazy Loading de PÃ¡ginas
+// Lazy Loading de P+íginas
 // ============================================
 
 // Root & Landing
@@ -109,7 +109,7 @@ const TripsListPage = lazy(() =>
     default: m.TripsListPage,
   })),
 );
-// NOTE: Trip edit reuses TripFormPage â€” it detects edit mode via :id param
+// NOTE: Trip edit reuses TripFormPage ÔÇö it detects edit mode via :id param
 // const TripEditPage = lazy(() => import("@/pages/trips/edit"));
 
 // Vehicles
@@ -222,7 +222,7 @@ const BranchEditPage = lazy(() =>
 
 // Finance / Invoices
 const FinancePage = lazy(() =>
-  import("@features/invoicing").then((m) => ({ default: m.FinancePage })),
+  import("@features/finance").then((m) => ({ default: m.FinancePage })),
 );
 const InvoiceDetailPage = lazy(() =>
   import("@features/invoicing").then((m) => ({ default: m.InvoiceDetailPage })),
@@ -256,13 +256,13 @@ const UserEditPage = lazy(() =>
 // Settings (Admin)
 // const SettingsPage = lazy(() => import("@/pages/settings"));
 
-// Profile (autoservicio â€” todos los autenticados)
+// Profile (autoservicio ÔÇö todos los autenticados)
 const ProfilePage = lazy(() => import("@/pages/profile"));
 
 // Design System (gated a admin)
 const DesignSystemPage = lazy(() => import("@/pages/design-system"));
 
-// Onboarding guiado (post-invite / primera sesiÃ³n heurÃ­stica)
+// Onboarding guiado (post-invite / primera sesi+¦n heur+¡stica)
 const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
 
 // Errors
@@ -271,7 +271,7 @@ const ForbiddenPage = lazy(() => import("@/pages/errors/forbidden"));
 const ServerErrorPage = lazy(() => import("@/pages/errors/server-error"));
 const MaintenancePage = lazy(() => import("@/pages/errors/maintenance"));
 
-/** Routes backed by gitignored `src/pages/dev/` â€” only registered in Vite dev */
+/** Routes backed by gitignored `src/pages/dev/` ÔÇö only registered in Vite dev */
 const devOnlyAppChildRoutes = import.meta.env.DEV
   ? ([
       {
@@ -287,7 +287,7 @@ const devOnlyAppChildRoutes = import.meta.env.DEV
 
 export const router = createBrowserRouter([
   // ==========================================
-  // Ruta RaÃ­z - Redirect dinÃ¡mico
+  // Ruta Ra+¡z - Redirect din+ímico
   // ==========================================
   {
     path: "/",
@@ -296,7 +296,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Landing Page (PÃºblica)
+  // Landing Page (P+¦blica)
   // ==========================================
   {
     path: "/welcome",
@@ -305,7 +305,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Rutas PÃºblicas (Auth)
+  // Rutas P+¦blicas (Auth)
   // ==========================================
   {
     element: withSuspense(AuthLayout),
@@ -335,7 +335,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // Rutas Privadas (requieren autenticaciÃ³n)
+  // Rutas Privadas (requieren autenticaci+¦n)
   // ==========================================
   {
     element: <PrivateRoute />,
@@ -367,7 +367,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Trips (Viajes)
+          // M+¦dulo: Trips (Viajes)
           // ========================================
           {
             element: <ModuleRoute module="trips" />,
@@ -414,7 +414,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Vehicles (VehÃ­culos)
+          // M+¦dulo: Vehicles (Veh+¡culos)
           // ========================================
           {
             element: <ModuleRoute module="vehicles" />,
@@ -444,7 +444,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Drivers (Conductores)
+          // M+¦dulo: Drivers (Conductores)
           // ========================================
           {
             element: <ModuleRoute module="drivers" />,
@@ -474,7 +474,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Employees (Empleados)
+          // M+¦dulo: Employees (Empleados)
           // ========================================
           {
             element: <ModuleRoute module="employees" />,
@@ -509,7 +509,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Clients (Clientes)
+          // M+¦dulo: Clients (Clientes)
           // ========================================
           {
             element: <ModuleRoute module="clients" />,
@@ -539,7 +539,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Branches (Sucursales)
+          // M+¦dulo: Branches (Sucursales)
           // ========================================
           {
             element: <ModuleRoute module="branches" />,
@@ -574,7 +574,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Maintenance (Mantenimiento)
+          // M+¦dulo: Maintenance (Mantenimiento)
           // ========================================
           {
             element: <ModuleRoute module="maintenance" />,
@@ -596,7 +596,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Fuel (Combustible)
+          // M+¦dulo: Fuel (Combustible)
           // ========================================
           {
             element: <ModuleRoute module="fuel" />,
@@ -618,7 +618,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Invoices / Finance (FacturaciÃ³n)
+          // M+¦dulo: Invoices / Finance (Facturaci+¦n)
           // ========================================
           {
             element: <ModuleRoute module="invoices" />,
@@ -653,7 +653,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Reports (Reportes)
+          // M+¦dulo: Reports (Reportes)
           // ========================================
           {
             element: <ModuleRoute module="reports" />,
@@ -666,7 +666,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Users (Admin)
+          // M+¦dulo: Users (Admin)
           // ========================================
           {
             element: <ModuleRoute module="users" />,
@@ -705,7 +705,7 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // MÃ³dulo: Settings
+          // M+¦dulo: Settings
           // ========================================
           {
             element: <ModuleRoute module="settings" />,
@@ -722,8 +722,8 @@ export const router = createBrowserRouter([
           },
 
           // ========================================
-          // Design System â€” gated a admin
-          // Referencia visual viva (tokens, tipografÃ­a, componentes).
+          // Design System ÔÇö gated a admin
+          // Referencia visual viva (tokens, tipograf+¡a, componentes).
           // ========================================
           {
             element: <AdminRoute />,
@@ -740,7 +740,7 @@ export const router = createBrowserRouter([
   },
 
   // ==========================================
-  // PÃ¡ginas de Error (acceso directo)
+  // P+íginas de Error (acceso directo)
   // ==========================================
   {
     path: "/forbidden",
