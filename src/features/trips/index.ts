@@ -18,13 +18,9 @@
  * ORDEN DE PROVIDERS REQUERIDO:
  * ============================================================================
  *
- * 1. QueryProvider    - React Query
- * 2. AuthProvider     - Autenticación JWT
- * 3. PermissionProvider - RBAC
- * 4. ThemeProvider    - Dark/Light mode
- * 5. ToastProvider    - Notificaciones
- * 6. SidebarProvider  - Estado sidebar
- * 7. LayoutShell      - UI Layout
+ * App.tsx (global): Query → Theme → Toast → Router
+ * AppLayout (autenticado): Auth → ProductOnboardingGate → Permission →
+ *   Tooltip → Sidebar → LayoutShell
  *
  */
 
@@ -107,6 +103,7 @@ export {
   TripActions,
   TripCard,
   TripCardSkeleton,
+  TripListRouteLabel,
   TripTrackingMap,
   TripTrackingTab,
   TripStatusBadge,

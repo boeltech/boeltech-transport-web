@@ -6,6 +6,7 @@ export {
   useDeleteCargo,
   useAddCargoMovement,
   useCompleteCargoMovement,
+  useCompleteTripCargoMovement,
   useAddMultipleCargos,
 } from "./cargo/useCargoOperations";
 
@@ -30,9 +31,9 @@ export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";
 export { useDeleteTrip } from "./trip/useDeleteTrip";
 export { TripActionError, useScheduleTrip } from "./trip/useScheduleTrip";
 export { useStartTrip } from "./trip/useStartTrip";
+export { useDepartOrigin } from "./trip/useDepartOrigin";
 export { useTrip } from "./trip/useTrip";
 export { useTrips } from "./trip/useTrips";
 export { useUpdateTrip } from "./trip/useUpdateTrip";
 export { useUpdateTripStatus } from "./trip/useUpdateTripStatus";
-
-export { useTripStops } from "./stop/useTripStops";
+export { usePatchStopFiscal } from "./usePatchStopFiscal";

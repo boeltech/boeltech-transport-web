@@ -121,6 +121,8 @@ export interface ApiCargoResponse {
 
   // Estado
   status: CargoStatusType;
+  picked_up_at?: string | null;
+  delivered_at?: string | null;
   notes: string | null;
   special_instructions: string | null;
 
@@ -436,12 +438,14 @@ export interface ApiTripListItemResponse {
   scheduled_arrival: string | null;
   status: TripStatusType;
   cargo_description: string | null;
+  base_rate: string | number;
   total_cost: string | number;
   total_revenue: string | number;
   estimated_profit: string | number;
   cargo_count: number;
   client_count: number;
   internal_staff_count?: number;
+  internal_staff_employee_ids?: string[];
   invoicing?: ApiTripInvoicingResponse;
   requires_fiscal_attention?: boolean;
   created_at: string;

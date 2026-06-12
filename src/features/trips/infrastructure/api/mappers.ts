@@ -220,6 +220,8 @@ export function mapApiCargo(api: ApiCargoResponse): TripCargo {
 
     // Estado
     status: api.status,
+    pickedUpAt: toDateOrNull(api.picked_up_at),
+    deliveredAt: toDateOrNull(api.delivered_at),
     notes: api.notes,
     specialInstructions: api.special_instructions,
 
@@ -592,6 +594,7 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     scheduledArrival: toDateOrNull(api.scheduled_arrival),
     status: api.status,
     cargoDescription: api.cargo_description,
+    baseRate: toNumberOrDefault(api.base_rate),
     totalCost: toNumberOrDefault(api.total_cost),
     totalRevenue: toNumberOrDefault(api.total_revenue),
     estimatedProfit: toNumberOrDefault(api.estimated_profit),
@@ -599,6 +602,7 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     clientCount: api.client_count ?? 0,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
     requiresFiscalAttention: api.requires_fiscal_attention ?? false,
+    internalStaffEmployeeIds: api.internal_staff_employee_ids ?? [],
     createdAt: toDate(api.created_at),
   };
 }

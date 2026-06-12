@@ -9,7 +9,14 @@ import {
 } from "lucide-react";
 
 import { useUpdateTrip } from "@features/trips/application/hooks/trip/useUpdateTrip";
-import { StopType, type Trip, type TripStatusType, type TripStop } from "@features/trips/domain";
+import {
+  StopType,
+  countCompletedStops,
+  type Trip,
+  type TripStatusType,
+  type TripStop,
+  type TripCargo,
+} from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { formatTripRouteSubtitle } from "@features/trips/presentation/uiHelpers";
 import { Button } from "@shared/ui/button";
@@ -20,9 +27,11 @@ import { Separator } from "@shared/ui/separator";
 import { cn } from "@shared/lib/utils/cn";
 
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
+import { getCargoStatusVariant } from "../trip-cargos/tripCargoDetailHelpers";
 import { TripStopOperationalEditSheet } from "./TripStopOperationalEditSheet";
+import { useTripFiscalSheets } from "../trip-fiscal";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
-  countOperativelyCompleteStops,
   countStopsMissingFiscalRfc,
   countStopsMissingSegmentDistance,
   groupStopsForRouteDetail,
@@ -32,6 +41,7 @@ import {
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.route;
+const progressCopy = tripDetailCopy.progress;
 
 export interface TripDetailRouteTabProps {
   trip: Trip;
@@ -39,6 +49,7 @@ export interface TripDetailRouteTabProps {
   orderedStops: TripStop[];
   progress: number;
   canEditStructural: boolean;
+  cargos?: TripCargo[];
   legacyRoute?: {
     originCity?: string | null;
     originState?: string | null;
@@ -88,6 +99,9 @@ function renderRouteStopCard(
   canEditStructural: boolean,
   onEditStop: (stopId: string) => void,
   tripTimes: { scheduledDeparture: Date; actualDeparture: Date | null },
+  cargos: readonly TripCargo[],
+  showFiscalWarning: (stop: TripStop) => boolean,
+  onFixFiscal: (stopId: string) => void,
 ) {
   return (
     <TripDetailRouteStopCard
@@ -97,6 +111,14 @@ function renderRouteStopCard(
       tripTimes={tripTimes}
       canEdit={canEditStructural}
       onEdit={() => onEditStop(stop.id)}
+      cargos={cargos}
+      orderedStops={ordered}
+      getCargoStatusVariant={getCargoStatusVariant}
+      fiscalWarning={
+        showFiscalWarning(stop)
+          ? { show: true, onFix: () => onFixFiscal(stop.id) }
+          : undefined
+      }
     />
   );
 }
@@ -107,10 +129,12 @@ export function TripDetailRouteTab({
   orderedStops,
   progress,
   canEditStructural,
+  cargos = [],
   legacyRoute,
 }: TripDetailRouteTabProps) {
   const { toast } = useToast();
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
+  const fiscal = useTripFiscalSheets({ trip, enableAutoRestamp: false });
 
   const updateTrip = useUpdateTrip({
     onSuccess: () => {
@@ -157,13 +181,21 @@ export function TripDetailRouteTab({
     scheduledDeparture: trip.scheduledDeparture,
     actualDeparture: trip.actualDeparture,
   };
-  const visitedCount = countOperativelyCompleteStops(ordered, tripTimes);
+  const completedStopsCount = countCompletedStops(ordered);
   const pickupCount = ordered.filter((stop) =>
     hasStopType(stop.stopType, StopType.PICKUP),
   ).length;
   const deliveryCount = ordered.filter((stop) =>
     hasStopType(stop.stopType, StopType.DELIVERY),
   ).length;
+
+  const showFiscalWarning = fiscal.shouldShowFiscalWarningChipForStop;
+  const onFixFiscal = (stopId: string) => {
+    fiscal.openFixSheet(stopId, {
+      submitLabel: tripFiscalCopy.fixSheet.submitSave,
+      pendingInvoiceId: null,
+    });
+  };
 
   const routeSummaryCard = (
     <Card>
@@ -194,18 +226,24 @@ export function TripDetailRouteTab({
         <div className="grid gap-3 grid-cols-1">
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.label.progress}
+              {progressCopy.label.percent}
             </p>
             <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
               {progress}%
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {progressCopy.hint.percent}
+            </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.label.visited}
+              {progressCopy.label.completedStops}
             </p>
             <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
-              {copy.format.visitedCount(visitedCount, ordered.length)}
+              {progressCopy.format.completedRatio(completedStopsCount, ordered.length)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {progressCopy.hint.completedStops(completedStopsCount, ordered.length)}
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">
@@ -307,6 +345,9 @@ export function TripDetailRouteTab({
                   canEditStructural,
                   setEditingStopId,
                   tripTimes,
+                  cargos,
+                  showFiscalWarning,
+                  onFixFiscal,
                 )
               ) : (
                 <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
@@ -317,7 +358,7 @@ export function TripDetailRouteTab({
 
             {waypoints.length > 0 ? (
               <RouteSection
-                title={copy.section.waypoints}
+                title={`${copy.section.waypoints} (${copy.format.stopCount(waypoints.length)})`}
                 description={copy.hint.waypoints}
                 icon={
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -335,6 +376,9 @@ export function TripDetailRouteTab({
                         canEditStructural,
                         setEditingStopId,
                         tripTimes,
+                        cargos,
+                        showFiscalWarning,
+                        onFixFiscal,
                       )}
                     </div>
                   ))}
@@ -359,6 +403,9 @@ export function TripDetailRouteTab({
                   canEditStructural,
                   setEditingStopId,
                   tripTimes,
+                  cargos,
+                  showFiscalWarning,
+                  onFixFiscal,
                 )
               ) : (
                 <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
@@ -386,6 +433,8 @@ export function TripDetailRouteTab({
           await updateTrip.mutateAsync({ id: trip.id, data: payload });
         }}
       />
+
+      {fiscal.sheets}
     </div>
   );
 }

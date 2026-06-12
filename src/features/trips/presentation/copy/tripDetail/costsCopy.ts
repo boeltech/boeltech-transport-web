@@ -23,6 +23,12 @@ export const costsCopy = {
     marginCriticalTitle: "Rentabilidad comprometida",
     marginCriticalBody:
       "El margen estimado está por debajo del 10%. Revise tarifa o conceptos registrados.",
+    pendingApprovalTitle: "Gastos pendientes de aprobación",
+    pendingApprovalBody:
+      "Los conceptos en estado Pendiente no aparecen en Finanzas hasta que un rol con permiso de aprobaciones los apruebe.",
+    pendingApprovalBodyCanApprove:
+      "Apruebe los conceptos pendientes aquí o desde la bandeja centralizada para incluirlos en reportes de Finanzas.",
+    approvalsHubLink: "Ver en bandeja de aprobaciones",
   },
   action: {
     retry: "Reintentar",
@@ -33,6 +39,8 @@ export const costsCopy = {
     cancel: "Cancelar",
     edit: "Editar",
     remove: "Eliminar",
+    approve: "Aprobar",
+    reject: "Rechazar",
   },
   label: {
     baseRate: "Tarifa base",
@@ -57,6 +65,10 @@ export const costsCopy = {
     saveError: "No se pudo guardar",
     removed: "Concepto eliminado",
     removeError: "No se pudo eliminar",
+    approved: "Gasto aprobado",
+    approveError: "No se pudo aprobar",
+    rejected: "Gasto rechazado",
+    rejectError: "No se pudo rechazar",
     baseRateUpdated: "Tarifa base actualizada",
     baseRateSaveError: "No se pudo guardar la tarifa",
     baseRateSavedWithWarning: "Tarifa guardada con advertencia",

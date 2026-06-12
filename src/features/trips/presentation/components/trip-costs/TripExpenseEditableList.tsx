@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Edit2, Receipt, Trash2 } from "lucide-react";
+import { Check, Edit2, Receipt, Trash2, X } from "lucide-react";
 
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -36,6 +36,8 @@ export interface TripExpenseEditableListProps {
   emptyDescription: string;
   onEdit?: (id: string) => void;
   onRemove?: (id: string) => void;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
   readOnly?: boolean;
   showDetailMeta?: boolean;
 }
@@ -60,13 +62,19 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
   readOnly,
   onEdit,
   onRemove,
+  onApprove,
+  onReject,
 }: {
   expense: TripExpenseListItem;
   showDetailMeta: boolean;
   readOnly: boolean;
   onEdit?: (id: string) => void;
   onRemove?: (id: string) => void;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
 }) {
+  const canApprove =
+    expense.status === "pending" && onApprove != null && onReject != null;
   const category = EXPENSE_CATEGORY_MAP.get(
     expense.category as TripExpenseFormValues["category"],
   );
@@ -114,6 +122,30 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
       <span className="whitespace-nowrap text-sm font-semibold tabular-nums">
         -{formatMxCurrency(expense.amount)}
       </span>
+      {canApprove ? (
+        <div className="flex shrink-0 gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-success hover:text-success"
+            onClick={() => onApprove(expense.id)}
+            aria-label={copy.action.approve}
+          >
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={() => onReject(expense.id)}
+            aria-label={copy.action.reject}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : null}
       {!readOnly && (onEdit || onRemove) ? (
         <div className="flex shrink-0 gap-1">
           {onEdit ? (
@@ -152,6 +184,8 @@ export function TripExpenseEditableList({
   emptyDescription,
   onEdit,
   onRemove,
+  onApprove,
+  onReject,
   readOnly = false,
   showDetailMeta = false,
 }: TripExpenseEditableListProps) {
@@ -176,6 +210,8 @@ export function TripExpenseEditableList({
           readOnly={readOnly}
           onEdit={onEdit}
           onRemove={onRemove}
+          onApprove={onApprove}
+          onReject={onReject}
         />
       ))}
     </div>

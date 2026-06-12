@@ -2,6 +2,7 @@ import { cargoCopy } from "./cargoCopy";
 import { costsCopy } from "./costsCopy";
 import { historyCopy } from "./historyCopy";
 import { operationCopy } from "./operationCopy";
+import { progressCopy } from "./progressCopy";
 import { routeCopy } from "./routeCopy";
 import { shellCopy } from "./shellCopy";
 import { trackingCopy } from "./trackingCopy";
@@ -14,6 +15,7 @@ export const tripDetailCopy = {
   tracking: trackingCopy,
   operation: operationCopy,
   route: routeCopy,
+  progress: progressCopy,
   cargo: cargoCopy,
   costs: costsCopy,
   history: historyCopy,
@@ -25,6 +27,7 @@ export {
   costsCopy,
   historyCopy,
   operationCopy,
+  progressCopy,
   routeCopy,
   shellCopy,
   trackingCopy,

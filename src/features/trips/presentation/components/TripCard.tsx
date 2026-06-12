@@ -91,7 +91,7 @@ export const TripCard = memo(function TripCard({
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(trip.id)}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-border"
           />
         </div>
       ) : null}

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { MapPin, Navigation } from "lucide-react";
 
-import type { TripStop } from "@features/trips/domain";
+import type { TripCargo, TripStop } from "@features/trips/domain";
+import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
@@ -28,6 +29,13 @@ import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  TRACKING_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./trackingSheetLayout";
 
 export type StopTrackingEventMode = "arrival" | "departure";
 
@@ -36,6 +44,8 @@ type RegisterStopTrackingEventSheetProps = {
   mode: StopTrackingEventMode;
   stop: TripStop | null;
   displayOrder: number | undefined;
+  cargos?: readonly TripCargo[];
+  orderedStops?: readonly TripStop[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -54,6 +64,8 @@ type RegisterStopTrackingEventSheetBodyProps = {
   tripId: string;
   mode: StopTrackingEventMode;
   stop: TripStop;
+  cargos?: readonly TripCargo[];
+  orderedStops?: readonly TripStop[];
   onOpenChange: (open: boolean) => void;
 };
 
@@ -61,6 +73,8 @@ function RegisterStopTrackingEventSheetBody({
   tripId,
   mode,
   stop,
+  cargos = [],
+  orderedStops = [],
   onOpenChange,
 }: RegisterStopTrackingEventSheetBodyProps) {
   const { toast } = useToast();
@@ -89,6 +103,18 @@ function RegisterStopTrackingEventSheetBody({
       return;
     }
 
+    if (mode === "departure" && cargos.length > 0 && orderedStops.length > 0) {
+      const cargoError = validateCargoBeforeDeparture(
+        stop,
+        cargos,
+        orderedStops,
+      );
+      if (cargoError) {
+        setFieldError(cargoError);
+        return;
+      }
+    }
+
     setFieldError(null);
     registerMutation.mutate({
       tripId,
@@ -105,7 +131,7 @@ function RegisterStopTrackingEventSheetBody({
 
   return (
     <>
-      <div className="flex-1 space-y-4 py-2">
+      <div className={TRACKING_SHEET_BODY_CLASS}>
         <div className="space-y-2">
           <Label htmlFor="tracking-event-occurred-at">Fecha y hora del evento</Label>
           <div className="flex flex-wrap gap-2">
@@ -157,15 +183,20 @@ function RegisterStopTrackingEventSheetBody({
         </div>
       </div>
 
-      <SheetFooter className="gap-2 sm:gap-0">
+      <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
         <Button
           variant="outline"
+          className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
           onClick={() => onOpenChange(false)}
           disabled={registerMutation.isPending}
         >
           Cancelar
         </Button>
-        <Button onClick={handleSubmit} disabled={registerMutation.isPending}>
+        <Button
+          onClick={handleSubmit}
+          disabled={registerMutation.isPending}
+          className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
+        >
           Registrar
         </Button>
       </SheetFooter>
@@ -178,6 +209,8 @@ export function RegisterStopTrackingEventSheet({
   mode,
   stop,
   displayOrder,
+  cargos,
+  orderedStops,
   open,
   onOpenChange,
 }: RegisterStopTrackingEventSheetProps) {
@@ -195,8 +228,8 @@ export function RegisterStopTrackingEventSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
+        <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span>{title}</span>
@@ -218,6 +251,8 @@ export function RegisterStopTrackingEventSheet({
             tripId={tripId}
             mode={mode}
             stop={stop}
+            cargos={cargos}
+            orderedStops={orderedStops}
             onOpenChange={onOpenChange}
           />
         ) : null}

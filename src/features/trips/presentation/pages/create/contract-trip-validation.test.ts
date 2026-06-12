@@ -111,6 +111,15 @@ describe("Trip API payload contract (update/status/query)", () => {
     expect(wrapper.ok).toBe(direct.success);
   });
 
+  it("validateTripQueryApiPayload rejects limit above schema max", () => {
+    const wrapper = validateTripQueryApiPayload({
+      page: 1,
+      limit: 200,
+      status: ["in_progress", "scheduled"],
+    });
+    expect(wrapper.ok).toBe(false);
+  });
+
   it("validateTripQueryApiPayload matches tripQuerySchema.safeParse", () => {
     const querySnake = {
       page: 1,

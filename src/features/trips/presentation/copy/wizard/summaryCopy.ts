@@ -27,6 +27,8 @@ export const summaryCopy = {
     tripNotes: "Observaciones del viaje",
     noClient: "Sin cliente",
     supportStaff: "Integrante de apoyo",
+    supportStaffSecondaryDriver: "Conductor adicional",
+    supportStaffHelper: "Ayudante general",
   },
   state: {
     noStops: "Sin paradas registradas",

@@ -1,4 +1,14 @@
-import type { TripStatusType, TripStop } from "@features/trips/domain";
+import {
+  TripStatus,
+  type TripCargo,
+  type TripStatusType,
+  type TripStop,
+} from "@features/trips/domain";
+import {
+  getCargoBlockAtStop,
+  hasUnresolvedCargoAtStop,
+} from "../../utils/trackingCargoGating";
+import type { StopTransitionAction } from "./transitionCopy";
 import {
   getRouteStopCategory,
   getStopOperationalVisitLabel,
@@ -11,6 +21,7 @@ import {
   findActiveEscalaForDeparture,
   findDestinationAwaitingTripArrival,
   findNextStopForArrival,
+  findOriginAwaitingDeparture,
   isManualArrivalStop,
   isOriginStop,
   isTrackingEscalaStop,
@@ -20,8 +31,66 @@ import { trackingCopy } from "./trackingCopy";
 export type TrackingStopNextAction =
   | "register_arrival"
   | "register_departure"
+  | "depart_origin"
   | "close_at_destination"
+  | "resolve_cargo_at_stop"
   | null;
+
+const DEPARTURE_NEXT_ACTIONS = new Set<TrackingStopNextAction>([
+  "depart_origin",
+  "register_departure",
+  "close_at_destination",
+]);
+
+function getStopForDepartureNextAction(
+  action: TrackingStopNextAction,
+  ordered: readonly TripStop[],
+): TripStop | undefined {
+  if (action === "depart_origin") return findOriginAwaitingDeparture(ordered);
+  if (action === "register_departure") {
+    return findActiveEscalaForDeparture(ordered);
+  }
+  if (action === "close_at_destination") {
+    return findDestinationAwaitingTripArrival(ordered);
+  }
+  return undefined;
+}
+
+export function findStopAwaitingCargoResolution(
+  ordered: readonly TripStop[],
+  cargos: readonly TripCargo[],
+): TripStop | undefined {
+  const origin = findOriginAwaitingDeparture(ordered);
+  if (
+    origin &&
+    hasUnresolvedCargoAtStop(origin, cargos, ordered)
+  ) {
+    return origin;
+  }
+  const escala = findActiveEscalaForDeparture(ordered);
+  if (
+    escala &&
+    hasUnresolvedCargoAtStop(escala, cargos, ordered)
+  ) {
+    return escala;
+  }
+  const destination = findDestinationAwaitingTripArrival(ordered);
+  if (
+    destination &&
+    hasUnresolvedCargoAtStop(destination, cargos, ordered)
+  ) {
+    return destination;
+  }
+  return undefined;
+}
+
+export { getCargoBlockAtStop };
+
+export type InlineStopAction = {
+  action: StopTransitionAction;
+  label: string;
+  variant: "default" | "outline";
+};
 
 export type TrackingItineraryRow = {
   stop: TripStop;
@@ -33,21 +102,93 @@ export type TrackingItineraryRow = {
   isActionTarget: boolean;
 };
 
+export function resolveInlineStopAction(
+  tripStatus: TripStatusType,
+  stop: TripStop,
+  nextAction: TrackingStopNextAction,
+): InlineStopAction | null {
+  if (tripStatus === TripStatus.SCHEDULED && isOriginStop(stop)) {
+    return {
+      action: "dispatch",
+      label: trackingCopy.action.start,
+      variant: "default",
+    };
+  }
+
+  if (tripStatus !== TripStatus.IN_PROGRESS || !nextAction) {
+    return null;
+  }
+
+  if (nextAction === "register_arrival") {
+    return {
+      action: "arrive",
+      label: trackingCopy.action.arrive,
+      variant: "outline",
+    };
+  }
+
+  if (nextAction === "depart_origin") {
+    return {
+      action: "departOrigin",
+      label: trackingCopy.action.departOrigin,
+      variant: "default",
+    };
+  }
+
+  if (nextAction === "register_departure") {
+    return {
+      action: "depart",
+      label: trackingCopy.action.depart,
+      variant: "outline",
+    };
+  }
+
+  if (nextAction === "close_at_destination") {
+    return {
+      action: "close",
+      label: trackingCopy.action.close,
+      variant: "default",
+    };
+  }
+
+  return null;
+}
+
 export function resolveTrackingNextAction(
   stops: readonly TripStop[],
+  cargos?: readonly TripCargo[],
 ): TrackingStopNextAction {
   const ordered = [...stops];
-  if (findActiveEscalaForDeparture(ordered)) return "register_departure";
-  if (findNextStopForArrival(ordered)) return "register_arrival";
-  if (findDestinationAwaitingTripArrival(ordered)) {
-    return "close_at_destination";
+  let base: TrackingStopNextAction = null;
+  if (findOriginAwaitingDeparture(ordered)) base = "depart_origin";
+  else if (findActiveEscalaForDeparture(ordered)) base = "register_departure";
+  else if (findNextStopForArrival(ordered)) base = "register_arrival";
+  else if (findDestinationAwaitingTripArrival(ordered)) {
+    base = "close_at_destination";
   }
-  return null;
+
+  if (
+    base &&
+    DEPARTURE_NEXT_ACTIONS.has(base) &&
+    cargos &&
+    cargos.length > 0
+  ) {
+    const targetStop = getStopForDepartureNextAction(base, ordered);
+    if (
+      targetStop &&
+      hasUnresolvedCargoAtStop(targetStop, cargos, ordered)
+    ) {
+      return "resolve_cargo_at_stop";
+    }
+  }
+
+  return base;
 }
 
 export function getTrackingNextActionLabel(action: TrackingStopNextAction): string | null {
   if (action === "register_arrival") return trackingCopy.action.arrive;
   if (action === "register_departure") return trackingCopy.action.depart;
+  if (action === "depart_origin") return trackingCopy.action.departOrigin;
   if (action === "close_at_destination") return trackingCopy.action.close;
   return null;
 }
@@ -55,12 +196,18 @@ export function getTrackingNextActionLabel(action: TrackingStopNextAction): stri
 export function buildTrackingItineraryRows(
   stops: readonly TripStop[],
   tripTimes?: TripScheduleTimes,
+  cargos?: readonly TripCargo[],
 ): TrackingItineraryRow[] {
   const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
-  const globalNext = resolveTrackingNextAction(ordered);
+  const globalNext = resolveTrackingNextAction(ordered, cargos);
+  const originDepartureStop = findOriginAwaitingDeparture(ordered);
   const nextDepartureStop = findActiveEscalaForDeparture(ordered);
   const nextArrivalStop = findNextStopForArrival(ordered);
   const destinationClosure = findDestinationAwaitingTripArrival(ordered);
+  const cargoResolutionStop =
+    globalNext === "resolve_cargo_at_stop" && cargos?.length
+      ? findStopAwaitingCargoResolution(ordered, cargos)
+      : undefined;
 
   return ordered.map((stop, index) => {
     const category = getRouteStopCategory(stop);
@@ -68,6 +215,13 @@ export function buildTrackingItineraryRows(
     let nextAction: TrackingStopNextAction = null;
 
     if (
+      globalNext === "resolve_cargo_at_stop" &&
+      cargoResolutionStop?.id === stop.id
+    ) {
+      nextAction = "resolve_cargo_at_stop";
+    } else if (globalNext === "depart_origin" && originDepartureStop?.id === stop.id) {
+      nextAction = "depart_origin";
+    } else if (
       globalNext === "register_departure" &&
       nextDepartureStop?.id === stop.id
     ) {
@@ -86,7 +240,7 @@ export function buildTrackingItineraryRows(
       displayOrder: index + 1,
       category,
       visitState,
-      visitLabel: getStopOperationalVisitLabel(visitState),
+      visitLabel: getStopOperationalVisitLabel(visitState, category),
       nextAction,
       isActionTarget: nextAction != null,
     };
@@ -105,7 +259,7 @@ export function getTrackingScopeAlertItems(
 
   if (tripStatus === "scheduled") {
     items.push({
-      text: "Inicia viaje para habilitar llegadas, salidas y registro operativo.",
+      text: "Inicia viaje (dispatch) para habilitar llegada a origen, cargas y registro operativo.",
     });
   } else if (tripStatus !== "in_progress") {
     items.push({
@@ -126,7 +280,7 @@ export function getTrackingScopeAlertItems(
 /** Etiqueta corta del rol de la parada en el itinerario de seguimiento. */
 export function getTrackingStopRoleHint(stop: TripStop): string | null {
   if (isOriginStop(stop)) {
-    return "Salida al iniciar viaje";
+    return "Arribo, carga y salida de origen";
   }
   if (isManualArrivalStop(stop) && isTrackingEscalaStop(stop)) {
     return "Llegada y salida manual";

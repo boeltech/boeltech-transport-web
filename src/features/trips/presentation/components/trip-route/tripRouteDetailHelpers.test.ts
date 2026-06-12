@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { StopType, TripStatus, type TripStop } from "@features/trips/domain";
+import { StopStatus, StopType, TripStatus, type TripStop } from "@features/trips/domain";
+
+import { progressCopy } from "../../copy/tripDetail/progressCopy";
 
 import {
   countOperativelyCompleteStops,
@@ -93,40 +95,80 @@ describe("tripRouteDetailHelpers", () => {
 
   it("groups route stops preserving sequence order", () => {
     const stops = [
-      stop({ id: "s2", sequenceOrder: 2, stopType: [StopType.WAYPOINT] }),
-      stop({ id: "s3", sequenceOrder: 3, stopType: [StopType.DESTINATION] }),
-      stop({ id: "s1", sequenceOrder: 1, stopType: [StopType.ORIGIN] }),
+      stop({ id: "s1", sequenceOrder: 1, stopType: [StopType.WAYPOINT] }),
+      stop({ id: "s2", sequenceOrder: 2, stopType: [StopType.DESTINATION] }),
+      stop({ id: "s0", sequenceOrder: 0, stopType: [StopType.ORIGIN] }),
     ];
 
     const grouped = groupStopsForRouteDetail(stops);
 
-    expect(grouped.ordered.map((item) => item.id)).toEqual(["s1", "s2", "s3"]);
-    expect(grouped.origin?.id).toBe("s1");
-    expect(grouped.destination?.id).toBe("s3");
-    expect(grouped.waypoints.map((item) => item.id)).toEqual(["s2"]);
+    expect(grouped.ordered.map((item) => item.id)).toEqual(["s0", "s1", "s2"]);
+    expect(grouped.origin?.id).toBe("s0");
+    expect(grouped.destination?.id).toBe("s2");
+    expect(grouped.waypoints.map((item) => item.id)).toEqual(["s1"]);
   });
 
   it("sums only positive segment distances after first stop", () => {
     const total = sumRouteSegmentDistanceKm([
-      stop({ id: "s1", sequenceOrder: 1, distanceFromPreviousKm: 25 }),
-      stop({ id: "s2", sequenceOrder: 2, distanceFromPreviousKm: 100.5 }),
-      stop({ id: "s3", sequenceOrder: 3, distanceFromPreviousKm: 0 }),
-      stop({ id: "s4", sequenceOrder: 4, distanceFromPreviousKm: null }),
-      stop({ id: "s5", sequenceOrder: 5, distanceFromPreviousKm: 80 }),
+      stop({ id: "s0", sequenceOrder: 0, distanceFromPreviousKm: 25 }),
+      stop({ id: "s1", sequenceOrder: 1, distanceFromPreviousKm: 100.5 }),
+      stop({ id: "s2", sequenceOrder: 2, distanceFromPreviousKm: 0 }),
+      stop({ id: "s3", sequenceOrder: 3, distanceFromPreviousKm: null }),
+      stop({ id: "s4", sequenceOrder: 4, distanceFromPreviousKm: 80 }),
     ]);
 
     expect(total).toBe(180.5);
   });
 
+  it("includes waypoint at sequenceOrder 1 in segment distance totals", () => {
+    const total = sumRouteSegmentDistanceKm([
+      stop({ id: "s0", sequenceOrder: 0, stopType: [StopType.ORIGIN] }),
+      stop({
+        id: "s1",
+        sequenceOrder: 1,
+        stopType: [StopType.WAYPOINT],
+        distanceFromPreviousKm: 120.25,
+      }),
+      stop({
+        id: "s2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION],
+        distanceFromPreviousKm: 662.79,
+      }),
+    ]);
+
+    expect(total).toBeCloseTo(783.04);
+  });
+
   it("counts stops missing segment distance", () => {
     const missing = countStopsMissingSegmentDistance([
+      stop({ id: "s0", sequenceOrder: 0, distanceFromPreviousKm: null }),
       stop({ id: "s1", sequenceOrder: 1, distanceFromPreviousKm: null }),
-      stop({ id: "s2", sequenceOrder: 2, distanceFromPreviousKm: null }),
-      stop({ id: "s3", sequenceOrder: 3, distanceFromPreviousKm: 0 }),
-      stop({ id: "s4", sequenceOrder: 4, distanceFromPreviousKm: 50 }),
+      stop({ id: "s2", sequenceOrder: 2, distanceFromPreviousKm: 0 }),
+      stop({ id: "s3", sequenceOrder: 3, distanceFromPreviousKm: 50 }),
     ]);
 
     expect(missing).toBe(2);
+  });
+
+  it("counts waypoint at sequenceOrder 1 when distance is missing", () => {
+    const missing = countStopsMissingSegmentDistance([
+      stop({ id: "s0", sequenceOrder: 0, stopType: [StopType.ORIGIN] }),
+      stop({
+        id: "s1",
+        sequenceOrder: 1,
+        stopType: [StopType.WAYPOINT],
+        distanceFromPreviousKm: null,
+      }),
+      stop({
+        id: "s2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION],
+        distanceFromPreviousKm: 662.79,
+      }),
+    ]);
+
+    expect(missing).toBe(1);
   });
 
   it("requires fiscal RFC only for fiscal-relevant stop types", () => {
@@ -205,39 +247,63 @@ describe("tripRouteDetailHelpers", () => {
     const destRows = getStopTimeDisplayRows(destination, "destination");
     expect(destRows).toHaveLength(1);
     expect(destRows[0]?.kind).toBe("arrival");
+    expect(destRows[0]?.label).toBe(routeCopy.label.estimatedArrivalDestination);
 
     const waypoint = stop({
       stopType: [StopType.WAYPOINT],
       actualArrival: new Date("2026-05-28T16:00:00.000Z"),
+      estimatedDeparture: new Date("2026-05-28T17:00:00.000Z"),
     });
     const wpRows = getStopTimeDisplayRows(waypoint, "waypoint");
     expect(wpRows).toHaveLength(2);
+    expect(wpRows[0]?.label).toBe(routeCopy.label.actualArrival);
+    expect(wpRows[1]?.label).toBe(routeCopy.label.estimatedDepartureWaypoint);
   });
 
   it("derives visit state for progress and badges", () => {
     const tripTimes = { actualDeparture: new Date("2026-05-28T14:00:00.000Z") };
-    const origin = stop({ stopType: [StopType.ORIGIN] });
+    const origin = stop({
+      stopType: [StopType.ORIGIN],
+      status: StopStatus.COMPLETED,
+      actualDeparture: new Date("2026-05-28T14:00:00.000Z"),
+    });
     expect(getStopOperationalVisitState(origin, "origin", tripTimes)).toBe("visited");
+    expect(getStopOperationalVisitLabel("visited", "origin")).toBe(
+      progressCopy.label.stopCompleted,
+    );
     expect(isStopOperativelyComplete(origin, "origin", tripTimes)).toBe(true);
 
     const escala = stop({
       stopType: [StopType.WAYPOINT],
+      status: StopStatus.IN_PROGRESS,
       actualArrival: new Date("2026-05-28T16:00:00.000Z"),
     });
     expect(getStopOperationalVisitState(escala, "waypoint")).toBe("at_stop");
-    expect(getStopOperationalVisitLabel("at_stop")).toBe(routeCopy.label.visitAtStop);
+    expect(getStopOperationalVisitLabel("at_stop", "waypoint")).toBe(
+      progressCopy.label.stopAtWaypoint,
+    );
+
+    const destEnDestino = stop({
+      stopType: [StopType.DESTINATION],
+      status: StopStatus.IN_PROGRESS,
+      actualArrival: new Date("2026-05-28T18:00:00.000Z"),
+    });
+    expect(getStopOperationalVisitState(destEnDestino, "destination")).toBe("at_stop");
+    expect(getStopOperationalVisitLabel("at_stop", "destination")).toBe(
+      progressCopy.label.stopAtDestination,
+    );
 
     const completed = [
       stop({
         id: "o",
         stopType: [StopType.ORIGIN],
-        actualDeparture: new Date("2026-05-28T10:00:00.000Z"),
+        status: StopStatus.COMPLETED,
       }),
       stop({
         id: "d",
         sequenceOrder: 2,
         stopType: [StopType.DESTINATION],
-        actualArrival: new Date("2026-05-28T18:00:00.000Z"),
+        status: StopStatus.COMPLETED,
       }),
     ];
     expect(countOperativelyCompleteStops(completed)).toBe(2);

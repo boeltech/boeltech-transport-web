@@ -285,21 +285,12 @@ export function TripsListPage() {
     setIsDateFilterOpen(false);
   }, [setSearchParams]);
 
-  const clearFiscalSearchParams = useCallback(() => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      params.delete("fiscalAttention");
-      params.delete("invoiceStatus");
-      params.set("page", "1");
-      return params;
-    });
-  }, [setSearchParams]);
-
   const clearAllTripsFilters = useCallback(() => {
-    filters.clearAll();
-    handleClearDateFilter();
-    clearFiscalSearchParams();
-  }, [filters, handleClearDateFilter, clearFiscalSearchParams]);
+    filters.setSearchInput("");
+    setSearchParams(new URLSearchParams());
+    setDateDraft({ ...EMPTY_TRIP_DATE_DRAFT });
+    setIsDateFilterOpen(false);
+  }, [filters.setSearchInput, setSearchParams]);
 
   const activeFilterChips: ActiveFilterChip[] = [
     ...filters.activeChips,

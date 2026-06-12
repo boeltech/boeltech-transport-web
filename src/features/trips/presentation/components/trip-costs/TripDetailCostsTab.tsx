@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   CircleDollarSign,
@@ -8,7 +9,9 @@ import {
 
 import {
   useAddExpense,
+  useApproveExpense,
   useDeleteExpense,
+  useRejectExpense,
   useUpdateExpense,
 } from "@features/trips/application/hooks/expense/useExpenseOperations";
 import {
@@ -19,6 +22,7 @@ import {
 } from "@features/trips/domain";
 import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -65,6 +69,11 @@ export interface TripDetailCostsTabProps {
   canEditBaseRate: boolean;
   /** Gastos/costos: draft/scheduled/in_progress + permiso. */
   canManageExpenses: boolean;
+  /** Aprobar/rechazar gastos pendientes (roles con permiso de aprobaciones). */
+  canApproveExpenses: boolean;
+  pendingExpenseCount?: number;
+  /** Código visible del viaje (para deep link a bandeja de aprobaciones). */
+  tripCode?: string;
 }
 
 function CostsTabSkeleton() {
@@ -111,8 +120,24 @@ export function TripDetailCostsTab({
   onRetry,
   canEditBaseRate,
   canManageExpenses,
+  canApproveExpenses,
+  pendingExpenseCount = 0,
+  tripCode,
 }: TripDetailCostsTabProps) {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canViewApprovalsHub = hasPermission("finance_approvals", "read");
+  const approvalsHubPath = useMemo(() => {
+    const params = new URLSearchParams({
+      status: "pending",
+      type: "trip_expense",
+      tripId,
+    });
+    if (tripCode) {
+      params.set("tripCode", tripCode);
+    }
+    return `/finance/approvals?${params.toString()}`;
+  }, [tripCode, tripId]);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetKind, setSheetKind] = useState<TripExpenseSheetKind>("cost");
@@ -137,6 +162,8 @@ export function TripDetailCostsTab({
   const addExpense = useAddExpense(tripId);
   const updateExpense = useUpdateExpense(tripId);
   const deleteExpense = useDeleteExpense(tripId);
+  const approveExpense = useApproveExpense(tripId);
+  const rejectExpense = useRejectExpense(tripId);
 
   const expenseLines = useMemo(() => tripExpensesToWizardLines(expenses), [expenses]);
 
@@ -176,6 +203,35 @@ export function TripDetailCostsTab({
 
   const expensesReadOnly = !canManageExpenses;
   const baseRateReadOnly = !canEditBaseRate;
+
+  const approveHandlers = canApproveExpenses
+    ? {
+        onApprove: async (expenseId: string) => {
+          try {
+            await approveExpense.mutateAsync(expenseId);
+            toast({ title: copy.toast.approved, variant: "success" });
+          } catch (error) {
+            toast({
+              title: copy.toast.approveError,
+              description: error instanceof Error ? error.message : undefined,
+              variant: "error",
+            });
+          }
+        },
+        onReject: async (expenseId: string) => {
+          try {
+            await rejectExpense.mutateAsync({ expenseId });
+            toast({ title: copy.toast.rejected, variant: "success" });
+          } catch (error) {
+            toast({
+              title: copy.toast.rejectError,
+              description: error instanceof Error ? error.message : undefined,
+              variant: "error",
+            });
+          }
+        },
+      }
+    : { onApprove: undefined, onReject: undefined };
 
   const handleOpenAdd = (kind: TripExpenseSheetKind) => {
     setSheetKind(kind);
@@ -251,6 +307,35 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
+      {pendingExpenseCount > 0 ? (
+        <DetailAlertCard
+          severity="warning"
+          icon={<Receipt className="h-4 w-4" />}
+          title={copy.alert.pendingApprovalTitle}
+          items={[
+            {
+              text: canApproveExpenses
+                ? copy.alert.pendingApprovalBodyCanApprove
+                : copy.alert.pendingApprovalBody,
+            },
+            ...(canViewApprovalsHub
+              ? [
+                  {
+                    text: (
+                      <Link
+                        to={approvalsHubPath}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {copy.alert.approvalsHubLink}
+                      </Link>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <TripBaseRateCard
@@ -293,6 +378,8 @@ export function TripDetailCostsTab({
                 }
                 onEdit={expensesReadOnly ? undefined : handleOpenEdit}
                 onRemove={expensesReadOnly ? undefined : handleRemove}
+                onApprove={approveHandlers.onApprove}
+                onReject={approveHandlers.onReject}
               />
             </CardContent>
           </Card>
@@ -328,6 +415,8 @@ export function TripDetailCostsTab({
                 }
                 onEdit={expensesReadOnly ? undefined : handleOpenEdit}
                 onRemove={expensesReadOnly ? undefined : handleRemove}
+                onApprove={approveHandlers.onApprove}
+                onReject={approveHandlers.onReject}
               />
             </CardContent>
           </Card>

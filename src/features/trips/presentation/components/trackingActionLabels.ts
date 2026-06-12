@@ -51,6 +51,15 @@ export function formatDepartureButtonLabel(
   return `${base} — ${formatStopActionShortLabel(stop, displayOrder)}`;
 }
 
+export function formatDepartOriginButtonLabel(
+  stop: TripStop | undefined,
+  displayOrder: number | undefined,
+): string {
+  const base = trackingCopy.action.departOrigin;
+  if (!stop || displayOrder == null) return base;
+  return `${base} — ${formatStopActionShortLabel(stop, displayOrder)}`;
+}
+
 export function formatTripArrivalButtonLabel(
   stop: TripStop | undefined,
   displayOrder: number | undefined,

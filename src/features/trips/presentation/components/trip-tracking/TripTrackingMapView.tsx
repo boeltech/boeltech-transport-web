@@ -4,6 +4,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import type { TrackingEvent, TrackingTimelineMapPosition, TripStop } from "@features/trips/domain";
 import { cn } from "@shared/lib/utils/cn";
+import { useMapboxStyle } from "@shared/geolocation/application/hooks/useMapboxStyle";
+import { getChartPrimaryColor } from "@shared/geolocation/mapboxThemeColors";
 
 import {
   ROUTE_LAYER_ID,
@@ -12,6 +14,8 @@ import {
   buildStopMarkers,
   collectMapBounds,
   isRouteGeoJson,
+  type TrackingMapEventMarker,
+  type TrackingMapStopMarker,
 } from "./trackingMapHelpers";
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
@@ -50,6 +54,96 @@ function createEventMarkerElement(): HTMLDivElement {
   return el;
 }
 
+type SyncMapOverlaysParams = {
+  stopMarkers: TrackingMapStopMarker[];
+  eventMarkers: TrackingMapEventMarker[];
+  lastKnownPosition: TrackingTimelineMapPosition | null;
+  routeGeojson: Record<string, unknown> | null;
+  bounds: mapboxgl.LngLatBoundsLike | null;
+  markersRef: React.MutableRefObject<mapboxgl.Marker[]>;
+};
+
+function syncMapOverlays(map: mapboxgl.Map, params: SyncMapOverlaysParams) {
+  const {
+    stopMarkers,
+    eventMarkers,
+    lastKnownPosition,
+    routeGeojson,
+    bounds,
+    markersRef,
+  } = params;
+
+  markersRef.current.forEach((marker) => marker.remove());
+  markersRef.current = [];
+
+  for (const stop of stopMarkers) {
+    const marker = new mapboxgl.Marker({
+      element: createNumberedMarkerElement(stop.order),
+    })
+      .setLngLat([stop.longitude, stop.latitude])
+      .setPopup(
+        new mapboxgl.Popup({ offset: 16 }).setHTML(
+          `<strong>${stop.order}. ${stop.label}</strong>${
+            stop.sublabel
+              ? `<br/><span style="font-size:12px;opacity:0.75">${stop.sublabel}</span>`
+              : ""
+          }`,
+        ),
+      )
+      .addTo(map);
+    markersRef.current.push(marker);
+  }
+
+  for (const event of eventMarkers) {
+    const marker = new mapboxgl.Marker({ element: createEventMarkerElement() })
+      .setLngLat([event.longitude, event.latitude])
+      .addTo(map);
+    markersRef.current.push(marker);
+  }
+
+  if (lastKnownPosition) {
+    const marker = new mapboxgl.Marker({ element: createPulseMarkerElement() })
+      .setLngLat([lastKnownPosition.longitude, lastKnownPosition.latitude])
+      .setPopup(
+        new mapboxgl.Popup({ offset: 12 }).setText("Última posición reportada"),
+      )
+      .addTo(map);
+    markersRef.current.push(marker);
+  }
+
+  if (map.getLayer(ROUTE_LAYER_ID)) {
+    map.removeLayer(ROUTE_LAYER_ID);
+  }
+  if (map.getSource(ROUTE_SOURCE_ID)) {
+    map.removeSource(ROUTE_SOURCE_ID);
+  }
+
+  if (routeGeojson && isRouteGeoJson(routeGeojson)) {
+    map.addSource(ROUTE_SOURCE_ID, {
+      type: "geojson",
+      data: routeGeojson as GeoJSON.GeoJSON,
+    });
+    map.addLayer({
+      id: ROUTE_LAYER_ID,
+      type: "line",
+      source: ROUTE_SOURCE_ID,
+      paint: {
+        "line-color": getChartPrimaryColor(),
+        "line-width": 4,
+        "line-opacity": 0.75,
+      },
+    });
+  }
+
+  if (bounds) {
+    map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 600 });
+  } else {
+    map.flyTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM, duration: 0 });
+  }
+
+  scheduleMapResize(map);
+}
+
 export type TripTrackingMapViewProps = {
   token: string;
   stops: readonly TripStop[];
@@ -67,11 +161,13 @@ export function TripTrackingMapView({
   lastKnownPosition,
   className,
 }: TripTrackingMapViewProps) {
+  const mapboxStyle = useMapboxStyle();
   const shellRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const prevMapboxStyleRef = useRef(mapboxStyle);
   const [isVisible, setIsVisible] = useState(false);
 
   const stopMarkers = useMemo(() => buildStopMarkers(stops), [stops]);
@@ -79,6 +175,18 @@ export function TripTrackingMapView({
   const bounds = useMemo(
     () => collectMapBounds(stopMarkers, eventMarkers, lastKnownPosition),
     [stopMarkers, eventMarkers, lastKnownPosition],
+  );
+
+  const overlayParams = useMemo(
+    () => ({
+      stopMarkers,
+      eventMarkers,
+      lastKnownPosition,
+      routeGeojson,
+      bounds,
+      markersRef,
+    }),
+    [stopMarkers, eventMarkers, lastKnownPosition, routeGeojson, bounds],
   );
 
   useEffect(() => {
@@ -108,7 +216,7 @@ export function TripTrackingMapView({
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
       container,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: mapboxStyle,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: true,
@@ -116,14 +224,18 @@ export function TripTrackingMapView({
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
     const resize = () => scheduleMapResize(map);
-    map.on("load", resize);
+    map.on("load", () => {
+      resize();
+      syncMapOverlays(map, overlayParams);
+    });
 
     const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(shell);
     resizeObserverRef.current = resizeObserver;
     mapRef.current = map;
+    prevMapboxStyleRef.current = mapboxStyle;
     scheduleMapResizeAfterReveal(map);
-  }, [isVisible, token]);
+  }, [isVisible, mapboxStyle, overlayParams, token]);
 
   useEffect(() => {
     return () => {
@@ -138,89 +250,28 @@ export function TripTrackingMapView({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !isVisible || prevMapboxStyleRef.current === mapboxStyle) return;
+
+    prevMapboxStyleRef.current = mapboxStyle;
+    map.setStyle(mapboxStyle);
+    map.once("style.load", () => {
+      syncMapOverlays(map, overlayParams);
+    });
+  }, [isVisible, mapboxStyle, overlayParams]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !isVisible) return;
 
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    for (const stop of stopMarkers) {
-      const marker = new mapboxgl.Marker({
-        element: createNumberedMarkerElement(stop.order),
-      })
-        .setLngLat([stop.longitude, stop.latitude])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 16 }).setHTML(
-            `<strong>${stop.order}. ${stop.label}</strong>${stop.sublabel ? `<br/><span style="font-size:12px;color:#666">${stop.sublabel}</span>` : ""}`,
-          ),
-        )
-        .addTo(map);
-      markersRef.current.push(marker);
-    }
-
-    for (const event of eventMarkers) {
-      const marker = new mapboxgl.Marker({ element: createEventMarkerElement() })
-        .setLngLat([event.longitude, event.latitude])
-        .addTo(map);
-      markersRef.current.push(marker);
-    }
-
-    if (lastKnownPosition) {
-      const marker = new mapboxgl.Marker({ element: createPulseMarkerElement() })
-        .setLngLat([lastKnownPosition.longitude, lastKnownPosition.latitude])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 12 }).setText("Última posición reportada"),
-        )
-        .addTo(map);
-      markersRef.current.push(marker);
-    }
-
-    const applyRoute = () => {
-      if (map.getLayer(ROUTE_LAYER_ID)) {
-        map.removeLayer(ROUTE_LAYER_ID);
-      }
-      if (map.getSource(ROUTE_SOURCE_ID)) {
-        map.removeSource(ROUTE_SOURCE_ID);
-      }
-
-      if (routeGeojson && isRouteGeoJson(routeGeojson)) {
-        map.addSource(ROUTE_SOURCE_ID, {
-          type: "geojson",
-          data: routeGeojson as GeoJSON.GeoJSON,
-        });
-        map.addLayer({
-          id: ROUTE_LAYER_ID,
-          type: "line",
-          source: ROUTE_SOURCE_ID,
-          paint: {
-            "line-color": "#2563eb",
-            "line-width": 4,
-            "line-opacity": 0.75,
-          },
-        });
-      }
-    };
+    const applyOverlays = () => syncMapOverlays(map, overlayParams);
 
     if (map.isStyleLoaded()) {
-      applyRoute();
-    } else {
-      map.once("load", applyRoute);
+      applyOverlays();
+      return;
     }
 
-    if (bounds) {
-      map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 600 });
-    } else {
-      map.flyTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM, duration: 0 });
-    }
-
-    scheduleMapResize(map);
-  }, [
-    bounds,
-    eventMarkers,
-    isVisible,
-    lastKnownPosition,
-    routeGeojson,
-    stopMarkers,
-  ]);
+    map.once("style.load", applyOverlays);
+  }, [bounds, eventMarkers, isVisible, lastKnownPosition, overlayParams, routeGeojson, stopMarkers]);
 
   return (
     <div

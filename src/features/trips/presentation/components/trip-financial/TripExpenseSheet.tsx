@@ -29,10 +29,11 @@ import { Label } from "@shared/ui/label";
 import {
   FormFieldShell,
   FormValidationSummary,
+  MoneyInput,
+  RHFMoneyField,
   RHFSelectField,
   RHFTextField,
   RHFTextareaField,
-  getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 
@@ -295,39 +296,13 @@ export function TripExpenseSheet({
               required
               placeholder={copy.placeholder.description}
             />
-            <Controller
+            <RHFMoneyField
               control={control}
               name="amount"
-              render={({ field, fieldState }) => {
-                const errorMessage = fieldState.error?.message;
-                return (
-                  <FormFieldShell
-                    fieldId="expense-amount"
-                    label={copy.label.amount}
-                    required
-                    errorMessage={errorMessage}
-                  >
-                    <Input
-                      id="expense-amount"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      placeholder={copy.placeholder.amount}
-                      value={field.value ?? ""}
-                      onChange={(event) =>
-                        field.onChange(
-                          event.target.value
-                            ? Number(event.target.value)
-                            : undefined,
-                        )
-                      }
-                      onBlur={field.onBlur}
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps("expense-amount", errorMessage)}
-                    />
-                  </FormFieldShell>
-                );
-              }}
+              fieldId="expense-amount"
+              label={copy.label.amount}
+              required
+              placeholder={copy.placeholder.amount}
             />
           </FormSectionCard>
 
@@ -358,18 +333,12 @@ export function TripExpenseSheet({
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-44 space-y-1">
                     <Label className="text-xs">{copy.label.dieselPrice}</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <MoneyInput
+                      id="diesel-price-per-liter"
                       className="h-8 text-sm"
                       value={dieselPricePerLiter}
-                      onChange={(event) =>
-                        setDieselPricePerLiter(
-                          event.target.value
-                            ? Number(event.target.value)
-                            : DEFAULT_DIESEL_PRICE,
-                        )
+                      onValueChange={(next) =>
+                        setDieselPricePerLiter(next ?? DEFAULT_DIESEL_PRICE)
                       }
                     />
                   </div>

@@ -2,12 +2,17 @@ import type { TripStop, TripStatusHistory } from "./entities";
 import type { TripStatusType } from "./enums";
 
 export type TrackingEventType =
+  | "trip_dispatched"
   | "trip_departed"
   | "stop_arrived"
   | "stop_departed"
   | "trip_arrived"
   | "incident"
-  | "note";
+  | "note"
+  | "cargo_picked_up"
+  | "cargo_delivered"
+  | "cargo_returned"
+  | "cargo_cancelled";
 
 export type TrackingEventCategory =
   | "fiscal"

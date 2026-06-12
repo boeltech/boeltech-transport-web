@@ -51,6 +51,19 @@ export function shouldFetchTripTimelineForShell(
   );
 }
 
+/**
+ * Timeline compartido (misma query que Seguimiento) para reflejar progreso en Ruta.
+ */
+export function shouldFetchTripTimeline(
+  activeTab: TripDetailTabValue,
+  tripId: string,
+  status: TripStatusType | undefined,
+): boolean {
+  if (!tripId) return false;
+  if (activeTab === "tracking" || activeTab === "route") return true;
+  return shouldFetchTripTimelineForShell(activeTab, tripId, status);
+}
+
 export function tripStatusNeedsTrackingContext(
   status: TripStatusType | undefined,
 ): boolean {

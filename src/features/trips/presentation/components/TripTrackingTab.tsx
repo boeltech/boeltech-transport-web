@@ -7,35 +7,27 @@ import { DetailTimeline } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import {
-  AlertTriangle,
-  CheckCircle2,
   Clock,
   Loader2,
-  MapPin,
-  Navigation,
-  Play,
   RefreshCw,
   Route,
-  StickyNote,
 } from "lucide-react";
-import { getOrderedStops, type TripStatusType } from "@features/trips/domain";
-import { useTripTimeline } from "@features/trips/application";
-import { formatStopTimelineLabel } from "../uiHelpers";
+import { getOrderedStops, TripStatus, type TripStatusType } from "@features/trips/domain";
 import {
-  formatArrivalButtonLabel,
-  formatDepartureButtonLabel,
-  formatStopActionTooltip,
-  formatTripArrivalButtonLabel,
-  resolveStopDisplayOrder,
-} from "./trackingActionLabels";
+  useTripCargos,
+  useTripTimeline,
+  useUpdateCargo,
+} from "@features/trips/application";
+import { formatStopTimelineLabel } from "../uiHelpers";
 import { formatTrackingEventLabel } from "./trackingEventLabels";
+import { resolveTrackingEventIcon } from "./trackingEventIcons";
 import {
   findActiveEscalaForDeparture,
   findDestinationAwaitingTripArrival,
   findNextStopForArrival,
+  findOriginAwaitingDeparture,
 } from "./trackingStopEligibility";
 import { TripTrackingMap } from "./TripTrackingMap";
-import { StartTripDialog } from "./StartTripDialog";
 import {
   formatDataUpdatedAgo,
   getTrackingScopeAlertItems,
@@ -43,17 +35,29 @@ import {
   RegisterTripArrivalSheet,
   RegisterTrackingIncidentSheet,
   RegisterTrackingNoteSheet,
+  StartTripSheet,
+  DepartOriginSheet,
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
-  TripTrackingOperationalItinerary,
+  TripTrackingStopsCargosMasterDetail,
+  TripTrackingNextActionCard,
   trackingCopy,
 } from "./trip-tracking";
+import {
+  cargoActionToStatus,
+  type CargoManualAction,
+} from "../utils/cargoStatusActions";
+import { getCargoStatusVariant } from "./trip-cargos/tripCargoDetailHelpers";
+import { useToast } from "@shared/hooks";
+import { tripDetailCopy } from "../copy";
+import { progressCopy } from "../copy";
 import { isOriginStop } from "./trackingStopEligibility";
 
 interface TripTrackingTabProps {
   tripId: string;
   tripCode: string;
   vehicleId?: string;
+  driverId?: string;
   tripStartMileage?: number | null;
   status: TripStatusType;
 }
@@ -62,25 +66,77 @@ export function TripTrackingTab({
   tripId,
   tripCode,
   vehicleId,
+  driverId,
   tripStartMileage,
   status,
 }: TripTrackingTabProps) {
-  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [startSheetOpen, setStartSheetOpen] = useState(false);
   const [tripArrivalSheetOpen, setTripArrivalSheetOpen] = useState(false);
   const [arrivalSheetOpen, setArrivalSheetOpen] = useState(false);
   const [departureSheetOpen, setDepartureSheetOpen] = useState(false);
+  const [departOriginSheetOpen, setDepartOriginSheetOpen] = useState(false);
   const [noteSheetOpen, setNoteSheetOpen] = useState(false);
   const [incidentSheetOpen, setIncidentSheetOpen] = useState(false);
   const [refreshTickMs, setRefreshTickMs] = useState(() => Date.now());
+  const [pendingCargoAction, setPendingCargoAction] = useState<{
+    cargoId: string;
+    action: CargoManualAction;
+  } | null>(null);
+  const { toast } = useToast();
 
   const timelineQuery = useTripTimeline(tripId);
+  const timeline = timelineQuery.data;
+  const tripStatus = timeline?.trip.status ?? status;
+
+  const cargosQuery = useTripCargos(tripId, {
+    enabled:
+      tripStatus === TripStatus.IN_PROGRESS ||
+      tripStatus === TripStatus.COMPLETED,
+  });
+  const cargos = cargosQuery.data ?? [];
+
+  const updateCargoMutation = useUpdateCargo(tripId, {
+    onSuccess: (_data, variables) => {
+      const action =
+        pendingCargoAction?.cargoId === variables.cargoId
+          ? pendingCargoAction.action
+          : null;
+      if (action === "pickup") {
+        toast({ title: tripDetailCopy.cargo.toast.pickup, variant: "success" });
+      } else if (action === "deliver") {
+        toast({ title: tripDetailCopy.cargo.toast.delivered, variant: "success" });
+      } else if (action === "return") {
+        toast({ title: tripDetailCopy.cargo.toast.returned, variant: "success" });
+      } else if (action === "cancel") {
+        toast({ title: tripDetailCopy.cargo.toast.cancelled, variant: "success" });
+      }
+      setPendingCargoAction(null);
+      cargosQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: tripDetailCopy.cargo.toast.deliverError,
+        description: error.message,
+        variant: "destructive",
+      });
+      setPendingCargoAction(null);
+    },
+  });
+
+  const handleCargoAction = (cargoId: string, action: CargoManualAction) => {
+    setPendingCargoAction({ cargoId, action });
+    updateCargoMutation.mutate({
+      cargoId,
+      data: { status: cargoActionToStatus(action) },
+    });
+  };
 
   useEffect(() => {
-    if (status !== "in_progress") return;
+    if (tripStatus !== TripStatus.IN_PROGRESS) return;
     const id = window.setInterval(() => setRefreshTickMs(Date.now()), 10_000);
     return () => window.clearInterval(id);
-  }, [status]);
-  const timeline = timelineQuery.data;
+  }, [tripStatus]);
+
   const orderedStops = useMemo(
     () => (timeline ? getOrderedStops(timeline.stops) : []),
     [timeline],
@@ -104,6 +160,10 @@ export function TripTrackingTab({
     () => findActiveEscalaForDeparture(orderedStops),
     [orderedStops],
   );
+  const originAwaitingDeparture = useMemo(
+    () => findOriginAwaitingDeparture(orderedStops),
+    [orderedStops],
+  );
   const destinationAwaitingClosure = useMemo(
     () => findDestinationAwaitingTripArrival(orderedStops),
     [orderedStops],
@@ -111,74 +171,39 @@ export function TripTrackingTab({
   const nextArrivalOrder = useMemo(
     () =>
       nextStopForArrival
-        ? resolveStopDisplayOrder(orderedStops, nextStopForArrival.id)
+        ? orderedStops.findIndex((s) => s.id === nextStopForArrival.id) + 1
         : undefined,
     [nextStopForArrival, orderedStops],
   );
   const activeDepartureOrder = useMemo(
     () =>
       activeEscalaForDeparture
-        ? resolveStopDisplayOrder(orderedStops, activeEscalaForDeparture.id)
+        ? orderedStops.findIndex((s) => s.id === activeEscalaForDeparture.id) + 1
         : undefined,
     [activeEscalaForDeparture, orderedStops],
   );
-  const arrivalButtonLabel = useMemo(
-    () => formatArrivalButtonLabel(nextStopForArrival, nextArrivalOrder),
-    [nextStopForArrival, nextArrivalOrder],
-  );
-  const departureButtonLabel = useMemo(
+  const originDepartureOrder = useMemo(
     () =>
-      formatDepartureButtonLabel(
-        activeEscalaForDeparture,
-        activeDepartureOrder,
-      ),
-    [activeEscalaForDeparture, activeDepartureOrder],
+      originAwaitingDeparture
+        ? orderedStops.findIndex((s) => s.id === originAwaitingDeparture.id) + 1
+        : undefined,
+    [originAwaitingDeparture, orderedStops],
   );
-  const arrivalButtonTitle = useMemo(() => {
-    if (!nextStopForArrival || nextArrivalOrder == null) return undefined;
-    return formatStopActionTooltip(nextStopForArrival, nextArrivalOrder);
-  }, [nextStopForArrival, nextArrivalOrder]);
-  const departureButtonTitle = useMemo(() => {
-    if (!activeEscalaForDeparture || activeDepartureOrder == null) {
-      return undefined;
-    }
-    return formatStopActionTooltip(
-      activeEscalaForDeparture,
-      activeDepartureOrder,
-    );
-  }, [activeEscalaForDeparture, activeDepartureOrder]);
   const destinationClosureOrder = useMemo(
     () =>
       destinationAwaitingClosure
-        ? resolveStopDisplayOrder(orderedStops, destinationAwaitingClosure.id)
+        ? orderedStops.findIndex((s) => s.id === destinationAwaitingClosure.id) + 1
         : undefined,
     [destinationAwaitingClosure, orderedStops],
   );
-  const tripArrivalButtonLabel = useMemo(
-    () =>
-      formatTripArrivalButtonLabel(
-        destinationAwaitingClosure,
-        destinationClosureOrder,
-      ),
-    [destinationAwaitingClosure, destinationClosureOrder],
-  );
-  const tripArrivalButtonTitle = useMemo(() => {
-    if (!destinationAwaitingClosure || destinationClosureOrder == null) {
-      return undefined;
-    }
-    return formatStopActionTooltip(
-      destinationAwaitingClosure,
-      destinationClosureOrder,
-    );
-  }, [destinationAwaitingClosure, destinationClosureOrder]);
 
   const scopeAlertItems = useMemo(
     () =>
       getTrackingScopeAlertItems(
-        status,
+        tripStatus,
         timeline?.trip.hasOpenIncident ?? false,
       ),
-    [status, timeline?.trip.hasOpenIncident],
+    [tripStatus, timeline?.trip.hasOpenIncident],
   );
 
   const originStop = useMemo(
@@ -187,11 +212,13 @@ export function TripTrackingTab({
   );
   const referenceStopForGps = useMemo(
     () =>
+      originAwaitingDeparture ??
       activeEscalaForDeparture ??
       nextStopForArrival ??
       destinationAwaitingClosure ??
       null,
     [
+      originAwaitingDeparture,
       activeEscalaForDeparture,
       nextStopForArrival,
       destinationAwaitingClosure,
@@ -243,33 +270,13 @@ export function TripTrackingTab({
     );
   }
 
-  const canStart = status === "scheduled";
-  const canOperateStops = status === "in_progress";
-  const canArrive = canOperateStops && !!nextStopForArrival;
-  const canDepart = canOperateStops && !!activeEscalaForDeparture;
-  const canCloseAtDestination =
-    canOperateStops && !!destinationAwaitingClosure;
-  const startButtonTitle = canStart
-    ? undefined
-    : trackingCopy.error.startRequiresScheduled;
-  const arriveButtonTitle = canArrive
-    ? arrivalButtonTitle
-    : trackingCopy.error.arriveRequiresInProgress;
-  const departButtonTitle = canDepart
-    ? departureButtonTitle
-    : trackingCopy.error.departRequiresEscala;
-  const closeButtonTitle = canCloseAtDestination
-    ? tripArrivalButtonTitle
-    : trackingCopy.error.closeRequiresDestination;
-  const registerButtonTitle = canOperateStops
-    ? undefined
-    : trackingCopy.error.registerRequiresInProgress;
+  const canOperateStops = tripStatus === TripStatus.IN_PROGRESS;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {status === "in_progress" ? (
+          {tripStatus === TripStatus.IN_PROGRESS ? (
             <Badge variant="secondary" className="text-xs">
               {trackingCopy.state.live}
             </Badge>
@@ -306,17 +313,34 @@ export function TripTrackingTab({
         items={scopeAlertItems}
       />
 
+      <TripTrackingNextActionCard
+        tripStatus={tripStatus}
+        stops={orderedStops}
+        cargos={cargos}
+        onStartTrip={() => setStartSheetOpen(true)}
+        onArrive={() => setArrivalSheetOpen(true)}
+        onDepart={() => setDepartureSheetOpen(true)}
+        onDepartOrigin={() => setDepartOriginSheetOpen(true)}
+        onCloseTrip={() => setTripArrivalSheetOpen(true)}
+        onRegisterNote={() => setNoteSheetOpen(true)}
+        onRegisterIncident={() => setIncidentSheetOpen(true)}
+        canRegisterNote={canOperateStops}
+        canRegisterIncident={canOperateStops}
+      />
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Progreso</CardDescription>
+            <CardDescription>{progressCopy.label.percent}</CardDescription>
             <CardTitle className="text-2xl">
               {timeline.progress.percentComplete}%
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            {timeline.progress.stopsCompleted}/{timeline.progress.stopsTotal}{" "}
-            paradas completadas
+            {progressCopy.hint.completedStops(
+              timeline.progress.stopsCompleted,
+              timeline.progress.stopsTotal,
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -360,98 +384,20 @@ export function TripTrackingTab({
         </Card>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-        <TripTrackingOperationalItinerary
-          stops={orderedStops}
-          tripStatus={status}
-          tripTimes={tripScheduleTimes}
-        />
-
-        <Card className="xl:sticky xl:top-24">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Play className="h-4 w-4 text-primary" />
-              {trackingCopy.section.actions}
-            </CardTitle>
-            <CardDescription>{trackingCopy.hint.actionsScope}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Operativas
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  onClick={() => setStartDialogOpen(true)}
-                  disabled={!canStart}
-                  title={startButtonTitle}
-                  className="justify-start sm:w-auto"
-                >
-                  <Play className="mr-2 h-4 w-4 shrink-0" />
-                  {trackingCopy.action.start}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setArrivalSheetOpen(true)}
-                  disabled={!canArrive}
-                  title={arriveButtonTitle}
-                  className="justify-start sm:max-w-xs"
-                >
-                  <MapPin className="mr-2 h-4 w-4 shrink-0" />
-                  <span className="truncate">{arrivalButtonLabel}</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setDepartureSheetOpen(true)}
-                  disabled={!canDepart}
-                  title={departButtonTitle}
-                  className="justify-start sm:max-w-xs"
-                >
-                  <Navigation className="mr-2 h-4 w-4 shrink-0" />
-                  <span className="truncate">{departureButtonLabel}</span>
-                </Button>
-                <Button
-                  variant={canCloseAtDestination ? "default" : "outline"}
-                  onClick={() => setTripArrivalSheetOpen(true)}
-                  disabled={!canCloseAtDestination}
-                  title={closeButtonTitle}
-                  className="justify-start sm:max-w-xs"
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4 shrink-0" />
-                  <span className="truncate">{tripArrivalButtonLabel}</span>
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Registro
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setNoteSheetOpen(true)}
-                  disabled={!canOperateStops}
-                  title={registerButtonTitle}
-                >
-                  <StickyNote className="mr-2 h-4 w-4" />
-                  {trackingCopy.action.note}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIncidentSheetOpen(true)}
-                  disabled={!canOperateStops}
-                  title={registerButtonTitle}
-                >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  {trackingCopy.action.incident}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <TripTrackingStopsCargosMasterDetail
+        stops={orderedStops}
+        tripStatus={tripStatus}
+        tripTimes={tripScheduleTimes}
+        cargos={cargos}
+        pendingCargoAction={pendingCargoAction}
+        onCargoAction={handleCargoAction}
+        getCargoStatusVariant={getCargoStatusVariant}
+        onStartTrip={() => setStartSheetOpen(true)}
+        onArrive={() => setArrivalSheetOpen(true)}
+        onDepart={() => setDepartureSheetOpen(true)}
+        onDepartOrigin={() => setDepartOriginSheetOpen(true)}
+        onCloseTrip={() => setTripArrivalSheetOpen(true)}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card>
@@ -487,19 +433,7 @@ export function TripTrackingTab({
                   const relatedStop = event.stopId
                     ? stopsById.get(event.stopId)
                     : undefined;
-                  const eventIcon =
-                    event.eventType === "incident"
-                      ? AlertTriangle
-                      : event.eventType === "note"
-                        ? StickyNote
-                        : event.eventType === "trip_departed"
-                          ? Play
-                          : event.eventType === "trip_arrived"
-                            ? CheckCircle2
-                            : event.eventType === "stop_departed"
-                              ? Navigation
-                              : MapPin;
-                  const EventIcon = eventIcon;
+                  const EventIcon = resolveTrackingEventIcon(event.eventType);
                   const timelineBody = getTrackingEventTimelineBody(event);
                   const incidentMeta =
                     event.eventType === "incident"
@@ -527,11 +461,17 @@ export function TripTrackingTab({
                         {event.latitude != null ||
                         timelineBody ||
                         incidentMeta.length > 0 ||
-                        event.stopId ? (
+                        event.stopId ||
+                        event.payload?.cargo_description ? (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-xs text-muted-foreground">
                               Ver detalle
                             </summary>
+                            {typeof event.payload?.cargo_description === "string" ? (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {event.payload.cargo_description}
+                              </p>
+                            ) : null}
                             {event.latitude != null && event.longitude != null ? (
                               <p className="mt-1 font-mono text-xs text-muted-foreground">
                                 GPS: {event.latitude.toFixed(5)}, {event.longitude.toFixed(5)}
@@ -581,22 +521,27 @@ export function TripTrackingTab({
         />
       </div>
 
-      <StartTripDialog
+      <StartTripSheet
         tripId={tripId}
         tripCode={tripCode}
         vehicleId={vehicleId}
+        driverId={driverId}
         tripStartMileage={tripStartMileage}
         originStop={originStop}
-        open={startDialogOpen}
-        onOpenChange={setStartDialogOpen}
+        open={startSheetOpen}
+        onOpenChange={setStartSheetOpen}
       />
       <RegisterTripArrivalSheet
         tripId={tripId}
         tripCode={tripCode}
         vehicleId={vehicleId}
         tripStartMileage={tripStartMileage}
+        scheduledDeparture={timeline.trip.scheduledDeparture ?? undefined}
+        actualDeparture={timeline.trip.actualDeparture ?? undefined}
         destinationStop={destinationAwaitingClosure ?? null}
         displayOrder={destinationClosureOrder}
+        cargos={cargos}
+        orderedStops={orderedStops}
         open={tripArrivalSheetOpen}
         onOpenChange={setTripArrivalSheetOpen}
       />
@@ -613,8 +558,19 @@ export function TripTrackingTab({
         mode="departure"
         stop={activeEscalaForDeparture ?? null}
         displayOrder={activeDepartureOrder}
+        cargos={cargos}
+        orderedStops={orderedStops}
         open={departureSheetOpen}
         onOpenChange={setDepartureSheetOpen}
+      />
+      <DepartOriginSheet
+        tripId={tripId}
+        originStop={originAwaitingDeparture ?? originStop ?? null}
+        displayOrder={originDepartureOrder ?? (originStop ? 1 : undefined)}
+        cargos={cargos}
+        orderedStops={orderedStops}
+        open={departOriginSheetOpen}
+        onOpenChange={setDepartOriginSheetOpen}
       />
       <RegisterTrackingNoteSheet
         tripId={tripId}

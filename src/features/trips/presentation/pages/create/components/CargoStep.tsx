@@ -54,6 +54,9 @@ import {
   formatWizardStopAddressLine,
   formatWizardStopCityLine,
 } from "./wizardStopFormat";
+import { wizardCopy } from "../../../copy";
+
+const copy = wizardCopy.cargo;
 
 // ============================================================================
 // TYPES
@@ -262,8 +265,12 @@ export function CargoStep({
 
   const getStopLabel = (stopIndex: number): string => {
     const stop = stops?.[stopIndex];
-    if (!stop) return `Parada #${stopIndex + 1}`;
-    return `#${stopIndex + 1} ${stop.locationName || formatWizardStopAddressLine(stop)}`;
+    if (!stop) return copy.format.stopFallback(stopIndex);
+    return copy.format.stopLabel(
+      stopIndex,
+      stop.locationName || "",
+      formatWizardStopAddressLine(stop),
+    );
   };
 
   const totalWeight = fields.reduce(
@@ -304,12 +311,7 @@ export function CargoStep({
     return "bg-success";
   };
 
-  const formatWeight = (weightKg: number): string => {
-    if (weightKg >= 1000) {
-      return `${(weightKg / 1000).toLocaleString("es-MX", { maximumFractionDigits: 2 })} t`;
-    }
-    return `${weightKg.toLocaleString("es-MX")} kg`;
-  };
+  const formatWeight = copy.format.weight;
 
   const totalCargos = fields.length;
   const hasNoPickupStops = pickupStops.length === 0;
@@ -329,12 +331,10 @@ export function CargoStep({
               <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-warning-soft-foreground">
-                  No hay paradas con operación de carga
+                  {copy.alert.noPickupStops.title}
                 </p>
                 <p className="text-xs text-warning-soft-foreground mt-1">
-                  Regrese al paso de Ruta y asegúrese de que al menos una parada
-                  tenga la operación de &quot;Carga&quot; (pickup) para poder
-                  registrar mercancías.
+                  {copy.alert.noPickupStops.body}
                 </p>
               </div>
             </div>
@@ -351,20 +351,23 @@ export function CargoStep({
               <div>
                 <p className="text-sm font-medium text-warning-soft-foreground">
                   {stopsWithoutCargos.length === 1
-                    ? "1 parada de carga sin mercancías registradas"
-                    : `${stopsWithoutCargos.length} paradas de carga sin mercancías registradas`}
+                    ? copy.alert.stopsWithoutCargo.titleSingle
+                    : copy.alert.stopsWithoutCargo.titleMultiple(stopsWithoutCargos.length)}
                 </p>
                 <ul className="text-xs text-warning-soft-foreground mt-1 space-y-0.5">
                   {stopsWithoutCargos.map((stop) => (
                     <li key={stop.index}>
-                      • Parada #{stop.index + 1}:{" "}
-                      {stop.locationName || stop.address} ({stop.city})
+                      •{" "}
+                      {copy.format.stopWithoutCargoItem(
+                        stop.index,
+                        stop.locationName || stop.address,
+                        stop.city,
+                      )}
                     </li>
                   ))}
                 </ul>
                 <p className="text-xs text-warning-soft-foreground mt-2">
-                  Todas las paradas de carga deben tener al menos una mercancía
-                  para continuar.
+                  {copy.alert.stopsWithoutCargo.footer}
                 </p>
               </div>
             </div>
@@ -402,15 +405,19 @@ export function CargoStep({
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold flex items-center gap-2">
-                      Capacidad del Vehículo
+                      {copy.capacity.title}
                       {vehicle && (
                         <span className="text-xs font-normal text-muted-foreground">
-                          ({vehicle.unitNumber} - {vehicle.brand} {vehicle.model})
+                          {copy.format.vehicleSubtitle(
+                            vehicle.unitNumber,
+                            vehicle.brand,
+                            vehicle.model,
+                          )}
                         </span>
                       )}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Capacidad máxima: {formatWeight(vehicleCapacityKg)}
+                      {copy.format.maxCapacity(formatWeight(vehicleCapacityKg))}
                     </p>
                   </div>
                 </div>
@@ -418,7 +425,7 @@ export function CargoStep({
                   <p className={cn("text-2xl font-bold", getCapacityColor())}>
                     {capacityPercentage.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-muted-foreground">utilizado</p>
+                  <p className="text-xs text-muted-foreground">{copy.capacity.utilized}</p>
                 </div>
               </div>
 
@@ -436,23 +443,25 @@ export function CargoStep({
                   {isOverCapacity && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-xs font-medium text-white drop-shadow-sm">
-                        ¡EXCEDIDO!
+                        {copy.capacity.exceeded}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>
-                    Cargado:{" "}
+                    {copy.capacity.loadedLabel}{" "}
                     <span className={cn("font-medium", getCapacityColor())}>
                       {formatWeight(totalWeight)}
                     </span>
                   </span>
                   <span>
-                    Disponible:{" "}
+                    {copy.capacity.availableLabel}{" "}
                     <span className="font-medium">
                       {isOverCapacity
-                        ? `−${formatWeight(totalWeight - vehicleCapacityKg)} (excedido)`
+                        ? copy.format.excessAvailable(
+                            formatWeight(totalWeight - vehicleCapacityKg),
+                          )
                         : formatWeight(vehicleCapacityKg - totalWeight)}
                     </span>
                   </span>
@@ -463,7 +472,7 @@ export function CargoStep({
               {fields.length > 0 && (
                 <div className="pt-2 border-t">
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Desglose de cargas:
+                    {copy.capacity.breakdown}
                   </p>
                   <div className="space-y-1">
                     {fields.map((cargo, idx) => {
@@ -478,11 +487,13 @@ export function CargoStep({
                           className="flex items-center justify-between text-xs"
                         >
                           <span className="truncate max-w-[60%] text-muted-foreground">
-                            {cargo.description || `Carga ${idx + 1}`}
+                            {cargo.description || copy.format.cargoFallback(idx)}
                           </span>
                           <span className="font-medium">
-                            {formatWeight(cargoWeight)} (
-                            {cargoPercentage.toFixed(1)}%)
+                            {copy.format.cargoBreakdownPercentage(
+                              formatWeight(cargoWeight),
+                              cargoPercentage,
+                            )}
                           </span>
                         </div>
                       );
@@ -503,19 +514,17 @@ export function CargoStep({
               <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-destructive-soft-foreground">
-                  ¡Capacidad del vehículo excedida!
+                  {copy.alert.overCapacity.title}
                 </p>
                 <p className="text-xs text-destructive-soft-foreground mt-1">
-                  El peso total de las cargas ({formatWeight(totalWeight)})
-                  excede la capacidad del vehículo (
-                  {formatWeight(vehicleCapacityKg!)}). Exceso:{" "}
-                  <strong>
-                    {formatWeight(totalWeight - vehicleCapacityKg!)}
-                  </strong>
+                  {copy.format.overCapacityBody(
+                    formatWeight(totalWeight),
+                    formatWeight(vehicleCapacityKg!),
+                    formatWeight(totalWeight - vehicleCapacityKg!),
+                  )}
                 </p>
                 <p className="text-xs text-destructive-soft-foreground mt-2">
-                  Opciones: Reduzca el peso de las cargas o seleccione un
-                  vehículo con mayor capacidad en el Paso 1 (Información).
+                  {copy.alert.overCapacity.options}
                 </p>
               </div>
             </div>
@@ -533,16 +542,13 @@ export function CargoStep({
                 <AlertCircle className="h-5 w-5 text-info mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-info-soft-foreground">
-                    Vehículo sin capacidad de carga definida
+                    {copy.alert.noVehicleCapacity.title}
                   </p>
                   <p className="text-xs text-info-soft-foreground mt-1">
-                    El vehículo seleccionado no tiene registrada su capacidad de
-                    carga. No se podrá validar si las cargas exceden la
-                    capacidad del vehículo.
+                    {copy.alert.noVehicleCapacity.body}
                   </p>
                   <p className="text-xs text-info-soft-foreground mt-1">
-                    Puede continuar, pero se recomienda actualizar la capacidad
-                    del vehículo en el módulo de Vehículos.
+                    {copy.alert.noVehicleCapacity.footer}
                   </p>
                 </div>
               </div>
@@ -557,30 +563,23 @@ export function CargoStep({
               title={
                 <>
                   <Package className="h-5 w-5 shrink-0" />
-                  Mercancías del viaje
+                  {copy.section.merchandiseTrip}
                 </>
               }
               titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
-              hintLabel="Mercancías y movimientos"
-              hint={
-                <>
-                  Cada punto de carga agrupa mercancías; al crear una carga se genera un movimiento de pickup. Puedes
-                  asignar entregas parciales hacia otras paradas con descarga.
-                </>
-              }
+              hintLabel={copy.hintLabel.merchandiseTrip}
+              hint={<>{copy.hint.merchandiseTrip}</>}
             />
           <p className="text-sm text-muted-foreground">
-            {totalCargos} carga{totalCargos !== 1 ? "s" : ""} en{" "}
-            {pickupStops.length} punto
-            {pickupStops.length !== 1 ? "s" : ""} de carga
-            {totalWeight > 0 && ` • ${formatWeight(totalWeight)} total`}
+            {copy.format.summaryCargos(totalCargos, pickupStops.length)}
+            {totalWeight > 0 && copy.format.summaryWeightTotal(formatWeight(totalWeight))}
           </p>
         </div>
         <div className="text-right space-y-1">
           {hasHazmatCargo && (
             <div className="flex items-center gap-1 text-xs text-warning">
               <AlertCircle className="h-3.5 w-3.5" />
-              <span>Contiene material peligroso</span>
+              <span>{copy.badge.hazmatTrip}</span>
             </div>
           )}
         </div>
@@ -625,7 +624,7 @@ export function CargoStep({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <CardTitle className="text-base">
-                        Parada #{pickupStop.index + 1}
+                        {copy.stopCard.stopNumber(pickupStop.index)}
                       </CardTitle>
                       <span
                         className={cn(
@@ -639,17 +638,17 @@ export function CargoStep({
                         )}
                       >
                         {pickupStop.category === "origin"
-                          ? "Origen"
+                          ? copy.stopCard.origin
                           : pickupStop.category === "destination"
-                            ? "Destino"
-                            : "Escala"}
+                            ? copy.stopCard.destination
+                            : copy.stopCard.waypoint}
                       </span>
                       <span className="px-2 py-0.5 text-xs font-medium rounded bg-info-soft text-info-soft-foreground">
-                        Carga
+                        {copy.stopCard.pickup}
                       </span>
                       {hasMissing && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-warning-soft text-warning-soft-foreground">
-                          Sin mercancías
+                          {copy.stopCard.noMerchandise}
                         </span>
                       )}
                     </div>
@@ -661,7 +660,7 @@ export function CargoStep({
                       {pickupStop.state && `, ${pickupStop.state}`}
                       {pickupStop.clientName && (
                         <span className="ml-1">
-                          · Cliente:{" "}
+                          · {copy.stopCard.clientPrefix}{" "}
                           <span className="font-medium">
                             {pickupStop.clientName}
                           </span>
@@ -677,10 +676,8 @@ export function CargoStep({
               {stopCargos.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground border border-dashed border-warning/30 rounded-lg bg-warning-soft/30">
                   <Package className="h-8 w-8 mx-auto mb-1 opacity-40" />
-                  <p className="text-sm">Sin cargas registradas</p>
-                  <p className="text-xs mt-0.5">
-                    Debe registrar al menos una carga en esta parada
-                  </p>
+                  <p className="text-sm">{copy.stopCard.emptyTitle}</p>
+                  <p className="text-xs mt-0.5">{copy.stopCard.emptyHint}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -718,13 +715,13 @@ export function CargoStep({
                             {cargo.satProductCode && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-info-soft text-info-soft-foreground border border-info/30">
                                 <FileText className="h-3 w-3" />
-                              Clave {cargo.satProductCode}
+                              {copy.format.satCode(cargo.satProductCode)}
                               </span>
                             )}
                             {cargo.hazardousMaterial && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30">
                                 <AlertTriangle className="h-3 w-3" />
-                                Mat. Peligroso
+                                {copy.badge.hazmatShort}
                               </span>
                             )}
                           </div>
@@ -733,16 +730,16 @@ export function CargoStep({
                             {cargo.weightInKg && (
                               <span className="flex items-center gap-1">
                                 <Scale className="h-3 w-3" />
-                                {cargo.weightInKg} kg
+                                {copy.format.weightKg(cargo.weightInKg)}
                               </span>
                             )}
                             {!cargo.weightInKg && cargo.weight && (
-                              <span>Peso: {cargo.weight} kg</span>
+                              <span>{copy.format.weightLegacy(cargo.weight)}</span>
                             )}
                             {cargo.units && (
                               <span className="flex items-center gap-1">
                                 <Box className="h-3 w-3" />
-                                {cargo.units} {cargo.satUnitName || "uds"}
+                                {copy.format.units(cargo.units, cargo.satUnitName || "uds")}
                               </span>
                             )}
                           </div>
@@ -750,11 +747,11 @@ export function CargoStep({
                           {(cargo.aseguraCarga || cargo.polizaCarga) && (
                             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                               {cargo.aseguraCarga ? (
-                                <span>Seguro: {cargo.aseguraCarga}</span>
+                                <span>{copy.format.insurance(cargo.aseguraCarga)}</span>
                               ) : null}
                               {cargo.polizaCarga ? (
                                 <span className="font-mono">
-                                  Poliza: {cargo.polizaCarga}
+                                  {copy.format.policy(cargo.polizaCarga)}
                                 </span>
                               ) : null}
                             </div>
@@ -769,9 +766,11 @@ export function CargoStep({
                                   className="inline-flex items-center gap-1 mr-2 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30"
                                 >
                                   <Truck className="h-3 w-3" />
-                                  Entrega: {getStopLabel(del.stopIndex)}
-                                  {del.weight != null && ` · ${del.weight} kg`}
-                                  {del.units != null && ` · ${del.units} uds`}
+                                  {copy.format.deliveryBadge(
+                                    getStopLabel(del.stopIndex),
+                                    del.weight,
+                                    del.units,
+                                  )}
                                 </span>
                               ))}
                             </div>
@@ -818,7 +817,7 @@ export function CargoStep({
                 onClick={() => handleOpenAddDialog(pickupStop)}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Agregar mercancía
+                {copy.action.addMerchandise}
               </Button>
             </CardContent>
           </Card>

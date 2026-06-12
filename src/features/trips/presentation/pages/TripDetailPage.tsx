@@ -57,7 +57,6 @@ import {
   TripStatus,
   TRIP_STATUS_LABELS,
   getOrderedStops,
-  calculateStopsProgress,
 } from "@features/trips/domain";
 
 import { usePermissions } from "@shared/permissions";
@@ -84,8 +83,9 @@ import {
   shouldFetchTripCargos,
   shouldFetchTripExpenses,
   shouldFetchTripExpensesSummary,
-  shouldFetchTripTimelineForShell,
+  shouldFetchTripTimeline,
 } from "./tripDetailQueryGating";
+import { buildTripRouteDetailView } from "./tripDetailRouteData";
 
 const shell = tripDetailCopy.shell;
 const history = tripDetailCopy.history;
@@ -113,6 +113,7 @@ export function TripDetailPage() {
   const { hasPermission } = usePermissions();
   const tripId = id || "";
   const canUpdateTrip = hasPermission("trips", "update");
+  const canApproveTripExpenses = hasPermission("finance_approvals", "update");
 
   // ══════════════════════════════════════════════════════════════════════════
   // QUERIES
@@ -126,7 +127,7 @@ export function TripDetailPage() {
   } = useTrip(tripId);
 
   const { data: trackingTimeline } = useTripTimeline(tripId, {
-    enabled: shouldFetchTripTimelineForShell(activeTab, tripId, trip?.status),
+    enabled: shouldFetchTripTimeline(activeTab, tripId, trip?.status),
   });
   const hasOpenTrackingIncident =
     trackingTimeline?.trip.hasOpenIncident === true;
@@ -159,6 +160,15 @@ export function TripDetailPage() {
   // Stops del viaje (vienen en el trip o se pueden obtener separados)
   const stops = trip?.stops ?? [];
   const orderedStops = getOrderedStops(stops);
+
+  const routeDetail = useMemo(
+    () => (trip ? buildTripRouteDetailView(trip, trackingTimeline) : null),
+    [trip, trackingTimeline],
+  );
+
+  /** Estado operativo: timeline de seguimiento cuando existe; detalle como respaldo. */
+  const displayStatus: TripStatusType | undefined =
+    routeDetail?.trip.status ?? trip?.status;
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOCAL STATE
@@ -198,7 +208,7 @@ export function TripDetailPage() {
       );
     }
 
-    if (trip.status === TripStatus.SCHEDULED) {
+    if (displayStatus === TripStatus.SCHEDULED) {
       const missing: { label?: string; text: string }[] = [];
       if (!trip.vehicle) {
         missing.push({
@@ -226,10 +236,10 @@ export function TripDetailPage() {
     }
 
     if (
-      (trip.status === TripStatus.SCHEDULED ||
-        trip.status === TripStatus.IN_PROGRESS) &&
+      (displayStatus === TripStatus.SCHEDULED ||
+        displayStatus === TripStatus.IN_PROGRESS) &&
       trip.scheduledArrival &&
-      !trip.actualArrival &&
+      !(routeDetail?.trip.actualArrival ?? trip.actualArrival) &&
       trip.scheduledArrival.getTime() < comparisonNowMs
     ) {
       cards.push(
@@ -249,7 +259,7 @@ export function TripDetailPage() {
     }
 
     if (
-      trip.status === TripStatus.IN_PROGRESS &&
+      displayStatus === TripStatus.IN_PROGRESS &&
       (!trip.vehicle || !trip.driver)
     ) {
       const missing: { label?: string; text: string }[] = [];
@@ -296,7 +306,7 @@ export function TripDetailPage() {
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [trip, comparisonNowMs, hasOpenTrackingIncident]);
+  }, [trip, displayStatus, routeDetail?.trip.actualArrival, comparisonNowMs, hasOpenTrackingIncident]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -344,9 +354,13 @@ export function TripDetailPage() {
   // CALCULATED VALUES
   // ══════════════════════════════════════════════════════════════════════════
 
-  const distance = calculateDistance(trip.mileage);
-  const duration = calculateTripDuration(trip);
-  const progress = calculateStopsProgress(stops);
+  /** Tras cargar `trip`, el estado operativo siempre está definido. */
+  const resolvedDisplayStatus: TripStatusType =
+    routeDetail?.trip.status ?? trip.status;
+
+  const tripForMetrics = routeDetail?.trip ?? trip;
+  const distance = calculateDistance(tripForMetrics.mileage);
+  const duration = calculateTripDuration(tripForMetrics);
 
   const cargoCount = fetchCargos
     ? cargos.length
@@ -358,7 +372,7 @@ export function TripDetailPage() {
 
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
   const { canEditStructural, canEditBaseRate, canManageExpenses: canManageExpensesOnTrip } =
-    getTripDetailAccess(trip?.status, canUpdateTrip);
+    getTripDetailAccess(resolvedDisplayStatus, canUpdateTrip);
 
   return (
     <>
@@ -368,7 +382,7 @@ export function TripDetailPage() {
         backHref: "/trips",
         icon: <Truck className="h-6 w-6" />,
         iconVariant:
-          trip.status === TripStatus.CANCELLED ? "muted" : "primary",
+          resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
         title: trip.tripCode,
         subtitle: formatTripRouteSubtitle(orderedStops, {
           originCity: trip.originCity,
@@ -378,7 +392,7 @@ export function TripDetailPage() {
         }),
         statusBadge: (
           <div className="flex flex-wrap items-center gap-2">
-            <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
+            <TripStatusBadge status={resolvedDisplayStatus} size="sm" showIcon={true} />
             {hasOpenTrackingIncident ? (
               <Badge variant="destructive" className="text-xs">
                 {shell.tab.openIncident}
@@ -393,7 +407,7 @@ export function TripDetailPage() {
               variant="detailMenu"
               tripId={trip.id}
               tripCode={trip.tripCode}
-              status={trip.status}
+              status={resolvedDisplayStatus}
               onActionComplete={(updated) => {
                 refetchTrip();
                 refetchCargos();
@@ -442,6 +456,7 @@ export function TripDetailPage() {
             distance != null && distance > 0
               ? `${distance.toLocaleString("es-MX")} km`
               : "—",
+          description: shell.stat.distanceOdometerHint,
           tone: "primary",
           icon: <Navigation className="h-5 w-5" />,
         },
@@ -491,7 +506,7 @@ export function TripDetailPage() {
             label: shell.tab.operation,
             content: (
               <TripDetailOperationTab
-                trip={trip}
+                trip={tripForMetrics}
                 duration={duration}
                 distance={distance}
                 canEditStructural={canEditStructural}
@@ -503,11 +518,12 @@ export function TripDetailPage() {
             label: shell.format.routeTab(orderedStops.length),
             content: (
               <TripDetailRouteTab
-                trip={trip}
-                tripStatus={trip.status}
-                orderedStops={orderedStops}
-                progress={progress}
+                trip={routeDetail?.trip ?? trip}
+                tripStatus={routeDetail?.trip.status ?? trip.status}
+                orderedStops={routeDetail?.orderedStops ?? orderedStops}
+                progress={routeDetail?.progress ?? 0}
                 canEditStructural={canEditStructural}
+                cargos={cargos}
                 legacyRoute={{
                   originCity: trip.originCity,
                   originState: trip.originState,
@@ -522,7 +538,7 @@ export function TripDetailPage() {
             label: (
               <span className="inline-flex items-center gap-1">
                 {shell.tab.tracking}
-                {trip.status === TripStatus.IN_PROGRESS ? (
+                {resolvedDisplayStatus === TripStatus.IN_PROGRESS ? (
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {shell.tab.trackingLive}
                   </Badge>
@@ -540,8 +556,9 @@ export function TripDetailPage() {
                   tripId={trip.id}
                   tripCode={trip.tripCode}
                   vehicleId={trip.vehicleId}
+                  driverId={trip.driverId}
                   tripStartMileage={trip.mileage.start}
-                  status={trip.status}
+                  status={resolvedDisplayStatus}
                 />
               </Suspense>
             ),
@@ -565,7 +582,7 @@ export function TripDetailPage() {
               <Suspense fallback={<TripDetailTabFallback />}>
                 <TripDetailCargoTabLazy
                   tripId={trip.id}
-                  tripStatus={trip.status}
+                  tripStatus={resolvedDisplayStatus}
                   cargos={cargos}
                   orderedStops={orderedStops}
                   pickupStops={pickupStops}
@@ -593,8 +610,8 @@ export function TripDetailPage() {
             content: (
               <Suspense fallback={<TripDetailTabFallback />}>
                 <TripDetailCostsTabLazy
-                  tripId={tripId}
-                  tripStatus={trip.status}
+                  tripId={trip.id}
+                  tripStatus={resolvedDisplayStatus}
                   baseRate={trip.costs.baseRate}
                   cfdiDocumentIntent={trip.cfdiDocumentIntent}
                   clientId={trip.client?.id}
@@ -607,6 +624,9 @@ export function TripDetailPage() {
                   onRetry={() => refetchExpenses()}
                   canEditBaseRate={canEditBaseRate}
                   canManageExpenses={canManageExpensesOnTrip}
+                  canApproveExpenses={canApproveTripExpenses}
+                  pendingExpenseCount={pendingExpenses}
+                  tripCode={trip.tripCode}
                 />
               </Suspense>
             ),

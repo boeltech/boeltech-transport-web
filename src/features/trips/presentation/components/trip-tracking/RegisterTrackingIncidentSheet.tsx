@@ -30,6 +30,13 @@ import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  TRACKING_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./trackingSheetLayout";
 
 type RegisterTrackingIncidentSheetProps = {
   tripId: string;
@@ -114,7 +121,7 @@ function RegisterTrackingIncidentSheetBody({
 
   return (
     <>
-      <div className="flex-1 space-y-4 py-2">
+      <div className={TRACKING_SHEET_BODY_CLASS}>
           <div className="space-y-2">
             <Label htmlFor="tracking-incident-occurred-at">Fecha y hora</Label>
             <div className="flex flex-wrap gap-2">
@@ -195,9 +202,10 @@ function RegisterTrackingIncidentSheetBody({
           </label>
         </div>
 
-        <SheetFooter className="gap-2 sm:gap-0">
+        <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
           <Button
             variant="outline"
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
             onClick={() => onOpenChange(false)}
             disabled={registerMutation.isPending}
           >
@@ -207,6 +215,7 @@ function RegisterTrackingIncidentSheetBody({
             variant="destructive"
             onClick={handleSubmit}
             disabled={registerMutation.isPending}
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
           >
             Registrar incidente
           </Button>
@@ -223,8 +232,8 @@ export function RegisterTrackingIncidentSheet({
 }: RegisterTrackingIncidentSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
+        <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             Registrar incidente

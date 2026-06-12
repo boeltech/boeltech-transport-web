@@ -101,6 +101,9 @@ import {
   validateTripStopAddressComplete,
 } from "../validation/tripStopAddressValidation";
 import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import { wizardCopy } from "../../../copy";
+
+const stopForm = wizardCopy.route.stopForm;
 import {
   RFC_PUBLICO_GENERAL,
   getDeliveryFiscalCopy,
@@ -133,10 +136,10 @@ export interface StopFormSheetProps {
 }
 
 const STOP_OPERATION_OPTIONS = [
-  { value: "pickup" as const, label: "Carga", icon: MapPin, color: "text-info" },
+  { value: "pickup" as const, label: stopForm.operation.pickup, icon: MapPin, color: "text-info" },
   {
     value: "delivery" as const,
-    label: "Descarga",
+    label: stopForm.operation.delivery,
     icon: MapPin,
     color: "text-warning",
   },
@@ -152,7 +155,7 @@ function missingLabelToFieldName(
   missing: string,
 ): keyof StopDialogFormValues | null {
   switch (missing) {
-    case "Nombre del lugar":
+    case stopForm.label.locationName:
       return "locationName";
     case LOCATION_CAPTURE_LABELS.country:
       return "satCountryCode";
@@ -160,13 +163,13 @@ function missingLabelToFieldName(
       return "satStateCode";
     case LOCATION_CAPTURE_LABELS.postalCode:
       return "postalCode";
-    case "Confirmación Geográfica":
+    case stopForm.validation.geolocation:
       // En el contexto `trip_stop` (SoT: matriz-reglas-cp31-por-capas.md) lat/lng son
       // obligatorias; `AddressInput` ya muestra error inline en ambos campos cuando
       // `profileUx.requireCoordinates` es true. Aquí mapeamos a `latitude`; el handler
       // también setea error en `longitude` para resaltar ambos controles.
       return "latitude";
-    case "Hora estimada de llegada":
+    case stopForm.validation.estimatedArrival:
       return "estimatedArrival";
     case "RFC remitente/destinatario":
       return "rfcRemitenteDestinatario";
@@ -570,7 +573,7 @@ export function StopFormSheet({
       setInlineSatError(
         hasSatFieldError
           ? (validation.errors[0]?.message ??
-              "Completa los campos SAT obligatorios para este código postal.")
+              stopForm.validation.satFieldsFallback)
           : null,
       );
       setAttemptedSubmitValidation(true);
@@ -618,9 +621,8 @@ export function StopFormSheet({
         setAttemptedSubmitValidation(true);
         resetClientAddressPersistDialog();
         toast({
-          title: "No se pudo actualizar la dirección del cliente",
-          description:
-            "Revisa los campos del domicilio antes de guardar en el catálogo.",
+          title: stopForm.toast.persistFailedTitle,
+          description: stopForm.toast.persistFailedBody,
           variant: "destructive",
         });
         return;
@@ -639,8 +641,8 @@ export function StopFormSheet({
       resetClientAddressPersistDialog();
     } catch {
       toast({
-        title: "Error al actualizar la dirección",
-        description: "La parada no se guardó. Intenta de nuevo.",
+        title: stopForm.toast.persistErrorTitle,
+        description: stopForm.toast.persistErrorBody,
         variant: "destructive",
       });
       resetClientAddressPersistDialog();
@@ -681,16 +683,16 @@ export function StopFormSheet({
     const d = displayStop;
 
     if (!d.stopCategory) {
-      missing.push("Tipo de parada");
+      missing.push(stopForm.validation.missingField);
       return missing;
     }
 
     if (d.stopCategory === "waypoint" && (!d.stopType || d.stopType.length === 0)) {
-      missing.push("Operación de escala");
+      missing.push(stopForm.validation.waypointOperation);
     }
 
     if (!stopHasUnifiedAddressId(d)) {
-      if (!d.locationName?.trim()) missing.push("Nombre del lugar");
+      if (!d.locationName?.trim()) missing.push(stopForm.label.locationName);
       if (!d.satCountryCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.country);
       if (!d.satStateCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.state);
       if (!/^\d{5}$/.test(d.postalCode?.trim() ?? "")) {
@@ -699,11 +701,11 @@ export function StopFormSheet({
     }
 
     if (d.stopCategory === "destination" && !d.estimatedArrival) {
-      missing.push("Hora estimada de llegada");
+      missing.push(stopForm.validation.estimatedArrival);
     }
 
     if (d.latitude == null || d.longitude == null) {
-      missing.push("Confirmación Geográfica");
+      missing.push(stopForm.validation.geolocation);
     }
 
     missing.push(...getTripStopFiscalMissingLabels(d));
@@ -728,12 +730,12 @@ export function StopFormSheet({
       for (const label of missing) {
         const fieldName = missingLabelToFieldName(label);
         if (!fieldName) continue;
-        setError(fieldName, { type: "manual", message: `${label} es obligatorio` });
+        setError(fieldName, { type: "manual", message: stopForm.validation.fieldRequired(label) });
       }
-      if (missing.includes("Confirmación Geográfica")) {
+      if (missing.includes(stopForm.validation.geolocation)) {
         setError("longitude", {
           type: "manual",
-          message: "Confirmación Geográfica es obligatorio",
+          message: stopForm.validation.fieldRequired(stopForm.validation.geolocation),
         });
       }
       return;
@@ -835,7 +837,7 @@ export function StopFormSheet({
   const preAddressSections: EntityAddressFormSection[] = [
     {
       id: "stop-location-context",
-      title: "Nombre del lugar",
+      title: stopForm.section.locationName,
       icon: <MapPin className="h-4 w-4" />,
       content: (
         <Controller
@@ -847,13 +849,13 @@ export function StopFormSheet({
             return (
               <FormFieldShell
                 fieldId={fieldId}
-                label="Nombre del lugar"
+                label={stopForm.label.locationName}
                 required
                 errorMessage={errorMessage}
               >
                 <Input
                   id={fieldId}
-                  placeholder="Ej: Bodega Central, CEDIS Norte, Planta Monterrey..."
+                  placeholder={stopForm.placeholder.locationName}
                   error={Boolean(fieldState.error)}
                   {...field}
                   value={field.value ?? ""}
@@ -939,7 +941,7 @@ export function StopFormSheet({
       satMunicipalityCode={noticeSatMunicipalityCode}
       postalCode={noticePostalCode}
       showGlobalNotice={!hasClientAddressPrefill}
-      locationSectionTitle="Domicilio"
+      locationSectionTitle={stopForm.section.domicile}
       preAddressSections={preAddressSections}
       addressInputSection={
         <AddressInput<StopDialogFormValues>
@@ -965,10 +967,10 @@ export function StopFormSheet({
       >
         <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4">
           <SheetTitle className="pr-8">
-            {mode === "edit" ? "Editar parada" : "Agregar parada"}
+            {mode === "edit" ? stopForm.title.edit : stopForm.title.create}
           </SheetTitle>
           <SheetDescription>
-            Ubicación, operaciones y datos fiscales de la parada.
+            {stopForm.description}
           </SheetDescription>
         </SheetHeader>
 
@@ -991,11 +993,9 @@ export function StopFormSheet({
 
           {showMissingGeolocationNotice ? (
             <Alert variant="warning">
-              <AlertTitle>Falta geolocalización en la dirección precargada</AlertTitle>
+              <AlertTitle>{stopForm.alert.missingGeolocationTitle}</AlertTitle>
               <AlertDescription>
-                Esta dirección del cliente no tiene latitud / longitud registradas.
-                Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y
-                cumplir Carta Porte 3.1.
+                {stopForm.alert.missingGeolocationBody}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -1003,7 +1003,7 @@ export function StopFormSheet({
           {entityAddressForm}
 
           <FormSectionCard
-            title="Datos fiscales"
+            title={stopForm.section.fiscalData}
             icon={<ScrollText className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
@@ -1021,7 +1021,7 @@ export function StopFormSheet({
             {hasClientAddressPrefill && (
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="useAddressFiscalData" className="cursor-pointer text-sm">
-                  Usar datos fiscales de la dirección
+                  {stopForm.label.useAddressFiscalData}
                 </Label>
                 <Switch
                   id="useAddressFiscalData"
@@ -1088,7 +1088,7 @@ export function StopFormSheet({
                   control={control}
                   name="nombreRemitenteDestinatario"
                   fieldId="stop-nombreRemitenteDestinatario"
-                  label="Nombre / razón social"
+                  label={stopForm.label.legalName}
                   required
                   placeholder={primaryFiscalCopy.nombrePlaceholder}
                   disabled={isFiscalDataLocked}
@@ -1153,7 +1153,7 @@ export function StopFormSheet({
                       control={control}
                       name="nombreRemitenteDestinatario"
                       fieldId="stop-nombreRemitenteDestinatario"
-                      label="Nombre / razón social"
+                      label={stopForm.label.legalName}
                       required
                       placeholder={primaryFiscalCopy.nombrePlaceholder}
                       disabled={isFiscalDataLocked}
@@ -1215,8 +1215,8 @@ export function StopFormSheet({
                         ? deliveryFiscalCopy.rfcPlaceholder
                         : primaryFiscalCopy.rfcPlaceholder;
                       const nombreLabel = isDualField
-                        ? "Nombre / razón social (descarga)"
-                        : "Nombre / razón social";
+                        ? stopForm.label.legalNameDelivery
+                        : stopForm.label.legalName;
                       const nombrePlaceholder = isDualField
                         ? deliveryFiscalCopy.nombrePlaceholder
                         : primaryFiscalCopy.nombrePlaceholder;
@@ -1277,7 +1277,7 @@ export function StopFormSheet({
           </FormSectionCard>
 
           <FormSectionCard
-            title="Contacto y planificación"
+            title={stopForm.section.contactPlanning}
             icon={<Phone className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
@@ -1287,15 +1287,15 @@ export function StopFormSheet({
                 control={control}
                 name="contactName"
                 fieldId="stop-contactName"
-                label="Nombre contacto"
-                placeholder="Nombre del contacto en sitio"
+                label={stopForm.label.contactName}
+                placeholder={stopForm.placeholder.contactName}
               />
               <RHFTextField
                 control={control}
                 name="contactPhone"
                 fieldId="stop-contactPhone"
-                label="Teléfono"
-                placeholder="Teléfono"
+                label={stopForm.label.contactPhone}
+                placeholder={stopForm.placeholder.contactPhone}
               />
             </div>
 
@@ -1303,8 +1303,8 @@ export function StopFormSheet({
               control={control}
               name="notes"
               fieldId="stop-notes"
-              label="Notas / instrucciones"
-              placeholder="Instrucciones especiales de entrega, horarios, acceso..."
+              label={stopForm.label.notes}
+              placeholder={stopForm.placeholder.notes}
               rows={3}
             />
 
@@ -1318,8 +1318,8 @@ export function StopFormSheet({
                     const isDestination =
                       displayStop.stopCategory === "destination";
                     const label = isDestination
-                      ? "Hora estimada de llegada"
-                      : "Hora estimada en esta escala";
+                      ? stopForm.label.estimatedArrivalDestination
+                      : stopForm.label.estimatedArrivalWaypoint;
                     return (
                       <FormFieldShell
                         fieldId={fieldId}
@@ -1328,7 +1328,7 @@ export function StopFormSheet({
                         errorMessage={errorMessage}
                         description={
                           !errorMessage && showWaypointArrivalWarning
-                            ? "Se interpolará automáticamente si no se captura."
+                            ? stopForm.hint.waypointArrivalInterpolation
                             : undefined
                         }
                       >
@@ -1359,8 +1359,8 @@ export function StopFormSheet({
               <FormValidationSummary
                 title={
                   validationActive
-                    ? "Faltan datos obligatorios en la parada"
-                    : "Revisa la dirección de la parada"
+                    ? stopForm.validation.missingRequiredTitle
+                    : stopForm.validation.reviewAddressTitle
                 }
                 messages={
                   validationActive
@@ -1376,10 +1376,10 @@ export function StopFormSheet({
 
         <SheetFooter className="shrink-0 gap-2 border-t bg-background px-6 py-4">
           <Button type="button" variant="outline" onClick={() => closeDialog()}>
-            Cancelar
+            {stopForm.action.cancel}
           </Button>
           <Button type="button" onClick={() => handlePrimaryFooterAction()}>
-            {mode === "edit" ? "Guardar Cambios" : "Agregar Parada"}
+            {mode === "edit" ? stopForm.action.save : stopForm.action.add}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -1395,11 +1395,10 @@ export function StopFormSheet({
         <AlertDialogContent className="max-w-[min(100vw-2rem,24rem)] gap-5 overflow-hidden sm:max-w-md">
           <AlertDialogHeader className="space-y-3 text-left">
             <AlertDialogTitle className="text-balance leading-snug">
-              ¿Actualizar la dirección del cliente?
+              {stopForm.persistDialog.title}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-pretty leading-relaxed">
-              Modificaste el domicilio precargado del cliente. Puedes guardar los cambios en
-              el catálogo del cliente o usar esta versión solo para esta parada del viaje.
+              {stopForm.persistDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
@@ -1411,7 +1410,7 @@ export function StopFormSheet({
                 void handlePersistClientAddress();
               }}
             >
-              {isPersistingClientAddress ? "Guardando…" : "Actualizar en el cliente"}
+              {isPersistingClientAddress ? stopForm.persistDialog.saving : stopForm.persistDialog.updateClient}
             </AlertDialogAction>
             <Button
               type="button"
@@ -1420,13 +1419,13 @@ export function StopFormSheet({
               disabled={isPersistingClientAddress}
               onClick={handleUseAddressForStopOnly}
             >
-              Solo en esta parada
+              {stopForm.persistDialog.stopOnly}
             </Button>
             <AlertDialogCancel
               className="mt-0 w-full sm:mt-0"
               disabled={isPersistingClientAddress}
             >
-              Volver al formulario
+              {stopForm.persistDialog.backToForm}
             </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

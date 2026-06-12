@@ -79,9 +79,4 @@ export function computeFinancialSummary(
   };
 }
 
-export function formatMxCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(amount);
-}
+export { formatMxCurrency, formatMxCurrencyOrDash } from "@shared/utils/formatMxCurrency";

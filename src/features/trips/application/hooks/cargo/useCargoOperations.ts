@@ -226,6 +226,59 @@ export function useAddCargoMovement(
 }
 
 /**
+ * Hook para completar un movimiento de cualquier carga del viaje.
+ */
+export function useCompleteTripCargoMovement(
+  tripId: string,
+  options?: UseMutationOptions<
+    CargoMovement,
+    CargoError,
+    { cargoId: string; movementId: string; completedAt?: string }
+  >,
+) {
+  const queryClient = useQueryClient();
+  const completeMovementUseCase =
+    createCompleteCargoMovementUseCase(cargoRepository);
+
+  return useMutation({
+    mutationFn: async ({
+      cargoId,
+      movementId,
+      completedAt,
+    }: {
+      cargoId: string;
+      movementId: string;
+      completedAt?: string;
+    }) => {
+      const result = await completeMovementUseCase.execute(
+        tripId,
+        cargoId,
+        movementId,
+        completedAt,
+      );
+
+      if (!result.success) {
+        throw new CargoError(
+          result.error.code,
+          result.error.message,
+          result.error.originalMessage,
+        );
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.timeline(tripId),
+      });
+    },
+    ...options,
+  });
+}
+
+/**
  * Hook para completar un movimiento de carga
  */
 export function useCompleteCargoMovement(

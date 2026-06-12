@@ -1,4 +1,5 @@
 import {
+  StopStatus,
   StopType,
   isUnifiedAddressId,
   type StopTypeValue,
@@ -7,9 +8,11 @@ import {
 } from "@features/trips/domain";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
+import { progressCopy } from "../../copy/tripDetail/progressCopy";
 import { routeCopy } from "../../copy/tripDetail/routeCopy";
 
 const copy = routeCopy;
+const stopBadgeCopy = progressCopy.label;
 
 export type RouteStopCategory = "origin" | "waypoint" | "destination";
 
@@ -35,7 +38,7 @@ export function groupStopsForRouteDetail(stops: readonly TripStop[]) {
 export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | null {
   const segments = stops.filter(
     (stop) =>
-      stop.sequenceOrder > 1 &&
+      stop.sequenceOrder > 0 &&
       stop.distanceFromPreviousKm != null &&
       stop.distanceFromPreviousKm > 0,
   );
@@ -49,7 +52,7 @@ export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | 
 export function countStopsMissingSegmentDistance(stops: readonly TripStop[]): number {
   return stops.filter(
     (stop) =>
-      stop.sequenceOrder > 1 &&
+      stop.sequenceOrder > 0 &&
       (stop.distanceFromPreviousKm == null || stop.distanceFromPreviousKm <= 0),
   ).length;
 }
@@ -188,7 +191,7 @@ export function getStopTimeDisplayRows(
         kind: "arrival",
         label: stop.actualArrival
           ? copy.label.actualArrival
-          : copy.label.estimatedArrival,
+          : copy.label.estimatedArrivalDestination,
         value: formatStopTimeForDisplay(stop.actualArrival ?? stop.estimatedArrival),
       },
     ];
@@ -199,14 +202,14 @@ export function getStopTimeDisplayRows(
       kind: "arrival",
       label: stop.actualArrival
         ? copy.label.actualArrival
-        : copy.label.estimatedArrival,
+        : copy.label.estimatedArrivalWaypoint,
       value: formatStopTimeForDisplay(stop.actualArrival ?? stop.estimatedArrival),
     },
     {
       kind: "departure",
       label: stop.actualDeparture
         ? copy.label.actualDeparture
-        : copy.label.estimatedDeparture,
+        : copy.label.estimatedDepartureWaypoint,
       value: formatStopTimeForDisplay(stop.actualDeparture ?? stop.estimatedDeparture),
     },
   ];
@@ -219,32 +222,42 @@ export function getStopOperationalVisitState(
   category: RouteStopCategory,
   tripTimes?: TripScheduleTimes,
 ): StopOperationalVisitState {
+  if (stop.status === StopStatus.COMPLETED) {
+    return "visited";
+  }
+
   if (category === "origin") {
     if (stop.actualDeparture || tripTimes?.actualDeparture) return "visited";
     return "pending";
   }
   if (category === "destination") {
-    if (stop.actualArrival) return "visited";
+    if (stop.actualArrival) return "at_stop";
     return "pending";
   }
-  if (stop.actualDeparture) return "visited";
-  if (stop.actualArrival) return "at_stop";
+  if (stop.actualArrival && !stop.actualDeparture) return "at_stop";
   return "pending";
 }
 
-export function getStopOperationalVisitLabel(state: StopOperationalVisitState): string {
-  if (state === "visited") return copy.label.visitVisited;
-  if (state === "at_stop") return copy.label.visitAtStop;
-  return copy.label.visitPending;
+export function getStopOperationalVisitLabel(
+  state: StopOperationalVisitState,
+  category?: RouteStopCategory,
+): string {
+  if (state === "visited") return stopBadgeCopy.stopCompleted;
+  if (state === "at_stop") {
+    return category === "destination"
+      ? stopBadgeCopy.stopAtDestination
+      : stopBadgeCopy.stopAtWaypoint;
+  }
+  return stopBadgeCopy.stopPending;
 }
 
-/** Parada contada como completada en progreso de ruta (alineado a Seguimiento). */
+/** Parada con tramo cerrado en tracking (`status === completed`). */
 export function isStopOperativelyComplete(
   stop: TripStop,
-  category: RouteStopCategory,
-  tripTimes?: TripScheduleTimes,
+  _category?: RouteStopCategory,
+  _tripTimes?: TripScheduleTimes,
 ): boolean {
-  return getStopOperationalVisitState(stop, category, tripTimes) === "visited";
+  return stop.status === StopStatus.COMPLETED;
 }
 
 export function countOperativelyCompleteStops(

@@ -5,6 +5,7 @@ import {
   shouldFetchTripCargos,
   shouldFetchTripExpenses,
   shouldFetchTripExpensesSummary,
+  shouldFetchTripTimeline,
   shouldFetchTripTimelineForShell,
 } from "./tripDetailQueryGating";
 
@@ -25,6 +26,18 @@ describe("tripDetailQueryGating", () => {
     expect(shouldFetchTripExpenses("costs", "trip-1")).toBe(true);
     expect(shouldFetchTripExpensesSummary("costs", "trip-1")).toBe(true);
     expect(shouldFetchTripExpenses("overview", "trip-1")).toBe(false);
+  });
+
+  it("fetches timeline on route and tracking tabs", () => {
+    expect(shouldFetchTripTimeline("route", "trip-1", TripStatus.SCHEDULED)).toBe(
+      true,
+    );
+    expect(
+      shouldFetchTripTimeline("tracking", "trip-1", TripStatus.IN_PROGRESS),
+    ).toBe(true);
+    expect(shouldFetchTripTimeline("overview", "trip-1", TripStatus.DRAFT)).toBe(
+      false,
+    );
   });
 
   it("gates shell timeline when not on tracking tab and trip is active", () => {

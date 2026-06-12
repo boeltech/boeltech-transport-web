@@ -592,6 +592,7 @@ export const tripExpenseSchema = z.object({
 
 export const internalStaffSchema = z.object({
   employeeId: z.string().min(1, "Empleado requerido"),
+  internalRole: z.enum(["secondary_driver", "helper"]).default("helper"),
   isPaymentResponsible: z.boolean().default(false),
   paymentNotes: z
     .string()

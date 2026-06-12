@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
-import type { TripStop } from "@features/trips/domain";
+import type { TripCargo, TripStop } from "@features/trips/domain";
+import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
@@ -18,7 +19,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
-import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
+import {
+  formatDateTime,
+  localInputToUtcIso,
+  utcIsoToLocalInput,
+} from "@shared/utils/dateUtils";
 
 import {
   formatStopActionTooltip,
@@ -39,21 +44,28 @@ export type RegisterTripArrivalSheetProps = {
   tripCode: string;
   vehicleId?: string;
   tripStartMileage?: number | null;
+  scheduledDeparture?: Date | string | null;
+  actualDeparture?: Date | string | null;
   destinationStop?: TripStop | null;
   displayOrder?: number;
+  cargos?: readonly TripCargo[];
+  orderedStops?: readonly TripStop[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 };
 
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  TRACKING_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./trackingSheetLayout";
+
 function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
-}
-
-function randomIdempotencyKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : undefined;
 }
 
 type RegisterTripArrivalSheetBodyProps = Omit<RegisterTripArrivalSheetProps, "open" | "displayOrder"> & {
@@ -61,12 +73,25 @@ type RegisterTripArrivalSheetBodyProps = Omit<RegisterTripArrivalSheetProps, "op
   tooltip?: string;
 };
 
+function resolveEarliestClosureInstant(
+  scheduledDeparture?: Date | string | null,
+  actualDeparture?: Date | string | null,
+): Date | null {
+  if (actualDeparture) return new Date(actualDeparture);
+  if (scheduledDeparture) return new Date(scheduledDeparture);
+  return null;
+}
+
 function RegisterTripArrivalSheetBody({
   tripId,
   tripCode,
   vehicleId,
   tripStartMileage,
+  scheduledDeparture,
+  actualDeparture,
   destinationStop,
+  cargos = [],
+  orderedStops = [],
   onOpenChange,
   onSuccess,
   tooltip,
@@ -86,6 +111,10 @@ function RegisterTripArrivalSheetBody({
     tripStartMileage,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+  const earliestClosure = resolveEarliestClosureInstant(
+    scheduledDeparture,
+    actualDeparture,
+  );
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
@@ -135,6 +164,31 @@ function RegisterTripArrivalSheetBody({
       return;
     }
 
+    const occurredAtIso = localInputToUtcIso(occurredAt);
+    if (earliestClosure && new Date(occurredAtIso) < earliestClosure) {
+      const floorLabel = actualDeparture
+        ? "la salida real del viaje"
+        : "la salida programada";
+      setTimeError(
+        `La hora de cierre no puede ser anterior a ${floorLabel} (${formatDateTime(
+          earliestClosure.toISOString(),
+        )}).`,
+      );
+      return;
+    }
+
+    if (destinationStop && cargos.length > 0 && orderedStops.length > 0) {
+      const cargoError = validateCargoBeforeDeparture(
+        destinationStop,
+        cargos,
+        orderedStops,
+      );
+      if (cargoError) {
+        setTimeError(cargoError);
+        return;
+      }
+    }
+
     setTimeError(null);
 
     const trimmedNotes = closureNotes.trim();
@@ -142,10 +196,10 @@ function RegisterTripArrivalSheetBody({
       tripId,
       event: {
         eventType: "trip_arrived",
-        occurredAt: localInputToUtcIso(occurredAt),
+        occurredAt: occurredAtIso,
         mileage: parsed,
         notes: trimmedNotes || undefined,
-        idempotencyKey: randomIdempotencyKey(),
+        idempotencyKey: createTrackingIdempotencyKey(),
         payload: trimmedNotes ? { closure_notes: trimmedNotes } : {},
         ...trackingGpsToEventFields(gps),
       },
@@ -165,7 +219,7 @@ function RegisterTripArrivalSheetBody({
         <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
       ) : null}
 
-      <div className="flex-1 space-y-4 py-2">
+      <div className={TRACKING_SHEET_BODY_CLASS}>
           <div className="space-y-2">
             <Label htmlFor="trip-arrival-occurred-at">Fecha y hora de llegada</Label>
             <div className="flex flex-wrap gap-2">
@@ -234,15 +288,20 @@ function RegisterTripArrivalSheetBody({
           </div>
         </div>
 
-        <SheetFooter className="gap-2 sm:gap-0">
+        <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
           <Button
             variant="outline"
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
             onClick={() => onOpenChange(false)}
             disabled={registerMutation.isPending}
           >
             Cancelar
           </Button>
-          <Button onClick={handleConfirm} disabled={registerMutation.isPending}>
+          <Button
+            onClick={handleConfirm}
+            disabled={registerMutation.isPending}
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
+          >
             {registerMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -260,8 +319,12 @@ export function RegisterTripArrivalSheet({
   tripCode,
   vehicleId,
   tripStartMileage,
+  scheduledDeparture,
+  actualDeparture,
   destinationStop,
   displayOrder,
+  cargos,
+  orderedStops,
   open,
   onOpenChange,
   onSuccess,
@@ -277,8 +340,8 @@ export function RegisterTripArrivalSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
+        <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span className="inline-flex items-center gap-1.5">
@@ -303,7 +366,11 @@ export function RegisterTripArrivalSheet({
             tripCode={tripCode}
             vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            scheduledDeparture={scheduledDeparture}
+            actualDeparture={actualDeparture}
             destinationStop={destinationStop}
+            cargos={cargos}
+            orderedStops={orderedStops}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
             title={title}

@@ -17,12 +17,6 @@ export {
 } from "./repositories/expenseRepository";
 
 export {
-  StopRepository,
-  createStopRepository,
-  stopRepository,
-} from "./repositories/stopRepository";
-
-export {
   TrackingRepository,
   createTrackingRepository,
   trackingRepository,

@@ -23,6 +23,13 @@ import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  TRACKING_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./trackingSheetLayout";
 
 type RegisterTrackingNoteSheetProps = {
   tripId: string;
@@ -92,7 +99,7 @@ function RegisterTrackingNoteSheetBody({
 
   return (
     <>
-      <div className="flex-1 space-y-4 py-2">
+      <div className={TRACKING_SHEET_BODY_CLASS}>
           <div className="space-y-2">
             <Label htmlFor="tracking-note-occurred-at">Fecha y hora</Label>
             <div className="flex flex-wrap gap-2">
@@ -142,15 +149,20 @@ function RegisterTrackingNoteSheetBody({
           </div>
         </div>
 
-        <SheetFooter className="gap-2 sm:gap-0">
+        <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
           <Button
             variant="outline"
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
             onClick={() => onOpenChange(false)}
             disabled={registerMutation.isPending}
           >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={registerMutation.isPending}>
+          <Button
+            onClick={handleSubmit}
+            disabled={registerMutation.isPending}
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
+          >
             Guardar nota
           </Button>
         </SheetFooter>
@@ -166,8 +178,8 @@ export function RegisterTrackingNoteSheet({
 }: RegisterTrackingNoteSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
+        <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-center gap-2">
             <StickyNote className="h-5 w-5 text-primary" />
             Nota operativa

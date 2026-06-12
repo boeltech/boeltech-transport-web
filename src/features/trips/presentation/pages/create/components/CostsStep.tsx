@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
 import type { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
-import { Controller } from "react-hook-form";
 import { AlertCircle, CircleDollarSign, DollarSign, Plus, Receipt } from "lucide-react";
 
 import { useVehicle } from "@features/vehicles/application";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
-import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
+import { RHFMoneyField } from "@shared/ui/form";
 import { TripExpenseEditableList } from "../../../components/trip-costs";
-import { Input } from "@shared/ui/input";
 
 import {
   getSheetKindForCategory,
@@ -125,50 +123,22 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Controller
-                control={form.control}
-                name="baseRate"
-                render={({ field, fieldState }) => (
-                  <FormFieldShell
-                    fieldId="baseRate"
-                    className="max-w-sm"
-                    label={copy.label.baseRate}
-                    required={baseRateRequired}
-                    description={
-                      cfdiDocumentIntent === "traslado"
-                        ? copy.hint.baseRateTraslado
-                        : baseRateRequired
-                          ? copy.hint.baseRateRequired
-                          : copy.hint.baseRateNoClient
-                    }
-                    errorMessage={fieldState.error?.message}
-                  >
-                    <Input
-                      id="baseRate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={field.value ?? ""}
-                      onChange={(event) =>
-                        field.onChange(
-                          event.target.value
-                            ? Number(event.target.value)
-                            : undefined,
-                        )
-                      }
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(
-                        "baseRate",
-                        fieldState.error?.message,
-                      )}
-                    />
-                  </FormFieldShell>
-                )}
-              />
+              <div className="max-w-sm">
+                <RHFMoneyField
+                  control={form.control}
+                  name="baseRate"
+                  fieldId="baseRate"
+                  label={copy.label.baseRate}
+                  required={baseRateRequired}
+                  description={
+                    cfdiDocumentIntent === "traslado"
+                      ? copy.hint.baseRateTraslado
+                      : baseRateRequired
+                        ? copy.hint.baseRateRequired
+                        : copy.hint.baseRateNoClient
+                  }
+                />
+              </div>
             </CardContent>
           </Card>
 

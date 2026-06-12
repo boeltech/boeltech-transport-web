@@ -43,12 +43,27 @@ import {
   useTrip,
   useCreateTrip,
   useUpdateTrip,
+  useTrips,
   StopType,
   TripCreationError,
+  TripStatus,
 } from "@features/trips";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
+import { useEmployees } from "@features/employees";
+import type { EmployeeListItem } from "@features/employees";
+import type { DriverListItem } from "@features/drivers/domain";
+
+import {
+  applyBusyResourcesToVehicles,
+  buildBusyAssignmentResourceIds,
+} from "./tripAssignmentBusyResources";
+import {
+  buildAssignableDriversForTripWizard,
+  type AssignableDriverItem,
+} from "./tripAssignmentDrivers";
+import { findSupportStaffAssignability } from "./tripAssignmentSupportStaff";
 
 import { useToast } from "@shared/hooks";
 import { Route } from "lucide-react";
@@ -168,11 +183,74 @@ export function TripFormPage() {
   // ============================================
   // Queries para cargar datos de los selects
   // ============================================
-  const { data: vehicles = [], isLoading: isLoadingVehicles } =
-    useAssignableVehicles();
+  const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } =
+    useAssignableVehicles({ refetchOnMount: "always" });
 
-  const { data: drivers, isLoading: isLoadingDrivers } = useDrivers();
-  const availableDrivers = useMemo(() => drivers?.data ?? [], [drivers?.data]);
+  const { data: driversPage, isLoading: isLoadingDrivers } = useDrivers(
+    { page: 1, limit: 100 },
+    { refetchOnMount: "always" },
+  );
+
+  const { data: activeTripsPage } = useTrips(
+    {
+      page: 1,
+      // tripQuerySchema (cfdi-domain) permite máximo 100 por página
+      limit: 100,
+      filters: {
+        status: [TripStatus.IN_PROGRESS, TripStatus.SCHEDULED],
+      },
+    },
+    { enabled: true, refetchOnMount: "always" },
+  );
+
+  const busyResources = useMemo(
+    () =>
+      buildBusyAssignmentResourceIds(
+        activeTripsPage?.data ?? [],
+        isEditMode ? id : undefined,
+      ),
+    [activeTripsPage?.data, id, isEditMode],
+  );
+
+  const vehicles = useMemo(
+    () => applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds),
+    [vehiclesRaw, busyResources.vehicleIds],
+  );
+
+  const assignableDrivers = useMemo(
+    (): AssignableDriverItem[] =>
+      buildAssignableDriversForTripWizard(
+        driversPage?.data ?? [],
+        busyResources.driverIds,
+      ),
+    [driversPage?.data, busyResources.driverIds],
+  );
+
+  const fleetDrivers = useMemo(
+    (): DriverListItem[] => driversPage?.data ?? [],
+    [driversPage?.data],
+  );
+
+  const driversByEmployeeId = useMemo(() => {
+    const map = new Map<string, DriverListItem>();
+    for (const driver of fleetDrivers) {
+      map.set(driver.employeeId, driver);
+    }
+    return map;
+  }, [fleetDrivers]);
+
+  const { data: employeesResult } = useEmployees({
+    page: 1,
+    limit: 100,
+    sortBy: "created_at",
+    sortOrder: "desc",
+  });
+
+  const activeEmployees = useMemo((): EmployeeListItem[] => {
+    return (employeesResult?.data ?? []).filter(
+      (employee) => employee.isActive && employee.status === "active",
+    );
+  }, [employeesResult?.data]);
 
   const { data: clients = [], isLoading: isLoadingClients } =
     useActiveClients();
@@ -482,7 +560,7 @@ export function TripFormPage() {
 
       const selectedDriverId = form.getValues("driverId");
       const primaryDriverEmployeeId =
-        availableDrivers.find((driver) => driver.id === selectedDriverId)
+        assignableDrivers.find((driver) => driver.id === selectedDriverId)
           ?.employeeId ?? null;
       const internalStaffRows = form.getValues("internalStaff") ?? [];
 
@@ -499,6 +577,30 @@ export function TripFormPage() {
 
         if (primaryDriverEmployeeId && empId === primaryDriverEmployeeId) {
           extraMessages.push(shell.validation.driverInSupportStaff);
+          break;
+        }
+
+        const supportExcludeIds = new Set(seenEmployeeIds);
+        if (primaryDriverEmployeeId) {
+          supportExcludeIds.add(primaryDriverEmployeeId);
+        }
+        const assignability = findSupportStaffAssignability(empId, {
+          employees: activeEmployees,
+          driversByEmployeeId,
+          busyResources,
+          excludeEmployeeIds: supportExcludeIds,
+        });
+        if (assignability && !assignability.canBeAssigned) {
+          const name =
+            assignability.fullName ||
+            activeEmployees.find((e) => e.id === empId)?.fullName ||
+            "Empleado";
+          extraMessages.push(
+            shell.validation.supportStaffUnavailable(
+              name,
+              assignability.blockReason ?? "no disponible",
+            ),
+          );
           break;
         }
       }
@@ -572,7 +674,16 @@ export function TripFormPage() {
     setExtraValidationMessages([]);
     setShowValidationSummary(false);
     return true;
-  }, [form, validateRouteStepHandler, validateCargoStep, toast, availableDrivers]);
+  }, [
+    form,
+    validateRouteStepHandler,
+    validateCargoStep,
+    toast,
+    assignableDrivers,
+    activeEmployees,
+    driversByEmployeeId,
+    busyResources,
+  ]);
 
   // ============================================
   // Submit handler
@@ -721,7 +832,9 @@ export function TripFormPage() {
             <BasicInfoStep
               form={form}
               vehicles={vehicles}
-              drivers={availableDrivers}
+              drivers={assignableDrivers}
+              fleetDrivers={fleetDrivers}
+              busyResources={busyResources}
               clients={clients}
               isLoadingVehicles={isLoadingVehicles}
               isLoadingDrivers={isLoadingDrivers}
@@ -756,7 +869,7 @@ export function TripFormPage() {
             <SummaryStep
               form={form}
               vehicles={vehicles}
-              drivers={availableDrivers}
+              drivers={assignableDrivers}
               clients={clients}
               onGoToStep={helpers?.goToStep ?? (() => undefined)}
             />
@@ -774,7 +887,9 @@ export function TripFormPage() {
       isLoadingDrivers,
       isLoadingVehicles,
       stopsFieldArray,
-      availableDrivers,
+      assignableDrivers,
+      fleetDrivers,
+      busyResources,
       vehicles,
     ],
   );

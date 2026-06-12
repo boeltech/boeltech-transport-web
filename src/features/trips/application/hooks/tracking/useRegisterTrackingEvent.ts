@@ -10,6 +10,12 @@ import {
 } from "@features/trips/domain";
 import { trackingRepository } from "@features/trips/infrastructure";
 
+import { invalidateTripAssignmentResources } from "../trip/invalidateTripAssignmentResources";
+import {
+  buildTripDetailPatchFromTrackingEvent,
+  refetchTripTrackingViews,
+} from "./syncTripDetailFromTimeline";
+
 interface RegisterTrackingEventVariables {
   tripId: string;
   event: CreateTrackingEventInput;
@@ -29,16 +35,11 @@ export function useRegisterTrackingEvent(
       const result = await trackingRepository.createEvent(tripId, event);
       return result.data;
     },
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.timeline(variables.tripId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(variables.tripId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.lists(),
-      });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      const patch = buildTripDetailPatchFromTrackingEvent(variables.event);
+      await refetchTripTrackingViews(queryClient, variables.tripId, patch);
+      await invalidateTripAssignmentResources(queryClient);
+      await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     ...options,

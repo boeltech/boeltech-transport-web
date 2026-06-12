@@ -6,8 +6,7 @@ import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
-import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
+import { FormFieldShell, MoneyInput, getFieldErrorAriaProps } from "@shared/ui/form";
 
 import {
   validateCostsStep,
@@ -27,13 +26,6 @@ export interface TripBaseRateCardProps {
   readOnly: boolean;
 }
 
-function parseDraftBaseRate(draft: string): number | undefined {
-  const trimmed = draft.trim();
-  if (trimmed === "") return undefined;
-  const parsed = Number(trimmed);
-  return Number.isNaN(parsed) ? undefined : parsed;
-}
-
 function TripBaseRateCardEditor({
   tripId,
   baseRate,
@@ -42,8 +34,8 @@ function TripBaseRateCardEditor({
   expenseLines,
 }: Omit<TripBaseRateCardProps, "readOnly">) {
   const { toast } = useToast();
-  const [draft, setDraft] = useState(() =>
-    baseRate > 0 ? String(baseRate) : "",
+  const [draft, setDraft] = useState<number | undefined>(
+    baseRate > 0 ? baseRate : undefined,
   );
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -63,17 +55,16 @@ function TripBaseRateCardEditor({
   const baseRateRequired =
     cfdiDocumentIntent === "ingreso" && wizardHasContractingClient(clientId);
 
-  const parsedDraft = parseDraftBaseRate(draft);
   const persistedValue = baseRate > 0 ? baseRate : undefined;
   const isDirty =
-    (parsedDraft ?? undefined) !== persistedValue &&
-    !(parsedDraft === undefined && persistedValue === undefined);
+    (draft ?? undefined) !== persistedValue &&
+    !(draft === undefined && persistedValue === undefined);
 
   const handleSave = async () => {
     setFieldError(null);
 
     const validation = validateCostsStep({
-      baseRate: parsedDraft,
+      baseRate: draft,
       expenses: expenseLines,
       cfdiDocumentIntent,
       clientId,
@@ -95,7 +86,7 @@ function TripBaseRateCardEditor({
     try {
       await updateTrip.mutateAsync({
         id: tripId,
-        data: { baseRate: parsedDraft ?? 0 },
+        data: { baseRate: draft ?? 0 },
       });
     } catch {
       // Toast en onError del mutation
@@ -103,7 +94,7 @@ function TripBaseRateCardEditor({
   };
 
   const handleCancel = () => {
-    setDraft(baseRate > 0 ? String(baseRate) : "");
+    setDraft(baseRate > 0 ? baseRate : undefined);
     setFieldError(null);
   };
 
@@ -123,14 +114,10 @@ function TripBaseRateCardEditor({
         }
         errorMessage={fieldError ?? undefined}
       >
-        <Input
+        <MoneyInput
           id="trip-detail-base-rate"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="0.00"
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onValueChange={setDraft}
           disabled={updateTrip.isPending}
           error={Boolean(fieldError)}
           {...getFieldErrorAriaProps(

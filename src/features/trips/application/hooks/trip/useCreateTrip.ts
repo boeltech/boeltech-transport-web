@@ -18,6 +18,7 @@ import {
 } from "@features/trips/application/useCases/trip/CreateTripUseCase";
 import { tripRepository } from "@features/trips/infrastructure/repositories/tripRepository";
 import { tripQueryKeys, type CreateTripInput } from "@features/trips/domain";
+import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 
 // ============================================================================
 // CUSTOM ERROR CLASS
@@ -103,9 +104,10 @@ export function useCreateTrip(
       return result.data;
     },
 
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       // Invalidar lista de viajes
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await invalidateTripAssignmentResources(queryClient);
 
       // Pre-popular cache del detalle
       queryClient.setQueryData(

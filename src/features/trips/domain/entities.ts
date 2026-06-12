@@ -195,6 +195,8 @@ export interface TripCargo {
 
   // Estado
   readonly status: CargoStatusType;
+  readonly pickedUpAt: Date | null;
+  readonly deliveredAt: Date | null;
   readonly notes: string | null;
   readonly specialInstructions: string | null;
 
@@ -531,6 +533,7 @@ export interface TripListItem {
   readonly scheduledArrival: Date | null;
   readonly status: TripStatusType;
   readonly cargoDescription: string | null;
+  readonly baseRate: number;
   readonly totalCost: number;
   readonly totalRevenue: number;
   readonly estimatedProfit: number;
@@ -538,6 +541,7 @@ export interface TripListItem {
   readonly clientCount: number;
   readonly invoicing: TripInvoicing;
   readonly requiresFiscalAttention: boolean;
+  readonly internalStaffEmployeeIds?: readonly string[];
   readonly createdAt: Date;
 }
 

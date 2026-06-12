@@ -27,6 +27,8 @@ export const routeCopy = {
       "Use «Edición rápida» en cada parada para capturar distancias sin abrir el wizard.",
     originDeparture:
       "La salida programada del viaje se edita en Operación; al iniciar el viaje se registra la salida real en Seguimiento.",
+    waypointTimes:
+      "Llegada y salida estimadas de la escala; al operar el viaje, Seguimiento registra los tiempos reales.",
     pendingRfc: "RFC remitente/destinatario pendiente para esta parada.",
     sheetDescriptionOrigin:
       "Datos fiscales del origen. La salida programada del viaje se edita en el tab Operación.",
@@ -65,8 +67,6 @@ export const routeCopy = {
     cancel: "Cancelar",
   },
   label: {
-    progress: "Progreso",
-    visited: "Visitadas",
     segmentDistance: "Distancia tramos",
     pickups: "Cargas",
     deliveries: "Descargas",
@@ -81,16 +81,13 @@ export const routeCopy = {
     actualArrival: "Llegada real",
     estimatedArrival: "Llegada estimada",
     estimatedDeparture: "Salida estimada",
-    visitVisited: "Visitada",
-    visitAtStop: "En escala",
-    visitPending: "Pendiente",
     distanceManual: "Manual",
     distanceMapbox: "Mapbox",
     distanceEstimated: "Estimado",
     fiscalOk: "Fiscal OK",
     fiscalInvalid: "RFC inválido",
     fiscalPending: "RFC pendiente",
-    estimatedArrivalDestination: "Llegada estimada",
+    estimatedArrivalDestination: "Llegada estimada al destino",
     estimatedArrivalWaypoint: "Llegada estimada en escala",
     estimatedDepartureWaypoint: "Salida estimada de escala",
     distanceFromPreviousKm: "Distancia desde parada anterior (km)",
@@ -112,7 +109,6 @@ export const routeCopy = {
   format: {
     stopCount: (count: number) =>
       `${count} ${count === 1 ? "parada" : "paradas"}`,
-    visitedCount: (visited: number, total: number) => `${visited} / ${total}`,
     stopOrderHash: (order: number) => `#${order}`,
     distanceSegment: (sourceLabel: string, kmFormatted: string) =>
       `${sourceLabel} · ${kmFormatted} km`,

@@ -39,13 +39,16 @@ export function TripStopAddressLines({
   );
 }
 
-/** Una sola línea: calle/número + colonia + ciudad/estado/CP (misma resolución que Origen/Destino en Resumen). */
+/** Una sola línea: calle/número + colonia + ciudad/estado/CP (sin repetir `locationName`). */
 export function TripStopAddressSingleLine({
   stop,
   className,
+  hideWhenEmpty = false,
 }: {
   stop: TripStop;
   className?: string;
+  /** Si true, no renderiza cuando no hay segmentos de domicilio (p. ej. solo nombre de lugar arriba). */
+  hideWhenEmpty?: boolean;
 }) {
   const locality = useTripStopLocalityLine(stop);
   const streetPart = stop.locationName?.trim()
@@ -57,9 +60,43 @@ export function TripStopAddressSingleLine({
   );
   const line = parts.join(", ");
 
+  if (!line) {
+    if (hideWhenEmpty) return null;
+    return (
+      <p className={cn("text-sm text-muted-foreground", className)}>—</p>
+    );
+  }
+
   return (
-    <p className={cn("text-sm text-muted-foreground", className)}>
-      {line || "—"}
-    </p>
+    <p className={cn("text-sm text-muted-foreground", className)}>{line}</p>
+  );
+}
+
+/** Nombre del lugar + domicilio en una línea (patrón cards de Ruta en detalle de viaje). */
+export function TripDetailRouteStopAddress({
+  stop,
+}: {
+  stop: TripStop;
+}) {
+  const locationName = stop.locationName?.trim();
+  const reference = stop.reference?.trim();
+
+  return (
+    <div className="space-y-1">
+      {locationName ? (
+        <p className="truncate text-sm font-semibold">{locationName}</p>
+      ) : null}
+      <TripStopAddressSingleLine
+        stop={stop}
+        hideWhenEmpty={Boolean(locationName)}
+        className={cn(
+          "truncate",
+          locationName ? "text-xs text-muted-foreground" : "text-sm font-semibold",
+        )}
+      />
+      {reference ? (
+        <p className="text-xs text-muted-foreground">Referencia: {reference}</p>
+      ) : null}
+    </div>
   );
 }

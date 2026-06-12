@@ -208,4 +208,33 @@ describe("findDestinationAwaitingTripArrival", () => {
     ];
     expect(findDestinationAwaitingTripArrival(stops)).toBeUndefined();
   });
+
+  it("detecta cierre cuando destino ya esta completed pero el viaje sigue abierto", () => {
+    const stops = [
+      stop({
+        id: "origin",
+        sequenceOrder: 0,
+        stopType: [StopType.ORIGIN],
+        status: "completed",
+        actualArrival: new Date(),
+        actualDeparture: new Date(),
+      }),
+      stop({
+        id: "scale",
+        sequenceOrder: 1,
+        stopType: [StopType.WAYPOINT],
+        status: "completed",
+        actualArrival: new Date(),
+        actualDeparture: new Date(),
+      }),
+      stop({
+        id: "dest",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION],
+        status: "completed",
+        actualArrival: new Date(),
+      }),
+    ];
+    expect(findDestinationAwaitingTripArrival(stops)?.id).toBe("dest");
+  });
 });

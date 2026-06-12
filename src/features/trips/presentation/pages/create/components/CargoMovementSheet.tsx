@@ -83,6 +83,10 @@ import {
   type CargoMovementFormValues,
   type TripCargoFormValues,
 } from "./validation";
+import { wizardCopy } from "../../../copy";
+
+const sheet = wizardCopy.cargo.sheet;
+const formatWeight = wizardCopy.cargo.format.weight;
 
 // ============================================================================
 // TYPES
@@ -208,14 +212,6 @@ function buildEditDefaults(cargo: TripCargoFormValues): TripCargoFormValues {
   };
 }
 
-function formatWeight(weightKg: number): string {
-  if (weightKg >= 1000) {
-    return `${(weightKg / 1000).toLocaleString("es-MX", { maximumFractionDigits: 2 })} t`;
-  }
-  return `${weightKg.toLocaleString("es-MX")} kg`;
-}
-
-/** Recolecta mensajes de error del form para el `FormValidationSummary`. */
 function collectFormErrorMessages(
   errors: Record<string, { message?: string } | undefined>,
 ): string[] {
@@ -514,8 +510,8 @@ function CargoMovementSheetSession({
     (checked: boolean) => {
       if (!checked && hazmatRequiredByCatalog) {
         showErrorToast(
-          "Material peligroso requerido",
-          "El producto seleccionado exige capturar información de material peligroso según catálogo SAT.",
+          sheet.toast.hazmatRequiredTitle,
+          sheet.toast.hazmatRequiredBody,
         );
         return;
       }
@@ -595,11 +591,10 @@ function CargoMovementSheetSession({
       >
         <SheetHeader className="shrink-0 space-y-2 border-b px-6 py-4">
           <SheetTitle className="pr-8">
-            {editingIndex !== null ? "Editar mercancía" : "Agregar mercancía"}
+            {editingIndex !== null ? sheet.title.edit : sheet.title.create}
           </SheetTitle>
           <SheetDescription className="sr-only">
-            Formulario de mercancía: producto y unidad de medida, cantidad y
-            peso, seguro, material peligroso, entregas y observaciones.
+            {sheet.description}
           </SheetDescription>
           <CargoMovementSheetPickupContext pickupStop={pickupStop} />
         </SheetHeader>
@@ -624,7 +619,7 @@ function CargoMovementSheetSession({
 
           {/* ========== SECCIÓN: SEGURO ========== */}
           <FormSectionCard
-            title="Seguro de mercancía"
+            title={sheet.section.insurance}
             icon={<ShieldCheck className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
@@ -647,7 +642,7 @@ function CargoMovementSheetSession({
                     }}
                   />
                   <Label htmlFor="cargo-is-insured" className="cursor-pointer">
-                    Esta mercancía está asegurada
+                    {sheet.label.isInsured}
                   </Label>
                 </div>
               )}
@@ -663,7 +658,7 @@ function CargoMovementSheetSession({
                     return (
                       <FormFieldShell
                         fieldId="cargo-declared-value"
-                        label="Valor declarado (MXN)"
+                        label={sheet.label.declaredValue}
                         required
                         errorMessage={errorMessage}
                       >
@@ -672,7 +667,7 @@ function CargoMovementSheetSession({
                           type="number"
                           min="0.01"
                           step="0.01"
-                          placeholder="0.00"
+                          placeholder={sheet.placeholder.declaredValue}
                           value={field.value ?? ""}
                           onChange={(e) =>
                             field.onChange(
@@ -695,22 +690,21 @@ function CargoMovementSheetSession({
                     control={control}
                     name="aseguraCarga"
                     fieldId="cargo-asegura"
-                    label="Aseguradora de la carga"
+                    label={sheet.label.insurer}
                     required
-                    placeholder="Ej: Qualitas"
+                    placeholder={sheet.placeholder.insurer}
                   />
                   <RHFTextField
                     control={control}
                     name="polizaCarga"
                     fieldId="cargo-poliza"
-                    label="Póliza de la carga"
+                    label={sheet.label.policy}
                     required
-                    placeholder="Ej: CARGA-123456"
+                    placeholder={sheet.placeholder.policy}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Captura la aseguradora y póliza específicas de esta mercancía para el
-                  viaje.
+                  {sheet.hint.insurance}
                 </p>
               </div>
             )}
@@ -718,7 +712,7 @@ function CargoMovementSheetSession({
 
           {/* ========== SECCIÓN: MATERIAL PELIGROSO ========== */}
           <FormSectionCard
-            title="Material peligroso"
+            title={sheet.section.hazmat}
             icon={<AlertTriangle className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
@@ -739,13 +733,12 @@ function CargoMovementSheetSession({
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     <AlertTriangle className="h-4 w-4 text-warning" />
-                    Esta mercancía es material peligroso
+                    {sheet.label.isHazmat}
                   </Label>
                 </div>
                 {hazmatRequiredByCatalog && (
                   <p className="text-xs text-warning-soft-foreground">
-                    Este producto obliga captura de material peligroso según catálogo
-                    SAT.
+                    {sheet.hint.hazmatRequired}
                   </p>
                 )}
                 {hazardousMaterial && (
@@ -765,7 +758,7 @@ function CargoMovementSheetSession({
               <CollapsibleContent className="space-y-4 mt-4">
                 <div className="p-4 border border-warning/30 rounded-lg bg-warning-soft/50 space-y-4">
                   <p className="text-sm text-warning-soft-foreground">
-                    Completa la información de material peligroso según catálogo oficial.
+                    {sheet.hint.hazmatComplete}
                   </p>
 
                   <Controller
@@ -776,7 +769,7 @@ function CargoMovementSheetSession({
                       return (
                         <FormFieldShell
                           fieldId="cargo-hazmat-code"
-                          label="Clave Material Peligroso"
+                          label={sheet.label.hazmatCode}
                           required
                           errorMessage={errorMessage}
                         >
@@ -798,14 +791,14 @@ function CargoMovementSheetSession({
                       return (
                         <FormFieldShell
                           fieldId="cargo-packaging-type"
-                          label="Tipo de Embalaje"
+                          label={sheet.label.packagingType}
                           required
                           errorMessage={errorMessage}
                         >
                           <TipoEmbalajeSelect
                             value={field.value || ""}
                             onValueChange={(value) => field.onChange(value)}
-                            placeholder="Seleccionar tipo de embalaje"
+                            placeholder={sheet.placeholder.packagingType}
                           />
                         </FormFieldShell>
                       );
@@ -816,9 +809,9 @@ function CargoMovementSheetSession({
                     control={control}
                     name="packagingDescription"
                     fieldId="cargo-packaging-description"
-                    label="Descripción del Embalaje"
+                    label={sheet.label.packagingDescription}
                     required
-                    placeholder="Ej: Bidones de 20L, Tanque de 1000L..."
+                    placeholder={sheet.placeholder.packagingDescription}
                   />
                 </div>
               </CollapsibleContent>
@@ -828,50 +821,43 @@ function CargoMovementSheetSession({
           {/* ========== SECCIÓN: SECTORES REGULADOS ========== */}
           {shouldShowSectorSection && (
             <FormSectionCard
-              title="Sectores regulados"
+              title={sheet.section.sectors}
               icon={<FileText className="h-4 w-4" />}
               contentClassName="space-y-4"
             >
               <p className="text-xs text-muted-foreground">
-                Complete solo los campos regulatorios que marque el catálogo del
-                producto. Si no aplica, puede dejarlos vacíos.
+                {sheet.hint.sectors}
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
                   [
-                    ["sectorCofepris", "Sector COFEPRIS"],
-                    ["nombreIngredienteActivo", "Ingrediente activo"],
-                    ["nomQuimico", "Nombre químico"],
-                    ["denominacionGenericaProd", "Denominación genérica"],
-                    ["denominacionDistintivaProd", "Denominación distintiva"],
-                    ["fabricante", "Fabricante"],
-                    ["loteMedicamento", "Lote medicamento"],
-                    ["formaFarmaceutica", "Forma farmacéutica"],
-                    ["condicionesEspTransp", "Condiciones especiales de transporte"],
-                    [
-                      "registroSanitarioFolioAutorizacion",
-                      "Registro sanitario / folio autorización",
-                    ],
-                    ["permisoImportacion", "Permiso importación"],
-                    ["folioImpoVucem", "Folio VUCEM"],
-                    ["numCas", "Número CAS"],
-                    ["razonSocialEmpImp", "Razón social empresa importadora"],
-                    [
-                      "numRegSanPlagCofepris",
-                      "Registro sanitario plaguicida COFEPRIS",
-                    ],
-                    ["datosFabricante", "Datos fabricante"],
-                    ["datosFormulador", "Datos formulador"],
-                    ["datosMaquilador", "Datos maquilador"],
-                    ["usoAutorizado", "Uso autorizado"],
+                    "sectorCofepris",
+                    "nombreIngredienteActivo",
+                    "nomQuimico",
+                    "denominacionGenericaProd",
+                    "denominacionDistintivaProd",
+                    "fabricante",
+                    "loteMedicamento",
+                    "formaFarmaceutica",
+                    "condicionesEspTransp",
+                    "registroSanitarioFolioAutorizacion",
+                    "permisoImportacion",
+                    "folioImpoVucem",
+                    "numCas",
+                    "razonSocialEmpImp",
+                    "numRegSanPlagCofepris",
+                    "datosFabricante",
+                    "datosFormulador",
+                    "datosMaquilador",
+                    "usoAutorizado",
                   ] as const
-                ).map(([fieldName, label]) => (
+                ).map((fieldName) => (
                   <RHFTextField
                     key={fieldName}
                     control={control}
                     name={fieldName}
                     fieldId={`cargo-${fieldName}`}
-                    label={label}
+                    label={sheet.sectorLabel[fieldName]}
                     required={Boolean(sectorRequirements?.[fieldName])}
                   />
                 ))}
@@ -884,7 +870,7 @@ function CargoMovementSheetSession({
                     return (
                       <FormFieldShell
                         fieldId="cargo-fecha-caducidad"
-                        label="Fecha de caducidad"
+                        label={sheet.label.expiryDate}
                         required={Boolean(sectorRequirements?.fechaCaducidad)}
                         errorMessage={errorMessage}
                       >
@@ -908,7 +894,7 @@ function CargoMovementSheetSession({
 
               {missingSectorFields.length > 0 && (
                 <p className="text-xs text-warning">
-                  Campos pendientes:{" "}
+                  {sheet.hint.pendingSectorFields}{" "}
                   {missingSectorFields
                     .map((field) => sectorFieldLabels[field])
                     .join(", ")}
@@ -920,13 +906,13 @@ function CargoMovementSheetSession({
           {/* ========== SECCIÓN: ENTREGAS ========== */}
           {availableDeliveryStops.length > 0 && (
             <FormSectionCard
-              title="Entregas en la ruta"
+              title={sheet.section.deliveries}
               icon={<Truck className="h-4 w-4" />}
               contentClassName="space-y-4"
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  Descargas posteriores en otras paradas
+                  {sheet.hint.deliveriesScope}
                 </p>
                 <Button
                   type="button"
@@ -935,17 +921,16 @@ function CargoMovementSheetSession({
                   onClick={handleAddDelivery}
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Agregar Entrega
+                  {sheet.action.addDelivery}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Opcional: indique en qué paradas se entregará esta mercancía. Para
-                entregas parciales, especifique peso o unidades por punto.
+                {sheet.hint.deliveriesOptional}
               </p>
 
               {deliveryAssignments.length === 0 ? (
                 <div className="text-center py-3 border border-dashed rounded-lg text-xs text-muted-foreground">
-                  Sin entregas asignadas. Puede asignarlas después.
+                  {sheet.state.noDeliveries}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -964,12 +949,17 @@ function CargoMovementSheetSession({
                           }
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Seleccionar parada..." />
+                            <SelectValue placeholder={sheet.placeholder.deliveryStop} />
                           </SelectTrigger>
                           <SelectContent>
                             {availableDeliveryStops.map((s) => (
                               <SelectItem key={s.index} value={String(s.index)}>
-                                #{s.index + 1} {s.locationName || s.address} ({s.city})
+                                {sheet.format.deliveryStopOption(
+                                  s.index,
+                                  s.locationName || "",
+                                  s.address,
+                                  s.city,
+                                )}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -977,7 +967,7 @@ function CargoMovementSheetSession({
                         <div className="grid grid-cols-2 gap-2">
                           <Input
                             type="number"
-                            placeholder="Peso (kg)"
+                            placeholder={sheet.placeholder.deliveryWeight}
                             className="h-8 text-xs"
                             value={delivery.weight ?? ""}
                             onChange={(e) =>
@@ -990,7 +980,7 @@ function CargoMovementSheetSession({
                           />
                           <Input
                             type="number"
-                            placeholder="Unidades"
+                            placeholder={sheet.placeholder.deliveryUnits}
                             className="h-8 text-xs"
                             value={delivery.units ?? ""}
                             onChange={(e) =>
@@ -1021,7 +1011,7 @@ function CargoMovementSheetSession({
 
           {/* ========== SECCIÓN: NOTAS ========== */}
           <FormSectionCard
-            title="Notas y observaciones"
+            title={sheet.section.notes}
             icon={<MessageSquare className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
@@ -1029,22 +1019,22 @@ function CargoMovementSheetSession({
               control={control}
               name="notes"
               fieldId="cargo-notes"
-              label="Notas"
-              placeholder="Observaciones sobre la carga..."
+              label={sheet.label.notes}
+              placeholder={sheet.placeholder.notes}
             />
             <RHFTextareaField
               control={control}
               name="specialInstructions"
               fieldId="cargo-special-instructions"
-              label="Instrucciones especiales"
-              placeholder="Manejo especial, temperatura, fragilidad..."
+              label={sheet.label.specialInstructions}
+              placeholder={sheet.placeholder.specialInstructions}
             />
           </FormSectionCard>
 
           {/* ========== VALIDATION SUMMARY ========== */}
           {isSummaryVisible && (
             <FormValidationSummary
-              title="Faltan datos obligatorios en la mercancía"
+              title={sheet.validation.missingRequiredTitle}
               messages={summaryMessages}
             />
           )}
@@ -1056,10 +1046,10 @@ function CargoMovementSheetSession({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Cancelar
+            {sheet.action.cancel}
           </Button>
           <Button type="button" onClick={() => void submitSheet()}>
-            {editingIndex !== null ? "Guardar cambios" : "Agregar mercancía"}
+            {editingIndex !== null ? sheet.action.save : sheet.action.add}
           </Button>
         </SheetFooter>
       </SheetContent>

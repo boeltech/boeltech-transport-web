@@ -200,7 +200,6 @@ export type {
   TripQueryKey,
   CargoQueryKey,
   ExpenseQueryKey,
-  StopQueryKey,
 } from "./queries";
 
 export {
@@ -208,7 +207,6 @@ export {
   tripQueryKeys,
   cargoQueryKeys,
   expenseQueryKeys,
-  stopQueryKeys,
 } from "./queries";
 
 // ============================================================================
@@ -217,7 +215,6 @@ export {
 
 export type {
   ITripRepository,
-  IStopRepository, // Legacy sin handlers REST /stops/* en backend (migrar a tracking API)
   ICargoRepository,
   IExpenseRepository,
 } from "./repositories";
@@ -233,6 +230,15 @@ export {
   V1_CARGO_PLACEHOLDER_CLIENT_CODE,
   isV1CargoPlaceholderClientId,
 } from "./v1CargoPlaceholderClient";
+
+// ============================================================================
+// TRIP STOP FISCAL (WS-G post-cierre)
+// ============================================================================
+
+export type {
+  PatchTripStopFiscalPayload,
+  PatchTripStopFiscalResult,
+} from "./tripStopFiscal.types";
 
 // ============================================================================
 // ROUTE VALIDATION
@@ -254,20 +260,17 @@ export {
 export {
   calculateDistance,
   calculateStopsProgress,
+  countCompletedStops,
   calculateTotalCost,
   calculateTripDuration,
-  canAddStopType,
   canCancelTrip,
-  canDeleteStop,
   canDeleteTrip,
   canEditTrip,
   canManageTripExpenses,
-  canMarkStopVisited,
   canModifyStops,
   canStartTrip,
   canTransitionTo,
   getAvailableTransitions,
-  getNextStopOrder,
   getOrderedStops,
   getStatusLabel,
   isActiveTrip,
@@ -277,5 +280,4 @@ export {
   validateDepartureNotInPast,
   validateMileageRange,
   validateStatusTransition,
-  validateStopOrder,
 } from "./rules";

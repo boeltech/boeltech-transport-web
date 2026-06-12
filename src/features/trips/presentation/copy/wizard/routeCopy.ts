@@ -67,6 +67,83 @@ export const routeCopy = {
     ingresoFiscal:
       "En ingreso, el cliente que contrata el viaje suele ser la referencia principal; las demás contrapartes por ubicación se capturan en cada parada.",
   },
+  stopForm: {
+    title: {
+      create: "Agregar parada",
+      edit: "Editar parada",
+    },
+    description: "Ubicación, operaciones y datos fiscales de la parada.",
+    operation: {
+      pickup: "Carga",
+      delivery: "Descarga",
+    },
+    section: {
+      locationName: "Nombre del lugar",
+      domicile: "Domicilio",
+      fiscalData: "Datos fiscales",
+      contactPlanning: "Contacto y planificación",
+    },
+    label: {
+      locationName: "Nombre del lugar",
+      useAddressFiscalData: "Usar datos fiscales de la dirección",
+      legalName: "Nombre / razón social",
+      legalNameDelivery: "Nombre / razón social (descarga)",
+      contactName: "Nombre contacto",
+      contactPhone: "Teléfono",
+      notes: "Notas / instrucciones",
+      estimatedArrivalDestination: "Hora estimada de llegada",
+      estimatedArrivalWaypoint: "Hora estimada en esta escala",
+    },
+    placeholder: {
+      locationName:
+        "Ej: Bodega Central, CEDIS Norte, Planta Monterrey...",
+      contactName: "Nombre del contacto en sitio",
+      contactPhone: "Teléfono",
+      notes: "Instrucciones especiales de entrega, horarios, acceso...",
+    },
+    hint: {
+      waypointArrivalInterpolation:
+        "Se interpolará automáticamente si no se captura.",
+    },
+    alert: {
+      missingGeolocationTitle: "Falta geolocalización en la dirección precargada",
+      missingGeolocationBody:
+        "Esta dirección del cliente no tiene latitud / longitud registradas. Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y cumplir Carta Porte 3.1.",
+    },
+    validation: {
+      missingField: "Tipo de parada",
+      waypointOperation: "Operación de escala",
+      locationName: "Nombre del lugar",
+      estimatedArrival: "Hora estimada de llegada",
+      geolocation: "Confirmación Geográfica",
+      satFieldsFallback:
+        "Completa los campos SAT obligatorios para este código postal.",
+      missingRequiredTitle: "Faltan datos obligatorios en la parada",
+      reviewAddressTitle: "Revisa la dirección de la parada",
+      fieldRequired: (label: string) => `${label} es obligatorio`,
+    },
+    action: {
+      cancel: "Cancelar",
+      save: "Guardar Cambios",
+      add: "Agregar Parada",
+    },
+    toast: {
+      persistFailedTitle: "No se pudo actualizar la dirección del cliente",
+      persistFailedBody:
+        "Revisa los campos del domicilio antes de guardar en el catálogo.",
+      persistErrorTitle: "Error al actualizar la dirección",
+      persistErrorBody: "La parada no se guardó. Intenta de nuevo.",
+    },
+    persistDialog: {
+      title: "¿Actualizar la dirección del cliente?",
+      description:
+        "Modificaste el domicilio precargado del cliente. Puedes guardar los cambios en el catálogo del cliente o usar esta versión solo para esta parada del viaje.",
+      updateClient: "Actualizar en el cliente",
+      stopOnly: "Solo en esta parada",
+      backToForm: "Volver al formulario",
+      saving: "Guardando…",
+    },
+  },
 } as const;
 
 /** @deprecated Use `routeCopy.label` — alias legacy */

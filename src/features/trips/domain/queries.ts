@@ -150,17 +150,6 @@ export const expenseQueryKeys = {
     [...expenseQueryKeys.details(), expenseId] as const,
 } as const;
 
-/**
- * Factory de query keys para paradas
- */
-export const stopQueryKeys = {
-  all: ["stops"] as const,
-  lists: () => [...stopQueryKeys.all, "list"] as const,
-  list: (tripId: string) => [...stopQueryKeys.lists(), tripId] as const,
-  details: () => [...stopQueryKeys.all, "detail"] as const,
-  detail: (stopId: string) => [...stopQueryKeys.details(), stopId] as const,
-} as const;
-
 // ============================================================================
 // HELPER TYPES
 // ============================================================================
@@ -176,4 +165,3 @@ type QueryKeyReturn<T> = {
 export type TripQueryKey = QueryKeyReturn<typeof tripQueryKeys>;
 export type CargoQueryKey = QueryKeyReturn<typeof cargoQueryKeys>;
 export type ExpenseQueryKey = QueryKeyReturn<typeof expenseQueryKeys>;
-export type StopQueryKey = QueryKeyReturn<typeof stopQueryKeys>;

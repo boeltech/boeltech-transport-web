@@ -35,8 +35,10 @@ export function formatTrackingEventLabel(
   const role = stop ? primaryStopRoleLabel(stop) : null;
 
   switch (eventType) {
+    case "trip_dispatched":
+      return "Viaje despachado";
     case "trip_departed":
-      return "Viaje iniciado";
+      return "Salida de origen";
     case "stop_arrived":
       return role ? `Llegada — ${role}` : "Llegada a parada";
     case "stop_departed":
@@ -47,6 +49,14 @@ export function formatTrackingEventLabel(
       return "Incidente reportado";
     case "note":
       return "Nota operativa";
+    case "cargo_picked_up":
+      return "Carga recogida";
+    case "cargo_delivered":
+      return "Carga entregada";
+    case "cargo_returned":
+      return "Carga devuelta";
+    case "cargo_cancelled":
+      return "Carga cancelada";
     default:
       return eventType;
   }

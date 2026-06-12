@@ -2,9 +2,7 @@ import {
   AlertTriangle,
   Box,
   Building2,
-  CheckCircle2,
   FileText,
-  Loader2,
   Package,
   Scale,
   Truck,
@@ -12,14 +10,13 @@ import {
 
 import {
   CARGO_STATUS_LABELS,
-  CargoStatus,
   type CargoStatusType,
   type TripCargo,
   type TripStop,
 } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
 import { getStopLabelForCargo, isCargoHazmat } from "./tripCargoDetailHelpers";
 import { tripDetailCopy } from "../../copy";
@@ -33,12 +30,7 @@ export interface TripDetailCargoItemCardProps {
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
-  canDeliverCargo: boolean;
-  isDeliverPending: boolean;
-  onDeliverCargo: (cargoId: string) => void;
-  /** Muestra cliente contratante de la carga (vista por mercancía). */
   showClient?: boolean;
-  /** Destaca valor declarado en columna lateral (vista por mercancía). */
   emphasizeDeclaredValue?: boolean;
   className?: string;
 }
@@ -48,9 +40,6 @@ export function TripDetailCargoItemCard({
   orderedStops,
   formatCurrency,
   getCargoStatusVariant,
-  canDeliverCargo,
-  isDeliverPending,
-  onDeliverCargo,
   showClient = false,
   emphasizeDeclaredValue = false,
   className,
@@ -62,11 +51,6 @@ export function TripDetailCargoItemCard({
   const deliveries = (cargo.movements ?? []).filter(
     (movement) => movement.movementType === "delivery",
   );
-
-  const canDeliver =
-    canDeliverCargo &&
-    cargo.status !== CargoStatus.DELIVERED &&
-    cargo.status !== CargoStatus.CANCELLED;
 
   return (
     <div
@@ -101,6 +85,21 @@ export function TripDetailCargoItemCard({
               {cargo.client.legalName}
             </p>
           ) : null}
+
+          {(cargo.pickedUpAt || cargo.deliveredAt) && (
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+              {cargo.pickedUpAt ? (
+                <span>
+                  {copy.label.pickedUpAt}: {formatDateTime(cargo.pickedUpAt.toISOString())}
+                </span>
+              ) : null}
+              {cargo.deliveredAt ? (
+                <span>
+                  {copy.label.deliveredAt}: {formatDateTime(cargo.deliveredAt.toISOString())}
+                </span>
+              ) : null}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-1.5">
             {cargo.satProductCode ? (
@@ -156,6 +155,7 @@ export function TripDetailCargoItemCard({
                       ? copy.format.weightSuffix(pickup.weight)
                       : undefined,
                   )}
+                  {pickup.completedAt ? ` · ${copy.label.movementDone}` : ""}
                 </span>
               ))}
               {deliveries.map((delivery, idx) => (
@@ -173,6 +173,7 @@ export function TripDetailCargoItemCard({
                       ? copy.format.unitsSuffix(delivery.units)
                       : undefined,
                   )}
+                  {delivery.completedAt ? ` · ${copy.label.movementDone}` : ""}
                 </span>
               ))}
             </div>
@@ -194,23 +195,6 @@ export function TripDetailCargoItemCard({
               {formatCurrency(cargo.declaredValue)}
             </p>
           </div>
-        ) : null}
-        {canDeliver ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => onDeliverCargo(cargo.id)}
-            disabled={isDeliverPending}
-          >
-            {isDeliverPending ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-1 h-4 w-4" />
-            )}
-            {copy.action.deliver}
-          </Button>
         ) : null}
       </div>
     </div>

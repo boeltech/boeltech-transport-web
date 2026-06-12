@@ -1,4 +1,5 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import { devRefetchIntervalFn } from "@/shared/config/devPolling";
 import { tripQueryKeys, type TrackingTimeline } from "@features/trips/domain";
 import { trackingRepository } from "@features/trips/infrastructure";
 
@@ -14,8 +15,9 @@ export function useTripTimeline(
     },
     enabled: !!tripId,
     staleTime: 10_000,
-    refetchInterval: (query) =>
+    refetchInterval: devRefetchIntervalFn((query) =>
       query.state.data?.trip.status === "in_progress" ? 30_000 : false,
+    ),
     ...options,
   });
 }

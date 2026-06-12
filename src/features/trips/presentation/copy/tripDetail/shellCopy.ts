@@ -20,6 +20,7 @@ export const shellCopy = {
   stat: {
     cargo: "Cargas",
     distance: "Distancia",
+    distanceOdometerHint: "Odómetro final − inicial",
     duration: "Duración",
     baseRate: "Tarifa base",
     cargoWeightTotal: (kg: number) =>

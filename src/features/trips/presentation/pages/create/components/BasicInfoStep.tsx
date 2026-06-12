@@ -55,25 +55,28 @@ import {
 } from "@shared/ui/table";
 
 import type { TripWizardFormValues } from "./validation";
-import type { DriverListItem } from "@features/drivers/domain";
+import type { AssignableDriverItem } from "../tripAssignmentDrivers";
+import type { BusyAssignmentResourceIds } from "../tripAssignmentBusyResources";
+import {
+  buildAssignableSupportStaffForTripWizard,
+  type SupportStaffPositionFilter,
+} from "../tripAssignmentSupportStaff";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
-import { isExpiringSoon } from "@shared/utils/dateUtils";
+import type { DriverListItem } from "@features/drivers/domain";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 // Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
 import { useVehicle } from "@features/vehicles/application";
 import { useEmployees } from "@features/employees";
 import type { EmployeeListItem } from "@features/employees";
+import { wizardCopy } from "../../../copy";
+
+const copy = wizardCopy.basicInfo;
+const shellValidation = wizardCopy.shell.validation;
 
 // ============================================================================
 // TYPES
 // ============================================================================
-
-interface AssignableDriverItem extends DriverListItem {
-  canBeAssigned: boolean;
-  blockReason?: string;
-  displayName: string;
-}
 
 interface VehicleMileageSource {
   currentMileage: number;
@@ -81,105 +84,17 @@ interface VehicleMileageSource {
 
 /** Valores alineados a `POSITION_OPTIONS` en empleados (catálogo local). */
 const SUPPORT_STAFF_POSITION_FILTER_OPTIONS = [
-  { value: "Conductor", label: "Conductores" },
-  { value: "Ayudante general", label: "Ayudantes generales" },
-] as const;
-
-type SupportStaffPositionFilterValue =
-  (typeof SUPPORT_STAFF_POSITION_FILTER_OPTIONS)[number]["value"];
+  { value: "Conductor", label: copy.positionFilter.conductor },
+  { value: "Ayudante general", label: copy.positionFilter.helper },
+] as const satisfies ReadonlyArray<{
+  value: SupportStaffPositionFilter;
+  label: string;
+}>;
 
 const EMPTY_INTERNAL_STAFF: TripWizardFormValues["internalStaff"] = [];
 
-function employeePositionMatchesFilter(
-  employee: EmployeeListItem,
-  filter: SupportStaffPositionFilterValue,
-): boolean {
-  const pos = (employee.position ?? "").trim().toLowerCase();
-  return pos === filter.trim().toLowerCase();
-}
-
-/**
- * Opciones del combo Empleado en equipo de apoyo: filtro por puesto y exclusión de
- * empleados ya en la tabla o ya asignados como conductor principal.
- */
-function buildSupportStaffEmployeeOptions(
-  allActive: EmployeeListItem[],
-  filter: SupportStaffPositionFilterValue,
-  excludeEmployeeIds: ReadonlySet<string>,
-): EmployeeListItem[] {
-  return allActive
-    .filter((e) => employeePositionMatchesFilter(e, filter))
-    .filter((e) => !excludeEmployeeIds.has(e.id))
-    .sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
-}
-
 function isEmployeeActive(employee: EmployeeListItem): boolean {
   return employee.isActive && employee.status === "active";
-}
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-function calculateDriverAssignability(
-  driver: DriverListItem,
-): Pick<AssignableDriverItem, "canBeAssigned" | "blockReason"> {
-  if (driver.status !== "available") {
-    const statusReasons: Record<string, string> = {
-      on_trip: "En viaje",
-      resting: "Descansando",
-      on_vacation: "De vacaciones",
-      on_leave: "Con permiso",
-      terminated: "Dado de baja",
-    };
-    return {
-      canBeAssigned: false,
-      blockReason: statusReasons[driver.status] || driver.status,
-    };
-  }
-
-  if (driver.isLicenseExpired) {
-    return { canBeAssigned: false, blockReason: "Licencia vencida" };
-  }
-
-  if (isExpiringSoon(driver.licenseExpiry, 30)) {
-    return { canBeAssigned: true, blockReason: undefined };
-  }
-
-  return { canBeAssigned: true, blockReason: undefined };
-}
-
-function getDriverDisplayName(driver: DriverListItem): string {
-  if (driver.employee.fullName) return driver.employee.fullName;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const driverAny = driver as any;
-  if (driverAny.employee?.firstName) {
-    const { firstName, lastName, secondLastName } = driverAny.employee;
-    return [firstName, lastName, secondLastName].filter(Boolean).join(" ");
-  }
-
-  // if (driver.firstName) {
-  //   return [driver.firstName, driver.lastName, driver.secondLastName]
-  //     .filter(Boolean)
-  //     .join(" ");
-  // }
-
-  return "Sin nombre";
-}
-
-function processDriversForAssignment(
-  drivers: DriverListItem[],
-): AssignableDriverItem[] {
-  return drivers.map((driver) => {
-    const { canBeAssigned, blockReason } = calculateDriverAssignability(driver);
-    return {
-      ...driver,
-      canBeAssigned,
-      blockReason,
-      displayName: getDriverDisplayName(driver),
-    };
-  });
 }
 
 function extractVehicleDetail(
@@ -205,7 +120,9 @@ interface BasicInfoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
   vehicles: AssignableVehicleItem[];
-  drivers: DriverListItem[];
+  drivers: AssignableDriverItem[];
+  fleetDrivers: DriverListItem[];
+  busyResources: BusyAssignmentResourceIds;
   clients: Array<{ id: string; legalName: string }>;
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
@@ -220,6 +137,8 @@ export function BasicInfoStep({
   form,
   vehicles,
   drivers,
+  fleetDrivers,
+  busyResources,
   clients,
   isLoadingVehicles,
   isLoadingDrivers,
@@ -243,7 +162,7 @@ export function BasicInfoStep({
   });
 
   const [supportStaffPositionFilter, setSupportStaffPositionFilter] =
-    useState<SupportStaffPositionFilterValue>("Conductor");
+    useState<SupportStaffPositionFilter>("Conductor");
   const [draftEmployeeId, setDraftEmployeeId] = useState("");
   const [draftPaymentResponsible, setDraftPaymentResponsible] = useState(false);
   const [draftPaymentNotes, setDraftPaymentNotes] = useState("");
@@ -265,15 +184,20 @@ export function BasicInfoStep({
   const assignableVehicles = vehicles.filter((v) => v.canBeAssigned);
   const blockedVehicles = vehicles.filter((v) => !v.canBeAssigned);
 
-  // ── Procesar conductores ──────────────────────────────────────────────────
-  const processedDrivers = useMemo(
-    () => processDriversForAssignment(drivers),
-    [drivers],
-  );
+  // ── Procesar conductores (clasificación previa en TripFormPage) ───────────
+  const processedDrivers = drivers;
   const activeEmployees = useMemo(
     () => (employeesResult?.data ?? []).filter(isEmployeeActive),
     [employeesResult?.data],
   );
+
+  const driversByEmployeeId = useMemo(() => {
+    const map = new Map<string, DriverListItem>();
+    for (const driver of fleetDrivers) {
+      map.set(driver.employeeId, driver);
+    }
+    return map;
+  }, [fleetDrivers]);
 
   const selectedDriverEmployeeId = useMemo(
     () =>
@@ -348,29 +272,54 @@ export function BasicInfoStep({
     return m;
   }, [activeEmployees]);
 
-  const draftEmployeeOptions = useMemo(
+  const supportStaffOptions = useMemo(
     () =>
-      buildSupportStaffEmployeeOptions(
-        activeEmployees,
-        supportStaffPositionFilter,
-        excludeEmployeeIdsForSupportDraft,
-      ),
+      buildAssignableSupportStaffForTripWizard({
+        employees: activeEmployees,
+        driversByEmployeeId,
+        busyResources,
+        positionFilter: supportStaffPositionFilter,
+        excludeEmployeeIds: excludeEmployeeIdsForSupportDraft,
+      }),
     [
       activeEmployees,
+      driversByEmployeeId,
+      busyResources,
       supportStaffPositionFilter,
       excludeEmployeeIdsForSupportDraft,
     ],
   );
 
+  const assignableSupportStaff = supportStaffOptions.filter(
+    (item) => item.canBeAssigned,
+  );
+  const blockedSupportStaff = supportStaffOptions.filter(
+    (item) => !item.canBeAssigned,
+  );
+
+  const selectedDraftSupportStaff = useMemo(
+    () => supportStaffOptions.find((item) => item.employeeId === draftEmployeeId.trim()),
+    [supportStaffOptions, draftEmployeeId],
+  );
+
   const handleAddSupportStaff = useCallback(() => {
     const empId = draftEmployeeId.trim();
     if (!empId) {
-      setAddStaffError("Selecciona un empleado.");
+      setAddStaffError(copy.error.selectEmployee);
+      return;
+    }
+    const selected = selectedDraftSupportStaff;
+    if (selected && !selected.canBeAssigned) {
+      setAddStaffError(
+        selected.blockReason
+          ? shellValidation.supportStaffBlockedOnAdd(selected.blockReason)
+          : copy.error.cannotAddEmployee,
+      );
       return;
     }
     if (excludeEmployeeIdsForSupportDraft.has(empId)) {
       setDraftEmployeeId("");
-      setAddStaffError("Este empleado ya no está disponible para apoyo; elige otro.");
+      setAddStaffError(copy.error.employeeUnavailableForSupport);
       return;
     }
     if (
@@ -378,17 +327,16 @@ export function BasicInfoStep({
         (row) => row.employeeId && row.employeeId === empId,
       )
     ) {
-      setAddStaffError("Este empleado ya está en el equipo de apoyo.");
+      setAddStaffError(copy.error.alreadyInSupportStaff);
       return;
     }
     if (selectedDriverEmployeeId && empId === selectedDriverEmployeeId) {
-      setAddStaffError(
-        "El conductor principal no puede figurar en el equipo de apoyo.",
-      );
+      setAddStaffError(copy.error.driverInSupportStaff);
       return;
     }
     internalStaffFieldArray.append({
       employeeId: empId,
+      internalRole: selected?.internalRole ?? "helper",
       isPaymentResponsible: draftPaymentResponsible,
       paymentNotes: draftPaymentNotes.trim() || "",
     });
@@ -403,6 +351,7 @@ export function BasicInfoStep({
     draftPaymentNotes,
     internalStaffValues,
     selectedDriverEmployeeId,
+    selectedDraftSupportStaff,
     internalStaffFieldArray,
     form,
     excludeEmployeeIdsForSupportDraft,
@@ -420,7 +369,7 @@ export function BasicInfoStep({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Truck className="h-5 w-5" /> Asignaciones
+            <Truck className="h-5 w-5" /> {copy.section.assignments}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -431,7 +380,7 @@ export function BasicInfoStep({
               render={({ field, fieldState }) => (
                 <FormFieldShell
                   fieldId="vehicleId"
-                  label="Vehículo"
+                  label={copy.label.vehicle}
                   required
                   errorMessage={fieldState.error?.message}
                 >
@@ -453,21 +402,21 @@ export function BasicInfoStep({
                       ) : (
                         <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
                       )}
-                      <SelectValue placeholder="Seleccionar vehículo" />
+                      <SelectValue placeholder={copy.placeholder.selectVehicle} />
                     </SelectTrigger>
                     <SelectContent>
                       {vehicles.length === 0 && !isLoadingVehicles ? (
                         <SelectItem value="no-vehicles" disabled>
-                          No hay vehículos disponibles
+                          {copy.state.noVehicles}
                         </SelectItem>
                       ) : (
                         <>
                           {assignableVehicles.length > 0 && (
                             <SelectGroup>
-                              <SelectLabel>Disponibles</SelectLabel>
+                              <SelectLabel>{copy.state.available}</SelectLabel>
                               {assignableVehicles.map((v) => (
                                 <SelectItem key={v.id} value={v.id}>
-                                  {v.unitNumber} — {v.licensePlate}
+                                  {copy.format.vehicleOption(v.unitNumber, v.licensePlate)}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
@@ -480,7 +429,7 @@ export function BasicInfoStep({
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-1.5 text-warning">
                                 <AlertTriangle className="h-3.5 w-3.5" />
-                                No asignables
+                                {copy.state.notAssignable}
                               </SelectLabel>
                               {blockedVehicles.map((v) => (
                                 <SelectItem
@@ -516,7 +465,7 @@ export function BasicInfoStep({
               render={({ field, fieldState }) => (
                 <FormFieldShell
                   fieldId="driverId"
-                  label="Conductor"
+                  label={copy.label.driver}
                   required
                   errorMessage={fieldState.error?.message}
                 >
@@ -538,25 +487,23 @@ export function BasicInfoStep({
                       ) : (
                         <User className="mr-2 h-4 w-4 text-muted-foreground" />
                       )}
-                      <SelectValue placeholder="Seleccionar conductor" />
+                      <SelectValue placeholder={copy.placeholder.selectDriver} />
                     </SelectTrigger>
                     <SelectContent>
                       {drivers.length === 0 && !isLoadingDrivers ? (
                         <SelectItem value="no-drivers" disabled>
-                          No hay conductores disponibles
+                          {copy.state.noDrivers}
                         </SelectItem>
                       ) : assignableDriversForConductorSelect.length === 0 &&
                         blockedDriversForConductorSelect.length === 0 ? (
                         <SelectItem value="no-drivers-available" disabled>
-                          No hay conductores fuera del equipo de apoyo. Quita
-                          colaboradores de apoyo para poder asignarlos como
-                          conductor principal.
+                          {copy.state.noDriversOutsideSupportStaff}
                         </SelectItem>
                       ) : (
                         <>
                           {assignableDriversForConductorSelect.length > 0 && (
                             <SelectGroup>
-                              <SelectLabel>Disponibles</SelectLabel>
+                              <SelectLabel>{copy.state.available}</SelectLabel>
                               {assignableDriversForConductorSelect.map((d) => (
                                 <SelectItem key={d.id} value={d.id}>
                                   {d.displayName}
@@ -572,7 +519,7 @@ export function BasicInfoStep({
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-1.5 text-warning">
                                 <AlertTriangle className="h-3.5 w-3.5" />
-                                No asignables
+                                {copy.state.notAssignable}
                               </SelectLabel>
                               {blockedDriversForConductorSelect.map((d) => (
                                 <SelectItem
@@ -611,15 +558,10 @@ export function BasicInfoStep({
                   label={
                     <SectionHeadingWithHint
                       noTitleWrap
-                      title="Cliente que contrata"
-                      hintLabel="Cliente que contrata"
+                      title={copy.label.client}
+                      hintLabel={copy.hintLabel.client}
                       required
-                      hint={
-                        <>
-                          Quién contrata el servicio de transporte. Quién entrega y quién recibe en cada ubicación se
-                          captura por parada en el paso Ruta.
-                        </>
-                      }
+                      hint={<>{copy.hint.client}</>}
                     />
                   }
                   errorMessage={fieldState.error?.message}
@@ -642,7 +584,7 @@ export function BasicInfoStep({
                       ) : (
                         <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
                       )}
-                      <SelectValue placeholder="Seleccionar cliente" />
+                      <SelectValue placeholder={copy.placeholder.selectClient} />
                     </SelectTrigger>
                     <SelectContent>
                       {clients.map((c) => (
@@ -666,15 +608,9 @@ export function BasicInfoStep({
                   label={
                     <SectionHeadingWithHint
                       noTitleWrap
-                      title="Tipo de comprobante del viaje"
-                      hintLabel="Tipo de comprobante del viaje"
-                      hint={
-                        <>
-                          Indica si el servicio se documentará principalmente como ingreso (factura de servicio) o como
-                          traslado (movimiento entre ubicaciones). Ajusta etiquetas en Ruta y paradas; el timbrado validará
-                          los datos finos.
-                        </>
-                      }
+                      title={copy.label.cfdiDocumentIntent}
+                      hintLabel={copy.hintLabel.cfdiDocumentIntent}
+                      hint={<>{copy.hint.cfdiDocumentIntent}</>}
                     />
                   }
                   errorMessage={fieldState.error?.message}
@@ -693,11 +629,11 @@ export function BasicInfoStep({
                         fieldState.error?.message,
                       )}
                     >
-                      <SelectValue placeholder="Tipo de comprobante" />
+                      <SelectValue placeholder={copy.placeholder.cfdiDocumentIntent} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ingreso">Ingreso — factura de servicio</SelectItem>
-                      <SelectItem value="traslado">Traslado — movimiento entre ubicaciones</SelectItem>
+                      <SelectItem value="ingreso">{copy.cfdiIntent.ingreso}</SelectItem>
+                      <SelectItem value="traslado">{copy.cfdiIntent.traslado}</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormFieldShell>
@@ -717,17 +653,12 @@ export function BasicInfoStep({
               title={
                 <>
                   <Users className="h-5 w-5 shrink-0" />
-                  Equipo de Apoyo
+                  {copy.section.supportStaff}
                 </>
               }
               titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
-              hintLabel="Equipo de apoyo interno"
-              hint={
-                <>
-                  Personal que acompaña la operación y puede marcarse como responsable de pago de honorarios o viáticos.
-                  No sustituye al conductor principal del viaje.
-                </>
-              }
+              hintLabel={copy.hintLabel.supportStaff}
+              hint={<>{copy.hint.supportStaff}</>}
             />
           </CardTitle>
         </CardHeader>
@@ -738,20 +669,19 @@ export function BasicInfoStep({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="support-staff-position-filter">
-                  Filtrar empleados por puesto
+                  {copy.label.supportStaffPositionFilter}
                 </Label>
                 <Select
                   value={supportStaffPositionFilter}
                   onValueChange={(v) => {
                     setAddStaffError(null);
-                    setSupportStaffPositionFilter(
-                      v as SupportStaffPositionFilterValue,
-                    );
+                    setDraftEmployeeId("");
+                    setSupportStaffPositionFilter(v as SupportStaffPositionFilter);
                   }}
                   disabled={isLoadingEmployees}
                 >
                   <SelectTrigger id="support-staff-position-filter">
-                    <SelectValue placeholder="Puesto" />
+                    <SelectValue placeholder={copy.placeholder.position} />
                   </SelectTrigger>
                   <SelectContent>
                     {SUPPORT_STAFF_POSITION_FILTER_OPTIONS.map((opt) => (
@@ -764,7 +694,7 @@ export function BasicInfoStep({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="support-staff-employee">Empleado</Label>
+                <Label htmlFor="support-staff-employee">{copy.label.supportStaffEmployee}</Label>
                 <Select
                   value={draftEmployeeSelectValue}
                   onValueChange={(v) => {
@@ -779,19 +709,58 @@ export function BasicInfoStep({
                     ) : (
                       <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                     )}
-                    <SelectValue placeholder="Seleccionar empleado" />
+                    <SelectValue placeholder={copy.placeholder.selectEmployee} />
                   </SelectTrigger>
                   <SelectContent>
-                    {draftEmployeeOptions.length === 0 ? (
+                    {supportStaffOptions.length === 0 && !isLoadingEmployees ? (
                       <SelectItem value="__none__" disabled>
-                        No hay empleados activos con este puesto
+                        {copy.state.noEmployeesForPosition}
                       </SelectItem>
                     ) : (
-                      draftEmployeeOptions.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
-                          {employee.fullName}
-                        </SelectItem>
-                      ))
+                      <>
+                        {assignableSupportStaff.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{copy.state.available}</SelectLabel>
+                            {assignableSupportStaff.map((item) => (
+                              <SelectItem key={item.employeeId} value={item.employeeId}>
+                                {item.fullName}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {blockedSupportStaff.length > 0 &&
+                          assignableSupportStaff.length > 0 && (
+                            <SelectSeparator />
+                          )}
+                        {blockedSupportStaff.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel className="flex items-center gap-1.5 text-warning">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {copy.state.notAssignable}
+                            </SelectLabel>
+                            {blockedSupportStaff.map((item) => (
+                              <SelectItem
+                                key={item.employeeId}
+                                value={item.employeeId}
+                                disabled
+                                className="opacity-60"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {item.fullName}
+                                  {item.blockReason ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px]"
+                                    >
+                                      {item.blockReason}
+                                    </Badge>
+                                  ) : null}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                      </>
                     )}
                   </SelectContent>
                 </Select>
@@ -812,12 +781,12 @@ export function BasicInfoStep({
                   htmlFor="support-staff-payment"
                   className="cursor-pointer font-normal"
                 >
-                  Responsable de pago
+                  {copy.label.paymentResponsible}
                 </Label>
               </div>
 
               <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="support-staff-notes">Notas (opcional)</Label>
+                <Label htmlFor="support-staff-notes">{copy.label.paymentNotes}</Label>
                 <Input
                   id="support-staff-notes"
                   value={draftPaymentNotes}
@@ -825,7 +794,7 @@ export function BasicInfoStep({
                     setAddStaffError(null);
                     setDraftPaymentNotes(e.target.value);
                   }}
-                  placeholder="Ej. pago por apoyo en turno nocturno"
+                  placeholder={copy.placeholder.paymentNotes}
                 />
               </div>
 
@@ -836,7 +805,7 @@ export function BasicInfoStep({
                 onClick={handleAddSupportStaff}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Agregar
+                {copy.action.add}
               </Button>
             </div>
 
@@ -851,13 +820,13 @@ export function BasicInfoStep({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Empleado</TableHead>
+                  <TableHead>{copy.label.tableEmployee}</TableHead>
                   <TableHead className="w-[120px] whitespace-normal">
-                    Resp. pago
+                    {copy.label.tablePaymentResponsible}
                   </TableHead>
-                  <TableHead>Notas</TableHead>
+                  <TableHead>{copy.label.tableNotes}</TableHead>
                   <TableHead className="w-[52px] text-right">
-                    <span className="sr-only">Quitar</span>
+                    <span className="sr-only">{copy.action.tableRemoveSrOnly}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -868,8 +837,7 @@ export function BasicInfoStep({
                       colSpan={4}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Completa el formulario superior y pulsa Agregar para
-                      listar colaboradores aquí.
+                      {copy.state.emptySupportStaffTable}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -877,7 +845,7 @@ export function BasicInfoStep({
                     const row = internalStaffValues[index];
                     const empId = row?.employeeId ?? "";
                     const displayName =
-                      (employeeNameById.get(empId) ?? empId) || "—";
+                      (employeeNameById.get(empId) ?? empId) || copy.state.dash;
                     const notes = (row?.paymentNotes ?? "").trim();
 
                     return (
@@ -886,13 +854,13 @@ export function BasicInfoStep({
                           {displayName}
                         </TableCell>
                         <TableCell>
-                          {row?.isPaymentResponsible ? "Sí" : "—"}
+                          {row?.isPaymentResponsible ? copy.state.yes : copy.state.dash}
                         </TableCell>
                         <TableCell
                           className="max-w-[240px] truncate text-muted-foreground"
                           title={notes ? notes : undefined}
                         >
-                          {notes || "—"}
+                          {notes || copy.state.dash}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -903,7 +871,7 @@ export function BasicInfoStep({
                               internalStaffFieldArray.remove(index);
                               void form.trigger("internalStaff");
                             }}
-                            aria-label="Quitar colaborador"
+                            aria-label={copy.action.removeCollaborator}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -924,7 +892,7 @@ export function BasicInfoStep({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" /> Programación
+            <Calendar className="h-5 w-5" /> {copy.section.scheduling}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -935,7 +903,7 @@ export function BasicInfoStep({
               render={({ field, fieldState }) => (
                 <FormFieldShell
                   fieldId="scheduledDeparture"
-                  label="Salida Programada"
+                  label={copy.label.scheduledDeparture}
                   required
                   errorMessage={fieldState.error?.message}
                 >
@@ -962,14 +930,9 @@ export function BasicInfoStep({
                   label={
                     <SectionHeadingWithHint
                       noTitleWrap
-                      title="Llegada estimada"
-                      hintLabel="Llegada estimada"
-                      hint={
-                        <>
-                          Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos
-                          puntos, se actualiza el otro.
-                        </>
-                      }
+                      title={copy.label.scheduledArrival}
+                      hintLabel={copy.hintLabel.scheduledArrival}
+                      hint={<>{copy.hint.scheduledArrival}</>}
                     />
                   }
                   errorMessage={fieldState.error?.message}
@@ -997,18 +960,18 @@ export function BasicInfoStep({
                 return (
                   <FormFieldShell
                     fieldId="startMileage"
-                    label="Kilometraje Inicial"
+                    label={copy.label.startMileage}
                     errorMessage={fieldState.error?.message}
                     description={
                       vehicleCurrentMileage !== undefined
-                        ? `Kilometraje actual: ${vehicleCurrentMileage.toLocaleString()} km`
+                        ? copy.format.currentMileage(vehicleCurrentMileage)
                         : undefined
                     }
                   >
                     <Input
                       id="startMileage"
                       type="number"
-                      placeholder="0"
+                      placeholder={copy.placeholder.startMileage}
                       value={field.value ?? ""}
                       onChange={(e) =>
                         field.onChange(

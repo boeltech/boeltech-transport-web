@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Clock,
   FileText,
   Flag,
@@ -10,7 +11,7 @@ import {
   User,
 } from "lucide-react";
 
-import { StopType, type TripStatusType, type TripStop } from "@features/trips/domain";
+import { StopType, type TripStatusType, type TripStop, type TripCargo, type CargoStatusType } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
@@ -19,8 +20,10 @@ import {
   getStopTypeConfig,
 } from "@features/trips/presentation/uiHelpers";
 
-import { TripStopAddressLines } from "../TripStopAddressLines";
+import { TripDetailRouteStopAddress } from "../TripStopAddressLines";
+import { StopCargoCorrelationPanel } from "../trip-cargos/StopCargoCorrelationPanel";
 import { tripDetailCopy } from "../../copy";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
   formatDistanceSourceLabel,
   getRouteStopCategory,
@@ -43,6 +46,15 @@ export interface TripDetailRouteStopCardProps {
   tripTimes?: TripScheduleTimes;
   canEdit?: boolean;
   onEdit?: () => void;
+  cargos?: readonly TripCargo[];
+  orderedStops?: readonly TripStop[];
+  getCargoStatusVariant?: (
+    status: CargoStatusType,
+  ) => "default" | "secondary" | "destructive" | "outline";
+  fiscalWarning?: {
+    show: boolean;
+    onFix: () => void;
+  };
 }
 
 function StopCategoryIcon({
@@ -68,10 +80,14 @@ export function TripDetailRouteStopCard({
   tripTimes,
   canEdit = false,
   onEdit,
+  cargos = [],
+  orderedStops,
+  getCargoStatusVariant,
+  fiscalWarning,
 }: TripDetailRouteStopCardProps) {
   const category = getRouteStopCategory(stop);
   const visitState = getStopOperationalVisitState(stop, category, tripTimes);
-  const visitLabel = getStopOperationalVisitLabel(visitState);
+  const visitLabel = getStopOperationalVisitLabel(visitState, category);
   const timeRows = getStopTimeDisplayRows(stop, category, tripTimes);
   const stopTypes = Array.isArray(stop.stopType) ? stop.stopType : [stop.stopType];
   const distanceSource = formatDistanceSourceLabel(stop.distanceSource);
@@ -118,7 +134,7 @@ export function TripDetailRouteStopCard({
                 {copy.label.savedAddress}
               </Badge>
             ) : null}
-            {stop.sequenceOrder > 1 && stop.distanceFromPreviousKm != null ? (
+            {stop.sequenceOrder > 0 && stop.distanceFromPreviousKm != null ? (
               <Badge variant="outline" className="text-xs font-normal">
                 {copy.format.distanceSegment(
                   distanceSource ?? copy.label.distanceFallback,
@@ -140,6 +156,17 @@ export function TripDetailRouteStopCard({
                 {copy.label.manageInTracking}
               </Badge>
             ) : null}
+            {fiscalWarning?.show ? (
+              <Badge
+                variant="warning"
+                tone="soft"
+                className="cursor-pointer text-xs"
+                onClick={fiscalWarning.onFix}
+              >
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                {tripFiscalCopy.chip.invalidRfc}
+              </Badge>
+            ) : null}
             {canEdit && onEdit ? (
               <Button
                 type="button"
@@ -155,11 +182,7 @@ export function TripDetailRouteStopCard({
           </div>
         </div>
 
-        <TripStopAddressLines
-          stop={stop}
-          primaryClassName="truncate text-sm font-semibold"
-          secondaryClassName="text-xs text-muted-foreground"
-        />
+        <TripDetailRouteStopAddress stop={stop} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {timeRows.map((row) => (
@@ -172,6 +195,9 @@ export function TripDetailRouteStopCard({
 
         {category === "origin" ? (
           <p className="text-xs text-muted-foreground">{copy.hint.originDeparture}</p>
+        ) : null}
+        {category === "waypoint" ? (
+          <p className="text-xs text-muted-foreground">{copy.hint.waypointTimes}</p>
         ) : null}
 
         {stop.rfcRemitenteDestinatario ? (
@@ -202,6 +228,15 @@ export function TripDetailRouteStopCard({
             <Package className="h-3.5 w-3.5 shrink-0" />
             {stop.cargoActionDescription}
           </p>
+        ) : null}
+
+        {cargos.length > 0 && getCargoStatusVariant ? (
+          <StopCargoCorrelationPanel
+            stop={stop}
+            cargos={cargos}
+            orderedStops={orderedStops}
+            getCargoStatusVariant={getCargoStatusVariant}
+          />
         ) : null}
 
         {stop.notes ? (

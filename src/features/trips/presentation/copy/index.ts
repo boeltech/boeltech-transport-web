@@ -15,6 +15,7 @@ export {
   tripDetailCopy,
   trackingCopy,
   operationCopy,
+  progressCopy,
   routeCopy,
   cargoCopy,
   costsCopy,

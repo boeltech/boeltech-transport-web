@@ -26,6 +26,7 @@ import {
   isUnifiedAddressId,
 } from "../domain";
 import { composeStopLocalityLine } from "./stopLocalityDisplay";
+import { formatMxCurrencyOrDash } from "@shared/utils/formatMxCurrency";
 
 // ============================================================================
 // TYPES
@@ -180,6 +181,9 @@ export function formatCurrency(
   currency: string = "MXN",
 ): string {
   if (value === null || value === undefined) return "—";
+  if (currency === "MXN") {
+    return formatMxCurrencyOrDash(value);
+  }
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency,

@@ -1,3 +1,4 @@
+import { basicInfoCopy } from "./basicInfoCopy";
 import { cargoCopy } from "./cargoCopy";
 import { costsCopy } from "./costsCopy";
 import { expenseCopy } from "./expenseCopy";
@@ -9,6 +10,7 @@ import { summaryCopy } from "./summaryCopy";
 
 export const wizardCopy = {
   shell: shellCopy,
+  basicInfo: basicInfoCopy,
   route: routeCopy,
   cargo: cargoCopy,
   costs: costsCopy,
@@ -19,6 +21,7 @@ export const wizardCopy = {
 
 export {
   shellCopy,
+  basicInfoCopy,
   routeCopy,
   cargoCopy,
   costsCopy,

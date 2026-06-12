@@ -6,6 +6,7 @@ import {
 import { tripQueryKeys, type Trip } from "@features/trips/domain";
 import { createCancelTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
+import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 
 /**
  * Hook para cancelar viaje
@@ -25,8 +26,9 @@ export function useCancelTrip(
       return result.data;
     },
     ...options,
-    onSuccess: (trip, variables, onMutateResult, context) => {
+    onSuccess: async (trip, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
+      await invalidateTripAssignmentResources(queryClient);
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },

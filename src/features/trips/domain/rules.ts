@@ -21,11 +21,9 @@ import {
   calculateTotalCost as calculateTotalCostShared,
 } from "@boeltech/cfdi-domain";
 import {
-  StopType,
+  StopStatus,
   TRIP_STATUS_LABELS,
   TripStatus,
-  UNIQUE_STOP_TYPES,
-  type StopTypeValue,
   type TripStatusType,
 } from "./enums";
 import type { Trip, TripStop } from "./entities";
@@ -217,110 +215,26 @@ export function calculateTotalCost(
 // ============================================================================
 
 /**
- * Verifica si se puede agregar un tipo de parada al viaje
- * Origin y Destination solo pueden existir una vez
- */
-export function canAddStopType(
-  currentStops: TripStop[],
-  stopType: StopTypeValue,
-): boolean {
-  // Si no es un tipo único, siempre se puede agregar
-  if (!UNIQUE_STOP_TYPES.includes(stopType)) {
-    return true;
-  }
-
-  // Verificar que no exista ya una parada de este tipo
-  return !currentStops.some((stop) => stop.stopType.includes(stopType));
-}
-
-/**
- * Calcula el siguiente número de orden para una nueva parada
- */
-export function getNextStopOrder(currentStops: TripStop[]): number {
-  if (currentStops.length === 0) {
-    return 1;
-  }
-
-  const maxOrder = Math.max(...currentStops.map((s) => s.sequenceOrder));
-  return maxOrder + 1;
-}
-
-/**
- * Valida que las paradas tengan un orden válido (sin huecos)
- */
-export function validateStopOrder(stops: TripStop[]): boolean {
-  if (stops.length === 0) return true;
-
-  const orders = stops.map((s) => s.sequenceOrder).sort((a, b) => a - b);
-
-  for (let i = 0; i < orders.length; i++) {
-    if (orders[i] !== i + 1) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Obtiene las paradas ordenadas por sequenceOrder
  */
-export function getOrderedStops(stops: TripStop[]): TripStop[] {
+export function getOrderedStops(stops: readonly TripStop[]): TripStop[] {
   return [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
 }
 
 /**
- * Verifica si una parada puede ser eliminada
- * No se pueden eliminar origin ni destination si son las únicas de su tipo
+ * Paradas con status `completed` (misma métrica que timeline de Seguimiento).
  */
-export function canDeleteStop(
-  stop: TripStop,
-  allStops: TripStop[],
-): { canDelete: boolean; reason?: string } {
-  // Siempre se pueden eliminar paradas intermedias
-  const prohibited: StopTypeValue[] = [StopType.ORIGIN, StopType.DESTINATION];
-  const canDeleteStop = stop.stopType.every(
-    (element) => !prohibited.includes(element),
-  );
-
-  if (canDeleteStop) {
-    return { canDelete: true };
-  }
-
-  // Para origin/destination, verificar que quede al menos una ruta válida
-  const remainingStops = allStops.filter((s) => s.id !== stop.id);
-
-  const hasOrigin = remainingStops.some((s) =>
-    s.stopType.includes(StopType.ORIGIN),
-  );
-  const hasDestination = remainingStops.some((s) =>
-    s.stopType.includes(StopType.DESTINATION),
-  );
-
-  if (stop.stopType.includes(StopType.ORIGIN) && !hasOrigin) {
-    return {
-      canDelete: false,
-      reason: "No se puede eliminar el único origen del viaje",
-    };
-  }
-
-  if (stop.stopType.includes(StopType.DESTINATION) && !hasDestination) {
-    return {
-      canDelete: false,
-      reason: "No se puede eliminar el único destino del viaje",
-    };
-  }
-
-  return { canDelete: true };
+export function countCompletedStops(stops: readonly TripStop[]): number {
+  return stops.filter((stop) => stop.status === StopStatus.COMPLETED).length;
 }
 
 /**
- * Calcula el progreso de las paradas visitadas
+ * Porcentaje de paradas completadas respecto al total de la ruta.
+ * Alineado a `progress.percent_complete` del timeline de tracking.
  */
 export function calculateStopsProgress(stops: TripStop[]): number {
   if (stops.length === 0) return 0;
-  const visited = stops.filter((s) => s.actualArrival !== null).length;
-  return Math.round((visited / stops.length) * 100);
+  return Math.round((countCompletedStops(stops) / stops.length) * 100);
 }
 
 /**
@@ -328,13 +242,6 @@ export function calculateStopsProgress(stops: TripStop[]): number {
  */
 export function canModifyStops(status: TripStatusType): boolean {
   return status === TripStatus.DRAFT || status === TripStatus.SCHEDULED;
-}
-
-/**
- * Verifica si una parada puede marcarse como visitada
- */
-export function canMarkStopVisited(tripStatus: TripStatusType): boolean {
-  return tripStatus === TripStatus.IN_PROGRESS;
 }
 
 // ============================================================================

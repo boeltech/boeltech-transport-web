@@ -128,6 +128,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
 
   const mappedInternalStaff = (trip.internalStaff || []).map((member) => ({
     employeeId: member.employeeId,
+    internalRole: member.internalRole ?? "helper",
     isPaymentResponsible: member.isPaymentResponsible ?? false,
     paymentNotes: member.paymentNotes ?? undefined,
   }));

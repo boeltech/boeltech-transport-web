@@ -27,9 +27,6 @@ export interface TripDetailCargoByPickupViewProps {
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
-  canDeliverCargo: boolean;
-  isDeliverPending: boolean;
-  onDeliverCargo: (cargoId: string) => void;
 }
 
 type PickupCategory = "origin" | "waypoint" | "destination";
@@ -89,9 +86,6 @@ export function TripDetailCargoByPickupView({
   orderedStops,
   formatCurrency,
   getCargoStatusVariant,
-  canDeliverCargo,
-  isDeliverPending,
-  onDeliverCargo,
 }: TripDetailCargoByPickupViewProps) {
   if (groups.length === 0) {
     return (
@@ -180,9 +174,6 @@ export function TripDetailCargoByPickupView({
                       orderedStops={orderedStops}
                       formatCurrency={formatCurrency}
                       getCargoStatusVariant={getCargoStatusVariant}
-                      canDeliverCargo={canDeliverCargo}
-                      isDeliverPending={isDeliverPending}
-                      onDeliverCargo={onDeliverCargo}
                     />
                   ))}
                 </div>

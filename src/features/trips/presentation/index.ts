@@ -9,6 +9,7 @@ export {
   TripCardSkeleton,
   TripActions,
   TripInvoiceActions,
+  TripListRouteLabel,
   TripTrackingMap,
   TripTrackingTab,
   TripTable,

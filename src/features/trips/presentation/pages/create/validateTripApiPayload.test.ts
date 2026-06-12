@@ -46,6 +46,24 @@ describe("validateCreateTripApiPayload", () => {
     expect(validateCreateTripApiPayload(input)).toEqual({ ok: true });
   });
 
+  it("acepta secondary_driver en internalStaff", () => {
+    const input: CreateTripInput = {
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      scheduledDeparture: "2026-05-10T12:00:00.000Z",
+      originCity: "Guadalajara",
+      destinationCity: "CDMX",
+      internalStaff: [
+        {
+          employeeId: "33333333-3333-4333-8333-333333333333",
+          internalRole: "secondary_driver",
+        },
+      ],
+    };
+
+    expect(validateCreateTripApiPayload(input)).toEqual({ ok: true });
+  });
+
   it("rechaza internal_staff sin rol (contrato API)", () => {
     const input: CreateTripInput = {
       vehicleId: "11111111-1111-4111-8111-111111111111",

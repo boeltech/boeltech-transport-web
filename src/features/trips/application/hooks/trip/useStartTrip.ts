@@ -3,8 +3,10 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { tripQueryKeys, type Trip } from "@features/trips/domain";
+import { TripStatus, tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripRepository, trackingRepository } from "@features/trips/infrastructure";
+import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
+import { refetchTripTrackingViews } from "../tracking/syncTripDetailFromTimeline";
 
 /**
  * Hook para iniciar viaje
@@ -19,13 +21,14 @@ export function useStartTrip(
       latitude?: number;
       longitude?: number;
       occurredAt?: string;
+      idempotencyKey?: string;
     }
   >,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, mileage, latitude, longitude, occurredAt }) => {
+    mutationFn: async ({ id, mileage, latitude, longitude, occurredAt, idempotencyKey }) => {
       if (mileage === undefined) {
         throw new Error(
           "El kilometraje inicial es requerido para iniciar el viaje.",
@@ -37,6 +40,7 @@ export function useStartTrip(
         latitude,
         longitude,
         occurredAt,
+        idempotencyKey,
       });
 
       const trip = await tripRepository.findById(id);
@@ -46,12 +50,15 @@ export function useStartTrip(
       return trip.data;
     },
     ...options,
-    onSuccess: (trip, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
-      queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.timeline(trip.id),
+    onSuccess: async (trip, variables, onMutateResult, context) => {
+      queryClient.setQueryData(tripQueryKeys.detail(trip.id), trip);
+      await refetchTripTrackingViews(queryClient, trip.id, {
+        status: TripStatus.IN_PROGRESS,
+        mileageStart: variables.mileage ?? trip.mileage.start,
+        actualDeparture: trip.actualDeparture,
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await invalidateTripAssignmentResources(queryClient);
+      await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

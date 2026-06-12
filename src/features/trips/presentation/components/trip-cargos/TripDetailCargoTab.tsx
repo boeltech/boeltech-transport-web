@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -10,7 +9,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { useUpdateCargo } from "@features/trips/application";
 import {
   CargoStatus,
   type CargoStatusType,
@@ -18,10 +16,7 @@ import {
   type TripStatusType,
   type TripStop,
   CARGO_STATUS_LABELS,
-  TripStatus,
 } from "@features/trips/domain";
-import { formatCurrency } from "@features/trips";
-import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
@@ -30,28 +25,11 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
 
 import { tripDetailCopy } from "../../copy";
-import { TripDetailCargoByCargoView } from "./TripDetailCargoByCargoView";
+import { getCargoStatusVariant } from "./tripCargoDetailHelpers";
 import { TripDetailCargoByPickupView } from "./TripDetailCargoByPickupView";
+import { formatCurrency } from "@features/trips";
 
 const copy = tripDetailCopy.cargo;
-
-type CargoDetailView = "byCargo" | "byPickup";
-
-function getCargoStatusVariant(
-  status: CargoStatusType,
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "delivered":
-      return "default";
-    case "in_transit":
-      return "secondary";
-    case "cancelled":
-    case "returned":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
 
 function CargosSkeleton() {
   return (
@@ -110,7 +88,7 @@ export interface TripDetailCargoTabProps {
 
 export function TripDetailCargoTab({
   tripId,
-  tripStatus,
+  tripStatus: _tripStatus,
   cargos,
   orderedStops,
   pickupStops,
@@ -118,24 +96,7 @@ export function TripDetailCargoTab({
   isError,
   canEditStructural,
   onRetry,
-  onCargosChanged,
 }: TripDetailCargoTabProps) {
-  const { toast } = useToast();
-  const [cargoDetailView, setCargoDetailView] = useState<CargoDetailView>("byCargo");
-
-  const deliverCargoMutation = useUpdateCargo(tripId, {
-    onSuccess: () => {
-      toast({ title: copy.toast.delivered, variant: "success" });
-      onCargosChanged?.();
-    },
-    onError: (e: Error) =>
-      toast({
-        title: copy.toast.deliverError,
-        description: e.message,
-        variant: "destructive",
-      }),
-  });
-
   if (isLoading) {
     return <CargosSkeleton />;
   }
@@ -241,7 +202,7 @@ export function TripDetailCargoTab({
           items={
             canEditStructural
               ? [{ text: copy.hint.scopeEditable }]
-              : [{ text: copy.hint.scopeReadOnly }]
+              : [{ text: copy.hint.scopeReadOnly }, { text: copy.hint.manageInTracking }]
           }
         />
 
@@ -324,26 +285,6 @@ export function TripDetailCargoTab({
                 <CardDescription className="mt-1.5">{copy.hint.list}</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-md border p-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={cargoDetailView === "byCargo" ? "secondary" : "ghost"}
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setCargoDetailView("byCargo")}
-                  >
-                    {copy.action.viewByCargo}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={cargoDetailView === "byPickup" ? "secondary" : "ghost"}
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setCargoDetailView("byPickup")}
-                  >
-                    {copy.action.viewByPickup}
-                  </Button>
-                </div>
                 {canEditStructural ? (
                   <Button type="button" size="sm" variant="outline" asChild>
                     <Link to={`/trips/${tripId}/edit`}>{copy.action.openFullEdit}</Link>
@@ -356,37 +297,12 @@ export function TripDetailCargoTab({
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {cargoDetailView === "byCargo" ? (
-              <TripDetailCargoByCargoView
-                cargos={cargos}
-                orderedStops={orderedStops}
-                formatCurrency={formatCurrency}
-                getCargoStatusVariant={getCargoStatusVariant}
-                canDeliverCargo={tripStatus === TripStatus.IN_PROGRESS}
-                isDeliverPending={deliverCargoMutation.isPending}
-                onDeliverCargo={(cargoId) =>
-                  deliverCargoMutation.mutate({
-                    cargoId,
-                    data: { status: CargoStatus.DELIVERED },
-                  })
-                }
-              />
-            ) : (
-              <TripDetailCargoByPickupView
-                groups={pickupGroups}
-                orderedStops={orderedStops}
-                formatCurrency={formatCurrency}
-                getCargoStatusVariant={getCargoStatusVariant}
-                canDeliverCargo={tripStatus === TripStatus.IN_PROGRESS}
-                isDeliverPending={deliverCargoMutation.isPending}
-                onDeliverCargo={(cargoId) =>
-                  deliverCargoMutation.mutate({
-                    cargoId,
-                    data: { status: CargoStatus.DELIVERED },
-                  })
-                }
-              />
-            )}
+            <TripDetailCargoByPickupView
+              groups={pickupGroups}
+              orderedStops={orderedStops}
+              formatCurrency={formatCurrency}
+              getCargoStatusVariant={getCargoStatusVariant}
+            />
           </CardContent>
         </Card>
       </div>

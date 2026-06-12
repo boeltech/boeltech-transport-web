@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { StopType, type TripStop } from "@features/trips/domain";
+import {
+  CargoStatus,
+  StopType,
+  type TripCargo,
+  type TripStop,
+} from "@features/trips/domain";
+
+import { progressCopy } from "../../copy/tripDetail/progressCopy";
 
 import {
   buildTrackingItineraryRows,
@@ -83,7 +90,9 @@ describe("trackingOperationalHelpers", () => {
     );
     const rows = buildTrackingItineraryRows([origin, atScale, destination]);
     expect(rows.find((r) => r.stop.id === "s2")?.visitState).toBe("at_stop");
-    expect(rows.find((r) => r.stop.id === "s2")?.visitLabel).toBe("En escala");
+    expect(rows.find((r) => r.stop.id === "s2")?.visitLabel).toBe(
+      progressCopy.label.stopAtWaypoint,
+    );
   });
 
   it("label for close_at_destination is Finalizar viaje", () => {
@@ -105,5 +114,54 @@ describe("trackingOperationalHelpers", () => {
     expect(
       resolveTrackingNextAction([origin, scaleDone, destArrived]),
     ).toBe("close_at_destination");
+  });
+
+  it("returns resolve_cargo_at_stop when origin departure blocked by pending cargo", () => {
+    const originAwaiting = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      actualDeparture: null,
+    });
+    const pendingCargo = {
+      id: "c1",
+      tenantId: "tenant-1",
+      tripId: "trip-1",
+      clientId: "client-1",
+      description: "Harina",
+      productType: null,
+      weight: 1000,
+      volume: null,
+      units: null,
+      declaredValue: null,
+      rate: 0,
+      currency: "MXN",
+      status: CargoStatus.PENDING,
+      pickedUpAt: null,
+      deliveredAt: null,
+      movements: [
+        {
+          id: "m1",
+          cargoId: "c1",
+          stopId: "s1",
+          stopIndex: 0,
+          movementType: "pickup" as const,
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as TripCargo;
+
+    expect(
+      resolveTrackingNextAction(
+        [originAwaiting, waypoint, destination],
+        [pendingCargo],
+      ),
+    ).toBe("resolve_cargo_at_stop");
   });
 });

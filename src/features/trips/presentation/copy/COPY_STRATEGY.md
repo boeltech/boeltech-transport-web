@@ -49,6 +49,7 @@ Fuente de verdad: `tripDetailCopy` en `copy/tripDetail/index.ts`.
 | 1 | Seguimiento | `trackingCopy.ts` | `TripTrackingTab`, helpers, sheets | Hecho (reubicado) |
 | 2 | Operación | `operationCopy.ts` | `TripDetailOperationTab` | Hecho |
 | 3 | Ruta | `routeCopy.ts` | `TripDetailRouteTab` | Hecho |
+| 3b | Progreso (Ruta + Seguimiento) | `progressCopy.ts` | KPIs resumen ruta / cards Seguimiento | Hecho |
 | 4 | Cargas | `cargoCopy.ts` | `TripDetailCargoTab` | Hecho |
 | 5 | Costos | `costsCopy.ts` | `TripDetailCostsTab`, hijos | Hecho |
 | 6 | Historial + shell | `historyCopy.ts`, `shellCopy.ts` | `TripDetailPage` header/tabs/alertas/historial/KPIs | Hecho |
@@ -60,7 +61,13 @@ Fuente de verdad: `tripDetailCopy` en `copy/tripDetail/index.ts`.
 - **Cargas:** `TripDetailCargoItemCard`, `TripDetailCargoByPickupView`, `tripCargoDetailHelpers`
 - **Costos:** `TripWizardFinancialSummary` (compartido wizard/detalle vía `costsCopy.financialSummary`)
 
-Pendiente fuera de detalle: copy residual en sheets de tracking (toasts) y wizard (`BasicInfoStep`, `StopFormSheet`, `CargoStep`, `CargoMovementSheet`).
+Pendiente fuera de detalle: copy residual en sheets de tracking (toasts).
+
+### Copy residual cerrado (wizard)
+
+- **Información:** `BasicInfoStep` vía `wizardCopy.basicInfo`
+- **Ruta — parada:** `StopFormSheet` vía `wizardCopy.route.stopForm`
+- **Cargas:** `CargoStep` y `CargoMovementSheet` vía `wizardCopy.cargo` (+ `cargo.sheet`)
 
 Módulo financiero compartido wizard/detalle: `presentation/components/trip-financial/`.
 
@@ -91,7 +98,5 @@ import { trackingCopy } from "./trip-tracking/trackingCopy"; // @deprecated
 
 | Superficie | Namespace | Estado |
 |---|---|---|
-| Wizard alta | `trips.copy.wizard.*` vía `wizardCopy` | Hecho (shell, route, cargo, costs, expense, fiscal, summary) |
+| Wizard alta | `trips.copy.wizard.*` vía `wizardCopy` | Hecho (shell, basicInfo, route, cargo, costs, expense, fiscal, summary) |
 | Otros features | replicar `presentation/copy/` | Pendiente |
-
-Copy residual wizard (opcional): `BasicInfoStep`, `StopFormSheet`, `CargoStep`, `CargoMovementSheet`.

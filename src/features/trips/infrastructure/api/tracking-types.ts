@@ -1,12 +1,17 @@
 import type { ApiStatusHistoryResponse, ApiStopResponse } from "./api-types";
 
 export type ApiTrackingEventType =
+  | "trip_dispatched"
   | "trip_departed"
   | "stop_arrived"
   | "stop_departed"
   | "trip_arrived"
   | "incident"
-  | "note";
+  | "note"
+  | "cargo_picked_up"
+  | "cargo_delivered"
+  | "cargo_returned"
+  | "cargo_cancelled";
 
 export type ApiTrackingEventCategory =
   | "fiscal"

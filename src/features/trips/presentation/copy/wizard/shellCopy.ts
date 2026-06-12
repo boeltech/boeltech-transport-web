@@ -39,6 +39,10 @@ export const shellCopy = {
       "No puedes agregar el mismo empleado dos veces en el equipo de apoyo.",
     driverInSupportStaff:
       "El conductor principal no puede figurar también en el equipo de apoyo.",
+    supportStaffUnavailable: (name: string, reason: string) =>
+      `${name} ya no está disponible (${reason}). Quítalo del equipo de apoyo.`,
+    supportStaffBlockedOnAdd: (reason: string) =>
+      `No puedes agregar este empleado: ${reason}.`,
     routeIncomplete: "Completa la ruta para continuar.",
     routeFieldsIncomplete:
       "Hay campos requeridos sin completar. Abre cada parada con el botón Completar.",

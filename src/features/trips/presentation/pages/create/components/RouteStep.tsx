@@ -42,7 +42,8 @@ import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
 import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
-import { wizardCopy } from "../../../copy";
+import { routeCopy as tripRouteCopy, wizardCopy } from "../../../copy";
+import { formatDistanceSourceLabel } from "../../../components/trip-route/tripRouteDetailHelpers";
 
 const copy = wizardCopy.route;
 import {
@@ -75,6 +76,7 @@ import {
   type StopFormData,
   type StopCategory,
 } from "./StopFormSheet";
+import { formatWizardStopAddressDisplay } from "./wizardStopFormat";
 
 // ============================================================================
 // TYPES
@@ -90,52 +92,6 @@ interface RouteStepProps {
 // HELPERS
 // ============================================================================
 
-/**
- * Formatea la dirección para display operativo
- * Orden: Calle NumExt, CP, Municipio, Estado
- */
-function formatStopAddress(stop: TripStopFormValues): {
-  primary: string;
-  secondary: string;
-} {
-  const parts: string[] = [];
-
-  // Línea primaria: Calle y número
-  if (stop.street) {
-    let streetLine = stop.street;
-    if (stop.exteriorNumber) {
-      streetLine += ` #${stop.exteriorNumber}`;
-    }
-    if (stop.interiorNumber) {
-      streetLine += `, Int. ${stop.interiorNumber}`;
-    }
-    parts.push(streetLine);
-  }
-
-  // Línea secundaria: CP, municipio y estado (prioriza nombres legibles)
-  const locationParts: string[] = [];
-
-  if (stop.postalCode) {
-    locationParts.push(`C.P. ${stop.postalCode}`);
-  }
-
-  if (stop.cityName?.trim()) {
-    locationParts.push(stop.cityName.trim());
-  } else if (stop.satMunicipalityCode) {
-    locationParts.push(`Municipio ${stop.satMunicipalityCode}`);
-  }
-
-  if (stop.satStateCode) {
-    locationParts.push(`Estado ${stop.satStateCode}`);
-  }
-
-  return {
-    primary: parts.join(", ") || copy.label.noAddress,
-    secondary: locationParts.join(", "),
-  };
-}
-
-/** Datos SAT capturados a mano (sin `addressId` de catálogo unificado). */
 function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
   return !!(
     stop.satCountryCode?.trim() &&
@@ -831,9 +787,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       isWaypoint && index === waypointIndices[waypointIndices.length - 1];
     const displayOrder = index + 1;
 
-    // Formatear dirección usando campos SAT
-    const { primary: addressPrimary, secondary: addressSecondary } =
-      formatStopAddress(stop);
+    // Formatear dirección usando campos SAT (sin repetir locationName)
+    const {
+      streetLine: addressStreetLine,
+      localityLine: addressLocalityLine,
+      showNoAddress,
+    } = formatWizardStopAddressDisplay(stop);
     const linkedCatalog = stopHasUnifiedAddressId(stop);
     const hasManualCp = hasManualSatPostalComplete(stop);
     const missingFields = getStopMissingFields(stop, type);
@@ -856,7 +815,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             "border-success/30 border-success/30 bg-success-soft/50",
           type === "destination" &&
             "border-destructive/30 border-destructive/30 bg-destructive-soft/50",
-          type === "waypoint" && "border-gray-200 bg-white dark:bg-gray-900",
+          type === "waypoint" && "border-border bg-card",
         )}
       >
         {/* Indicador de orden y Drag Handle */}
@@ -885,7 +844,9 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           {type === "origin" && (
             <Navigation className="h-5 w-5 text-success" />
           )}
-          {type === "waypoint" && <MapPin className="h-5 w-5 text-gray-600" />}
+          {type === "waypoint" && (
+            <MapPin className="h-5 w-5 text-muted-foreground" />
+          )}
           {type === "destination" && <Flag className="h-5 w-5 text-destructive" />}
         </div>
 
@@ -947,17 +908,15 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                     Datos fiscales listos
                   </Badge>
                 )}
-                {index > 0 && stop.distanceFromPreviousKm != null && (
-                  <Badge variant="outline" className="text-xs">
-                    {stop.distanceSource === "manual"
-                      ? "Manual"
-                      : stop.distanceSource === "mapbox_matrix"
-                        ? "Mapbox"
-                        : stop.distanceSource === "haversine_fallback"
-                          ? "Estimado"
-                          : "Distancia"}
+                {index > 0 && stop.distanceFromPreviousKm != null ? (
+                  <Badge variant="outline" className="text-xs font-normal">
+                    {tripRouteCopy.format.distanceSegment(
+                      formatDistanceSourceLabel(stop.distanceSource ?? null) ??
+                        tripRouteCopy.label.distanceFallback,
+                      stop.distanceFromPreviousKm.toLocaleString("es-MX"),
+                    )}
                   </Badge>
-                )}
+                ) : null}
 
               </div>
 
@@ -967,14 +926,21 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
               )}
 
               {/* Address Display - basado en campos SAT */}
-              <p className="text-sm text-muted-foreground truncate">
-                {addressPrimary}
-              </p>
-              {addressSecondary && (
-                <p className="text-sm text-muted-foreground">
-                  {addressSecondary}
+              {addressStreetLine ? (
+                <p className="text-sm text-muted-foreground truncate">
+                  {addressStreetLine}
                 </p>
-              )}
+              ) : null}
+              {addressLocalityLine ? (
+                <p className="text-sm text-muted-foreground">
+                  {addressLocalityLine}
+                </p>
+              ) : null}
+              {showNoAddress ? (
+                <p className="text-sm text-muted-foreground truncate">
+                  {copy.label.noAddress}
+                </p>
+              ) : null}
 
               {/* Identificadores fiscales (manual o precargados desde domicilio guardado) */}
               {(linkedCatalog || hasManualCp) && (
@@ -984,12 +950,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 </p>
               )}
 
-              {/* Distancia desde parada anterior (solo para escalas y destino) */}
-              {index > 0 && stop.distanceFromPreviousKm != null && stop.distanceFromPreviousKm > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stop.distanceFromPreviousKm} km desde parada anterior
-                </p>
-              )}
               {!isComplete && (
                 <p className="mt-1 text-xs text-warning-soft-foreground">
                   Falta: {missingFields.join(", ")}.
@@ -1082,7 +1042,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         type === "origin" &&
           "border-success/30 border-success/30 bg-success-soft/30",
         type === "waypoint" &&
-          "border-gray-300 bg-gray-50/30 dark:border-gray-600 dark:bg-gray-900/30",
+          "border-dashed border-border bg-muted/30",
         type === "destination" &&
           "border-destructive/30 border-destructive/30 bg-destructive-soft/30",
       )}
@@ -1091,7 +1051,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         className={cn(
           "mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3",
           type === "origin" && "bg-success-soft ",
-          type === "waypoint" && "bg-gray-100 dark:bg-gray-800",
+          type === "waypoint" && "bg-muted",
           type === "destination" && "bg-destructive-soft ",
         )}
       >
@@ -1108,7 +1068,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           type === "origin" &&
             "border-success/30 text-success-soft-foreground hover:bg-success-soft",
           type === "waypoint" &&
-            "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-900",
+            "border-border hover:bg-muted",
           type === "destination" &&
             "border-destructive/30 text-destructive-soft-foreground hover:bg-destructive-soft",
         )}
@@ -1213,7 +1173,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
-              <MapPin className="h-5 w-5 text-gray-600" />
+              <MapPin className="h-5 w-5 text-muted-foreground" />
               Escalas
               <span className="text-xs font-normal text-muted-foreground">
                 ({waypointIndices.length}{" "}
@@ -1245,7 +1205,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
               "waypoint",
                 copy.state.noWaypointsTitle,
                 copy.state.noWaypointsHint,
-              <MapPin className="h-6 w-6 text-gray-600" />,
+              <MapPin className="h-6 w-6 text-muted-foreground" />,
             )
           )}
         </CardContent>

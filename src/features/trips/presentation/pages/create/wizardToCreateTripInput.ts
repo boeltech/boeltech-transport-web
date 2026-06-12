@@ -46,7 +46,7 @@ export function buildCreateTripInputFromWizardValues(
     baseRate: data.baseRate,
     internalStaff: data.internalStaff?.map((member) => ({
       employeeId: member.employeeId,
-      internalRole: "helper" as const,
+      internalRole: member.internalRole ?? "helper",
       isPaymentResponsible: member.isPaymentResponsible ?? false,
       paymentNotes: member.paymentNotes || undefined,
     })),

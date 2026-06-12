@@ -13,6 +13,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
+import { financeQueryKeys } from "@features/finance/application";
 import {
   tripQueryKeys,
   type CreateExpenseInput,
@@ -255,6 +256,8 @@ export function useApproveExpense(
       queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
     },
     ...options,
   });
@@ -302,6 +305,8 @@ export function useRejectExpense(
       queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
+      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
     },
     ...options,
   });

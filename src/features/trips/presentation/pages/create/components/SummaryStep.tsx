@@ -316,6 +316,15 @@ export function SummaryStep({
                   {internalStaff.map((row, index) => (
                     <li key={row.employeeId ?? index}>
                       {getSupportEmployeeLabel(row.employeeId)}
+                      {row.internalRole === "secondary_driver" ? (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {summary.label.supportStaffSecondaryDriver}
+                        </Badge>
+                      ) : row.internalRole === "helper" ? (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {summary.label.supportStaffHelper}
+                        </Badge>
+                      ) : null}
                       {row.isPaymentResponsible ? (
                         <Badge variant="outline" className="ml-2 text-xs">
                           Responsable de pago

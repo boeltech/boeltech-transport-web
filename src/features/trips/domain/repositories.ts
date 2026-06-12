@@ -17,7 +17,6 @@ import type {
   TripExpense,
   CargoMovement,
   ExpensesSummary,
-  TripStop,
 } from "./entities";
 import type {
   CreateTripInput,
@@ -32,8 +31,6 @@ import type {
   CreateExpenseInput,
   UpdateExpenseInput,
   PaginatedResult,
-  CreateStopInput,
-  UpdateStopInput,
 } from "./inputs";
 import type { TripQueryParams } from "./queries";
 
@@ -93,67 +90,6 @@ export interface ITripRepository {
    * Verifica si existe un viaje con el código dado
    */
   existsByCode(code: string): Promise<boolean>;
-}
-
-// ============================================================================
-// STOP REPOSITORY (LEGACY - sin handlers REST /stops/* en backend tracking v1)
-// ============================================================================
-
-/**
- * Interfaz del repositorio de paradas
- */
-export interface IStopRepository {
-  /**
-   * Obtiene todas las paradas de un viaje
-   */
-  findByTripId(tripId: string): Promise<MappedSingleResult<TripStop[]>>;
-
-  /**
-   * Obtiene una parada por ID
-   */
-  findById(
-    tripId: string,
-    stopId: string,
-  ): Promise<MappedSingleResult<TripStop> | null>;
-
-  /**
-   * Agrega una parada a un viaje
-   */
-  add(
-    tripId: string,
-    input: CreateStopInput,
-  ): Promise<MappedSingleResult<TripStop>>;
-
-  /**
-   * Actualiza una parada
-   */
-  update(
-    tripId: string,
-    stopId: string,
-    input: UpdateStopInput,
-  ): Promise<MappedSingleResult<TripStop>>;
-
-  /**
-   * Elimina una parada
-   */
-  delete(tripId: string, stopId: string): Promise<void>;
-
-  /**
-   * Reordena las paradas de un viaje
-   */
-  reorder(
-    tripId: string,
-    orderedIds: string[],
-  ): Promise<MappedSingleResult<TripStop[]>>;
-
-  /**
-   * Marca una parada como visitada
-   */
-  markVisited(
-    tripId: string,
-    stopId: string,
-    actualArrival: Date,
-  ): Promise<MappedSingleResult<TripStop>>;
 }
 
 // ============================================================================
