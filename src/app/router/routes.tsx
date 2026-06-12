@@ -230,6 +230,9 @@ const InvoiceDetailPage = lazy(() =>
 const CreateInvoicePage = lazy(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
 );
+const ApprovalInboxPage = lazy(() =>
+  import("@features/approvals").then((m) => ({ default: m.ApprovalInboxPage })),
+);
 
 // Reports
 // const ReportsPage = lazy(() => import("@/pages/reports"));

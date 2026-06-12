@@ -1,15 +1,15 @@
 /**
  * Navigation Configuration
  *
- * Configuraci√≥n completa de la navegaci√≥n del sidebar.
- * Los m√≥dulos corresponden a los definidos en el sistema de permisos.
+ * Configuraci+¶n completa de la navegaci+¶n del sidebar.
+ * Los m+¶dulos corresponden a los definidos en el sistema de permisos.
  *
- * Rutas API de referencia (roles expl√≠citos en backend):
- * - GET /finance/summary, GET /finance/account-statement ‚Üí admin, manager, accountant
+ * Rutas API de referencia (roles expl+°citos en backend):
+ * - GET /finance/summary, GET /finance/account-statement ‘Â∆ admin, manager, accountant
  *   (`boeltech-transport-api` invoicing.routes.ts)
- * - Listado de facturas y prefill ‚Üí tambi√©n dispatcher (y client en invoices seg√∫n API)
+ * - Listado de facturas y prefill ‘Â∆ tambi+Æn dispatcher (y client en invoices seg+¶n API)
  *
- * Ubicaci√≥n: src/widgets/sidebar/model/navigation.ts
+ * Ubicaci+¶n: src/widgets/sidebar/model/navigation.ts
  */
 
 import { ROLES } from "@shared/constants/roles";
@@ -35,16 +35,17 @@ import {
   GitBranch,
   ScrollText,
   UsersRound,
+  ClipboardCheck,
 } from "lucide-react";
 import type { NavGroup } from "./types";
 
 /**
- * Configuraci√≥n completa de la navegaci√≥n
+ * Configuraci+¶n completa de la navegaci+¶n
  *
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * M√≥dulos disponibles:
+ * M+¶dulos disponibles:
  * - dashboard, trips, vehicles, drivers, clients
  * - maintenance, fuel, invoices, reports, users, settings
  */
@@ -54,7 +55,7 @@ export const navigationConfig: NavGroup[] = [
   // ============================================
   {
     id: "main",
-    title: "", // Sin t√≠tulo = sin header
+    title: "", // Sin t+°tulo = sin header
     items: [
       {
         id: "dashboard",
@@ -99,7 +100,7 @@ export const navigationConfig: NavGroup[] = [
     items: [
       {
         id: "vehicles",
-        label: "Veh√≠culos",
+        label: "Veh+°culos",
         path: "/vehicles",
         icon: Truck,
         module: "vehicles",
@@ -118,7 +119,7 @@ export const navigationConfig: NavGroup[] = [
         icon: Wrench,
         module: "maintenance",
         disabled: true,
-        badge: "Pr√≥ximamente",
+        badge: "Pr+¶ximamente",
       },
       {
         id: "fuel",
@@ -127,7 +128,7 @@ export const navigationConfig: NavGroup[] = [
         icon: Fuel,
         module: "fuel",
         disabled: true,
-        badge: "Pr√≥ximamente",
+        badge: "Pr+¶ximamente",
       },
     ],
   },
@@ -181,6 +182,13 @@ export const navigationConfig: NavGroup[] = [
         roles: [...FINANCE_SUMMARY_ROUTE_ROLES],
       },
       {
+        id: "finance-approvals",
+        label: "Aprobaciones",
+        path: "/finance/approvals?status=pending&type=trip_expense",
+        icon: ClipboardCheck,
+        module: "finance_approvals",
+      },
+      {
         id: "finance-invoices",
         label: "Facturas",
         path: "/finance?tab=invoices",
@@ -204,17 +212,17 @@ export const navigationConfig: NavGroup[] = [
         icon: BarChart3,
         module: "reports",
         disabled: true,
-        badge: "Pr√≥ximamente",
+        badge: "Pr+¶ximamente",
       },
     ],
   },
 
   // ============================================
-  // ADMINISTRACI√ìN
+  // ADMINISTRACI+ÙN
   // ============================================
   {
     id: "admin",
-    title: "Administraci√≥n",
+    title: "Administraci+¶n",
     items: [
       {
         id: "users",
@@ -225,14 +233,14 @@ export const navigationConfig: NavGroup[] = [
       },
       {
         id: "users-activity",
-        label: "Auditor√≠a",
+        label: "Auditor+°a",
         path: "/users/activity",
         icon: ScrollText,
         roles: [ROLES.ADMIN],
       },
       {
         id: "settings",
-        label: "Configuraci√≥n",
+        label: "Configuraci+¶n",
         path: "/settings",
         icon: Settings,
         module: "settings",
@@ -242,7 +250,7 @@ export const navigationConfig: NavGroup[] = [
 ];
 
 /**
- * Rutas que no requieren autenticaci√≥n
+ * Rutas que no requieren autenticaci+¶n
  */
 export const publicRoutes = [
   "/login",
@@ -252,7 +260,7 @@ export const publicRoutes = [
 ];
 
 /**
- * Ruta por defecto despu√©s del login
+ * Ruta por defecto despu+Æs del login
  */
 export const defaultAuthenticatedRoute = "/dashboard";
 
