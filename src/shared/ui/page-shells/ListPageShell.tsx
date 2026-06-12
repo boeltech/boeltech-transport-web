@@ -49,6 +49,10 @@ export interface ListPageShellPrimaryAction {
    * Permite ocultarla por permisos sin condicionales adentro del JSX.
    */
   visible?: boolean;
+  /** Deshabilita el botón (p. ej. límite de plan alcanzado). */
+  disabled?: boolean;
+  /** Tooltip / title cuando está deshabilitado. */
+  disabledTitle?: string;
 }
 
 export interface ListPageShellToolbar {
@@ -165,7 +169,12 @@ function ListPageShellInner<TItem>({
             ) : null}
           </div>
           {showActionButton ? (
-            <Button onClick={primaryAction.onClick} leftIcon={primaryAction.icon}>
+            <Button
+              onClick={primaryAction.onClick}
+              leftIcon={primaryAction.icon}
+              disabled={primaryAction.disabled}
+              title={primaryAction.disabled ? primaryAction.disabledTitle : undefined}
+            >
               {primaryAction.label}
             </Button>
           ) : null}

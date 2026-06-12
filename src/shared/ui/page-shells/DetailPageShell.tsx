@@ -219,7 +219,8 @@ export const DetailPageShell = memo(function DetailPageShell({
             "grid gap-4",
             stats.length === 2 && "md:grid-cols-2",
             stats.length === 3 && "md:grid-cols-3",
-            stats.length >= 4 && "md:grid-cols-4",
+            stats.length === 4 && "md:grid-cols-2 lg:grid-cols-4",
+            stats.length >= 5 && "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
           )}
         >
           {stats.map((stat, idx) => (
