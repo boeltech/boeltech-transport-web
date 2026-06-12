@@ -10,8 +10,6 @@ import type {
   InvoiceListItem,
   InvoiceTripRef,
   Payment,
-  FinanceSummary,
-  AccountStatementItem,
   InvoicePrefill,
   CreateInvoicePayload,
   UpdateInvoicePayload,
@@ -19,7 +17,6 @@ import type {
   CreatePaymentPayload,
   SubstituteStampedInvoicePayload,
 } from "@features/invoicing/domain";
-import { decodeHtmlEntityEncodedXml } from "@shared/utils/decodeHtmlEntityXml";
 
 // ============================================================================
 // RAW API TYPES (snake_case — solo usados en este archivo)
@@ -39,6 +36,9 @@ interface ApiPayment {
   notes: string | null;
   rep_cfdi_uuid?: string | null;
   rep_stamped_at?: string | null;
+  rep_status?: string;
+  rep_attempts?: number;
+  rep_last_error?: string | null;
   created_at: string;
   created_by_name: string | null;
 }
@@ -48,9 +48,11 @@ interface ApiTripRef {
   trip_code: string;
   client_name: string;
   scheduled_departure: string;
-  origin: string;
-  destination: string;
-  total_amount: number;
+  origin_city: string;
+  origin_state: string | null;
+  destination_city: string;
+  destination_state: string | null;
+  base_rate: number;
 }
 
 interface ApiInvoice {
@@ -86,6 +88,7 @@ interface ApiInvoice {
   sat_cancellation_updated_at: string | null;
   pac_provider: string | null;
   xml_content: string | null;
+  has_stamped_xml?: boolean;
   qr_code: string | null;
   pdf_url: string | null;
   stamped_at: string | null;
@@ -132,29 +135,6 @@ interface ApiInvoiceListItem {
   balance_due: number;
   created_at: string;
   created_by_name: string | null;
-}
-
-interface ApiFinanceSummary {
-  total_receivable: number;
-  collected_this_month: number;
-  total_overdue: number;
-  expenses_this_month: number;
-  invoices_by_status: {
-    draft: number;
-    stamped: number;
-    cancellation_pending: number;
-    cancelled: number;
-  };
-}
-
-interface ApiAccountStatementItem {
-  client_rfc: string;
-  client_name: string;
-  total_invoiced: number;
-  total_paid: number;
-  balance_due: number;
-  invoice_count: number;
-  overdue_amount: number;
 }
 
 interface ApiInvoicePrefill {
@@ -204,6 +184,9 @@ export function mapPayment(raw: unknown): Payment {
     createdByName: payment.created_by_name,
     repCfdiUuid: payment.rep_cfdi_uuid ?? null,
     repStampedAt: payment.rep_stamped_at ?? null,
+    repStatus: (payment.rep_status ?? "not_required") as Payment["repStatus"],
+    repAttempts: payment.rep_attempts ?? 0,
+    repLastError: payment.rep_last_error ?? null,
   };
 }
 
@@ -213,9 +196,11 @@ function mapTripRef(raw: ApiTripRef): InvoiceTripRef {
     tripCode: raw.trip_code,
     clientName: raw.client_name,
     scheduledDeparture: raw.scheduled_departure,
-    origin: raw.origin,
-    destination: raw.destination,
-    totalAmount: raw.total_amount,
+    originCity: raw.origin_city,
+    originState: raw.origin_state,
+    destinationCity: raw.destination_city,
+    destinationState: raw.destination_state,
+    baseRate: raw.base_rate,
   };
 }
 
@@ -254,9 +239,9 @@ export function mapInvoice(raw: unknown): Invoice {
     satCancellationMessage: invoice.sat_cancellation_message,
     satCancellationUpdatedAt: invoice.sat_cancellation_updated_at,
     pacProvider: invoice.pac_provider,
-    xmlContent: invoice.xml_content
-      ? decodeHtmlEntityEncodedXml(invoice.xml_content)
-      : null,
+    xmlContent: null,
+    hasStampedXml:
+      invoice.has_stamped_xml ?? Boolean(invoice.xml_content),
     qrCode: invoice.qr_code,
     pdfUrl: invoice.pdf_url,
     stampedAt: invoice.stamped_at,
@@ -306,37 +291,6 @@ export function mapInvoiceListItem(raw: unknown): InvoiceListItem {
     balanceDue: item.balance_due,
     createdAt: item.created_at,
     createdByName: item.created_by_name,
-  };
-}
-
-export function mapFinanceSummary(raw: unknown): FinanceSummary {
-  const summary = raw as ApiFinanceSummary;
-  return {
-    totalReceivable: summary.total_receivable,
-    collectedThisMonth: summary.collected_this_month,
-    totalOverdue: summary.total_overdue,
-    expensesThisMonth: summary.expenses_this_month,
-    invoicesByStatus: {
-      draft: summary.invoices_by_status.draft,
-      stamped: summary.invoices_by_status.stamped,
-      cancellationPending: summary.invoices_by_status.cancellation_pending ?? 0,
-      cancelled: summary.invoices_by_status.cancelled,
-    },
-  };
-}
-
-export function mapAccountStatementItem(
-  raw: unknown,
-): AccountStatementItem {
-  const item = raw as ApiAccountStatementItem;
-  return {
-    clientRfc: item.client_rfc,
-    clientName: item.client_name,
-    totalInvoiced: item.total_invoiced,
-    totalPaid: item.total_paid,
-    balanceDue: item.balance_due,
-    invoiceCount: item.invoice_count,
-    overdueAmount: item.overdue_amount,
   };
 }
 
@@ -421,13 +375,88 @@ export function toApiCancelInvoice(payload: CancelInvoicePayload) {
   };
 }
 
+type ApiSubstitutionCorrectionsBody = Record<string, string | number> & {
+  trip_corrections?: Array<{
+    trip_id: string;
+    stop_id: string;
+    rfc_remitente_destinatario: string;
+    nombre_remitente_destinatario?: string;
+    reason: string;
+    propagate_to_client?: boolean;
+  }>;
+};
+
+function toApiSubstitutionCorrections(
+  corrections: NonNullable<SubstituteStampedInvoicePayload["corrections"]>,
+): ApiSubstitutionCorrectionsBody {
+  const body: ApiSubstitutionCorrectionsBody = {};
+  if (corrections.receiverRfc !== undefined) {
+    body.receiver_rfc = corrections.receiverRfc;
+  }
+  if (corrections.receiverName !== undefined) {
+    body.receiver_name = corrections.receiverName;
+  }
+  if (corrections.receiverTaxRegime !== undefined) {
+    body.receiver_tax_regime = corrections.receiverTaxRegime;
+  }
+  if (corrections.receiverPostalCode !== undefined) {
+    body.receiver_postal_code = corrections.receiverPostalCode;
+  }
+  if (corrections.cfdiUsage !== undefined) {
+    body.cfdi_usage = corrections.cfdiUsage;
+  }
+  if (corrections.paymentForm !== undefined) {
+    body.payment_form = corrections.paymentForm;
+  }
+  if (corrections.paymentMethod !== undefined) {
+    body.payment_method = corrections.paymentMethod;
+  }
+  if (corrections.subtotal !== undefined) {
+    body.subtotal = corrections.subtotal;
+  }
+  if (corrections.discount !== undefined) {
+    body.discount = corrections.discount;
+  }
+  if (corrections.totalTax !== undefined) {
+    body.total_tax = corrections.totalTax;
+  }
+  if (corrections.retainedTax !== undefined) {
+    body.retained_tax = corrections.retainedTax;
+  }
+  if (corrections.total !== undefined) {
+    body.total = corrections.total;
+  }
+  if (corrections.tripCorrections?.length) {
+    body.trip_corrections = corrections.tripCorrections.map((entry) => ({
+      trip_id: entry.tripId,
+      stop_id: entry.stopId,
+      rfc_remitente_destinatario: entry.rfcRemitenteDestinatario,
+      ...(entry.nombreRemitenteDestinatario !== undefined
+        ? { nombre_remitente_destinatario: entry.nombreRemitenteDestinatario }
+        : {}),
+      reason: entry.reason,
+      ...(entry.propagateToClient !== undefined
+        ? { propagate_to_client: entry.propagateToClient }
+        : {}),
+    }));
+  }
+  return body;
+}
+
 export function toApiSubstituteStampedInvoice(
   payload: SubstituteStampedInvoicePayload,
 ) {
-  return {
+  const body: Record<string, unknown> = {
     cancellation_reason: payload.cancellationReason,
     notes: payload.notes,
   };
+  if (payload.corrections) {
+    const mapped = toApiSubstitutionCorrections(payload.corrections);
+    if (Object.keys(mapped).length > 0) {
+      body.corrections = mapped;
+    }
+  }
+  return body;
 }
 
 export function toApiCreatePayment(payload: CreatePaymentPayload) {

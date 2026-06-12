@@ -66,6 +66,7 @@ export interface Invoice {
   readonly satCancellationUpdatedAt: string | null;
   readonly pacProvider: string | null;
   readonly xmlContent: string | null;
+  readonly hasStampedXml: boolean;
   readonly qrCode: string | null;
   readonly pdfUrl: string | null;
   readonly stampedAt: string | null;
@@ -127,14 +128,20 @@ export interface InvoiceTripRef {
   readonly tripCode: string;
   readonly clientName: string;
   readonly scheduledDeparture: string;
-  readonly origin: string;
-  readonly destination: string;
-  readonly totalAmount: number;
+  /** Resumen de ruta (alineado al listado de viajes). */
+  readonly originCity: string;
+  readonly originState: string | null;
+  readonly destinationCity: string;
+  readonly destinationState: string | null;
+  /** Tarifa base del viaje (`trips.base_rate`). */
+  readonly baseRate: number;
 }
 
 // ============================================================================
 // PAYMENTS
 // ============================================================================
+
+export type RepStatus = "not_required" | "pending" | "stamped" | "failed";
 
 export interface Payment {
   readonly id: string;
@@ -153,33 +160,9 @@ export interface Payment {
   /** UUID del CFDI complemento REP (tipo P), si se timbró. */
   readonly repCfdiUuid: string | null;
   readonly repStampedAt: string | null;
-}
-
-// ============================================================================
-// FINANCE SUMMARY
-// ============================================================================
-
-export interface FinanceSummary {
-  readonly totalReceivable: number;
-  readonly collectedThisMonth: number;
-  readonly totalOverdue: number;
-  readonly expensesThisMonth: number;
-  readonly invoicesByStatus: {
-    readonly draft: number;
-    readonly stamped: number;
-    readonly cancellationPending: number;
-    readonly cancelled: number;
-  };
-}
-
-export interface AccountStatementItem {
-  readonly clientRfc: string;
-  readonly clientName: string;
-  readonly totalInvoiced: number;
-  readonly totalPaid: number;
-  readonly balanceDue: number;
-  readonly invoiceCount: number;
-  readonly overdueAmount: number;
+  readonly repStatus: RepStatus;
+  readonly repAttempts: number;
+  readonly repLastError: string | null;
 }
 
 // ============================================================================
@@ -279,9 +262,35 @@ export interface PaymentAllocationPayload {
   readonly amount: number;
 }
 
+export interface TripCorrectionEntry {
+  readonly tripId: string;
+  readonly stopId: string;
+  readonly rfcRemitenteDestinatario: string;
+  readonly nombreRemitenteDestinatario?: string;
+  readonly reason: string;
+  readonly propagateToClient?: boolean;
+}
+
+export interface SubstituteStampedInvoiceCorrections {
+  readonly receiverRfc?: string;
+  readonly receiverName?: string;
+  readonly receiverTaxRegime?: string;
+  readonly receiverPostalCode?: string;
+  readonly cfdiUsage?: string;
+  readonly paymentForm?: string;
+  readonly paymentMethod?: "PUE" | "PPD";
+  readonly subtotal?: number;
+  readonly discount?: number;
+  readonly totalTax?: number;
+  readonly retainedTax?: number;
+  readonly total?: number;
+  readonly tripCorrections?: TripCorrectionEntry[];
+}
+
 export interface SubstituteStampedInvoicePayload {
   readonly cancellationReason: string;
   readonly notes?: string;
+  readonly corrections?: SubstituteStampedInvoiceCorrections;
 }
 
 export interface SubstituteStampedInvoiceResult {

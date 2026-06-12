@@ -20,6 +20,7 @@ export function InvoiceFormPageShell({
   return (
     <FormPageShell
       isLoading={isLoading}
+      className="mx-auto w-full max-w-5xl"
       header={{
         backHref,
         backLabel: "Volver",
@@ -28,7 +29,7 @@ export function InvoiceFormPageShell({
         subtitle,
       }}
     >
-      {!isLoading ? <div className="max-w-3xl">{children}</div> : null}
+      {!isLoading ? <div className="w-full">{children}</div> : null}
     </FormPageShell>
   );
 }

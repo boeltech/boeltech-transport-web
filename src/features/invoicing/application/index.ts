@@ -3,8 +3,6 @@ export {
   useInvoices,
   useInvoice,
   useInvoicePayments,
-  useFinanceSummary,
-  useAccountStatement,
   useInvoicePrefill,
   useCreateInvoice,
   useUpdateInvoice,
@@ -12,7 +10,18 @@ export {
   useStampInvoice,
   useCancelInvoice,
   useRegisterPayment,
+  useRetryRepStamp,
   useSubstituteStampedInvoice,
   useOpenInvoicePdf,
   downloadInvoiceXml,
+  useDownloadInvoiceXml,
 } from "./hooks/useInvoices";
+
+export {
+  prefetchInvoiceLinkedTrips,
+  buildStopsByIdFromCache,
+  findMissingTripCorrectionStopIds,
+  useInvoiceLinkedTripsLoading,
+  fetchTripDetailForSubstitution,
+  tripDetailQueryOptions,
+} from "./substitutionTripPrefetch";

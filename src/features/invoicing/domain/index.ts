@@ -4,8 +4,7 @@ export type {
   InvoiceListItem,
   InvoiceTripRef,
   Payment,
-  FinanceSummary,
-  AccountStatementItem,
+  RepStatus,
   InvoicePrefill,
   InvoicePagination,
   PaginatedInvoices,
@@ -14,9 +13,17 @@ export type {
   CancelInvoicePayload,
   CreatePaymentPayload,
   PaymentAllocationPayload,
+  SubstituteStampedInvoiceCorrections,
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
+  TripCorrectionEntry,
   InvoiceFilters,
 } from "./entities";
 
 export { InvoiceStatusLabels } from "./entities";
+export { toInvoiceLike, toInvoiceLikeFromListItem } from "./invoiceLike";
+export {
+  getDisplayAmountsFromInvoiceFields,
+  getInvoiceDisplayAmounts,
+  getInvoiceListItemDisplayAmounts,
+} from "./invoiceDisplayAmounts";

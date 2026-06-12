@@ -1,13 +1,6 @@
 import type { Action, Module } from "@shared/permissions";
 
-export const FINANCE_INVOICE_FROM_TRIP_CTA = {
-  label: "Facturar desde viaje",
-  tooltip:
-    "Abre el listado de viajes para generar CFDI desde un viaje con facturación disponible",
-  emptyDescription:
-    "Genera CFDI desde un viaje elegible en el módulo Viajes.",
-  tripsPath: "/trips",
-} as const;
+export { invoiceFromTripCta as FINANCE_INVOICE_FROM_TRIP_CTA } from "./copy/invoicingCopy";
 
 type HasPermissionFn = (module: Module, action: Action) => boolean;
 

@@ -47,15 +47,20 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Download,
+  FileCode,
 } from "lucide-react";
-import {
-  useDeleteInvoice,
-  useStampInvoice,
-} from "@features/invoicing/application";
+import { canRegisterPayment } from "@boeltech/cfdi-domain";
+import { useDeleteInvoice, useOpenInvoicePdf, downloadInvoiceXml } from "@features/invoicing/application";
+import { toInvoiceLike } from "@features/invoicing/domain";
+import { useTripFiscalSheets } from "@features/trips/presentation/components/trip-fiscal";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
-import { SubstituteInvoiceDialog } from "./SubstituteInvoiceDialog";
+import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
 import type { InvoiceStatus, Invoice } from "@features/invoicing/domain";
+import { invoicingCopy } from "../copy/invoicingCopy";
+
+const actionsCopy = invoicingCopy.detail.actions;
 
 // ============================================================================
 // TYPES
@@ -112,24 +117,51 @@ function formatCp31Path(path: string): string {
 }
 
 function getStampErrorDescription(error: unknown): string {
-  if (!isApiError(error) || error.code !== "CP31_INVALID_NUMERIC_DATA") {
+  if (!isApiError(error)) {
     return getErrorMessage(error);
   }
-  const rawDetails = error.details;
-  const details = Array.isArray(rawDetails) ? (rawDetails as Cp31NumericDetail[]) : [];
-  const invalids = details
-    .filter((d) => d.code === "CP31_INVALID_NUMERIC_DATA" && typeof d.path === "string")
-    .map((d) => `• ${formatCp31Path(d.path!)}`);
-  if (invalids.length === 0) {
-    return error.message;
+
+  if (error.code === "CP31_INVALID_NUMERIC_DATA") {
+    const rawDetails = error.details;
+    const details = Array.isArray(rawDetails)
+      ? (rawDetails as Cp31NumericDetail[])
+      : [];
+    const invalids = details
+      .filter(
+        (d) => d.code === "CP31_INVALID_NUMERIC_DATA" && typeof d.path === "string",
+      )
+      .map((d) => `• ${formatCp31Path(d.path!)}`);
+    if (invalids.length === 0) {
+      return error.message;
+    }
+    const preview = invalids.slice(0, 4);
+    const more = invalids.length - preview.length;
+    return [
+      "Se detectaron valores numéricos inválidos en Carta Porte:",
+      ...preview,
+      ...(more > 0 ? [`• ...y ${more} campo(s) más`] : []),
+    ].join("\n");
   }
-  const preview = invalids.slice(0, 4);
-  const more = invalids.length - preview.length;
-  return [
-    "Se detectaron valores numéricos inválidos en Carta Porte:",
-    ...preview,
-    ...(more > 0 ? [`• ...y ${more} campo(s) más`] : []),
-  ].join("\n");
+
+  const detailMessages = error.validationErrors
+    .map((entry) => entry.message.trim())
+    .filter((message) => message.length > 0);
+
+  if (detailMessages.length === 1) {
+    return detailMessages[0];
+  }
+
+  if (detailMessages.length > 1) {
+    const preview = detailMessages.slice(0, 4).map((message) => `• ${message}`);
+    const more = detailMessages.length - preview.length;
+    return [
+      error.message,
+      ...preview,
+      ...(more > 0 ? [`• ...y ${more} problema(s) más`] : []),
+    ].join("\n");
+  }
+
+  return error.message || getErrorMessage(error);
 }
 
 // ============================================================================
@@ -156,11 +188,7 @@ export function InvoiceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [substituteDialogOpen, setSubstituteDialogOpen] = useState(false);
-  const [stampErrorDialog, setStampErrorDialog] = useState<{
-    open: boolean;
-    description: string;
-  }>({ open: false, description: "" });
+  const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -177,51 +205,54 @@ export function InvoiceActions({
       }),
   });
 
-  const handleStampError = (err: unknown) => {
-    const description = getStampErrorDescription(err);
-    toast({
-      variant: "destructive",
-      title: "Error al timbrar",
-      description,
-    });
-
-    const shouldOpenDialog =
-      (isApiError(err) && err.code === "CP31_INVALID_NUMERIC_DATA") ||
-      description.includes("\n") ||
-      description.length > 180;
-    if (shouldOpenDialog) {
-      setStampErrorDialog({ open: true, description });
-    }
-  };
-
-  const { mutate: stamp, isPending: stamping } = useStampInvoice({
-    onSuccess: () => {
-      toast({ title: "Factura timbrada exitosamente" });
-      onActionComplete?.();
-    },
-    onError: handleStampError,
+  const fiscal = useTripFiscalSheets({
+    invoiceTripRefs: fullInvoice?.trips ?? [],
+    enableAutoRestamp: variant === "buttons",
+    onStampSuccess: onActionComplete,
+    getStampErrorDescription,
   });
 
-  const isLoading = deleting || stamping;
+  const { mutate: openPdf, isPending: openingPdf } = useOpenInvoicePdf({
+    onError: (err) =>
+      toast({
+        variant: "destructive",
+        title: actionsCopy.pdfError,
+        description: getErrorMessage(err),
+      }),
+  });
+
+  const isLoading = deleting || fiscal.isStamping || openingPdf;
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
   const canCreate = hasPermission("invoices", "create");
   const canUpdate = hasPermission("invoices", "update");
   const canDelete = hasPermission("invoices", "delete");
+  const canExecute = hasPermission("invoices", "execute");
+  const canExport = hasPermission("invoices", "export");
 
   const isDraft = invoiceStatus === "draft";
   const isStamped = invoiceStatus === "stamped";
-  const hasPendingBalance = (fullInvoice?.balanceDue ?? 0) > 0;
+  const isStampedLike =
+    invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending";
+
+  const canShowRegisterPayment =
+    Boolean(fullInvoice) &&
+    canCreate &&
+    canRegisterPayment(toInvoiceLike(fullInvoice!));
 
   const canShowSubstitute =
     isStamped &&
     Boolean(fullInvoice?.canSubstituteInvoice) &&
-    hasPermission("invoices", "delete");
+    canExecute;
+
+  const canShowCancel = isStamped && canExecute;
+
+  const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
   const hasStampedActions =
     isStamped &&
-    ((canCreate && hasPendingBalance) || canDelete || canShowSubstitute);
+    (canShowRegisterPayment || canShowCancel || canShowSubstitute);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 
@@ -268,7 +299,7 @@ export function InvoiceActions({
                   className="text-destructive focus:text-destructive focus:bg-destructive/10"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar borrador
+                  {actionsCopy.deleteDraft}
                 </DropdownMenuItem>
               </>
             )}
@@ -309,9 +340,12 @@ export function InvoiceActions({
 
   const hasNoActions =
     (!isDraft || (!canDelete && !canCreate && !canUpdate)) &&
-    (!isStamped || !hasStampedActions);
+    (!isStamped || !hasStampedActions) &&
+    !canShowExport;
 
   if (hasNoActions) return null;
+
+  const serieFolio = folioCombined;
 
   return (
     <>
@@ -329,7 +363,7 @@ export function InvoiceActions({
             ) : (
               <Trash2 className="mr-2 h-4 w-4" />
             )}
-            Eliminar borrador
+            {actionsCopy.deleteDraft}
           </Button>
         )}
 
@@ -338,15 +372,15 @@ export function InvoiceActions({
           <Button
             variant="default"
             size="sm"
-            onClick={() => stamp(invoiceId)}
+            onClick={() => void fiscal.requestStamp(invoiceId)}
             disabled={isLoading}
           >
-            {stamping ? (
+            {fiscal.isStamping ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Stamp className="mr-2 h-4 w-4" />
             )}
-            {stamping ? "Timbrando..." : "Timbrar"}
+            {fiscal.isStamping ? actionsCopy.stamping : actionsCopy.stamp}
           </Button>
         )}
 
@@ -359,12 +393,12 @@ export function InvoiceActions({
             disabled={isLoading}
           >
             <Pencil className="mr-2 h-4 w-4" />
-            Editar
+            {actionsCopy.editDraft}
           </Button>
         )}
 
         {/* Registrar pago */}
-        {isStamped && canCreate && hasPendingBalance && (
+        {canShowRegisterPayment && fullInvoice && (
           <Button
             variant="outline"
             size="sm"
@@ -372,7 +406,7 @@ export function InvoiceActions({
             disabled={isLoading}
           >
             <DollarSign className="mr-2 h-4 w-4" />
-            Registrar pago
+            {actionsCopy.registerPayment}
           </Button>
         )}
 
@@ -381,16 +415,16 @@ export function InvoiceActions({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSubstituteDialogOpen(true)}
+            onClick={() => setSubstituteSheetOpen(true)}
             disabled={isLoading}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            Sustituir factura
+            {actionsCopy.substitute}
           </Button>
         )}
 
         {/* Cancelar */}
-        {isStamped && canDelete && (
+        {canShowCancel && (
           <Button
             variant="destructive"
             size="sm"
@@ -398,9 +432,49 @@ export function InvoiceActions({
             disabled={isLoading}
           >
             <XCircle className="mr-2 h-4 w-4" />
-            Cancelar
+            {actionsCopy.cancel}
           </Button>
         )}
+
+        {canShowExport && fullInvoice ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                openPdf({
+                  id: fullInvoice.id,
+                  serieFolio,
+                })
+              }
+              disabled={isLoading}
+              title={invoicingCopy.detail.header.pdfTitle}
+            >
+              {openingPdf ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {openingPdf
+                ? invoicingCopy.detail.header.pdfGenerating
+                : invoicingCopy.detail.header.pdf}
+            </Button>
+            {(fullInvoice.hasStampedXml ?? Boolean(fullInvoice.xmlContent)) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  downloadInvoiceXml(fullInvoice.id, serieFolio)
+                }
+                disabled={isLoading}
+                title={invoicingCopy.detail.header.xmlTitle}
+              >
+                <FileCode className="mr-2 h-4 w-4" />
+                {invoicingCopy.detail.header.xml}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
@@ -432,32 +506,6 @@ export function InvoiceActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Stamp error details */}
-      <AlertDialog
-        open={stampErrorDialog.open}
-        onOpenChange={(open) =>
-          setStampErrorDialog((prev) => ({ ...prev, open }))
-        }
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Error al timbrar factura</AlertDialogTitle>
-            <AlertDialogDescription className="whitespace-pre-line text-left">
-              {stampErrorDialog.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() =>
-                setStampErrorDialog({ open: false, description: "" })
-              }
-            >
-              Entendido
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* Payment dialog */}
       {fullInvoice && paymentDialogOpen && (
         <PaymentFormDialog
@@ -483,16 +531,18 @@ export function InvoiceActions({
       )}
 
       {/* Substitute stamped invoice (SAT 01) */}
-      {fullInvoice && (
-        <SubstituteInvoiceDialog
+      {fullInvoice && substituteSheetOpen && (
+        <SubstituteInvoiceSheet
           invoice={fullInvoice}
-          open={substituteDialogOpen}
+          open={substituteSheetOpen}
           onOpenChange={(open) => {
-            setSubstituteDialogOpen(open);
+            setSubstituteSheetOpen(open);
             if (!open) onActionComplete?.();
           }}
         />
       )}
+
+      {fiscal.sheets}
     </>
   );
 }

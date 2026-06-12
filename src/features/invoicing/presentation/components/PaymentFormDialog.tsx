@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Controller, useForm, type Resolver } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -10,20 +10,23 @@ import {
   DialogFooter,
 } from "@shared/ui/dialog";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import {
-  FormFieldShell,
   FormValidationSummary,
   RHFCatalogField,
+  RHFMoneyField,
   RHFTextField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { FormaPagoSelect } from "@features/catalogs/presentation/components";
 import { useRegisterPayment } from "@features/invoicing/application";
+import { getInvoiceDisplayAmounts, type Invoice } from "@features/invoicing/domain";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import type { Invoice } from "@features/invoicing/domain";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { invoicingCopy } from "../copy/invoicingCopy";
+
+const copy = invoicingCopy.detail;
 
 const schema = z.object({
   amount: z.coerce
@@ -46,29 +49,34 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
+function buildDefaultValues(invoice: Invoice): FormValues {
+  const { balanceDue } = getInvoiceDisplayAmounts(invoice);
+  return {
+    amount: balanceDue > 0 ? Number(balanceDue.toFixed(2)) : 0,
+    payment_date: new Date().toISOString().split("T")[0],
+    payment_form: "03",
+    reference: "",
+    notes: "",
+  };
+}
+
+function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) {
   const { toast } = useToast();
   const [showValidationSummary, setShowValidationSummary] = useState(false);
-  const remainingBalance = Number(invoice.balanceDue.toFixed(2));
+  const { balanceDue } = getInvoiceDisplayAmounts(invoice);
+  const remainingBalance = Number(balanceDue.toFixed(2));
   const hasPendingBalance = remainingBalance > 0;
+  const exchangeRate = invoice.exchangeRate ?? 1;
 
   const form = useForm<FormValues, unknown, FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
-    defaultValues: {
-      amount: invoice.balanceDue > 0 ? Number(invoice.balanceDue.toFixed(2)) : 0,
-      payment_date: new Date().toISOString().split("T")[0],
-      payment_form: "03",
-      reference: "",
-      notes: "",
-    },
+    defaultValues: buildDefaultValues(invoice),
     mode: "onChange",
   });
 
-  const { control } = form;
-
   const { mutate, isPending } = useRegisterPayment(invoice.id, {
     onSuccess: () => {
-      toast({ title: "Pago registrado exitosamente" });
+      toast({ title: copy.toast.paymentRegistered });
       form.reset();
       onOpenChange(false);
     },
@@ -103,7 +111,7 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
     mutate({
       amount: values.amount,
       currency: invoice.currency,
-      exchangeRate: 1,
+      exchangeRate,
       paymentDate: values.payment_date,
       paymentForm: values.payment_form,
       reference: values.reference || undefined,
@@ -124,25 +132,21 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
   const validationMessages = collectFieldErrorMessages(form.formState.errors);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {invoice.paymentMethod === "PPD"
-              ? "Registrar pago (PPD / REP)"
-              : "Registrar pago"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {invoice.paymentMethod === "PPD"
+            ? "Registrar pago (PPD / REP)"
+            : "Registrar pago"}
+        </DialogTitle>
+      </DialogHeader>
 
-        <div className="text-sm text-muted-foreground mb-2">
-          Saldo pendiente:{" "}
-          <span className="font-semibold text-foreground">
-            {new Intl.NumberFormat("es-MX", {
-              style: "currency",
-              currency: "MXN",
-            }).format(invoice.balanceDue)}
-          </span>
-        </div>
+      <div className="text-sm text-muted-foreground mb-2">
+        Saldo pendiente:{" "}
+        <span className="font-semibold text-foreground">
+          {formatMxCurrency(balanceDue)}
+        </span>
+      </div>
         {!hasPendingBalance && (
           <p className="text-xs text-muted-foreground mb-2">
             Esta factura ya está liquidada; no se pueden registrar más pagos.
@@ -151,38 +155,16 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Controller
-              control={control}
+            <RHFMoneyField
+              control={form.control}
               name="amount"
-              render={({ field, fieldState }) => (
-                <FormFieldShell
-                  fieldId="amount"
-                  label="Monto (MXN)"
-                  required
-                  errorMessage={fieldState.error?.message}
-                >
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    max={remainingBalance}
-                    placeholder="0.00"
-                    disabled={!hasPendingBalance}
-                    value={field.value ?? ""}
-                    onChange={(event) =>
-                      field.onChange(parseFloat(event.target.value) || 0)
-                    }
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps("amount", fieldState.error?.message)}
-                  />
-                </FormFieldShell>
-              )}
+              fieldId="amount"
+              label="Monto"
+              required
+              disabled={!hasPendingBalance}
             />
             <RHFTextField
-              control={control}
+              control={form.control}
               name="payment_date"
               label="Fecha de pago"
               required
@@ -191,7 +173,7 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
             />
           </div>
 
-          <RHFCatalogField control={control} name="payment_form" label="Forma de pago" required>
+          <RHFCatalogField control={form.control} name="payment_form" label="Forma de pago" required>
             {({ field, fieldState, resolvedId, errorMessage }) => (
               <FormaPagoSelect
                 triggerId={resolvedId}
@@ -206,7 +188,7 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
           </RHFCatalogField>
 
           <RHFTextField
-            control={control}
+            control={form.control}
             name="reference"
             label="Referencia (opcional)"
             placeholder="Número de transferencia, cheque..."
@@ -214,7 +196,7 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
           />
 
           <RHFTextField
-            control={control}
+            control={form.control}
             name="notes"
             label="Notas (opcional)"
             placeholder="Notas adicionales"
@@ -241,6 +223,21 @@ export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
             </Button>
           </DialogFooter>
         </form>
+    </>
+  );
+}
+
+export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        {open ? (
+          <PaymentFormDialogInner
+            key={invoice.id}
+            invoice={invoice}
+            onOpenChange={onOpenChange}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

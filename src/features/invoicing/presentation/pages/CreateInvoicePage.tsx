@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Building2, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { usePermissions } from "@shared/permissions";
 import { InvoiceFormPageShell } from "../components/InvoiceFormPageShell";
+import { InvoiceCreateContextCards } from "../components/InvoiceCreateContextCards";
 import {
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
 } from "../financeInvoiceFromTripCta";
+import { invoicingCopy } from "../copy/invoicingCopy";
+import {
+  defaultInvoiceFormValues,
+  invoiceFormSchema,
+  parseCreateInvoicePayload,
+  parseDraftInvoicePayload,
+  RETAINED_TAX_RATE,
+  type InvoiceFormValues,
+} from "../validation/invoiceFormSchema";
+import { formatInvoiceApiErrorMessages } from "../validation/formatInvoiceApiErrors";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Checkbox } from "@shared/ui/checkbox";
@@ -19,19 +29,13 @@ import {
   FormFieldShell,
   FormValidationSummary,
   RHFCatalogField,
+  RHFMoneyField,
   RHFTextField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import {
   FormaPagoSelect,
   MetodoPagoSelect,
@@ -46,44 +50,8 @@ import {
   useUpdateInvoice,
 } from "@features/invoicing/application";
 import { useTrip } from "@features/trips";
-import { useActiveClients } from "@features/clients/application";
-import { useClientBillingAddress } from "@features/clients/application";
 
-// ============================================================================
-// SCHEMA
-// ============================================================================
-
-const RETAINED_TAX_RATE = 0.04; // 4% — Art. 1-A LIVA autotransporte terrestre
-
-const schema = z.object({
-  receiver_rfc: z
-    .string()
-    .min(12, "RFC muy corto")
-    .max(13, "RFC muy largo")
-    .regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/, "Formato de RFC inválido"),
-  receiver_name: z.string().min(1, "Nombre requerido").max(255),
-  cfdi_usage: z.string().min(1, "Uso CFDI requerido"),
-  receiver_tax_regime: z.string().min(1, "Régimen fiscal requerido"),
-  receiver_postal_code: z
-    .string()
-    .regex(/^\d{5}$/, "Código postal (5 dígitos)"),
-  payment_form: z.string().min(1, "Forma de pago requerida"),
-  payment_method: z.enum(["PUE", "PPD"]),
-  currency: z.string().min(3).max(5),
-  subtotal: z.number().nonnegative(),
-  discount: z.number().nonnegative().optional(),
-  apply_retained_tax: z.boolean(),
-  total_tax: z.number().nonnegative(),
-  retained_tax: z.number().nonnegative(),
-  total: z.number().nonnegative(),
-  notes: z.string().max(500).optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = invoicingCopy;
 
 export function CreateInvoicePage() {
   const { id: invoiceId } = useParams<{ id: string }>();
@@ -103,13 +71,10 @@ export function CreateInvoicePage() {
         ? `/trips/${tripId}`
         : "/finance?tab=invoices";
 
-  const shellTitle = isEditMode ? "Editar factura" : "Nueva factura";
+  const shellTitle = isEditMode ? copy.edit.title : copy.create.title;
 
-  // Client selector state — independent of trip prefill
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [showValidationSummary, setShowValidationSummary] = useState(false);
-
-  // ── Data fetching ────────────────────────────────────────────────────────
+  const [apiErrorMessages, setApiErrorMessages] = useState<string[]>([]);
 
   const {
     data: prefill,
@@ -117,10 +82,7 @@ export function CreateInvoicePage() {
     isError: prefillIsError,
     error: prefillError,
   } = useInvoicePrefill(tripId);
-  const {
-    data: tripContext,
-    isLoading: isTripContextLoading,
-  } = useTrip(tripId, {
+  const { data: tripContext, isLoading: isTripContextLoading } = useTrip(tripId, {
     enabled: !isEditMode && hasTripContext,
   });
 
@@ -131,19 +93,15 @@ export function CreateInvoicePage() {
     error: editableInvoiceError,
   } = useInvoice(invoiceId ?? "");
 
-  const { data: clients = [], isLoading: isLoadingClients } = useActiveClients();
-
-  const { data: billingAddress } = useClientBillingAddress(
-    selectedClientId || undefined,
-  );
-
   const prefillErrorMessage = prefillError ? getErrorMessage(prefillError) : "";
+  const prefillErrorCode = isApiError(prefillError) ? prefillError.code : undefined;
   const isAlreadyInvoicedByError =
     !isEditMode &&
     prefillIsError &&
-    /ya\s+(est[aá]\s+)?(vinculado|facturado)|trip_already_invoiced|already\s+invoiced/i.test(
-      prefillErrorMessage,
-    );
+    (prefillErrorCode === "TRIP_ALREADY_INVOICED" ||
+      /ya\s+(est[aá]\s+)?(vinculad[oa]|facturad[oa])|factura\s+activa\s+vinculad[oa]|trip_already_invoiced|already\s+invoiced/i.test(
+        prefillErrorMessage,
+      ));
   const isBlockedByTripContext =
     !isEditMode && !!tripContext && !tripContext.invoicing.canGenerateInvoice;
   const linkedInvoiceId = tripContext?.invoicing.invoiceId ?? null;
@@ -153,47 +111,25 @@ export function CreateInvoicePage() {
     (isAlreadyInvoicedByError ? prefillErrorMessage : null) ??
     "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.";
 
-  // ── Form ─────────────────────────────────────────────────────────────────
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      receiver_rfc: "",
-      receiver_name: "",
-      cfdi_usage: "S01",
-      receiver_tax_regime: "",
-      receiver_postal_code: "",
-      payment_form: "99",
-      payment_method: "PUE",
-      currency: "MXN",
-      subtotal: 0,
-      discount: 0,
-      apply_retained_tax: false,
-      total_tax: 0,
-      retained_tax: 0,
-      total: 0,
-      notes: "",
-    },
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(invoiceFormSchema as never) as Resolver<InvoiceFormValues>,
+    defaultValues: defaultInvoiceFormValues(),
     mode: "onChange",
   });
 
   const { control } = form;
 
-  // Watch fields for auto-calculation
   const subtotal = useWatch({ control: form.control, name: "subtotal" });
   const discount = useWatch({ control: form.control, name: "discount" });
   const applyRetainedTax = useWatch({ control: form.control, name: "apply_retained_tax" });
   const taxRate = prefill?.taxRate ?? 0.16;
   const isPersonaMoral = !!applyRetainedTax;
 
-  // ── Effects ──────────────────────────────────────────────────────────────
-
-  // Error toast for prefill
   useEffect(() => {
     if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError) {
       toast({
         variant: "destructive",
-        title: "No se pudo cargar el viaje",
+        title: copy.create.prefillErrorToast,
         description: getErrorMessage(prefillError),
       });
     }
@@ -203,17 +139,23 @@ export function CreateInvoicePage() {
     if (isEditMode && isEditableInvoiceError && editableInvoiceError) {
       toast({
         variant: "destructive",
-        title: "No se pudo cargar el borrador",
+        title: copy.edit.loadErrorToast,
         description: getErrorMessage(editableInvoiceError),
       });
     }
   }, [isEditMode, isEditableInvoiceError, editableInvoiceError]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pre-fill form from trip prefill (takes priority over client selector)
+  useEffect(() => {
+    if (!isEditMode && tripId) {
+      form.setValue("trip_ids", [tripId]);
+    }
+  }, [tripId, isEditMode, form]);
+
   useEffect(() => {
     if (!isEditMode && prefill) {
       const personaMoral = prefill.clientType === "company";
       form.reset({
+        trip_ids: tripId ? [tripId] : [],
         receiver_rfc: prefill.receiverRfc ?? "",
         receiver_name: prefill.receiverName ?? "",
         cfdi_usage: prefill.cfdiUsage ?? "S01",
@@ -221,7 +163,7 @@ export function CreateInvoicePage() {
         receiver_postal_code: prefill.receiverPostalCode ?? "",
         payment_form: prefill.paymentForm ?? "99",
         payment_method: prefill.paymentMethod as "PUE" | "PPD",
-        currency: prefill.currency ?? "MXN",
+        currency: "MXN",
         subtotal: prefill.subtotal ?? 0,
         discount: 0,
         apply_retained_tax: personaMoral,
@@ -231,7 +173,7 @@ export function CreateInvoicePage() {
         notes: "",
       });
     }
-  }, [prefill, form, isEditMode]);
+  }, [prefill, form, isEditMode, tripId]);
 
   useEffect(() => {
     if (!isEditMode || !editableInvoice) return;
@@ -244,7 +186,7 @@ export function CreateInvoicePage() {
       receiver_postal_code: editableInvoice.receiverPostalCode ?? "",
       payment_form: editableInvoice.paymentForm ?? "99",
       payment_method: (editableInvoice.paymentMethod ?? "PUE") as "PUE" | "PPD",
-      currency: editableInvoice.currency ?? "MXN",
+      currency: "MXN",
       subtotal: editableInvoice.subtotal ?? 0,
       discount:
         editableInvoice.discount != null && editableInvoice.discount > 0
@@ -258,27 +200,6 @@ export function CreateInvoicePage() {
     });
   }, [isEditMode, editableInvoice, form]);
 
-  // Auto-fill receiver fields when a client is selected (only if no trip prefill)
-  // Note: ClientListItem only has taxId and legalName — taxRegime must be selected manually
-  useEffect(() => {
-    if (!selectedClientId || prefill || isEditMode) return;
-    const client = clients.find((c) => c.id === selectedClientId);
-    if (!client) return;
-    const personaMoral = client.type === "company";
-    form.setValue("receiver_rfc", client.taxId);
-    form.setValue("receiver_name", client.legalName);
-    form.setValue("apply_retained_tax", personaMoral);
-  }, [selectedClientId, clients, prefill, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-fill postal code from billing address when available
-  useEffect(() => {
-    if (!billingAddress || prefill || isEditMode) return;
-    if (billingAddress.postalCode) {
-      form.setValue("receiver_postal_code", billingAddress.postalCode);
-    }
-  }, [billingAddress, prefill, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-calculate IVA, IVA Retenido and Total when subtotal/discount/applyRetainedTax change
   useEffect(() => {
     const base = (subtotal ?? 0) - (discount ?? 0);
     if (base < 0) return;
@@ -292,60 +213,65 @@ export function CreateInvoicePage() {
     form.setValue("total", total, { shouldValidate: false });
   }, [subtotal, discount, taxRate, applyRetainedTax]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mutation ─────────────────────────────────────────────────────────────
+  // Moneda fija temporal: el sistema solo soporta MXN.
+  useEffect(() => {
+    form.setValue("currency", "MXN", { shouldValidate: false });
+  }, [form]);
+
+  const handleMutationError = (title: string, err: unknown) => {
+    const messages = formatInvoiceApiErrorMessages(err);
+    setApiErrorMessages(messages);
+    setShowValidationSummary(messages.length > 0);
+    toast({
+      variant: "destructive",
+      title,
+      description: messages[0] ?? getErrorMessage(err),
+    });
+  };
 
   const { mutate, isPending } = useCreateInvoice({
     onSuccess: (invoice) => {
-      toast({ title: "Factura creada exitosamente" });
+      toast({ title: copy.create.successToast });
       navigate(`/invoices/${invoice.id}`, {
         state: { from: "/invoices/new" },
       });
     },
-    onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Error al crear factura",
-        description: getErrorMessage(err),
-      });
-    },
+    onError: (err) => handleMutationError(copy.create.errorToast, err),
   });
 
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice({
     onSuccess: (invoice) => {
-      toast({ title: "Factura actualizada exitosamente" });
+      toast({ title: copy.edit.successToast });
       navigate(`/invoices/${invoice.id}`, {
         state: { from: `/invoices/${invoice.id}/edit` },
       });
     },
-    onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Error al actualizar factura",
-        description: getErrorMessage(err),
-      });
-    },
+    onError: (err) => handleMutationError(copy.edit.errorToast, err),
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: InvoiceFormValues) => {
+    setApiErrorMessages([]);
+
     if (isEditMode) {
       if (!invoiceId) return;
+      const payload = parseDraftInvoicePayload(values);
       updateInvoice({
         id: invoiceId,
         payload: {
-          receiverRfc: values.receiver_rfc,
-          receiverName: values.receiver_name,
-          cfdiUsage: values.cfdi_usage,
-          receiverTaxRegime: values.receiver_tax_regime,
-          receiverPostalCode: values.receiver_postal_code,
-          paymentForm: values.payment_form,
-          paymentMethod: values.payment_method,
-          currency: values.currency,
-          subtotal: values.subtotal,
-          discount: values.discount,
-          totalTax: values.total_tax,
-          retainedTax: values.retained_tax,
-          total: values.total,
-          notes: values.notes || null,
+          receiverRfc: payload.receiver_rfc,
+          receiverName: payload.receiver_name,
+          cfdiUsage: payload.cfdi_usage,
+          receiverTaxRegime: payload.receiver_tax_regime,
+          receiverPostalCode: payload.receiver_postal_code,
+          paymentForm: payload.payment_form,
+          paymentMethod: payload.payment_method,
+          currency: "MXN",
+          subtotal: payload.subtotal,
+          discount: payload.discount,
+          totalTax: payload.total_tax,
+          retainedTax: payload.retained_tax,
+          total: payload.total,
+          notes: payload.notes || null,
         },
       });
       return;
@@ -354,58 +280,64 @@ export function CreateInvoicePage() {
     if (!hasTripContext) {
       toast({
         variant: "destructive",
-        title: "Viaje requerido",
-        description: "Para crear una factura debes iniciar desde un viaje completado.",
+        title: copy.create.tripRequiredToast,
+        description: copy.create.tripRequiredDescription,
+      });
+      return;
+    }
+
+    let payload;
+    try {
+      payload = parseCreateInvoicePayload(values, tripId);
+    } catch {
+      setShowValidationSummary(true);
+      toast({
+        variant: "destructive",
+        title: copy.create.tripRequiredToast,
+        description: copy.create.tripRequiredDescription,
       });
       return;
     }
 
     mutate({
-      tripIds: tripId ? [tripId] : [],
-      receiverRfc: values.receiver_rfc,
-      receiverName: values.receiver_name,
-      cfdiUsage: values.cfdi_usage,
-      receiverTaxRegime: values.receiver_tax_regime,
-      receiverPostalCode: values.receiver_postal_code,
-      paymentForm: values.payment_form,
-      paymentMethod: values.payment_method,
-      currency: values.currency,
-      subtotal: values.subtotal,
-      discount: values.discount,
-      totalTax: values.total_tax,
-      retainedTax: values.retained_tax,
-      total: values.total,
-      notes: values.notes || undefined,
+      tripIds: payload.trip_ids,
+      receiverRfc: payload.receiver_rfc,
+      receiverName: payload.receiver_name,
+      cfdiUsage: payload.cfdi_usage,
+      receiverTaxRegime: payload.receiver_tax_regime,
+      receiverPostalCode: payload.receiver_postal_code,
+      paymentForm: payload.payment_form,
+      paymentMethod: payload.payment_method,
+      currency: "MXN",
+      subtotal: payload.subtotal,
+      discount: payload.discount,
+      totalTax: payload.total_tax,
+      retainedTax: payload.retained_tax,
+      total: payload.total,
+      notes: payload.notes || undefined,
     });
   };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  const shellSubtitle =
+    isEditMode && editableInvoice
+      ? copy.edit.subtitleDraft(editableInvoice.serie, editableInvoice.folio)
+      : prefill
+        ? copy.create.subtitleFromTrip(prefill.tripCode)
+        : undefined;
 
-  // Build readable address string from billing address
-  const billingAddressText = billingAddress
-    ? [
-        billingAddress.street,
-        billingAddress.exteriorNumber
-          ? `#${billingAddress.exteriorNumber}`
-          : undefined,
-        billingAddress.interiorNumber
-          ? `Int. ${billingAddress.interiorNumber}`
-          : undefined,
-        billingAddress.city,
-        billingAddress.state,
-        billingAddress.postalCode ? `C.P. ${billingAddress.postalCode}` : undefined,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : null;
+  const fieldErrorMessages = collectFieldErrorMessages(form.formState.errors);
+  const validationSummaryMessages = [...fieldErrorMessages, ...apiErrorMessages];
+  const validationSummaryTitle =
+    apiErrorMessages.length > 0
+      ? copy.validation.fiscalSummary
+      : copy.validation.formSummary;
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  const shellSubtitle = isEditMode && editableInvoice
-    ? `Borrador ${editableInvoice.serie}-${editableInvoice.folio}`
-    : prefill
-      ? `Desde viaje ${prefill.tripCode}`
-      : undefined;
+  const isCreateContextLoading =
+    !isEditMode &&
+    hasTripContext &&
+    !isBlockedByTripContext &&
+    !isAlreadyInvoicedByError &&
+    (isTripContextLoading || prefillLoading);
 
   if (isEditMode && isLoadingEditableInvoice) {
     return (
@@ -421,19 +353,17 @@ export function CreateInvoicePage() {
     return (
       <InvoiceFormPageShell
         backHref="/finance?tab=invoices"
-        title="Editar factura"
-        subtitle="Solo borradores son editables"
+        title={copy.edit.title}
+        subtitle={copy.edit.notEditableHint}
       >
         <Card>
           <CardHeader>
-            <CardTitle>Edición no disponible</CardTitle>
+            <CardTitle>{copy.edit.notEditableTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Solo las facturas en estado borrador pueden editarse.
-            </p>
+            <p className="text-sm text-muted-foreground">{copy.edit.notEditableBody}</p>
             <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
-              Volver a finanzas
+              {copy.edit.backToFinance}
             </Button>
           </CardContent>
         </Card>
@@ -450,28 +380,18 @@ export function CreateInvoicePage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Facturar desde un viaje</CardTitle>
+            <CardTitle>{copy.empty.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              El CFDI se genera desde un viaje con facturación disponible. Abre
-              el viaje y usa «Generar factura», o el listado de viajes.
-            </p>
+            <p className="text-sm text-muted-foreground">{copy.empty.body}</p>
             <div className="flex flex-wrap gap-3">
               {canInvoiceFromTrip ? (
-                <Button
-                  onClick={() =>
-                    navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath)
-                  }
-                >
+                <Button onClick={() => navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath)}>
                   {FINANCE_INVOICE_FROM_TRIP_CTA.label}
                 </Button>
               ) : null}
-              <Button
-                variant="outline"
-                onClick={() => navigate("/finance?tab=invoices")}
-              >
-                Volver a finanzas
+              <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
+                {copy.empty.backToFinance}
               </Button>
             </div>
           </CardContent>
@@ -480,7 +400,7 @@ export function CreateInvoicePage() {
     );
   }
 
-  if (!isEditMode && hasTripContext && isTripContextLoading) {
+  if (isCreateContextLoading) {
     return (
       <InvoiceFormPageShell
         isLoading
@@ -495,29 +415,29 @@ export function CreateInvoicePage() {
       <InvoiceFormPageShell
         backHref={shellBackHref}
         title={shellTitle}
-        subtitle="No se puede crear otra factura para este viaje"
+        subtitle={copy.create.blockedSubtitle}
       >
         <Card>
           <CardHeader>
-            <CardTitle>Este viaje ya está facturado</CardTitle>
+            <CardTitle>{copy.blocked.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{blockedReason}</p>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => navigate(shellBackHref)}>Volver al viaje</Button>
+              <Button onClick={() => navigate(shellBackHref)}>{copy.blocked.backToTrip}</Button>
               {linkedInvoiceId ? (
                 <Button
                   variant="outline"
                   onClick={() => navigate(`/invoices/${linkedInvoiceId}`)}
                 >
-                  Ver factura{linkedInvoiceFolio ? ` (${linkedInvoiceFolio})` : ""}
+                  {copy.blocked.viewInvoice(linkedInvoiceFolio)}
                 </Button>
               ) : (
                 <Button
                   variant="outline"
                   onClick={() => navigate("/finance?tab=invoices")}
                 >
-                  Ir a finanzas
+                  {copy.blocked.goFinance}
                 </Button>
               )}
             </div>
@@ -533,405 +453,285 @@ export function CreateInvoicePage() {
       title={shellTitle}
       subtitle={shellSubtitle}
     >
-        <form
-          onSubmit={form.handleSubmit(
-            (values) => {
-              setShowValidationSummary(false);
-              onSubmit(values);
-            },
-            () => {
-              setShowValidationSummary(true);
-            },
-          )}
-          className="space-y-6"
-        >
-          {/* RECEPTOR */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Datos del Receptor
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Client selector — only shown when not coming from a trip prefill */}
-              {!prefill && !isEditMode && (
-                <div className="space-y-1">
-                  <label className="text-sm font-medium leading-none">
-                    Seleccionar cliente registrado
-                  </label>
-                  <Select
-                    value={selectedClientId}
-                    onValueChange={setSelectedClientId}
-                    disabled={isLoadingClients}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          isLoadingClients
-                            ? "Cargando clientes..."
-                            : "Buscar cliente..."
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <span className="font-medium">{c.legalName}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {c.taxId}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+      <form
+        onSubmit={form.handleSubmit(
+          (values) => {
+            setShowValidationSummary(false);
+            setApiErrorMessages([]);
+            onSubmit(values);
+          },
+          () => {
+            setShowValidationSummary(true);
+          },
+        )}
+        className="space-y-6"
+      >
+        <InvoiceCreateContextCards
+          mode={isEditMode ? "edit" : "create"}
+          prefill={prefill}
+          tripId={tripId}
+          invoice={editableInvoice}
+        />
 
-                  {/* Billing address info (read-only) */}
-                  {billingAddress && billingAddressText && (
-                    <p className="text-xs text-muted-foreground flex items-start gap-1 pt-1">
-                      <Building2 className="h-3 w-3 mt-0.5 shrink-0" />
-                      <span>Domicilio fiscal: {billingAddressText}</span>
-                    </p>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    O llena los campos manualmente si el cliente no está registrado.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Controller
-                  control={control}
-                  name="receiver_rfc"
-                  render={({ field, fieldState }) => (
-                    <FormFieldShell
-                      fieldId="receiver_rfc"
-                      label="RFC"
-                      errorMessage={fieldState.error?.message}
-                    >
-                      <Input
-                        id="receiver_rfc"
-                        placeholder="XAXX010101000"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                        error={Boolean(fieldState.error)}
-                        {...getFieldErrorAriaProps(
-                          "receiver_rfc",
-                          fieldState.error?.message,
-                        )}
-                      />
-                    </FormFieldShell>
-                  )}
-                />
-                <RHFTextField
-                  control={control}
-                  name="receiver_postal_code"
-                  label="Código Postal (domicilio fiscal)"
-                  placeholder="12345"
-                  maxLength={5}
-                />
-              </div>
-
-              <RHFTextField
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {copy.section.receiver}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Controller
                 control={control}
-                name="receiver_name"
-                label="Nombre / Razón Social"
-                placeholder="Nombre del receptor"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <RHFCatalogField
-                  control={control}
-                  name="receiver_tax_regime"
-                  label="Régimen Fiscal"
-                >
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <RegimenFiscalSelect
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona régimen"
+                name="receiver_rfc"
+                render={({ field, fieldState }) => (
+                  <FormFieldShell
+                    fieldId="receiver_rfc"
+                    label={copy.label.rfc}
+                    errorMessage={fieldState.error?.message}
+                  >
+                    <Input
+                      id="receiver_rfc"
+                      placeholder="XAXX010101000"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </RHFCatalogField>
-                <RHFCatalogField control={control} name="cfdi_usage" label="Uso CFDI">
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <UsoCfdiSelect
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona uso"
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </RHFCatalogField>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* CFDI */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Datos CFDI
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <RHFCatalogField control={control} name="payment_form" label="Forma de Pago">
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <FormaPagoSelect
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona"
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </RHFCatalogField>
-                <RHFCatalogField control={control} name="payment_method" label="Método de Pago">
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <MetodoPagoSelect
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona"
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </RHFCatalogField>
-                <RHFCatalogField control={control} name="currency" label="Moneda">
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <CatalogSelect
-                      typeCode="sat_moneda"
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecciona moneda"
-                      displayFormat="code-name"
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </RHFCatalogField>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* IMPORTES */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Importes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {(
-                  [
-                    ["subtotal", "Subtotal"],
-                    ["discount", "Descuento"],
-                    ["total", "Total"],
-                  ] as const
-                ).map(([name, label]) => (
-                  <Controller
-                    key={name}
-                    control={control}
-                    name={name}
-                    render={({ field, fieldState }) => (
-                      <FormFieldShell
-                        fieldId={name}
-                        label={label}
-                        errorMessage={fieldState.error?.message}
-                      >
-                        <Input
-                          id={name}
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps(name, fieldState.error?.message)}
-                        />
-                      </FormFieldShell>
-                    )}
-                  />
-                ))}
-                <Controller
-                  control={control}
-                  name="total_tax"
-                  render={({ field, fieldState }) => (
-                    <FormFieldShell
-                      fieldId="total_tax"
-                      label={
-                        <>
-                          IVA{" "}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            ({(taxRate * 100).toFixed(0)}%)
-                          </span>
-                        </>
-                      }
-                      errorMessage={fieldState.error?.message}
-                    >
-                      <Input
-                        id="total_tax"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        error={Boolean(fieldState.error)}
-                        {...getFieldErrorAriaProps(
-                          "total_tax",
-                          fieldState.error?.message,
-                        )}
-                      />
-                    </FormFieldShell>
-                  )}
-                />
-              </div>
-
-              {/* IVA Retenido — persona moral (Art. 1-A LIVA) */}
-              <div className="space-y-3">
-                <Controller
-                  control={control}
-                  name="apply_retained_tax"
-                  render={({ field }) => (
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id="apply_retained_tax"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                      <div className="space-y-0.5">
-                        <label
-                          htmlFor="apply_retained_tax"
-                          className="cursor-pointer text-sm font-medium leading-none"
-                        >
-                          Aplica retención IVA 4% (persona moral)
-                        </label>
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Info className="h-3 w-3 shrink-0" />
-                          Art. 1-A LIVA — autotransporte terrestre de carga
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                />
-
-                {isPersonaMoral ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <Controller
-                      control={control}
-                      name="retained_tax"
-                      render={({ field, fieldState }) => (
-                        <FormFieldShell
-                          fieldId="retained_tax"
-                          label={
-                            <>
-                              IVA Retenido{" "}
-                              <span className="text-xs font-normal text-muted-foreground">
-                                (4%)
-                              </span>
-                            </>
-                          }
-                          errorMessage={fieldState.error?.message}
-                        >
-                          <Input
-                            id="retained_tax"
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            ref={field.ref}
-                            error={Boolean(fieldState.error)}
-                            {...getFieldErrorAriaProps(
-                              "retained_tax",
-                              fieldState.error?.message,
-                            )}
-                          />
-                        </FormFieldShell>
+                      {...getFieldErrorAriaProps(
+                        "receiver_rfc",
+                        fieldState.error?.message,
                       )}
                     />
-                  </div>
-                ) : null}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                IVA y Total se calculan automáticamente al ingresar el Subtotal.
-                Puedes ajustarlos manualmente si es necesario.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* NOTAS */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Notas Internas (opcional)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+                  </FormFieldShell>
+                )}
+              />
               <RHFTextField
                 control={control}
-                name="notes"
-                label="Notas internas"
-                placeholder="Notas internas, referencias, observaciones..."
+                name="receiver_postal_code"
+                label={copy.label.postalCode}
+                placeholder="12345"
+                maxLength={5}
               />
-            </CardContent>
-          </Card>
+            </div>
 
-          {showValidationSummary &&
-          collectFieldErrorMessages(form.formState.errors).length > 0 ? (
-            <FormValidationSummary
-              title="Revisa los datos de la factura"
-              messages={collectFieldErrorMessages(form.formState.errors)}
+            <RHFTextField
+              control={control}
+              name="receiver_name"
+              label={copy.label.receiverName}
+              placeholder="Nombre del receptor"
             />
-          ) : null}
 
-          <Separator />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <RHFCatalogField
+                control={control}
+                name="receiver_tax_regime"
+                label={copy.label.taxRegime}
+              >
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <RegimenFiscalSelect
+                    triggerId={resolvedId}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Selecciona régimen"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
+                )}
+              </RHFCatalogField>
+              <RHFCatalogField control={control} name="cfdi_usage" label={copy.label.cfdiUsage}>
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <UsoCfdiSelect
+                    triggerId={resolvedId}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Selecciona uso"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
+                )}
+              </RHFCatalogField>
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(-1)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending || isUpdating || (!isEditMode && prefillLoading)}
-            >
-              {isPending || isUpdating
-                ? "Guardando..."
-                : isEditMode
-                  ? "Guardar cambios"
-                  : "Crear borrador"}
-            </Button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {copy.section.cfdi}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <RHFCatalogField control={control} name="payment_form" label={copy.label.paymentForm}>
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <FormaPagoSelect
+                    triggerId={resolvedId}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Selecciona"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
+                )}
+              </RHFCatalogField>
+              <RHFCatalogField
+                control={control}
+                name="payment_method"
+                label={copy.label.paymentMethod}
+              >
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <MetodoPagoSelect
+                    triggerId={resolvedId}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Selecciona"
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
+                )}
+              </RHFCatalogField>
+              <RHFCatalogField control={control} name="currency" label={copy.label.currency}>
+                {({ field, fieldState, resolvedId, errorMessage }) => (
+                  <CatalogSelect
+                    typeCode="sat_moneda"
+                    triggerId={resolvedId}
+                    value="MXN"
+                    onValueChange={field.onChange}
+                    placeholder="MXN - Peso Mexicano"
+                    displayFormat="code-name"
+                    disabled
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                  />
+                )}
+              </RHFCatalogField>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {copy.section.amounts}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <RHFMoneyField
+                control={control}
+                name="subtotal"
+                label={copy.label.subtotal}
+              />
+              <RHFMoneyField
+                control={control}
+                name="discount"
+                label={copy.label.discount}
+              />
+              <RHFMoneyField
+                control={control}
+                name="total"
+                label={copy.label.total}
+              />
+              <RHFMoneyField
+                control={control}
+                name="total_tax"
+                label={
+                  <>
+                    {copy.label.iva}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({(taxRate * 100).toFixed(0)}%)
+                    </span>
+                  </>
+                }
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Controller
+                control={control}
+                name="apply_retained_tax"
+                render={({ field }) => (
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="apply_retained_tax"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <div className="space-y-0.5">
+                      <label
+                        htmlFor="apply_retained_tax"
+                        className="cursor-pointer text-sm font-medium leading-none"
+                      >
+                        {copy.label.retainedTaxApply}
+                      </label>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Info className="h-3 w-3 shrink-0" />
+                        {copy.hint.retainedTax}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              />
+
+              {isPersonaMoral ? (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <RHFMoneyField
+                    control={control}
+                    name="retained_tax"
+                    label={
+                      <>
+                        {copy.label.retainedTax}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          (4%)
+                        </span>
+                      </>
+                    }
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-muted-foreground">{copy.hint.amountsAuto}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {copy.section.notes}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RHFTextField
+              control={control}
+              name="notes"
+              label={copy.section.notes}
+              placeholder={copy.label.notesPlaceholder}
+            />
+          </CardContent>
+        </Card>
+
+        {showValidationSummary && validationSummaryMessages.length > 0 ? (
+          <FormValidationSummary
+            title={validationSummaryTitle}
+            messages={validationSummaryMessages}
+          />
+        ) : null}
+
+        <Separator />
+
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => navigate(shellBackHref)}>
+            {copy.label.cancel}
+          </Button>
+          <Button type="submit" disabled={isPending || isUpdating}>
+            {isPending || isUpdating
+              ? copy.label.saving
+              : isEditMode
+                ? copy.edit.submit
+                : copy.create.submit}
+          </Button>
+        </div>
+      </form>
     </InvoiceFormPageShell>
   );
 }

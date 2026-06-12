@@ -18,7 +18,11 @@ import {
 import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import {
+  getInvoiceListItemDisplayAmounts,
+  type InvoiceListItem,
+} from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { InvoiceActions } from "./InvoiceActions";
 
@@ -48,18 +52,6 @@ const TABLE_HEADERS = [
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
 ];
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatMXN(amount: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
 
 // ============================================================================
 // SUB-COMPONENTS
@@ -204,20 +196,21 @@ export function InvoiceTable({
 
               {/* Total */}
               <TableCell className="text-right font-medium">
-                {formatMXN(inv.total)}
+                {formatMxCurrency(inv.total)}
               </TableCell>
 
               {/* Saldo */}
               <TableCell className="text-right">
-                {inv.balanceDue > 0 ? (
-                  <span className="text-destructive font-medium">
-                    {formatMXN(inv.balanceDue)}
-                  </span>
-                ) : (
-                  <span className="text-success text-sm">
-                    Pagado
-                  </span>
-                )}
+                {(() => {
+                  const { balanceDue } = getInvoiceListItemDisplayAmounts(inv);
+                  return balanceDue > 0 ? (
+                    <span className="text-destructive font-medium">
+                      {formatMxCurrency(balanceDue)}
+                    </span>
+                  ) : (
+                    <span className="text-success text-sm">Pagado</span>
+                  );
+                })()}
               </TableCell>
 
               {/* Viajes */}

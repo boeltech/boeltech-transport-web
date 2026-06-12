@@ -19,10 +19,14 @@ import {
   CreditCard,
   Truck,
 } from "lucide-react";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import {
+  getInvoiceListItemDisplayAmounts,
+  type InvoiceListItem,
+} from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { InvoiceActions } from "./InvoiceActions";
 import { formatDate } from "@shared/utils/dateUtils";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 // ============================================================================
 // TYPES
@@ -32,18 +36,6 @@ interface InvoiceCardProps {
   invoice: InvoiceListItem;
   onView: (id: string) => void;
   onDelete?: (id: string) => void;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatMXN(amount: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(amount);
 }
 
 // ============================================================================
@@ -146,16 +138,17 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
           <div className="flex items-center gap-3">
             {/* Importes */}
             <div className="text-right">
-              <p className="font-semibold text-sm">{formatMXN(invoice.total)}</p>
-              {invoice.balanceDue > 0 ? (
-                <p className="text-xs text-destructive">
-                  Saldo: {formatMXN(invoice.balanceDue)}
-                </p>
-              ) : (
-                <p className="text-xs text-success">
-                  Pagado
-                </p>
-              )}
+              <p className="font-semibold text-sm">{formatMxCurrency(invoice.total)}</p>
+              {(() => {
+                const { balanceDue } = getInvoiceListItemDisplayAmounts(invoice);
+                return balanceDue > 0 ? (
+                  <p className="text-xs text-destructive">
+                    Saldo: {formatMxCurrency(balanceDue)}
+                  </p>
+                ) : (
+                  <p className="text-xs text-success">Pagado</p>
+                );
+              })()}
             </div>
 
             <Button

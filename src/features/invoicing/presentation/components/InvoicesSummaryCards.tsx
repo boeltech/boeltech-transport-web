@@ -13,14 +13,7 @@ import {
 import { StatCard, type StatCardTone } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import type { InvoiceStatus } from "@features/invoicing/domain";
-
-function formatMXN(amount: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 interface KpiCardConfig {
   label: string;
@@ -71,7 +64,7 @@ export function InvoicesSummaryCards({
     },
     {
       label: "Por cobrar",
-      value: formatMXN(totalReceivable),
+      value: formatMxCurrency(totalReceivable),
       description: "Saldo pendiente",
       icon: DollarSign,
       tone: "warning",

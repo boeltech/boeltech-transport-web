@@ -1,26 +1,35 @@
-import { useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { Download, FileText, FileCode, Loader2, Receipt, AlertCircle } from "lucide-react";
-import { Button } from "@shared/ui/button";
+import { Receipt, AlertCircle, FileText } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Separator } from "@shared/ui/separator";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
+import { NotFoundState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
-import { useRegimenFiscalLabel } from "@features/catalogs";
+import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
+import { formatDateTime } from "@shared/utils/dateUtils";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
-  useInvoice,
-  useOpenInvoicePdf,
-  downloadInvoiceXml,
-} from "@features/invoicing/application";
-import type { Invoice } from "@features/invoicing/domain";
-import { InvoiceStatusBadge, InvoiceActions } from "../components";
+  getInvoiceDisplayAmounts,
+  type Invoice,
+} from "@features/invoicing/domain";
+import { TripListRouteLabel } from "@features/trips";
+import {
+  InvoiceStatusBadge,
+  InvoiceActions,
+  CopyableUuidSubtitle,
+  buildInvoiceStats,
+  InvoiceDetailIssuerReceiverCards,
+  InvoiceDetailCfdiAmountsCard,
+  InvoicePaymentRepRow,
+} from "../components";
+import { invoicingCopy } from "../copy/invoicingCopy";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+const copy = invoicingCopy.detail;
+const DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl p-4 sm:p-6";
 
 function resolveInvoiceBackHref(
   from: string | undefined,
@@ -31,88 +40,124 @@ function resolveInvoiceBackHref(
   return "/finance?tab=invoices";
 }
 
-function formatMXN(amount: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const fromState = location.state?.from as string | undefined;
+  const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
+    null,
+  );
 
-  const { data: invoice, isLoading, isError, error } = useInvoice(id!);
+  const {
+    data: invoice,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useInvoice(id ?? "");
+
+  const { mutate: retryRep } = useRetryRepStamp(invoice?.id ?? "", {
+    onMutate: (paymentId) => setRetryingPaymentId(paymentId),
+    onSettled: () => setRetryingPaymentId(null),
+    onSuccess: () => {
+      toast({ title: copy.toast.repRetrySuccess });
+    },
+    onError: (err) => {
+      toast({
+        variant: "destructive",
+        title: copy.toast.repRetryError,
+        description: getErrorMessage(err),
+      });
+    },
+  });
 
   const handleBack = () => {
     navigate(resolveInvoiceBackHref(fromState, invoice));
   };
 
-  const { label: issuerTaxRegimeLabel } = useRegimenFiscalLabel(
-    invoice?.issuerTaxRegime,
-  );
-  const { label: receiverTaxRegimeLabel } = useRegimenFiscalLabel(
-    invoice?.receiverTaxRegime,
-  );
-
-  const { mutate: openPdf, isPending: openingPdf } = useOpenInvoicePdf({
-    onError: (err) =>
-      toast({
-        variant: "destructive",
-        title: "Error al generar PDF",
-        description: getErrorMessage(err),
-      }),
-  });
-
-  // Toast para errores de red / servidor inesperados (404 se trata inline)
-  useEffect(() => {
-    if (isError && error) {
-      const apiError = error as { status?: number };
-      if (!apiError.status || apiError.status !== 404) {
-        toast({
-          variant: "destructive",
-          title: "Error al cargar factura",
-          description: getErrorMessage(error),
-        });
-      }
-    }
-  }, [isError, error]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const shellHeaderPlaceholder = {
     backHref: resolveInvoiceBackHref(fromState, undefined),
     icon: <Receipt className="h-6 w-6" />,
-    title: "Factura",
+    title: copy.header.title,
   };
+
+  const errorState = resolveDetailQueryErrorState({
+    missingId: !id,
+    isError,
+    error,
+    hasData: !!invoice,
+  });
+
+  const displayAmounts = useMemo(
+    () => (invoice ? getInvoiceDisplayAmounts(invoice) : null),
+    [invoice],
+  );
+
+  const invoiceStats = useMemo(
+    () => (invoice ? buildInvoiceStats(invoice) : []),
+    [invoice],
+  );
 
   if (isLoading) {
     return (
       <DetailPageShell
         isLoading
+        className={DETAIL_SHELL_CLASS}
         header={shellHeaderPlaceholder}
       />
     );
   }
 
-  if (isError || !invoice) {
+  if (errorState === "serverError") {
+    return (
+      <div className={DETAIL_SHELL_CLASS}>
+        <NotFoundState
+          icon={<AlertCircle />}
+          title={copy.serverError.title}
+          description={
+            error ? getErrorMessage(error) : copy.serverError.description
+          }
+          onBackClick={() => void refetch()}
+          backLabel={copy.serverError.retry}
+        />
+      </div>
+    );
+  }
+
+  if (errorState !== "ready" || !invoice || !displayAmounts) {
+    const notFoundConfig =
+      errorState === "forbidden"
+        ? {
+            icon: <AlertCircle />,
+            title: copy.forbidden.title,
+            description: copy.forbidden.description,
+            onBackClick: handleBack,
+            backLabel: copy.notFound.backLabel,
+          }
+        : errorState === "missingId"
+          ? {
+              icon: <AlertCircle />,
+              title: copy.missingId.title,
+              description: copy.missingId.description,
+              onBackClick: handleBack,
+              backLabel: copy.notFound.backLabel,
+            }
+          : {
+              icon: <AlertCircle />,
+              title: copy.notFound.title,
+              description: error ? getErrorMessage(error) : undefined,
+              onBackClick: handleBack,
+              backLabel: copy.notFound.backLabel,
+            };
+
     return (
       <DetailPageShell
         isLoading={false}
         notFound
-        notFoundConfig={{
-          icon: <AlertCircle />,
-          title: "Factura no encontrada",
-          description: error ? getErrorMessage(error) : undefined,
-          onBackClick: handleBack,
-          backLabel: "Regresar",
-        }}
+        notFoundConfig={notFoundConfig}
+        className={DETAIL_SHELL_CLASS}
         header={shellHeaderPlaceholder}
       />
     );
@@ -123,70 +168,63 @@ export function InvoiceDetailPage() {
 
   const backHref = resolveInvoiceBackHref(fromState, invoice);
 
+  const hasAlerts = Boolean(invoice.parentInvoiceId) || isStampedLike;
+  const alerts = hasAlerts ? (
+    <div className="space-y-3">
+      {invoice.parentInvoiceId ? (
+        <AlertWithIcon variant="info">
+          {copy.hint.substitutionPrefix}{" "}
+          <Link
+            to={`/invoices/${invoice.parentInvoiceId}`}
+            state={{ from: location.pathname }}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {copy.hint.substitutionLink}
+          </Link>
+          {copy.hint.substitutionSuffix}
+        </AlertWithIcon>
+      ) : null}
+      {isStampedLike ? (
+        <AlertWithIcon variant="default">
+          {invoice.hasStampedXml
+            ? copy.hint.xmlWithContent
+            : copy.hint.xmlMissing}
+        </AlertWithIcon>
+      ) : null}
+    </div>
+  ) : undefined;
+
   return (
     <DetailPageShell
       isLoading={false}
+      className={DETAIL_SHELL_CLASS}
       header={{
         backHref,
-        backLabel: "Volver",
+        backLabel: copy.header.backLabel,
         icon: <Receipt className="h-6 w-6" />,
         title: `${invoice.serie}-${invoice.folio}`,
-        subtitle: invoice.cfdiUuid
-          ? `UUID: ${invoice.cfdiUuid}`
-          : `${invoice.receiverName} · ${invoice.receiverRfc}`,
+        subtitle: invoice.cfdiUuid ? (
+          <CopyableUuidSubtitle uuid={invoice.cfdiUuid} />
+        ) : (
+          copy.header.receiverSubtitle(
+            invoice.receiverName,
+            invoice.receiverRfc,
+          )
+        ),
         statusBadge: <InvoiceStatusBadge status={invoice.status} />,
         actions: (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <InvoiceActions
-              variant="buttons"
-              invoiceId={invoice.id}
-              invoiceSerie={invoice.serie}
-              invoiceFolio={invoice.folio}
-              invoiceStatus={invoice.status}
-              fullInvoice={invoice}
-            />
-            {isStampedLike && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    openPdf({
-                      id: invoice.id,
-                      serieFolio: `${invoice.serie}-${invoice.folio}`,
-                    })
-                  }
-                  disabled={openingPdf}
-                  title="Ver PDF"
-                >
-                  {openingPdf ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" />
-                  )}
-                  {openingPdf ? "Generando..." : "PDF"}
-                </Button>
-                {invoice.xmlContent ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      downloadInvoiceXml(
-                        invoice.xmlContent!,
-                        `${invoice.serie}-${invoice.folio}`,
-                      )
-                    }
-                    title="Descargar XML timbrado"
-                  >
-                    <FileCode className="mr-2 h-4 w-4" />
-                    XML
-                  </Button>
-                ) : null}
-              </>
-            )}
-          </div>
+          <InvoiceActions
+            variant="buttons"
+            invoiceId={invoice.id}
+            invoiceSerie={invoice.serie}
+            invoiceFolio={invoice.folio}
+            invoiceStatus={invoice.status}
+            fullInvoice={invoice}
+          />
         ),
       }}
+      alerts={hasAlerts ? alerts : undefined}
+      stats={invoiceStats}
       metadata={{
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
@@ -197,150 +235,18 @@ export function InvoiceDetailPage() {
         updatedBy: invoice.updatedByName?.trim() || undefined,
       }}
     >
-      {invoice.parentInvoiceId && (
-        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm mb-6">
-          <span className="text-muted-foreground">Esta factura sustituye a </span>
-          <Link
-            to={`/invoices/${invoice.parentInvoiceId}`}
-            state={{ from: location.pathname }}
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            la factura original
-          </Link>
-          .
-        </div>
-      )}
+      <InvoiceDetailIssuerReceiverCards invoice={invoice} />
 
-      {isStampedLike && (
-        <p className="text-xs text-muted-foreground mb-6">
-          {invoice.xmlContent
-            ? "El XML descargable es el CFDI timbrado completo (Carta Porte 3.1 y TimbreFiscalDigital van dentro del mismo archivo). El PDF de representación impresa resume el CFDI y, si el XML incluye Carta Porte, muestra un resumen de transporte."
-            : "Si no aparece el botón para descargar XML, actualice la página para volver a cargar el comprobante desde el servidor."}
-        </p>
-      )}
+      <InvoiceDetailCfdiAmountsCard
+        invoice={invoice}
+        displayAmounts={displayAmounts}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Emisor */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Emisor
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p className="font-semibold">{invoice.issuerName}</p>
-            <p className="text-muted-foreground">{invoice.issuerRfc}</p>
-            <p className="text-muted-foreground">
-              Régimen:{" "}
-              {issuerTaxRegimeLabel ?? invoice.issuerTaxRegime}
-            </p>
-            <p className="text-muted-foreground">
-              Lugar expedición: {invoice.issueLocation}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Receptor */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Receptor
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p className="font-semibold">{invoice.receiverName}</p>
-            <p className="text-muted-foreground">{invoice.receiverRfc}</p>
-            <p className="text-muted-foreground">
-              Uso CFDI: {invoice.cfdiUsage}
-            </p>
-            <p className="text-muted-foreground">
-              Régimen:{" "}
-              {receiverTaxRegimeLabel ?? invoice.receiverTaxRegime}
-            </p>
-            <p className="text-muted-foreground">
-              C.P.: {invoice.receiverPostalCode}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* CFDI Info + Importes */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Datos CFDI
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mb-4">
-            <div>
-              <p className="text-muted-foreground">Fecha emisión</p>
-              <p className="font-medium">
-                {formatDate(invoice.issuedAt.split("T")[0])}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Forma de pago</p>
-              <p className="font-medium">{invoice.paymentForm}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Método de pago</p>
-              <Badge variant="outline">{invoice.paymentMethod}</Badge>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Moneda</p>
-              <p className="font-medium">{invoice.currency}</p>
-            </div>
-          </div>
-
-          <Separator className="my-4" />
-
-          <div className="flex flex-col items-end gap-1 text-sm">
-            <div className="flex justify-between w-48">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatMXN(invoice.subtotal)}</span>
-            </div>
-            {invoice.discount > 0 && (
-              <div className="flex justify-between w-48 text-success">
-                <span>Descuento</span>
-                <span>-{formatMXN(invoice.discount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between w-48">
-              <span className="text-muted-foreground">IVA Trasladado</span>
-              <span>{formatMXN(invoice.totalTax)}</span>
-            </div>
-            {invoice.retainedTax > 0 && (
-              <div className="flex justify-between w-48 text-warning">
-                <span>IVA Retenido</span>
-                <span>-{formatMXN(invoice.retainedTax)}</span>
-              </div>
-            )}
-            <Separator className="w-48 my-1" />
-            <div className="flex justify-between w-48 font-bold text-base">
-              <span>Total</span>
-              <span>{formatMXN(invoice.total)}</span>
-            </div>
-            <div className="flex justify-between w-48 text-success">
-              <span>Pagado</span>
-              <span>{formatMXN(invoice.totalPaid)}</span>
-            </div>
-            {invoice.balanceDue > 0 && (
-              <div className="flex justify-between w-48 text-destructive font-medium">
-                <span>Saldo</span>
-                <span>{formatMXN(invoice.balanceDue)}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Viajes vinculados */}
       {invoice.trips.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Viajes vinculados ({invoice.trips.length})
+              {copy.section.linkedTrips(invoice.trips.length)}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -349,17 +255,30 @@ export function InvoiceDetailPage() {
                 key={trip.tripId}
                 className="flex items-center justify-between p-3 bg-muted/40 rounded-md text-sm"
               >
-                <div>
-                  <Badge variant="secondary" className="mr-2">
-                    {trip.tripCode}
-                  </Badge>
-                  <span className="font-medium">{trip.clientName}</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground text-xs">
-                    {trip.origin} → {trip.destination}
+                <Link
+                  to={`/trips/${trip.tripId}`}
+                  state={{ from: location.pathname }}
+                  className="inline-flex items-center gap-2 hover:underline min-w-0"
+                >
+                  <Badge variant="secondary">{trip.tripCode}</Badge>
+                  <span className="font-medium truncate">{trip.clientName}</span>
+                </Link>
+                <div className="text-right shrink-0 ml-3">
+                  <TripListRouteLabel
+                    trip={{
+                      originCity: trip.originCity,
+                      originState: trip.originState,
+                      destinationCity: trip.destinationCity,
+                      destinationState: trip.destinationState,
+                    }}
+                    className="text-muted-foreground text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {copy.label.tripBaseRate}
                   </p>
-                  <p className="font-medium">{formatMXN(trip.totalAmount)}</p>
+                  <p className="font-medium">
+                    {formatMxCurrency(trip.baseRate)}
+                  </p>
                 </div>
               </div>
             ))}
@@ -367,53 +286,32 @@ export function InvoiceDetailPage() {
         </Card>
       )}
 
-      {/* Pagos */}
       {invoice.payments.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Pagos y complementos REP ({invoice.payments.length})
+              {copy.section.payments(invoice.payments.length)}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {invoice.payments.map((payment) => (
-              <div
+              <InvoicePaymentRepRow
                 key={payment.id}
-                className="flex items-center justify-between p-3 bg-muted/40 rounded-md text-sm"
-              >
-                <div>
-                  <p className="font-medium">{formatMXN(payment.amountMxn)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(payment.paymentDate)} •{" "}
-                    {payment.paymentFormName ?? payment.paymentForm}
-                    {payment.reference && ` • Ref: ${payment.reference}`}
-                  </p>
-                  {payment.repCfdiUuid && (
-                    <p className="text-xs text-muted-foreground mt-1 font-mono">
-                      REP UUID: {payment.repCfdiUuid}
-                      {payment.repStampedAt &&
-                        ` • ${formatDate(payment.repStampedAt)}`}
-                    </p>
-                  )}
-                </div>
-                {payment.createdByName && (
-                  <span className="text-xs text-muted-foreground">
-                    {payment.createdByName}
-                  </span>
-                )}
-              </div>
+                payment={payment}
+                onRetry={retryRep}
+                retryingPaymentId={retryingPaymentId}
+              />
             ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Notas */}
       {invoice.notes && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Notas internas
+              {copy.section.notes}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -422,26 +320,28 @@ export function InvoiceDetailPage() {
         </Card>
       )}
 
-      {/* Cancelación */}
       {(invoice.status === "cancelled" ||
         invoice.status === "cancellation_pending") && (
         <Card className="border-destructive">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-destructive uppercase tracking-wide">
               {invoice.status === "cancellation_pending"
-                ? "Cancelación en proceso"
-                : "Cancelación"}
+                ? copy.section.cancellationPending
+                : copy.section.cancellation}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm space-y-1">
             {invoice.status === "cancellation_pending" && (
               <p>
-                <span className="text-muted-foreground">Estatus SAT: </span>
-                {invoice.satCancellationMessage ?? "Pendiente de aceptación del receptor"}
+                <span className="text-muted-foreground">
+                  {copy.label.satStatus}:{" "}
+                </span>
+                {invoice.satCancellationMessage ??
+                  copy.hint.cancellationPendingSat}
               </p>
             )}
             <p>
-              <span className="text-muted-foreground">Fecha: </span>
+              <span className="text-muted-foreground">{copy.label.date}: </span>
               {formatDateTime(
                 invoice.status === "cancellation_pending"
                   ? invoice.satCancellationUpdatedAt
@@ -449,16 +349,22 @@ export function InvoiceDetailPage() {
               )}
             </p>
             <p>
-              <span className="text-muted-foreground">Motivo SAT: </span>
+              <span className="text-muted-foreground">
+                {copy.label.satReason}:{" "}
+              </span>
               {invoice.cancellationCode}
             </p>
             <p>
-              <span className="text-muted-foreground">Descripción: </span>
+              <span className="text-muted-foreground">
+                {copy.label.description}:{" "}
+              </span>
               {invoice.cancellationReason}
             </p>
             {invoice.replacementCfdiUuid && (
               <p>
-                <span className="text-muted-foreground">UUID sustitución: </span>
+                <span className="text-muted-foreground">
+                  {copy.label.substitutionUuid}:{" "}
+                </span>
                 {invoice.replacementCfdiUuid}
               </p>
             )}

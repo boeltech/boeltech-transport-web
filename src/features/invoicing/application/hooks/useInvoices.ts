@@ -9,7 +9,9 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { devRefetchIntervalFn } from "@/shared/config/devPolling";
 import { invoicingApi } from "@features/invoicing/infrastructure";
+import { tripQueryKeys } from "@features/trips/domain";
 import type {
   Invoice,
   Payment,
@@ -35,13 +37,22 @@ export const invoiceQueryKeys = {
   detail: (id: string) => [...invoiceQueryKeys.details(), id] as const,
   payments: (id: string) =>
     [...invoiceQueryKeys.detail(id), "payments"] as const,
-  finance: ["finance"] as const,
-  summary: () => [...invoiceQueryKeys.finance, "summary"] as const,
-  statement: () => [...invoiceQueryKeys.finance, "statement"] as const,
   prefill: (tripId: string) =>
-    [...invoiceQueryKeys.finance, "prefill", tripId] as const,
+    [...invoiceQueryKeys.all, "prefill", tripId] as const,
 };
-const invoicePrefillQueriesKey = [...invoiceQueryKeys.finance, "prefill"] as const;
+const invoicePrefillQueriesKey = [...invoiceQueryKeys.all, "prefill"] as const;
+/** Cross-feature invalidation key (finance module owns queries under this root). */
+const financeQueryRoot = ["finance"] as const;
+
+async function invalidateAndRefetchFinance(
+  queryClient: ReturnType<typeof useQueryClient>,
+): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+  await queryClient.refetchQueries({
+    queryKey: financeQueryRoot,
+    type: "active",
+  });
+}
 
 // ============================================================================
 // QUERIES
@@ -62,6 +73,13 @@ export const useInvoice = (id: string) => {
     queryFn: () => invoicingApi.getById(id),
     enabled: !!id,
     staleTime: 30_000,
+    refetchInterval: devRefetchIntervalFn((query) => {
+      const invoice = query.state.data;
+      const hasPendingRep = invoice?.payments.some(
+        (p) => p.repStatus === "pending",
+      );
+      return hasPendingRep ? 5_000 : false;
+    }),
   });
 };
 
@@ -71,24 +89,6 @@ export const useInvoicePayments = (invoiceId: string) => {
     queryFn: () => invoicingApi.getPayments(invoiceId),
     enabled: !!invoiceId,
     staleTime: 30_000,
-  });
-};
-
-export const useFinanceSummary = (options?: { enabled?: boolean }) => {
-  return useQuery({
-    queryKey: invoiceQueryKeys.summary(),
-    queryFn: () => invoicingApi.getFinanceSummary(),
-    enabled: options?.enabled ?? true,
-    staleTime: 60_000,
-  });
-};
-
-export const useAccountStatement = (options?: { enabled?: boolean }) => {
-  return useQuery({
-    queryKey: invoiceQueryKeys.statement(),
-    queryFn: () => invoicingApi.getAccountStatement(),
-    enabled: options?.enabled ?? true,
-    staleTime: 60_000,
   });
 };
 
@@ -121,8 +121,7 @@ export function useCreateInvoice(
     ...options,
     onSuccess: (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
-      queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       options?.onSuccess?.(data, variables, context, mutation);
     },
@@ -169,8 +168,9 @@ export function useDeleteInvoice(
     ...options,
     onSuccess: (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -183,13 +183,13 @@ export function useStampInvoice(
   return useMutation({
     mutationFn: (id: string) => invoicingApi.stamp(id),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.setQueryData(invoiceQueryKeys.detail(variables), data);
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
@@ -216,12 +216,12 @@ export function useCancelInvoice(
       payload: CancelInvoicePayload;
     }) => invoicingApi.cancel(id, payload),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       options?.onSuccess?.(data, variables, context, mutation);
     },
@@ -248,7 +248,29 @@ export function useRegisterPayment(
         queryKey: invoiceQueryKeys.detail(invoiceId),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
+  });
+}
+
+export function useRetryRepStamp(
+  invoiceId: string,
+  options?: Omit<
+    UseMutationOptions<Payment, Error, string>,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentId: string) =>
+      invoicingApi.retryRepStamp(invoiceId, paymentId),
+    ...options,
+    onSuccess: (data, variables, context, mutation) => {
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(invoiceId),
+      });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -270,7 +292,7 @@ export function useSubstituteStampedInvoice(
     mutationFn: (payload: SubstituteStampedInvoicePayload) =>
       invoicingApi.substituteStampedInvoice(invoiceId, payload),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(invoiceId),
       });
@@ -278,7 +300,14 @@ export function useSubstituteStampedInvoice(
         queryKey: invoiceQueryKeys.detail(data.replacement.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.summary() });
+      const tripIds = new Set(
+        variables.corrections?.tripCorrections?.map((entry) => entry.tripId) ??
+          [],
+      );
+      for (const tripId of tripIds) {
+        queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      }
+      await invalidateAndRefetchFinance(queryClient);
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -311,9 +340,20 @@ export function useOpenInvoicePdf(
 
 /**
  * Descarga XML timbrado usando la capa de aplicación.
- * Evita imports directos de infraestructura en presentation.
  */
-export function downloadInvoiceXml(xmlContent: string, serieFolio: string): void {
-  invoicingApi.downloadXml(xmlContent, serieFolio);
+export function downloadInvoiceXml(invoiceId: string, serieFolio: string): void {
+  void invoicingApi.downloadXmlById(invoiceId, serieFolio);
+}
+
+export function useDownloadInvoiceXml(
+  options?: Omit<
+    UseMutationOptions<void, Error, { id: string; serieFolio: string }>,
+    "mutationFn"
+  >,
+) {
+  return useMutation({
+    mutationFn: ({ id, serieFolio }) => invoicingApi.downloadXmlById(id, serieFolio),
+    ...options,
+  });
 }
 

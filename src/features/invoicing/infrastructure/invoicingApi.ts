@@ -10,8 +10,6 @@ import { apiClient } from "@shared/api";
 import type {
   Invoice,
   Payment,
-  FinanceSummary,
-  AccountStatementItem,
   InvoicePrefill,
   PaginatedInvoices,
   CreateInvoicePayload,
@@ -26,8 +24,6 @@ import {
   mapInvoice,
   mapInvoiceListItem,
   mapPayment,
-  mapFinanceSummary,
-  mapAccountStatementItem,
   mapInvoicePrefill,
   toApiCreateInvoice,
   toApiUpdateInvoice,
@@ -35,7 +31,6 @@ import {
   toApiCreatePayment,
   toApiSubstituteStampedInvoice,
 } from "./mappers";
-import { decodeHtmlEntityEncodedXml } from "@shared/utils/decodeHtmlEntityXml";
 
 const INVOICES = "/invoices";
 const FINANCE = "/finance";
@@ -170,6 +165,16 @@ export const invoicingApi = {
     return mapPayment(response.data as Record<string, unknown>);
   },
 
+  retryRepStamp: async (
+    invoiceId: string,
+    paymentId: string,
+  ): Promise<Payment> => {
+    const response = await apiClient.post<{ data: unknown }>(
+      `${INVOICES}/${invoiceId}/payments/${paymentId}/retry-rep`,
+    );
+    return mapPayment(response.data as Record<string, unknown>);
+  },
+
   // ──────────────────────────────────────────────────────────────────────────
   // PDF / XML
   // ──────────────────────────────────────────────────────────────────────────
@@ -203,16 +208,14 @@ export const invoicingApi = {
     window.URL.revokeObjectURL(url);
   },
 
-  /**
-   * Descarga el XML timbrado (CFDI + complementos, p. ej. Carta Porte 3.1 y TFD).
-   * Usa el `xmlContent` ya cargado en la factura (GET /invoices/:id).
-   */
-  downloadXml: (xmlContent: string, serieFolio: string): void => {
-    const decoded = decodeHtmlEntityEncodedXml(xmlContent);
-    const blob = new Blob([decoded], {
-      type: "application/xml;charset=utf-8",
+  downloadXmlById: async (id: string, serieFolio: string): Promise<void> => {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.get<Blob>(`${INVOICES}/${id}/xml`, {
+      responseType: "blob",
     });
-    const url = window.URL.createObjectURL(blob);
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/xml;charset=utf-8" }),
+    );
     const link = document.createElement("a");
     link.href = url;
     link.download = `cfdi-${serieFolio}.xml`;
@@ -220,26 +223,6 @@ export const invoicingApi = {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  },
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // FINANCE SUMMARY & ACCOUNT STATEMENT
-  // ──────────────────────────────────────────────────────────────────────────
-
-  getFinanceSummary: async (): Promise<FinanceSummary> => {
-    const response = await apiClient.get<{ data: unknown }>(
-      `${FINANCE}/summary`,
-    );
-    return mapFinanceSummary(response.data as Record<string, unknown>);
-  },
-
-  getAccountStatement: async (): Promise<AccountStatementItem[]> => {
-    const response = await apiClient.get<{ data: unknown[] }>(
-      `${FINANCE}/account-statement`,
-    );
-    return (response.data as unknown[]).map((item) =>
-      mapAccountStatementItem(item as Record<string, unknown>),
-    );
   },
 
   // ──────────────────────────────────────────────────────────────────────────
