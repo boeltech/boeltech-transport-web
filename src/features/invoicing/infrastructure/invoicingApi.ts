@@ -175,6 +175,52 @@ export const invoicingApi = {
     return mapPayment(response.data as Record<string, unknown>);
   },
 
+  downloadRepXmlById: async (
+    invoiceId: string,
+    paymentId: string,
+    filename: string,
+  ): Promise<void> => {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.get<Blob>(
+      `${INVOICES}/${invoiceId}/payments/${paymentId}/xml`,
+      { responseType: "blob" },
+    );
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/xml;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  openRepPdf: async (
+    invoiceId: string,
+    paymentId: string,
+    filename: string,
+  ): Promise<void> => {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.get<Blob>(
+      `${INVOICES}/${invoiceId}/payments/${paymentId}/pdf`,
+      { responseType: "blob" },
+    );
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
   // ──────────────────────────────────────────────────────────────────────────
   // PDF / XML
   // ──────────────────────────────────────────────────────────────────────────

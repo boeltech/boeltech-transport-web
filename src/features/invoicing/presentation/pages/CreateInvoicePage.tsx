@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info } from "lucide-react";
 import { usePermissions } from "@shared/permissions";
 import { InvoiceFormPageShell } from "../components/InvoiceFormPageShell";
 import { InvoiceCreateContextCards } from "../components/InvoiceCreateContextCards";
+import { InvoiceFiscalComprobanteCard } from "../components/InvoiceFiscalComprobanteCard";
 import {
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
@@ -14,35 +14,23 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   defaultInvoiceFormValues,
   invoiceFormSchema,
+  mapFormConceptToPayload,
+  mapInvoiceConceptToFormInput,
+  defaultFleteConceptFormLine,
   parseCreateInvoicePayload,
   parseDraftInvoicePayload,
-  RETAINED_TAX_RATE,
   type InvoiceFormValues,
 } from "../validation/invoiceFormSchema";
+import { InvoiceConceptsEditor } from "../components/InvoiceConceptsEditor";
+import { InvoiceAmountsSummaryPanel } from "../components/InvoiceAmountsSummaryPanel";
 import { formatInvoiceApiErrorMessages } from "../validation/formatInvoiceApiErrors";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
-import { Checkbox } from "@shared/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Separator } from "@shared/ui/separator";
-import {
-  FormFieldShell,
-  FormValidationSummary,
-  RHFCatalogField,
-  RHFMoneyField,
-  RHFTextField,
-  getFieldErrorAriaProps,
-} from "@shared/ui/form";
+import { FormValidationSummary, RHFTextField } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
-import {
-  FormaPagoSelect,
-  MetodoPagoSelect,
-  UsoCfdiSelect,
-  RegimenFiscalSelect,
-  CatalogSelect,
-} from "@features/catalogs/presentation/components";
 import {
   useCreateInvoice,
   useInvoice,
@@ -119,11 +107,8 @@ export function CreateInvoicePage() {
 
   const { control } = form;
 
-  const subtotal = useWatch({ control: form.control, name: "subtotal" });
-  const discount = useWatch({ control: form.control, name: "discount" });
-  const applyRetainedTax = useWatch({ control: form.control, name: "apply_retained_tax" });
+  const receiverName = useWatch({ control: form.control, name: "receiver_name" });
   const taxRate = prefill?.taxRate ?? 0.16;
-  const isPersonaMoral = !!applyRetainedTax;
 
   useEffect(() => {
     if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError) {
@@ -154,6 +139,7 @@ export function CreateInvoicePage() {
   useEffect(() => {
     if (!isEditMode && prefill) {
       const personaMoral = prefill.clientType === "company";
+      const resolvedTaxRate = prefill.taxRate ?? 0.16;
       form.reset({
         trip_ids: tripId ? [tripId] : [],
         receiver_rfc: prefill.receiverRfc ?? "",
@@ -166,7 +152,16 @@ export function CreateInvoicePage() {
         currency: "MXN",
         subtotal: prefill.subtotal ?? 0,
         discount: 0,
-        apply_retained_tax: personaMoral,
+        apply_retained_tax: false,
+        concepts:
+          prefill.suggestedConcepts.length > 0
+            ? prefill.suggestedConcepts.map(mapInvoiceConceptToFormInput)
+            : [
+                defaultFleteConceptFormLine(prefill.subtotal ?? 0, {
+                  taxRate: resolvedTaxRate,
+                  retencionAplica: personaMoral,
+                }),
+              ],
         total_tax: prefill.totalTax ?? 0,
         retained_tax: prefill.retainedTax ?? 0,
         total: prefill.total ?? 0,
@@ -193,25 +188,16 @@ export function CreateInvoicePage() {
           ? editableInvoice.discount
           : 0,
       apply_retained_tax: (editableInvoice.retainedTax ?? 0) > 0,
+      concepts:
+        editableInvoice.concepts.length > 0
+          ? editableInvoice.concepts.map(mapInvoiceConceptToFormInput)
+          : defaultInvoiceFormValues().concepts,
       total_tax: editableInvoice.totalTax ?? 0,
       retained_tax: editableInvoice.retainedTax ?? 0,
       total: editableInvoice.total ?? 0,
       notes: editableInvoice.notes ?? "",
     });
   }, [isEditMode, editableInvoice, form]);
-
-  useEffect(() => {
-    const base = (subtotal ?? 0) - (discount ?? 0);
-    if (base < 0) return;
-    const tax = Math.round(base * taxRate * 100) / 100;
-    const retained = applyRetainedTax
-      ? Math.round(base * RETAINED_TAX_RATE * 100) / 100
-      : 0;
-    const total = Math.round((base + tax - retained) * 100) / 100;
-    form.setValue("total_tax", tax, { shouldValidate: false });
-    form.setValue("retained_tax", retained, { shouldValidate: false });
-    form.setValue("total", total, { shouldValidate: false });
-  }, [subtotal, discount, taxRate, applyRetainedTax]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Moneda fija temporal: el sistema solo soporta MXN.
   useEffect(() => {
@@ -271,6 +257,7 @@ export function CreateInvoicePage() {
           totalTax: payload.total_tax,
           retainedTax: payload.retained_tax,
           total: payload.total,
+          concepts: payload.concepts?.map(mapFormConceptToPayload),
           notes: payload.notes || null,
         },
       });
@@ -314,6 +301,7 @@ export function CreateInvoicePage() {
       totalTax: payload.total_tax,
       retainedTax: payload.retained_tax,
       total: payload.total,
+      concepts: payload.concepts?.map(mapFormConceptToPayload),
       notes: payload.notes || undefined,
     });
   };
@@ -471,251 +459,62 @@ export function CreateInvoicePage() {
           prefill={prefill}
           tripId={tripId}
           invoice={editableInvoice}
+          receiverName={receiverName}
         />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.section.receiver}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Controller
-                control={control}
-                name="receiver_rfc"
-                render={({ field, fieldState }) => (
-                  <FormFieldShell
-                    fieldId="receiver_rfc"
-                    label={copy.label.rfc}
-                    errorMessage={fieldState.error?.message}
-                  >
-                    <Input
-                      id="receiver_rfc"
-                      placeholder="XAXX010101000"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(
-                        "receiver_rfc",
-                        fieldState.error?.message,
-                      )}
-                    />
-                  </FormFieldShell>
-                )}
-              />
-              <RHFTextField
-                control={control}
-                name="receiver_postal_code"
-                label={copy.label.postalCode}
-                placeholder="12345"
-                maxLength={5}
-              />
+        <InvoiceFiscalComprobanteCard control={control} />
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  {copy.section.concepts}
+                </CardTitle>
+                <CardDescription>{copy.concepts.sectionDescription}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <InvoiceConceptsEditor
+                  control={control}
+                  setValue={form.setValue}
+                  taxRate={taxRate}
+                  tripBaseRate={tripContext?.costs?.baseRate ?? prefill?.subtotal}
+                />
+              </CardContent>
+            </Card>
+
+            <div className="xl:hidden">
+              <InvoiceAmountsSummaryPanel control={control} />
             </div>
 
-            <RHFTextField
-              control={control}
-              name="receiver_name"
-              label={copy.label.receiverName}
-              placeholder="Nombre del receptor"
-            />
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  {copy.section.notes}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RHFTextField
+                  control={control}
+                  name="notes"
+                  label={copy.section.notes}
+                  placeholder={copy.label.notesPlaceholder}
+                />
+              </CardContent>
+            </Card>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <RHFCatalogField
-                control={control}
-                name="receiver_tax_regime"
-                label={copy.label.taxRegime}
-              >
-                {({ field, fieldState, resolvedId, errorMessage }) => (
-                  <RegimenFiscalSelect
-                    triggerId={resolvedId}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder="Selecciona régimen"
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                  />
-                )}
-              </RHFCatalogField>
-              <RHFCatalogField control={control} name="cfdi_usage" label={copy.label.cfdiUsage}>
-                {({ field, fieldState, resolvedId, errorMessage }) => (
-                  <UsoCfdiSelect
-                    triggerId={resolvedId}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder="Selecciona uso"
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                  />
-                )}
-              </RHFCatalogField>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.section.cfdi}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <RHFCatalogField control={control} name="payment_form" label={copy.label.paymentForm}>
-                {({ field, fieldState, resolvedId, errorMessage }) => (
-                  <FormaPagoSelect
-                    triggerId={resolvedId}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder="Selecciona"
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                  />
-                )}
-              </RHFCatalogField>
-              <RHFCatalogField
-                control={control}
-                name="payment_method"
-                label={copy.label.paymentMethod}
-              >
-                {({ field, fieldState, resolvedId, errorMessage }) => (
-                  <MetodoPagoSelect
-                    triggerId={resolvedId}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder="Selecciona"
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                  />
-                )}
-              </RHFCatalogField>
-              <RHFCatalogField control={control} name="currency" label={copy.label.currency}>
-                {({ field, fieldState, resolvedId, errorMessage }) => (
-                  <CatalogSelect
-                    typeCode="sat_moneda"
-                    triggerId={resolvedId}
-                    value="MXN"
-                    onValueChange={field.onChange}
-                    placeholder="MXN - Peso Mexicano"
-                    displayFormat="code-name"
-                    disabled
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                  />
-                )}
-              </RHFCatalogField>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.section.amounts}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <RHFMoneyField
-                control={control}
-                name="subtotal"
-                label={copy.label.subtotal}
+            {showValidationSummary && validationSummaryMessages.length > 0 ? (
+              <FormValidationSummary
+                title={validationSummaryTitle}
+                messages={validationSummaryMessages}
               />
-              <RHFMoneyField
-                control={control}
-                name="discount"
-                label={copy.label.discount}
-              />
-              <RHFMoneyField
-                control={control}
-                name="total"
-                label={copy.label.total}
-              />
-              <RHFMoneyField
-                control={control}
-                name="total_tax"
-                label={
-                  <>
-                    {copy.label.iva}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      ({(taxRate * 100).toFixed(0)}%)
-                    </span>
-                  </>
-                }
-              />
-            </div>
+            ) : null}
+          </div>
 
-            <div className="space-y-3">
-              <Controller
-                control={control}
-                name="apply_retained_tax"
-                render={({ field }) => (
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="apply_retained_tax"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                    <div className="space-y-0.5">
-                      <label
-                        htmlFor="apply_retained_tax"
-                        className="cursor-pointer text-sm font-medium leading-none"
-                      >
-                        {copy.label.retainedTaxApply}
-                      </label>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Info className="h-3 w-3 shrink-0" />
-                        {copy.hint.retainedTax}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              />
-
-              {isPersonaMoral ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <RHFMoneyField
-                    control={control}
-                    name="retained_tax"
-                    label={
-                      <>
-                        {copy.label.retainedTax}{" "}
-                        <span className="text-xs font-normal text-muted-foreground">
-                          (4%)
-                        </span>
-                      </>
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-
-            <p className="text-xs text-muted-foreground">{copy.hint.amountsAuto}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.section.notes}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RHFTextField
-              control={control}
-              name="notes"
-              label={copy.section.notes}
-              placeholder={copy.label.notesPlaceholder}
-            />
-          </CardContent>
-        </Card>
-
-        {showValidationSummary && validationSummaryMessages.length > 0 ? (
-          <FormValidationSummary
-            title={validationSummaryTitle}
-            messages={validationSummaryMessages}
-          />
-        ) : null}
+          <aside className="hidden space-y-4 xl:sticky xl:top-4 xl:block xl:self-start">
+            <InvoiceAmountsSummaryPanel control={control} />
+          </aside>
+        </div>
 
         <Separator />
 

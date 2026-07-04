@@ -79,6 +79,8 @@ export interface Invoice {
   readonly notes: string | null;
   // Viajes vinculados
   readonly trips: InvoiceTripRef[];
+  /** Partidas CFDI (ADR-0061). */
+  readonly concepts: InvoiceConcept[];
   // Pagos
   readonly payments: Payment[];
   readonly totalPaid: number;
@@ -137,11 +139,39 @@ export interface InvoiceTripRef {
   readonly baseRate: number;
 }
 
+export type InvoiceLineConceptType = "flete" | "service";
+
+export interface InvoiceConcept {
+  readonly id?: string;
+  readonly sortOrder?: number;
+  readonly conceptType: InvoiceLineConceptType;
+  readonly serviceConceptId?: string;
+  readonly claveProdServ: string;
+  readonly claveUnidad: string;
+  readonly unidad: string;
+  readonly description: string;
+  readonly quantity: number;
+  readonly unitPrice: number;
+  readonly amount: number;
+  readonly objectImp: "01" | "02" | "03" | "04";
+  readonly ivaRate?: number;
+  readonly retainedIvaRate?: number;
+  readonly ivaAmount?: number;
+  readonly retainedIvaAmount?: number;
+}
+
 // ============================================================================
 // PAYMENTS
 // ============================================================================
 
-export type RepStatus = "not_required" | "pending" | "stamped" | "failed";
+export type RepStatus =
+  | "not_required"
+  | "pending"
+  | "stamped"
+  | "failed"
+  | "restamp_pending"
+  | "cancelling"
+  | "cancelled";
 
 export interface Payment {
   readonly id: string;
@@ -151,6 +181,7 @@ export interface Payment {
   readonly exchangeRate: number;
   readonly amountMxn: number;
   readonly paymentDate: string;
+  readonly paymentTime: string;
   readonly paymentForm: string;
   readonly paymentFormName: string | null;
   readonly reference: string | null;
@@ -163,6 +194,11 @@ export interface Payment {
   readonly repStatus: RepStatus;
   readonly repAttempts: number;
   readonly repLastError: string | null;
+  readonly hasRepXml: boolean;
+  readonly repNumParcialidad: number | null;
+  readonly repImpSaldoAnt: number | null;
+  readonly repImpSaldoInsoluto: number | null;
+  readonly repImpPagado: number | null;
 }
 
 // ============================================================================
@@ -192,6 +228,7 @@ export interface InvoicePrefill {
   readonly clientType: string;
   readonly tripId: string;
   readonly tripCode: string;
+  readonly suggestedConcepts: InvoiceConcept[];
 }
 
 // ============================================================================
@@ -225,6 +262,7 @@ export interface CreateInvoicePayload {
   paymentMethod: string;
   currency: string;
   exchangeRate?: number;
+  concepts?: InvoiceConcept[];
   subtotal: number;
   discount?: number;
   totalTax: number;
@@ -243,6 +281,7 @@ export interface UpdateInvoicePayload {
   paymentMethod?: string;
   currency?: string;
   exchangeRate?: number;
+  concepts?: InvoiceConcept[];
   subtotal?: number;
   discount?: number;
   totalTax?: number;
@@ -262,11 +301,17 @@ export interface PaymentAllocationPayload {
   readonly amount: number;
 }
 
+import type { CreateTripStopAddressInput } from "@boeltech/cfdi-domain/validadores/address";
+
 export interface TripCorrectionEntry {
   readonly tripId: string;
-  readonly stopId: string;
-  readonly rfcRemitenteDestinatario: string;
+  readonly stopId?: string;
+  readonly rfcRemitenteDestinatario?: string;
   readonly nombreRemitenteDestinatario?: string;
+  readonly driverId?: string;
+  readonly vehicleId?: string;
+  readonly addressId?: string;
+  readonly stopAddress?: CreateTripStopAddressInput;
   readonly reason: string;
   readonly propagateToClient?: boolean;
 }
@@ -284,7 +329,10 @@ export interface SubstituteStampedInvoiceCorrections {
   readonly totalTax?: number;
   readonly retainedTax?: number;
   readonly total?: number;
+  /** Snapshot completo de partidas del sustituto (ADR-0061 x ADR-0051 §6.1). */
+  readonly concepts?: InvoiceConcept[];
   readonly tripCorrections?: TripCorrectionEntry[];
+  readonly propagateReceiverToClient?: boolean;
 }
 
 export interface SubstituteStampedInvoicePayload {
@@ -303,11 +351,13 @@ export interface CreatePaymentPayload {
   currency?: string;
   exchangeRate?: number;
   paymentDate: string;
+  paymentTime?: string;
   paymentForm: string;
   reference?: string;
   notes?: string;
   /** Opcional; si se omite y hay REP, la API aplica el monto a la factura actual. */
   allocations?: PaymentAllocationPayload[];
+  confirmChainRepair?: boolean;
 }
 
 export interface InvoiceFilters {

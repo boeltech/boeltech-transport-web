@@ -3,6 +3,7 @@ export type {
   Invoice,
   InvoiceListItem,
   InvoiceTripRef,
+  InvoiceConcept,
   Payment,
   RepStatus,
   InvoicePrefill,

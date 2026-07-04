@@ -24,6 +24,12 @@ vi.mock("../components/InvoiceActions", () => ({
 }));
 
 vi.mock("../components/InvoiceDetailFiscalLabels", () => ({
+  InvoiceDetailComprobanteCard: () => (
+    <div data-testid="comprobante-card" />
+  ),
+  InvoiceDetailAmountsPanel: () => (
+    <div data-testid="amounts-panel" />
+  ),
   InvoiceDetailIssuerReceiverCards: () => (
     <div data-testid="issuer-receiver-cards" />
   ),
@@ -80,6 +86,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     replacementCfdiUuid: null,
     notes: null,
     trips: [],
+    concepts: [],
     payments: [],
     totalPaid: 1160,
     balanceDue: 0,
@@ -142,9 +149,9 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getByText("$0.00")).toBeInTheDocument();
   });
 
-  it("shows substitution alert when parentInvoiceId is set", () => {
+  it("shows substitution alert for active substitute with parentInvoiceId", () => {
     useInvoiceMock.mockReturnValue({
-      data: buildInvoice({ parentInvoiceId: "parent-inv-1" }),
+      data: buildInvoice({ parentInvoiceId: "parent-inv-1", status: "stamped" }),
       isLoading: false,
       isError: false,
       error: null,
@@ -160,6 +167,24 @@ describe("InvoiceDetailPage", () => {
       "href",
       "/invoices/parent-inv-1",
     );
+  });
+
+  it("hides substitution alert when cancelled substitute still has parentInvoiceId", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        parentInvoiceId: "parent-inv-1",
+        status: "cancelled",
+        hasStampedXml: false,
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.queryByText(/Esta factura sustituye a/i)).not.toBeInTheDocument();
   });
 
   it("shows forbidden state on 403", () => {

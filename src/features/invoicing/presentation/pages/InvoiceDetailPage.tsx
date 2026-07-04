@@ -1,32 +1,38 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
-import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
   type Invoice,
 } from "@features/invoicing/domain";
-import { TripListRouteLabel } from "@features/trips";
 import {
   InvoiceStatusBadge,
   InvoiceActions,
-  CopyableUuidSubtitle,
+  InvoiceDetailHeaderSubtitle,
   buildInvoiceStats,
-  InvoiceDetailIssuerReceiverCards,
-  InvoiceDetailCfdiAmountsCard,
+  InvoiceDetailContextStrip,
+  InvoiceDetailComprobanteCard,
+  InvoiceDetailAmountsPanel,
   InvoicePaymentRepRow,
 } from "../components";
+import { InvoiceDetailConceptsCard } from "../components/InvoiceDetailConceptsCard";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import {
+  hasRepFiscalDeadlineAlert,
+  getWorstRepFiscalDeadlineStatus,
+  formatRepFiscalDeadlineLabel,
+  getRepFiscalDeadlineForPayment,
+} from "../helpers/repFiscalDeadlineUx";
 
 const copy = invoicingCopy.detail;
 const DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl p-4 sm:p-6";
@@ -45,6 +51,8 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canExportFiles = hasPermission("invoices", "export");
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
     null,
@@ -99,6 +107,27 @@ export function InvoiceDetailPage() {
     () => (invoice ? buildInvoiceStats(invoice) : []),
     [invoice],
   );
+
+  const repFiscalWorstStatus = useMemo(
+    () => (invoice ? getWorstRepFiscalDeadlineStatus(invoice.payments) : null),
+    [invoice],
+  );
+  const showRepFiscalAlert = invoice
+    ? hasRepFiscalDeadlineAlert(invoice.payments)
+    : false;
+  const repFiscalDeadlineLabel = useMemo(() => {
+    if (!invoice) return "";
+    const alertPayment = invoice.payments.find((p) => {
+      if (p.repStatus !== "pending" && p.repStatus !== "failed") return false;
+      const { status } = getRepFiscalDeadlineForPayment(p);
+      return status === "approaching" || status === "overdue";
+    });
+    return alertPayment
+      ? formatRepFiscalDeadlineLabel(
+          getRepFiscalDeadlineForPayment(alertPayment).deadlineDate,
+        )
+      : "";
+  }, [invoice]);
 
   if (isLoading) {
     return (
@@ -166,12 +195,24 @@ export function InvoiceDetailPage() {
   const isStampedLike =
     invoice.status === "stamped" || invoice.status === "cancellation_pending";
 
+  /** Sustituto vigente en la cadena (p. ej. A-18), no intermedios ya cancelados (p. ej. A-17). */
+  const isActiveSubstitute =
+    Boolean(invoice.parentInvoiceId) && invoice.status !== "cancelled";
+
   const backHref = resolveInvoiceBackHref(fromState, invoice);
 
-  const hasAlerts = Boolean(invoice.parentInvoiceId) || isStampedLike;
+  const hasAlerts =
+    isActiveSubstitute || isStampedLike || showRepFiscalAlert;
   const alerts = hasAlerts ? (
     <div className="space-y-3">
-      {invoice.parentInvoiceId ? (
+      {showRepFiscalAlert && repFiscalWorstStatus ? (
+        <AlertWithIcon variant="warning" title={copy.label.repFiscalDeadline}>
+          {repFiscalWorstStatus === "overdue"
+            ? copy.hint.repFiscalDeadlineOverdue(repFiscalDeadlineLabel)
+            : copy.hint.repFiscalDeadlineApproaching(repFiscalDeadlineLabel)}
+        </AlertWithIcon>
+      ) : null}
+      {isActiveSubstitute ? (
         <AlertWithIcon variant="info">
           {copy.hint.substitutionPrefix}{" "}
           <Link
@@ -185,10 +226,17 @@ export function InvoiceDetailPage() {
         </AlertWithIcon>
       ) : null}
       {isStampedLike ? (
-        <AlertWithIcon variant="default">
+        <AlertWithIcon
+          variant={invoice.hasStampedXml ? "info" : "warning"}
+          title={
+            invoice.hasStampedXml
+              ? copy.hint.filesAlertTitle
+              : copy.hint.xmlMissingTitle
+          }
+        >
           {invoice.hasStampedXml
-            ? copy.hint.xmlWithContent
-            : copy.hint.xmlMissing}
+            ? copy.hint.filesAlertDescription
+            : copy.hint.xmlMissingDescription}
         </AlertWithIcon>
       ) : null}
     </div>
@@ -202,16 +250,19 @@ export function InvoiceDetailPage() {
         backHref,
         backLabel: copy.header.backLabel,
         icon: <Receipt className="h-6 w-6" />,
-        title: `${invoice.serie}-${invoice.folio}`,
-        subtitle: invoice.cfdiUuid ? (
-          <CopyableUuidSubtitle uuid={invoice.cfdiUuid} />
-        ) : (
-          copy.header.receiverSubtitle(
-            invoice.receiverName,
-            invoice.receiverRfc,
-          )
+        title: (
+          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>{`${invoice.serie}-${invoice.folio}`}</span>
+            <InvoiceStatusBadge status={invoice.status} showIcon size="sm" />
+          </span>
         ),
-        statusBadge: <InvoiceStatusBadge status={invoice.status} />,
+        subtitle: (
+          <InvoiceDetailHeaderSubtitle
+            receiverName={invoice.receiverName}
+            receiverRfc={invoice.receiverRfc}
+            cfdiUuid={invoice.cfdiUuid}
+          />
+        ),
         actions: (
           <InvoiceActions
             variant="buttons"
@@ -235,56 +286,17 @@ export function InvoiceDetailPage() {
         updatedBy: invoice.updatedByName?.trim() || undefined,
       }}
     >
-      <InvoiceDetailIssuerReceiverCards invoice={invoice} />
+      <InvoiceDetailContextStrip invoice={invoice} fromPath={location.pathname} />
 
-      <InvoiceDetailCfdiAmountsCard
-        invoice={invoice}
-        displayAmounts={displayAmounts}
-      />
+      <InvoiceDetailComprobanteCard invoice={invoice} />
 
-      {invoice.trips.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              {copy.section.linkedTrips(invoice.trips.length)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {invoice.trips.map((trip) => (
-              <div
-                key={trip.tripId}
-                className="flex items-center justify-between p-3 bg-muted/40 rounded-md text-sm"
-              >
-                <Link
-                  to={`/trips/${trip.tripId}`}
-                  state={{ from: location.pathname }}
-                  className="inline-flex items-center gap-2 hover:underline min-w-0"
-                >
-                  <Badge variant="secondary">{trip.tripCode}</Badge>
-                  <span className="font-medium truncate">{trip.clientName}</span>
-                </Link>
-                <div className="text-right shrink-0 ml-3">
-                  <TripListRouteLabel
-                    trip={{
-                      originCity: trip.originCity,
-                      originState: trip.originState,
-                      destinationCity: trip.destinationCity,
-                      destinationState: trip.destinationState,
-                    }}
-                    className="text-muted-foreground text-xs"
-                  />
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {copy.label.tripBaseRate}
-                  </p>
-                  <p className="font-medium">
-                    {formatMxCurrency(trip.baseRate)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
+        <InvoiceDetailConceptsCard concepts={invoice.concepts} />
+        <InvoiceDetailAmountsPanel
+          invoice={invoice}
+          displayAmounts={displayAmounts}
+        />
+      </div>
 
       {invoice.payments.length > 0 && (
         <Card>
@@ -298,6 +310,9 @@ export function InvoiceDetailPage() {
               <InvoicePaymentRepRow
                 key={payment.id}
                 payment={payment}
+                invoiceId={invoice.id}
+                invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
+                canExportFiles={canExportFiles}
                 onRetry={retryRep}
                 retryingPaymentId={retryingPaymentId}
               />

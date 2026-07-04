@@ -11,6 +11,7 @@ import type {
   InvoiceTripRef,
   Payment,
   InvoicePrefill,
+  InvoiceConcept,
   CreateInvoicePayload,
   UpdateInvoicePayload,
   CancelInvoicePayload,
@@ -30,6 +31,7 @@ interface ApiPayment {
   exchange_rate: number;
   amount_mxn: number;
   payment_date: string;
+  payment_time?: string;
   payment_form: string;
   payment_form_name: string | null;
   reference: string | null;
@@ -39,6 +41,11 @@ interface ApiPayment {
   rep_status?: string;
   rep_attempts?: number;
   rep_last_error?: string | null;
+  has_rep_xml?: boolean;
+  rep_num_parcialidad?: number | null;
+  rep_imp_saldo_ant?: number | null;
+  rep_imp_saldo_insoluto?: number | null;
+  rep_imp_pagado?: number | null;
   created_at: string;
   created_by_name: string | null;
 }
@@ -53,6 +60,25 @@ interface ApiTripRef {
   destination_city: string;
   destination_state: string | null;
   base_rate: number;
+}
+
+interface ApiInvoiceConcept {
+  id?: string;
+  sort_order?: number;
+  concept_type: string;
+  service_concept_id?: string | null;
+  clave_prod_serv: string;
+  clave_unidad: string;
+  unidad: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  object_imp: string;
+  iva_rate?: number;
+  retained_iva_rate?: number;
+  iva_amount?: number;
+  retained_iva_amount?: number;
 }
 
 interface ApiInvoice {
@@ -98,6 +124,7 @@ interface ApiInvoice {
   replacement_cfdi_uuid: string | null;
   notes: string | null;
   trips: ApiTripRef[];
+  concepts?: ApiInvoiceConcept[];
   payments: ApiPayment[];
   total_paid: number;
   balance_due: number;
@@ -160,6 +187,7 @@ interface ApiInvoicePrefill {
   client_type: string;
   trip_id: string;
   trip_code: string;
+  suggested_concepts?: ApiInvoiceConcept[];
 }
 
 // ============================================================================
@@ -176,6 +204,7 @@ export function mapPayment(raw: unknown): Payment {
     exchangeRate: payment.exchange_rate,
     amountMxn: payment.amount_mxn,
     paymentDate: payment.payment_date,
+    paymentTime: payment.payment_time ?? "12:00:00",
     paymentForm: payment.payment_form,
     paymentFormName: payment.payment_form_name,
     reference: payment.reference,
@@ -187,6 +216,49 @@ export function mapPayment(raw: unknown): Payment {
     repStatus: (payment.rep_status ?? "not_required") as Payment["repStatus"],
     repAttempts: payment.rep_attempts ?? 0,
     repLastError: payment.rep_last_error ?? null,
+    hasRepXml: payment.has_rep_xml ?? false,
+    repNumParcialidad: payment.rep_num_parcialidad ?? null,
+    repImpSaldoAnt: payment.rep_imp_saldo_ant ?? null,
+    repImpSaldoInsoluto: payment.rep_imp_saldo_insoluto ?? null,
+    repImpPagado: payment.rep_imp_pagado ?? null,
+  };
+}
+
+function mapInvoiceConcept(raw: ApiInvoiceConcept): InvoiceConcept {
+  return {
+    id: raw.id,
+    sortOrder: raw.sort_order,
+    conceptType: raw.concept_type === "service" ? "service" : "flete",
+    serviceConceptId: raw.service_concept_id ?? undefined,
+    claveProdServ: raw.clave_prod_serv,
+    claveUnidad: raw.clave_unidad,
+    unidad: raw.unidad,
+    description: raw.description,
+    quantity: raw.quantity,
+    unitPrice: raw.unit_price,
+    amount: raw.amount,
+    objectImp: (raw.object_imp ?? "02") as InvoiceConcept["objectImp"],
+    ivaRate: raw.iva_rate,
+    retainedIvaRate: raw.retained_iva_rate,
+    ivaAmount: raw.iva_amount,
+    retainedIvaAmount: raw.retained_iva_amount,
+  };
+}
+
+function toApiInvoiceConcept(concept: InvoiceConcept) {
+  return {
+    concept_type: concept.conceptType,
+    service_concept_id: concept.serviceConceptId,
+    clave_prod_serv: concept.claveProdServ,
+    clave_unidad: concept.claveUnidad,
+    unidad: concept.unidad,
+    description: concept.description,
+    quantity: concept.quantity,
+    unit_price: concept.unitPrice,
+    amount: concept.amount,
+    object_imp: concept.objectImp,
+    iva_rate: concept.ivaRate,
+    retained_iva_rate: concept.retainedIvaRate,
   };
 }
 
@@ -251,6 +323,7 @@ export function mapInvoice(raw: unknown): Invoice {
     replacementCfdiUuid: invoice.replacement_cfdi_uuid,
     notes: invoice.notes,
     trips: (invoice.trips ?? []).map(mapTripRef),
+    concepts: (invoice.concepts ?? []).map(mapInvoiceConcept),
     payments: (invoice.payments ?? []).map(mapPayment),
     totalPaid: invoice.total_paid,
     balanceDue: invoice.balance_due,
@@ -319,6 +392,7 @@ export function mapInvoicePrefill(raw: unknown): InvoicePrefill {
     clientType: prefill.client_type ?? "individual",
     tripId: prefill.trip_id,
     tripCode: prefill.trip_code,
+    suggestedConcepts: (prefill.suggested_concepts ?? []).map(mapInvoiceConcept),
   };
 }
 
@@ -338,6 +412,7 @@ export function toApiCreateInvoice(payload: CreateInvoicePayload) {
     payment_method: payload.paymentMethod,
     currency: payload.currency,
     exchange_rate: payload.exchangeRate,
+    concepts: payload.concepts?.map(toApiInvoiceConcept),
     subtotal: payload.subtotal,
     discount: payload.discount,
     total_tax: payload.totalTax,
@@ -358,6 +433,7 @@ export function toApiUpdateInvoice(payload: UpdateInvoicePayload) {
     payment_method: payload.paymentMethod,
     currency: payload.currency,
     exchange_rate: payload.exchangeRate,
+    concepts: payload.concepts?.map(toApiInvoiceConcept),
     subtotal: payload.subtotal,
     discount: payload.discount,
     total_tax: payload.totalTax,
@@ -375,12 +451,20 @@ export function toApiCancelInvoice(payload: CancelInvoicePayload) {
   };
 }
 
-type ApiSubstitutionCorrectionsBody = Record<string, string | number> & {
+type ApiSubstitutionCorrectionsBody = Record<
+  string,
+  string | number | boolean | ReturnType<typeof toApiInvoiceConcept>[]
+> & {
+  concepts?: ReturnType<typeof toApiInvoiceConcept>[];
   trip_corrections?: Array<{
     trip_id: string;
-    stop_id: string;
-    rfc_remitente_destinatario: string;
+    stop_id?: string;
+    rfc_remitente_destinatario?: string;
     nombre_remitente_destinatario?: string;
+    driver_id?: string;
+    vehicle_id?: string;
+    address_id?: string;
+    stop_address?: Record<string, unknown>;
     reason: string;
     propagate_to_client?: boolean;
   }>;
@@ -426,19 +510,31 @@ function toApiSubstitutionCorrections(
   if (corrections.total !== undefined) {
     body.total = corrections.total;
   }
+  if (corrections.concepts?.length) {
+    body.concepts = corrections.concepts.map(toApiInvoiceConcept);
+  }
   if (corrections.tripCorrections?.length) {
     body.trip_corrections = corrections.tripCorrections.map((entry) => ({
       trip_id: entry.tripId,
-      stop_id: entry.stopId,
-      rfc_remitente_destinatario: entry.rfcRemitenteDestinatario,
+      ...(entry.stopId ? { stop_id: entry.stopId } : {}),
+      ...(entry.rfcRemitenteDestinatario !== undefined
+        ? { rfc_remitente_destinatario: entry.rfcRemitenteDestinatario }
+        : {}),
       ...(entry.nombreRemitenteDestinatario !== undefined
         ? { nombre_remitente_destinatario: entry.nombreRemitenteDestinatario }
         : {}),
+      ...(entry.driverId ? { driver_id: entry.driverId } : {}),
+      ...(entry.vehicleId ? { vehicle_id: entry.vehicleId } : {}),
+      ...(entry.addressId ? { address_id: entry.addressId } : {}),
+      ...(entry.stopAddress ? { stop_address: entry.stopAddress } : {}),
       reason: entry.reason,
       ...(entry.propagateToClient !== undefined
         ? { propagate_to_client: entry.propagateToClient }
         : {}),
     }));
+  }
+  if (corrections.propagateReceiverToClient) {
+    body.propagate_receiver_to_client = true;
   }
   return body;
 }
@@ -469,11 +565,17 @@ export function toApiCreatePayment(payload: CreatePaymentPayload) {
     reference: payload.reference,
     notes: payload.notes,
   };
+  if (payload.paymentTime) {
+    body.payment_time = payload.paymentTime;
+  }
   if (payload.allocations?.length) {
     body.allocations = payload.allocations.map((a) => ({
       ingress_invoice_id: a.ingressInvoiceId,
       amount: a.amount,
     }));
+  }
+  if (payload.confirmChainRepair) {
+    body.confirm_chain_repair = true;
   }
   return body;
 }

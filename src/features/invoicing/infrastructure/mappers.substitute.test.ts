@@ -64,18 +64,62 @@ describe("toApiSubstituteStampedInvoice", () => {
     });
   });
 
-  it("maps amount corrections to snake_case", () => {
+  it("maps propagate_receiver_to_client flag", () => {
     expect(
       toApiSubstituteStampedInvoice({
-        cancellationReason: "Importe incorrecto",
-        corrections: { subtotal: 1100, totalTax: 176, total: 1276 },
+        cancellationReason: "RFC incorrecto",
+        corrections: {
+          receiverRfc: "AAA010101AAA",
+          propagateReceiverToClient: true,
+        },
       }),
     ).toEqual({
-      cancellation_reason: "Importe incorrecto",
+      cancellation_reason: "RFC incorrecto",
       corrections: {
-        subtotal: 1100,
-        total_tax: 176,
-        total: 1276,
+        receiver_rfc: "AAA010101AAA",
+        propagate_receiver_to_client: true,
+      },
+    });
+  });
+
+  it("maps trip fiscal and address corrections", () => {
+    expect(
+      toApiSubstituteStampedInvoice({
+        cancellationReason: "Corregir viaje",
+        corrections: {
+          tripCorrections: [
+            {
+              tripId: "22222222-2222-2222-2222-222222222222",
+              driverId: "b3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+              vehicleId: "c3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+              reason: "Corregir operador y unidad",
+            },
+            {
+              tripId: "22222222-2222-2222-2222-222222222222",
+              stopId: "44444444-4444-4444-4444-444444444444",
+              addressId: "d3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+              reason: "Corregir domicilio",
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      cancellation_reason: "Corregir viaje",
+      corrections: {
+        trip_corrections: [
+          {
+            trip_id: "22222222-2222-2222-2222-222222222222",
+            driver_id: "b3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+            vehicle_id: "c3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+            reason: "Corregir operador y unidad",
+          },
+          {
+            trip_id: "22222222-2222-2222-2222-222222222222",
+            stop_id: "44444444-4444-4444-4444-444444444444",
+            address_id: "d3e959df-8689-4f4c-bff2-eb2122f1f7f6",
+            reason: "Corregir domicilio",
+          },
+        ],
       },
     });
   });
