@@ -22,9 +22,21 @@ const GeneralSettingsPage = lazy(() =>
   })),
 );
 
+const TenantLocationsPage = lazy(() =>
+  import("./pages/TenantLocationsPage").then((m) => ({
+    default: m.TenantLocationsPage,
+  })),
+);
+
 const BillingSettingsPage = lazy(() =>
   import("./pages/BillingSettingsPage").then((m) => ({
     default: m.BillingSettingsPage,
+  })),
+);
+
+const BillingServiceConceptsPage = lazy(() =>
+  import("./pages/BillingServiceConceptsPage").then((m) => ({
+    default: m.BillingServiceConceptsPage,
   })),
 );
 
@@ -153,8 +165,23 @@ export function SettingsRoutes() {
           }
         />
 
+        {/* Tenant directory */}
+        <Route
+          path="locations"
+          element={
+            <PermissionGuard
+              module="settings"
+              action="update"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <TenantLocationsPage />
+            </PermissionGuard>
+          }
+        />
+
         {/* Billing Settings */}
         <Route path="billing" element={<BillingSettingsPage />} />
+        <Route path="billing/service-concepts" element={<BillingServiceConceptsPage />} />
 
         {/* Notification Settings */}
         <Route

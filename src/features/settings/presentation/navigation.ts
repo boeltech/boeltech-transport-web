@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Shield,
   Plug,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -59,6 +60,14 @@ export const settingsNavItems: SettingsNavItem[] = [
     description: "Catálogos SAT e internos del sistema",
     path: "/settings/catalogs",
     icon: Database,
+    permission: { module: "settings", action: "update" },
+  },
+  {
+    id: SettingsSection.LOCATIONS,
+    label: "Directorio",
+    description: "Bodegas y ubicaciones reutilizables para paradas",
+    path: "/settings/locations",
+    icon: MapPin,
     permission: { module: "settings", action: "update" },
   },
   {

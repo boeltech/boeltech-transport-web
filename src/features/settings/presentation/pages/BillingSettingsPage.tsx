@@ -10,6 +10,7 @@
  * Ubicación: src/features/settings/presentation/pages/BillingSettingsPage.tsx
  */
 
+import { Link } from "react-router-dom";
 import { memo, useCallback, useState } from "react";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -481,6 +482,19 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
             </AlertDescription>
           </Alert>
         )}
+
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Servicios de cobro</AlertTitle>
+          <AlertDescription>
+            Administra el catálogo reutilizable para partidas de servicio en facturas
+            (maniobras, resguardo, etc.) en{" "}
+            <Link to="/settings/billing/service-concepts" className="underline">
+              Servicios de cobro
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
 
         <fieldset
           disabled={!canUpdateSettings}

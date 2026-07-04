@@ -128,7 +128,7 @@ export const LogoUpload = memo(function LogoUpload() {
   return (
     <SettingsCard
       title="Logo de la empresa"
-      description="Tu logo aparecerá en facturas, cotizaciones y documentos"
+      description="Tu logo aparecerá en facturas y comprobantes PDF fiscales"
     >
       <div className="flex flex-col sm:flex-row gap-6">
         {/* Preview */}
@@ -232,8 +232,8 @@ export const LogoUpload = memo(function LogoUpload() {
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <p className="text-xs text-muted-foreground">
-            PNG, JPG, WebP o SVG. Máximo 2MB. Recomendado: 512x512px con fondo
-            transparente.
+            PNG, JPG, WebP o SVG. Máximo 2MB. Para PDFs fiscales usa
+            preferentemente PNG, JPG o WebP de 512x512px con fondo transparente.
           </p>
         </div>
       </div>

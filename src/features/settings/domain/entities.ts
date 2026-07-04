@@ -223,6 +223,7 @@ export interface NotificationSettings {
 export const SettingsSection = {
   GENERAL: "general",
   CATALOGS: "catalogs",
+  LOCATIONS: "locations",
   BILLING: "billing",
   NOTIFICATIONS: "notifications",
   DASHBOARD_LAYOUTS: "dashboard-layouts",
@@ -236,6 +237,7 @@ export type SettingsSectionValue =
 export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.GENERAL]: "General",
   [SettingsSection.CATALOGS]: "Catálogos",
+  [SettingsSection.LOCATIONS]: "Directorio",
   [SettingsSection.BILLING]: "Facturación",
   [SettingsSection.NOTIFICATIONS]: "Notificaciones",
   [SettingsSection.DASHBOARD_LAYOUTS]: "Dashboard",
@@ -250,6 +252,10 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
 export const settingsQueryKeys = {
   all: ["settings"] as const,
   company: () => [...settingsQueryKeys.all, "company"] as const,
+  locations: () => [...settingsQueryKeys.all, "locations"] as const,
+  location: (id: string) => [...settingsQueryKeys.locations(), id] as const,
   billing: () => [...settingsQueryKeys.all, "billing"] as const,
+  billingServiceConcepts: (params?: { search?: string; isActive?: boolean }) =>
+    [...settingsQueryKeys.all, "billing-service-concepts", params ?? {}] as const,
   notifications: () => [...settingsQueryKeys.all, "notifications"] as const,
 };
