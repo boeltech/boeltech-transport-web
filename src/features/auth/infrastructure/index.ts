@@ -6,7 +6,11 @@
  */
 
 // Storage
-export { tokenStorage } from "./storage/tokenStorage";
+export {
+  tokenStorage,
+  markFreshLoginSession,
+  consumeFreshLoginSession,
+} from "./storage/tokenStorage";
 
 // API
 export { authApi } from "./api/authApi";

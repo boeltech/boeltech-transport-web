@@ -44,7 +44,9 @@ Object.defineProperty(window, "IntersectionObserver", {
 });
 
 class MockResizeObserver implements ResizeObserver {
-  constructor(_callback: ResizeObserverCallback) {}
+  constructor(_callback: ResizeObserverCallback) {
+    void _callback;
+  }
 
   observe() {}
   unobserve() {}

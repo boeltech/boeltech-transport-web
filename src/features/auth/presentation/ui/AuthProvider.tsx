@@ -45,6 +45,8 @@ import {
   tokenStorage,
   setupAuthInterceptor,
 } from "../../infrastructure";
+import { consumeFreshLoginSession } from "../../infrastructure/storage/tokenStorage";
+import { clearSentryUser, setSentryUser } from "@/shared/observability/sentry";
 
 // ============================================
 // CONTEXT TYPE
@@ -111,6 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>(() => {
     const token = tokenStorage.getToken();
     const userData = tokenStorage.getUser();
+    const freshLogin = consumeFreshLoginSession();
 
     let user: User | null = null;
     if (userData) {
@@ -129,7 +132,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       token,
       user,
       isAuthenticated: !!token && !!user,
-      isLoading: !!token, // Si hay token, necesitamos verificarlo
+      // Tras login/register la sesión ya viene del API; evitar bloqueo extra.
+      isLoading: !!token && !freshLogin,
     };
   });
 
@@ -184,6 +188,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return detach;
   }, [handleLogout, navigate]);
+
+  useEffect(() => {
+    if (state.user) {
+      setSentryUser({
+        id: state.user.id,
+        tenantId: state.user.tenant.id,
+        role: state.user.role,
+      });
+      return;
+    }
+
+    if (!state.isLoading) {
+      clearSentryUser();
+    }
+  }, [state.user, state.isLoading]);
 
   // ==========================================
   // Sincronizar sesión entre pestañas
@@ -375,19 +394,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     ],
   );
 
-  // ==========================================
-  // Loading Screen
-  // ==========================================
-  if (state.isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Verificando sesión...</p>
+  // Provider siempre montado: evita "useAuth must be used within an AuthProvider"
+  // si algún hijo (p. ej. tras login/logout) renderiza durante la verificación inicial.
+  return (
+    <AuthContext.Provider value={value}>
+      {state.isLoading ? (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Verificando sesión...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+      ) : (
+        children
+      )}
+    </AuthContext.Provider>
+  );
 }

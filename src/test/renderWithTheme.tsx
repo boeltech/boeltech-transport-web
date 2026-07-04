@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { type ReactElement, type ReactNode } from "react";
 import { expect } from "vitest";
 import { render, type RenderOptions } from "@testing-library/react";

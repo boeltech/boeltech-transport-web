@@ -20,7 +20,11 @@ import {
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 
-import { authApi, tokenStorage } from "@features/auth/infrastructure";
+import {
+  authApi,
+  tokenStorage,
+  markFreshLoginSession,
+} from "@features/auth/infrastructure";
 import { loginSchema, type LoginFormData } from "@features/auth";
 import { mapBackendError } from "@shared/utils/errorMapper";
 
@@ -97,6 +101,7 @@ const LoginPage = () => {
       tokenStorage.setRefreshToken(response.refreshToken);
       tokenStorage.setUser(response.user);
       tokenStorage.setSubdomain(data.subdomain.toLowerCase());
+      markFreshLoginSession();
 
       if (response.user.onboardingCompletedAt == null) {
         navigate("/onboarding", { replace: true });

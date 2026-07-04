@@ -33,7 +33,10 @@ import {
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 import { apiClient } from "@shared/api";
-import { tokenStorage } from "@features/auth/infrastructure";
+import {
+  markFreshLoginSession,
+  tokenStorage,
+} from "@features/auth/infrastructure";
 import { registerSchema, type RegisterFormData, type TenantData } from "@features/auth";
 import type { UserRole } from "@shared/constants/roles";
 
@@ -181,6 +184,7 @@ const RegisterPage = () => {
         tenant: response.data.user.tenant,
       });
       tokenStorage.setSubdomain(data.subdomain);
+      markFreshLoginSession();
 
       // Ir al dashboard
       navigate("/dashboard", { replace: true });

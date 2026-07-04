@@ -21,6 +21,21 @@ const STORAGE_KEYS = {
   SUBDOMAIN: "erp_subdomain",
 } as const;
 
+/** Tras login/register en LoginPage (fuera de AuthProvider): omitir spinner de verificación. */
+const FRESH_LOGIN_KEY = "erp_auth_fresh_login";
+
+export function markFreshLoginSession(): void {
+  sessionStorage.setItem(FRESH_LOGIN_KEY, "1");
+}
+
+export function consumeFreshLoginSession(): boolean {
+  const fresh = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
+  if (fresh) {
+    sessionStorage.removeItem(FRESH_LOGIN_KEY);
+  }
+  return fresh;
+}
+
 // ============================================
 // TOKEN STORAGE IMPLEMENTATION
 // ============================================
