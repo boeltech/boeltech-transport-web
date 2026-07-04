@@ -2,6 +2,7 @@
  * Smoke WS-ADDR-PRELOAD — precarga partner en sustitución fiscal (ADR-0053 Fase 4).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { ComponentProps } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -87,6 +88,10 @@ const stop: TripStop = {
   updatedAt: new Date(),
 };
 
+type OnDeferSave = NonNullable<
+  ComponentProps<typeof TripFiscalCorrectionSheet>["onDeferSave"]
+>;
+
 function renderDeferAddressSheet(onDeferSave: ReturnType<typeof vi.fn>) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -104,7 +109,7 @@ function renderDeferAddressSheet(onDeferSave: ReturnType<typeof vi.fn>) {
         canExecute
         submitLabel="Incluir en sustitución"
         onOpenChange={vi.fn()}
-        onDeferSave={onDeferSave}
+        onDeferSave={onDeferSave as OnDeferSave}
       />
     </QueryClientProvider>,
   );

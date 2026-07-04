@@ -143,8 +143,8 @@ export function buildInlineAddressParsePayload(
     stop.nombreRemitenteDestinatario?.trim() || getEffectiveStopNombre(stop) || undefined;
 
   return {
-    addressType: "trip_stop",
     ...addressValues,
+    addressType: "trip_stop",
     stopType: stop.stopType,
     rfcRemitenteDestinatario: primaryRfc,
     nombreRemitenteDestinatario: primaryNombre,

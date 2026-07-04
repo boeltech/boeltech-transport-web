@@ -28,7 +28,7 @@ describe("scrubSentryEvent (web)", () => {
           },
         },
       ],
-    } as ErrorEvent;
+    } as unknown as ErrorEvent;
 
     const scrubbed = scrubSentryEvent(event);
     expect(

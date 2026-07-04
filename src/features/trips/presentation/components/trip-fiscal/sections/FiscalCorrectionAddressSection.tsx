@@ -50,8 +50,13 @@ export type FiscalCorrectionAddressPayload = {
   reason: string;
 };
 
-export type FiscalCorrectionAddressCopy =
-  typeof tripFiscalCopy.correctionSheet.address;
+export type FiscalCorrectionAddressCopy = {
+  [Key in keyof typeof tripFiscalCopy.correctionSheet.address]: (typeof tripFiscalCopy.correctionSheet.address)[Key] extends (
+    ...args: infer Args
+  ) => infer Return
+    ? (...args: Args) => Return
+    : string;
+};
 
 export type FiscalCorrectionAddressSectionHandle = {
   submit: () => void;

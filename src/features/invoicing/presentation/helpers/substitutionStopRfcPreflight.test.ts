@@ -56,6 +56,8 @@ function buildStop(overrides: Partial<TripStop> = {}): TripStop {
     distanceProvider: null,
     distanceConfidence: null,
     distanceComputedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
   };
 }
@@ -123,6 +125,7 @@ describe("substitutionStopRfcPreflight", () => {
           street: "Av Demo",
           exterior_number: "1",
           rfc_remitente_destinatario: "AAA010101AAA",
+          is_primary: false,
         },
         reason: "Corregir domicilio",
       },

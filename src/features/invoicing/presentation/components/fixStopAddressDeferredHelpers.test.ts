@@ -53,6 +53,8 @@ function buildStop(overrides: Partial<TripStop> = {}): TripStop {
     distanceProvider: null,
     distanceConfidence: null,
     distanceComputedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
   };
 }
