@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@shared/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import {
   FormValidationSummary,
@@ -17,8 +18,11 @@ import {
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useCancelInvoice } from "@features/invoicing/application";
-import { useToast } from "@shared/hooks";
+import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { invoicingCopy } from "../copy/invoicingCopy";
+
+const copy = invoicingCopy.detail;
 
 const MOTIVOS = [
   { value: "01", label: "01 - Comprobante emitido con errores con relación" },
@@ -55,6 +59,12 @@ interface Props {
 
 export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
   const { toast } = useToast();
+  const { submissionError, showOverlayError, clearOverlayError } =
+    useOverlayMutationFeedback({
+      errorTitle: copy.cancelErrorTitle,
+      seeInlineCopy: copy.overlayErrorSeeInline,
+      toast,
+    });
   const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const form = useForm<FormValues, unknown, FormValues>({
@@ -87,17 +97,14 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
       onOpenChange(false);
     },
     onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Error al cancelar factura",
-        description: getErrorMessage(err),
-      });
+      showOverlayError(getErrorMessage(err));
     },
   });
 
   const handleFormSubmit = form.handleSubmit(
     (values) => {
       setShowValidationSummary(false);
+      clearOverlayError();
       mutate({
         id: invoiceId,
         payload: {
@@ -127,6 +134,15 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
         </p>
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
+          {submissionError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{copy.cancelErrorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {submissionError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <RHFSelectField
             control={control}
             name="cancellation_code"

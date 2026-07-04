@@ -21,9 +21,11 @@ import type {
   UpdateInvoicePayload,
   CancelInvoicePayload,
   CreatePaymentPayload,
+  SubstituteStampedInvoiceCorrections,
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
 } from "@features/invoicing/domain";
+import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";
 
 // ============================================================================
 // QUERY KEYS
@@ -55,6 +57,82 @@ async function invalidateAndRefetchFinance(
   });
 }
 
+function hasSubstitutionAmountCorrections(
+  corrections?: SubstituteStampedInvoiceCorrections,
+): boolean {
+  if (!corrections) {
+    return false;
+  }
+  return (
+    corrections.subtotal !== undefined ||
+    corrections.discount !== undefined ||
+    corrections.totalTax !== undefined ||
+    corrections.retainedTax !== undefined ||
+    corrections.total !== undefined
+  );
+}
+
+function collectSubstitutionAffectedTripIds(
+  data: SubstituteStampedInvoiceResult,
+  variables: SubstituteStampedInvoicePayload,
+): string[] {
+  const ids = new Set<string>();
+  for (const entry of variables.corrections?.tripCorrections ?? []) {
+    if (entry.tripId) {
+      ids.add(entry.tripId);
+    }
+  }
+  for (const trip of data.replacement.trips) {
+    ids.add(trip.tripId);
+  }
+  for (const trip of data.original.trips) {
+    ids.add(trip.tripId);
+  }
+  return [...ids];
+}
+
+async function invalidateSubstitutionTripCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripIds: string[],
+  amountCorrections: boolean,
+): Promise<void> {
+  if (tripIds.length === 0 && !amountCorrections) {
+    return;
+  }
+
+  queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+  queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+
+  for (const tripId of tripIds) {
+    await queryClient.invalidateQueries({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+  }
+
+  if (amountCorrections) {
+    queryClient.invalidateQueries({ queryKey: tripQueryKeys.all });
+  }
+}
+
+function collectInvoiceLinkedTripIds(invoice: Invoice): string[] {
+  return [
+    ...new Set(
+      invoice.trips.map((trip) => trip.tripId).filter((tripId) => Boolean(tripId)),
+    ),
+  ];
+}
+
+async function invalidateInvoiceLinkedTripCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  invoice: Invoice,
+): Promise<void> {
+  await invalidateSubstitutionTripCaches(
+    queryClient,
+    collectInvoiceLinkedTripIds(invoice),
+    false,
+  );
+}
+
 // ============================================================================
 // QUERIES
 // ============================================================================
@@ -77,7 +155,11 @@ export const useInvoice = (id: string) => {
     refetchInterval: devRefetchIntervalFn((query: Query<Invoice, Error>) => {
       const invoice = query.state.data;
       const hasPendingRep = invoice?.payments.some(
-        (p: Payment) => p.repStatus === "pending",
+        (p: Payment) =>
+          p.repStatus === "pending" ||
+          p.repStatus === "failed" ||
+          p.repStatus === "restamp_pending" ||
+          p.repStatus === "cancelling",
       );
       return hasPendingRep ? 5_000 : false;
     }),
@@ -192,6 +274,7 @@ export function useStampInvoice(
       });
       await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      await invalidateInvoiceLinkedTripCaches(queryClient, data);
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -224,6 +307,7 @@ export function useCancelInvoice(
       });
       await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      await invalidateInvoiceLinkedTripCaches(queryClient, data);
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -301,13 +385,18 @@ export function useSubstituteStampedInvoice(
         queryKey: invoiceQueryKeys.detail(data.replacement.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      const tripIds = new Set(
-        variables.corrections?.tripCorrections?.map((entry) => entry.tripId) ??
-          [],
+      const amountCorrections = hasSubstitutionAmountCorrections(
+        variables.corrections,
       );
-      for (const tripId of tripIds) {
-        queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
-      }
+      await invalidateSubstitutionTripCaches(
+        queryClient,
+        collectSubstitutionAffectedTripIds(data, variables),
+        amountCorrections,
+      );
+      await invalidateFiscalCorrectionResources(
+        queryClient,
+        variables.corrections?.tripCorrections,
+      );
       await invalidateAndRefetchFinance(queryClient);
       options?.onSuccess?.(data, variables, context, mutation);
     },
@@ -354,6 +443,31 @@ export function useDownloadInvoiceXml(
 ) {
   return useMutation({
     mutationFn: ({ id, serieFolio }) => invoicingApi.downloadXmlById(id, serieFolio),
+    ...options,
+  });
+}
+
+export function downloadRepXml(
+  invoiceId: string,
+  paymentId: string,
+  filename: string,
+): void {
+  void invoicingApi.downloadRepXmlById(invoiceId, paymentId, filename);
+}
+
+export function useOpenRepPdf(
+  options?: Omit<
+    UseMutationOptions<
+      void,
+      Error,
+      { invoiceId: string; paymentId: string; filename: string }
+    >,
+    "mutationFn"
+  >,
+) {
+  return useMutation({
+    mutationFn: ({ invoiceId, paymentId, filename }) =>
+      invoicingApi.openRepPdf(invoiceId, paymentId, filename),
     ...options,
   });
 }

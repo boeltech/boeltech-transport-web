@@ -30,6 +30,21 @@ export const REP_STATUS_CONFIG: Record<RepStatus, StatusConfig> = {
     icon: AlertCircle,
     description: copy.failedHint,
   }),
+  restamp_pending: createStatusConfig("warning", {
+    label: copy.restampPending,
+    icon: Clock,
+    description: copy.restampPendingHint,
+  }),
+  cancelling: createStatusConfig("warning", {
+    label: copy.cancelling,
+    icon: Clock,
+    description: copy.cancellingHint,
+  }),
+  cancelled: createStatusConfig("neutral", {
+    label: copy.cancelled,
+    icon: Minus,
+    description: copy.cancelled,
+  }),
 };
 
 export const RepStatusBadge = createStatusBadgeComponent(REP_STATUS_CONFIG);
