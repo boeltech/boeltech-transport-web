@@ -40,6 +40,7 @@ export {
   useUpdateTrip,
   useUpdateTripStatus,
   usePatchStopFiscal,
+  usePatchTripFiscal,
 } from "./hooks";
 
 // Use Cases

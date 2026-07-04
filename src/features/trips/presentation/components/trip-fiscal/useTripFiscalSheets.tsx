@@ -12,8 +12,9 @@ import {
   isApiError,
 } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
+import { buildOverlayErrorToastDescription } from "@shared/utils/overlayErrorFeedback";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
-import { FixStopRfcSheet } from "./FixStopRfcSheet";
+import { TripFiscalCorrectionSheet } from "./TripFiscalCorrectionSheet";
 import { PreflightBlockerSheet } from "./PreflightBlockerSheet";
 import { StopPickerSheet } from "./StopPickerSheet";
 import {
@@ -23,6 +24,7 @@ import {
   resolveTripIdForStop,
   runTripStopsPreflight,
   shouldShowFiscalWarningChip,
+  shouldShowFiscalCorrectionChip,
 } from "./tripFiscalHelpers";
 
 const stampCopy = tripFiscalCopy.stamp;
@@ -57,6 +59,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
 
   const [fixStopId, setFixStopId] = useState<string | null>(null);
   const [fixSubmitLabel, setFixSubmitLabel] = useState<string | undefined>();
+  const [fixCorrectionKind, setFixCorrectionKind] = useState<"rfc" | "address">("rfc");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightResult, setPreflightResult] =
@@ -65,6 +68,9 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const [pendingStampInvoiceId, setPendingStampInvoiceId] = useState<
     string | null
   >(null);
+  const [stampOverlayError, setStampOverlayError] = useState<string | null>(
+    null,
+  );
 
   const { mutate: stamp, isPending: isStamping } = useStampInvoice({
     onSuccess: () => {
@@ -165,10 +171,13 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       sheetOptions?: {
         submitLabel?: string;
         pendingInvoiceId?: string | null;
+        correctionKind?: "rfc" | "address";
       },
     ) => {
       setFixStopId(stopId);
+      setStampOverlayError(null);
       setFixSubmitLabel(sheetOptions?.submitLabel);
+      setFixCorrectionKind(sheetOptions?.correctionKind ?? "rfc");
       if (sheetOptions?.pendingInvoiceId !== undefined) {
         setPendingStampInvoiceId(sheetOptions.pendingInvoiceId);
       }
@@ -203,13 +212,21 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
         return;
       }
 
+      const message = getStampErrorDescription(error);
+      if (fixStopId) {
+        setStampOverlayError(message);
+      }
       toast({
-        variant: "destructive",
+        variant: "error",
         title: stampCopy.errorTitle,
-        description: getStampErrorDescription(error),
+        description: buildOverlayErrorToastDescription(
+          message,
+          tripFiscalCopy.overlayErrorSeeInline,
+        ),
       });
     },
     [
+      fixStopId,
       getStampErrorDescription,
       openFixSheet,
       pendingStampInvoiceId,
@@ -247,14 +264,21 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const sheets: ReactNode = (
     <>
       {activeFixStop && activeFixTrip ? (
-        <FixStopRfcSheet
+        <TripFiscalCorrectionSheet
+          mode="apply-now"
           tripId={activeFixTrip.id}
           stop={activeFixStop}
+          clientId={activeFixTrip.clientId}
+          correctionKind={fixCorrectionKind}
           open={Boolean(fixStopId)}
           onOpenChange={(open) => {
-            if (!open) setFixStopId(null);
+            if (!open) {
+              setFixStopId(null);
+              setStampOverlayError(null);
+            }
           }}
           submitLabel={fixSubmitLabel}
+          overlayError={stampOverlayError}
           onSuccess={handleFiscalFixSuccess}
         />
       ) : null}
@@ -296,5 +320,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     handleStampError,
     shouldShowFiscalWarningChipForStop: (stop: TripStop) =>
       trip ? shouldShowFiscalWarningChip(trip, stop) : false,
+    shouldShowFiscalCorrectionChipForStop: (stop: TripStop) =>
+      trip ? shouldShowFiscalCorrectionChip(trip, stop) : false,
   };
 }

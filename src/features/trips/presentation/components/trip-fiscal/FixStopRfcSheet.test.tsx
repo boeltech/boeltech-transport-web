@@ -23,6 +23,12 @@ vi.mock("@shared/hooks", () => ({
   useToast: () => ({
     toast: vi.fn(),
   }),
+  useOverlayMutationFeedback: () => ({
+    submissionError: null,
+    showOverlayError: vi.fn(),
+    clearOverlayError: vi.fn(),
+    inlineThreshold: 160,
+  }),
 }));
 
 const stop: TripStop = {
@@ -80,7 +86,7 @@ describe("FixStopRfcSheet", () => {
     mutate.mockClear();
   });
 
-  it("keeps submit disabled until RFC is valid and reason has at least 5 chars", async () => {
+  it("keeps submit enabled and shows validation when RFC or reason is incomplete", async () => {
     const user = userEvent.setup();
 
     render(
@@ -95,24 +101,22 @@ describe("FixStopRfcSheet", () => {
     const submitButton = screen.getByRole("button", {
       name: "Validar y retimbrar",
     });
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).toBeEnabled();
+
+    await user.click(submitButton);
+    expect(
+      screen.getByText("El motivo debe tener al menos 5 caracteres"),
+    ).toBeInTheDocument();
 
     const rfcInput = screen.getByLabelText("RFC remitente/destinatario");
     await user.clear(rfcInput);
     await user.type(rfcInput, "INVALID");
-    expect(submitButton).toBeDisabled();
+    await user.click(submitButton);
+    expect(screen.getByText("Formato SAT inválido")).toBeInTheDocument();
 
     await user.clear(rfcInput);
     await user.type(rfcInput, "EKU9003173C9");
-    expect(submitButton).toBeDisabled();
-
-    await user.type(
-      screen.getByLabelText("Razón del cambio"),
-      "1234",
-    );
-    expect(submitButton).toBeDisabled();
-
-    await user.type(screen.getByLabelText("Razón del cambio"), "5");
+    await user.type(screen.getByLabelText("Motivo del cambio"), "12345");
     expect(submitButton).toBeEnabled();
   });
 
@@ -160,7 +164,7 @@ describe("FixStopRfcSheet", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Razón del cambio"), "abcde");
+    await user.type(screen.getByLabelText("Motivo del cambio"), "abcde");
     expect(screen.getByText("5/500")).toBeInTheDocument();
   });
 });

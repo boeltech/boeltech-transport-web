@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { TripStatus, type Trip, type TripStop } from "@features/trips/domain";
 import {
   buildFixSheetInitialValues,
+  canApplyStopFiscalCorrection,
   getEffectiveStopRfc,
+  shouldShowFiscalCorrectionChip,
   shouldShowFiscalWarningChip,
 } from "./tripFiscalHelpers";
 
@@ -44,6 +46,9 @@ function makeStop(overrides: Partial<TripStop> = {}): TripStop {
     satColoniaCode: null,
     rfcRemitenteDestinatario: "AAA010101AAA",
     nombreRemitenteDestinatario: "Dirección",
+    destinatarioRfc: null,
+    destinatarioNombre: null,
+    sourceAddressId: null,
     deliveryRfcRemitenteDestinatario: null,
     deliveryNombreRemitenteDestinatario: null,
     remitentePartnerId: null,
@@ -77,26 +82,26 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 }
 
 describe("tripFiscalHelpers", () => {
-  it("prioriza deliveryRfcRemitenteDestinatario sobre rfc de dirección", () => {
+  it("prioriza remitente de dirección sobre delivery legacy en origen", () => {
     const stop = makeStop({
       deliveryRfcRemitenteDestinatario: "CRN140902QW3",
       rfcRemitenteDestinatario: "AAA010101AAA",
       deliveryNombreRemitenteDestinatario: "Entrega",
     });
 
-    expect(getEffectiveStopRfc(stop)).toBe("CRN140902QW3");
+    expect(getEffectiveStopRfc(stop)).toBe("AAA010101AAA");
     expect(buildFixSheetInitialValues(stop)).toEqual({
-      rfc: "CRN140902QW3",
-      nombre: "Entrega",
+      rfc: "AAA010101AAA",
+      nombre: "Dirección",
     });
   });
 
   it("muestra chip solo en viaje completado con factura no timbrada y RFC inválido", () => {
     const invalidStop = makeStop({
-      deliveryRfcRemitenteDestinatario: "INVALIDO",
+      rfcRemitenteDestinatario: "INVALIDO",
     });
     const validStop = makeStop({
-      deliveryRfcRemitenteDestinatario: "EKU9003173C9",
+      rfcRemitenteDestinatario: "EKU9003173C9",
     });
 
     expect(
@@ -127,5 +132,36 @@ describe("tripFiscalHelpers", () => {
         invalidStop,
       ),
     ).toBe(false);
+  });
+
+  it("permite chip de corrección fiscal cuando RFC es válido y factura es borrador", () => {
+    const validStop = makeStop({
+      rfcRemitenteDestinatario: "EKU9003173C9",
+    });
+    const trip = makeTrip();
+
+    expect(canApplyStopFiscalCorrection(trip)).toBe(true);
+    expect(shouldShowFiscalCorrectionChip(trip, validStop)).toBe(true);
+    expect(shouldShowFiscalWarningChip(trip, validStop)).toBe(false);
+  });
+
+  it("no muestra corrección fiscal cuando factura está timbrada", () => {
+    const validStop = makeStop({
+      rfcRemitenteDestinatario: "EKU9003173C9",
+    });
+    const trip = makeTrip({
+      invoicing: {
+        hasActiveInvoice: true,
+        canGenerateInvoice: false,
+        invoiceId: "inv-1",
+        invoiceFolio: "A-1",
+        invoiceCfdiUuid: "uuid",
+        invoiceStatus: "stamped",
+        blockReason: null,
+      },
+    });
+
+    expect(canApplyStopFiscalCorrection(trip)).toBe(false);
+    expect(shouldShowFiscalCorrectionChip(trip, validStop)).toBe(false);
   });
 });

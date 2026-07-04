@@ -240,6 +240,11 @@ export type {
   PatchTripStopFiscalResult,
 } from "./tripStopFiscal.types";
 
+export type {
+  PatchTripFiscalPayload,
+  PatchTripFiscalResult,
+} from "./tripFiscal.types";
+
 // ============================================================================
 // ROUTE VALIDATION
 // ============================================================================

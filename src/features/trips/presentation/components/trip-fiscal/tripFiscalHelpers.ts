@@ -1,16 +1,42 @@
 import {
   isValidSatRfc,
   preflightTripStopsRfc,
-  resolveEffectiveStopRfcForCartaPorte,
+  resolveRfcRemitenteDestinatarioForUbicacion,
+  type CpUbicacionRole,
   type StopRfcPreflightResult,
   type TripStopRfcPreflightInput,
 } from "@boeltech/cfdi-domain";
+import { stopTypeRequiresDeliveryCounterparty } from "@boeltech/cfdi-domain/validadores/address-payload-result";
 import {
   TripStatus,
   type Trip,
   type TripStop,
   type TripStatusType,
 } from "@features/trips/domain";
+import {
+  formatStopDisplayPrimaryLine,
+  formatStopDisplayStreetLine,
+} from "@features/trips/presentation/uiHelpers";
+import { composeStopLocalityLine } from "@features/trips/presentation/stopLocalityDisplay";
+
+function fiscalEditUbicacionRole(stop: TripStop): CpUbicacionRole {
+  return stopTypeRequiresDeliveryCounterparty(stop.stopType)
+    ? "Destino"
+    : "Origen";
+}
+
+function resolveStopRfcForRole(
+  stop: TripStop,
+  role: CpUbicacionRole,
+): string | null {
+  return resolveRfcRemitenteDestinatarioForUbicacion({
+    role,
+    stopType: stop.stopType,
+    remitenteRfc: stop.rfcRemitenteDestinatario,
+    destinatarioRfc: stop.destinatarioRfc,
+    legacyDeliveryRfc: stop.deliveryRfcRemitenteDestinatario,
+  });
+}
 
 export function mapTripStopToPreflightInput(
   stop: TripStop,
@@ -18,21 +44,27 @@ export function mapTripStopToPreflightInput(
   return {
     id: stop.id,
     order: stop.sequenceOrder,
+    stopType: stop.stopType,
     deliveryRfcRemitenteDestinatario: stop.deliveryRfcRemitenteDestinatario,
     addressRemitenteRfc: stop.rfcRemitenteDestinatario,
+    addressDestinatarioRfc: stop.destinatarioRfc,
   };
 }
 
 export function getEffectiveStopRfc(stop: TripStop): string | null {
-  return resolveEffectiveStopRfcForCartaPorte({
-    delivery_rfc_remitente_destinatario: stop.deliveryRfcRemitenteDestinatario,
-    address_remitente_rfc: stop.rfcRemitenteDestinatario,
-  });
+  return resolveStopRfcForRole(stop, fiscalEditUbicacionRole(stop));
 }
 
 export function getEffectiveStopNombre(stop: TripStop): string {
-  const delivery = stop.deliveryNombreRemitenteDestinatario?.trim();
-  if (delivery) return delivery;
+  const role = fiscalEditUbicacionRole(stop);
+  if (role === "Destino") {
+    return (
+      stop.destinatarioNombre?.trim() ||
+      stop.deliveryNombreRemitenteDestinatario?.trim() ||
+      stop.nombreRemitenteDestinatario?.trim() ||
+      ""
+    );
+  }
   return stop.nombreRemitenteDestinatario?.trim() ?? "";
 }
 
@@ -46,9 +78,27 @@ export function shouldShowFiscalWarningChip(
   trip: Pick<Trip, "status" | "invoicing">,
   stop: TripStop,
 ): boolean {
-  if (trip.status !== TripStatus.COMPLETED) return false;
-  if (trip.invoicing.invoiceStatus === "stamped") return false;
+  if (!canApplyStopFiscalCorrection(trip)) return false;
   return isStopRfcInvalidForStamp(stop);
+}
+
+export function canApplyStopFiscalCorrection(
+  trip: Pick<Trip, "status" | "invoicing">,
+): boolean {
+  if (trip.status !== TripStatus.COMPLETED) return false;
+  const invoiceStatus = trip.invoicing.invoiceStatus;
+  if (invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending") {
+    return false;
+  }
+  return true;
+}
+
+export function shouldShowFiscalCorrectionChip(
+  trip: Pick<Trip, "status" | "invoicing">,
+  stop: TripStop,
+): boolean {
+  if (!canApplyStopFiscalCorrection(trip)) return false;
+  return !shouldShowFiscalWarningChip(trip, stop);
 }
 
 export function buildFixSheetInitialValues(stop: TripStop): {
@@ -108,10 +158,16 @@ export function resolveTripIdForStop(
 }
 
 export function formatStopLocation(stop: TripStop): string {
-  const city = stop.city?.trim();
-  const state = stop.state?.trim();
-  if (city && state) return `${city}, ${state}`;
-  return city || state || stop.address || "Sin ubicación";
+  const locality = composeStopLocalityLine(stop).trim();
+  const streetPart = stop.locationName?.trim()
+    ? formatStopDisplayStreetLine(stop)
+    : formatStopDisplayPrimaryLine(stop);
+  const colonia = stop.colonia?.trim() || null;
+  const parts = [streetPart, colonia, locality].filter(
+    (part) => part != null && String(part).trim() !== "",
+  );
+  const line = parts.join(", ");
+  return line || "Sin dirección";
 }
 
 export function isTripCompletedForFiscalChip(status: TripStatusType): boolean {

@@ -53,6 +53,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.approve",
       "trips.export",
       "trips_stops_fiscal.execute",
+      "trips_fiscal_edit.execute",
 
       // Vehículos - Control total
       "vehicles.read",
@@ -193,6 +194,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Edición fiscal post-cierre (RFC parada)
       "trips_stops_fiscal.execute",
+      "trips_fiscal_edit.execute",
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
