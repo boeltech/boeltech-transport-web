@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { createElement, memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import type { UserNotification } from "../../domain";
@@ -54,7 +54,7 @@ export const NotificationRow = memo(function NotificationRow({
           isUnread ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
         )}
       >
-        <Icon className="h-4 w-4" />
+        {createElement(Icon, { className: "h-4 w-4" })}
       </div>
 
       <div className="min-w-0 flex-1 space-y-1">

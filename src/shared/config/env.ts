@@ -19,6 +19,12 @@ interface AppConfig {
     isDevelopment: boolean;
     isProduction: boolean;
   };
+  observability: {
+    sentryDsn: string;
+    environment: string;
+    release: string;
+    enabled: boolean;
+  };
 }
 
 const config: AppConfig = {
@@ -42,6 +48,16 @@ const config: AppConfig = {
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
   },
+  observability: {
+    sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
+    environment: import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE,
+    release:
+      import.meta.env.VITE_GIT_SHA ||
+      import.meta.env.VITE_APP_VERSION ||
+      "unknown",
+    enabled:
+      Boolean(import.meta.env.VITE_SENTRY_DSN) && import.meta.env.PROD,
+  },
 };
 
 // Freeze para evitar modificaciones accidentales
@@ -49,5 +65,6 @@ Object.freeze(config);
 Object.freeze(config.api);
 Object.freeze(config.geolocation);
 Object.freeze(config.app);
+Object.freeze(config.observability);
 
 export default config;

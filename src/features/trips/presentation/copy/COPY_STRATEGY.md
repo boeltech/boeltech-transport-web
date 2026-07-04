@@ -57,7 +57,7 @@ Fuente de verdad: `tripDetailCopy` en `copy/tripDetail/index.ts`.
 
 ### Copy residual cerrado (detalle)
 
-- **Ruta:** `TripDetailRouteStopCard`, `TripStopOperationalEditSheet`, `tripRouteDetailHelpers`
+- **Ruta:** `TripDetailRouteStopCard`, `tripRouteDetailHelpers`
 - **Cargas:** `TripDetailCargoItemCard`, `TripDetailCargoByPickupView`, `tripCargoDetailHelpers`
 - **Costos:** `TripWizardFinancialSummary` (compartido wizard/detalle vía `costsCopy.financialSummary`)
 
@@ -100,3 +100,31 @@ import { trackingCopy } from "./trip-tracking/trackingCopy"; // @deprecated
 |---|---|---|
 | Wizard alta | `trips.copy.wizard.*` vía `wizardCopy` | Hecho (shell, basicInfo, route, cargo, costs, expense, fiscal, summary) |
 | Otros features | replicar `presentation/copy/` | Pendiente |
+
+---
+
+## Shell / widgets (app chrome)
+
+Navegación global y chrome fuera de `features/`:
+
+| Capa | Ubicación | Namespace lógico |
+|------|-----------|------------------|
+| Sidebar | `src/widgets/sidebar/copy/navigationCopy.ts` | `shell.copy.navigation.*` |
+
+`navigation.ts` solo ensambla rutas, iconos y permisos; **labels y badges** viven en `navigationCopy`.
+
+Archivos siempre **UTF-8** (`.editorconfig` → `charset = utf-8`). No editar strings con vocales acentuadas en editores que no respeten UTF-8.
+
+---
+
+## Estilo de texto
+
+Reglas de formato para strings en `*Copy.ts` y copy de shell:
+
+1. **Sentence case** en labels (`Salida programada`, no `Salida Programada`).
+2. **Guillemets españoles** para estados o términos citados: `«Cancelado»`, `«En curso»` (no `&quot;` ni comillas simples en JSX).
+3. **Elipsis Unicode** `…` en placeholders y estados de carga (no `...` ASCII), salvo en código o comentarios.
+4. **Ortografía completa** en español: tildes obligatorias (`Póliza`, `Configuración`, `Vehículos`).
+5. **Una frase por key** — evitar concatenar fragmentos en JSX (`{copy.foo} en la ruta`); la key debe ser la frase completa.
+
+Detección de regresión de encoding: `npm run audit:copy-encoding`.

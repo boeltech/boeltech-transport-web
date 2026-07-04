@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { TooltipProps } from "recharts";
 import type {
   NameType,

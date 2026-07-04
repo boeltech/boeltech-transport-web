@@ -209,15 +209,29 @@ export function CatalogSearchInput({
   // Render
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Si hay valor seleccionado, mostrar en modo display
+  // Si hay valor seleccionado, mostrar en modo display (clic para cambiar; X para limpiar)
   if (value && !open) {
     return (
       <div className={cn("relative", className)}>
         <div
+          role="combobox"
+          aria-expanded={false}
+          tabIndex={disabled ? -1 : 0}
           className={cn(
             "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
             disabled && "cursor-not-allowed opacity-50",
+            !disabled && "cursor-pointer hover:bg-muted/40",
           )}
+          onClick={() => {
+            if (!disabled) setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
         >
           {isLoadingSelected ? (
             <Skeleton className="h-4 w-3/4" />
@@ -230,7 +244,10 @@ export function CatalogSearchInput({
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0"
-              onClick={handleClear}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClear();
+              }}
             >
               <X className="h-4 w-4" />
             </Button>

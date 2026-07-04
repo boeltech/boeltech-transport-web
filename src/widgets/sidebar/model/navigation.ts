@@ -1,15 +1,16 @@
 /**
  * Navigation Configuration
  *
- * Configuraci+¶n completa de la navegaci+¶n del sidebar.
- * Los m+¶dulos corresponden a los definidos en el sistema de permisos.
+ * Configuraci√≥n completa de la navegaci√≥n del sidebar.
+ * Los m√≥dulos corresponden a los definidos en el sistema de permisos.
  *
- * Rutas API de referencia (roles expl+°citos en backend):
- * - GET /finance/summary, GET /finance/account-statement ‘Â∆ admin, manager, accountant
+ * Rutas API de referencia (roles expl√≠citos en backend):
+ * - GET /finance/summary, GET /finance/account-statement ‚Üí admin, manager, accountant
  *   (`boeltech-transport-api` invoicing.routes.ts)
- * - Listado de facturas y prefill ‘Â∆ tambi+Æn dispatcher (y client en invoices seg+¶n API)
+ * - Listado de facturas y prefill ‚Üí tambi√©n dispatcher (y client en invoices seg√∫n API)
  *
- * Ubicaci+¶n: src/widgets/sidebar/model/navigation.ts
+ * Ubicaci√≥n: src/widgets/sidebar/model/navigation.ts
+ * Copy: shell.copy.navigation.* en ../copy/navigationCopy.ts
  */
 
 import { ROLES } from "@shared/constants/roles";
@@ -20,15 +21,9 @@ import {
   Users,
   Route,
   FileText,
-  // Receipt,
-  // CreditCard,
   UserCog,
-  // ClipboardList,
-  // Package,
   BarChart3,
   Settings,
-  // Shield,
-  // History,
   Wrench,
   Fuel,
   Building2,
@@ -37,210 +32,182 @@ import {
   UsersRound,
   ClipboardCheck,
 } from "lucide-react";
+import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
 
+const copy = navigationCopy;
+
 /**
- * Configuraci+¶n completa de la navegaci+¶n
+ * Configuraci√≥n completa de la navegaci√≥n
  *
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * M+¶dulos disponibles:
+ * M√≥dulos disponibles:
  * - dashboard, trips, vehicles, drivers, clients
  * - maintenance, fuel, invoices, reports, users, settings
  */
 export const navigationConfig: NavGroup[] = [
-  // ============================================
-  // PRINCIPAL
-  // ============================================
   {
     id: "main",
-    title: "", // Sin t+°tulo = sin header
+    title: "",
     items: [
       {
         id: "dashboard",
-        label: "Dashboard",
+        label: copy.item.dashboard,
         path: "/dashboard",
         icon: LayoutDashboard,
         module: "dashboard",
       },
     ],
   },
-
-  // ============================================
-  // OPERACIONES
-  // ============================================
   {
     id: "operations",
-    title: "Operaciones",
+    title: copy.group.operations,
     items: [
       {
         id: "trips",
-        label: "Viajes",
+        label: copy.item.trips,
         path: "/trips",
         icon: Route,
         module: "trips",
       },
       {
         id: "branches",
-        label: "Sucursales",
+        label: copy.item.branches,
         path: "/branches",
         icon: GitBranch,
         module: "branches",
       },
     ],
   },
-
-  // ============================================
-  // FLOTA
-  // ============================================
   {
     id: "fleet",
-    title: "Flota",
+    title: copy.group.fleet,
     items: [
       {
         id: "vehicles",
-        label: "Veh+°culos",
+        label: copy.item.vehicles,
         path: "/vehicles",
         icon: Truck,
         module: "vehicles",
       },
       {
         id: "drivers",
-        label: "Conductores",
+        label: copy.item.drivers,
         path: "/drivers",
         icon: Users,
         module: "drivers",
       },
       {
         id: "maintenance",
-        label: "Mantenimiento",
+        label: copy.item.maintenance,
         path: "/maintenance",
         icon: Wrench,
         module: "maintenance",
         disabled: true,
-        badge: "Pr+¶ximamente",
+        badge: copy.badge.comingSoon,
       },
       {
         id: "fuel",
-        label: "Combustible",
+        label: copy.item.fuel,
         path: "/fuel",
         icon: Fuel,
         module: "fuel",
         disabled: true,
-        badge: "Pr+¶ximamente",
+        badge: copy.badge.comingSoon,
       },
     ],
   },
-
-  // ============================================
-  // CLIENTES
-  // ============================================
   {
     id: "clients",
-    title: "Clientes",
+    title: copy.group.clients,
     items: [
       {
         id: "clients-list",
-        label: "Clientes",
+        label: copy.item.clientsList,
         path: "/clients",
         icon: Building2,
         module: "clients",
       },
     ],
   },
-
-  // ============================================
-  // RECURSOS HUMANOS
-  // ============================================
   {
     id: "hr",
-    title: "Recursos Humanos",
+    title: copy.group.hr,
     items: [
       {
         id: "employees",
-        label: "Empleados",
+        label: copy.item.employees,
         path: "/employees",
         icon: UsersRound,
         module: "employees",
       },
     ],
   },
-
-  // ============================================
-  // FINANZAS
-  // ============================================
   {
     id: "finance",
-    title: "Finanzas",
+    title: copy.group.finance,
     items: [
       {
         id: "finance-hub",
-        label: "Finanzas",
+        label: copy.item.financeHub,
         path: "/finance",
         icon: FileText,
         roles: [...FINANCE_SUMMARY_ROUTE_ROLES],
       },
       {
         id: "finance-approvals",
-        label: "Aprobaciones",
+        label: copy.item.financeApprovals,
         path: "/finance/approvals?status=pending&type=trip_expense",
         icon: ClipboardCheck,
         module: "finance_approvals",
       },
       {
         id: "finance-invoices",
-        label: "Facturas",
+        label: copy.item.financeInvoices,
         path: "/finance?tab=invoices",
         icon: FileText,
         roles: [ROLES.DISPATCHER, ROLES.CLIENT],
       },
     ],
   },
-
-  // ============================================
-  // REPORTES
-  // ============================================
   {
     id: "reports",
-    title: "Reportes",
+    title: copy.group.reports,
     items: [
       {
         id: "reports-list",
-        label: "Reportes",
+        label: copy.item.reportsList,
         path: "/reports",
         icon: BarChart3,
         module: "reports",
         disabled: true,
-        badge: "Pr+¶ximamente",
+        badge: copy.badge.comingSoon,
       },
     ],
   },
-
-  // ============================================
-  // ADMINISTRACI+ÙN
-  // ============================================
   {
     id: "admin",
-    title: "Administraci+¶n",
+    title: copy.group.admin,
     items: [
       {
         id: "users",
-        label: "Usuarios",
+        label: copy.item.users,
         path: "/users",
         icon: UserCog,
         module: "users",
       },
       {
         id: "users-activity",
-        label: "Auditor+°a",
+        label: copy.item.usersActivity,
         path: "/users/activity",
         icon: ScrollText,
         roles: [ROLES.ADMIN],
       },
       {
         id: "settings",
-        label: "Configuraci+¶n",
+        label: copy.item.settings,
         path: "/settings",
         icon: Settings,
         module: "settings",
@@ -249,9 +216,7 @@ export const navigationConfig: NavGroup[] = [
   },
 ];
 
-/**
- * Rutas que no requieren autenticaci+¶n
- */
+/** Rutas que no requieren autenticaci√≥n */
 export const publicRoutes = [
   "/login",
   "/register",
@@ -259,12 +224,8 @@ export const publicRoutes = [
   "/reset-password",
 ];
 
-/**
- * Ruta por defecto despu+Æs del login
- */
+/** Ruta por defecto despu√©s del login */
 export const defaultAuthenticatedRoute = "/dashboard";
 
-/**
- * Ruta de login
- */
+/** Ruta de login */
 export const loginRoute = "/login";

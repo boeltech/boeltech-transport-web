@@ -1,5 +1,5 @@
-/** Límite de usuarios del plan Esencial (alineado a API `ESSENTIAL_PLAN_LIMITS.maxUsers`). */
-export const ESSENTIAL_USER_LIMIT = 3;
+/** Límite de usuarios del plan Arranque (alineado a API `ARRANQUE_PLAN_LIMITS.maxUsers`). */
+export const ARRANQUE_USER_LIMIT = 3;
 
 export const usersCopy = {
   limitReached: {

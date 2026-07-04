@@ -212,9 +212,9 @@ const NavItemLink = memo(function NavItemLink({
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side="right" className="flex items-center gap-2">
           {item.label}
-          {item.disabled && (
+          {item.badge !== undefined && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
-              Próximamente
+              {item.badge}
             </span>
           )}
         </TooltipContent>

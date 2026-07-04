@@ -36,7 +36,7 @@ import {
   invitationsPendingQueryKey,
   type UserSortableColumn,
 } from "../components";
-import { ESSENTIAL_USER_LIMIT, usersCopy } from "../copy/usersCopy";
+import { ARRANQUE_USER_LIMIT, usersCopy } from "../copy/usersCopy";
 
 type DateDraftState = {
   createdFrom: string;
@@ -175,7 +175,7 @@ export function UsersListPage() {
   );
 
   const activeUserCount = activeUsersData?.pagination.total ?? 0;
-  const userLimitReached = activeUserCount >= ESSENTIAL_USER_LIMIT;
+  const userLimitReached = activeUserCount >= ARRANQUE_USER_LIMIT;
 
   const updateStatusMutation = useUpdateUserStatus({
     onSuccess: () => {

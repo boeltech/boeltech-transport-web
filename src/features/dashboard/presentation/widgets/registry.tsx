@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Dashboard widget registry — ids, layout metadata, gates and render.
  */

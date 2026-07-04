@@ -190,7 +190,7 @@ export const DetailPageShell = memo(function DetailPageShell({
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{header.title}</h1>
             {header.subtitle ? (
-              <p className="text-sm text-muted-foreground">{header.subtitle}</p>
+              <div className="text-sm text-muted-foreground">{header.subtitle}</div>
             ) : null}
           </div>
           {header.statusBadge ? (

@@ -14,12 +14,13 @@ npm run test:watch # cerrar al terminar (proceso persistente)
 npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
 npm run test:smoke:notifications # smoke inbox campana + /notifications
 npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
+npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
 ```
 
 Guía usuario aprobaciones: `D:\cowork\boeltech\erp-transport\docs\finanzas\aprobaciones-centralizadas-usuario.md`  
-Guía usuario RFC post-cierre: `D:\cowork\boeltech\erp-transport\docs\viajes\corregir-rfc-parada-postcierre-usuario.md`
+Guía usuario corrección fiscal: `D:\cowork\boeltech\erp-transport\docs\viajes\corregir-datos-fiscales-viaje-usuario.md`
 
-Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_API_URL`** (default `http://localhost:3000/api/v1`). Dev RAM: `VITE_DISABLE_DEV_POLLING` · runbook `docs/ci-build/dev-memory-runbook.md`.
+Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_API_URL`** (default `http://localhost:3000/api/v1`). Dev RAM: `VITE_DISABLE_DEV_POLLING` · runbook `docs/ci-build/dev-memory-runbook.md`. **Sentry:** `D:\cowork\boeltech\erp-transport\docs\operacion\sentry-integracion.md` · vars `VITE_SENTRY_DSN`, `VITE_ENVIRONMENT`, `VITE_GIT_SHA`.
 
 ## Architecture (resumen)
 
@@ -89,6 +90,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Índice general | `D:\cowork\boeltech\erp-transport\docs\README.md` |
 | Design system | `...\docs\design-system\` + `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
 | Wizards (alta) | `src/shared/ui/page-shells/README.md` · `...\docs\design-system\wizard-page-pattern.md` |
+| Mejoras UX/UI / copy | `.cursor/prompts/ux-ui-mejoras.md` |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |
