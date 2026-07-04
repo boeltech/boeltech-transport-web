@@ -1,7 +1,7 @@
 /**
  * Construcción de payloads de parada desde el wizard.
  * Tras la migración API 045, `trips` ya no persiste `origin_address` / `destination_address`;
- * el domicilio vive en `trip_stops` y, si aplica, en `addresses` vía `address_id`.
+ * el domicilio vive en `trip_stops` y, si aplica, en `addresses` vía snapshot inline (ADR-0055).
  */
 
 import type { CreateStopInput } from "@features/trips/domain";
@@ -9,10 +9,16 @@ import { isUnifiedAddressId } from "@features/trips/domain";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
 import type { TripStopFormValues } from "./components/validation";
-import { stopHasUnifiedAddressId } from "./components/validation";
 
 /** Fila de parada del wizard. */
 export type WizardStopRow = TripStopFormValues;
+
+function stopHasCatalogSnapshot(stop: WizardStopRow): boolean {
+  return (
+    isUnifiedAddressId(stop.clientAddressId) ||
+    isUnifiedAddressId(stop.sourceAddressId)
+  );
+}
 
 /**
  * Deriva resumen operativo de extremo y texto de parada para el contrato actual:
@@ -23,7 +29,7 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
   city: string;
   state: string;
 } {
-  if (isUnifiedAddressId(stop.addressId)) {
+  if (stopHasCatalogSnapshot(stop) || isUnifiedAddressId(stop.addressId)) {
     const label = stop.locationName?.trim() || "Domicilio en catálogo";
     return {
       address: label,
@@ -74,6 +80,11 @@ export function mapWizardStopsToCreateInput(
   if (!stops?.length) return undefined;
   return stops.map((stop) => {
     const endpointSummary = buildTripEndpointSummary(stop);
+    const catalogSourceId =
+      stop.sourceAddressId?.trim() ||
+      stop.clientAddressId?.trim() ||
+      undefined;
+
     return {
       sequenceOrder: stop.sequenceOrder,
       stopType: stop.stopType,
@@ -95,6 +106,14 @@ export function mapWizardStopsToCreateInput(
       reference: stop.reference || undefined,
       rfcRemitenteDestinatario: stop.rfcRemitenteDestinatario || undefined,
       nombreRemitenteDestinatario: stop.nombreRemitenteDestinatario || undefined,
+      destinatarioRfc:
+        stop.destinatarioRfc?.trim() ||
+        stop.deliveryRfcRemitenteDestinatario?.trim() ||
+        undefined,
+      destinatarioNombre:
+        stop.destinatarioNombre?.trim() ||
+        stop.deliveryNombreRemitenteDestinatario?.trim() ||
+        undefined,
       deliveryRfcRemitenteDestinatario:
         stop.deliveryRfcRemitenteDestinatario || undefined,
       deliveryNombreRemitenteDestinatario:
@@ -116,7 +135,7 @@ export function mapWizardStopsToCreateInput(
         : undefined,
       clientId: stop.clientId || undefined,
       clientAddressId: stop.clientAddressId || undefined,
-      addressId: stopHasUnifiedAddressId(stop) ? stop.addressId : undefined,
+      sourceAddressId: catalogSourceId,
     };
   });
 }

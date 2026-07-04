@@ -21,6 +21,28 @@ function normNullableText(value: string | null | undefined): string | null {
   return t === "" ? null : t;
 }
 
+/** Alinea códigos SAT al comparar (picker y catálogo pueden usar formato corto o con prefijo). */
+function normSatCode(value: string | null | undefined): string {
+  const normalized = normText(value);
+  if (!normalized) return "";
+  const parts = normalized.split("-").filter(Boolean);
+  return (parts[parts.length - 1] ?? normalized).trim();
+}
+
+/**
+ * Tras precarga ADR-0053 el formulario puede traer null en campos que el search
+ * no expone; eso no cuenta como edición del usuario.
+ */
+function nullableCatalogOnlyFieldDiffers(
+  formValue: string | null | undefined,
+  catalogValue: string | null | undefined,
+): boolean {
+  const formNorm = normNullableText(formValue);
+  const catalogNorm = normNullableText(catalogValue);
+  if (formNorm == null && catalogNorm != null) return false;
+  return formNorm !== catalogNorm;
+}
+
 function coordsEqual(
   a: number | null | undefined,
   b: number | null | undefined,
@@ -48,8 +70,11 @@ function resolveClientAddressTypeForForm(
 }
 
 /**
- * True si el formulario del sheet difiere del registro de catálogo del cliente
+ * True si el usuario editó el domicilio respecto al catálogo del cliente
  * (campos de domicilio / geo / contacto en sitio).
+ *
+ * Ignora huecos del snapshot del AddressPicker (localidad, interior, etc.)
+ * cuando el formulario los dejó vacíos sin intervención del usuario.
  */
 export function stopDialogDiffersFromClientCatalog(
   form: StopDialogFormValues,
@@ -59,22 +84,19 @@ export function stopDialogDiffersFromClientCatalog(
     normText(form.locationName) !== normText(catalog.locationName),
     normText(form.street) !== normText(catalog.street),
     normText(form.exteriorNumber) !== normText(catalog.exteriorNumber),
-    normNullableText(form.interiorNumber) !==
-      normNullableText(catalog.interiorNumber ?? null),
-    normNullableText(form.reference) !== normNullableText(catalog.reference ?? null),
+    nullableCatalogOnlyFieldDiffers(form.interiorNumber, catalog.interiorNumber),
+    nullableCatalogOnlyFieldDiffers(form.reference, catalog.reference),
     normText(form.postalCode) !== normText(catalog.postalCode),
     normText(form.satCountryCode || "MEX") !== normText(catalog.satCountryCode || "MEX"),
     normText(form.satStateCode) !== normText(catalog.satStateCode),
-    normText(form.satMunicipalityCode) !== normText(catalog.satMunicipalityCode),
-    normNullableText(form.satLocalityCode) !==
-      normNullableText(catalog.satLocalityCode ?? null),
-    normNullableText(form.localityName) !== normNullableText(catalog.localityName ?? null),
-    normNullableText(form.satNeighborhoodCode) !==
-      normNullableText(catalog.satNeighborhoodCode ?? null),
-    normNullableText(form.neighborhoodName) !==
-      normNullableText(catalog.neighborhoodName ?? null),
-    normText(form.contactName) !== normText(catalog.contactName),
-    normText(form.contactPhone) !== normText(catalog.contactPhone),
+    normSatCode(form.satMunicipalityCode) !== normSatCode(catalog.satMunicipalityCode),
+    nullableCatalogOnlyFieldDiffers(form.satLocalityCode, catalog.satLocalityCode),
+    nullableCatalogOnlyFieldDiffers(form.localityName, catalog.localityName),
+    normSatCode(form.satNeighborhoodCode) !==
+      normSatCode(catalog.satNeighborhoodCode ?? null),
+    nullableCatalogOnlyFieldDiffers(form.neighborhoodName, catalog.neighborhoodName),
+    nullableCatalogOnlyFieldDiffers(form.contactName, catalog.contactName),
+    nullableCatalogOnlyFieldDiffers(form.contactPhone, catalog.contactPhone),
     !coordsEqual(form.latitude, catalog.latitude),
     !coordsEqual(form.longitude, catalog.longitude),
   ];

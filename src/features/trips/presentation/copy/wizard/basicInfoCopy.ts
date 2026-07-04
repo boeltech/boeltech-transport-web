@@ -4,7 +4,7 @@
 export const basicInfoCopy = {
   section: {
     assignments: "Asignaciones",
-    supportStaff: "Equipo de Apoyo",
+    supportStaff: "Equipo de apoyo",
     scheduling: "Programación",
   },
   label: {
@@ -12,9 +12,9 @@ export const basicInfoCopy = {
     driver: "Conductor",
     client: "Cliente que contrata",
     cfdiDocumentIntent: "Tipo de comprobante del viaje",
-    scheduledDeparture: "Salida Programada",
+    scheduledDeparture: "Salida programada",
     scheduledArrival: "Llegada estimada",
-    startMileage: "Kilometraje Inicial",
+    startMileage: "Kilometraje inicial",
     supportStaffPositionFilter: "Filtrar empleados por puesto",
     supportStaffEmployee: "Empleado",
     paymentResponsible: "Responsable de pago",

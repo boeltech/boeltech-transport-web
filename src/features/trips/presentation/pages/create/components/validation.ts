@@ -71,6 +71,8 @@ export const tripStopSchema = z
   // ── Asociación con cliente (opcional) ───────────────────────────────────
   clientId: z.string().optional().or(z.literal("")),
   clientAddressId: z.string().optional(),
+  /** Catálogo origen del snapshot (auditoría ADR-0055); no FK en alta. */
+  sourceAddressId: z.string().uuid().optional().or(z.literal("")),
   /** FK → `addresses` cuando la parada reutiliza un domicilio guardado (Fase 4). */
   addressId: z.union([z.literal(""), z.string().uuid()]).optional(),
 
@@ -182,9 +184,21 @@ export const tripStopSchema = z
     .max(254, "Nombre muy largo")
     .optional(),
 
+  /** Contraparte descarga (escala mixta) — SoT envelope CP (ADR-0055). */
+  destinatarioRfc: z
+    .string()
+    .max(13, "RFC inválido")
+    .regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/, "Formato de RFC inválido")
+    .optional()
+    .or(z.literal("")),
+
+  destinatarioNombre: z
+    .string()
+    .max(254, "Nombre muy largo")
+    .optional(),
+
   /**
-   * Destinatario fiscal cuando la escala tiene carga y descarga en el mismo punto.
-   * El campo principal sigue representando al remitente (carga).
+   * @deprecated Preferir `destinatarioRfc` (ADR-0055).
    */
   deliveryRfcRemitenteDestinatario: z
     .string()
@@ -844,6 +858,7 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   stopType: [],
   clientId: "",
   clientAddressId: "",
+  sourceAddressId: "",
   addressId: "",
   locationName: "",
   satCountryCode: "MEX",
@@ -861,6 +876,8 @@ export const defaultStopFormValues: Partial<TripStopFormValues> = {
   reference: "",
   rfcRemitenteDestinatario: "",
   nombreRemitenteDestinatario: "",
+  destinatarioRfc: "",
+  destinatarioNombre: "",
   deliveryRfcRemitenteDestinatario: "",
   deliveryNombreRemitenteDestinatario: "",
   remitentePartnerId: "",

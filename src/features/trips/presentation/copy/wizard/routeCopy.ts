@@ -96,10 +96,10 @@ export const routeCopy = {
     },
     placeholder: {
       locationName:
-        "Ej: Bodega Central, CEDIS Norte, Planta Monterrey...",
+        "Ej: Bodega Central, CEDIS Norte, Planta Monterrey…",
       contactName: "Nombre del contacto en sitio",
       contactPhone: "Teléfono",
-      notes: "Instrucciones especiales de entrega, horarios, acceso...",
+      notes: "Instrucciones especiales de entrega, horarios, acceso…",
     },
     hint: {
       waypointArrivalInterpolation:
@@ -108,7 +108,7 @@ export const routeCopy = {
     alert: {
       missingGeolocationTitle: "Falta geolocalización en la dirección precargada",
       missingGeolocationBody:
-        "Esta dirección del cliente no tiene latitud / longitud registradas. Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y cumplir Carta Porte 3.1.",
+        "Esta dirección precargada no tiene latitud / longitud registradas. Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y cumplir Carta Porte 3.1.",
     },
     validation: {
       missingField: "Tipo de parada",
@@ -142,6 +142,13 @@ export const routeCopy = {
       stopOnly: "Solo en esta parada",
       backToForm: "Volver al formulario",
       saving: "Guardando…",
+    },
+    addressOrigin: {
+      title: "Origen de la dirección",
+      description:
+        "Busca y reutiliza un domicilio del catálogo (cliente o directorio del tenant). Al seleccionar se copia a esta parada; editar aquí no modifica la fuente.",
+      pickerLabel: "Buscar dirección existente",
+      pickerPlaceholder: "Nombre, calle o código postal…",
     },
   },
 } as const;

@@ -9,6 +9,7 @@ function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
     stopType: ["origin", "pickup"],
     clientId: "",
     clientAddressId: "",
+    sourceAddressId: "",
     addressId: "",
     locationName: "",
     satCountryCode: "MEX",
@@ -71,19 +72,25 @@ describe("buildTripEndpointSummary", () => {
 });
 
 describe("mapWizardStopsToCreateInput", () => {
-  it("includes addressId when stop is linked to unified address", () => {
+  it("includes sourceAddressId when stop is linked to catalog snapshot", () => {
     const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
     const rows = [
       baseStop({
         sequenceOrder: 0,
-        addressId: id,
         clientAddressId: id,
+        sourceAddressId: id,
         locationName: "Origen",
+        satStateCode: "JAL",
+        satMunicipalityCode: "039",
+        postalCode: "44100",
+        street: "Calle",
+        exteriorNumber: "1",
       }),
     ];
     const out = mapWizardStopsToCreateInput(rows);
     expect(out).toHaveLength(1);
-    expect(out![0].addressId).toBe(id);
+    expect(out![0].sourceAddressId).toBe(id);
+    expect(out![0].addressId).toBeUndefined();
     expect(out![0].address).toBeTruthy();
     expect(out![0].satCountryCode).toBe("MEX");
   });

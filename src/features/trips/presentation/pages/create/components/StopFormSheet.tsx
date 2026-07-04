@@ -71,22 +71,28 @@ import AddressInput from "@shared/ui/address-input/AddressInput";
 import { useToast } from "@shared/hooks";
 
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
-import {
-  useClientAddresses,
-  useClientAddress,
-} from "@features/clients/application/hooks/useClientAddresses";
+import { useClientAddress } from "@features/clients/application/hooks/useClientAddresses";
 import { useUpdateClientAddress } from "@features/clients/application/hooks/useUpdateClientAddress";
+import type {
+  AddressSearchListItem,
+  SearchableOwnerType,
+} from "@shared/ui/address-picker/types";
 
 import type { TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
 import {
   type StopFormData,
   type StopDialogFormValues,
+  type StopAddressPrefillRef,
   getEmptyStopDialogValues,
   tripStopToDialogValues,
   mergeDialogWithClientCatalog,
-  clientAddressToDialogSlice,
   resolveRemitenteFiscalFromClientAddress,
+  addressSearchItemToDialogSlice,
+  applyAddressPickerClearSlice,
+  buildStopPrefillRefFromSearchItem,
+  clientAddressCatalogHydrationSlice,
+  shouldShowPrefillMissingGeolocationNotice,
 } from "./stopDialogAddressMapper";
 import {
   detachStopFromClientCatalog,
@@ -133,6 +139,8 @@ export interface StopFormSheetProps {
   mode?: "create" | "edit";
   /** Intención CFDI elegida en el paso 1 — orienta copy de esta parada. */
   cfdiDocumentIntent?: CfdiDocumentIntent;
+  /** Cliente contratante del viaje (paso 1) — fallback fiscal cuando la precarga no es de ese cliente. */
+  tripContractingClientId?: string;
 }
 
 const STOP_OPERATION_OPTIONS = [
@@ -211,11 +219,15 @@ export function StopFormSheet({
   initialData,
   mode = "create",
   cfdiDocumentIntent = "ingreso",
+  tripContractingClientId,
 }: StopFormSheetProps) {
   const [attemptedSubmitValidation, setAttemptedSubmitValidation] = useState(false);
   const validationAlertRef = useRef<HTMLDivElement | null>(null);
   const [useAddressFiscalData, setUseAddressFiscalData] = useState(true);
-  const [useClientAddressPrefill, setUseClientAddressPrefill] = useState(false);
+  const [selectedPrefillItem, setSelectedPrefillItem] =
+    useState<AddressSearchListItem | null>(null);
+  const [prefillCatalogRef, setPrefillCatalogRef] =
+    useState<StopAddressPrefillRef | null>(null);
   const [inlineSatError, setInlineSatError] = useState<string | null>(null);
   const [clientAddressPersistDialogOpen, setClientAddressPersistDialogOpen] =
     useState(false);
@@ -240,19 +252,45 @@ export function StopFormSheet({
   const clientId = useWatch({ control, name: "clientId" }) ?? "";
   const clientAddressId = useWatch({ control, name: "clientAddressId" }) ?? "";
 
+  const catalogClientId =
+    prefillCatalogRef?.ownerId ??
+    (clientAddressId ? clientId : "");
+  const catalogAddressId =
+    prefillCatalogRef?.catalogAddressId ?? clientAddressId;
+
   const { data: clients = [] } = useActiveClients();
-  const { data: addresses = [] } = useClientAddresses(clientId);
-  const { data: selectedAddressFull } = useClientAddress(clientId, clientAddressId);
+  const { data: selectedAddressFull } = useClientAddress(
+    catalogClientId,
+    catalogAddressId,
+  );
   const writeBackAddressMutation = useUpdateClientAddress();
   const selectedAddress = selectedAddressFull ?? undefined;
-  const clientAddresses = addresses;
 
   const clientFiscalFallback = useMemo(() => {
-    if (!clientId) return null;
-    const c = clients.find((item) => item.id === clientId);
-    if (!c) return null;
-    return { taxId: c.taxId, legalName: c.legalName };
-  }, [clientId, clients]);
+    const resolveClient = (id: string) => {
+      const c = clients.find((item) => item.id === id);
+      if (!c) return null;
+      return { taxId: c.taxId, legalName: c.legalName };
+    };
+
+    if (prefillCatalogRef?.ownerId) {
+      return resolveClient(prefillCatalogRef.ownerId);
+    }
+    if (clientId) {
+      return resolveClient(clientId);
+    }
+    if (tripContractingClientId && tripContractingClientId !== "no-client") {
+      return resolveClient(tripContractingClientId);
+    }
+    return null;
+  }, [clientId, clients, prefillCatalogRef?.ownerId, tripContractingClientId]);
+
+  const defaultOwnerTypes = useMemo((): SearchableOwnerType[] | undefined => {
+    if (tripContractingClientId && tripContractingClientId !== "no-client") {
+      return ["client", "tenant"];
+    }
+    return undefined;
+  }, [tripContractingClientId]);
 
   // Al abrir el diálogo: hidratar desde initialData (cada apertura, no solo el primer mount)
   useEffect(() => {
@@ -273,7 +311,8 @@ export function StopFormSheet({
 
     reset(next);
     queueMicrotask(() => {
-      setUseClientAddressPrefill(Boolean(next.clientId || next.clientAddressId));
+      setSelectedPrefillItem(null);
+      setPrefillCatalogRef(null);
       setUseAddressFiscalData(true);
     });
     hasInitializedFiscalModeRef.current = false;
@@ -285,7 +324,7 @@ export function StopFormSheet({
     if (
       !open ||
       mode !== "edit" ||
-      !clientAddressId ||
+      !catalogAddressId ||
       !selectedAddress ||
       hasInitializedFiscalModeRef.current
     ) {
@@ -320,7 +359,7 @@ export function StopFormSheet({
     );
     hasInitializedFiscalModeRef.current = true;
   }, [
-    clientAddressId,
+    catalogAddressId,
     clientFiscalFallback,
     getValues,
     mode,
@@ -333,7 +372,7 @@ export function StopFormSheet({
     if (mode === "edit" && !hasInitializedFiscalModeRef.current) {
       return;
     }
-    if (!useAddressFiscalData || !clientAddressId || !selectedAddress) {
+    if (!useAddressFiscalData || !catalogAddressId || !selectedAddress) {
       return;
     }
 
@@ -348,7 +387,7 @@ export function StopFormSheet({
       shouldValidate: true,
     });
   }, [
-    clientAddressId,
+    catalogAddressId,
     clientFiscalFallback,
     mode,
     selectedAddress,
@@ -356,24 +395,25 @@ export function StopFormSheet({
     useAddressFiscalData,
   ]);
 
-  // Volcar dirección del catálogo al formulario (inglés) cuando llega el detalle
+  // Detalle de catálogo tras picker (ADR-0053): localidad, interior, contacto, etc.
   useEffect(() => {
-    if (!clientAddressId || !selectedAddress) {
-      lastSyncedCatalogIdRef.current = null;
+    if (!catalogAddressId || !selectedAddress || !prefillCatalogRef) {
+      if (!clientAddressId || !selectedAddress) {
+        lastSyncedCatalogIdRef.current = null;
+      }
       return;
     }
     if (lastSyncedCatalogIdRef.current === selectedAddress.id) return;
     lastSyncedCatalogIdRef.current = selectedAddress.id;
 
-    const slice = clientAddressToDialogSlice(selectedAddress);
-    (Object.keys(slice) as (keyof typeof slice)[]).forEach((key) => {
-      const val = slice[key];
+    const hydration = clientAddressCatalogHydrationSlice(selectedAddress);
+    (Object.keys(hydration) as (keyof typeof hydration)[]).forEach((key) => {
+      const val = hydration[key];
       if (val !== undefined) {
-        setValue(key, val as never, { shouldDirty: true, shouldValidate: true });
+        setValue(key, val as never, { shouldValidate: true });
       }
     });
-    setValue("addressId", selectedAddress.id, { shouldDirty: true, shouldValidate: true });
-  }, [clientAddressId, selectedAddress, setValue]);
+  }, [catalogAddressId, clientAddressId, prefillCatalogRef, selectedAddress, setValue]);
 
   const watched = useWatch({ control });
   const noticeSatStateCode = watched?.satStateCode ?? "";
@@ -387,113 +427,50 @@ export function StopFormSheet({
         selectedAddress,
         useAddressFiscalData,
         clientFiscalFallback,
+        selectedPrefillItem ? prefillCatalogRef : null,
       ),
-    [clientFiscalFallback, watched, selectedAddress, useAddressFiscalData],
-  );
-  const handleClientChange = useCallback(
-    (nextClientId: string) => {
-      const actualClientId = nextClientId === "no-client" ? "" : nextClientId;
-      hasInitializedFiscalModeRef.current = false;
-      lastSyncedCatalogIdRef.current = null;
-      setUseAddressFiscalData(true);
-      setValue("clientId", actualClientId);
-      setValue("clientAddressId", "");
-      setValue("addressId", "");
-      setValue("locationName", "");
-      setValue("satCountryCode", "MEX");
-      setValue("satStateCode", "");
-      setValue("satMunicipalityCode", "");
-      setValue("postalCode", "");
-      setValue("satLocalityCode", null);
-      setValue("localityName", null);
-      setValue("satNeighborhoodCode", null);
-      setValue("neighborhoodName", null);
-      setValue("cityName", "");
-      setValue("street", "");
-      setValue("exteriorNumber", "");
-      setValue("interiorNumber", null);
-      setValue("reference", null);
-      setValue("latitude", null);
-      setValue("longitude", null);
-      setValue("rfcRemitenteDestinatario", "");
-      setValue("nombreRemitenteDestinatario", "");
-      setValue("deliveryRfcRemitenteDestinatario", "");
-      setValue("deliveryNombreRemitenteDestinatario", "");
-      setValue("remitentePartnerId", "");
-      setValue("destinatarioPartnerId", "");
-      setValue("contactName", "");
-      setValue("contactPhone", "");
-    },
-    [setValue],
+    [
+      clientFiscalFallback,
+      prefillCatalogRef,
+      selectedPrefillItem,
+      watched,
+      selectedAddress,
+      useAddressFiscalData,
+    ],
   );
 
-  const handleAddressSelect = useCallback(
-    (selectedCatalogId: string) => {
-      hasInitializedFiscalModeRef.current = false;
-      lastSyncedCatalogIdRef.current = null;
-
-      if (selectedCatalogId === "manual-entry") {
-        lastSyncedCatalogIdRef.current = null;
-        setUseAddressFiscalData(false);
-        setValue("clientAddressId", "");
-        setValue("addressId", "");
-        setValue("locationName", "");
-        setValue("satCountryCode", "MEX");
-        setValue("satStateCode", "");
-        setValue("satMunicipalityCode", "");
-        setValue("postalCode", "");
-        setValue("satLocalityCode", null);
-        setValue("localityName", null);
-        setValue("satNeighborhoodCode", null);
-        setValue("neighborhoodName", null);
-        setValue("cityName", "");
-        setValue("street", "");
-        setValue("exteriorNumber", "");
-        setValue("interiorNumber", null);
-        setValue("reference", null);
-        setValue("latitude", null);
-        setValue("longitude", null);
-        setValue("rfcRemitenteDestinatario", "");
-        setValue("nombreRemitenteDestinatario", "");
-        setValue("deliveryRfcRemitenteDestinatario", "");
-        setValue("deliveryNombreRemitenteDestinatario", "");
-        setValue("remitentePartnerId", "");
-        setValue("destinatarioPartnerId", "");
-        setValue("contactName", "");
-        setValue("contactPhone", "");
-        return;
-      }
-      setUseAddressFiscalData(true);
-      setValue("clientAddressId", selectedCatalogId, { shouldDirty: true });
-      setValue("addressId", selectedCatalogId, { shouldDirty: true });
-
-      const fromList = addresses.find((a) => a.id === selectedCatalogId);
-      const prefName = fromList?.contactName?.trim() ?? "";
-      const prefPhone = fromList?.contactPhone?.trim() ?? "";
-      setValue("contactName", prefName, { shouldDirty: true, shouldValidate: true });
-      setValue("contactPhone", prefPhone, {
-        shouldDirty: true,
-        shouldValidate: true,
+  const applyDialogSlice = useCallback(
+    (slice: Partial<StopDialogFormValues>) => {
+      (Object.keys(slice) as (keyof typeof slice)[]).forEach((key) => {
+        const val = slice[key];
+        if (val !== undefined) {
+          setValue(key, val as never, { shouldDirty: true, shouldValidate: true });
+        }
       });
     },
-    [addresses, setUseAddressFiscalData, setValue],
-  );
-
-  const handleClientAddressPrefillToggle = useCallback(
-    (checked: boolean) => {
-      setUseClientAddressPrefill(checked);
-
-      if (checked) return;
-
-      hasInitializedFiscalModeRef.current = false;
-      lastSyncedCatalogIdRef.current = null;
-      setUseAddressFiscalData(false);
-      setValue("clientId", "", { shouldDirty: true, shouldValidate: true });
-      setValue("clientAddressId", "", { shouldDirty: true, shouldValidate: true });
-      setValue("addressId", "", { shouldDirty: true, shouldValidate: true });
-    },
     [setValue],
   );
+
+  const handlePrefillSelect = useCallback(
+    (item: AddressSearchListItem) => {
+      hasInitializedFiscalModeRef.current = false;
+      lastSyncedCatalogIdRef.current = null;
+      setSelectedPrefillItem(item);
+      setPrefillCatalogRef(buildStopPrefillRefFromSearchItem(item));
+      applyDialogSlice(addressSearchItemToDialogSlice(item));
+      setUseAddressFiscalData(item.ownerType === "client");
+    },
+    [applyDialogSlice],
+  );
+
+  const handlePrefillClear = useCallback(() => {
+    setSelectedPrefillItem(null);
+    setPrefillCatalogRef(null);
+    hasInitializedFiscalModeRef.current = false;
+    lastSyncedCatalogIdRef.current = null;
+    setUseAddressFiscalData(false);
+    applyDialogSlice(applyAddressPickerClearSlice());
+  }, [applyDialogSlice]);
 
   const handleOperationToggle = useCallback(
     (operation: TripStopFormValues["stopType"][number]) => {
@@ -553,6 +530,7 @@ export function StopFormSheet({
       selectedAddress,
       useAddressFiscalData,
       clientFiscalFallback,
+      selectedPrefillItem ? prefillCatalogRef : null,
     );
 
     const validation = await validateTripStopAddressComplete(
@@ -581,13 +559,20 @@ export function StopFormSheet({
     }
     setInlineSatError(null);
 
-    const shouldAskPersistChoice =
+    const shouldAskSnapshotPersistChoice =
+      prefillCatalogRef != null &&
+      selectedAddress != null &&
+      stopDialogDiffersFromClientCatalog(values, selectedAddress);
+
+    const shouldAskLegacyPersistChoice =
+      prefillCatalogRef == null &&
+      selectedPrefillItem == null &&
       Boolean(merged.clientId) &&
       stopHasUnifiedAddressId(merged) &&
       selectedAddress != null &&
       stopDialogDiffersFromClientCatalog(values, selectedAddress);
 
-    if (shouldAskPersistChoice) {
+    if (shouldAskSnapshotPersistChoice || shouldAskLegacyPersistChoice) {
       setPendingStopSubmit({ merged, formValues: values });
       setClientAddressPersistDialogOpen(true);
       return;
@@ -603,7 +588,10 @@ export function StopFormSheet({
   }, []);
 
   const handlePersistClientAddress = useCallback(async () => {
-    if (!pendingStopSubmit?.merged.clientId || !selectedAddress) return;
+    if (!pendingStopSubmit) return;
+    const persistClientId =
+      prefillCatalogRef?.ownerId ?? pendingStopSubmit.merged.clientId;
+    if (!persistClientId || !selectedAddress) return;
 
     setIsPersistingClientAddress(true);
     try {
@@ -629,7 +617,7 @@ export function StopFormSheet({
       }
 
       await writeBackAddressMutation.mutateAsync({
-        clientId: pendingStopSubmit.merged.clientId,
+        clientId: persistClientId,
         addressId: selectedAddress.id,
         data: stopDialogToClientAddressUpdateDto(
           pendingStopSubmit.formValues,
@@ -651,6 +639,7 @@ export function StopFormSheet({
     applyStopFieldErrors,
     completeStopSubmit,
     pendingStopSubmit,
+    prefillCatalogRef?.ownerId,
     resetClientAddressPersistDialog,
     selectedAddress,
     toast,
@@ -747,7 +736,6 @@ export function StopFormSheet({
     getMissingRequiredFields,
     setError,
     submitDialog,
-    useClientAddressPrefill,
   ]);
 
   useEffect(() => {
@@ -766,14 +754,19 @@ export function StopFormSheet({
   const showWaypointArrivalWarning =
     displayStop.stopCategory === "waypoint" && !displayStop.estimatedArrival;
 
-  const hasClientAddressPrefill =
-    useClientAddressPrefill && Boolean(displayStop.clientAddressId);
-  const catalogMissingCoordinates =
-    hasClientAddressPrefill &&
-    (selectedAddress?.latitude == null || selectedAddress?.longitude == null);
+  const hasAddressPrefill =
+    selectedPrefillItem != null ||
+    prefillCatalogRef != null ||
+    Boolean(displayStop.clientAddressId);
   /** Solo datos fiscales opcionales desde catálogo; domicilio y geo siempre editables con prefill. */
-  const isFiscalDataLocked = hasClientAddressPrefill && useAddressFiscalData;
-  const showMissingGeolocationNotice = catalogMissingCoordinates;
+  const isFiscalDataLocked =
+    (prefillCatalogRef != null || Boolean(displayStop.clientAddressId)) &&
+    useAddressFiscalData;
+  const showMissingGeolocationNotice = shouldShowPrefillMissingGeolocationNotice({
+    hasAddressPrefill,
+    latitude: displayStop.latitude,
+    longitude: displayStop.longitude,
+  });
   const geolocationPanelMode = resolveGeolocationPanelMode({
     isOriginStop:
       displayStop.stopCategory === "origin" ||
@@ -940,7 +933,7 @@ export function StopFormSheet({
       satStateCode={noticeSatStateCode}
       satMunicipalityCode={noticeSatMunicipalityCode}
       postalCode={noticePostalCode}
-      showGlobalNotice={!hasClientAddressPrefill}
+      showGlobalNotice={!hasAddressPrefill}
       locationSectionTitle={stopForm.section.domicile}
       preAddressSections={preAddressSections}
       addressInputSection={
@@ -951,7 +944,7 @@ export function StopFormSheet({
           setValue={setValue}
           namePrefix=""
           layout="compact"
-          hideInformativeAlerts={hasClientAddressPrefill}
+          hideInformativeAlerts={hasAddressPrefill}
         />
       }
       postAddressSections={postAddressSections}
@@ -982,13 +975,10 @@ export function StopFormSheet({
           />
 
           <StopFormSheetAddressOriginSection
-            useClientAddressPrefill={useClientAddressPrefill}
-            onClientAddressPrefillToggle={handleClientAddressPrefillToggle}
-            displayStop={displayStop}
-            clients={clients}
-            clientAddresses={clientAddresses}
-            onClientChange={handleClientChange}
-            onAddressSelect={handleAddressSelect}
+            selectedPrefill={selectedPrefillItem}
+            onPrefillSelect={handlePrefillSelect}
+            onPrefillClear={handlePrefillClear}
+            defaultOwnerTypes={defaultOwnerTypes}
           />
 
           {showMissingGeolocationNotice ? (
@@ -1018,7 +1008,7 @@ export function StopFormSheet({
               </p>
             )}
 
-            {hasClientAddressPrefill && (
+            {hasAddressPrefill && (
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="useAddressFiscalData" className="cursor-pointer text-sm">
                   {stopForm.label.useAddressFiscalData}

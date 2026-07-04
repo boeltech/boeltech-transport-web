@@ -20,8 +20,8 @@ export const shellCopy = {
   submit: {
     create: "Crear Viaje",
     save: "Guardar Cambios",
-    creating: "Creando...",
-    saving: "Guardando...",
+    creating: "Creando…",
+    saving: "Guardando…",
     stepsAriaLabel: "Pasos para crear o editar un viaje",
     validationAriaLabel: "Errores de validación del paso",
   },

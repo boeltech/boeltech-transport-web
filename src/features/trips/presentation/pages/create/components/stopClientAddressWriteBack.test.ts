@@ -75,6 +75,74 @@ describe("stopClientAddressWriteBack", () => {
     expect(stopDialogDiffersFromClientCatalog(form, catalog)).toBe(false);
   });
 
+  it("no marca diff tras precarga picker con huecos de snapshot (localidad/interior)", () => {
+    const catalog = baseCatalog({
+      satLocalityCode: "001",
+      localityName: "Monterrey",
+      interiorNumber: "B",
+      contactName: "Recepción",
+      contactPhone: "8180000000",
+    });
+    const form = {
+      ...getEmptyStopDialogValues(),
+      locationName: "CEDIS Norte",
+      street: "Av Principal",
+      exteriorNumber: "100",
+      postalCode: "64000",
+      satCountryCode: "MEX",
+      satStateCode: "19",
+      satMunicipalityCode: "006",
+      satLocalityCode: null,
+      localityName: null,
+      interiorNumber: null,
+      contactName: "",
+      contactPhone: "",
+    };
+
+    expect(stopDialogDiffersFromClientCatalog(form, catalog)).toBe(false);
+  });
+
+  it("no marca diff si códigos SAT usan formato corto vs prefijo en catálogo", () => {
+    const catalog = baseCatalog({
+      satMunicipalityCode: "MEX-19-006",
+      satNeighborhoodCode: "COL-0123",
+    });
+    const form = {
+      ...getEmptyStopDialogValues(),
+      locationName: "CEDIS Norte",
+      street: "Av Principal",
+      exteriorNumber: "100",
+      postalCode: "64000",
+      satCountryCode: "MEX",
+      satStateCode: "19",
+      satMunicipalityCode: "006",
+      satNeighborhoodCode: "0123",
+    };
+
+    expect(stopDialogDiffersFromClientCatalog(form, catalog)).toBe(false);
+  });
+
+  it("marca diff si el usuario editó calle tras precarga", () => {
+    const catalog = baseCatalog({
+      satLocalityCode: "001",
+      localityName: "Monterrey",
+    });
+    const form = {
+      ...getEmptyStopDialogValues(),
+      locationName: "CEDIS Norte",
+      street: "Calle editada por usuario",
+      exteriorNumber: "100",
+      postalCode: "64000",
+      satCountryCode: "MEX",
+      satStateCode: "19",
+      satMunicipalityCode: "006",
+      satLocalityCode: null,
+      localityName: null,
+    };
+
+    expect(stopDialogDiffersFromClientCatalog(form, catalog)).toBe(true);
+  });
+
   it("detachStopFromClientCatalog limpia ids de catálogo", () => {
     expect(
       detachStopFromClientCatalog({

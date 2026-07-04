@@ -54,7 +54,7 @@ export const cargoCopy = {
     units: (units: number, unitName: string) =>
       `${units} ${unitName || "uds"}`,
     insurance: (name: string) => `Seguro: ${name}`,
-    policy: (policy: string) => `Poliza: ${policy}`,
+    policy: (policy: string) => `Póliza: ${policy}`,
     satCode: (code: string) => `Clave ${code}`,
     deliveryBadge: (
       stopLabel: string,
@@ -182,12 +182,12 @@ export const cargoCopy = {
       insurer: "Ej: Qualitas",
       policy: "Ej: CARGA-123456",
       packagingType: "Seleccionar tipo de embalaje",
-      packagingDescription: "Ej: Bidones de 20L, Tanque de 1000L...",
-      deliveryStop: "Seleccionar parada...",
+      packagingDescription: "Ej: Bidones de 20L, Tanque de 1000L…",
+      deliveryStop: "Seleccionar parada…",
       deliveryWeight: "Peso (kg)",
       deliveryUnits: "Unidades",
-      notes: "Observaciones sobre la carga...",
-      specialInstructions: "Manejo especial, temperatura, fragilidad...",
+      notes: "Observaciones sobre la carga…",
+      specialInstructions: "Manejo especial, temperatura, fragilidad…",
     },
     hint: {
       insurance:

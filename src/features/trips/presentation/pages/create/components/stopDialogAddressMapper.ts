@@ -5,7 +5,16 @@
  */
 
 import type { ClientAddress } from "@features/clients/domain/entities";
+import { toAddressSnapshot } from "@shared/ui/address-picker/addressSnapshot";
+import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import type { TripStopFormValues } from "./validation";
+
+/** Fuente de catálogo cliente para write-back (ADR-0053 snapshot — sin FK en form). */
+export type StopAddressPrefillRef = {
+  ownerType: "client";
+  ownerId: string;
+  catalogAddressId: string;
+};
 
 export type StopCategory = "origin" | "waypoint" | "destination";
 
@@ -25,6 +34,7 @@ export type StopDialogFormValues = {
   stopType: TripStopFormValues["stopType"];
   clientId: string;
   clientAddressId: string;
+  sourceAddressId: string;
   addressId: string;
   locationName: string;
   /** Campos alineados a `tripStopSchema` (inglés) para `AddressInput`. */
@@ -48,6 +58,8 @@ export type StopDialogFormValues = {
   cityName: string;
   rfcRemitenteDestinatario: string;
   nombreRemitenteDestinatario: string;
+  destinatarioRfc: string;
+  destinatarioNombre: string;
   deliveryRfcRemitenteDestinatario: string;
   deliveryNombreRemitenteDestinatario: string;
   remitentePartnerId: string;
@@ -89,12 +101,23 @@ export function resolveRemitenteFiscalFromClientAddress(
   };
 }
 
+/** Aviso de geo faltante: usa coords efectivas del formulario, no solo catálogo cliente. */
+export function shouldShowPrefillMissingGeolocationNotice(input: {
+  hasAddressPrefill: boolean;
+  latitude: number | null | undefined;
+  longitude: number | null | undefined;
+}): boolean {
+  if (!input.hasAddressPrefill) return false;
+  return input.latitude == null || input.longitude == null;
+}
+
 export function getEmptyStopDialogValues(): StopDialogFormValues {
   return {
     stopCategory: undefined,
     stopType: [],
     clientId: "",
     clientAddressId: "",
+    sourceAddressId: "",
     addressId: "",
     locationName: "",
     addressType: "trip_stop",
@@ -116,6 +139,8 @@ export function getEmptyStopDialogValues(): StopDialogFormValues {
     cityName: "",
     rfcRemitenteDestinatario: "",
     nombreRemitenteDestinatario: "",
+    destinatarioRfc: "",
+    destinatarioNombre: "",
     deliveryRfcRemitenteDestinatario: "",
     deliveryNombreRemitenteDestinatario: "",
     remitentePartnerId: "",
@@ -135,7 +160,104 @@ export function getEmptyStopDialogValues(): StopDialogFormValues {
   };
 }
 
+export function buildStopPrefillRefFromSearchItem(
+  item: AddressSearchListItem,
+): StopAddressPrefillRef | null {
+  if (item.ownerType !== "client") return null;
+  return {
+    ownerType: "client",
+    ownerId: item.ownerId,
+    catalogAddressId: item.id,
+  };
+}
+
+/** Snapshot SAT/geo desde AddressPicker — sin FK a la fuente (ADR-0053). */
+export function addressSearchItemToDialogSlice(
+  item: AddressSearchListItem,
+): Partial<StopDialogFormValues> {
+  const snapshot = toAddressSnapshot(item);
+  return {
+    addressId: "",
+    clientAddressId: item.ownerType === "client" ? item.id : "",
+    sourceAddressId: item.id,
+    clientId: item.ownerType === "client" ? item.ownerId : "",
+    locationName: snapshot.locationName,
+    addressType: "trip_stop",
+    isPrimary: false,
+    street: snapshot.street,
+    exteriorNumber: snapshot.exteriorNumber,
+    interiorNumber: snapshot.interiorNumber,
+    reference: snapshot.reference,
+    postalCode: snapshot.postalCode,
+    satCountryCode: snapshot.satCountryCode,
+    satStateCode: snapshot.satStateCode,
+    satMunicipalityCode: snapshot.satMunicipalityCode ?? "",
+    satLocalityCode: snapshot.satLocalityCode,
+    localityName: snapshot.localityName,
+    satNeighborhoodCode: snapshot.satNeighborhoodCode,
+    neighborhoodName: snapshot.neighborhoodName,
+    latitude: snapshot.latitude,
+    longitude: snapshot.longitude,
+    cityName: "",
+    contactName: "",
+    contactPhone: "",
+    rfcRemitenteDestinatario: item.remitenteRfc ?? "",
+    nombreRemitenteDestinatario: item.remitenteName ?? "",
+    destinatarioRfc: item.destinatarioRfc ?? "",
+    destinatarioNombre: item.destinatarioName ?? "",
+    deliveryRfcRemitenteDestinatario: "",
+    deliveryNombreRemitenteDestinatario: "",
+    remitentePartnerId: "",
+    destinatarioPartnerId: "",
+  };
+}
+
+/** Limpia precarga y domicilio capturado desde picker. */
+export function applyAddressPickerClearSlice(): Partial<StopDialogFormValues> {
+  return {
+    clientId: "",
+    clientAddressId: "",
+    sourceAddressId: "",
+    addressId: "",
+    locationName: "",
+    satCountryCode: "MEX",
+    satStateCode: "",
+    satMunicipalityCode: "",
+    satLocalityCode: null,
+    localityName: null,
+    satNeighborhoodCode: null,
+    neighborhoodName: null,
+    postalCode: "",
+    cityName: "",
+    street: "",
+    exteriorNumber: "",
+    interiorNumber: null,
+    reference: null,
+    latitude: null,
+    longitude: null,
+    contactName: "",
+    contactPhone: "",
+    rfcRemitenteDestinatario: "",
+    nombreRemitenteDestinatario: "",
+    destinatarioRfc: "",
+    destinatarioNombre: "",
+    deliveryRfcRemitenteDestinatario: "",
+    deliveryNombreRemitenteDestinatario: "",
+    remitentePartnerId: "",
+    destinatarioPartnerId: "",
+  };
+}
+
 /** Slice en inglés listo para `setValue` desde una dirección de catálogo. */
+/** Campos de detalle de catálogo ausentes en GET /addresses/search (hidratar tras picker). */
+export function clientAddressCatalogHydrationSlice(
+  addr: ClientAddress,
+): Partial<StopDialogFormValues> {
+  const { addressId: _addressId, ...rest } = clientAddressToDialogSlice(addr);
+  void _addressId;
+  return rest;
+}
+
 export function clientAddressToDialogSlice(
   addr: ClientAddress,
 ): Partial<StopDialogFormValues> {
@@ -173,6 +295,7 @@ export function tripStopToDialogValues(stop: Partial<StopFormData>): StopDialogF
     stopType: stop.stopType ?? [],
     clientId: stop.clientId ?? "",
     clientAddressId: stop.clientAddressId ?? "",
+    sourceAddressId: stop.sourceAddressId ?? "",
     addressId: stop.addressId ?? "",
     locationName: stop.locationName ?? "",
     street: stop.street ?? "",
@@ -219,6 +342,7 @@ export function dialogToStopFormData(v: StopDialogFormValues): StopFormData {
     stopType: v.stopType,
     clientId: v.clientId || undefined,
     clientAddressId: v.clientAddressId || undefined,
+    sourceAddressId: v.sourceAddressId || undefined,
     addressId: v.addressId || undefined,
     locationName: v.locationName || undefined,
     satCountryCode: v.satCountryCode,
@@ -265,8 +389,14 @@ export function mergeDialogWithClientCatalog(
   selected: ClientAddress | undefined,
   useAddressFiscalData: boolean,
   clientFiscalFallback?: ClientFiscalFallback | null,
+  prefillCatalogRef?: StopAddressPrefillRef | null,
 ): StopFormData {
-  if (!w.clientAddressId || !selected) {
+  const snapshotMode = prefillCatalogRef != null;
+  const hasLegacyFk = Boolean(w.clientAddressId);
+  const hasCatalogContext =
+    selected != null && (snapshotMode || hasLegacyFk);
+
+  if (!hasCatalogContext) {
     return dialogToStopFormData(w);
   }
 
@@ -276,7 +406,11 @@ export function mergeDialogWithClientCatalog(
   const merged: StopDialogFormValues = {
     ...slice,
     ...w,
-    addressId: w.addressId || selected.id,
+    clientId: snapshotMode
+      ? prefillCatalogRef.ownerId
+      : w.clientId,
+    addressId: snapshotMode ? "" : w.addressId || selected.id,
+    clientAddressId: snapshotMode ? "" : w.clientAddressId,
     rfcRemitenteDestinatario: useAddressFiscalData
       ? fiscal.rfcRemitenteDestinatario
       : w.rfcRemitenteDestinatario,

@@ -108,6 +108,7 @@ function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
 export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const { fields } = stopsFieldArray;
   const scheduledArrival = form.watch("scheduledArrival");
+  const tripContractingClientId = form.watch("clientId");
   const cfdiDocumentIntent =
     form.watch("cfdiDocumentIntent") === "traslado" ? "traslado" : "ingreso";
   const watchedStops = form.watch("stops");
@@ -1280,6 +1281,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         initialData={dialogInitialData}
         mode={editingStopIndex !== null ? "edit" : "create"}
         cfdiDocumentIntent={cfdiDocumentIntent}
+        tripContractingClientId={
+          tripContractingClientId && tripContractingClientId !== "no-client"
+            ? tripContractingClientId
+            : undefined
+        }
       />
 
       <AlertDialog
