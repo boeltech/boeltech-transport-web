@@ -1,13 +1,41 @@
 import path from "path";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+
+function buildSentryVitePlugin(): PluginOption | null {
+  const authToken = process.env.SENTRY_AUTH_TOKEN;
+  const org = process.env.SENTRY_ORG;
+  const project = process.env.SENTRY_PROJECT;
+
+  if (!authToken || !org || !project) {
+    return null;
+  }
+
+  return sentryVitePlugin({
+    org,
+    project,
+    authToken,
+    release: {
+      name: process.env.VITE_GIT_SHA || process.env.VITE_APP_VERSION,
+    },
+    sourcemaps: {
+      filesToDeleteAfterUpload: ["./dist/**/*.map"],
+    },
+  });
+}
+
+const sentryPlugin = buildSentryVitePlugin();
 
 // https://vite.dev/config/
 export default defineConfig({
   // Carga .env*, .env.local, etc. desde env/ (alineado con env/.env.example y env/.env.local)
   envDir: path.resolve(__dirname, "env"),
-  plugins: [react(), tailwindcss()],
+  build: {
+    sourcemap: Boolean(sentryPlugin),
+  },
+  plugins: [react(), tailwindcss(), ...(sentryPlugin ? [sentryPlugin] : [])],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -24,25 +52,4 @@ export default defineConfig({
       ignored: ["**/boeltech-cfdi-domain/dist/**"],
     },
   },
-
-  // SOLO PARA CONFIG DE SHADCN/UI
-  // resolve: {
-  //   alias: {
-  //     "@": path.resolve(__dirname, "./src"),
-  //   },
-  // },
 });
-
-// server: {
-//     port: 3001,
-//     open: true,
-
-//     // ✅ Proxy para evitar CORS en desarrollo
-//     proxy: {
-//       "/api": {
-//         target: "http://localhost:3000", // URL del backend
-//         changeOrigin: true,
-//         secure: false,
-//       },
-//     },
-//   },

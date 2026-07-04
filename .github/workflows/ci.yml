@@ -40,3 +40,7 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # Sentry source maps — enabled with deploy-staging.yml / deploy-prod.yml
+      # env:
+      #   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+

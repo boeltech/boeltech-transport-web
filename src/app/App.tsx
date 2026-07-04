@@ -15,18 +15,7 @@ import {
  */
 const App = () => {
   return (
-    <ErrorBoundary
-      onError={(error, errorInfo) => {
-        // Aquí puedes enviar errores a un servicio de monitoreo
-        console.error("Global error caught:", error);
-        console.error("Error info:", errorInfo);
-
-        // En producción:
-        // if (import.meta.env.PROD) {
-        //   Sentry.captureException(error);
-        // }
-      }}
-    >
+    <ErrorBoundary>
       <QueryProvider>
         <ThemeProvider defaultMode="system">
           <ToastProvider>

@@ -5,6 +5,7 @@ import {
   useRouteError,
   isRouteErrorResponse,
 } from "react-router-dom";
+import { captureWebException } from "@shared/observability/sentry";
 
 // ============================================
 // Tipos
@@ -60,11 +61,9 @@ export class ErrorBoundary extends Component<
     // Callback opcional
     this.props.onError?.(error, errorInfo);
 
-    // En producción, enviar a servicio de monitoreo
-    if (import.meta.env.PROD) {
-      // TODO: Sentry, DataDog, etc.
-      // Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
-    }
+    captureWebException(error, {
+      componentStack: errorInfo.componentStack ?? undefined,
+    });
   }
 
   handleReset = (): void => {
@@ -258,6 +257,7 @@ export const RouteErrorBoundary = () => {
 
   // Error de JavaScript
   if (error instanceof Error) {
+    captureWebException(error);
     return (
       <DefaultErrorFallback
         error={error}
