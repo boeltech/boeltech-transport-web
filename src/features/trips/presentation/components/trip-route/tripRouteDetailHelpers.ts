@@ -254,9 +254,11 @@ export function getStopOperationalVisitLabel(
 /** Parada con tramo cerrado en tracking (`status === completed`). */
 export function isStopOperativelyComplete(
   stop: TripStop,
-  _category?: RouteStopCategory,
-  _tripTimes?: TripScheduleTimes,
+  category?: RouteStopCategory,
+  tripTimes?: TripScheduleTimes,
 ): boolean {
+  void category;
+  void tripTimes;
   return stop.status === StopStatus.COMPLETED;
 }
 

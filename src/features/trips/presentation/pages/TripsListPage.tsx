@@ -290,7 +290,7 @@ export function TripsListPage() {
     setSearchParams(new URLSearchParams());
     setDateDraft({ ...EMPTY_TRIP_DATE_DRAFT });
     setIsDateFilterOpen(false);
-  }, [filters.setSearchInput, setSearchParams]);
+  }, [filters, setSearchParams]);
 
   const activeFilterChips: ActiveFilterChip[] = [
     ...filters.activeChips,
@@ -717,7 +717,7 @@ export function TripsListPage() {
                 hint={
                   <>
                     ¿Está seguro de que desea cancelar este viaje? Esta acción cambiará el estado a
-                    &quot;Cancelado&quot;.
+                    «Cancelado».
                   </>
                 }
               />

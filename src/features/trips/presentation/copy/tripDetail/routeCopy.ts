@@ -20,11 +20,11 @@ export const routeCopy = {
     scopeEditable:
       "Consulta la ruta y su progreso. Reordenar o reconfigurar paradas en edición completa.",
     scopeEditableFields:
-      "RFC y distancias por parada. Llegada estimada en destino y escalas; salida del origen en Operación. Tiempos reales en Seguimiento.",
+      "Distancias y RFC por parada en edición completa (borrador o programado). Llegada estimada en destino y escalas en Operación. Tiempos reales en Seguimiento.",
     scopeReadOnly:
       "Ruta en solo lectura. Modificaciones estructurales solo en borrador o programado.",
     quickEditDistance:
-      "Use «Edición rápida» en cada parada para capturar distancias sin abrir el wizard.",
+      "Capture distancias entre tramos en edición completa del viaje.",
     originDeparture:
       "La salida programada del viaje se edita en Operación; al iniciar el viaje se registra la salida real en Seguimiento.",
     waypointTimes:
@@ -49,7 +49,7 @@ export const routeCopy = {
     missingDestination: "Falta la parada de destino en la secuencia del viaje.",
     missingRfcTitle: "Datos fiscales pendientes",
     missingRfcBody: (count: number) =>
-      `${count} parada(s) sin RFC remitente/destinatario. Use «Edición rápida» o edición completa antes de facturar.`,
+      `${count} parada(s) sin RFC remitente/destinatario. Complete los datos en edición completa antes de facturar.`,
     segmentDistanceTitle: "Distancias entre tramos",
     missingSegmentBody: (count: number) =>
       `${count} tramo(s) sin distancia registrada desde la parada anterior.`,
@@ -62,7 +62,6 @@ export const routeCopy = {
   action: {
     openFullEdit: "Abrir edición completa",
     replanRoute: "Replanificar ruta en edición completa",
-    quickEdit: "Edición rápida",
     saveChanges: "Guardar cambios",
     cancel: "Cancelar",
   },

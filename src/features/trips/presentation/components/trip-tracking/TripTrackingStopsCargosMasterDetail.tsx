@@ -86,8 +86,9 @@ export type TripTrackingStopsCargosMasterDetailProps = {
 function getCargoActionsForStopLink(
   link: StopCargoLink,
   tripInProgress: boolean,
-  _stopActive: boolean,
+  stopActive: boolean,
 ): CargoManualAction[] {
+  void stopActive;
   if (!tripInProgress) return [];
 
   const allActions = getCargoManualActions(link.cargo.status, tripInProgress);
@@ -530,7 +531,7 @@ export function TripTrackingStopsCargosMasterDetail({
 
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {trackingCopy.state.noStops} en la ruta.
+            {trackingCopy.state.noStops}.
           </p>
         ) : (
           <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:gap-0">

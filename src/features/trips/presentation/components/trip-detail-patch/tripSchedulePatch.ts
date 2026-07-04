@@ -1,7 +1,7 @@
 import type { Trip, UpdateTripInput } from "@features/trips/domain";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
-import { buildCreateLikeFromTrip } from "./tripStopOperationalPatch";
+import { buildCreateLikeFromTrip } from "./tripCreateLikeFromTrip";
 import { buildUpdateTripInputFromCreateInput } from "../../pages/create/updateTripPayloadShared";
 import {
   buildScheduleOverrideFromTrip,

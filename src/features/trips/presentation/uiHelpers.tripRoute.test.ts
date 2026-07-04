@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TripStop } from "@features/trips/domain";
 import {
+  formatStopDisplayPrimaryLine,
   formatTripEndpointLabel,
   formatTripRouteSubtitle,
   formatStopDisplayStreetLine,
@@ -95,6 +96,31 @@ describe("formatTripRouteSubtitle", () => {
     expect(
       formatTripEndpointLabel(undefined, { city: "039", state: "JAL" }),
     ).toBe("Municipio 039, JAL");
+  });
+});
+
+describe("formatStopDisplayPrimaryLine", () => {
+  it("skips legacy Sin domicilio when street is present", () => {
+    expect(
+      formatStopDisplayPrimaryLine(
+        stop({
+          address: "Sin domicilio",
+          street: "Av Constitucion",
+          exteriorNumber: "1850",
+        }),
+      ),
+    ).toBe("Av Constitucion #1850");
+  });
+
+  it("falls through Sin domicilio to catalog hint when address_id is unified", () => {
+    expect(
+      formatStopDisplayPrimaryLine(
+        stop({
+          address: "Sin domicilio",
+          addressId: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+        }),
+      ),
+    ).toBe("Domicilio en catálogo");
   });
 });
 

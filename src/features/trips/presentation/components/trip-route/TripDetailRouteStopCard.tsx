@@ -6,14 +6,12 @@ import {
   MapPin,
   Navigation,
   Package,
-  Pencil,
   Phone,
   User,
 } from "lucide-react";
 
 import { StopType, type TripStatusType, type TripStop, type TripCargo, type CargoStatusType } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 import {
   getStopTypeBadgeClasses,
@@ -44,14 +42,17 @@ export interface TripDetailRouteStopCardProps {
   displayOrder: number;
   tripStatus: TripStatusType;
   tripTimes?: TripScheduleTimes;
-  canEdit?: boolean;
-  onEdit?: () => void;
   cargos?: readonly TripCargo[];
   orderedStops?: readonly TripStop[];
   getCargoStatusVariant?: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
   fiscalWarning?: {
+    show: boolean;
+    label: string;
+    onFix: () => void;
+  };
+  fiscalCorrection?: {
     show: boolean;
     onFix: () => void;
   };
@@ -78,12 +79,11 @@ export function TripDetailRouteStopCard({
   displayOrder,
   tripStatus,
   tripTimes,
-  canEdit = false,
-  onEdit,
   cargos = [],
   orderedStops,
   getCargoStatusVariant,
   fiscalWarning,
+  fiscalCorrection,
 }: TripDetailRouteStopCardProps) {
   const category = getRouteStopCategory(stop);
   const visitState = getStopOperationalVisitState(stop, category, tripTimes);
@@ -164,20 +164,17 @@ export function TripDetailRouteStopCard({
                 onClick={fiscalWarning.onFix}
               >
                 <AlertTriangle className="mr-1 h-3 w-3" />
-                {tripFiscalCopy.chip.invalidRfc}
+                {fiscalWarning.label}
               </Badge>
             ) : null}
-            {canEdit && onEdit ? (
-              <Button
-                type="button"
-                size="sm"
+            {fiscalCorrection?.show ? (
+              <Badge
                 variant="outline"
-                className="h-6 gap-1 px-2 text-xs"
-                onClick={onEdit}
+                className="cursor-pointer text-xs"
+                onClick={fiscalCorrection.onFix}
               >
-                <Pencil className="h-3 w-3" />
-                {copy.action.quickEdit}
-              </Button>
+                {tripFiscalCopy.chip.correctFiscal}
+              </Badge>
             ) : null}
           </div>
         </div>

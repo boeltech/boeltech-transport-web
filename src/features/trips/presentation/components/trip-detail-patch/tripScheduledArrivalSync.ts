@@ -1,5 +1,4 @@
 import type { Trip, TripStop } from "@features/trips/domain";
-import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { getRouteStopCategory } from "../trip-route/tripRouteDetailHelpers";
 import {
@@ -10,10 +9,6 @@ import {
 
 export function findDestinationStop(trip: Trip): TripStop | undefined {
   return (trip.stops ?? []).find((stop) => getRouteStopCategory(stop) === "destination");
-}
-
-export function isDestinationStop(stop: TripStop): boolean {
-  return getRouteStopCategory(stop) === "destination";
 }
 
 /** Valores datetime-local para override de programación del viaje. */
@@ -45,15 +40,4 @@ export function mergeDestinationEstimatedArrivalFromSchedule(
       },
     ],
   ]);
-}
-
-/** Alinea `scheduledArrival` del viaje con la llegada estimada editada en destino. */
-export function buildScheduleOverrideForDestinationStopEdit(
-  trip: Trip,
-  values: TripStopOperationalValues,
-): { scheduledDeparture: string; scheduledArrival: string } {
-  return {
-    scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
-    scheduledArrival: values.estimatedArrival,
-  };
 }

@@ -88,7 +88,6 @@ export interface TripDetailCargoTabProps {
 
 export function TripDetailCargoTab({
   tripId,
-  tripStatus: _tripStatus,
   cargos,
   orderedStops,
   pickupStops,

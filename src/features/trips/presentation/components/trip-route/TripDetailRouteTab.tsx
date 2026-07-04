@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -8,7 +8,6 @@ import {
   Route,
 } from "lucide-react";
 
-import { useUpdateTrip } from "@features/trips/application/hooks/trip/useUpdateTrip";
 import {
   StopType,
   countCompletedStops,
@@ -17,7 +16,6 @@ import {
   type TripStop,
   type TripCargo,
 } from "@features/trips/domain";
-import { useToast } from "@shared/hooks";
 import { formatTripRouteSubtitle } from "@features/trips/presentation/uiHelpers";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -28,7 +26,6 @@ import { cn } from "@shared/lib/utils/cn";
 
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
 import { getCargoStatusVariant } from "../trip-cargos/tripCargoDetailHelpers";
-import { TripStopOperationalEditSheet } from "./TripStopOperationalEditSheet";
 import { useTripFiscalSheets } from "../trip-fiscal";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
@@ -96,26 +93,35 @@ function renderRouteStopCard(
   stop: TripStop,
   ordered: readonly TripStop[],
   tripStatus: TripStatusType,
-  canEditStructural: boolean,
-  onEditStop: (stopId: string) => void,
   tripTimes: { scheduledDeparture: Date; actualDeparture: Date | null },
   cargos: readonly TripCargo[],
   showFiscalWarning: (stop: TripStop) => boolean,
+  showFiscalCorrection: (stop: TripStop) => boolean,
   onFixFiscal: (stopId: string) => void,
 ) {
+  const warning = showFiscalWarning(stop);
+  const correction = !warning && showFiscalCorrection(stop);
+
   return (
     <TripDetailRouteStopCard
       stop={stop}
       displayOrder={getDisplayOrder(stop, ordered)}
       tripStatus={tripStatus}
       tripTimes={tripTimes}
-      canEdit={canEditStructural}
-      onEdit={() => onEditStop(stop.id)}
       cargos={cargos}
       orderedStops={ordered}
       getCargoStatusVariant={getCargoStatusVariant}
       fiscalWarning={
-        showFiscalWarning(stop)
+        warning
+          ? {
+              show: true,
+              label: tripFiscalCopy.chip.invalidRfc,
+              onFix: () => onFixFiscal(stop.id),
+            }
+          : undefined
+      }
+      fiscalCorrection={
+        correction
           ? { show: true, onFix: () => onFixFiscal(stop.id) }
           : undefined
       }
@@ -132,23 +138,7 @@ export function TripDetailRouteTab({
   cargos = [],
   legacyRoute,
 }: TripDetailRouteTabProps) {
-  const { toast } = useToast();
-  const [editingStopId, setEditingStopId] = useState<string | null>(null);
   const fiscal = useTripFiscalSheets({ trip, enableAutoRestamp: false });
-
-  const updateTrip = useUpdateTrip({
-    onSuccess: () => {
-      toast({ title: copy.toast.stopUpdated, variant: "success" });
-      setEditingStopId(null);
-    },
-    onError: (error) => {
-      toast({
-        title: copy.toast.stopSaveError,
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   if (orderedStops.length === 0) {
     return (
@@ -190,6 +180,7 @@ export function TripDetailRouteTab({
   ).length;
 
   const showFiscalWarning = fiscal.shouldShowFiscalWarningChipForStop;
+  const showFiscalCorrection = fiscal.shouldShowFiscalCorrectionChipForStop;
   const onFixFiscal = (stopId: string) => {
     fiscal.openFixSheet(stopId, {
       submitLabel: tripFiscalCopy.fixSheet.submitSave,
@@ -280,7 +271,10 @@ export function TripDetailRouteTab({
                   { text: copy.hint.scopeEditable },
                   { text: copy.hint.scopeEditableFields },
                 ]
-              : [{ text: copy.hint.scopeReadOnly }]
+              : [
+                  { text: copy.hint.scopeReadOnly },
+                  { text: tripFiscalCopy.correctionSheet.readOnlyHint },
+                ]
           }
         />
 
@@ -342,11 +336,10 @@ export function TripDetailRouteTab({
                   origin,
                   ordered,
                   tripStatus,
-                  canEditStructural,
-                  setEditingStopId,
                   tripTimes,
                   cargos,
                   showFiscalWarning,
+                  showFiscalCorrection,
                   onFixFiscal,
                 )
               ) : (
@@ -373,11 +366,10 @@ export function TripDetailRouteTab({
                         stop,
                         ordered,
                         tripStatus,
-                        canEditStructural,
-                        setEditingStopId,
                         tripTimes,
                         cargos,
                         showFiscalWarning,
+                        showFiscalCorrection,
                         onFixFiscal,
                       )}
                     </div>
@@ -400,11 +392,10 @@ export function TripDetailRouteTab({
                   destination,
                   ordered,
                   tripStatus,
-                  canEditStructural,
-                  setEditingStopId,
                   tripTimes,
                   cargos,
                   showFiscalWarning,
+                  showFiscalCorrection,
                   onFixFiscal,
                 )
               ) : (
@@ -420,19 +411,6 @@ export function TripDetailRouteTab({
       <div className="order-first space-y-6 xl:order-none xl:sticky xl:top-24 xl:self-start">
         {routeSummaryCard}
       </div>
-
-      <TripStopOperationalEditSheet
-        trip={trip}
-        stopId={editingStopId}
-        open={editingStopId != null}
-        isSaving={updateTrip.isPending}
-        onOpenChange={(open) => {
-          if (!open) setEditingStopId(null);
-        }}
-        onSubmit={async (payload) => {
-          await updateTrip.mutateAsync({ id: trip.id, data: payload });
-        }}
-      />
 
       {fiscal.sheets}
     </div>

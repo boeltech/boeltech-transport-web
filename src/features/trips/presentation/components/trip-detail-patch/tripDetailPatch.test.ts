@@ -3,13 +3,7 @@ import { StopType, TripStatus, type Trip } from "@features/trips/domain";
 
 import { validateUpdateTripApiPayload } from "../../pages/create/validateTripApiPayload";
 import { buildScheduleUpdateInput } from "./tripSchedulePatch";
-import { buildStopOperationalUpdateInput } from "./tripStopOperationalPatch";
-import {
-  getStopFiscalStatus,
-  mapTripStopToOperationalValues,
-  mapTripToScheduleFormValues,
-  validateStopOperationalFields,
-} from "./tripStopOperationalFields";
+import { mapTripToScheduleFormValues } from "./tripStopOperationalFields";
 
 const baseTrip = {
   id: "trip-1",
@@ -177,80 +171,5 @@ describe("tripDetailPatch", () => {
     expect(payload.scheduledArrival).toContain("2026-05-14");
     expect(payload.stops?.[1]?.estimatedArrival).toContain("2026-05-14");
     expect(validateUpdateTripApiPayload(payload)).toEqual({ ok: true });
-  });
-
-  it("syncs scheduledArrival with destination estimatedArrival on stop edit", () => {
-    const stop = mapTripStopToOperationalValues(baseTrip.stops![1]!);
-    const edited = {
-      ...stop,
-      estimatedArrival: "2026-05-15T10:30",
-    };
-    const payload = buildStopOperationalUpdateInput(baseTrip, stop.stopId, edited);
-    expect(payload.scheduledArrival).toContain("2026-05-15");
-    expect(payload.stops?.[1]?.estimatedArrival).toContain("2026-05-15");
-  });
-
-  it("resolves fiscal status correctly", () => {
-    expect(
-      getStopFiscalStatus({
-        rfcRemitenteDestinatario: "",
-        deliveryRfcRemitenteDestinatario: "",
-      }),
-    ).toBe("pending");
-    expect(
-      getStopFiscalStatus({
-        rfcRemitenteDestinatario: "AAA010101AAA",
-        deliveryRfcRemitenteDestinatario: "",
-      }),
-    ).toBe("ok");
-  });
-
-  it("validates stop operational fields", () => {
-    const stop = mapTripStopToOperationalValues(baseTrip.stops![1]!);
-    const emptyRfc = { ...stop, rfcRemitenteDestinatario: "", deliveryRfcRemitenteDestinatario: "" };
-    expect(validateStopOperationalFields(emptyRfc).length).toBeGreaterThan(0);
-  });
-
-  it("builds stop update without changing locationName", () => {
-    const stop = mapTripStopToOperationalValues(baseTrip.stops![1]!);
-    const edited = {
-      ...stop,
-      rfcRemitenteDestinatario: "ccc010101ccc",
-      distanceFromPreviousKm: "901.77",
-    };
-    const payload = buildStopOperationalUpdateInput(baseTrip, stop.stopId, edited);
-    expect(payload.stops?.[1]?.rfcRemitenteDestinatario).toBe("CCC010101CCC");
-    expect(payload.stops?.[1]?.locationName).toBe("Cliente Destino");
-    expect(payload.stops?.[1]?.distanceFromPreviousKm).toBe(901.77);
-    expect(validateUpdateTripApiPayload(payload)).toEqual({ ok: true });
-  });
-
-  it("derives city from locationName when city is empty", () => {
-    const tripWithGaps = {
-      ...baseTrip,
-      internalStaff: [
-        {
-          id: "tis-1",
-          tripId: "trip-1",
-          employeeId: "emp-1",
-          internalRole: null,
-          employeeFullName: "Apoyo Uno",
-          employeeNumber: null,
-          employeeStatus: null,
-          isPaymentResponsible: false,
-          paymentNotes: null,
-          createdAt: new Date("2026-05-13T00:00:00.000Z"),
-          updatedAt: new Date("2026-05-13T00:00:00.000Z"),
-        },
-      ],
-      stops: (baseTrip.stops ?? []).map((s, i) =>
-        i === 0 ? { ...s, city: "", locationName: "Bodega Origen" } : s,
-      ),
-    } as unknown as Trip;
-
-    const stop = mapTripStopToOperationalValues(tripWithGaps.stops![0]!);
-    const payload = buildStopOperationalUpdateInput(tripWithGaps, stop.stopId, stop);
-    expect(payload.internalStaff?.[0]?.internalRole).toBe("helper");
-    expect(payload.stops?.[0]?.city).toBe("Bodega Origen");
   });
 });

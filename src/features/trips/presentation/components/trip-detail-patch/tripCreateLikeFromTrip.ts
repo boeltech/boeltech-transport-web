@@ -1,12 +1,7 @@
-import type { CreateTripInput, Trip, UpdateTripInput } from "@features/trips/domain";
+import type { CreateTripInput, Trip } from "@features/trips/domain";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
-import { buildUpdateTripInputFromCreateInput } from "../../pages/create/updateTripPayloadShared";
 
 import { mapStopToCreateStopInput } from "./mapStopToCreateStopInput";
-import {
-  buildScheduleOverrideForDestinationStopEdit,
-  isDestinationStop,
-} from "./tripScheduledArrivalSync";
 import type { TripStopOperationalValues } from "./tripStopOperationalFields";
 
 export function buildCreateLikeFromTrip(
@@ -109,21 +104,4 @@ export function buildCreateLikeFromTrip(
       isEstimated: expense.isEstimated,
     })),
   };
-}
-
-export function buildStopOperationalUpdateInput(
-  trip: Trip,
-  stopId: string,
-  values: TripStopOperationalValues,
-): UpdateTripInput {
-  const editedById = new Map<string, TripStopOperationalValues>([[stopId, values]]);
-  const sourceStop = (trip.stops ?? []).find((stop) => stop.id === stopId);
-  const scheduleOverride =
-    sourceStop && isDestinationStop(sourceStop)
-      ? buildScheduleOverrideForDestinationStopEdit(trip, values)
-      : undefined;
-
-  return buildUpdateTripInputFromCreateInput(
-    buildCreateLikeFromTrip(trip, editedById, scheduleOverride),
-  );
 }

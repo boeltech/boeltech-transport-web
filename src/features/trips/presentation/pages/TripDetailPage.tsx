@@ -306,7 +306,7 @@ export function TripDetailPage() {
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [trip, displayStatus, routeDetail?.trip.actualArrival, comparisonNowMs, hasOpenTrackingIncident]);
+  }, [trip, displayStatus, routeDetail?.trip, comparisonNowMs, hasOpenTrackingIncident]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE

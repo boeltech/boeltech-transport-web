@@ -460,7 +460,7 @@ export function formatStopDisplayPrimaryLine(stop: TripStop): string {
   }
 
   const addr = stop.address?.trim();
-  if (addr) return addr;
+  if (addr && !isPlaceholderStopAddress(addr)) return addr;
 
   if (isUnifiedAddressId(stop.addressId)) {
     return "Domicilio en catálogo";

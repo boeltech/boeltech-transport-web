@@ -76,7 +76,7 @@ export const trackingCopy = {
     syncing: "Sincronizando…",
     readOnly: "Solo lectura",
     noEvents: "Sin eventos",
-    noStops: "Sin paradas",
+    noStops: "Sin paradas en la ruta",
   },
   hint: {
     scope: "Seguimiento registra eventos y evidencias operativas.",
