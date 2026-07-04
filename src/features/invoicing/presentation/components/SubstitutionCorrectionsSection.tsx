@@ -6,7 +6,10 @@ import {
   RegimenFiscalSelect,
   UsoCfdiSelect,
 } from "@features/catalogs/presentation/components";
+import { usePermissions } from "@shared/permissions";
+import { Checkbox } from "@shared/ui/checkbox";
 import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,21 +23,36 @@ import {
 } from "@shared/ui/form";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import type { SubstituteInvoiceSheetValues } from "../validation/substitutionCorrectionsSchema";
+import {
+  SUBSTITUTION_COLLAPSIBLE_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_TRIGGER_CLASS,
+} from "./substitutionSheetLayout";
 
 const copy = invoicingCopy.detail.substitute.corrections;
+const sheetCopy = invoicingCopy.detail.substitute;
 
 interface Props {
   control: Control<SubstituteInvoiceSheetValues>;
 }
 
 export function SubstitutionCorrectionsSection({ control }: Props) {
+  const { hasPermission } = usePermissions();
+  const canPropagateToClient = hasPermission("clients", "update");
+
   return (
-    <Collapsible className="rounded-md border">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-muted/50">
-        <span>{copy.sectionTitle}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+    <Collapsible defaultOpen={false} className={SUBSTITUTION_COLLAPSIBLE_CLASS}>
+      <CollapsibleTrigger className={SUBSTITUTION_COLLAPSIBLE_TRIGGER_CLASS}>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span>{copy.sectionTitle}</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {sheetCopy.optionalBadge}
+          </span>
+        </span>
+        <ChevronDown className={SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS} />
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-4 border-t px-4 py-4">
+      <CollapsibleContent className={SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS}>
         <p className="text-xs text-muted-foreground">{copy.sectionHint}</p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -134,6 +152,31 @@ export function SubstitutionCorrectionsSection({ control }: Props) {
             )}
           </RHFCatalogField>
         </div>
+
+        {canPropagateToClient ? (
+          <Controller
+            control={control}
+            name="propagate_receiver_to_client"
+            render={({ field }) => (
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <Checkbox
+                  id="substitute_propagate_receiver"
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="substitute_propagate_receiver"
+                    className="text-sm font-medium leading-none"
+                  >
+                    {copy.propagateLabel}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">{copy.propagateHint}</p>
+                </div>
+              </div>
+            )}
+          />
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );

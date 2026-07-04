@@ -9,6 +9,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { InvoiceActions } from "@features/invoicing/presentation/components/InvoiceActions";
+import { TripDetailRouteTab } from "@features/trips/presentation/components/trip-route";
 import { TripStatus, type Trip, type TripStop } from "@features/trips/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 
@@ -371,7 +372,7 @@ describe("smoke fiscal-edit workflow", () => {
     lastDestructiveToast?.action?.onClick();
 
     expect(
-      await screen.findByRole("heading", { name: "Corregir RFC de parada" }),
+      await screen.findByRole("heading", { name: "Corregir datos fiscales" }),
     ).toBeInTheDocument();
 
     const rfcInput = screen.getByLabelText("RFC remitente/destinatario");
@@ -477,5 +478,52 @@ describe("smoke fiscal-edit workflow", () => {
     ).toBeInTheDocument();
 
     expect(mockStamp).not.toHaveBeenCalled();
+  });
+
+  it("shows fiscal correction chip on route tab when RFC is valid and invoice is draft", async () => {
+    const user = userEvent.setup();
+    const trip = createTrip([
+      createStop({
+        id: "stop-origin",
+        sequenceOrder: 1,
+        stopType: ["origin"],
+        rfcRemitenteDestinatario: "AAA010101AAA",
+      }),
+      createStop({
+        id: STOP_ID,
+        sequenceOrder: 2,
+        stopType: ["destination"],
+        clientAddressId: "client-addr-1",
+        rfcRemitenteDestinatario: "EKU9003173C9",
+      }),
+    ]);
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <TripDetailRouteTab
+            trip={trip}
+            tripStatus={TripStatus.COMPLETED}
+            orderedStops={trip.stops ?? []}
+            progress={100}
+            canEditStructural={false}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const chips = screen.getAllByText("Corregir datos fiscales");
+    expect(chips.length).toBeGreaterThanOrEqual(1);
+    await user.click(chips[0]!);
+
+    expect(
+      await screen.findByRole("heading", { name: "Corregir datos fiscales" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "RFC" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Domicilio" })).toBeInTheDocument();
   });
 });

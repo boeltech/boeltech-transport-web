@@ -61,13 +61,28 @@ export function buildStopsByIdFromCache(
   return stopsById;
 }
 
+export function buildTripsByIdFromCache(
+  queryClient: QueryClient,
+  tripIds: string[],
+): Map<string, Trip> {
+  const tripsById = new Map<string, Trip>();
+  for (const tripId of tripIds) {
+    const trip = queryClient.getQueryData<Trip>(tripQueryKeys.detail(tripId));
+    if (trip) {
+      tripsById.set(tripId, trip);
+    }
+  }
+  return tripsById;
+}
+
 export function findMissingTripCorrectionStopIds(
-  entries: ReadonlyArray<{ stop_id: string }>,
+  entries: ReadonlyArray<{ stop_id?: string }>,
   stopsById: Map<string, TripStop>,
 ): string[] {
   return entries
-    .filter((entry) => !stopsById.has(entry.stop_id))
-    .map((entry) => entry.stop_id);
+    .filter((entry) => entry.stop_id && !stopsById.has(entry.stop_id))
+    .map((entry) => entry.stop_id!)
+    .filter(Boolean);
 }
 
 export function useInvoiceLinkedTripsLoading(

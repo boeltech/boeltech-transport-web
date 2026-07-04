@@ -4,10 +4,9 @@ import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { useTrip } from "@features/trips/application/hooks/trip/useTrip";
 import type { Invoice, InvoiceTripRef } from "@features/invoicing/domain";
 import { getStopTypeConfig } from "@features/trips/presentation/uiHelpers";
-import {
-  getEffectiveStopRfc,
-  formatStopLocation,
-} from "@features/trips/presentation/components/trip-fiscal/tripFiscalHelpers";
+import { getEffectiveStopRfc } from "@features/trips/presentation/components/trip-fiscal/tripFiscalHelpers";
+import { TripFiscalCorrectionSheet } from "@features/trips/presentation/components/trip-fiscal/TripFiscalCorrectionSheet";
+import { TripStopAddressSingleLine } from "@features/trips/presentation/components/TripStopAddressLines";
 import { usePermissions } from "@shared/permissions";
 import {
   Collapsible,
@@ -20,9 +19,17 @@ import {
   type SubstituteInvoiceSheetValues,
   type TripCorrectionFormEntry,
 } from "../validation/substitutionCorrectionsSchema";
-import { FixStopRfcDeferredForm } from "./FixStopRfcDeferredForm";
+import {
+  SUBSTITUTION_COLLAPSIBLE_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS,
+  SUBSTITUTION_COLLAPSIBLE_TRIGGER_CLASS,
+} from "./substitutionSheetLayout";
 
 const copy = invoicingCopy.detail.substitute.trips;
+const sheetCopy = invoicingCopy.detail.substitute;
+
+type EditMode = "rfc" | "address";
 
 interface Props {
   invoice: Invoice;
@@ -34,21 +41,19 @@ interface Props {
 function TripStopsLoader({
   tripRef,
   enabled,
-  editingStopId,
   savedStopIds,
-  canExecute,
+  savedAddressStopIds,
+  canExecuteStopFiscal,
+  canExecuteTripFiscal,
   onEditStop,
-  onCancelEdit,
-  onSaveCorrection,
 }: {
   tripRef: InvoiceTripRef;
   enabled: boolean;
-  editingStopId: string | null;
   savedStopIds: Set<string>;
-  canExecute: boolean;
-  onEditStop: (stopId: string) => void;
-  onCancelEdit: () => void;
-  onSaveCorrection: (entry: TripCorrectionFormEntry) => void;
+  savedAddressStopIds: Set<string>;
+  canExecuteStopFiscal: boolean;
+  canExecuteTripFiscal: boolean;
+  onEditStop: (tripId: string, stopId: string, mode: EditMode, clientId: string | null) => void;
 }) {
   const { data: trip, isLoading } = useTrip(tripRef.tripId, { enabled });
 
@@ -86,46 +91,45 @@ function TripStopsLoader({
             .map((type) => getStopTypeConfig(type).label)
             .join(" · ");
           const effectiveRfc = getEffectiveStopRfc(stop) ?? "—";
-          const isEditing = editingStopId === stop.id;
-          const isSaved = savedStopIds.has(stop.id);
+          const isRfcSaved = savedStopIds.has(stop.id);
+          const isAddressSaved = savedAddressStopIds.has(stop.id);
 
           return (
             <li key={stop.id} className="rounded-lg border p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
                     {copy.stopLabel(stop.sequenceOrder, stopTypeLabel)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatStopLocation(stop)}
-                  </p>
-                  <p className="mt-1 font-mono text-xs">{effectiveRfc}</p>
+                  <TripStopAddressSingleLine
+                    stop={stop}
+                    className="break-words text-xs text-muted-foreground"
+                  />
+                  <p className="mt-1 break-all font-mono text-xs">{effectiveRfc}</p>
                 </div>
-                {!isEditing ? (
+                <div className="flex shrink-0 gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={!canExecute}
-                    onClick={() => onEditStop(stop.id)}
+                    disabled={!canExecuteStopFiscal}
+                    onClick={() => onEditStop(tripRef.tripId, stop.id, "rfc", trip.clientId)}
                   >
-                    {isSaved ? copy.editAgain : copy.correctStop}
+                    {isRfcSaved ? copy.editAgain : copy.correctStop}
                   </Button>
-                ) : null}
-              </div>
-
-              {isEditing ? (
-                <div className="mt-3">
-                  <FixStopRfcDeferredForm
-                    tripId={tripRef.tripId}
-                    stop={stop}
-                    canExecute={canExecute}
-                    submitLabel={copy.saveStopCorrection}
-                    onSave={onSaveCorrection}
-                    onCancel={onCancelEdit}
-                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canExecuteTripFiscal}
+                    onClick={() =>
+                      onEditStop(tripRef.tripId, stop.id, "address", trip.clientId)
+                    }
+                  >
+                    {isAddressSaved ? copy.editAgain : copy.correctAddress}
+                  </Button>
                 </div>
-              ) : null}
+              </div>
             </li>
           );
         })}
@@ -141,54 +145,138 @@ export function SubstitutionTripCorrectionsSection({
   sheetOpen,
 }: Props) {
   const { hasPermission } = usePermissions();
-  const canExecute = hasPermission("trips_stops_fiscal", "execute");
+  const canExecuteStopFiscal = hasPermission("trips_stops_fiscal", "execute");
+  const canExecuteTripFiscal = hasPermission("trips_fiscal_edit", "execute");
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
+  const [editingMode, setEditingMode] = useState<EditMode | null>(null);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+
+  const { data: editingTrip } = useTrip(editingTripId ?? "", {
+    enabled: sheetOpen && editingTripId != null,
+  });
 
   const tripCorrections = useWatch({ control, name: "trip_corrections" }) ?? [];
   const savedStopIds = useMemo(
-    () => new Set(tripCorrections.map((entry) => entry.stop_id)),
+    () =>
+      new Set(
+        tripCorrections
+          .filter((entry) => entry.stop_id && entry.rfc_remitente_destinatario)
+          .map((entry) => entry.stop_id!),
+      ),
+    [tripCorrections],
+  );
+  const savedAddressStopIds = useMemo(
+    () =>
+      new Set(
+        tripCorrections
+          .filter(
+            (entry) => entry.stop_id && (entry.address_id || entry.stop_address),
+          )
+          .map((entry) => entry.stop_id!),
+      ),
     [tripCorrections],
   );
 
   const handleSaveCorrection = (entry: TripCorrectionFormEntry) => {
     const next = [
-      ...tripCorrections.filter((item) => item.stop_id !== entry.stop_id),
+      ...tripCorrections.filter((item) => {
+        if (item.trip_id !== entry.trip_id) return true;
+        if (entry.driver_id || entry.vehicle_id) {
+          return !(item.driver_id || item.vehicle_id);
+        }
+        if (entry.stop_id && item.stop_id === entry.stop_id) {
+          if (entry.address_id || entry.stop_address) {
+            return !(item.address_id || item.stop_address);
+          }
+          return !item.rfc_remitente_destinatario;
+        }
+        return true;
+      }),
       entry,
     ];
     setValue("trip_corrections", next, { shouldDirty: true });
+    setEditingTripId(null);
     setEditingStopId(null);
+    setEditingMode(null);
+    setEditingClientId(null);
   };
+
+  const activeStop = editingStopId
+    ? editingTrip?.stops?.find((stop) => stop.id === editingStopId)
+    : undefined;
 
   if (invoice.trips.length === 0) {
     return null;
   }
 
   return (
-    <Collapsible defaultOpen={false}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-medium hover:bg-muted/50">
-        <span>{copy.sectionTitle}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 transition-transform [[data-state=open]_&]:rotate-180" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 px-1 pt-3">
-        <p className="flex items-start gap-2 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {canExecute ? copy.sectionHint : copy.noPermission}
-        </p>
+    <>
+      <Collapsible defaultOpen={false} className={SUBSTITUTION_COLLAPSIBLE_CLASS}>
+        <CollapsibleTrigger className={SUBSTITUTION_COLLAPSIBLE_TRIGGER_CLASS}>
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>{copy.sectionTitle}</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {sheetCopy.optionalBadge}
+            </span>
+          </span>
+          <ChevronDown className={SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className={SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS}>
+          <p className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {canExecuteStopFiscal || canExecuteTripFiscal
+              ? copy.sectionHint
+              : copy.noPermission}
+          </p>
 
-        {invoice.trips.map((tripRef) => (
-          <TripStopsLoader
-            key={tripRef.tripId}
-            tripRef={tripRef}
-            enabled={sheetOpen}
-            editingStopId={editingStopId}
-            savedStopIds={savedStopIds}
-            canExecute={canExecute}
-            onEditStop={setEditingStopId}
-            onCancelEdit={() => setEditingStopId(null)}
-            onSaveCorrection={handleSaveCorrection}
-          />
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+          <div className="space-y-3">
+            {invoice.trips.map((tripRef) => (
+              <TripStopsLoader
+                key={tripRef.tripId}
+                tripRef={tripRef}
+                enabled={sheetOpen}
+                savedStopIds={savedStopIds}
+                savedAddressStopIds={savedAddressStopIds}
+                canExecuteStopFiscal={canExecuteStopFiscal}
+                canExecuteTripFiscal={canExecuteTripFiscal}
+                onEditStop={(tripId, stopId, mode, clientId) => {
+                  setEditingTripId(tripId);
+                  setEditingStopId(stopId);
+                  setEditingMode(mode);
+                  setEditingClientId(clientId);
+                }}
+              />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {activeStop && editingTripId && editingMode ? (
+        <TripFiscalCorrectionSheet
+          mode="defer"
+          tripId={editingTripId}
+          stop={activeStop}
+          clientId={editingClientId}
+          correctionKind={editingMode}
+          open
+          submitLabel={copy.saveStopCorrection}
+          addressSubmitLabel={copy.saveStopCorrection}
+          addressCopy={invoicingCopy.detail.substitute.address}
+          canExecute={
+            editingMode === "rfc" ? canExecuteStopFiscal : canExecuteTripFiscal
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingTripId(null);
+              setEditingStopId(null);
+              setEditingMode(null);
+              setEditingClientId(null);
+            }
+          }}
+          onDeferSave={handleSaveCorrection}
+        />
+      ) : null}
+    </>
   );
 }

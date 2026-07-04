@@ -14,12 +14,15 @@ export {
   useSubstituteStampedInvoice,
   useOpenInvoicePdf,
   downloadInvoiceXml,
+  downloadRepXml,
+  useOpenRepPdf,
   useDownloadInvoiceXml,
 } from "./hooks/useInvoices";
 
 export {
   prefetchInvoiceLinkedTrips,
   buildStopsByIdFromCache,
+  buildTripsByIdFromCache,
   findMissingTripCorrectionStopIds,
   useInvoiceLinkedTripsLoading,
   fetchTripDetailForSubstitution,

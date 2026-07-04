@@ -3,7 +3,7 @@ import {
   tripCorrectionEntrySchema,
   type TripCorrectionEntry as TripCorrectionFormEntry,
 } from "@boeltech/cfdi-domain/validadores/trip-stop-fiscal";
-import type { TripStop } from "@features/trips/domain";
+import type { TripStop, Trip } from "@features/trips/domain";
 import {
   getEffectiveStopNombre,
   getEffectiveStopRfc,
@@ -11,9 +11,17 @@ import {
 import { z } from "zod";
 import type {
   Invoice,
+  InvoiceConcept,
   SubstituteStampedInvoiceCorrections,
   TripCorrectionEntry,
 } from "@features/invoicing/domain";
+import {
+  defaultFleteConceptFormLine,
+  invoiceConceptFormSchema,
+  mapFormConceptToPayload,
+  mapInvoiceConceptToFormInput,
+  type InvoiceConceptFormLine,
+} from "./invoiceFormSchema";
 
 export const RETAINED_TAX_RATE = 0.04;
 
@@ -57,7 +65,9 @@ export type SubstituteInvoiceSheetValues = {
   retained_tax: number;
   total: number;
   apply_retained_tax: boolean;
+  concepts: InvoiceConceptFormLine[];
   trip_corrections: TripCorrectionFormEntry[];
+  propagate_receiver_to_client: boolean;
 };
 
 const tripCorrectionFormEntrySchema =
@@ -69,7 +79,9 @@ const substituteInvoiceSheetUxSchema = z.object({
     .min(1, "Describe el motivo (se envía al SAT como parte de la cancelación 01)")
     .max(500),
   notes: z.string().max(500).optional(),
+  concepts: z.array(invoiceConceptFormSchema).default([]),
   trip_corrections: z.array(tripCorrectionFormEntrySchema).default([]),
+  propagate_receiver_to_client: z.boolean().default(false),
 });
 
 export const substituteInvoiceSheetSchema = (
@@ -128,6 +140,20 @@ function numbersEqual(a: number, b: number): boolean {
   return Math.round(a * 100) === Math.round(b * 100);
 }
 
+/** Una factura multi-concepto trae partidas explícitas; legacy solo tiene importe agregado. */
+export function invoiceHasConcepts(invoice: Invoice): boolean {
+  return (invoice.concepts?.length ?? 0) > 0;
+}
+
+export function buildSubstitutionConceptFormLines(
+  invoice: Invoice,
+): InvoiceConceptFormLine[] {
+  if (invoiceHasConcepts(invoice)) {
+    return invoice.concepts!.map(mapInvoiceConceptToFormInput);
+  }
+  return [defaultFleteConceptFormLine(invoice.subtotal ?? 0)];
+}
+
 export function defaultSubstituteInvoiceSheetValues(
   invoice: Invoice,
 ): SubstituteInvoiceSheetValues {
@@ -147,14 +173,66 @@ export function defaultSubstituteInvoiceSheetValues(
     retained_tax: invoice.retainedTax ?? 0,
     total: invoice.total ?? 0,
     apply_retained_tax: (invoice.retainedTax ?? 0) > 0,
+    concepts: buildSubstitutionConceptFormLines(invoice),
     trip_corrections: [],
+    propagate_receiver_to_client: false,
   };
+}
+
+function conceptFormLinesEqualOriginal(
+  original: InvoiceConcept[],
+  next: InvoiceConceptFormLine[],
+): boolean {
+  if (original.length !== next.length) {
+    return false;
+  }
+  return original.every((line, index) => {
+    const candidate = next[index];
+    if (!candidate) return false;
+    return (
+      line.conceptType === candidate.concept_type &&
+      (line.serviceConceptId ?? undefined) ===
+        (candidate.service_concept_id ?? undefined) &&
+      line.claveProdServ === candidate.clave_prod_serv &&
+      line.claveUnidad === candidate.clave_unidad &&
+      line.unidad === candidate.unidad &&
+      line.description === candidate.description &&
+      numbersEqual(line.quantity, candidate.quantity) &&
+      numbersEqual(line.unitPrice, candidate.unit_price) &&
+      numbersEqual(line.amount, candidate.amount)
+    );
+  });
+}
+
+/** Devuelve el snapshot completo de partidas solo si difiere del original. */
+export function buildSubstitutionConceptsDiff(
+  invoice: Invoice,
+  concepts: InvoiceConceptFormLine[] | undefined,
+): InvoiceConcept[] | undefined {
+  if (!invoiceHasConcepts(invoice) || !concepts || concepts.length === 0) {
+    return undefined;
+  }
+  if (conceptFormLinesEqualOriginal(invoice.concepts!, concepts)) {
+    return undefined;
+  }
+  return concepts.map(mapFormConceptToPayload);
 }
 
 function stopCorrectionChanged(
   stop: TripStop,
   entry: TripCorrectionFormEntry,
 ): boolean {
+  if (entry.address_id || entry.stop_address) {
+    if (entry.address_id) {
+      return entry.address_id !== (stop.addressId ?? "");
+    }
+    return entry.stop_address !== undefined;
+  }
+
+  if (!entry.rfc_remitente_destinatario) {
+    return false;
+  }
+
   const originalRfc = getEffectiveStopRfc(stop) ?? "";
   const originalNombre = getEffectiveStopNombre(stop);
   const nextNombre = entry.nombre_remitente_destinatario?.trim() ?? "";
@@ -164,17 +242,72 @@ function stopCorrectionChanged(
   );
 }
 
+function tripFiscalCorrectionChanged(
+  trip: Trip,
+  entry: TripCorrectionFormEntry,
+): boolean {
+  const driverChanged =
+    entry.driver_id !== undefined && entry.driver_id !== trip.driverId;
+  const vehicleChanged =
+    entry.vehicle_id !== undefined && entry.vehicle_id !== trip.vehicleId;
+  return driverChanged || vehicleChanged;
+}
+
 export function buildSubstitutionTripCorrectionsDiff(
   stopsById: Map<string, TripStop>,
+  tripsById: Map<string, Trip>,
   entries: TripCorrectionFormEntry[],
 ): TripCorrectionEntry[] | undefined {
   const changed: TripCorrectionEntry[] = [];
 
   for (const entry of entries) {
+    if (entry.driver_id || entry.vehicle_id) {
+      const trip = tripsById.get(entry.trip_id);
+      if (!trip || !tripFiscalCorrectionChanged(trip, entry)) {
+        continue;
+      }
+      changed.push({
+        tripId: entry.trip_id,
+        ...(entry.driver_id ? { driverId: entry.driver_id } : {}),
+        ...(entry.vehicle_id ? { vehicleId: entry.vehicle_id } : {}),
+        reason: entry.reason,
+      });
+      continue;
+    }
+
+    if (!entry.stop_id) {
+      continue;
+    }
+
     const stop = stopsById.get(entry.stop_id);
     if (!stop || !stopCorrectionChanged(stop, entry)) {
       continue;
     }
+
+    if (entry.address_id) {
+      changed.push({
+        tripId: entry.trip_id,
+        stopId: entry.stop_id,
+        addressId: entry.address_id,
+        reason: entry.reason,
+      });
+      continue;
+    }
+
+    if (entry.stop_address) {
+      changed.push({
+        tripId: entry.trip_id,
+        stopId: entry.stop_id,
+        stopAddress: entry.stop_address,
+        reason: entry.reason,
+      });
+      continue;
+    }
+
+    if (!entry.rfc_remitente_destinatario) {
+      continue;
+    }
+
     changed.push({
       tripId: entry.trip_id,
       stopId: entry.stop_id,
@@ -192,10 +325,19 @@ export function buildSubstitutionCorrectionsDiff(
   invoice: Invoice,
   values: SubstituteInvoiceSheetValues,
   stopsById: Map<string, TripStop> = new Map(),
+  tripsById: Map<string, Trip> = new Map(),
   dirtyFields?: SubstitutionCorrectionsDirtyFields,
 ): SubstituteStampedInvoiceCorrections | undefined {
   const corrections: Partial<WritableSubstituteCorrections> = {};
-  const includeAmountCorrections = hasSubstitutionAmountDirtyFields(dirtyFields);
+  const conceptsDiff = buildSubstitutionConceptsDiff(invoice, values.concepts);
+  // Conceptos son la fuente de verdad: si cambian, la API recalcula agregados
+  // (ADR-0061 x ADR-0051 §6.1). Evitamos doble fuente de verdad omitiendo escalares.
+  const includeAmountCorrections =
+    !conceptsDiff && hasSubstitutionAmountDirtyFields(dirtyFields);
+
+  if (conceptsDiff) {
+    corrections.concepts = conceptsDiff;
+  }
 
   for (const [camelKey, snakeKey] of FISCAL_FIELD_PAIRS) {
     const nextValue = values[snakeKey];
@@ -224,20 +366,45 @@ export function buildSubstitutionCorrectionsDiff(
   }
 
   if (includeAmountCorrections) {
-    for (const [camelKey, snakeKey] of AMOUNT_FIELD_PAIRS) {
-      const nextValue = Number(values[snakeKey] ?? 0);
-      const originalValue = Number(invoice[camelKey] ?? 0);
-      if (!numbersEqual(nextValue, originalValue)) {
-        if (camelKey === "subtotal") {
-          corrections.subtotal = nextValue;
-        } else if (camelKey === "discount") {
-          corrections.discount = nextValue;
-        } else if (camelKey === "totalTax") {
-          corrections.totalTax = nextValue;
-        } else if (camelKey === "retainedTax") {
-          corrections.retainedTax = nextValue;
-        } else if (camelKey === "total") {
-          corrections.total = nextValue;
+    const baseAmountDirty =
+      Boolean(dirtyFields?.subtotal) || Boolean(dirtyFields?.discount);
+    const derivedAmountDirty =
+      Boolean(dirtyFields?.total_tax) ||
+      Boolean(dirtyFields?.retained_tax) ||
+      Boolean(dirtyFields?.total) ||
+      Boolean(dirtyFields?.apply_retained_tax);
+
+    if (baseAmountDirty && !derivedAmountDirty) {
+      for (const [camelKey, snakeKey] of [
+        ["subtotal", "subtotal"],
+        ["discount", "discount"],
+      ] as const) {
+        const nextValue = Number(values[snakeKey] ?? 0);
+        const originalValue = Number(invoice[camelKey] ?? 0);
+        if (!numbersEqual(nextValue, originalValue)) {
+          if (camelKey === "subtotal") {
+            corrections.subtotal = nextValue;
+          } else {
+            corrections.discount = nextValue;
+          }
+        }
+      }
+    } else {
+      for (const [camelKey, snakeKey] of AMOUNT_FIELD_PAIRS) {
+        const nextValue = Number(values[snakeKey] ?? 0);
+        const originalValue = Number(invoice[camelKey] ?? 0);
+        if (!numbersEqual(nextValue, originalValue)) {
+          if (camelKey === "subtotal") {
+            corrections.subtotal = nextValue;
+          } else if (camelKey === "discount") {
+            corrections.discount = nextValue;
+          } else if (camelKey === "totalTax") {
+            corrections.totalTax = nextValue;
+          } else if (camelKey === "retainedTax") {
+            corrections.retainedTax = nextValue;
+          } else if (camelKey === "total") {
+            corrections.total = nextValue;
+          }
         }
       }
     }
@@ -245,10 +412,18 @@ export function buildSubstitutionCorrectionsDiff(
 
   const tripCorrections = buildSubstitutionTripCorrectionsDiff(
     stopsById,
+    tripsById,
     values.trip_corrections ?? [],
   );
   if (tripCorrections) {
     corrections.tripCorrections = tripCorrections;
+  }
+
+  const hasFiscalCorrections = FISCAL_FIELD_PAIRS.some(
+    ([camelKey]) => corrections[camelKey] !== undefined,
+  );
+  if (values.propagate_receiver_to_client && hasFiscalCorrections) {
+    corrections.propagateReceiverToClient = true;
   }
 
   return Object.keys(corrections).length > 0

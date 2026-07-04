@@ -74,6 +74,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     replacementCfdiUuid: null,
     notes: null,
     trips: [],
+    concepts: [],
     payments: [],
     totalPaid: 0,
     balanceDue: 1160,

@@ -115,6 +115,7 @@ function buildInvoice(): Invoice {
         baseRate: 1000,
       },
     ],
+    concepts: [],
     payments: [],
     totalPaid: 0,
     balanceDue: 1160,
@@ -169,7 +170,7 @@ describe("SubstituteInvoiceSheet", () => {
       screen.getByRole("heading", { name: /Sustituir factura/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Confirmar sustitución/i }),
+      screen.getByRole("button", { name: /Emitir sustituto y cancelar original/i }),
     ).toBeInTheDocument();
   });
 
@@ -196,7 +197,7 @@ describe("SubstituteInvoiceSheet", () => {
       "Corrección RFC parada origen",
     );
 
-    await user.click(screen.getByRole("button", { name: /Corregir viaje/i }));
+    await user.click(screen.getByRole("button", { name: /Paradas y Carta Porte/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Corregir RFC/i })).toBeInTheDocument();
@@ -207,7 +208,7 @@ describe("SubstituteInvoiceSheet", () => {
     await user.clear(screen.getByLabelText(/RFC remitente/i));
     await user.type(screen.getByLabelText(/RFC remitente/i), "XAXX010101000");
     await user.type(
-      screen.getByLabelText(/Razón del cambio/i),
+      screen.getByLabelText(/Motivo del cambio/i),
       "RFC incorrecto en parada",
     );
 
@@ -222,7 +223,7 @@ describe("SubstituteInvoiceSheet", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: /Confirmar sustitución/i }),
+      screen.getByRole("button", { name: /Emitir sustituto y cancelar original/i }),
     );
 
     await waitFor(() => {
