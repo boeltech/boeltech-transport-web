@@ -24,6 +24,9 @@ import {
   type GeoProviderId,
   type LatLng,
 } from "@shared/geolocation";
+import { CoordinatesPostalCodeWarningAlert } from "@shared/geolocation/CoordinatesPostalCodeWarningAlert";
+import { coordinatesPostalCodeWarningCopy } from "@shared/geolocation/coordinatesPostalCodeWarningCopy";
+import { useCoordinatesPostalCodeWarningValues } from "@shared/geolocation/useCoordinatesPostalCodeWarningValues";
 import { AddressGeolocationMap } from "./AddressGeolocationMap";
 
 export interface AddressGeolocationPanelProps {
@@ -109,6 +112,15 @@ export function AddressGeolocationPanel({
 }: AddressGeolocationPanelProps) {
   const mapAndCoordsDisabled = coordinatesDisabled ?? disabled;
   const segmentDistanceDisabled = distanceDisabled ?? disabled;
+  const coordinatesPostalCodeWarning = useCoordinatesPostalCodeWarningValues({
+    enabled: !mapAndCoordsDisabled,
+    postalCode: address.postalCode,
+    satCountryCode: address.satCountryCode,
+    satStateCode: address.satStateCode,
+    satMunicipalityCode: address.satMunicipalityCode,
+    latitude,
+    longitude,
+  });
   const providers = useMemo(() => createGeoProviderBundle(), []);
   const geocodeUseCase = useMemo(
     () => new ResolveStopGeolocationUseCase(providers.geocodingProvider),
@@ -368,6 +380,12 @@ export function AddressGeolocationPanel({
             </AlertDescription>
           </Alert>
         )}
+        {coordinatesPostalCodeWarning ? (
+          <CoordinatesPostalCodeWarningAlert
+            warning={coordinatesPostalCodeWarning}
+            copy={coordinatesPostalCodeWarningCopy}
+          />
+        ) : null}
       </div>
 
       {onDistanceChange && (showDistanceSection ?? true) ? (

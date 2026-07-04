@@ -8,3 +8,15 @@ export * from "@shared/geolocation/application/useCases/CalculateSegmentsDistanc
 export * from "@shared/geolocation/mapboxStyles";
 export * from "@shared/geolocation/mapboxThemeColors";
 export { useMapboxStyle } from "@shared/geolocation/application/hooks/useMapboxStyle";
+export {
+  CP_COORDINATES_WARNING_THRESHOLD_KM,
+  evaluateCoordinatesVsMexicanPostalCodeWarning,
+  isMexicanPostalCodeForWarning,
+  parseCoordinateValue,
+  type CoordinatesPostalCodeWarningDetails,
+  type PostalCodeGeocodeReference,
+} from "@shared/geolocation/coordinatesVsMexicanPostalCode";
+export { useCoordinatesPostalCodeWarning } from "@shared/geolocation/useCoordinatesPostalCodeWarning";
+export { useCoordinatesPostalCodeWarningValues } from "@shared/geolocation/useCoordinatesPostalCodeWarningValues";
+export { CoordinatesPostalCodeWarningAlert } from "@shared/geolocation/CoordinatesPostalCodeWarningAlert";
+export { coordinatesPostalCodeWarningCopy } from "@shared/geolocation/coordinatesPostalCodeWarningCopy";

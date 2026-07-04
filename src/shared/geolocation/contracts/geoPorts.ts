@@ -19,6 +19,7 @@ export interface GeocodeQuery {
   readonly limit?: number;
   readonly countryCode?: string;
   readonly proximity?: LatLng;
+  readonly types?: string[];
 }
 
 export interface GeocodingCandidate {
@@ -26,6 +27,7 @@ export interface GeocodingCandidate {
   readonly position: LatLng;
   readonly relevance?: number | null;
   readonly rawPlaceId?: string;
+  readonly featureTypes?: string[];
 }
 
 export interface GeocodeResult {
