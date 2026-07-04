@@ -333,7 +333,9 @@ export interface CreateStopInput {
   // Orden y tipo
   sequenceOrder: number;
   stopType: StopTypeValue[];
+  /** @deprecated No enviar FK de catálogo en alta; usar snapshot inline + `sourceAddressId`. */
   addressId?: string;
+  sourceAddressId?: string;
 
   // Dirección simplificada
   address: string;
@@ -378,7 +380,10 @@ export interface CreateStopInput {
   // Datos del remitente/destinatario
   rfcRemitenteDestinatario?: string;
   nombreRemitenteDestinatario?: string;
+  destinatarioRfc?: string;
+  destinatarioNombre?: string;
 
+  /** @deprecated ADR-0055 — preferir `destinatarioRfc` / envelope CP */
   deliveryRfcRemitenteDestinatario?: string;
   deliveryNombreRemitenteDestinatario?: string;
   remitentePartnerId?: string;

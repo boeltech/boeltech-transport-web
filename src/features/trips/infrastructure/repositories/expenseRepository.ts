@@ -152,7 +152,7 @@ export class ExpenseRepository implements IExpenseRepository {
   async reject(
     tripId: string,
     expenseId: string,
-    reason?: string,
+    reason: string,
   ): Promise<MappedSingleResult<TripExpense>> {
     const response = await apiClient.patch<
       ApiSingleResponse<ApiExpenseResponse>

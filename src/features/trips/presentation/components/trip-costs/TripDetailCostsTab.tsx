@@ -7,6 +7,7 @@ import {
   Receipt,
 } from "lucide-react";
 
+import { RejectExpenseSheet } from "@features/approvals";
 import {
   useAddExpense,
   useApproveExpense,
@@ -48,6 +49,7 @@ import {
   tripExpensesToListItems,
   tripExpensesToWizardLines,
 } from "./tripExpenseFormBridge";
+import { tripExpenseToRejectApprovableItem } from "./tripExpenseRejectApprovableItem";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.costs;
@@ -145,6 +147,8 @@ export function TripDetailCostsTab({
   const [initialExpense, setInitialExpense] = useState<TripExpenseFormValues | null>(
     null,
   );
+  const [rejectSheetOpen, setRejectSheetOpen] = useState(false);
+  const [expenseToReject, setExpenseToReject] = useState<TripExpense | null>(null);
 
   const { data: vehicle } = useVehicle(vehicleId ?? "");
   const expectedFuelEfficiency =
@@ -218,20 +222,41 @@ export function TripDetailCostsTab({
             });
           }
         },
-        onReject: async (expenseId: string) => {
-          try {
-            await rejectExpense.mutateAsync({ expenseId });
-            toast({ title: copy.toast.rejected, variant: "success" });
-          } catch (error) {
-            toast({
-              title: copy.toast.rejectError,
-              description: error instanceof Error ? error.message : undefined,
-              variant: "error",
-            });
-          }
+        onReject: (expenseId: string) => {
+          const expense = expenses.find((item) => item.id === expenseId);
+          if (!expense) return;
+          setExpenseToReject(expense);
+          setRejectSheetOpen(true);
         },
       }
     : { onApprove: undefined, onReject: undefined };
+
+  const rejectApprovableItem = useMemo(
+    () =>
+      expenseToReject
+        ? tripExpenseToRejectApprovableItem(expenseToReject, tripId, tripCode)
+        : null,
+    [expenseToReject, tripCode, tripId],
+  );
+
+  const handleRejectSubmit = async (reason: string) => {
+    if (!expenseToReject) return;
+    try {
+      await rejectExpense.mutateAsync({
+        expenseId: expenseToReject.id,
+        reason,
+      });
+      toast({ title: copy.toast.rejected, variant: "success" });
+      setRejectSheetOpen(false);
+      setExpenseToReject(null);
+    } catch (error) {
+      toast({
+        title: copy.toast.rejectError,
+        description: error instanceof Error ? error.message : undefined,
+        variant: "error",
+      });
+    }
+  };
 
   const handleOpenAdd = (kind: TripExpenseSheetKind) => {
     setSheetKind(kind);
@@ -453,6 +478,21 @@ export function TripDetailCostsTab({
           expectedFuelEfficiency={expectedFuelEfficiency}
           onSubmit={(values) => {
             void handleSubmitFromSheet(values);
+          }}
+        />
+      ) : null}
+
+      {canApproveExpenses ? (
+        <RejectExpenseSheet
+          open={rejectSheetOpen}
+          onOpenChange={(open) => {
+            setRejectSheetOpen(open);
+            if (!open) setExpenseToReject(null);
+          }}
+          item={rejectApprovableItem}
+          isSubmitting={rejectExpense.isPending}
+          onSubmit={(reason) => {
+            void handleRejectSubmit(reason);
           }}
         />
       ) : null}

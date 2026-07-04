@@ -14,10 +14,7 @@ export { TripTrackingTab } from "./TripTrackingTab";
 export { TripDetailCostsTab } from "./trip-costs";
 export {
   buildScheduleUpdateInput,
-  buildStopOperationalUpdateInput,
-  getStopFiscalStatus,
   mapTripStopToOperationalValues,
-  validateStopOperationalFields,
 } from "./trip-detail-patch";
 export {
   TripDetailCargoTab,

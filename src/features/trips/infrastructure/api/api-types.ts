@@ -250,6 +250,7 @@ export interface ApiStopResponse {
   sequence_order: number;
   stop_type: StopTypeValue[];
   address_id?: string | null;
+  source_address_id?: string | null;
 
   /** Metadato UI: cliente para precargar direcciones */
   client_id?: string | null;
@@ -304,7 +305,10 @@ export interface ApiStopResponse {
   // Remitente/Destinatario
   rfc_remitente_destinatario: string | null;
   nombre_remitente_destinatario: string | null;
+  destinatario_rfc?: string | null;
+  destinatario_name?: string | null;
 
+  /** @deprecated ADR-0055 — dual-read legacy */
   delivery_rfc_remitente_destinatario?: string | null;
   delivery_nombre_remitente_destinatario?: string | null;
   remitente_partner_id?: string | null;

@@ -409,6 +409,9 @@ export function mapApiStop(api: ApiStopResponse): TripStop {
     // Remitente/Destinatario
     rfcRemitenteDestinatario: api.rfc_remitente_destinatario,
     nombreRemitenteDestinatario: api.nombre_remitente_destinatario,
+    destinatarioRfc: api.destinatario_rfc ?? null,
+    destinatarioNombre: api.destinatario_name ?? null,
+    sourceAddressId: api.source_address_id ?? null,
     deliveryRfcRemitenteDestinatario:
       api.delivery_rfc_remitente_destinatario ?? null,
     deliveryNombreRemitenteDestinatario:

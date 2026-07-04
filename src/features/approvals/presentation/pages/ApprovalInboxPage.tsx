@@ -276,7 +276,7 @@ export function ApprovalInboxPage() {
       params.set("status", "pending");
       return params;
     });
-  }, [filters.setSearchInput, setSearchParams]);
+  }, [filters, setSearchParams]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [approveTarget, setApproveTarget] = useState<ApprovableItem | null>(null);

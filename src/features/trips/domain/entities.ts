@@ -381,10 +381,15 @@ export interface TripStop {
   // Datos del remitente/destinatario
   readonly rfcRemitenteDestinatario: string | null;
   readonly nombreRemitenteDestinatario: string | null;
+  readonly destinatarioRfc?: string | null;
+  readonly destinatarioNombre?: string | null;
 
-  /** Segunda contraparte cuando carga y descarga aplican en la misma escala (snapshot fiscal). */
+  /** @deprecated ADR-0055 — dual-read legacy en `trip_stops` */
   readonly deliveryRfcRemitenteDestinatario: string | null;
   readonly deliveryNombreRemitenteDestinatario: string | null;
+
+  /** Dirección catálogo origen del snapshot (auditoría). */
+  readonly sourceAddressId?: string | null;
 
   /** FK catálogo partners + snapshot arriba (compatibilidad si el catálogo cambia). */
   readonly remitentePartnerId: string | null;

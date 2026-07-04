@@ -302,7 +302,7 @@ export interface IRejectExpenseUseCase {
   execute(
     tripId: string,
     expenseId: string,
-    reason?: string,
+    reason: string,
   ): Promise<UseCaseResult<TripExpense>>;
 }
 
@@ -316,7 +316,7 @@ export class RejectExpenseUseCase implements IRejectExpenseUseCase {
   async execute(
     tripId: string,
     expenseId: string,
-    reason?: string,
+    reason: string,
   ): Promise<UseCaseResult<TripExpense>> {
     try {
       const result = await this.repository.reject(tripId, expenseId, reason);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
@@ -40,12 +40,13 @@ export function RejectExpenseSheet({
   const [fieldError, setFieldError] = useState<string | null>(null);
   const isBulk = (bulkItems?.length ?? 0) > 1;
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setReason("");
       setFieldError(null);
     }
-  }, [open]);
+    onOpenChange(nextOpen);
+  };
 
   const trimmedLength = reason.trim().length;
   const canSubmit = trimmedLength >= MIN_REASON_LENGTH && targets.length > 0;
@@ -72,7 +73,7 @@ export function RejectExpenseSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{sheetTitle}</SheetTitle>
@@ -122,7 +123,7 @@ export function RejectExpenseSheet({
           <Button
             type="button"
             variant="ghost"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
             {copy.cancel}

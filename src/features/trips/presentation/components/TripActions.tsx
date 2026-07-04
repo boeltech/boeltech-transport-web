@@ -324,7 +324,7 @@ export function TripActions(props: TripActionsProps) {
           <DialogHeader>
             <DialogTitle>
               <SectionHeadingWithHint
-                title="Cancelar Viaje"
+                title="Cancelar viaje"
                 titleClassName="text-lg font-semibold leading-none tracking-tight"
                 hintLabel="Cancelar viaje"
                 hint={<>El viaje {code} será cancelado. Esta acción no se puede deshacer.</>}
@@ -364,7 +364,7 @@ export function TripActions(props: TripActionsProps) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               <XCircle className="mr-2 h-4 w-4" />
-              Cancelar Viaje
+              Cancelar viaje
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -588,7 +588,7 @@ export function TripActions(props: TripActionsProps) {
           </Button>
         )}
 
-        {/* Cancelar Viaje */}
+        {/* Cancelar viaje */}
         {canCancelTrip && (
           <Button
             variant="outline"
@@ -597,7 +597,7 @@ export function TripActions(props: TripActionsProps) {
             disabled={isLoading}
           >
             <XCircle className="mr-2 h-4 w-4" />
-            Cancelar Viaje
+            Cancelar viaje
           </Button>
         )}
 

@@ -13,7 +13,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { financeQueryKeys } from "@features/finance/application";
+import { invalidateApprovalsRelatedQueries } from "@features/approvals";
 import {
   tripQueryKeys,
   type CreateExpenseInput,
@@ -257,7 +257,7 @@ export function useApproveExpense(
         queryKey: tripQueryKeys.expenses(tripId),
       });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
-      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
+      invalidateApprovalsRelatedQueries(queryClient);
     },
     ...options,
   });
@@ -271,7 +271,7 @@ export function useRejectExpense(
   options?: UseMutationOptions<
     TripExpense,
     ExpenseError,
-    { expenseId: string; reason?: string }
+    { expenseId: string; reason: string }
   >,
 ) {
   const queryClient = useQueryClient();
@@ -283,7 +283,7 @@ export function useRejectExpense(
       reason,
     }: {
       expenseId: string;
-      reason?: string;
+      reason: string;
     }) => {
       const result = await rejectExpenseUseCase.execute(
         tripId,
@@ -306,7 +306,7 @@ export function useRejectExpense(
         queryKey: tripQueryKeys.expenses(tripId),
       });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
-      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
+      invalidateApprovalsRelatedQueries(queryClient);
     },
     ...options,
   });

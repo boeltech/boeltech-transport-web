@@ -217,6 +217,6 @@ export interface IExpenseRepository {
   reject(
     tripId: string,
     expenseId: string,
-    reason?: string,
+    reason: string,
   ): Promise<MappedSingleResult<TripExpense>>;
 }
