@@ -34,6 +34,8 @@ const FORM_FIELD_BY_SAT_PATH: Record<string, string> = {
   geolocation_pending: "geolocationPending",
   rfc_remitente_destinatario: "rfcRemitenteDestinatario",
   nombre_remitente_destinatario: "nombreRemitenteDestinatario",
+  destinatario_rfc: "destinatarioRfc",
+  destinatario_name: "destinatarioNombre",
   delivery_rfc_remitente_destinatario: "deliveryRfcRemitenteDestinatario",
   delivery_nombre_remitente_destinatario: "deliveryNombreRemitenteDestinatario",
 };

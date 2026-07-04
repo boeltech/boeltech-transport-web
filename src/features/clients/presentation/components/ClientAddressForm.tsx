@@ -63,6 +63,7 @@ import {
   defaultClientAddressFormValues,
   defaultBillingAddressFormValues,
   type ClientAddressFormData,
+  type ClientAddressTypeValue,
 } from "../validation/clientAddressSchema";
 import {
   ADDRESS_TYPE_CONFIG,
@@ -100,6 +101,8 @@ export interface ClientAddressFormProps {
   disabled?: boolean;
   /** Clases CSS adicionales */
   className?: string;
+  /** Restringe tipos en el select (p. ej. directorio del tenant). */
+  addressTypeOptions?: readonly ClientAddressTypeValue[];
 }
 
 /**
@@ -214,9 +217,11 @@ const ClientAddressFormRoot = forwardRef<
     onChange,
     disabled = false,
     className,
+    addressTypeOptions,
   },
   ref,
 ) {
+  const typeOptions = addressTypeOptions ?? CLIENT_ADDRESS_TYPES;
   const isBillingContext = formContext === "billingOnCreate";
   const copy = ADDRESS_FORM_COPY[formContext];
   const contextConfig = isBillingContext
@@ -412,7 +417,7 @@ const ClientAddressFormRoot = forwardRef<
                       <SelectValue placeholder="Seleccione tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CLIENT_ADDRESS_TYPES.map((type) => {
+                      {typeOptions.map((type) => {
                         const config = ADDRESS_TYPE_CONFIG[type];
                         const Icon = config.icon;
                         return (

@@ -281,7 +281,46 @@ export function clientAddressFormDataToUpdateDto(
   data: ClientAddressFormData,
   options?: { context?: ClientAddressFormContext },
 ): UpdateClientAddressDTO {
-  return clientAddressFormDataToCreateDto(data, options);
+  const contextAware = applyClientAddressFormContext(
+    data,
+    options?.context ?? "additional",
+  );
+  const normalized = normalizeClientAddressFormData(contextAware);
+
+  const hasCoordinates =
+    normalized.latitude != null && normalized.longitude != null;
+
+  return {
+    addressType: normalized.addressType as AddressType,
+    isPrimary: normalized.isPrimary,
+    locationName: emptyToUndef(normalized.locationName),
+    satCountryCode: normalized.satCountryCode || "MEX",
+    satStateCode: normalized.satStateCode,
+    satMunicipalityCode: normalized.satMunicipalityCode || null,
+    satLocalityCode: normalized.satLocalityCode ?? null,
+    localityName: normalized.localityName ?? null,
+    satNeighborhoodCode: normalized.satNeighborhoodCode ?? null,
+    neighborhoodName: normalized.neighborhoodName ?? null,
+    postalCode: normalized.postalCode,
+    street: normalized.street,
+    exteriorNumber: normalized.exteriorNumber,
+    interiorNumber: normalized.interiorNumber ?? null,
+    reference: normalized.reference ?? null,
+    rfcRemitenteDestinatario:
+      normalized.rfcRemitenteDestinatario ?? null,
+    nombreRemitenteDestinatario:
+      normalized.nombreRemitenteDestinatario ?? null,
+    latitude: hasCoordinates ? (normalized.latitude as number) : null,
+    longitude: hasCoordinates ? (normalized.longitude as number) : null,
+    geolocationPending: !hasCoordinates,
+    geocodingSource: hasCoordinates ? "manual" : null,
+    contactName: normalized.contactName ?? null,
+    contactPhone: normalized.contactPhone ?? null,
+    contactEmail: normalized.contactEmail ?? null,
+    businessHours: normalized.businessHours ?? null,
+    notes: normalized.notes ?? null,
+    specialInstructions: normalized.specialInstructions ?? null,
+  };
 }
 
 export type ClientAddressValidationResult =

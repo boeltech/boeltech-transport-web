@@ -165,11 +165,47 @@ export interface CreateClientAddressDTO {
 }
 
 /**
- * DTO para actualizar una dirección de cliente
+ * DTO para actualizar una dirección de cliente.
+ *
+ * En PATCH, `undefined` significa "no tocar" y `null` significa "limpiar".
+ * Algunos campos de create no aceptan null porque se omiten al crear, pero en
+ * update sí deben poder viajar como limpieza explícita.
  */
-export interface UpdateClientAddressDTO extends Partial<CreateClientAddressDTO> {
+export type UpdateClientAddressDTO = Partial<
+  Omit<
+    CreateClientAddressDTO,
+    | "satLocalityCode"
+    | "localityName"
+    | "satNeighborhoodCode"
+    | "neighborhoodName"
+    | "interiorNumber"
+    | "reference"
+    | "rfcRemitenteDestinatario"
+    | "nombreRemitenteDestinatario"
+    | "contactName"
+    | "contactPhone"
+    | "contactEmail"
+    | "businessHours"
+    | "notes"
+    | "specialInstructions"
+  >
+> & {
+  satLocalityCode?: string | null;
+  localityName?: string | null;
+  satNeighborhoodCode?: string | null;
+  neighborhoodName?: string | null;
+  interiorNumber?: string | null;
+  reference?: string | null;
+  rfcRemitenteDestinatario?: string | null;
+  nombreRemitenteDestinatario?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  businessHours?: string | null;
+  notes?: string | null;
+  specialInstructions?: string | null;
   isActive?: boolean;
-}
+};
 
 // ============================================================================
 // WIZARD DTOs (para crear cliente con dirección fiscal)
