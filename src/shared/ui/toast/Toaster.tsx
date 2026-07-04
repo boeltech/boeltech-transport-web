@@ -35,7 +35,9 @@ export function Toaster({
       // Header is fixed (h-16, z-30). Offset toasts so they never render beneath it.
       offset={{ top: 80, right: 16, left: 16, bottom: 16 }}
       mobileOffset={{ top: 72, right: 12, left: 12, bottom: 12 }}
-      className="z-[70]"
+      className="z-[100]"
+      visibleToasts={4}
+      gap={10}
       duration={duration}
       expand={expand}
       closeButton={closeButton}
@@ -49,8 +51,15 @@ export function Toaster({
           border: "1px solid var(--border)",
           opacity: 1,
           backdropFilter: "none",
+          zIndex: 100,
         },
-        className: "shadow-lg !bg-card !text-foreground !opacity-100 backdrop-blur-none",
+        classNames: {
+          toast:
+            "shadow-lg !bg-card !text-foreground !opacity-100 backdrop-blur-none pointer-events-auto select-text max-w-[min(100vw-2rem,28rem)]",
+          description: "select-text whitespace-pre-wrap break-words max-h-48 overflow-y-auto",
+          closeButton: "pointer-events-auto !bg-card !border-border",
+          title: "select-text",
+        },
       }}
     />
   );

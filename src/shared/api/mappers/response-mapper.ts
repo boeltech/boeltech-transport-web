@@ -18,8 +18,10 @@ import { deepToCamel, type DeepCamelCase } from "../utils/case-transformer";
 import type {
   ApiSingleResponse,
   ApiPaginatedResponse,
+  ApiCursorPaginatedResponse,
   ApiActionResponse,
   Pagination,
+  CursorPagination,
 } from "../types/api-response.types";
 
 // ---------------------------------------------------------------------------
@@ -38,6 +40,11 @@ export interface MappedSingleResult<T> {
 export interface MappedPaginatedResult<T> {
   data: T[];
   pagination: Pagination;
+}
+
+export interface MappedCursorPaginatedResult<T> {
+  data: T[];
+  pagination: CursorPagination;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +102,22 @@ export function mapPaginatedResponse<TRaw>(
       limit: response.pagination.limit,
       total: response.pagination.total,
       totalPages: response.pagination.total_pages,
+    },
+  };
+}
+
+/**
+ * Mapea respuesta con paginación cursor (GET /addresses/search).
+ */
+export function mapCursorPaginatedResponse<TRaw>(
+  response: ApiCursorPaginatedResponse<TRaw>,
+): MappedCursorPaginatedResult<DeepCamelCase<TRaw>> {
+  return {
+    data: response.data.map((item) => deepToCamel(item)),
+    pagination: {
+      limit: response.pagination.limit,
+      nextCursor: response.pagination.next_cursor,
+      hasMore: response.pagination.has_more,
     },
   };
 }

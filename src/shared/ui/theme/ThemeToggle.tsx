@@ -94,8 +94,16 @@ const THEME_CYCLE_NEXT: Record<ThemeMode, string> = {
   dark: "sistema",
 };
 
-function getThemeModeIcon(mode: ThemeMode): LucideIcon {
-  return THEME_OPTIONS.find((option) => option.value === mode)?.icon ?? Monitor;
+function ThemeModeIcon({ mode, className }: { mode: ThemeMode; className?: string }) {
+  switch (mode) {
+    case "light":
+      return <Sun className={className} />;
+    case "dark":
+      return <Moon className={className} />;
+    case "system":
+    default:
+      return <Monitor className={className} />;
+  }
 }
 
 // ============================================
@@ -114,7 +122,6 @@ export const ThemeCycleButton = memo(function ThemeCycleButton({
   className,
 }: ThemeCycleButtonProps) {
   const { mode, cycleMode } = useTheme();
-  const Icon = getThemeModeIcon(mode);
   const label = THEME_CYCLE_LABELS[mode];
   const nextLabel = THEME_CYCLE_NEXT[mode];
 
@@ -127,7 +134,7 @@ export const ThemeCycleButton = memo(function ThemeCycleButton({
       title={`Tema: ${label} (clic para ${nextLabel})`}
       aria-label={`Tema: ${label}. Clic para cambiar a ${nextLabel}.`}
     >
-      <Icon className="h-5 w-5" />
+      <ThemeModeIcon mode={mode} className="h-5 w-5" />
       <span className="sr-only">
         Tema {label}, siguiente {nextLabel}
       </span>

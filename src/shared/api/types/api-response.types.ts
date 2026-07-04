@@ -42,6 +42,19 @@ export interface ApiPaginatedResponse<TRaw> {
   pagination: ApiPagination;
 }
 
+/** Metadatos de paginación cursor (ADR-0053 `/addresses/search`). */
+export interface ApiCursorPagination {
+  limit: number;
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
+/** Respuesta del backend para búsquedas con cursor opaco. */
+export interface ApiCursorPaginatedResponse<TRaw> {
+  data: TRaw[];
+  pagination: ApiCursorPagination;
+}
+
 // ---------------------------------------------------------------------------
 // Respuesta: Acción sin recurso (DELETE, operaciones de estado, etc.)
 // ---------------------------------------------------------------------------
@@ -70,6 +83,13 @@ export interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
+}
+
+/** Paginación cursor mapeada a camelCase (ADR-0053). */
+export interface CursorPagination {
+  limit: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 /**

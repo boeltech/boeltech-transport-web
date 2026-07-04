@@ -5,6 +5,12 @@
  */
 
 import type { AxiosError, AxiosInstance } from "axios";
+import {
+  captureWebException,
+} from "@shared/observability/sentry";
+import {
+  shouldCaptureApiStatus,
+} from "@shared/observability/sentry-scrub";
 
 // ============================================================================
 // TIPOS
@@ -221,6 +227,8 @@ const PAC_USER_MESSAGES: Record<string, string> = {
     "No se pudo timbrar: el RFC de remitente o destinatario en una parada del viaje no está registrado ante el SAT. Revise en Viajes → Ruta todas las paradas (origen, escalas y destino) y use un RFC real y vigente del cliente o ubicación.",
   PAC_ISSUED_AT_OUT_OF_RANGE:
     "No se pudo timbrar: la fecha de emisión del borrador supera las 72 horas que permite el SAT. Vuelve a intentar el timbrado; el sistema actualiza la fecha automáticamente al timbrar.",
+  CFDI40158:
+    "El régimen fiscal del receptor no corresponde al tipo de persona (física o moral) del RFC indicado.",
 };
 
 function normalizeApiErrorDetails(
@@ -513,6 +521,66 @@ function extractPacRawDescription(raw: unknown): string | null {
   return null;
 }
 
+function parseProFactDetailKv(detail: string): Record<string, string> {
+  try {
+    const items = JSON.parse(detail) as Array<{ Key?: string; Value?: string }>;
+    if (!Array.isArray(items)) return {};
+    return Object.fromEntries(
+      items
+        .filter((item) => typeof item.Key === "string")
+        .map((item) => [item.Key!, String(item.Value ?? "")]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function buildCfdi40158OperationalMessage(
+  detailJson?: string,
+): string {
+  const base = PAC_USER_MESSAGES.CFDI40158;
+  if (!detailJson?.trim()) return base;
+
+  const kv = parseProFactDetailKv(detailJson);
+  const rfc = kv.rfcReceptor;
+  const reported = kv.regimenFiscalReportado;
+  const expected = kv.regimenFiscalEsperado?.replace(/,\s*$/, "");
+  const isPersonaFisica = kv.esPersonaFisica === "True";
+
+  if (!rfc && !reported) return base;
+
+  const personaLabel = isPersonaFisica ? "persona física" : "persona moral";
+  let message = `El régimen fiscal ${reported ?? "indicado"} no es válido para el RFC ${rfc ?? "del receptor"} (${personaLabel}).`;
+  if (expected) {
+    message += ` Régimenes permitidos: ${expected}.`;
+  }
+  message +=
+    " Corrija el régimen fiscal en «Corregir datos fiscales» o use un RFC acorde al régimen actual.";
+  return message;
+}
+
+/** Mensaje operativo cuando la API devuelve error ProFact crudo (p. ej. 502 INTERNAL_ERROR). */
+function resolveProFactBodyMessage(errorBody: string): string | null {
+  const match = errorBody.match(
+    /ProFact\s+\S+\s+error\s+\[([^\]]+)\]:\s*(.+?)(?:\s*—\s*(.+))?$/s,
+  );
+  if (!match) return null;
+
+  const [, ruleCode, description, detailPart] = match;
+  const desc = description.trim();
+
+  if (ruleCode === "CFDI40158" || desc.includes("RegimenFiscalR")) {
+    return buildCfdi40158OperationalMessage(detailPart?.trim());
+  }
+
+  if (desc.toLowerCase().includes("72 horas")) {
+    return PAC_USER_MESSAGES.PAC_ISSUED_AT_OUT_OF_RANGE;
+  }
+
+  if (desc) return desc;
+  return null;
+}
+
 function resolvePacErrorMessage(
   code: string | undefined,
   details: unknown,
@@ -536,6 +604,26 @@ function resolvePacErrorMessage(
 
   if (code === "PAC_ISSUED_AT_OUT_OF_RANGE") {
     return PAC_USER_MESSAGES.PAC_ISSUED_AT_OUT_OF_RANGE;
+  }
+
+  if (pacRule === "CFDI40158") {
+    const rawRecord =
+      typeof record?.raw === "object" && record.raw !== null
+        ? (record.raw as { detail?: string })
+        : null;
+    const detailRaw =
+      typeof rawRecord?.detail === "string"
+        ? rawRecord.detail
+        : typeof record?.raw === "string"
+          ? record.raw
+          : undefined;
+    const message = buildCfdi40158OperationalMessage(detailRaw);
+    return hint && !message.includes(hint) ? `${message} ${hint}` : message;
+  }
+
+  if (pacRule && PAC_USER_MESSAGES[pacRule]) {
+    const mapped = PAC_USER_MESSAGES[pacRule];
+    return hint && !mapped.includes(hint) ? `${mapped} ${hint}` : mapped;
   }
 
   if (rawMessage) {
@@ -568,6 +656,11 @@ function getMessageForError(
 
   const pacMessage = resolvePacErrorMessage(code, data?.details);
   if (pacMessage) return pacMessage;
+
+  if (data?.error && typeof data.error === "string") {
+    const profactMessage = resolveProFactBodyMessage(data.error);
+    if (profactMessage) return profactMessage;
+  }
 
   if (
     status === 502 &&
@@ -653,6 +746,15 @@ export function setupErrorInterceptor(instance: AxiosInstance): () => void {
       if (status === 401 || status === 403) {
         return Promise.reject(error);
       }
+
+      if (shouldCaptureApiStatus(status)) {
+        const apiError = ApiError.fromAxiosError(error);
+        captureWebException(apiError, {
+          apiPath: error.config?.url,
+          errorCode: apiError.code,
+        });
+      }
+
       return Promise.reject(ApiError.fromAxiosError(error));
     },
   );

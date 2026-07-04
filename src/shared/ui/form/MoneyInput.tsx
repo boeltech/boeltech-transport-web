@@ -1,7 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
 import { Input } from "@shared/ui/input";
 import { cn } from "@shared/lib/utils/cn";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 export interface MoneyInputProps
   extends Omit<
@@ -16,14 +16,30 @@ export interface MoneyInputProps
   allowNegative?: boolean;
 }
 
+/** Cantidad formateada sin símbolo de moneda (el badge izquierdo ya muestra el ISO). */
+export function formatMoneyAmountOnly(
+  value: number,
+  locale: string,
+  decimals: number,
+): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+/**
+ * Valor en blur: badge ISO + cantidad sin `$` duplicado.
+ * Evita recorte en grids estrechos (sheet, dialog).
+ */
 function formatMoneyValue(
   value: number,
   locale: string,
   currencyCode: string,
   decimals: number,
 ): string {
-  if (locale === "es-MX" && currencyCode === "MXN" && decimals === 2) {
-    return formatMxCurrency(value);
+  if (currencyCode) {
+    return formatMoneyAmountOnly(value, locale, decimals);
   }
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -143,7 +159,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
           placeholder={placeholder}
           disabled={disabled}
           readOnly={readOnly}
-          className={cn("pl-14 text-right tabular-nums", className)}
+          className={cn("pl-14 pr-3 text-right tabular-nums", className)}
         />
       </div>
     );

@@ -69,6 +69,9 @@ export function OverlaysSection() {
             Úsalo para confirmaciones críticas, formularios cortos, o
             visualizaciones que requieren bloqueo del flujo. Si la edición
             es contextual sobre una entidad, prefiere <code>Sheet</code>.
+            Con <code>modal=&#123;true&#125;</code> (default de Dialog), los toasts
+            no son interactivos mientras el dialog esté abierto — usa{" "}
+            <code>Alert</code> inline para errores de API.
           </p>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -117,6 +120,9 @@ export function OverlaysSection() {
             Patrón canónico para editar la entidad principal desde su
             página de detalle (ver skill <code>detail-sheet-master-detail</code>).
             Permite seguir viendo el contexto del detalle mientras editas.
+            El primitivo usa <code>modal=&#123;false&#125;</code> por defecto y un
+            guard Sonner para que los toasts sigan siendo interactivos{" "}
+            <strong>sin cerrar el sheet</strong>.
           </p>
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
@@ -135,6 +141,18 @@ export function OverlaysSection() {
                   (Aquí iría el formulario real del cliente — para fines de
                   showcase no lo embebemos.)
                 </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    toastError(
+                      "Error de ejemplo",
+                      "Haz clic en este toast o selecciona este texto: el sheet debe permanecer abierto.",
+                    )
+                  }
+                >
+                  Simular error API (toast)
+                </Button>
               </div>
               <SheetFooter>
                 <Button

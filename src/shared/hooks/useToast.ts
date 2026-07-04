@@ -46,6 +46,7 @@ function getToastFunction(variant: ToastVariant) {
     case "success":
       return sonnerToast.success;
     case "error":
+    case "destructive":
       return sonnerToast.error;
     case "warning":
       return sonnerToast.warning;
@@ -57,6 +58,24 @@ function getToastFunction(variant: ToastVariant) {
       return (message: string, options?: Parameters<typeof sonnerToast>[1]) =>
         sonnerToast(message, options);
   }
+}
+
+/** Errores largos (p. ej. PAC) necesitan más tiempo y expandir el toast. */
+function resolveToastDuration(
+  variant: ToastVariant,
+  description: string | undefined,
+  explicit?: number,
+): number | undefined {
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  if (variant === "error" || variant === "destructive") {
+    const len = description?.length ?? 0;
+    if (len > 200) return 12_000;
+    if (len > 80) return 8_000;
+    return 6_000;
+  }
+  return undefined;
 }
 
 // ============================================
@@ -82,7 +101,7 @@ export function useToast(): UseToastReturn {
 
     return toastFn(title, {
       description,
-      duration,
+      duration: resolveToastDuration(variant, description, duration),
       dismissible,
       onDismiss: onClose,
       action: action

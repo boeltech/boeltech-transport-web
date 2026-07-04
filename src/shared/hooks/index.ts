@@ -21,3 +21,5 @@ export { useTheme } from "./useTheme";
 
 // Hook para mostrar notificaciones toast
 export * from "./useToast";
+export * from "./useOverlayMutationFeedback";
+export { useBodyScrollLock } from "./useBodyScrollLock";

@@ -107,4 +107,48 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).toContain("actualiza la fecha automáticamente");
     expect(error.message).not.toContain("Comprobante.Fecha");
   });
+
+  it("traduce 502 INTERNAL_ERROR con CFDI40158 en error crudo de ProFact", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          error:
+            'ProFact TimbraCFDI error [CFDI40158]: La clave del campo RegimenFiscalR debe corresponder con el tipo de persona (física o moral). — [{"Key":"rfcReceptor","Value":"MERG881004A27"},{"Key":"esPersonaFisica","Value":"True"},{"Key":"regimenFiscalReportado","Value":"622"},{"Key":"regimenFiscalEsperado","Value":"605,606,607,"}]',
+          code: "INTERNAL_ERROR",
+        },
+        502,
+      ),
+    );
+
+    expect(error.message).toContain("MERG881004A27");
+    expect(error.message).toContain("622");
+    expect(error.message).toContain("persona física");
+    expect(error.message).not.toBe("Error interno del servidor");
+    expect(error.message).not.toContain("ProFact");
+  });
+
+  it("traduce PAC_VALIDATION_ERROR CFDI40158 con details estructurados", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+          code: "PAC_VALIDATION_ERROR",
+          details: {
+            pac_rule: "CFDI40158",
+            raw: {
+              detail:
+                '[{"Key":"rfcReceptor","Value":"MERG881004A27"},{"Key":"esPersonaFisica","Value":"True"},{"Key":"regimenFiscalReportado","Value":"622"}]',
+            },
+            hint:
+              "Corrija régimen fiscal en «Corregir datos fiscales» o use un RFC acorde al régimen actual.",
+          },
+        },
+        422,
+      ),
+    );
+
+    expect(error.message).toContain("622");
+    expect(error.message).toContain("MERG881004A27");
+    expect(error.message).not.toContain("ProFact");
+  });
 });

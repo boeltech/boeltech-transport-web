@@ -18,7 +18,12 @@ import { cn } from "@shared/lib/utils/cn";
  *     index.css.
  */
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
+  [
+    "relative w-full rounded-lg border px-4 py-3 text-sm",
+    "[&:has(>svg)]:grid [&:has(>svg)]:grid-cols-[auto_1fr] [&:has(>svg)]:gap-x-3",
+    "[&>svg]:col-start-1 [&>svg]:row-start-1 [&>svg]:row-span-full [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:self-center",
+    "[&>svg~*]:col-start-2 [&>svg~*]:min-w-0",
+  ].join(" "),
   {
     variants: {
       variant: {
@@ -71,7 +76,7 @@ const AlertDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-sm [&_p]:leading-relaxed", className)}
+    className={cn("text-sm leading-normal [&_p]:leading-relaxed", className)}
     {...props}
   />
 ));
@@ -112,7 +117,7 @@ const AlertWithIcon = React.forwardRef<HTMLDivElement, AlertWithIconProps>(
     return (
       <Alert ref={ref} variant={variant} className={className} {...props}>
         {showIcon && <Icon className="h-4 w-4" />}
-        <div>
+        <div className="min-w-0 space-y-1">
           {title && <AlertTitle>{title}</AlertTitle>}
           <AlertDescription>{children}</AlertDescription>
         </div>

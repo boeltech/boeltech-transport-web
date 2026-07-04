@@ -30,13 +30,62 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
+import { useBodyScrollLock } from "@shared/hooks/useBodyScrollLock";
 import { cn } from "@shared/lib/utils/cn";
+import { preventDismissOnSonnerToast } from "@shared/ui/toast/sonnerDismissGuard";
+
+const SheetOpenContext = React.createContext(false);
+
+function SheetScrollLock() {
+  const open = React.useContext(SheetOpenContext);
+  useBodyScrollLock(open);
+  return null;
+}
 
 // ============================================================================
 // PRIMITIVES
 // ============================================================================
 
-const Sheet = SheetPrimitive.Root;
+/**
+ * Sheet no-modal por defecto: permite toasts interactivos (Sonner en body).
+ * Con `modal={false}`, Radix no bloquea scroll ni pinta overlay — lo compensamos
+ * con backdrop propio y useBodyScrollLock. Pasa `modal={true}` solo si no habrá toasts.
+ */
+const Sheet = ({
+  modal = false,
+  open: openProp,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root>) => {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(
+    defaultOpen ?? false,
+  );
+  const isControlled = openProp !== undefined;
+  const isOpen = isControlled ? openProp : uncontrolledOpen;
+
+  const handleOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      if (!isControlled) {
+        setUncontrolledOpen(nextOpen);
+      }
+      onOpenChange?.(nextOpen);
+    },
+    [isControlled, onOpenChange],
+  );
+
+  return (
+    <SheetOpenContext.Provider value={isOpen}>
+      <SheetPrimitive.Root
+        modal={modal}
+        open={openProp}
+        defaultOpen={defaultOpen}
+        onOpenChange={handleOpenChange}
+        {...props}
+      />
+    </SheetOpenContext.Provider>
+  );
+};
 const SheetTrigger = SheetPrimitive.Trigger;
 const SheetClose = SheetPrimitive.Close;
 const SheetPortal = SheetPrimitive.Portal;
@@ -45,6 +94,26 @@ const SheetPortal = SheetPrimitive.Portal;
 // OVERLAY
 // ============================================================================
 
+/**
+ * Backdrop fijo: con modal={false}, Dialog.Overlay de Radix no aplica dimming ni scroll lock.
+ */
+const SheetBackdrop = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    aria-hidden="true"
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 animate-in fade-in-0",
+      className,
+    )}
+    {...props}
+  />
+));
+SheetBackdrop.displayName = "SheetBackdrop";
+
+/** Alias legacy — preferir SheetBackdrop para sheets no-modales. */
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
@@ -90,12 +159,21 @@ export interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
   <SheetPortal>
-    <SheetOverlay />
+    <SheetScrollLock />
+    <SheetBackdrop />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      onPointerDownOutside={(event) => {
+        preventDismissOnSonnerToast(event);
+        onPointerDownOutside?.(event);
+      }}
+      onInteractOutside={(event) => {
+        preventDismissOnSonnerToast(event);
+        onInteractOutside?.(event);
+      }}
       {...props}
     >
       {children}
@@ -166,6 +244,7 @@ SheetDescription.displayName = SheetPrimitive.Description.displayName;
 
 export {
   Sheet,
+  SheetBackdrop,
   SheetClose,
   SheetContent,
   SheetDescription,

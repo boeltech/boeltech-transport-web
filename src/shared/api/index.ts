@@ -59,11 +59,13 @@ export type { DeepCamelCase } from "./utils/case-transformer";
 export {
   mapSingleResponse,
   mapPaginatedResponse,
+  mapCursorPaginatedResponse,
   mapActionResponse,
 } from "./mappers/response-mapper";
 export type {
   MappedSingleResult,
   MappedPaginatedResult,
+  MappedCursorPaginatedResult,
   MappedActionResult,
 } from "./mappers/response-mapper";
 
@@ -71,9 +73,12 @@ export type {
 export type {
   ApiSingleResponse,
   ApiPaginatedResponse,
+  ApiCursorPaginatedResponse,
   ApiActionResponse,
   ApiResponse,
   ApiPagination,
+  ApiCursorPagination,
   Pagination,
+  CursorPagination,
   ApiError,
 } from "./types/api-response.types";
