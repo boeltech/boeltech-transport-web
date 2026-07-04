@@ -2,10 +2,7 @@
  * DriverDetailPage
  * Clean Architecture - Presentation Layer (Pages)
  *
- * Página de detalle de un conductor.
- * Tabs: Información, Licencia, Salud y Exámenes (médico + psico/antidoping), Viajes, Emergencia.
- *
- * Ubicación: src/features/drivers/presentation/pages/DriverDetailPage.tsx
+ * Detalle de conductor: resumen, licencia, salud, viajes y emergencia.
  */
 
 import { useMemo } from "react";
@@ -13,8 +10,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import {
+  Card,
+  CardContent,
+} from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Separator } from "@shared/ui/separator";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import {
   DetailAlertCard,
@@ -39,13 +40,8 @@ import {
   ClipboardCheck,
   XCircle,
 } from "lucide-react";
-
-// Application Layer
 import { useDriver, useDriverTrips } from "../../application";
-
 import { TripStatus, TRIP_STATUS_LABELS } from "@features/trips";
-
-// Domain
 import {
   LICENSE_TYPE_LABELS,
   PSYCHOMETRIC_RESULT_LABELS,
@@ -54,14 +50,17 @@ import {
   DRUG_TEST_RESULT_COLORS,
   type LicenseTypeValue,
 } from "../../domain";
-
-// Presentation
 import {
   DriverStatusBadge,
   getLicenseExpirationVariant,
   formatDriverName,
 } from "../config/driverStatusConfig";
 import { DriverActions } from "../components/DriverActions";
+import { DriverDetailHeaderSubtitle } from "../components/DriverDetailHeaderSubtitle";
+import {
+  driversCopy,
+  resolveLicenseMedicalAlertTitle,
+} from "../copy";
 import {
   formatDate,
   getDaysUntilDateString,
@@ -69,9 +68,7 @@ import {
 } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+const copy = driversCopy.detail;
 
 function formatNumber(num: number): string {
   return new Intl.NumberFormat("es-MX").format(num);
@@ -82,15 +79,25 @@ function getExpirationStatus(days: number | null): {
   tone?: "soft";
   label: string;
 } {
-  if (days === null) return { variant: "secondary", label: "Sin fecha" };
-  if (days <= 0) return { variant: "destructive", tone: "soft", label: "Vencido" };
-  if (days <= 30) return { variant: "warning", tone: "soft", label: `${days} días` };
-  return { variant: "default", label: "Vigente" };
+  if (days === null) {
+    return { variant: "secondary", label: copy.vigency.noDate };
+  }
+  if (days <= 0) {
+    return {
+      variant: "destructive",
+      tone: "soft",
+      label: copy.vigency.expired,
+    };
+  }
+  if (days <= 30) {
+    return {
+      variant: "warning",
+      tone: "soft",
+      label: copy.vigency.daysRemaining(days),
+    };
+  }
+  return { variant: "default", label: copy.vigency.valid };
 }
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
 
 interface ResultBadgeProps {
   result: string | null;
@@ -99,7 +106,9 @@ interface ResultBadgeProps {
 }
 
 function ResultBadge({ result, labels, colors }: ResultBadgeProps) {
-  if (!result) return <span className="text-muted-foreground">—</span>;
+  if (!result) {
+    return <span className="text-muted-foreground">{copy.hint.empty}</span>;
+  }
 
   const label = labels[result] || result;
   const colorClass = colors[result] || "secondary";
@@ -127,18 +136,26 @@ function ResultBadge({ result, labels, colors }: ResultBadgeProps) {
   );
 }
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
+function formatDrugEstimatedExpiry(lastDrugTestDate: string | null): string {
+  if (!lastDrugTestDate) return copy.hint.empty;
+
+  const expiryDate = getExpiryDateString(lastDrugTestDate, 180);
+  const daysRemaining = getDaysUntilDateString(expiryDate);
+
+  if (daysRemaining === null) return copy.hint.empty;
+  if (daysRemaining <= 0) {
+    return copy.vigency.drugExpired;
+  }
+  if (daysRemaining <= 30) {
+    return copy.vigency.daysRemainingLong(daysRemaining);
+  }
+  return copy.vigency.daysRemainingLong(daysRemaining);
+}
 
 export function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const driverId = id || "";
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // QUERIES
-  // ══════════════════════════════════════════════════════════════════════════
 
   const {
     data: driver,
@@ -152,10 +169,7 @@ export function DriverDetailPage() {
     isError: isTripsError,
   } = useDriverTrips(driverId, { page: 1, limit: 10 });
 
-  const trips = useMemo(
-    () => tripsData?.data ?? [],
-    [tripsData?.data],
-  );
+  const trips = useMemo(() => tripsData?.data ?? [], [tripsData?.data]);
 
   const tripTimelineItems = useMemo(
     () =>
@@ -211,28 +225,28 @@ export function DriverDetailPage() {
         notFound
         notFoundConfig={{
           icon: <User />,
-          title: "Conductor no encontrado",
-          description: "El conductor que buscas no existe o fue eliminado.",
+          title: copy.state.notFoundTitle,
+          description: copy.state.notFoundDescription,
           backHref: "/drivers",
-          backLabel: "Volver a Conductores",
+          backLabel: copy.state.backToList,
         }}
         header={{
           backHref: "/drivers",
           icon: <User className="h-6 w-6" />,
           iconShape: "circle",
-          title: "Conductor",
+          title: copy.title.fallback,
         }}
       />
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CALCULATED VALUES
-  // ══════════════════════════════════════════════════════════════════════════
-
   const fullName = driver.employee
     ? formatDriverName(driver.employee)
-    : "Conductor";
+    : copy.title.fallback;
+
+  const licenseTypeLabel =
+    LICENSE_TYPE_LABELS[driver.licenseType as LicenseTypeValue] ||
+    driver.licenseType;
 
   const daysUntilLicenseExpiration = getDaysUntilDateString(
     driver.licenseExpiry,
@@ -291,42 +305,42 @@ export function DriverDetailPage() {
   const licenseMedicalAlertItems: DetailAlertCardItem[] = [];
   if (isLicenseExpired || isLicenseExpiringSoon) {
     licenseMedicalAlertItems.push({
-      label: "Licencia",
+      label: copy.alert.licenseLabel,
       text: isLicenseExpired
-        ? `Vencida hace ${Math.abs(daysUntilLicenseExpiration!)} días (${formatDate(driver.licenseExpiry)})`
-        : `Vence en ${daysUntilLicenseExpiration} días (${formatDate(driver.licenseExpiry)})`,
+        ? copy.alert.licenseExpiredText(
+            Math.abs(daysUntilLicenseExpiration!),
+            formatDate(driver.licenseExpiry),
+          )
+        : copy.alert.licenseExpiringText(
+            daysUntilLicenseExpiration!,
+            formatDate(driver.licenseExpiry),
+          ),
     });
   }
   if (isMedicalExpired || isMedicalExpiringSoon) {
     licenseMedicalAlertItems.push({
-      label: "Certificado médico",
+      label: copy.alert.medicalLabel,
       text: isMedicalExpired
-        ? `Vencido hace ${Math.abs(daysUntilMedicalExpiration!)} días (${formatDate(driver.medicalCertificateExpiry)})`
-        : `Vence en ${daysUntilMedicalExpiration} días (${formatDate(driver.medicalCertificateExpiry)})`,
+        ? copy.alert.medicalExpiredText(
+            Math.abs(daysUntilMedicalExpiration!),
+            formatDate(driver.medicalCertificateExpiry!),
+          )
+        : copy.alert.medicalExpiringText(
+            daysUntilMedicalExpiration!,
+            formatDate(driver.medicalCertificateExpiry!),
+          ),
     });
   }
 
   const licenseMedicalAlertSeverity: "critical" | "warning" =
     isLicenseExpired || isMedicalExpired ? "critical" : "warning";
 
-  let licenseMedicalAlertTitle: string;
-  if (licenseMedicalAlertItems.length === 2) {
-    if (isLicenseExpired && isMedicalExpired) {
-      licenseMedicalAlertTitle = "Licencia y certificado médico vencidos";
-    } else if (isLicenseExpired || isMedicalExpired) {
-      licenseMedicalAlertTitle = "Revisar documentación del conductor";
-    } else {
-      licenseMedicalAlertTitle = "Licencia y certificado médico próximos a vencer";
-    }
-  } else if (isLicenseExpired || isLicenseExpiringSoon) {
-    licenseMedicalAlertTitle = isLicenseExpired
-      ? "Licencia vencida"
-      : "Licencia próxima a vencer";
-  } else {
-    licenseMedicalAlertTitle = isMedicalExpired
-      ? "Certificado médico vencido"
-      : "Certificado médico próximo a vencer";
-  }
+  const licenseMedicalAlertTitle = resolveLicenseMedicalAlertTitle({
+    hasLicenseItem: isLicenseExpired || isLicenseExpiringSoon,
+    hasMedicalItem: isMedicalExpired || isMedicalExpiringSoon,
+    isLicenseExpired,
+    isMedicalExpired,
+  });
 
   const stats = driver.stats || {
     totalTrips: 0,
@@ -336,9 +350,7 @@ export function DriverDetailPage() {
     yearsOfExperience: driver.yearsOfExperience || 0,
   };
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ══════════════════════════════════════════════════════════════════════════
+  const tripsTotal = tripsData?.pagination?.total ?? trips.length;
 
   return (
     <DetailPageShell
@@ -348,8 +360,16 @@ export function DriverDetailPage() {
         icon: <User className="h-6 w-6" />,
         iconShape: "circle",
         title: fullName,
-        subtitle: driver.employee?.employeeNumber || "Sin número de empleado",
-        statusBadge: <DriverStatusBadge status={driver.status} showIcon size="sm" />,
+        subtitle: (
+          <DriverDetailHeaderSubtitle
+            employeeNumber={driver.employee?.employeeNumber ?? null}
+            licenseTypeLabel={licenseTypeLabel}
+            licenseNumber={driver.licenseNumber}
+          />
+        ),
+        statusBadge: (
+          <DriverStatusBadge status={driver.status} showIcon size="sm" />
+        ),
         actions: (
           <DriverActions
             driverId={driver.id}
@@ -362,77 +382,86 @@ export function DriverDetailPage() {
       }}
       alerts={
         hasDriverAlerts ? (
-        <div className="space-y-3">
-          {licenseMedicalAlertItems.length > 0 ? (
-            <DetailAlertCard
-              severity={licenseMedicalAlertSeverity}
-              icon={<ClipboardCheck className="h-5 w-5" />}
-              title={licenseMedicalAlertTitle}
-              items={licenseMedicalAlertItems}
-            />
-          ) : null}
+          <div className="space-y-3">
+            {licenseMedicalAlertItems.length > 0 ? (
+              <DetailAlertCard
+                severity={licenseMedicalAlertSeverity}
+                icon={<ClipboardCheck className="h-5 w-5" />}
+                title={licenseMedicalAlertTitle}
+                items={licenseMedicalAlertItems}
+              />
+            ) : null}
 
-          {driver.lastDrugTestDate &&
-          (isDrugEstimatedExpired || isDrugEstimatedExpiringSoon) ? (
-            <DetailAlertCard
-              severity={
-                isDrugEstimatedExpired ? "critical" : "warning"
-              }
-              icon={
-                <FlaskConical
-                  className={cn(
-                    "h-5 w-5",
-                    isDrugEstimatedExpired
-                      ? "text-destructive"
-                      : "text-warning",
-                  )}
-                />
-              }
-              title={
-                isDrugEstimatedExpired
-                  ? "Vigencia estimada del antidoping vencida"
-                  : "Antidoping próximo a vencer (180 días)"
-              }
-              items={[
-                {
-                  text: isDrugEstimatedExpired
-                    ? `Desde el último examen (${formatDate(driver.lastDrugTestDate)}) la vigencia estimada venció hace ${Math.abs(daysUntilDrugEstimatedExpiry!)} días.`
-                    : `Quedan ${daysUntilDrugEstimatedExpiry} días antes de superar el periodo de 180 días desde el último examen (${formatDate(driver.lastDrugTestDate)}).`,
-                },
-              ]}
-            />
-          ) : null}
-        </div>
+            {driver.lastDrugTestDate &&
+            (isDrugEstimatedExpired || isDrugEstimatedExpiringSoon) ? (
+              <DetailAlertCard
+                severity={isDrugEstimatedExpired ? "critical" : "warning"}
+                icon={
+                  <FlaskConical
+                    className={cn(
+                      "h-5 w-5",
+                      isDrugEstimatedExpired
+                        ? "text-destructive"
+                        : "text-warning",
+                    )}
+                  />
+                }
+                title={
+                  isDrugEstimatedExpired
+                    ? copy.alert.drug.expiredTitle
+                    : copy.alert.drug.expiringTitle
+                }
+                items={[
+                  {
+                    text: isDrugEstimatedExpired
+                      ? copy.alert.drug.expiredBody(
+                          formatDate(driver.lastDrugTestDate),
+                          Math.abs(daysUntilDrugEstimatedExpiry!),
+                        )
+                      : copy.alert.drug.expiringBody(
+                          formatDate(driver.lastDrugTestDate),
+                          daysUntilDrugEstimatedExpiry!,
+                        ),
+                  },
+                ]}
+              />
+            ) : null}
+          </div>
         ) : undefined
       }
       stats={[
         {
-          title: "Viajes Totales",
+          title: copy.stat.totalTrips.title,
           value: formatNumber(stats.totalTrips),
           tone: "primary",
           icon: <Route className="h-5 w-5" />,
+          description: copy.stat.totalTrips.description,
         },
         {
-          title: "Viajes Completados",
+          title: copy.stat.completedTrips.title,
           value: formatNumber(stats.completedTrips),
           tone: "success",
           icon: <CheckCircle2 className="h-5 w-5" />,
           description:
             stats.totalTrips > 0
-              ? `${Math.round((stats.completedTrips / stats.totalTrips) * 100)}% de éxito`
+              ? copy.stat.completedTrips.successRate(
+                  Math.round((stats.completedTrips / stats.totalTrips) * 100),
+                )
               : undefined,
         },
         {
-          title: "Viajes Cancelados",
+          title: copy.stat.cancelledTrips.title,
           value: formatNumber(stats.cancelledTrips),
           tone: "destructive",
           icon: <XCircle className="h-5 w-5" />,
+          description: copy.stat.cancelledTrips.description,
         },
         {
-          title: "Años de Experiencia",
-          value: stats.yearsOfExperience,
+          title: copy.stat.experience.title,
+          value: copy.stat.experience.value(stats.yearsOfExperience),
           tone: "info",
           icon: <TrendingUp className="h-5 w-5" />,
+          description: copy.stat.experience.description,
         },
       ]}
       metadata={{
@@ -443,130 +472,157 @@ export function DriverDetailPage() {
         updatedBy: driver.updatedByName?.trim() || undefined,
       }}
       tabs={{
-        defaultValue: "info",
+        defaultValue: "summary",
         items: [
           {
-            value: "info",
-            label: "Información",
+            value: "summary",
+            label: copy.tab.summary,
             content: (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
-                  <DetailSection
-                    className="flex h-full min-h-0 flex-col"
-                    icon={<User className="h-4 w-4" />}
-                    title="Datos del empleado"
-                  >
-                    <Card className="flex flex-1 flex-col">
-                      <CardContent className="flex flex-1 flex-col pt-0">
-                        <InfoRow variant="inline" label="Nombre completo" value={fullName} />
+              <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+                <DetailSection
+                  className="flex h-full min-h-0 flex-col"
+                  icon={<User className="h-4 w-4" />}
+                  title={copy.section.employee.title}
+                  description={copy.section.employee.description}
+                >
+                  <Card className="flex flex-1 flex-col">
+                    <CardContent className="flex flex-1 flex-col space-y-4 pt-6">
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.employee.groupContact}
+                        </p>
                         <InfoRow
                           variant="inline"
-                          label="Número de empleado"
-                          value={driver.employee?.employeeNumber ?? "—"}
-                        />
-                        <InfoRow
-                          variant="inline"
-                          label="Correo electrónico"
-                          value={driver.employee?.email ?? "—"}
-                        />
-                        <InfoRow
-                          variant="inline"
-                          label="Teléfono"
+                          label={copy.label.employeeNumber}
                           value={
-                            employeePrimaryContactDisplay(
-                              driver.employee,
-                            ) ?? "—"
+                            driver.employee?.employeeNumber ?? copy.hint.empty
+                          }
+                          copyable={Boolean(driver.employee?.employeeNumber)}
+                          copyValue={driver.employee?.employeeNumber}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.email}
+                          value={driver.employee?.email ?? copy.hint.empty}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.phone}
+                          value={
+                            employeePrimaryContactDisplay(driver.employee) ??
+                            copy.hint.empty
                           }
                         />
-                        {driver.employee?.curp ? (
-                          <InfoRow
-                            variant="inline"
-                            label="CURP"
-                            value={driver.employee.curp}
-                            mono
-                            copyable
-                          />
-                        ) : null}
-                        {driver.employee?.rfc ? (
-                          <InfoRow
-                            variant="inline"
-                            label="RFC"
-                            value={driver.employee.rfc}
-                            mono
-                            copyable
-                          />
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  </DetailSection>
+                      </div>
 
-                  <DetailSection
-                    className="flex h-full min-h-0 flex-col"
-                    icon={<Cpu className="h-4 w-4" />}
-                    title="Dispositivo y notas"
-                  >
-                    <Card className="flex flex-1 flex-col">
-                      <CardContent className="flex flex-1 flex-col pt-0">
-                        <InfoRow
-                          variant="inline"
-                          label="Dispositivo GPS asignado"
-                          value={
-                            driver.assignedDeviceId ? (
-                              <span className="font-mono">{driver.assignedDeviceId}</span>
-                            ) : (
-                              <span className="text-muted-foreground">Sin dispositivo</span>
-                            )
-                          }
-                        />
-                        <InfoRow
-                          variant="inline"
-                          label="Notas"
-                          value={
-                            driver.notes?.trim() ? (
-                              <span className="whitespace-pre-wrap text-sm">
-                                {driver.notes}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">Sin notas</span>
-                            )
-                          }
-                        />
-                      </CardContent>
-                    </Card>
-                  </DetailSection>
-                </div>
+                      {driver.employee?.curp || driver.employee?.rfc ? (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {copy.section.employee.groupFiscal}
+                            </p>
+                            {driver.employee?.curp ? (
+                              <InfoRow
+                                variant="inline"
+                                label={copy.label.curp}
+                                value={driver.employee.curp}
+                                mono
+                                copyable
+                              />
+                            ) : null}
+                            {driver.employee?.rfc ? (
+                              <InfoRow
+                                variant="inline"
+                                label={copy.label.rfc}
+                                value={driver.employee.rfc}
+                                mono
+                                copyable
+                              />
+                            ) : null}
+                          </div>
+                        </>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                </DetailSection>
+
+                <DetailSection
+                  className="flex h-full min-h-0 flex-col"
+                  icon={<Cpu className="h-4 w-4" />}
+                  title={copy.section.operation.title}
+                  description={copy.section.operation.description}
+                >
+                  <Card className="flex flex-1 flex-col">
+                    <CardContent className="flex flex-1 flex-col pt-6">
+                      <InfoRow
+                        variant="inline"
+                        label={copy.label.gpsDevice}
+                        value={
+                          driver.assignedDeviceId ? (
+                            <span className="font-mono">
+                              {driver.assignedDeviceId}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {copy.hint.noDevice}
+                            </span>
+                          )
+                        }
+                        copyable={Boolean(driver.assignedDeviceId)}
+                        copyValue={driver.assignedDeviceId ?? undefined}
+                        mono={Boolean(driver.assignedDeviceId)}
+                      />
+                      <InfoRow
+                        variant="inline"
+                        label={copy.label.notes}
+                        value={
+                          driver.notes?.trim() ? (
+                            <span className="whitespace-pre-wrap text-sm">
+                              {driver.notes}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {copy.hint.noNotes}
+                            </span>
+                          )
+                        }
+                      />
+                    </CardContent>
+                  </Card>
+                </DetailSection>
               </div>
             ),
           },
           {
             value: "license",
-            label: "Licencia",
+            label: copy.tab.license,
             content: (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CreditCard className="h-4 w-4" /> Información de licencia
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <DetailSection
+                icon={<CreditCard className="h-4 w-4" />}
+                title={copy.section.license.title}
+                description={copy.section.license.description}
+              >
+                <Card>
+                  <CardContent className="grid grid-cols-1 gap-4 pt-6 lg:grid-cols-2">
                     <InfoRow
                       variant="inline"
-                      label="Número de licencia"
-                      value={<span className="font-mono">{driver.licenseNumber}</span>}
-                    />
-                    <InfoRow
-                      variant="inline"
-                      label="Tipo de licencia"
+                      label={copy.label.licenseNumber}
                       value={
-                        LICENSE_TYPE_LABELS[
-                          driver.licenseType as LicenseTypeValue
-                        ] || driver.licenseType
+                        <span className="font-mono">{driver.licenseNumber}</span>
                       }
+                      copyable
+                      copyValue={driver.licenseNumber}
+                      mono
                     />
                     <InfoRow
                       variant="inline"
-                      label="Fecha de vencimiento"
+                      label={copy.label.licenseType}
+                      value={licenseTypeLabel}
+                    />
+                    <InfoRow
+                      variant="inline"
+                      label={copy.label.licenseExpiry}
                       value={
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           <span
@@ -579,51 +635,56 @@ export function DriverDetailPage() {
                           </span>
                           <Badge {...licenseBadgeProps}>
                             {isLicenseExpired
-                              ? "Vencida"
+                              ? copy.vigency.expiredShort
                               : isLicenseExpiringSoon
-                                ? `${daysUntilLicenseExpiration} días`
-                                : "Vigente"}
+                                ? copy.vigency.daysRemaining(
+                                    daysUntilLicenseExpiration!,
+                                  )
+                                : copy.vigency.valid}
                           </Badge>
                         </div>
                       }
                     />
                     <InfoRow
                       variant="inline"
-                      label="Estado emisor"
-                      value={driver.licenseIssuingState || "No especificado"}
+                      label={copy.label.licenseState}
+                      value={
+                        driver.licenseIssuingState ?? copy.hint.emptyOptional
+                      }
                     />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </DetailSection>
             ),
           },
           {
             value: "health",
-            label: "Salud y Exámenes",
+            label: copy.tab.health,
             content: (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Stethoscope className="h-4 w-4" /> Certificado médico
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-8">
+                <DetailSection
+                  icon={<Stethoscope className="h-4 w-4" />}
+                  title={copy.section.medical.title}
+                  description={copy.section.medical.description}
+                >
+                  <Card>
+                    <CardContent className="grid grid-cols-1 gap-4 pt-6 lg:grid-cols-2">
                       <InfoRow
                         variant="inline"
-                        label="Número de certificado"
+                        label={copy.label.medicalNumber}
                         value={
                           driver.medicalCertificateNumber ? (
-                            <span className="font-mono">{driver.medicalCertificateNumber}</span>
+                            <span className="font-mono">
+                              {driver.medicalCertificateNumber}
+                            </span>
                           ) : (
-                            "No registrado"
+                            copy.hint.empty
                           )
                         }
                       />
                       <InfoRow
                         variant="inline"
-                        label="Fecha de vencimiento"
+                        label={copy.label.medicalExpiry}
                         value={
                           driver.medicalCertificateExpiry ? (
                             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -643,218 +704,217 @@ export function DriverDetailPage() {
                               </Badge>
                             </div>
                           ) : (
-                            "No registrado"
+                            copy.hint.empty
                           )
                         }
                       />
                       <InfoRow
                         variant="inline"
-                        label="Institución emisora"
-                        value={driver.medicalCertificateIssuer || "No especificada"}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Tipo de sangre"
-                        value={driver.bloodType || "No registrado"}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Brain className="h-4 w-4" /> Examen psicométrico
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <InfoRow
-                        variant="inline"
-                        label="Fecha del examen"
-                        value={formatDate(driver.psychometricTestDate)}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Resultado"
+                        label={copy.label.medicalIssuer}
                         value={
-                          <ResultBadge
-                            result={driver.psychometricTestResult}
-                            labels={PSYCHOMETRIC_RESULT_LABELS}
-                            colors={PSYCHOMETRIC_RESULT_COLORS}
-                          />
+                          driver.medicalCertificateIssuer ??
+                          copy.hint.emptyOptional
                         }
+                      />
+                      <InfoRow
+                        variant="inline"
+                        label={copy.label.bloodType}
+                        value={driver.bloodType ?? copy.hint.empty}
                       />
                     </CardContent>
                   </Card>
+                </DetailSection>
 
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <FlaskConical className="h-4 w-4" /> Examen antidoping
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <InfoRow
-                        variant="inline"
-                        label="Fecha del último examen"
-                        value={formatDate(driver.lastDrugTestDate)}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Resultado"
-                        value={
-                          <ResultBadge
-                            result={driver.drugTestResult}
-                            labels={DRUG_TEST_RESULT_LABELS}
-                            colors={DRUG_TEST_RESULT_COLORS}
-                          />
-                        }
-                      />
-                      {driver.lastDrugTestDate ? (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <DetailSection
+                    icon={<Brain className="h-4 w-4" />}
+                    title={copy.section.psychometric.title}
+                    description={copy.section.psychometric.description}
+                  >
+                    <Card>
+                      <CardContent className="pt-6">
                         <InfoRow
                           variant="inline"
-                          label="Vigencia estimada"
-                          value={(() => {
-                            const expiryDate = getExpiryDateString(
-                              driver.lastDrugTestDate,
-                              180,
-                            );
-                            const daysRemaining = getDaysUntilDateString(expiryDate);
-
-                            if (daysRemaining === null) return "—";
-                            if (daysRemaining <= 0)
-                              return (
-                                <span className="text-destructive">Examen vencido</span>
-                              );
-                            if (daysRemaining <= 30)
-                              return (
-                                <span className="text-warning">
-                                  {daysRemaining} días restantes
-                                </span>
-                              );
-                            return `${daysRemaining} días restantes`;
-                          })()}
+                          label={copy.label.psychometricDate}
+                          value={formatDate(driver.psychometricTestDate)}
                         />
-                      ) : null}
-                    </CardContent>
-                  </Card>
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.psychometricResult}
+                          value={
+                            <ResultBadge
+                              result={driver.psychometricTestResult}
+                              labels={PSYCHOMETRIC_RESULT_LABELS}
+                              colors={PSYCHOMETRIC_RESULT_COLORS}
+                            />
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+                  </DetailSection>
+
+                  <DetailSection
+                    icon={<FlaskConical className="h-4 w-4" />}
+                    title={copy.section.drugTest.title}
+                    description={copy.section.drugTest.description}
+                  >
+                    <Card>
+                      <CardContent className="pt-6">
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.drugTestDate}
+                          value={formatDate(driver.lastDrugTestDate)}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.drugTestResult}
+                          value={
+                            <ResultBadge
+                              result={driver.drugTestResult}
+                              labels={DRUG_TEST_RESULT_LABELS}
+                              colors={DRUG_TEST_RESULT_COLORS}
+                            />
+                          }
+                        />
+                        {driver.lastDrugTestDate ? (
+                          <InfoRow
+                            variant="inline"
+                            label={copy.label.drugEstimatedExpiry}
+                            value={
+                              <span
+                                className={cn(
+                                  isDrugEstimatedExpired && "text-destructive",
+                                  isDrugEstimatedExpiringSoon && "text-warning",
+                                )}
+                              >
+                                {formatDrugEstimatedExpiry(
+                                  driver.lastDrugTestDate,
+                                )}
+                              </span>
+                            }
+                          />
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  </DetailSection>
                 </div>
               </div>
             ),
           },
           {
             value: "trips",
-            label: (
-              <span>
-                Viajes
-                {trips.length > 0
-                  ? ` (${tripsData?.pagination?.total || trips.length})`
-                  : ""}
-              </span>
-            ),
+            label:
+              tripsTotal > 0
+                ? copy.format.tripsTab(tripsTotal)
+                : copy.tab.trips,
             content: isLoadingTrips ? (
-            <Card>
-              <CardContent className="py-8">
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ) : isTripsError ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertTriangle className="h-12 w-12 mx-auto text-destructive/70 mb-4" />
-                <p className="text-muted-foreground">
-                  No se pudo cargar el historial de viajes. Intenta de nuevo más
-                  tarde.
-                </p>
-              </CardContent>
-            </Card>
-          ) : trips.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Truck className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">
-                  Este conductor no tiene viajes registrados.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Historial de Viajes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DetailTimeline items={tripTimelineItems} />
+              <Card>
+                <CardContent className="py-8">
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : isTripsError ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-destructive/70" />
+                  <p className="text-muted-foreground">{copy.trips.loadError}</p>
+                </CardContent>
+              </Card>
+            ) : trips.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Truck className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">{copy.trips.empty}</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <DetailSection
+                icon={<Route className="h-4 w-4" />}
+                title={copy.section.trips.title}
+                description={copy.section.trips.description}
+              >
+                <Card>
+                  <CardContent className="pt-6">
+                    <DetailTimeline items={tripTimelineItems} />
 
-                {tripsData?.pagination &&
-                  tripsData.pagination.total > trips.length && (
-                    <div className="mt-4 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/drivers/${driverId}/trips`)}
-                      >
-                        Ver todos los viajes ({tripsData.pagination.total})
-                      </Button>
-                    </div>
-                  )}
-              </CardContent>
-            </Card>
+                    {tripsData?.pagination &&
+                    tripsData.pagination.total > trips.length ? (
+                      <div className="mt-4 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/drivers/${driverId}/trips`)}
+                        >
+                          {copy.action.viewAllTrips(tripsData.pagination.total)}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </DetailSection>
             ),
           },
           {
             value: "emergency",
-            label: "Emergencia",
+            label: copy.tab.emergency,
             content: (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Users className="h-4 w-4" /> Contacto de emergencia
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {driver.emergencyContactName ? (
-                    <>
-                      <InfoRow variant="inline" label="Nombre" value={driver.emergencyContactName} />
-                      <InfoRow
-                        variant="inline"
-                        label="Teléfono"
-                        value={
-                          driver.emergencyContactPhone ? (
-                            <a
-                              href={`tel:${driver.emergencyContactPhone}`}
-                              className="text-primary hover:underline"
-                            >
-                              {driver.emergencyContactPhone}
-                            </a>
-                          ) : (
-                            "—"
-                          )
-                        }
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Parentesco"
-                        value={driver.emergencyContactRelationship ?? "—"}
-                      />
-                    </>
-                  ) : (
-                    <div className="py-8 text-center">
-                      <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">
-                        No se ha registrado un contacto de emergencia.
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Esta información proviene del perfil del empleado.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <DetailSection
+                icon={<Users className="h-4 w-4" />}
+                title={copy.section.emergency.title}
+                description={copy.section.emergency.description}
+              >
+                <Card>
+                  <CardContent className="pt-6">
+                    {driver.emergencyContactName ? (
+                      <>
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.emergencyName}
+                          value={driver.emergencyContactName}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.emergencyPhone}
+                          value={
+                            driver.emergencyContactPhone ? (
+                              <a
+                                href={`tel:${driver.emergencyContactPhone}`}
+                                className="text-primary hover:underline"
+                              >
+                                {driver.emergencyContactPhone}
+                              </a>
+                            ) : (
+                              copy.hint.empty
+                            )
+                          }
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.emergencyRelationship}
+                          value={
+                            driver.emergencyContactRelationship ??
+                            copy.hint.empty
+                          }
+                        />
+                      </>
+                    ) : (
+                      <div className="py-8 text-center">
+                        <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                        <p className="text-muted-foreground">
+                          {copy.hint.noEmergencyContact}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {copy.hint.emergencyFromEmployee}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </DetailSection>
             ),
           },
         ],

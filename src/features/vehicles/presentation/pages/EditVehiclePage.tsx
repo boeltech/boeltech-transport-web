@@ -1,9 +1,7 @@
 /**
  * EditVehiclePage
  *
- * Página para editar un vehículo existente.
- *
- * Ubicación: src/features/vehicles/presentation/pages/EditVehiclePage.tsx
+ * Edición de vehículo existente (FormPageShell + VehicleForm).
  */
 
 import { useNavigate, useParams } from "react-router-dom";
@@ -13,32 +11,36 @@ import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { VehicleForm } from "../components/VehicleForm";
 import { useVehicle, useUpdateVehicle } from "@features/vehicles/application";
 import type { CreateVehicleFormData } from "../validation";
-import type { UpdateVehiclePayload } from "@features/vehicles/domain";
+import {
+  VEHICLE_TYPE_LABELS,
+  type UpdateVehiclePayload,
+  type VehicleTypeValue,
+} from "@features/vehicles/domain";
+import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
+import { vehiclesCopy } from "../copy";
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = vehiclesCopy.form;
 
 export function EditVehiclePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data, isLoading } = useVehicle(id!);
+  const vehicleId = id ?? "";
 
-  const vehicle = data;
+  const { data: vehicle, isLoading, isError } = useVehicle(vehicleId);
 
   const updateVehicle = useUpdateVehicle({
     onSuccess: () => {
       toast({
-        title: "Vehículo actualizado",
-        description: "Los datos se actualizaron exitosamente",
+        title: copy.edit.toast.successTitle,
+        description: copy.edit.toast.successDescription,
         variant: "success",
       });
-      navigate(`/vehicles/${id}`);
+      navigate(`/vehicles/${vehicleId}`);
     },
     onError: (error) => {
       toast({
-        title: "Error al actualizar",
+        title: copy.edit.toast.errorTitle,
         description: error.message,
         variant: "destructive",
       });
@@ -46,7 +48,6 @@ export function EditVehiclePage() {
   });
 
   const handleSubmit = (data: CreateVehicleFormData) => {
-    // Strip unitNumber since it can't be updated, and strip empty strings
     const rest = { ...data } as Record<string, unknown>;
     delete rest.unitNumber;
     const payload: UpdateVehiclePayload = {};
@@ -57,36 +58,58 @@ export function EditVehiclePage() {
       }
     }
 
-    updateVehicle.mutate({ id: id!, data: payload });
+    updateVehicle.mutate({ id: vehicleId, data: payload });
   };
+
+  const handleCancel = () => {
+    navigate(`/vehicles/${vehicleId}`);
+  };
+
+  const typeLabel = vehicle
+    ? VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] || vehicle.type
+    : "";
 
   return (
     <FormPageShell
       isLoading={isLoading}
-      notFound={!vehicle}
+      notFound={!isLoading && (isError || !vehicle)}
       notFoundConfig={{
         icon: <Truck />,
-        title: "Vehículo no encontrado",
-        description: "El vehículo que intentas editar no existe o fue eliminado.",
+        title: copy.state.notFoundTitle,
+        description: copy.state.notFoundDescription,
         backHref: "/vehicles",
-        backLabel: "Volver a Vehículos",
+        backLabel: copy.state.backToList,
       }}
       header={{
-        backHref: `/vehicles/${id}`,
+        backHref: `/vehicles/${vehicleId}`,
         icon: <Truck className="h-5 w-5" />,
-        title: vehicle ? `Editar Vehículo ${vehicle.unitNumber}` : "Editar Vehículo",
+        title: copy.edit.title,
         subtitle: vehicle
-          ? `${vehicle.brand} ${vehicle.model} (${vehicle.year})`
+          ? copy.edit.subtitle(
+              vehicle.unitNumber,
+              typeLabel,
+              vehicle.licensePlate,
+              vehicle.brand,
+              vehicle.model,
+              vehicle.year,
+            )
           : undefined,
+        trailing: vehicle ? (
+          <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
+        ) : undefined,
       }}
     >
       {vehicle ? (
         <VehicleForm
+          key={vehicle.id}
           vehicle={vehicle}
           onSubmit={handleSubmit}
+          onCancel={handleCancel}
           isSubmitting={updateVehicle.isPending}
         />
       ) : null}
     </FormPageShell>
   );
 }
+
+export default EditVehiclePage;

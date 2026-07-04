@@ -2,15 +2,12 @@
  * DriverEditPage
  * Clean Architecture - Presentation Layer (Pages)
  *
- * Página para editar un conductor existente.
- *
- * Ubicación: src/features/drivers/presentation/pages/DriverEditPage.tsx
+ * Edición de conductor existente (FormPageShell + DriverForm).
  */
 
 import { useParams, useNavigate } from "react-router-dom";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UserCog, User } from "lucide-react";
-
 import { useToast } from "@shared/hooks";
 import { useDriver, useUpdateDriver } from "../../application";
 import { DriverForm } from "../components/DriverForm";
@@ -18,11 +15,14 @@ import {
   driverFormDataToUpdateDriverDTO,
   type DriverFormData,
 } from "../validation/driverSchema";
-import { formatDriverName } from "../config/driverStatusConfig";
+import {
+  formatDriverName,
+  DriverStatusBadge,
+} from "../config/driverStatusConfig";
+import { LICENSE_TYPE_LABELS, type LicenseTypeValue } from "../../domain";
+import { driversCopy } from "../copy";
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = driversCopy.form;
 
 export function DriverEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,37 +30,25 @@ export function DriverEditPage() {
   const { toast } = useToast();
   const driverId = id || "";
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // QUERIES
-  // ══════════════════════════════════════════════════════════════════════════
-
   const { data: driver, isLoading, isError } = useDriver(driverId);
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // MUTATIONS
-  // ══════════════════════════════════════════════════════════════════════════
 
   const updateMutation = useUpdateDriver({
     onSuccess: () => {
       toast({
-        title: "Conductor actualizado",
-        description: "Los cambios han sido guardados exitosamente",
+        title: copy.edit.toast.successTitle,
+        description: copy.edit.toast.successDescription,
         variant: "success",
       });
       navigate(`/drivers/${driverId}`);
     },
     onError: (error) => {
       toast({
-        title: "Error al actualizar conductor",
+        title: copy.edit.toast.errorTitle,
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // HANDLERS
-  // ══════════════════════════════════════════════════════════════════════════
 
   const handleSubmit = (data: DriverFormData) => {
     if (!driver) return;
@@ -79,7 +67,12 @@ export function DriverEditPage() {
 
   const fullName = driver?.employee
     ? formatDriverName(driver.employee)
-    : "Conductor";
+    : driversCopy.detail.title.fallback;
+
+  const licenseTypeLabel = driver
+    ? LICENSE_TYPE_LABELS[driver.licenseType as LicenseTypeValue] ||
+      driver.licenseType
+    : "";
 
   return (
     <FormPageShell
@@ -87,22 +80,31 @@ export function DriverEditPage() {
       notFound={!isLoading && (isError || !driver)}
       notFoundConfig={{
         icon: <User />,
-        title: "Conductor no encontrado",
-        description:
-          "El conductor que buscas no existe o fue eliminado.",
+        title: copy.state.notFoundTitle,
+        description: copy.state.notFoundDescription,
         backHref: "/drivers",
-        backLabel: "Volver a Conductores",
+        backLabel: copy.state.backToList,
       }}
       header={{
         backHref: `/drivers/${driverId}`,
         icon: <UserCog className="h-5 w-5" />,
-        title: "Editar Conductor",
-        subtitle: driver ? fullName : undefined,
+        title: copy.edit.title,
+        subtitle: driver
+          ? copy.edit.subtitle(
+              fullName,
+              driver.employee?.employeeNumber ?? null,
+              licenseTypeLabel,
+              driver.licenseNumber,
+            )
+          : undefined,
+        trailing: driver ? (
+          <DriverStatusBadge status={driver.status} showIcon size="sm" />
+        ) : undefined,
       }}
-      className="p-6"
     >
       {driver ? (
         <DriverForm
+          key={driver.id}
           mode="edit"
           driver={driver}
           onSubmit={handleSubmit}

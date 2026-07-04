@@ -2,11 +2,7 @@
  * VehicleDetailPage
  * Clean Architecture - Presentation Layer (Pages)
  *
- * Página de detalle de un vehículo.
- * Muestra información completa con alertas de documentos vencidos/por vencer.
- * Homologado con TripDetailPage y DriverDetailPage.
- *
- * Ubicación: src/features/vehicles/presentation/pages/VehicleDetailPage.tsx
+ * Detalle de vehículo con KPIs operativos, resumen, documentación y Carta Porte.
  */
 
 import { useParams } from "react-router-dom";
@@ -23,8 +19,9 @@ import { Separator } from "@shared/ui/separator";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import {
   DetailAlertCard,
-  InfoRow,
+  DetailSection,
   DocumentRow,
+  InfoRow,
   SatFieldLabel,
 } from "@shared/ui/data-display";
 import {
@@ -40,21 +37,19 @@ import {
   Wrench,
   CheckCircle2,
   XCircle,
+  ClipboardList,
 } from "lucide-react";
-
-// Application Layer
 import { useVehicle } from "../../application";
-
-// Domain
 import {
   VehicleStatus,
   VEHICLE_TYPE_LABELS,
+  type Vehicle,
   type VehicleTypeValue,
 } from "../../domain";
-
-// Presentation
 import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
 import { VehicleActions } from "../components/VehicleActions";
+import { VehicleDetailHeaderSubtitle } from "../components/VehicleDetailHeaderSubtitle";
+import { vehiclesCopy } from "../copy";
 import {
   formatDate,
   getDaysUntilDateString,
@@ -62,34 +57,69 @@ import {
   isExpiringSoon,
 } from "@shared/utils/dateUtils";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+const copy = vehiclesCopy.detail;
 
-function formatNumber(num: number | null): string {
-  if (num === null) return "—";
-  return new Intl.NumberFormat("es-MX").format(num);
+function fmtOptional(s: string | null): string {
+  return s?.trim() ? s : copy.hint.empty;
 }
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
+function fmtPeso(ton: number | null): string {
+  if (ton === null) return copy.hint.empty;
+  return copy.format.pesoBruto(ton);
+}
+
+function buildDocumentAlerts(vehicle: Vehicle) {
+  const { documentation } = vehicle;
+  const insuranceExpired = isExpired(documentation.insuranceExpiry);
+  const insuranceExpiringSoon = isExpiringSoon(documentation.insuranceExpiry);
+  const sctExpired = isExpired(documentation.sctPermitExpiry);
+  const sctExpiringSoon = isExpiringSoon(documentation.sctPermitExpiry);
+
+  const hasDocumentAlerts =
+    insuranceExpired ||
+    insuranceExpiringSoon ||
+    sctExpired ||
+    sctExpiringSoon;
+
+  const documentAlertItems: { label: string; text: string }[] = [];
+  if (insuranceExpired || insuranceExpiringSoon) {
+    documentAlertItems.push({
+      label: copy.alert.insuranceLabel,
+      text: insuranceExpired
+        ? copy.alert.expired
+        : copy.alert.expiresIn(
+            getDaysUntilDateString(documentation.insuranceExpiry) ?? 0,
+          ),
+    });
+  }
+  if (sctExpired || sctExpiringSoon) {
+    documentAlertItems.push({
+      label: copy.alert.sctLabel,
+      text: sctExpired
+        ? copy.alert.expired
+        : copy.alert.expiresIn(
+            getDaysUntilDateString(documentation.sctPermitExpiry) ?? 0,
+          ),
+    });
+  }
+
+  return {
+    hasDocumentAlerts,
+    documentAlertItems,
+    insuranceExpired,
+    sctExpired,
+  };
+}
 
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const vehicleId = id || "";
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // QUERIES
-  // ══════════════════════════════════════════════════════════════════════════
-
   const {
-    data: vehicleResponse,
+    data: vehicle,
     isLoading,
     refetch: refetchVehicle,
   } = useVehicle(vehicleId);
-
-  const vehicle = vehicleResponse;
 
   if (isLoading) {
     return (
@@ -98,7 +128,7 @@ export function VehicleDetailPage() {
         header={{
           backHref: "/vehicles",
           icon: <Truck className="h-6 w-6" />,
-          title: "Vehículo",
+          title: copy.title.fallback,
         }}
       />
     );
@@ -111,59 +141,29 @@ export function VehicleDetailPage() {
         notFound
         notFoundConfig={{
           icon: <Truck />,
-          title: "Vehículo no encontrado",
-          description: "El vehículo que buscas no existe o fue eliminado.",
+          title: copy.state.notFoundTitle,
+          description: copy.state.notFoundDescription,
           backHref: "/vehicles",
-          backLabel: "Volver a Vehículos",
+          backLabel: copy.state.backToList,
         }}
         header={{
           backHref: "/vehicles",
           icon: <Truck className="h-6 w-6" />,
-          title: "Vehículo",
+          title: copy.title.fallback,
         }}
       />
     );
   }
 
   const { capacities, documentation, cartaPorte } = vehicle;
-
-  function fmtOptional(s: string | null): string {
-    return s?.trim() ? s : "—";
-  }
-
-  function fmtPeso(ton: number | null): string {
-    if (ton === null) return "—";
-    return `${new Intl.NumberFormat("es-MX", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 3,
-    }).format(ton)} t`;
-  }
-
-  const insuranceExpired = isExpired(documentation.insuranceExpiry);
-  const insuranceExpiringSoon = isExpiringSoon(documentation.insuranceExpiry);
-  const sctExpired = isExpired(documentation.sctPermitExpiry);
-  const sctExpiringSoon = isExpiringSoon(documentation.sctPermitExpiry);
-
-  const hasDocumentAlerts =
-    insuranceExpired || insuranceExpiringSoon || sctExpired || sctExpiringSoon;
-
-  const documentAlertItems: { label: string; text: string }[] = [];
-  if (insuranceExpired || insuranceExpiringSoon) {
-    documentAlertItems.push({
-      label: "Seguro",
-      text: insuranceExpired
-        ? "Vencido"
-        : `Vence en ${getDaysUntilDateString(documentation.insuranceExpiry)} días`,
-    });
-  }
-  if (sctExpired || sctExpiringSoon) {
-    documentAlertItems.push({
-      label: "Permiso SCT",
-      text: sctExpired
-        ? "Vencido"
-        : `Vence en ${getDaysUntilDateString(documentation.sctPermitExpiry)} días`,
-    });
-  }
+  const typeLabel =
+    VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] || vehicle.type;
+  const {
+    hasDocumentAlerts,
+    documentAlertItems,
+    insuranceExpired,
+    sctExpired,
+  } = buildDocumentAlerts(vehicle);
 
   return (
     <DetailPageShell
@@ -177,25 +177,26 @@ export function VehicleDetailPage() {
             : "primary",
         title: vehicle.unitNumber,
         subtitle: (
-          <>
-            <span className="font-mono">{vehicle.licensePlate}</span>
-            <span className="text-muted-foreground"> · </span>
-            <span>
-              {vehicle.brand} {vehicle.model} ({vehicle.year})
-            </span>
-          </>
+          <VehicleDetailHeaderSubtitle
+            typeLabel={typeLabel}
+            licensePlate={vehicle.licensePlate}
+            brand={vehicle.brand}
+            model={vehicle.model}
+            year={vehicle.year}
+            isActive={vehicle.isActive}
+          />
         ),
-        statusBadge: <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />,
+        statusBadge: (
+          <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
+        ),
         actions: (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <VehicleActions
-              vehicleId={vehicle.id}
-              vehicleName={vehicle.unitNumber}
-              status={vehicle.status}
-              variant="buttons"
-              onActionComplete={refetchVehicle}
-            />
-          </div>
+          <VehicleActions
+            vehicleId={vehicle.id}
+            vehicleName={vehicle.unitNumber}
+            status={vehicle.status}
+            variant="buttons"
+            onActionComplete={refetchVehicle}
+          />
         ),
       }}
       alerts={
@@ -214,8 +215,8 @@ export function VehicleDetailPage() {
             }
             title={
               insuranceExpired || sctExpired
-                ? "Documentos vencidos"
-                : "Documentos próximos a vencer"
+                ? copy.alert.documentsExpiredTitle
+                : copy.alert.documentsExpiringTitle
             }
             items={documentAlertItems}
           />
@@ -223,150 +224,173 @@ export function VehicleDetailPage() {
       }
       stats={[
         {
-          title: "Kilometraje",
-          value: `${formatNumber(vehicle.currentMileage)} km`,
+          title: copy.stat.mileage.title,
+          value: copy.format.statMileage(vehicle.currentMileage),
           tone: "primary",
           icon: <Gauge className="h-5 w-5" />,
-          description: "Odómetro actual del vehículo",
+          description: copy.stat.mileage.description,
         },
         {
-          title: "Capacidad de carga",
-          value: capacities.loadCapacity ? `${capacities.loadCapacity} t` : "—",
+          title: copy.stat.load.title,
+          value: capacities.loadCapacity
+            ? copy.format.statLoad(capacities.loadCapacity)
+            : copy.hint.empty,
           tone: "info",
           icon: <Package className="h-5 w-5" />,
-          description:
-            capacities.volumeCapacity != null
-              ? `${capacities.volumeCapacity} m³ volumen útil`
-              : undefined,
+          description: copy.stat.load.description(capacities.volumeCapacity),
         },
         {
-          title: "Tanque",
+          title: copy.stat.fuelTank.title,
           value: capacities.fuelTankCapacity
-            ? `${capacities.fuelTankCapacity} L`
-            : "—",
+            ? copy.format.statFuel(capacities.fuelTankCapacity)
+            : copy.hint.empty,
           tone: "warning",
           icon: <Fuel className="h-5 w-5" />,
-          description: "Capacidad del depósito",
+          description: copy.stat.fuelTank.description,
         },
         {
-          title: "Rendimiento",
+          title: copy.stat.efficiency.title,
           value: capacities.expectedFuelEfficiency
-            ? `${capacities.expectedFuelEfficiency} km/L`
-            : "—",
+            ? copy.format.statEfficiency(capacities.expectedFuelEfficiency)
+            : copy.hint.empty,
           tone: "success",
           icon: <Route className="h-5 w-5" />,
-          description: "Consumo esperado (referencia)",
+          description: copy.stat.efficiency.description,
         },
       ]}
       tabs={{
-        defaultValue: "info",
+        defaultValue: "summary",
         items: [
           {
-            value: "info",
-            label: "General",
+            value: "summary",
+            label: copy.tab.summary,
             content: (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 text-base">
                         <Truck className="h-4 w-4 shrink-0 text-primary" />
-                        Identificación
+                        {copy.section.unitData.title}
                       </CardTitle>
                       <CardDescription>
-                        Unidad, placa, VIN y clasificación del vehículo.
+                        {copy.section.unitData.description}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                      <InfoRow
-                        variant="inline"
-                        label="Número de unidad"
-                        value={<span className="font-mono">{vehicle.unitNumber}</span>}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="Placa"
-                        value={<span className="font-mono">{vehicle.licensePlate}</span>}
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label="VIN"
-                        value={
-                          vehicle.vin ? (
-                            <span className="font-mono text-xs">{vehicle.vin}</span>
-                          ) : (
-                            "No registrado"
-                          )
-                        }
-                      />
-                      <Separator className="my-3" />
-                      <InfoRow
-                        variant="inline"
-                        label="Tipo de vehículo"
-                        value={
-                          VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] ||
-                          vehicle.type
-                        }
-                      />
-                      {vehicle.color ? (
+                    <CardContent className="space-y-4 pt-0">
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.unitData.groupIdentification}
+                        </p>
                         <InfoRow
                           variant="inline"
-                          label="Color"
+                          label={copy.label.unitNumber}
                           value={
-                            <span className="inline-flex items-center gap-2">
-                              <span
-                                className="h-3 w-3 shrink-0 rounded-full bg-muted ring-1 ring-border"
-                                aria-hidden
-                              />
-                              {vehicle.color}
+                            <span className="font-mono font-medium">
+                              {vehicle.unitNumber}
                             </span>
                           }
+                          copyable
+                          copyValue={vehicle.unitNumber}
+                          mono
                         />
-                      ) : null}
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.licensePlate}
+                          value={vehicle.licensePlate}
+                          copyable
+                          copyValue={vehicle.licensePlate}
+                          mono
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.vin}
+                          value={vehicle.vin ?? copy.hint.empty}
+                          copyable={Boolean(vehicle.vin)}
+                          copyValue={vehicle.vin ?? undefined}
+                          mono
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.vehicleType}
+                          value={typeLabel}
+                        />
+                        {vehicle.color ? (
+                          <InfoRow
+                            variant="inline"
+                            label={copy.label.color}
+                            value={
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="h-3 w-3 shrink-0 rounded-full bg-muted ring-1 ring-border"
+                                  aria-hidden
+                                />
+                                {vehicle.color}
+                              </span>
+                            }
+                          />
+                        ) : null}
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.unitData.groupSpecs}
+                        </p>
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.brand}
+                          value={vehicle.brand}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.model}
+                          value={vehicle.model}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.year}
+                          value={vehicle.year}
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.volumeCapacity}
+                          value={
+                            capacities.volumeCapacity
+                              ? copy.format.volume(capacities.volumeCapacity)
+                              : copy.hint.emptyOptional
+                          }
+                        />
+                      </div>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Gauge className="h-4 w-4 shrink-0 text-primary" />
-                  Características
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                        {copy.section.registry.title}
                       </CardTitle>
                       <CardDescription>
-                        Marca, modelo, año y capacidad volumétrica.
+                        {copy.section.registry.description}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <InfoRow variant="inline" label="Marca" value={vehicle.brand} />
-                      <InfoRow variant="inline" label="Modelo" value={vehicle.model} />
-                      <InfoRow variant="inline" label="Año" value={vehicle.year} />
-                      <Separator className="my-3" />
                       <InfoRow
                         variant="inline"
-                        label="Capacidad de volumen"
+                        label={copy.label.operationalStatus}
                         value={
-                          capacities.volumeCapacity
-                            ? `${capacities.volumeCapacity} m³`
-                            : "No especificada"
+                          <VehicleStatusBadge
+                            status={vehicle.status}
+                            showIcon
+                            size="sm"
+                          />
                         }
                       />
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
-                        Estado en el sistema
-                      </CardTitle>
-                      <CardDescription>
-                        Alta, actividad y vigencia del registro en el ERP.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-3">
                       <InfoRow
                         variant="inline"
-                        label="Estado"
+                        label={copy.label.registryStatus}
                         value={
                           <span className="inline-flex items-center gap-1.5">
                             {vehicle.isActive ? (
@@ -374,20 +398,23 @@ export function VehicleDetailPage() {
                             ) : (
                               <XCircle className="h-4 w-4 shrink-0 text-destructive" />
                             )}
-                            {vehicle.isActive ? "Activo" : "Inactivo"}
+                            {vehicle.isActive
+                              ? copy.format.active
+                              : copy.format.inactive}
                           </span>
                         }
                       />
+                      <Separator className="my-3" />
                       <InfoRow
                         variant="inline"
-                        label="Fecha de registro"
+                        label={copy.label.createdAt}
                         value={formatDate(
                           vehicle.createdAt.toISOString().split("T")[0],
                         )}
                       />
                       <InfoRow
                         variant="inline"
-                        label="Última actualización"
+                        label={copy.label.updatedAt}
                         value={formatDate(
                           vehicle.updatedAt.toISOString().split("T")[0],
                         )}
@@ -396,166 +423,184 @@ export function VehicleDetailPage() {
                   </Card>
                 </div>
 
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex flex-wrap items-center gap-2">
-                      <FileText className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="inline-flex flex-wrap items-center gap-2">
-                        Carta Porte 3.1 — Autotransporte
-                        <Badge
-                          variant="outline"
-                          className="px-1.5 py-0 text-[10px] font-medium"
-                        >
-                          SAT
-                        </Badge>
-                      </span>
-                    </CardTitle>
-                    <CardDescription>
-                      Datos base del vehículo para el complemento de autotransporte;
-                      la operación puede ajustar valores por viaje cuando aplique.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Tipo de Permiso SCT"
-                          satCode="PermSCT"
-                        />
-                      }
-                      value={
-                        cartaPorte.satTipoPermisoCode ? (
-                          <span className="font-mono text-xs">
-                            {cartaPorte.satTipoPermisoCode}
-                          </span>
-                        ) : (
-                          "—"
-                        )
-                      }
-                    />
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Configuración vehicular"
-                          satCode="ConfigVehicular"
-                        />
-                      }
-                      value={
-                        cartaPorte.satConfigAutotransporteCode ? (
-                          <span className="font-mono text-xs">
-                            {cartaPorte.satConfigAutotransporteCode}
-                          </span>
-                        ) : (
-                          "—"
-                        )
-                      }
-                    />
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Peso bruto vehicular"
-                          satCode="PesoBrutoVehicular"
-                        />
-                      }
-                      value={fmtPeso(cartaPorte.pesoBrutoVehicular)}
-                    />
-                    <Separator className="my-3" />
-                    <p className="mb-2 text-sm font-medium">Remolques</p>
-                    {cartaPorte.remolques.length > 0 ? (
-                      <div className="space-y-2">
-                        {cartaPorte.remolques.map((remolque) => (
-                          <div
-                            key={`${remolque.position}-${remolque.licensePlate}`}
-                            className="rounded-lg border bg-muted/30 p-3"
-                          >
-                            <InfoRow
-                              variant="inline"
-                              label={
-                                <SatFieldLabel
-                                  label={`SubTipoRem #${remolque.position}`}
-                                  satCode="SubTipoRem"
-                                />
-                              }
-                              value={
+                <DetailSection
+                  icon={<FileText className="h-4 w-4" />}
+                  title={
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      {copy.section.cartaPorte.title}
+                      <Badge
+                        variant="outline"
+                        className="px-1.5 py-0 text-[10px] font-medium"
+                      >
+                        SAT
+                      </Badge>
+                    </span>
+                  }
+                  description={copy.section.cartaPorte.description}
+                >
+                  <Card>
+                    <CardContent className="space-y-6 pt-6">
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.cartaPorte.groupSat}
+                        </p>
+                        <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
+                          <InfoRow
+                            variant="inline"
+                            label={
+                              <SatFieldLabel
+                                label="Tipo de permiso SCT"
+                                satCode="PermSCT"
+                              />
+                            }
+                            value={
+                              cartaPorte.satTipoPermisoCode ? (
                                 <span className="font-mono text-xs">
-                                  {remolque.satSubTipoRemCode}
+                                  {cartaPorte.satTipoPermisoCode}
                                 </span>
-                              }
-                            />
-                            <InfoRow
-                              variant="inline"
-                              label={
-                                <SatFieldLabel
-                                  label={`Placa remolque #${remolque.position}`}
-                                  satCode="Placa"
-                                />
-                              }
-                              value={
+                              ) : (
+                                copy.hint.empty
+                              )
+                            }
+                          />
+                          <InfoRow
+                            variant="inline"
+                            label={
+                              <SatFieldLabel
+                                label="Configuración vehicular"
+                                satCode="ConfigVehicular"
+                              />
+                            }
+                            value={
+                              cartaPorte.satConfigAutotransporteCode ? (
                                 <span className="font-mono text-xs">
-                                  {remolque.licensePlate}
+                                  {cartaPorte.satConfigAutotransporteCode}
                                 </span>
-                              }
-                            />
-                          </div>
-                        ))}
+                              ) : (
+                                copy.hint.empty
+                              )
+                            }
+                          />
+                          <InfoRow
+                            variant="inline"
+                            label={
+                              <SatFieldLabel
+                                label="Peso bruto vehicular"
+                                satCode="PesoBrutoVehicular"
+                              />
+                            }
+                            value={fmtPeso(cartaPorte.pesoBrutoVehicular)}
+                          />
+                        </div>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Sin remolques registrados.
-                      </p>
-                    )}
-                    <Separator className="my-3" />
-                    <p className="mb-3 text-sm font-medium">
-                      Seguros (Carta Porte)
-                    </p>
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Aseguradora Resp. Civil"
-                          satCode="AseguraRespCivil"
+
+                      <Separator />
+
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.cartaPorte.groupTrailers}
+                        </p>
+                        {cartaPorte.remolques.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {cartaPorte.remolques.map((remolque) => (
+                              <div
+                                key={`${remolque.position}-${remolque.licensePlate}`}
+                                className="rounded-lg border bg-muted/30 p-3"
+                              >
+                                <p className="mb-2 text-sm font-medium">
+                                  {copy.label.trailerPosition(remolque.position)}
+                                </p>
+                                <InfoRow
+                                  variant="inline"
+                                  label={
+                                    <SatFieldLabel
+                                      label="Subtipo"
+                                      satCode="SubTipoRem"
+                                    />
+                                  }
+                                  value={
+                                    <span className="font-mono text-xs">
+                                      {remolque.satSubTipoRemCode}
+                                    </span>
+                                  }
+                                />
+                                <InfoRow
+                                  variant="inline"
+                                  label={
+                                    <SatFieldLabel
+                                      label="Placa"
+                                      satCode="Placa"
+                                    />
+                                  }
+                                  value={
+                                    <span className="font-mono text-xs">
+                                      {remolque.licensePlate}
+                                    </span>
+                                  }
+                                  copyable
+                                  copyValue={remolque.licensePlate}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            {copy.hint.noTrailers}
+                          </p>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {copy.section.cartaPorte.groupInsurance}
+                        </p>
+                        <InfoRow
+                          variant="inline"
+                          label={
+                            <SatFieldLabel
+                              label="Aseguradora RC"
+                              satCode="AseguraRespCivil"
+                            />
+                          }
+                          value={fmtOptional(cartaPorte.insuranceCompany)}
                         />
-                      }
-                      value={fmtOptional(cartaPorte.insuranceCompany)}
-                    />
-                    <div className="mb-3 rounded-lg border bg-muted/20 px-3 py-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Opcionales (valores predeterminados)
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Estos seguros se usan como base del vehículo para Carta
-                        Porte; en la operación pueden cambiar por viaje/carga.
-                      </p>
-                    </div>
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Aseguradora Medio Ambiente"
-                          satCode="AseguraMedioAmbiente"
+                        <div className="my-4 rounded-lg border border-dashed bg-muted/20 px-3 py-3">
+                          <p className="text-sm font-medium">
+                            {copy.section.cartaPorte.optionalInsuranceTitle}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.section.cartaPorte.optionalInsuranceHint}
+                          </p>
+                        </div>
+                        <InfoRow
+                          variant="inline"
+                          label={
+                            <SatFieldLabel
+                              label="Aseguradora medio ambiente"
+                              satCode="AseguraMedioAmbiente"
+                            />
+                          }
+                          value={fmtOptional(cartaPorte.aseguraMedioAmbiente)}
                         />
-                      }
-                      value={fmtOptional(cartaPorte.aseguraMedioAmbiente)}
-                    />
-                    <InfoRow
-                      variant="inline"
-                      label={
-                        <SatFieldLabel
-                          label="Póliza Medio Ambiente"
-                          satCode="PolizaMedioAmbiente"
+                        <InfoRow
+                          variant="inline"
+                          label={
+                            <SatFieldLabel
+                              label="Póliza medio ambiente"
+                              satCode="PolizaMedioAmbiente"
+                            />
+                          }
+                          value={fmtOptional(cartaPorte.polizaMedioAmbiente)}
                         />
-                      }
-                      value={fmtOptional(cartaPorte.polizaMedioAmbiente)}
-                    />
-                    <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-                      El seguro de la mercancía (aseguradora y póliza de carga) se
-                      registra por carga en el viaje, no en el vehículo.
-                    </p>
-                  </CardContent>
-                </Card>
+                        <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
+                          {copy.section.cartaPorte.cargoInsuranceFootnote}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </DetailSection>
               </div>
             ),
           },
@@ -563,90 +608,84 @@ export function VehicleDetailPage() {
             value: "documents",
             label: (
               <span className="inline-flex items-center">
-                Documentos
+                {copy.tab.documents}
                 {hasDocumentAlerts ? (
                   <AlertTriangle className="ml-1.5 h-3.5 w-3.5 text-warning" />
                 ) : null}
               </span>
             ),
             content: (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Shield className="h-4 w-4 shrink-0 text-primary" />
-                      Documentación vigente
-                    </CardTitle>
-                    <CardDescription>
-                      Póliza de responsabilidad civil y permiso SCT; vencimientos
-                      se resaltan arriba cuando aplican.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <DocumentRow
-                      label={
-                        <SatFieldLabel
-                          label="Póliza Resp. Civil"
-                          satCode="PolizaRespCivil"
-                        />
-                      }
-                      documentNumber={documentation.insurancePolicy}
-                      expirationDate={documentation.insuranceExpiry}
-                    />
-                    <DocumentRow
-                      label={
-                        <SatFieldLabel
-                          label="Número de Permiso SCT"
-                          satCode="NumPermisoSCT"
-                        />
-                      }
-                      documentNumber={documentation.sctPermitNumber}
-                      expirationDate={documentation.sctPermitExpiry}
-                    />
-                  </CardContent>
-                </Card>
+              <div className="space-y-8">
+                <DetailSection
+                  icon={<Shield className="h-4 w-4" />}
+                  title={copy.section.documents.title}
+                  description={copy.section.documents.description}
+                >
+                  <Card>
+                    <CardContent className="pt-6">
+                      <DocumentRow
+                        label={
+                          <SatFieldLabel
+                            label="Póliza RC"
+                            satCode="PolizaRespCivil"
+                          />
+                        }
+                        documentNumber={documentation.insurancePolicy}
+                        expirationDate={documentation.insuranceExpiry}
+                      />
+                      <DocumentRow
+                        label={
+                          <SatFieldLabel
+                            label="Número de permiso SCT"
+                            satCode="NumPermisoSCT"
+                          />
+                        }
+                        documentNumber={documentation.sctPermitNumber}
+                        expirationDate={documentation.sctPermitExpiry}
+                      />
+                    </CardContent>
+                  </Card>
+                </DetailSection>
 
-                <Card className="border-dashed">
-                  <CardContent className="py-10 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                      <FileText className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <p className="mt-4 text-sm font-medium">
-                      Archivos adjuntos y expediente digital
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      La carga y gestión centralizada de documentos llegará en una
-                      versión posterior.
-                    </p>
-                    <Badge variant="outline" className="mt-5">
-                      Próximamente
-                    </Badge>
-                  </CardContent>
-                </Card>
+                <DetailSection
+                  icon={<ClipboardList className="h-4 w-4" />}
+                  title={copy.section.attachments.title}
+                  description={copy.section.attachments.description}
+                >
+                  <Card className="border-dashed">
+                    <CardContent className="py-10 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                        <FileText className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <Badge variant="outline" className="mt-5">
+                        {copy.section.attachments.badge}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </DetailSection>
               </div>
             ),
           },
           {
             value: "maintenance",
-            label: "Mantenimiento",
+            label: copy.tab.maintenance,
             content: (
-              <Card className="border-dashed">
-                <CardContent className="py-10 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Wrench className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <p className="mt-4 text-sm font-medium">
-                    Mantenimiento y historial de servicio
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-                    Aquí podrás registrar órdenes de trabajo, kilometraje al
-                    servicio y documentos del taller.
-                  </p>
-                  <Badge variant="outline" className="mt-5">
-                    Próximamente
-                  </Badge>
-                </CardContent>
-              </Card>
+              <DetailSection
+                icon={<Wrench className="h-4 w-4" />}
+                title={copy.section.maintenance.title}
+                description={copy.section.maintenance.description}
+              >
+                <Card className="border-dashed">
+                  <CardContent className="py-10 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <Wrench className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <Badge variant="outline" className="mt-5">
+                      {copy.section.maintenance.badge}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </DetailSection>
             ),
           },
         ],

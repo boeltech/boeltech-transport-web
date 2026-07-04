@@ -67,6 +67,10 @@ import {
   VehicleGridNumberInput,
   VehicleGridSelect,
 } from "./VehicleFormFields";
+import { VehicleEditIdentityBanner } from "./VehicleEditIdentityBanner";
+import { vehiclesCopy } from "../copy";
+
+const fc = vehiclesCopy.form;
 
 // ============================================================================
 // TYPES
@@ -82,6 +86,8 @@ interface VehicleFormProps {
   vehicle?: Vehicle;
   /** Callback al enviar el formulario */
   onSubmit: (data: CreateVehicleFormData) => void;
+  /** Callback para cancelar (modo edición) */
+  onCancel?: () => void;
   /** Estado de carga del submit */
   isSubmitting?: boolean;
   /** Wizard de alta (solo creación); mantiene campos montados con `hidden` */
@@ -155,57 +161,58 @@ function VehicleCreateWizardSummary() {
   const v = form.getValues();
   return (
     <FormSectionCard
-      title="Revisión"
+      title={fc.section.review.title}
       icon={<ClipboardCheck className="h-4 w-4" />}
-      description="Confirma los datos antes de registrar el vehículo en la flota"
+      description={fc.section.review.description}
       contentClassName="grid gap-4 text-sm sm:grid-cols-2"
     >
         <div>
-          <p className="text-muted-foreground">Número de unidad</p>
-          <p className="font-medium">{v.unitNumber || "—"}</p>
+          <p className="text-muted-foreground">{fc.label.reviewUnit}</p>
+          <p className="font-medium">{v.unitNumber || fc.hint.reviewEmpty}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Placa</p>
-          <p className="font-medium">{v.licensePlate || "—"}</p>
+          <p className="text-muted-foreground">{fc.label.reviewPlate}</p>
+          <p className="font-medium">{v.licensePlate || fc.hint.reviewEmpty}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Marca / Modelo / Año</p>
+          <p className="text-muted-foreground">{fc.label.reviewBrandModel}</p>
           <p className="font-medium">
-            {[v.brand, v.model, v.year].filter(Boolean).join(" · ") || "—"}
+            {[v.brand, v.model, v.year].filter(Boolean).join(" · ") ||
+              fc.hint.reviewEmpty}
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground">Tipo</p>
+          <p className="text-muted-foreground">{fc.label.reviewType}</p>
           <p className="font-medium">
-            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : "—"}
+            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : fc.hint.reviewEmpty}
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground">Kilometraje actual</p>
+          <p className="text-muted-foreground">{fc.label.reviewMileage}</p>
           <p className="font-medium">
             {typeof v.currentMileage === "number"
-              ? `${new Intl.NumberFormat("es-MX").format(v.currentMileage)} km`
-              : "Sin captura (se registrará 0 km)"}
+              ? vehiclesCopy.detail.format.statMileage(v.currentMileage)
+              : fc.hint.reviewMileageDefault}
           </p>
         </div>
         <div className="sm:col-span-2">
-          <p className="text-muted-foreground">Permiso SCT / Número</p>
+          <p className="text-muted-foreground">{fc.label.reviewSct}</p>
           <p className="font-medium">
             {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
-              "—"}
+              fc.hint.reviewEmpty}
           </p>
         </div>
         <div className="sm:col-span-2">
-          <p className="text-muted-foreground">Remolques</p>
+          <p className="text-muted-foreground">{fc.label.reviewTrailers}</p>
           <p className="font-medium">
             {v.remolques.length > 0
               ? v.remolques
                   .map(
                     (r, idx) =>
-                      `#${idx + 1}: ${r.satSubTipoRemCode || "—"} · ${r.licensePlate || "—"}`,
+                      `#${idx + 1}: ${r.satSubTipoRemCode || fc.hint.reviewEmpty} · ${r.licensePlate || fc.hint.reviewEmpty}`,
                   )
                   .join(" | ")
-              : "Sin remolques"}
+              : fc.hint.noTrailers}
           </p>
         </div>
     </FormSectionCard>
@@ -251,6 +258,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     {
       vehicle,
       onSubmit,
+      onCancel,
       isSubmitting = false,
       wizardMode = false,
       wizardStepIndex = 0,
@@ -279,7 +287,8 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     // (proxy lazy de v7): sin esto, accesos como `form.formState.isValid` en JSX
     // pueden no re-renderizar tras un `trigger()` fallido.
     const { control, handleSubmit: rhfHandleSubmit, trigger, formState } = form;
-    const validationMessages = collectFieldErrorMessages(formState.errors);
+    const { errors, isDirty } = formState;
+    const validationMessages = collectFieldErrorMessages(errors);
     const shouldShowValidationSummary =
       showValidationSummary && validationMessages.length > 0;
 
@@ -313,6 +322,10 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     return (
       <FormProvider {...form}>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {isEditMode && vehicle ? (
+            <VehicleEditIdentityBanner vehicle={vehicle} />
+          ) : null}
+
           <div
             className={cn(
               "space-y-6",
@@ -325,61 +338,58 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* IDENTIFICACIÓN */}
         {/* ════════════════════════════════════════════════════════════════ */}
         <FormSectionCard
-          title="Identificación"
+          title={fc.section.identification.title}
           icon={<Truck className="h-4 w-4" />}
-          description="Datos básicos de identificación del vehículo"
+          description={fc.section.identification.description}
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
             <VehicleGridInput
               control={control}
               name="unitNumber"
-              label="Número de Unidad"
+              label={fc.label.unitNumber}
               required
-              placeholder="Ej: U-001"
+              placeholder={fc.placeholder.unitNumber}
               disabled={isEditMode}
             />
             <VehicleGridInput
               control={control}
               name="licensePlate"
-              label="Placa"
+              label={fc.label.licensePlate}
               required
-              placeholder="Ej: ABC-123-A"
+              placeholder={fc.placeholder.licensePlate}
             />
             <VehicleGridInput
               control={control}
               name="vin"
-              label="VIN / Serie"
-              placeholder="Número de serie del vehículo"
+              label={fc.label.vin}
+              placeholder={fc.placeholder.vin}
             />
         </FormSectionCard>
 
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* CARACTERÍSTICAS */}
-        {/* ════════════════════════════════════════════════════════════════ */}
         <FormSectionCard
-          title="Características"
+          title={fc.section.characteristics.title}
           icon={<Settings className="h-4 w-4" />}
-          description="Especificaciones del vehículo"
+          description={fc.section.characteristics.description}
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
             <VehicleGridInput
               control={control}
               name="brand"
-              label="Marca"
+              label={fc.label.brand}
               required
-              placeholder="Ej: Kenworth"
+              placeholder={fc.placeholder.brand}
             />
             <VehicleGridInput
               control={control}
               name="model"
-              label="Modelo"
+              label={fc.label.model}
               required
-              placeholder="Ej: T680"
+              placeholder={fc.placeholder.model}
             />
             <VehicleGridNumberInput
               control={control}
               name="year"
-              label="Año"
+              label={fc.label.year}
               required
               min={1900}
               max={new Date().getFullYear() + 1}
@@ -387,9 +397,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             <VehicleGridSelect
               control={control}
               name="type"
-              label="Tipo"
+              label={fc.label.type}
               required
-              placeholder="Seleccionar tipo"
+              placeholder={fc.placeholder.selectType}
               options={(Object.values(VehicleType) as VehicleTypeValue[]).map(
                 (value) => ({
                   value,
@@ -400,15 +410,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             <VehicleGridInput
               control={control}
               name="color"
-              label="Color"
-              placeholder="Ej: Blanco"
+              label={fc.label.color}
+              placeholder={fc.placeholder.color}
             />
             <VehicleGridNumberInput
               control={control}
               name="currentMileage"
-              label="Kilometraje actual"
+              label={fc.label.currentMileage}
               min={0}
-              placeholder="Opcional — 0 si nuevo"
+              placeholder={fc.placeholder.currentMileage}
             />
         </FormSectionCard>
           </div>
@@ -425,78 +435,74 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* CAPACIDADES */}
         {/* ════════════════════════════════════════════════════════════════ */}
         <FormSectionCard
-          title="Capacidades"
+          title={fc.section.capacities.title}
           icon={<Gauge className="h-4 w-4" />}
-          description="Capacidad de carga y consumo de combustible"
+          description={fc.section.capacities.description}
           contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
             <VehicleGridNumberInput
               control={control}
               name="loadCapacity"
-              label="Carga (ton)"
+              label={fc.label.loadCapacity}
               step="0.01"
               min={0}
-              placeholder="Ej: 28.5"
+              placeholder={fc.placeholder.loadCapacity}
               emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
               control={control}
               name="volumeCapacity"
-              label="Volumen (m3)"
+              label={fc.label.volumeCapacity}
               step="0.01"
               min={0}
-              placeholder="Ej: 120"
+              placeholder={fc.placeholder.volumeCapacity}
               emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
               control={control}
               name="fuelTankCapacity"
-              label="Tanque (L)"
+              label={fc.label.fuelTankCapacity}
               step="0.01"
               min={0}
-              placeholder="Ej: 750"
+              placeholder={fc.placeholder.fuelTankCapacity}
               emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
               control={control}
               name="expectedFuelEfficiency"
-              label="Rendimiento (km/L)"
+              label={fc.label.expectedFuelEfficiency}
               step="0.01"
               min={0}
-              placeholder="Ej: 2.8"
+              placeholder={fc.placeholder.expectedFuelEfficiency}
               emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
         </FormSectionCard>
 
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* DOCUMENTACIÓN Y SEGUROS */}
-        {/* ════════════════════════════════════════════════════════════════ */}
         <FormSectionCard
-          title="Documentación y Seguros"
+          title={fc.section.documentation.title}
           icon={<ShieldCheck className="h-4 w-4" />}
-          description="Datos administrativos para operación y Carta Porte"
+          description={fc.section.documentation.description}
           contentClassName="space-y-4"
         >
-            {/* Seguro Responsabilidad Civil */}
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Responsabilidad civil
+              {fc.section.documentation.groupRc}
             </p>
-            <div className="grid items-start gap-4 sm:grid-cols-3">
+            <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <VehicleGridInput
                 control={control}
                 name="insuranceCompany"
                 label={
                   <SatFieldLabel
-                    label="Aseguradora Resp. Civil"
+                    label={fc.label.insuranceCompany}
                     satCode="AseguraRespCivil"
                     showSatCode={false}
                   />
                 }
-                placeholder="Ej: Qualitas, GNP, HDI"
+                placeholder={fc.placeholder.insuranceCompany}
                 required={requireCartaPorteFields}
               />
               <VehicleGridInput
@@ -504,12 +510,12 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 name="insurancePolicy"
                 label={
                   <SatFieldLabel
-                    label="Póliza Resp. Civil"
+                    label={fc.label.insurancePolicy}
                     satCode="PolizaRespCivil"
                     showSatCode={false}
                   />
                 }
-                placeholder="Número de póliza"
+                placeholder={fc.placeholder.insurancePolicy}
                 required={requireCartaPorteFields}
               />
               <VehicleGridInput
@@ -517,7 +523,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 name="insuranceExpiry"
                 label={
                   <SatFieldLabel
-                    label="Vencimiento del Seguro"
+                    label={fc.label.insuranceExpiry}
                     showSatCode={false}
                   />
                 }
@@ -525,17 +531,16 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               />
             </div>
 
-            {/* Permiso SCT — PermSCT + NumPermisoSCT */}
             <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Permiso SCT
+              {fc.section.documentation.groupSct}
             </p>
-            <div className="grid items-start gap-4 sm:grid-cols-3">
+            <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <VehicleGridCatalogSlot
                 control={control}
                 name="satTipoPermisoCode"
                 label={
                   <SatFieldLabel
-                    label="Tipo de Permiso SCT"
+                    label={fc.label.satTipoPermiso}
                     satCode="PermSCT"
                     showSatCode={false}
                   />
@@ -547,7 +552,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                     triggerId={resolvedId}
                     value={field.value}
                     onValueChange={field.onChange}
-                    placeholder="Seleccionar tipo de permiso"
+                    placeholder={fc.placeholder.selectPermiso}
                     error={Boolean(fieldState.error)}
                     {...getFieldErrorAriaProps(resolvedId, errorMessage)}
                   />
@@ -558,12 +563,12 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 name="sctPermitNumber"
                 label={
                   <SatFieldLabel
-                    label="Número de Permiso SCT"
+                    label={fc.label.sctPermitNumber}
                     satCode="NumPermisoSCT"
                     showSatCode={false}
                   />
                 }
-                placeholder="Número de permiso"
+                placeholder={fc.placeholder.sctPermitNumber}
                 required={requireCartaPorteFields}
               />
               <VehicleGridInput
@@ -571,7 +576,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 name="sctPermitExpiry"
                 label={
                   <SatFieldLabel
-                    label="Vencimiento del Permiso"
+                    label={fc.label.sctPermitExpiry}
                     showSatCode={false}
                   />
                 }
@@ -595,29 +600,28 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         <FormSectionCard
           title={
             <span className="inline-flex items-center gap-2">
-              Carta Porte 3.1 — Autotransporte
+              {fc.section.cartaPorte.title}
               <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
                 SAT
               </Badge>
             </span>
           }
           icon={<FileText className="h-4 w-4" />}
-          description="Datos SAT base del vehículo (se pueden complementar por viaje/carga)"
+          description={fc.section.cartaPorte.description}
           contentClassName="space-y-6"
         >
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
                 {requireCartaPorteFields
-                  ? "Los campos marcados con * son obligatorios para que el vehículo sea timbrable en Carta Porte 3.1. Placa y año del vehículo se reutilizan en el XML."
-                  : "Se usa automáticamente al generar Carta Porte. Placa y año se toman del vehículo. Completa los campos vacíos para que el vehículo sea timbrable."}
+                  ? fc.alert.cartaPorteCreate
+                  : fc.alert.cartaPorteEdit}
               </AlertDescription>
             </Alert>
 
-            {/* ── IdentificacionVehicular ─────────────────────────────────── */}
             <div>
-              <p className="text-sm font-medium mb-3">
-                Identificación Vehicular
+              <p className="mb-3 text-sm font-medium">
+                {fc.section.cartaPorte.groupVehicleId}
               </p>
               <div className="grid items-start gap-4 sm:grid-cols-2">
                 <VehicleGridCatalogSlot
@@ -625,7 +629,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   name="satConfigAutotransporteCode"
                   label={
                     <SatFieldLabel
-                      label="Configuración Vehicular"
+                      label={fc.label.satConfig}
                       satCode="ConfigVehicular"
                       showSatCode={false}
                     />
@@ -637,7 +641,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                       triggerId={resolvedId}
                       value={field.value}
                       onValueChange={field.onChange}
-                      placeholder="Seleccionar configuración"
+                      placeholder={fc.placeholder.selectConfig}
                       error={Boolean(fieldState.error)}
                       {...getFieldErrorAriaProps(resolvedId, errorMessage)}
                     />
@@ -648,7 +652,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   name="pesoBrutoVehicular"
                   label={
                     <SatFieldLabel
-                      label="Peso Bruto Vehicular (ton)"
+                      label={fc.label.pesoBruto}
                       satCode="PesoBrutoVehicular"
                       showSatCode={false}
                     />
@@ -656,17 +660,18 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   step="0.001"
                   min={0}
                   max={9999.999}
-                  placeholder="Ej: 35"
+                  placeholder={fc.placeholder.loadCapacity}
                   parse={(val) => parsePesoBrutoVehicularFormInput(val)}
                   required={requireCartaPorteFields}
                 />
               </div>
             </div>
 
-            {/* ── Remolques ──────────────────────────────────────────────────── */}
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">Remolques (máx. 2)</p>
+                <p className="text-sm font-medium">
+                  {fc.section.cartaPorte.groupTrailers}
+                </p>
                 <Button
                   type="button"
                   variant="outline"
@@ -679,13 +684,13 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   }
                   disabled={remolquesFieldArray.fields.length >= 2}
                 >
-                  Agregar remolque
+                  {fc.action.addTrailer}
                 </Button>
               </div>
 
               {remolquesFieldArray.fields.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Sin remolques registrados para este vehículo.
+                  {fc.hint.noTrailers}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -699,7 +704,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                         name={`remolques.${index}.satSubTipoRemCode`}
                         label={
                           <SatFieldLabel
-                            label={`SubTipoRem #${index + 1}`}
+                            label={fc.label.trailerSubtipo(index + 1)}
                             satCode="SubTipoRem"
                             showSatCode={false}
                           />
@@ -710,7 +715,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                             triggerId={resolvedId}
                             value={field.value}
                             onValueChange={field.onChange}
-                            placeholder="Seleccionar subtipo"
+                            placeholder={fc.placeholder.selectSubtipoRem}
                             error={Boolean(fieldState.error)}
                             {...getFieldErrorAriaProps(resolvedId, errorMessage)}
                           />
@@ -727,7 +732,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                               fieldId={fieldId}
                               label={
                                 <SatFieldLabel
-                                  label={`Placa remolque #${index + 1}`}
+                                  label={fc.label.trailerPlate(index + 1)}
                                   satCode="Placa"
                                   showSatCode={false}
                                 />
@@ -736,7 +741,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                             >
                               <Input
                                 id={fieldId}
-                                placeholder="Ej: REM1234"
+                                placeholder={fc.placeholder.trailerPlate}
                                 value={field.value ?? ""}
                                 onChange={(e) =>
                                   field.onChange(
@@ -763,7 +768,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                           size="sm"
                           onClick={() => remolquesFieldArray.remove(index)}
                         >
-                          Quitar remolque
+                          {fc.action.removeTrailer}
                         </Button>
                       </div>
                     </div>
@@ -772,47 +777,43 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               )}
             </div>
 
-            {/* ── Seguros Opcionales ──────────────────────────────────────── */}
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Seguros adicionales predeterminados (opcionales)
+                {fc.section.cartaPorte.groupOptionalInsurance}
               </p>
               <p className="mb-4 text-xs text-muted-foreground">
-                Estos datos funcionan como base para Carta Porte; si un viaje o
-                carga requiere un seguro distinto, se captura en ese flujo.
+                {fc.section.cartaPorte.optionalInsuranceHint}
               </p>
 
-              {/* Medio Ambiente */}
-              <div className="grid items-start gap-4 sm:grid-cols-2 mb-4">
+              <div className="mb-4 grid items-start gap-4 sm:grid-cols-2">
                 <VehicleGridInput
                   control={control}
                   name="aseguraMedioAmbiente"
                   label={
                     <SatFieldLabel
-                      label="Aseguradora Medio Ambiente"
+                      label={fc.label.aseguraMedioAmbiente}
                       satCode="AseguraMedioAmbiente"
                       showSatCode={false}
                     />
                   }
-                  placeholder="Aseguradora por defecto"
+                  placeholder={fc.placeholder.optionalInsurer}
                 />
                 <VehicleGridInput
                   control={control}
                   name="polizaMedioAmbiente"
                   label={
                     <SatFieldLabel
-                      label="Póliza Medio Ambiente"
+                      label={fc.label.polizaMedioAmbiente}
                       satCode="PolizaMedioAmbiente"
                       showSatCode={false}
                     />
                   }
-                  placeholder="Póliza por defecto"
+                  placeholder={fc.placeholder.optionalPolicy}
                 />
               </div>
 
               <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                El seguro de carga (aseguradora y póliza) se captura por
-                mercancía en el wizard de viajes, no a nivel de vehículo.
+                {fc.section.cartaPorte.cargoInsuranceFootnote}
               </div>
             </div>
         </FormSectionCard>
@@ -831,8 +832,8 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               messages={validationMessages}
               title={
                 wizardActive
-                  ? "Revisa la información del vehículo"
-                  : "Revisa los siguientes campos"
+                  ? fc.validation.summaryWizard
+                  : fc.validation.summaryEdit
               }
             />
           ) : null}
@@ -841,17 +842,30 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* SUBMIT (solo edición o formulario completo sin wizard) */}
         {/* ════════════════════════════════════════════════════════════════ */}
         {!wizardActive && (
-          <div className="flex justify-end gap-4">
-            <Button type="submit" disabled={isSubmitting}>
+          <div className="flex items-center justify-end gap-4 border-t pt-4">
+            {isEditMode && onCancel ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                {fc.action.cancel}
+              </Button>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={isSubmitting || (isEditMode && !isDirty)}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
+                  {fc.action.saving}
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  {isEditMode ? "Guardar Cambios" : "Crear Vehículo"}
+                  {isEditMode ? fc.action.save : fc.create.submit}
                 </>
               )}
             </Button>

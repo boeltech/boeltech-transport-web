@@ -1,5 +1,8 @@
 import type { EmployeeDriverRole } from "../../domain/entities";
 import { DRIVER_STATUS_LABELS, type DriverStatusType } from "@features/drivers/domain";
+import { employeesCopy } from "../copy";
+
+const alertCopy = employeesCopy.detail.alert.driverRole;
 
 export interface EmployeeDriverRoleAlertContent {
   severity: "warning" | "info";
@@ -23,45 +26,38 @@ export function buildEmployeeDriverRoleAlert(
   const statusLabel = driverStatusLabel(driverRole.driverStatus);
   const items: { text: string }[] = [
     {
-      text: `Estado operativo del conductor: ${statusLabel}.`,
+      text: alertCopy.statusLine(statusLabel),
     },
   ];
 
   if (driverRole.activeTripCount > 0) {
-    const codes =
-      driverRole.activeTripCodes.length > 0
-        ? ` (${driverRole.activeTripCodes.slice(0, 5).join(", ")}${driverRole.activeTripCodes.length > 5 ? ", …" : ""})`
-        : "";
+    const codesSuffix = employeesCopy.detail.format.activeTripCodesSuffix(
+      driverRole.activeTripCodes,
+    );
     items.push({
-      text: `Tiene ${driverRole.activeTripCount} viaje${driverRole.activeTripCount === 1 ? "" : "s"} activo${driverRole.activeTripCount === 1 ? "" : "s"} como conductor${codes}.`,
+      text: alertCopy.activeTripsLine(driverRole.activeTripCount, codesSuffix),
     });
   }
 
   if (driverRole.blocksEmployeeTermination) {
     if (driverRole.driverStatus === "on_trip") {
-      items.push({
-        text: "No podrá darse de baja como empleado hasta finalizar o cancelar el viaje en curso, o actualizar el estado en Conductores.",
-      });
+      items.push({ text: alertCopy.blockOnTrip });
     } else {
-      items.push({
-        text: "No podrá darse de baja como empleado hasta completar o cancelar esos viajes.",
-      });
+      items.push({ text: alertCopy.blockActiveTrips });
     }
 
     return {
       severity: "warning",
-      title: "Conductor con operación pendiente",
+      title: alertCopy.pendingTitle,
       items,
     };
   }
 
-  items.push({
-    text: "Al dar de baja al empleado, el rol de conductor se desactivará automáticamente si no hay viajes activos ni está en viaje.",
-  });
+  items.push({ text: alertCopy.autoDeactivate });
 
   return {
     severity: "info",
-    title: "Registrado como conductor activo",
+    title: alertCopy.activeTitle,
     items,
   };
 }

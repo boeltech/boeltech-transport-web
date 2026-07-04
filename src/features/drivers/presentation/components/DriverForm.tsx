@@ -59,6 +59,8 @@ import {
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
+import { DriverEditEmployeeBanner } from "./DriverEditEmployeeBanner";
+import { driversCopy } from "../copy";
 import {
   driverSchema,
   DRIVER_CREATE_WIZARD_STEP_FIELDS,
@@ -69,6 +71,8 @@ import {
   PSYCHOMETRIC_RESULTS,
   DRUG_TEST_RESULTS,
 } from "../validation/driverSchema";
+
+const fc = driversCopy.form;
 
 // ============================================================================
 // Types
@@ -99,7 +103,9 @@ function reviewLine(label: string, value: string) {
   return (
     <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="break-words font-medium">{value.trim() ? value : "—"}</p>
+      <p className="break-words font-medium">
+        {value.trim() ? value : fc.hint.reviewEmpty}
+      </p>
     </div>
   );
 }
@@ -110,52 +116,47 @@ function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData })
     LICENSE_TYPES.find((t) => t.value === v.licenseType)?.label ?? v.licenseType;
   const psychLabel =
     PSYCHOMETRIC_RESULTS.find((r) => r.value === v.psychometricTestResult)
-      ?.label ?? (v.psychometricTestResult || "—");
+      ?.label ?? (v.psychometricTestResult || fc.hint.reviewEmpty);
   const drugLabel =
     DRUG_TEST_RESULTS.find((r) => r.value === v.drugTestResult)?.label ??
-    (v.drugTestResult || "—");
+    (v.drugTestResult || fc.hint.reviewEmpty);
 
   return (
     <FormSectionCard
-      title="Revisión"
+      title={fc.section.review.title}
       icon={<ClipboardCheck className="h-4 w-4" />}
-      description="Confirma los datos antes de registrar al conductor"
+      description={fc.section.review.description}
       contentClassName="space-y-6 text-sm"
     >
       <div className="space-y-2 border-b pb-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Empleado
+          {fc.section.review.groupEmployee}
         </p>
         {reviewLine(
-          "ID de empleado vinculado",
+          fc.label.employeeId,
           v.employeeId ? v.employeeId : "",
         )}
       </div>
 
       <div className="space-y-3 border-b pb-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Licencia y certificado médico
+          {fc.section.review.groupLicenseMedical}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {reviewLine("Número de licencia", v.licenseNumber)}
-          {reviewLine("Tipo", licenseLabel)}
-          {reviewLine("Vencimiento licencia", v.licenseExpiry)}
+          {reviewLine(fc.label.licenseNumber, v.licenseNumber)}
+          {reviewLine(fc.label.licenseType, licenseLabel)}
+          {reviewLine(fc.label.licenseExpiry, v.licenseExpiry)}
           {reviewLine(
-            "Estado emisor",
-            v.licenseState
-              ? v.licenseState
-              : "No especificado",
+            fc.label.licenseState,
+            v.licenseState ? v.licenseState : fc.hint.reviewOptional,
           )}
+          {reviewLine(fc.label.medicalNumber, v.medicalCertificateNumber ?? "")}
           {reviewLine(
-            "Número certificado médico",
-            v.medicalCertificateNumber ?? "",
-          )}
-          {reviewLine(
-            "Vencimiento certificado médico",
+            fc.label.medicalExpiry,
             v.medicalCertificateExpiry ?? "",
           )}
           {reviewLine(
-            "Institución emisora (médico)",
+            fc.label.medicalIssuer,
             v.medicalCertificateIssuer ?? "",
           )}
         </div>
@@ -163,19 +164,19 @@ function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData })
 
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Exámenes, dispositivo y notas
+          {fc.section.review.groupExamsDevice}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {reviewLine("Fecha examen psicométrico", v.psychometricTestDate ?? "")}
-          {reviewLine("Resultado psicométrico", psychLabel)}
-          {reviewLine("Fecha último antidoping", v.lastDrugTestDate ?? "")}
-          {reviewLine("Resultado antidoping", drugLabel)}
-          {reviewLine("ID dispositivo GPS", v.assignedDeviceId ?? "")}
+          {reviewLine(fc.label.psychometricDate, v.psychometricTestDate ?? "")}
+          {reviewLine(fc.label.psychometricResult, psychLabel)}
+          {reviewLine(fc.label.drugTestDate, v.lastDrugTestDate ?? "")}
+          {reviewLine(fc.label.drugTestResult, drugLabel)}
+          {reviewLine(fc.label.deviceId, v.assignedDeviceId ?? "")}
         </div>
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Notas</p>
+          <p className="text-xs text-muted-foreground">{fc.label.notes}</p>
           <p className="whitespace-pre-wrap break-words text-sm font-medium">
-            {v.notes?.trim() ? v.notes : "—"}
+            {v.notes?.trim() ? v.notes : fc.hint.reviewEmpty}
           </p>
         </div>
       </div>
@@ -314,6 +315,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {mode === "edit" && driver ? (
+        <DriverEditEmployeeBanner driver={driver} />
+      ) : null}
+
       {/* Alta: vínculo a empleado. En edición el empleado no cambia (no hay selector). */}
       {mode !== "edit" ? (
       <div
@@ -328,13 +333,13 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Para registrar un conductor, primero debe existir como empleado en
-            el sistema.{" "}
+            {fc.create.employeeAlert}{" "}
             <Link
               to="/employees/new"
               className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
-              Crear empleado <ExternalLink className="h-3 w-3" />
+              {fc.create.createEmployeeLink}{" "}
+              <ExternalLink className="h-3 w-3" />
             </Link>
           </AlertDescription>
         </Alert>
@@ -344,9 +349,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: EMPLEADO                                                  */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Empleado"
+        title={fc.section.employee.title}
         icon={<User className="h-4 w-4" />}
-        description="Seleccione el empleado que será registrado como conductor"
+        description={fc.section.employee.description}
       >
           <EmployeeSelector
             value={watchedEmployeeId || ""}
@@ -369,15 +374,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: LICENCIA                                                  */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Licencia de Conducir"
+        title={fc.section.license.title}
         icon={<CreditCard className="h-4 w-4" />}
-        description="Información de la licencia federal de conducir"
+        description={fc.section.license.description}
         contentClassName="space-y-4"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Número de licencia */}
             <FormFieldShell
-              label="Número de licencia"
+              label={fc.label.licenseNumber}
               fieldId="licenseNumber"
               required
               errorMessage={errors.licenseNumber?.message}
@@ -385,7 +389,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               <Input
                 id="licenseNumber"
                 {...register("licenseNumber")}
-                placeholder="Ej: ABC123456"
+                placeholder={fc.placeholder.licenseNumber}
                 error={Boolean(errors.licenseNumber)}
                 {...getFieldErrorAriaProps(
                   "licenseNumber",
@@ -394,9 +398,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Tipo de licencia */}
             <FormFieldShell
-              label="Tipo de licencia"
+              label={fc.label.licenseType}
               fieldId="licenseType"
               required
               errorMessage={errors.licenseType?.message}
@@ -420,7 +423,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                     errors.licenseType?.message,
                   )}
                 >
-                  <SelectValue placeholder="Seleccionar tipo" />
+                  <SelectValue placeholder={fc.placeholder.selectType} />
                 </SelectTrigger>
                 <SelectContent>
                   {LICENSE_TYPES.map((type) => (
@@ -432,9 +435,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               </Select>
             </FormFieldShell>
 
-            {/* Fecha de vencimiento */}
             <FormFieldShell
-              label="Fecha de vencimiento"
+              label={fc.label.licenseExpiry}
               fieldId="licenseExpiry"
               required
               errorMessage={errors.licenseExpiry?.message}
@@ -451,9 +453,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Estado emisor */}
             <FormFieldShell
-              label="Estado emisor"
+              label={fc.label.licenseState}
               fieldId="licenseState"
               errorMessage={errors.licenseState?.message}
             >
@@ -473,7 +474,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                     errors.licenseState?.message,
                   )}
                 >
-                  <SelectValue placeholder="Seleccionar estado" />
+                  <SelectValue placeholder={fc.placeholder.selectState} />
                 </SelectTrigger>
                 <SelectContent>
                   {MEXICAN_STATES.map((state) => (
@@ -491,22 +492,21 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: CERTIFICADO MÉDICO                                        */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Certificado Médico"
+        title={fc.section.medical.title}
         icon={<Stethoscope className="h-4 w-4" />}
-        description="Certificado de aptitud médica para conducir"
+        description={fc.section.medical.description}
         contentClassName="space-y-4"
       >
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Número de certificado */}
+          <div className="grid gap-4 md:grid-cols-2">
             <FormFieldShell
-              label="Número de certificado"
+              label={fc.label.medicalNumber}
               fieldId="medicalCertificateNumber"
               errorMessage={errors.medicalCertificateNumber?.message}
             >
               <Input
                 id="medicalCertificateNumber"
                 {...register("medicalCertificateNumber")}
-                placeholder="Ej: CM-2024-001234"
+                placeholder={fc.placeholder.medicalNumber}
                 error={Boolean(errors.medicalCertificateNumber)}
                 {...getFieldErrorAriaProps(
                   "medicalCertificateNumber",
@@ -515,9 +515,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Fecha de vencimiento */}
             <FormFieldShell
-              label="Fecha de vencimiento"
+              label={fc.label.medicalExpiry}
               fieldId="medicalCertificateExpiry"
               errorMessage={errors.medicalCertificateExpiry?.message}
             >
@@ -533,16 +532,16 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Institución emisora */}
             <FormFieldShell
-              label="Institución emisora"
+              label={fc.label.medicalIssuer}
               fieldId="medicalCertificateIssuer"
               errorMessage={errors.medicalCertificateIssuer?.message}
+              className="md:col-span-2"
             >
               <Input
                 id="medicalCertificateIssuer"
                 {...register("medicalCertificateIssuer")}
-                placeholder="Ej: IMSS, Hospital General, etc."
+                placeholder={fc.placeholder.medicalIssuer}
                 error={Boolean(errors.medicalCertificateIssuer)}
                 {...getFieldErrorAriaProps(
                   "medicalCertificateIssuer",
@@ -563,15 +562,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: EXAMEN PSICOMÉTRICO                                       */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Examen Psicométrico"
+        title={fc.section.psychometric.title}
         icon={<Brain className="h-4 w-4" />}
-        description="Evaluación psicológica y de aptitudes"
+        description={fc.section.psychometric.description}
         contentClassName="space-y-4"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Fecha del examen */}
             <FormFieldShell
-              label="Fecha del examen"
+              label={fc.label.psychometricDate}
               fieldId="psychometricTestDate"
               errorMessage={errors.psychometricTestDate?.message}
             >
@@ -587,9 +585,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Resultado */}
             <FormFieldShell
-              label="Resultado"
+              label={fc.label.psychometricResult}
               fieldId="psychometricTestResult"
               errorMessage={errors.psychometricTestResult?.message}
             >
@@ -609,7 +606,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                     errors.psychometricTestResult?.message,
                   )}
                 >
-                  <SelectValue placeholder="Seleccionar resultado" />
+                  <SelectValue placeholder={fc.placeholder.selectResult} />
                 </SelectTrigger>
                 <SelectContent>
                   {PSYCHOMETRIC_RESULTS.map((result) => (
@@ -627,15 +624,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: EXAMEN ANTIDOPING                                         */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Examen Antidoping"
+        title={fc.section.drugTest.title}
         icon={<FlaskConical className="h-4 w-4" />}
-        description="Prueba de detección de sustancias prohibidas"
+        description={fc.section.drugTest.description}
         contentClassName="space-y-4"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Fecha del examen */}
             <FormFieldShell
-              label="Fecha del último examen"
+              label={fc.label.drugTestDate}
               fieldId="lastDrugTestDate"
               errorMessage={errors.lastDrugTestDate?.message}
             >
@@ -651,9 +647,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            {/* Resultado */}
             <FormFieldShell
-              label="Resultado"
+              label={fc.label.drugTestResult}
               fieldId="drugTestResult"
               errorMessage={errors.drugTestResult?.message}
             >
@@ -673,7 +668,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                     errors.drugTestResult?.message,
                   )}
                 >
-                  <SelectValue placeholder="Seleccionar resultado" />
+                  <SelectValue placeholder={fc.placeholder.selectResult} />
                 </SelectTrigger>
                 <SelectContent>
                   {DRUG_TEST_RESULTS.map((result) => (
@@ -691,21 +686,21 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: DISPOSITIVO GPS/TELEMETRÍA                                */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Dispositivo GPS / Telemetría"
+        title={fc.section.device.title}
         icon={<Cpu className="h-4 w-4" />}
-        description="Dispositivo de rastreo asignado al conductor"
+        description={fc.section.device.description}
       >
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldShell
-              label="ID del dispositivo"
+              label={fc.label.deviceId}
               fieldId="assignedDeviceId"
               errorMessage={errors.assignedDeviceId?.message}
-              description="Identificador único del dispositivo GPS asignado"
+              description={fc.hint.deviceId}
             >
               <Input
                 id="assignedDeviceId"
                 {...register("assignedDeviceId")}
-                placeholder="Ej: GPS-001, TLM-A1234"
+                placeholder={fc.placeholder.deviceId}
                 error={Boolean(errors.assignedDeviceId)}
                 {...getFieldErrorAriaProps(
                   "assignedDeviceId",
@@ -720,19 +715,19 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: NOTAS                                                     */}
       {/* ================================================================== */}
       <FormSectionCard
-        title="Notas Adicionales"
+        title={fc.section.notes.title}
         icon={<FileText className="h-4 w-4" />}
+        description={fc.section.notes.description}
       >
           <FormFieldShell
-            label="Notas"
+            label={fc.label.notes}
             fieldId="notes"
             errorMessage={errors.notes?.message}
-            description="Información adicional sobre el conductor (restricciones, observaciones, etc.)"
           >
             <Textarea
               id="notes"
               {...register("notes")}
-              placeholder="Observaciones, restricciones, certificaciones adicionales..."
+              placeholder={fc.placeholder.notes}
               rows={4}
               error={Boolean(errors.notes)}
               {...getFieldErrorAriaProps("notes", errors.notes?.message)}
@@ -754,8 +749,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           messages={validationMessages}
           title={
             wizardActive
-              ? "Revisa la información del conductor"
-              : "Revisa los siguientes campos"
+              ? fc.validation.summaryWizard
+              : fc.validation.summaryEdit
           }
         />
       ) : null}
@@ -771,14 +766,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             onClick={onCancel}
             disabled={isSubmitting}
           >
-            Cancelar
+            {fc.action.cancel}
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting || (!isDirty && mode === "edit")}
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === "create" ? "Registrar Conductor" : "Guardar Cambios"}
+            {mode === "create" ? fc.action.register : fc.action.save}
           </Button>
         </div>
       )}

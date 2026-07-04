@@ -7,7 +7,6 @@ import {
 import { Link, useParams } from "react-router-dom";
 import {
   User,
-  AlertCircle,
   AlertTriangle,
   BadgeCheck,
   CalendarClock,
@@ -30,6 +29,7 @@ import {
   EmployeePersonalTab,
 } from "../components/detail";
 import { EmployeeActions } from "../components/EmployeeActions";
+import { EmployeeDetailHeaderSubtitle } from "../components/EmployeeDetailHeaderSubtitle";
 import { EmployeeStatusBadge } from "../config/employeeStatusConfig";
 import { formatMxCurrency } from "../helpers/employeeDetailFormatters";
 import {
@@ -39,10 +39,9 @@ import {
   shouldHintEventualContract,
 } from "../helpers/employeeDetailKpis";
 import { buildEmployeeDriverRoleAlert } from "../helpers/employeeDriverRoleAlert";
+import { employeesCopy } from "../copy";
 
-// ============================================================================
-// PAGE
-// ============================================================================
+const copy = employeesCopy.detail;
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -72,14 +71,10 @@ export function EmployeeDetailPage() {
 
     const isTerm = employee.status === "terminated";
     const nssRegistered = !!employee.nss?.trim();
-    const imssLabel = nssRegistered ? "Con registro NSS" : "Sin NSS";
-    const imssDescription = nssRegistered
-      ? "Declarado en nómina"
-      : "Sin número de seguridad social";
 
     return [
       {
-        title: "Antigüedad",
+        title: copy.stat.tenure.title,
         value: formatEmployeeTenure(
           employee.hireDate,
           employee.terminationDate,
@@ -87,26 +82,34 @@ export function EmployeeDetailPage() {
         ),
         tone: "primary",
         icon: <CalendarClock className="h-5 w-5" />,
-        description: isTerm ? "Hasta fecha de baja" : undefined,
+        description: isTerm
+          ? copy.stat.tenure.descriptionUntilTermination
+          : undefined,
       },
       {
-        title: "Salario base",
+        title: copy.stat.baseSalary.title,
         value: formatMxCurrency(employee.baseSalary) ?? "—",
         tone: "success",
         icon: <DollarSign className="h-5 w-5" />,
+        description: copy.stat.baseSalary.description,
       },
       {
-        title: "Tipo de contrato",
+        title: copy.stat.contractType.title,
         value: EMPLOYMENT_TYPE_LABELS[employee.employmentType],
         tone: "info",
         icon: <BadgeCheck className="h-5 w-5" />,
+        description: copy.stat.contractType.description,
       },
       {
-        title: "Estatus IMSS",
-        value: imssLabel,
+        title: copy.stat.imss.title,
+        value: nssRegistered
+          ? copy.stat.imss.withNss
+          : copy.stat.imss.withoutNss,
         tone: nssRegistered ? "success" : "warning",
         icon: <Shield className="h-5 w-5" />,
-        description: imssDescription,
+        description: nssRegistered
+          ? copy.stat.imss.descriptionWithNss
+          : copy.stat.imss.descriptionWithoutNss,
       },
     ];
   }, [employee, comparisonNowMs]);
@@ -116,6 +119,7 @@ export function EmployeeDetailPage() {
 
     const terminated = employee.status === "terminated";
     const cards: ReactElement[] = [];
+    const driverAlertCopy = copy.alert.driverRole;
 
     if (!terminated && isNssMissing(employee)) {
       cards.push(
@@ -123,12 +127,8 @@ export function EmployeeDetailPage() {
           key="nss-missing"
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
-          title="NSS sin registrar"
-          items={[
-            {
-              text: "No hay número de seguridad social capturado. Es obligatorio para nómina e IMSS.",
-            },
-          ]}
+          title={copy.alert.nssMissing.title}
+          items={[{ text: copy.alert.nssMissing.body }]}
         />,
       );
     }
@@ -143,12 +143,8 @@ export function EmployeeDetailPage() {
           key="termination-planned"
           severity="warning"
           icon={<FileWarning className="h-5 w-5" />}
-          title="Baja programada próxima"
-          items={[
-            {
-              text: `La fecha de baja registrada es en ${untilTerm} día${untilTerm === 1 ? "" : "s"}. Verifica fechas y documentación.`,
-            },
-          ]}
+          title={copy.alert.terminationPlanned.title}
+          items={[{ text: copy.alert.terminationPlanned.body(untilTerm) }]}
         />,
       );
     }
@@ -159,12 +155,8 @@ export function EmployeeDetailPage() {
           key="eventual-contract"
           severity="info"
           icon={<Info className="h-5 w-5" />}
-          title="Contrato eventual"
-          items={[
-            {
-              text: "Controla vigencia y renovaciones según política interna y registro ante IMSS.",
-            },
-          ]}
+          title={copy.alert.eventualContract.title}
+          items={[{ text: copy.alert.eventualContract.body }]}
         />,
       );
     }
@@ -188,22 +180,22 @@ export function EmployeeDetailPage() {
             {
               text: (
                 <>
-                  Ver ficha en{" "}
+                  {driverAlertCopy.footerPrefix}{" "}
                   <Link
                     to={`/drivers/${employee.driverRole.driverId}`}
                     className="font-medium text-primary underline-offset-4 hover:underline"
                   >
-                    Conductores
+                    {driverAlertCopy.linkConductores}
                   </Link>
                   {employee.driverRole.activeTripCount > 0 ? (
                     <>
                       {" "}
-                      o revisar{" "}
+                      {driverAlertCopy.footerOrTrips}{" "}
                       <Link
                         to="/trips"
                         className="font-medium text-primary underline-offset-4 hover:underline"
                       >
-                        Viajes
+                        {driverAlertCopy.linkViajes}
                       </Link>
                     </>
                   ) : null}
@@ -223,14 +215,11 @@ export function EmployeeDetailPage() {
   if (isLoading) {
     return (
       <DetailPageShell
-        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
         isLoading
         header={{
           backHref: "/employees",
-          backLabel: "Volver al listado",
           icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
-          title: "Empleado",
+          title: copy.title.fallback,
         }}
       />
     );
@@ -239,21 +228,19 @@ export function EmployeeDetailPage() {
   if (isError || !employee) {
     return (
       <DetailPageShell
-        className="mx-auto w-full max-w-6xl p-4 sm:p-6"
         isLoading={false}
         notFound
         notFoundConfig={{
-          icon: <AlertCircle />,
-          title: "Empleado no encontrado",
-          description: "El empleado no existe o no está disponible.",
+          icon: <User />,
+          title: copy.state.notFoundTitle,
+          description: copy.state.notFoundDescription,
           backHref: "/employees",
-          backLabel: "Volver al listado",
+          backLabel: copy.state.backToList,
         }}
         header={{
           backHref: "/employees",
           icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
-          title: "Empleado",
+          title: copy.title.fallback,
         }}
       />
     );
@@ -263,18 +250,20 @@ export function EmployeeDetailPage() {
 
   return (
     <DetailPageShell
-      className="mx-auto w-full max-w-6xl p-4 sm:p-6"
       isLoading={false}
       header={{
         backHref: "/employees",
-        backLabel: "Volver al listado",
         icon: <User className="h-6 w-6" />,
         iconVariant: isTerminated ? "muted" : "primary",
-        iconShape: "circle",
         title: employee.fullName,
-        subtitle: `${employee.employeeNumber}${
-          employee.position ? ` · ${employee.position}` : ""
-        }${employee.department ? ` · ${employee.department}` : ""}`,
+        subtitle: (
+          <EmployeeDetailHeaderSubtitle
+            employeeNumber={employee.employeeNumber}
+            position={employee.position}
+            department={employee.department}
+            isTerminated={isTerminated}
+          />
+        ),
         statusBadge: (
           <EmployeeStatusBadge status={employee.status} showIcon size="sm" />
         ),
@@ -293,22 +282,22 @@ export function EmployeeDetailPage() {
         items: [
           {
             value: "personal",
-            label: "Información",
+            label: copy.tab.personal,
             content: <EmployeePersonalTab employee={employee} />,
           },
           {
             value: "contact",
-            label: "Contacto",
+            label: copy.tab.contact,
             content: <EmployeeContactTab employee={employee} />,
           },
           {
             value: "employment",
-            label: "Laboral",
+            label: copy.tab.employment,
             content: <EmployeeEmploymentTab employee={employee} />,
           },
           {
             value: "compensation",
-            label: "Compensación",
+            label: copy.tab.compensation,
             content: <EmployeeCompensationTab employee={employee} />,
           },
         ],

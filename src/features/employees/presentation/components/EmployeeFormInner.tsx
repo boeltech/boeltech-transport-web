@@ -102,6 +102,15 @@ import {
   type EmployeeFormData,
 } from "../validation/employeeSchema";
 import { EMPLOYEE_WIZARD_STEPS } from "./employeeWizardSteps";
+import { EmployeeEditIdentityBanner } from "./EmployeeEditIdentityBanner";
+import {
+  EmployeeEditLayout,
+  EmployeeEditSidebar,
+  type EmployeeEditSectionItem,
+} from "./edit";
+import { employeesCopy } from "../copy";
+
+const fc = employeesCopy.form;
 
 type EmployeeFormValues = EmployeeFormData;
 
@@ -115,6 +124,41 @@ const EDIT_SECTION_IDS: Record<TabKey, string> = {
   employment: "employee-edit-employment",
   compensation: "employee-edit-compensation",
 };
+
+const EDIT_SECTIONS: EmployeeEditSectionItem[] = [
+  { id: EDIT_SECTION_IDS.personal, label: fc.section.personal.nav, icon: User },
+  { id: EDIT_SECTION_IDS.contact, label: fc.section.contact.nav, icon: Phone },
+  {
+    id: EDIT_SECTION_IDS.employment,
+    label: fc.section.employment.nav,
+    icon: Briefcase,
+  },
+  {
+    id: EDIT_SECTION_IDS.compensation,
+    label: fc.section.compensation.nav,
+    icon: Wallet,
+  },
+];
+
+function countErrorsForTab(
+  tab: TabKey,
+  errors: FieldErrors<EmployeeFormValues>,
+): number {
+  let count = 0;
+  for (const field of TAB_FIELDS[tab]) {
+    if (field === "domicilio") {
+      const domicilioErrors = errors.domicilio;
+      if (domicilioErrors && typeof domicilioErrors === "object") {
+        count += Object.keys(domicilioErrors).length;
+      }
+      continue;
+    }
+    if (errors[field as keyof EmployeeFormValues]) {
+      count += 1;
+    }
+  }
+  return count;
+}
 
 const EMPLOYEE_REVIEW_STEP_INDEX = EMPLOYEE_WIZARD_STEPS.length - 1;
 
@@ -160,7 +204,7 @@ function withLegacyCatalogOption(
     (option) => option.value.toLowerCase() === current.toLowerCase(),
   );
   if (exists) return options;
-  return [{ value: current, label: `${current} (guardada)` }, ...options];
+  return [{ value: current, label: fc.hint.legacyOption(current) }, ...options];
 }
 
 function EmployeeWizardReview({
@@ -178,12 +222,13 @@ function EmployeeWizardReview({
     .join(", ");
   return (
     <FormSectionCard
-      title="Revisión"
+      title={fc.section.review.title}
       icon={<ClipboardCheck className="h-4 w-4" />}
+      description={fc.section.review.description}
       contentClassName="space-y-3 text-sm"
     >
       <div>
-        <p className="text-muted-foreground">Nombre</p>
+        <p className="text-muted-foreground">{fc.label.reviewName}</p>
         <p className="font-medium">
           {[values.first_name, values.last_name, values.second_last_name]
             .filter(Boolean)
@@ -191,18 +236,18 @@ function EmployeeWizardReview({
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">Ingreso / tipo</p>
+        <p className="text-muted-foreground">{fc.label.reviewHire}</p>
         <p className="font-medium">
           {values.hire_date} · {values.employment_type}
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">Correo</p>
-        <p className="font-medium">{values.email || "—"}</p>
+        <p className="text-muted-foreground">{fc.label.reviewEmail}</p>
+        <p className="font-medium">{values.email || fc.hint.reviewEmpty}</p>
       </div>
       <div>
-        <p className="text-muted-foreground">Domicilio</p>
-        <p className="font-medium">{addressLine || "—"}</p>
+        <p className="text-muted-foreground">{fc.label.reviewAddress}</p>
+        <p className="font-medium">{addressLine || fc.hint.reviewEmpty}</p>
       </div>
     </FormSectionCard>
   );
@@ -425,11 +470,33 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   const validationMessages = collectFieldErrorMessages(formErrors);
   const shouldShowValidationSummary = showValidationSummary && !isFormValid;
 
+  const [activeSectionId, setActiveSectionId] = useState(
+    EDIT_SECTION_IDS.personal,
+  );
+
+  const errorCountBySection = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tab of TAB_ORDER) {
+      counts[EDIT_SECTION_IDS[tab]] = countErrorsForTab(tab, formErrors);
+    }
+    return counts;
+  }, [formErrors]);
+
   const scrollToEditSection = useCallback((tab: TabKey) => {
+    setActiveSectionId(EDIT_SECTION_IDS[tab]);
     document
       .getElementById(EDIT_SECTION_IDS[tab])
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  const handleEditSectionSelect = useCallback(
+    (sectionId: string) => {
+      setActiveSectionId(sectionId);
+      const tab = TAB_ORDER.find((key) => EDIT_SECTION_IDS[key] === sectionId);
+      if (tab) scrollToEditSection(tab);
+    },
+    [scrollToEditSection],
+  );
 
   const handleInvalidSubmit = useCallback(
     (errs: FieldErrors<EmployeeFormValues>) => {
@@ -573,10 +640,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           const message =
             addressError instanceof Error ? addressError.message : undefined;
           toast({
-            title: "Empleado actualizado, pero falló el domicilio",
+            title: fc.edit.toast.addressPartialTitle,
             description:
-              message ??
-              "Se guardaron los datos del empleado, pero no se pudo guardar el domicilio. Reintenta desde edición.",
+              message ?? fc.edit.toast.addressPartialDescription,
             variant: "destructive",
           });
           navigate(`/employees/${id}/edit`);
@@ -589,7 +655,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
         if (onSaveSuccess) {
           onSaveSuccess();
         } else {
-          toast({ title: "Empleado actualizado correctamente" });
+          toast({ title: fc.edit.toast.successTitle });
           navigate(`/employees/${id}`);
         }
         return;
@@ -608,16 +674,15 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
         await queryClient.invalidateQueries({
           queryKey: employeeQueryKeys.detail(newId),
         });
-        toast({ title: "Empleado registrado correctamente" });
+        toast({ title: fc.create.toast.successTitle });
         navigate(`/employees/${newId}`);
       } catch (addressError) {
         const message =
           addressError instanceof Error ? addressError.message : undefined;
         toast({
-          title: "Empleado creado, pero falló el domicilio",
+          title: fc.create.toast.addressPartialTitle,
           description:
-            message ??
-            "El empleado se creó correctamente, pero no se pudo guardar el domicilio. Completa el domicilio desde edición.",
+            message ?? fc.create.toast.addressPartialDescription,
           variant: "destructive",
         });
         navigate(`/employees/${newId}/edit`);
@@ -625,7 +690,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast({
-        title: isEditing ? "Error al actualizar" : "Error al registrar",
+        title: isEditing
+          ? fc.edit.toast.errorTitle
+          : fc.create.toast.errorRegister,
         description: message,
         variant: "destructive",
       });
@@ -670,60 +737,53 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
   const showEditFormActions = isEditing && Boolean(onCancel);
 
-  return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
-      className="space-y-6"
-    >
-        {!isEditing && !wizardControlledByShell && (
-          <WizardProgressCard>
-            <WizardSteps
-              steps={EMPLOYEE_WIZARD_STEPS}
-              currentStep={activeWizardStep}
-              onStepClick={handleWizardStepClick}
-              allowNavigation
-              ariaLabel="Pasos para registrar un empleado"
-            />
-          </WizardProgressCard>
-        )}
+  const sectionPanels = (
+    <>
         <div
           id="employee-edit-personal"
           className={cn("space-y-4", stepPanelClass(0))}
           aria-hidden={!isEditing && activeWizardStep !== 0}
         >
           <FormSectionCard
-            title="Datos personales"
+            title={fc.section.personal.title}
+            description={fc.section.personal.description}
             icon={<User className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField
-              label="Nombre(s)"
+              label={fc.label.firstName}
               required
               error={form.formState.errors.first_name?.message}
             >
-              <Input {...form.register("first_name")} placeholder="Juan" />
+              <Input
+                {...form.register("first_name")}
+                placeholder={fc.placeholder.firstName}
+              />
             </FormField>
             <FormField
-              label="Apellido paterno"
+              label={fc.label.lastName}
               required
               error={form.formState.errors.last_name?.message}
             >
-              <Input {...form.register("last_name")} placeholder="García" />
+              <Input
+                {...form.register("last_name")}
+                placeholder={fc.placeholder.lastName}
+              />
             </FormField>
-            <FormField label="Apellido materno">
+            <FormField label={fc.label.secondLastName}>
               <Input
                 {...form.register("second_last_name")}
-                placeholder="López"
+                placeholder={fc.placeholder.secondLastName}
               />
             </FormField>
 
-            <FormField label="Fecha de nacimiento">
+            <FormField label={fc.label.birthDate}>
               <Input type="date" {...form.register("birth_date")} />
             </FormField>
-            <FormField label="Género">
+            <FormField label={fc.label.gender}>
               <RHFSelect control={form.control} name="gender" options={GENDER_OPTIONS} />
             </FormField>
-            <FormField label="Estado civil">
+            <FormField label={fc.label.maritalStatus}>
               <RHFSelect
                 control={form.control}
                 name="marital_status"
@@ -731,62 +791,63 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
               />
             </FormField>
 
-            <FormField label="Tipo de sangre">
+            <FormField label={fc.label.bloodType}>
               <RHFSelect control={form.control} name="blood_type" options={BLOOD_TYPE_OPTIONS} />
             </FormField>
-            <FormField label="Nacionalidad">
+            <FormField label={fc.label.nationality}>
               <Input
                 {...form.register("nationality")}
-                placeholder="Mexicana"
+                placeholder={fc.placeholder.nationality}
               />
             </FormField>
-            <FormField label="Lugar de nacimiento">
+            <FormField label={fc.label.birthPlace}>
               <Input
                 {...form.register("birth_place")}
-                placeholder="Ciudad, Estado"
+                placeholder={fc.placeholder.birthPlace}
               />
             </FormField>
           </FormSectionCard>
 
           <FormSectionCard
-            title="Datos fiscales / gobierno"
+            title={fc.section.fiscal.title}
+            description={fc.section.fiscal.description}
             icon={<ShieldCheck className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             <FormField
-              label="CURP"
+              label={fc.label.curp}
               error={form.formState.errors.curp?.message}
             >
               <Input
                 {...form.register("curp")}
-                placeholder="GARC850101HDFRZN01"
+                placeholder={fc.placeholder.curp}
                 className="uppercase font-mono"
                 maxLength={18}
               />
             </FormField>
             <FormField
-              label="RFC"
+              label={fc.label.rfc}
               error={form.formState.errors.rfc?.message}
             >
               <Input
                 {...form.register("rfc")}
-                placeholder="GARJ850101AB1"
+                placeholder={fc.placeholder.rfc}
                 className="uppercase font-mono"
                 maxLength={13}
               />
             </FormField>
             <FormField
-              label="NSS (IMSS)"
+              label={fc.label.nss}
               error={form.formState.errors.nss?.message}
             >
               <Input
                 {...form.register("nss")}
-                placeholder="12345678901"
+                placeholder={fc.placeholder.nss}
                 className="font-mono"
                 maxLength={11}
               />
             </FormField>
-            <FormField label="No. Infonavit">
+            <FormField label={fc.label.infonavit}>
               <Input {...form.register("infonavit_number")} />
             </FormField>
           </FormSectionCard>
@@ -798,30 +859,31 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           aria-hidden={!isEditing && activeWizardStep !== 1}
         >
           <FormSectionCard
-            title="Datos de contacto"
+            title={fc.section.contact.title}
+            description={fc.section.contact.description}
             icon={<Phone className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField
-              label="Email"
+              label={fc.label.email}
               error={form.formState.errors.email?.message}
             >
               <Input
                 type="email"
                 {...form.register("email")}
-                placeholder="correo@ejemplo.com"
+                placeholder={fc.placeholder.email}
               />
             </FormField>
-            <FormField label="Teléfono">
+            <FormField label={fc.label.phone}>
               <Input
                 {...form.register("phone")}
-                placeholder="55 1234 5678"
+                placeholder={fc.placeholder.phone}
               />
             </FormField>
-            <FormField label="Celular">
+            <FormField label={fc.label.mobilePhone}>
               <Input
                 {...form.register("mobile_phone")}
-                placeholder="55 1234 5678"
+                placeholder={fc.placeholder.mobilePhone}
               />
             </FormField>
           </FormSectionCard>
@@ -831,13 +893,13 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             className="space-y-4"
             formContext="employeePersonal"
             addressVariant="personal"
-            infoMessage="Captura el domicilio personal del empleado."
+            infoMessage={fc.section.address.infoMessage}
             satStateCode={domicilioSatStateCode}
             satMunicipalityCode={domicilioSatMunicipalityCode}
             postalCode={domicilioPostalCode}
             showGlobalNotice
             hideLocationSectionTitle={false}
-            locationSectionTitle="Domicilio"
+            locationSectionTitle={fc.section.address.title}
             addressInputSection={
               <AddressInput<EmployeeFormValues>
                 variant="personal"
@@ -857,23 +919,24 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           />
 
           <FormSectionCard
-            title="Contacto de emergencia"
+            title={fc.section.emergency.title}
+            description={fc.section.emergency.description}
             icon={<HeartHandshake className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
-            <FormField label="Nombre completo">
+            <FormField label={fc.label.emergencyName}>
               <Input
                 {...form.register("emergency_contact_name")}
-                placeholder="María García"
+                placeholder={fc.placeholder.emergencyName}
               />
             </FormField>
-            <FormField label="Teléfono">
+            <FormField label={fc.label.emergencyPhone}>
               <Input
                 {...form.register("emergency_contact_phone")}
-                placeholder="55 1234 5678"
+                placeholder={fc.placeholder.phone}
               />
             </FormField>
-            <FormField label="Parentesco">
+            <FormField label={fc.label.emergencyRelationship}>
               <RHFSelect
                 control={form.control}
                 name="emergency_contact_relationship"
@@ -889,43 +952,44 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           aria-hidden={!isEditing && activeWizardStep !== 2}
         >
           <FormSectionCard
-            title="Información laboral"
+            title={fc.section.employment.title}
+            description={fc.section.employment.description}
             icon={<Briefcase className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <FormField
-              label="Fecha de ingreso"
+              label={fc.label.hireDate}
               required
               error={form.formState.errors.hire_date?.message}
             >
               <Input type="date" {...form.register("hire_date")} />
             </FormField>
-            <FormField label="Tipo de contrato" required>
+            <FormField label={fc.label.employmentType} required>
               <RHFSelect
                 control={form.control}
                 name="employment_type"
                 options={EMPLOYMENT_TYPE_OPTIONS}
                 allowNone={false}
-                placeholder="Seleccionar"
+                placeholder={fc.placeholder.select}
               />
             </FormField>
-            <FormField label="Departamento">
+            <FormField label={fc.label.department}>
               <RHFSelect
                 control={form.control}
                 name="department"
                 options={departmentOptions}
               />
             </FormField>
-            <FormField label="Puesto">
+            <FormField label={fc.label.position}>
               <RHFSelect control={form.control} name="position" options={positionOptions} />
             </FormField>
-            <FormField label="Título del trabajo">
+            <FormField label={fc.label.jobTitle}>
               <Input
                 {...form.register("job_title")}
-                placeholder="Operador de transporte"
+                placeholder={fc.placeholder.jobTitle}
               />
             </FormField>
-            <FormField label="Ubicación / Sucursal">
+            <FormField label={fc.label.workLocation}>
               <RHFSelect
                 control={form.control}
                 name="work_location"
@@ -935,21 +999,22 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           </FormSectionCard>
 
           <FormSectionCard
-            title="Notas"
+            title={fc.section.notes.title}
+            description={fc.section.notes.description}
             icon={<FileText className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
-            <FormField label="Notas generales">
+            <FormField label={fc.label.notes}>
               <Textarea
                 {...form.register("notes")}
-                placeholder="Observaciones o notas adicionales..."
+                placeholder={fc.placeholder.notes}
                 rows={3}
               />
             </FormField>
-            <FormField label="Notas médicas">
+            <FormField label={fc.label.medicalNotes}>
               <Textarea
                 {...form.register("medical_notes")}
-                placeholder="Alergias, condiciones especiales..."
+                placeholder={fc.placeholder.medicalNotes}
                 rows={3}
               />
             </FormField>
@@ -962,11 +1027,12 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           aria-hidden={!isEditing && activeWizardStep !== 3}
         >
           <FormSectionCard
-            title="Salario"
+            title={fc.section.compensation.title}
+            description={fc.section.compensation.description}
             icon={<Wallet className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
-            <FormField label="Salario base">
+            <FormField label={fc.label.baseSalary}>
               <Controller
                 control={form.control}
                 name="base_salary"
@@ -986,10 +1052,10 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
                 )}
               />
             </FormField>
-            <FormField label="Periodicidad">
+            <FormField label={fc.label.salaryType}>
               <RHFSelect control={form.control} name="salary_type" options={SALARY_TYPE_OPTIONS} />
             </FormField>
-            <FormField label="Método de pago">
+            <FormField label={fc.label.paymentMethod}>
               <RHFSelect
                 control={form.control}
                 name="payment_method"
@@ -999,31 +1065,72 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           </FormSectionCard>
 
           <FormSectionCard
-            title="Datos bancarios"
+            title={fc.section.banking.title}
+            description={fc.section.banking.description}
             icon={<Building2 className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
-            <FormField label="Banco">
+            <FormField label={fc.label.bankName}>
               <Input
                 {...form.register("bank_name")}
-                placeholder="BBVA"
+                placeholder={fc.placeholder.bankName}
               />
             </FormField>
-            <FormField label="Número de cuenta">
+            <FormField label={fc.label.bankAccount}>
               <Input
                 {...form.register("bank_account_number")}
-                placeholder="012345678901234"
+                placeholder={fc.placeholder.bankAccount}
               />
             </FormField>
-            <FormField label="CLABE interbancaria">
+            <FormField label={fc.label.bankClabe}>
               <Input
                 {...form.register("bank_clabe")}
-                placeholder="012345678901234567"
+                placeholder={fc.placeholder.bankClabe}
                 maxLength={18}
               />
             </FormField>
           </FormSectionCard>
         </div>
+    </>
+  );
+
+  return (
+    <form
+      onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
+      className="space-y-6"
+    >
+        {!isEditing && !wizardControlledByShell && (
+          <WizardProgressCard>
+            <WizardSteps
+              steps={EMPLOYEE_WIZARD_STEPS}
+              currentStep={activeWizardStep}
+              onStepClick={handleWizardStepClick}
+              allowNavigation
+              ariaLabel={fc.create.wizardAriaLabel}
+            />
+          </WizardProgressCard>
+        )}
+
+        {isEditing && existing ? (
+          <EmployeeEditIdentityBanner employee={existing} />
+        ) : null}
+
+        {isEditing ? (
+          <EmployeeEditLayout
+            sidebar={
+              <EmployeeEditSidebar
+                sections={EDIT_SECTIONS}
+                activeSectionId={activeSectionId}
+                errorCountBySection={errorCountBySection}
+                onSelectSection={handleEditSectionSelect}
+              />
+            }
+          >
+            {sectionPanels}
+          </EmployeeEditLayout>
+        ) : (
+          sectionPanels
+        )}
 
         {!isEditing && (
           <div
@@ -1038,8 +1145,8 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           <FormValidationSummary
             title={
               isEditing
-                ? "Revisa los siguientes campos"
-                : "Revisa los datos del empleado"
+                ? fc.validation.summaryEdit
+                : fc.validation.summaryCreate
             }
             messages={validationMessages}
           />
@@ -1053,16 +1160,20 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
               onClick={onCancel}
               disabled={form.formState.isSubmitting}
             >
-              Cancelar
+              {fc.action.cancel}
             </Button>
             <Button
               type="submit"
               disabled={form.formState.isSubmitting || !isDirty}
             >
               {form.formState.isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Guardar Cambios
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {fc.action.saving}
+                </>
+              ) : (
+                fc.action.save
+              )}
             </Button>
           </div>
         ) : null}
@@ -1076,7 +1187,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             onNext={handleWizardNext}
             onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
             isSubmitting={form.formState.isSubmitting}
-            submitLabel="Registrar empleado"
+            submitLabel={fc.create.submit}
             submittingContent={<Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             submitIcon={<CheckCircle className="mr-2 h-4 w-4" />}
           />
