@@ -10,8 +10,9 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { getDisplayAmountsFromInvoiceFields } from "@features/invoicing/domain";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
+import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
+import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
 import { financeCopy } from "../copy";
 
 const copy = financeCopy.invoices;
@@ -47,6 +48,56 @@ function TableHeaderRow() {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <TableBody>
+      {Array.from({ length: FINANCE_INVOICES_PAGE_SIZE }).map((_, index) => (
+        <TableRow key={index}>
+          <TableCell>
+            <Skeleton className="h-4 w-16" />
+          </TableCell>
+          <TableCell>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-24" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-5 w-12" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="ml-auto h-4 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="ml-auto h-4 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-5 w-16" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-5 w-20" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  );
+}
+
+function EmptyState() {
+  return (
+    <TableBody>
+      <TableRow>
+        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
+          {copy.table.empty}
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  );
+}
+
 export function FinanceInvoiceListTable({
   invoices,
   isLoading,
@@ -57,15 +108,7 @@ export function FinanceInvoiceListTable({
       <div className="rounded-md border">
         <Table>
           <TableHeaderRow />
-          <TableBody>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={index}>
-                <TableCell colSpan={TABLE_HEADERS.length}>
-                  <Skeleton className="h-6 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+          <LoadingSkeleton />
         </Table>
       </div>
     );
@@ -76,13 +119,7 @@ export function FinanceInvoiceListTable({
       <div className="rounded-md border">
         <Table>
           <TableHeaderRow />
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
-                {copy.table.empty}
-              </TableCell>
-            </TableRow>
-          </TableBody>
+          <EmptyState />
         </Table>
       </div>
     );
@@ -120,21 +157,13 @@ export function FinanceInvoiceListTable({
                 {formatMxCurrency(invoice.total)}
               </TableCell>
               <TableCell className="text-right">
-                {(() => {
-                  const { balanceDue } = getDisplayAmountsFromInvoiceFields({
-                    status: invoice.status,
-                    paymentMethod: invoice.paymentMethod,
-                    total: invoice.total,
-                    totalPaid: invoice.total - invoice.balanceDue,
-                  });
-                  return balanceDue > 0 ? (
-                    <span className="font-medium text-destructive">
-                      {formatMxCurrency(balanceDue)}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-success">{copy.table.paid}</span>
-                  );
-                })()}
+                {invoice.balanceDue > 0 ? (
+                  <span className="font-medium text-destructive">
+                    {formatMxCurrency(invoice.balanceDue)}
+                  </span>
+                ) : (
+                  <span className="text-sm text-success">{copy.table.paid}</span>
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
@@ -151,9 +180,7 @@ export function FinanceInvoiceListTable({
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {copy.statusLabels[invoice.status]}
-                </Badge>
+                <FinanceInvoiceStatusBadge status={invoice.status} />
               </TableCell>
             </TableRow>
           ))}

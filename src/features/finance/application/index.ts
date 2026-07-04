@@ -13,6 +13,10 @@ export {
   useInvoicesByStatusMonth,
 } from "./hooks/useFinance";
 export { useFinanceInvoicesList } from "./hooks/useFinanceInvoicesList";
+export {
+  useOpenPpdInvoices,
+  useRegisterFinancePayment,
+} from "./hooks/useFinancePayments";
 export { useFinanceListingFilters } from "./hooks/useFinanceListingFilters";
 export {
   FINANCE_TAB_PARAM,

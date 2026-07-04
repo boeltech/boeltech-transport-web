@@ -7,11 +7,101 @@ export const financeCopy = {
     tabs: {
       summary: "Resumen",
       invoices: "Facturas",
+      cobranza: "Cobranza",
       profitability: "Rentabilidad",
       expenses: "Gastos",
       reports: "Reportes",
     },
     clearFilters: "Limpiar filtros",
+  },
+  cobranza: {
+    hero: {
+      badge: "Cobranza PPD",
+      secondaryBadge: "REP en segundo plano",
+      title: "Registra cobros multi-factura sin perder la cadena REP",
+      description:
+        "Busca las facturas PPD abiertas de un receptor, selecciona las que cubre el pago y registra el cobro en una sola operación. Si el pago altera parcialidades ya timbradas, el sistema te pedirá confirmar la reparación.",
+      stepPrefix: (step: number) => `Paso ${step}`,
+      steps: [
+        {
+          title: "Busca por RFC",
+          description: "Ubica solo la cartera PPD abierta de ese receptor.",
+        },
+        {
+          title: "Selecciona saldos",
+          description: "Agrupa una o varias facturas que cubre el mismo cobro.",
+        },
+        {
+          title: "Registra y timbra",
+          description: "El pago queda aplicado y el REP se timbra en segundo plano.",
+        },
+      ],
+    },
+    searchCard: {
+      title: "Buscar cartera del receptor",
+      description:
+        "Captura el RFC para consultar facturas PPD timbradas con saldo pendiente.",
+    },
+    receiverRfcLabel: "RFC receptor",
+    search: "Buscar facturas PPD",
+    loadingTitle: "Consultando cartera",
+    loading: "Cargando facturas abiertas…",
+    loadErrorTitle: "No se pudo consultar la cartera",
+    loadError: "No se pudieron cargar las facturas.",
+    emptyTitle: "Sin facturas abiertas",
+    empty: "No hay facturas PPD abiertas para este RFC.",
+    initialState: {
+      title: "Empieza con el RFC del receptor",
+      description:
+        "Cobranza trabaja sobre facturas PPD abiertas. Después de buscar, podrás seleccionar saldos y registrar el cobro multi-factura.",
+    },
+    metrics: {
+      openInvoices: "Facturas abiertas",
+      openBalance: "Saldo abierto",
+      selectedInvoices: "Seleccionadas",
+      selectedTotal: "Total a cobrar",
+      forRfc: (rfc: string) => `RFC ${rfc}`,
+      pendingPpd: "PPD con saldo pendiente",
+      readyToApply: "Listas para aplicar pago",
+      repHint: "Base para el REP",
+    },
+    tableTitle: "Facturas PPD abiertas",
+    tableDescription:
+      "Selecciona las facturas que cubre el mismo pago. El sistema aplicará el saldo total de cada documento seleccionado.",
+    tableBadge: (count: number) => `${count} factura${count === 1 ? "" : "s"}`,
+    register: "Registrar cobro",
+    sheetTitle: "Confirmar cobro multi-factura",
+    sheetDescription:
+      "Se registrará un pago por el total seleccionado y se asignará a las facturas listadas.",
+    sheetTotal: "Total a cobrar",
+    sheetInvoicesTitle: "Facturas incluidas",
+    sheetNoticeTitle: "Timbrado REP",
+    sheetNoticeDescription:
+      "El complemento de pago se timbra en segundo plano. Si la cadena de parcialidades requiere reparación, confirma el ajuste cuando el sistema lo solicite.",
+    chainRepair: {
+      title: "Reparar cadena de parcialidades",
+      description:
+        "Este pago altera el orden de parcialidades REP ya timbradas. Se cancelarán y volverán a timbrar los complementos afectados.",
+      confirm: "Confirmar y registrar",
+      cancel: "Volver",
+    },
+    confirm: "Confirmar y registrar",
+    cancel: "Cancelar",
+    submitting: "Guardando…",
+    toastSuccess: "Cobro registrado; el REP se timbrará en segundo plano.",
+    toastError: "No se pudo registrar el cobro",
+    selectedSummary: (count: number, total: string) =>
+      `${count} factura${count === 1 ? "" : "s"} seleccionada${count === 1 ? "" : "s"} · Total ${total}`,
+    selectedHint:
+      "El cobro aplicará el saldo completo de cada factura seleccionada.",
+    selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
+    columns: {
+      invoice: "Factura",
+      client: "Cliente",
+      issuedAt: "Emisión",
+      total: "Total",
+      balance: "Saldo",
+    },
   },
   summary: {
     sections: {
@@ -96,10 +186,10 @@ export const financeCopy = {
   },
   invoices: {
     title: "Facturas",
-    searchPlaceholder: "Buscar por cliente, RFC, folio...",
+    searchPlaceholder: "Buscar por cliente, RFC o folio…",
     filters: {
       statusPlaceholder: "Estado",
-      all: "Todos",
+      all: "Todos los estados",
       chipLabel: (value: string) => `Estado: ${value}`,
     },
     toasts: {
@@ -107,22 +197,29 @@ export const financeCopy = {
       refreshed: "Lista actualizada",
     },
     empty: {
-      title: "No se encontraron facturas",
-      withFilters: "Intenta ajustar los filtros de busqueda",
+      title: "No hay facturas",
+      withFilters: "No hay resultados con los filtros actuales. Prueba otro criterio o limpia los filtros.",
       clearFilters: "Limpiar filtros",
     },
     entityLabelPlural: "facturas",
+    kpi: {
+      stamped: { label: "Timbradas", description: "facturas" },
+      draft: { label: "Borradores", description: "facturas" },
+      receivable: { label: "Por cobrar", description: "Saldo pendiente" },
+      cancellationPending: { label: "Cancelación pendiente", description: "facturas" },
+      cancelled: { label: "Canceladas", description: "facturas" },
+    },
     statusLabels: {
       draft: "Borrador",
       stamped: "Timbrada",
-      cancellation_pending: "Cancelacion pendiente",
+      cancellation_pending: "Cancelación pendiente",
       cancelled: "Cancelada",
     },
     table: {
       folio: "Folio",
       client: "Cliente",
       date: "Fecha",
-      method: "Metodo",
+      method: "Método",
       total: "Total",
       balance: "Saldo",
       trips: "Viajes",
@@ -133,9 +230,9 @@ export const financeCopy = {
     fromTripCta: {
       label: "Facturar desde viaje",
       tooltip:
-        "Abre el listado de viajes para generar CFDI desde un viaje con facturacion disponible",
+        "Abre el listado de viajes para generar CFDI desde un viaje con facturación disponible",
       emptyDescription:
-        "Genera CFDI desde un viaje elegible en el modulo Viajes.",
+        "Genera CFDI desde un viaje elegible en el módulo Viajes.",
       tripsPath: "/trips",
     },
   },

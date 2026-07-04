@@ -220,6 +220,33 @@ export interface PaginatedFinanceInvoices {
   readonly pagination: FinanceInvoicePagination;
 }
 
+export interface FinancePayment {
+  readonly id: string;
+  readonly invoiceId: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly exchangeRate: number;
+  readonly amountMxn: number;
+  readonly paymentDate: string;
+  readonly paymentTime: string;
+  readonly paymentForm: string;
+  readonly paymentFormName: string | null;
+  readonly reference: string | null;
+  readonly notes: string | null;
+  readonly createdAt: string;
+  readonly createdByName: string | null;
+  readonly repCfdiUuid: string | null;
+  readonly repStampedAt: string | null;
+  readonly repStatus: string;
+  readonly repAttempts: number;
+  readonly repLastError: string | null;
+  readonly hasRepXml: boolean;
+  readonly repNumParcialidad: number | null;
+  readonly repImpSaldoAnt: number | null;
+  readonly repImpSaldoInsoluto: number | null;
+  readonly repImpPagado: number | null;
+}
+
 export interface FinanceInvoiceListFilters {
   status?: FinanceInvoiceStatus;
   search?: string;

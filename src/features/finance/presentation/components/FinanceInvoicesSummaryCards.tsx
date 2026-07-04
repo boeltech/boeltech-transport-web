@@ -9,6 +9,9 @@ import { StatCard, type StatCardTone } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import type { FinanceInvoiceStatus } from "@features/finance/domain";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { financeCopy } from "../copy";
+
+const kpiCopy = financeCopy.invoices.kpi;
 
 interface KpiCardConfig {
   label: string;
@@ -42,41 +45,41 @@ export function FinanceInvoicesSummaryCards({
 }: Props) {
   const cards: KpiCardConfig[] = [
     {
-      label: "Timbradas",
+      label: kpiCopy.stamped.label,
       value: stamped,
-      description: "facturas",
+      description: kpiCopy.stamped.description,
       icon: CheckCircle2,
       tone: "success",
       filterStatus: "stamped",
     },
     {
-      label: "Borradores",
+      label: kpiCopy.draft.label,
       value: draft,
-      description: "facturas",
+      description: kpiCopy.draft.description,
       icon: Clock,
       tone: "neutral",
       filterStatus: "draft",
     },
     {
-      label: "Por cobrar",
+      label: kpiCopy.receivable.label,
       value: formatMxCurrency(totalReceivable),
-      description: "Saldo pendiente",
+      description: kpiCopy.receivable.description,
       icon: DollarSign,
       tone: "warning",
       filterStatus: "stamped",
     },
     {
-      label: "Cancelacion pendiente",
+      label: kpiCopy.cancellationPending.label,
       value: cancellationPending,
-      description: "facturas",
+      description: kpiCopy.cancellationPending.description,
       icon: Clock,
       tone: "warning",
       filterStatus: "cancellation_pending",
     },
     {
-      label: "Canceladas",
+      label: kpiCopy.cancelled.label,
       value: cancelled,
-      description: "facturas",
+      description: kpiCopy.cancelled.description,
       icon: XCircle,
       tone: "destructive",
       filterStatus: "cancelled",

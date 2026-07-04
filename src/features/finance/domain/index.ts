@@ -22,6 +22,7 @@ export type {
   FinanceInvoiceListItem,
   FinanceInvoicePagination,
   PaginatedFinanceInvoices,
+  FinancePayment,
   FinanceInvoiceListFilters,
   IncomeByMonth,
   IncomeByMonthFilters,

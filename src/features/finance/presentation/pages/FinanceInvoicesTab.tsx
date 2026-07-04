@@ -26,6 +26,7 @@ import {
   FinanceInvoiceListTable,
   FinanceInvoicesSummaryCards,
 } from "../components";
+import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { financeCopy } from "../copy";
 import {
   canShowInvoiceFromTripCta,
@@ -63,7 +64,7 @@ export function FinanceInvoicesTab({
       search: filters.search || undefined,
       status: statusFilter || undefined,
       page: filters.page,
-      limit: 20,
+      limit: FINANCE_INVOICES_PAGE_SIZE,
     });
 
   const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
@@ -135,7 +136,7 @@ export function FinanceInvoicesTab({
               filters.setFilter("status", value === "all" ? "" : value)
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-44" aria-label={financeCopy.invoices.filters.statusPlaceholder}>
               <SelectValue placeholder={financeCopy.invoices.filters.statusPlaceholder} />
             </SelectTrigger>
             <SelectContent>

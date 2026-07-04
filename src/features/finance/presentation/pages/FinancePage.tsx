@@ -5,6 +5,7 @@ import { useAuth } from "@features/auth";
 import { buildFinanceTabSearchParams } from "@features/finance/application";
 import { canAccessFinanceSummaryRoute } from "@shared/permissions";
 import { DetailPageShell } from "@shared/ui/page-shells";
+import { FinanceCobranzaTab } from "./FinanceCobranzaTab";
 import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
 import { FinanceInvoicesTab } from "./FinanceInvoicesTab";
 import { FinanceSummaryTab } from "./FinanceSummaryTab";
@@ -15,6 +16,7 @@ import { financeCopy } from "../copy";
 const FULL_TABS = [
   "summary",
   "invoices",
+  "cobranza",
   "profitability",
   "expenses",
   "reports",
@@ -31,7 +33,7 @@ export function FinancePage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const enabledTabs = useMemo<FinanceTab[]>(
-    () => (canAnalytics ? [...FULL_TABS] : ["invoices"]),
+    () => (canAnalytics ? [...FULL_TABS] : ["invoices", "cobranza"]),
     [canAnalytics],
   );
 
@@ -71,6 +73,11 @@ export function FinancePage() {
         value: "invoices",
         label: financeCopy.page.tabs.invoices,
         content: <FinanceInvoicesTab showFinanceSummaryMetrics={canAnalytics} />,
+      },
+      {
+        value: "cobranza",
+        label: financeCopy.page.tabs.cobranza,
+        content: <FinanceCobranzaTab />,
       },
       canAnalytics
         ? {
