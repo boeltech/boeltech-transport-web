@@ -136,9 +136,11 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "settings.read",
       "settings.update",
 
-      // Catalogs
+      // Catalogs — consulta global + CRUD internos (import SAT solo plataforma)
       "catalogs.read",
-      "catalogs.import",
+      "catalogs.create",
+      "catalogs.update",
+      "catalogs.delete",
     ],
   },
 
@@ -198,6 +200,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
+
+      // SaaS billing read-only
+      "billing.read",
 
       // Nómina - Control total
       "payroll.read",

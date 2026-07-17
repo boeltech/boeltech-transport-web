@@ -15,6 +15,7 @@ import {
   Shield,
   Plug,
   MapPin,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -57,7 +58,7 @@ export const settingsNavItems: SettingsNavItem[] = [
   {
     id: SettingsSection.CATALOGS,
     label: "Catálogos",
-    description: "Catálogos SAT e internos del sistema",
+    description: "Consulta catálogos regulatorios y administra los internos de tu empresa",
     path: "/settings/catalogs",
     icon: Database,
     permission: { module: "settings", action: "update" },
@@ -77,6 +78,14 @@ export const settingsNavItems: SettingsNavItem[] = [
     path: "/settings/billing",
     icon: FileText,
     permission: { module: "settings", action: "read" },
+  },
+  {
+    id: SettingsSection.SUBSCRIPTION,
+    label: "Plan y consumo",
+    description: "Plan comercial, timbres y módulos contratados",
+    path: "/settings/subscription",
+    icon: CreditCard,
+    permission: { module: "billing", action: "read" },
   },
   {
     id: SettingsSection.NOTIFICATIONS,

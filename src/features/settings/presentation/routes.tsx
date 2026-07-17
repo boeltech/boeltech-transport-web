@@ -40,6 +40,14 @@ const BillingServiceConceptsPage = lazy(() =>
   })),
 );
 
+const BillingSubscriptionPage = lazy(() =>
+  import("@features/billing/presentation/pages/BillingSubscriptionPage").then(
+    (m) => ({
+      default: m.BillingSubscriptionPage,
+    }),
+  ),
+);
+
 const NotificationsSettingsPage = lazy(() =>
   import("./pages/NotificationsSettingsPage").then((m) => ({
     default: m.NotificationsSettingsPage,
@@ -182,6 +190,20 @@ export function SettingsRoutes() {
         {/* Billing Settings */}
         <Route path="billing" element={<BillingSettingsPage />} />
         <Route path="billing/service-concepts" element={<BillingServiceConceptsPage />} />
+
+        {/* SaaS subscription (read-only) */}
+        <Route
+          path="subscription"
+          element={
+            <PermissionGuard
+              module="billing"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <BillingSubscriptionPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Notification Settings */}
         <Route

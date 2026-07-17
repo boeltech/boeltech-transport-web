@@ -34,6 +34,7 @@ export const MODULES = [
   "reports",
   "users",
   "settings",
+  "billing",
   "audit_logs",
   "catalogs",
 ] as const;
