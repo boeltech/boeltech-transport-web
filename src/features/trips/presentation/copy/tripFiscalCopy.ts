@@ -116,4 +116,21 @@ export const tripFiscalCopy = {
     invalidRfc: "RFC inválido — Corregir",
     correctFiscal: "Corregir datos fiscales",
   },
+  invoiceActions: {
+    menuLabel: "Facturación",
+    generatePrimary: "Generar factura",
+    generateAccessory: "Facturar servicios adicionales",
+    viewPrimary: "Ver factura de flete",
+    viewAccessory: (folio: string) =>
+      folio ? `Ver accesoria (${folio})` : "Ver factura accesoria",
+  },
+  invoicesSection: {
+    title: "Facturas",
+    primaryLabel: "Flete",
+    accessoryLabel: "Accesoria",
+    folio: (folio: string) => `Folio ${folio}`,
+    status: (status: string) => status,
+    openInvoice: "Abrir",
+    empty: "Aún no hay facturas vinculadas a este viaje.",
+  },
 } as const;

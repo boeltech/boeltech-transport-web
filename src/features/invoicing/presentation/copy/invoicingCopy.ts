@@ -4,6 +4,7 @@
 export const invoicingCopy = {
   create: {
     title: "Nueva factura",
+    titleAccessory: "Factura de servicios adicionales",
     submit: "Crear borrador",
     successToast: "Factura creada exitosamente",
     errorToast: "Error al crear factura",
@@ -12,7 +13,11 @@ export const invoicingCopy = {
       "Para crear una factura debes iniciar desde un viaje con facturación disponible.",
     prefillErrorToast: "No se pudo cargar el viaje",
     blockedSubtitle: "No se puede crear otra factura para este viaje",
+    blockedSubtitleAccessory:
+      "No se pueden facturar servicios adicionales para este viaje",
     subtitleFromTrip: (tripCode: string) => `Desde viaje ${tripCode}`,
+    subtitleAccessoryFromTrip: (tripCode: string) =>
+      `Servicios adicionales · viaje ${tripCode}`,
   },
   edit: {
     title: "Editar factura",
@@ -35,10 +40,15 @@ export const invoicingCopy = {
   },
   blocked: {
     title: "Este viaje ya está facturado",
+    titleAccessory: "Servicios adicionales no disponibles",
     backToTrip: "Volver al viaje",
     viewInvoice: (folio?: string | null) =>
       folio ? `Ver factura (${folio})` : "Ver factura",
     goFinance: "Ir a finanzas",
+  },
+  billingScope: {
+    primary: "Flete",
+    accessory: "Accesoria",
   },
   section: {
     issuer: "Emisor",
@@ -77,7 +87,9 @@ export const invoicingCopy = {
     amountsFromConcepts:
       "Los importes se calculan automáticamente desde las partidas de cobro y el descuento global.",
     retainedTax:
-      "Art. 1-A LIVA — autotransporte terrestre de carga",
+      "Art. 1-A LIVA — autotransporte terrestre de carga. Obligatoria para persona moral.",
+    retainedTaxRequired:
+      "Retención IVA 4% obligatoria para receptores persona moral con conceptos gravados.",
   },
   label: {
     issuerRfc: "RFC emisor",
@@ -102,6 +114,7 @@ export const invoicingCopy = {
     iva: "IVA",
     retainedTax: "IVA retenido",
     retainedTaxApply: "Aplica retención IVA 4% (persona moral)",
+    retainedTaxRequired: "Retención IVA 4% obligatoria (persona moral)",
     notesPlaceholder: "Referencias internas u observaciones…",
     cancel: "Cancelar",
     saving: "Guardando…",
@@ -422,16 +435,22 @@ export const invoicingCopy = {
   concepts: {
     sectionDescription:
       "Arma el CFDI con una partida de flete (tarifa del viaje) y las partidas de servicio que apliquen. Puedes agregar varias.",
+    sectionDescriptionAccessory:
+      "Arma el CFDI solo con partidas de servicio (maniobras, estadías, etc.). Esta factura no incluye flete.",
     introTitle: "Partidas de cobro",
     introDescription:
       "El flete refleja la tarifa del viaje. Agrega servicios adicionales (maniobras, resguardo, etc.) desde tu catálogo o captura manual.",
+    introDescriptionAccessory:
+      "Agrega los servicios adicionales a facturar. No se incluye partida de flete en esta factura.",
     fleteHint: "Partida principal vinculada a la tarifa base del viaje.",
     serviceHint: "Partida adicional de servicio. Puedes reutilizar un concepto del catálogo.",
     fleteRowTitle: "Flete",
     serviceRowTitle: (number: number) => `Servicio ${number}`,
+    emptyAccessoryTitle: "Sin servicios",
     partidasSummary: (count: number, subtotal: string) =>
       `${count} partida${count === 1 ? "" : "s"} · Subtotal partidas: ${subtotal}`,
     addService: "Agregar partida de servicio",
+    addServiceAccessory: "Agregar servicio",
     removeService: "Quitar partida",
     catalogLabel: "Catálogo de servicios",
     catalogPlaceholder: "Selecciona un servicio guardado",
@@ -465,6 +484,8 @@ export const invoicingCopy = {
     },
     table: {
       emptyDescription: "Agrega partidas de servicio además del flete del viaje.",
+      emptyDescriptionAccessory:
+        "Agrega al menos un servicio (maniobras, estadías, etc.) para esta factura.",
     },
     sheet: {
       createTitle: "Nueva partida de servicio",
@@ -477,6 +498,17 @@ export const invoicingCopy = {
       taxesHint: "Define si esta partida lleva IVA y/o retención.",
       ivaAplica: "Aplica IVA",
       retencionAplica: "Aplica retención",
+      retencionRequiredHint:
+        "Retención IVA 4% obligatoria sobre el flete para persona moral (autotransporte de carga).",
+      validation: {
+        claveProdServRequired: "Selecciona o captura la clave producto/servicio SAT.",
+        claveUnidadRequired: "Selecciona o captura la clave de unidad SAT.",
+        unidadRequired: "Indica la unidad de medida.",
+        descriptionRequired: "Indica la descripción que aparecerá en el CFDI.",
+        quantityPositive: "La cantidad debe ser mayor a cero.",
+        unitPriceMin: "El precio unitario no puede ser negativo.",
+        unitPriceRequired: "Indica el precio unitario de la partida.",
+      },
     },
   },
   amountsPanel: {

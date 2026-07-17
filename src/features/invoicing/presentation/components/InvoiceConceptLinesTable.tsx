@@ -12,6 +12,7 @@ import {
 } from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import type { InvoiceBillingScope } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import type { InvoiceConceptFormLine } from "../validation/invoiceFormSchema";
 
@@ -25,6 +26,7 @@ export interface InvoiceConceptLinesTableProps {
   onEdit: (index: number) => void;
   onRemove: (index: number) => void;
   errorIndices?: Set<number>;
+  billingScope?: InvoiceBillingScope;
 }
 
 function countServiceLinesBefore(lines: InvoiceConceptFormLine[], index: number): number {
@@ -41,15 +43,19 @@ export function InvoiceConceptLinesTable({
   onEdit,
   onRemove,
   errorIndices,
+  billingScope = "primary_transport",
 }: InvoiceConceptLinesTableProps) {
+  const isAccessory = billingScope === "accessory";
   const serviceOnlyCount = lines.filter((l) => l.concept_type === "service").length;
 
   if (lines.length === 0) {
     return (
       <EmptyState
         icon={<Receipt className="h-8 w-8 text-muted-foreground" />}
-        title={copy.fleteRowTitle}
-        description={copy.table.emptyDescription}
+        title={isAccessory ? copy.emptyAccessoryTitle : copy.fleteRowTitle}
+        description={
+          isAccessory ? copy.table.emptyDescriptionAccessory : copy.table.emptyDescription
+        }
         size="sm"
       />
     );
@@ -190,7 +196,9 @@ export function InvoiceConceptLinesTable({
         })}
       </div>
 
-      {serviceOnlyCount === 0 && lines.some((l) => l.concept_type === "flete") ? (
+      {serviceOnlyCount === 0 &&
+      !isAccessory &&
+      lines.some((l) => l.concept_type === "flete") ? (
         <p className="mt-2 text-xs text-muted-foreground">{copy.table.emptyDescription}</p>
       ) : null}
     </>

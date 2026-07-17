@@ -47,6 +47,7 @@ interface Props {
   hasTripCorrections?: boolean;
   /** Solo recalcula IVA/retención/total tras edición explícita de importes. */
   enableAutoSync?: boolean;
+  retentionRequired?: boolean;
 }
 
 function SubstitutionAmountMoneyField({
@@ -104,6 +105,7 @@ export function SubstitutionAmountCorrectionsSection({
   invoiceRetainedTax,
   hasTripCorrections = false,
   enableAutoSync = false,
+  retentionRequired = false,
 }: Props) {
   const { data: billing } = useBillingSettings();
   const taxRate = billing?.tasaIva ?? 0.16;
@@ -112,7 +114,13 @@ export function SubstitutionAmountCorrectionsSection({
   const discount = useWatch({ control, name: "discount" });
   const applyRetainedTax = useWatch({ control, name: "apply_retained_tax" });
 
-  const showRetainedTax = invoiceRetainedTax > 0 || applyRetainedTax;
+  const showRetainedTax = retentionRequired || invoiceRetainedTax > 0 || applyRetainedTax;
+
+  useEffect(() => {
+    if (retentionRequired) {
+      setValue("apply_retained_tax", true, { shouldValidate: false, shouldDirty: false });
+    }
+  }, [retentionRequired, setValue]);
 
   useEffect(() => {
     if (!enableAutoSync) {
@@ -123,7 +131,7 @@ export function SubstitutionAmountCorrectionsSection({
       return;
     }
     const shouldApplyRetained =
-      applyRetainedTax ?? invoiceRetainedTax > 0;
+      retentionRequired || applyRetainedTax || invoiceRetainedTax > 0;
     const tax = Math.round(base * taxRate * 100) / 100;
     const retained = shouldApplyRetained
       ? Math.round(base * RETAINED_TAX_RATE * 100) / 100
@@ -139,6 +147,7 @@ export function SubstitutionAmountCorrectionsSection({
     taxRate,
     applyRetainedTax,
     invoiceRetainedTax,
+    retentionRequired,
     setValue,
   ]);
 
@@ -191,7 +200,8 @@ export function SubstitutionAmountCorrectionsSection({
                     <>
                       <Checkbox
                         id="substitute_apply_retained_tax"
-                        checked={field.value}
+                        checked={retentionRequired ? true : field.value}
+                        disabled={retentionRequired}
                         onCheckedChange={field.onChange}
                       />
                       <label

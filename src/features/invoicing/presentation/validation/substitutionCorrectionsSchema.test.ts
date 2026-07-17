@@ -292,6 +292,20 @@ describe("substitución multi-concepto", () => {
     expect(values.concepts[0]?.amount).toBe(10000);
   });
 
+  it("defaultSubstituteInvoiceSheetValues no exige retención para PF con RFC de PM", () => {
+    const pmRfcPfClient = {
+      ...multiConceptInvoice,
+      receiverRfc: "IIA040805DZ4",
+      retainedTax: 0,
+      concepts: [{ ...fleteConcept, retainedIvaRate: 0 }],
+    };
+    const values = defaultSubstituteInvoiceSheetValues(pmRfcPfClient, {
+      clientType: "individual",
+    });
+    expect(values.retention_required).toBe(false);
+    expect(values.apply_retained_tax).toBe(false);
+  });
+
   it("buildSubstitutionConceptsDiff devuelve undefined cuando no cambian", () => {
     const diff = buildSubstitutionConceptsDiff(multiConceptInvoice, [
       fleteFormLine,

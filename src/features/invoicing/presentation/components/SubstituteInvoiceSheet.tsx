@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +24,7 @@ import {
   buildTripsByIdFromCache,
   findMissingTripCorrectionStopIds,
   useInvoiceLinkedTripsLoading,
+  useInvoiceReceiverClientType,
 } from "@features/invoicing/application";
 import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -72,6 +73,8 @@ interface FormProps {
 function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { clientType: receiverClientType, isResolving: isResolvingReceiverClientType } =
+    useInvoiceReceiverClientType(invoice);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [preflightMessages, setPreflightMessages] = useState<string[]>([]);
   const [isSubmittingTrips, setIsSubmittingTrips] = useState(false);
@@ -89,11 +92,35 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
     resolver: zodResolver(
       substituteInvoiceSheetSchema as Parameters<typeof zodResolver>[0],
     ) as unknown as Resolver<SubstituteInvoiceSheetValues>,
-    defaultValues: defaultSubstituteInvoiceSheetValues(invoice),
+    defaultValues: defaultSubstituteInvoiceSheetValues(invoice, {
+      clientType: receiverClientType,
+    }),
     mode: "onChange",
   });
 
-  const { control, setValue, formState } = form;
+  const { control, setValue, formState, reset } = form;
+  const receiverClientTypeSyncedRef = useRef(false);
+
+  useEffect(() => {
+    receiverClientTypeSyncedRef.current = false;
+  }, [invoice.id]);
+
+  useEffect(() => {
+    if (isResolvingReceiverClientType || receiverClientTypeSyncedRef.current) {
+      return;
+    }
+    receiverClientTypeSyncedRef.current = true;
+    reset(
+      defaultSubstituteInvoiceSheetValues(invoice, {
+        clientType: receiverClientType,
+      }),
+    );
+  }, [
+    invoice,
+    receiverClientType,
+    isResolvingReceiverClientType,
+    reset,
+  ]);
   const { dirtyFields } = formState;
   const tripCorrections = useWatch({ control, name: "trip_corrections" }) ?? [];
 
@@ -120,6 +147,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
     dirtyFields as SubstitutionCorrectionsDirtyFields;
   const amountsEdited = hasSubstitutionAmountDirtyFields(substitutionDirtyFields);
   const hasConcepts = invoiceHasConcepts(invoice);
+  const retentionRequired = useWatch({ control, name: "retention_required" }) ?? false;
   const conceptsTaxRate =
     invoice.concepts?.find((line) => line.conceptType === "flete")?.ivaRate ??
     invoice.concepts?.[0]?.ivaRate ??
@@ -134,7 +162,11 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
           data.replacement.folio,
         ),
       });
-      form.reset(defaultSubstituteInvoiceSheetValues(invoice));
+      form.reset(
+        defaultSubstituteInvoiceSheetValues(invoice, {
+          clientType: receiverClientType,
+        }),
+      );
       onOpenChange(false);
     },
     onError: (err) => {
@@ -280,6 +312,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
                 control={control}
                 setValue={setValue}
                 taxRate={conceptsTaxRate}
+                retentionRequired={retentionRequired}
               />
             ) : (
               <SubstitutionAmountCorrectionsSection
@@ -288,6 +321,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
                 invoiceRetainedTax={invoice.retainedTax ?? 0}
                 hasTripCorrections={tripCorrections.length > 0}
                 enableAutoSync={amountsEdited}
+                retentionRequired={retentionRequired}
               />
             )}
 

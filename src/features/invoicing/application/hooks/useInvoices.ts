@@ -40,8 +40,8 @@ export const invoiceQueryKeys = {
   detail: (id: string) => [...invoiceQueryKeys.details(), id] as const,
   payments: (id: string) =>
     [...invoiceQueryKeys.detail(id), "payments"] as const,
-  prefill: (tripId: string) =>
-    [...invoiceQueryKeys.all, "prefill", tripId] as const,
+  prefill: (tripId: string, scope: "primary_transport" | "accessory" = "primary_transport") =>
+    [...invoiceQueryKeys.all, "prefill", tripId, scope] as const,
 };
 const invoicePrefillQueriesKey = [...invoiceQueryKeys.all, "prefill"] as const;
 /** Cross-feature invalidation key (finance module owns queries under this root). */
@@ -175,10 +175,13 @@ export const useInvoicePayments = (invoiceId: string) => {
   });
 };
 
-export const useInvoicePrefill = (tripId: string) => {
+export const useInvoicePrefill = (
+  tripId: string,
+  scope: "primary_transport" | "accessory" = "primary_transport",
+) => {
   return useQuery({
-    queryKey: invoiceQueryKeys.prefill(tripId),
-    queryFn: () => invoicingApi.getPrefillFromTrip(tripId),
+    queryKey: invoiceQueryKeys.prefill(tripId, scope),
+    queryFn: () => invoicingApi.getPrefillFromTrip(tripId, scope),
     enabled: !!tripId,
     staleTime: 5 * 60_000,
   });

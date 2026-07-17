@@ -60,6 +60,7 @@ interface ApiTripRef {
   destination_city: string;
   destination_state: string | null;
   base_rate: number;
+  billing_scope?: string;
 }
 
 interface ApiInvoiceConcept {
@@ -273,6 +274,8 @@ function mapTripRef(raw: ApiTripRef): InvoiceTripRef {
     destinationCity: raw.destination_city,
     destinationState: raw.destination_state,
     baseRate: raw.base_rate,
+    billingScope:
+      raw.billing_scope === "accessory" ? "accessory" : "primary_transport",
   };
 }
 
@@ -403,6 +406,7 @@ export function mapInvoicePrefill(raw: unknown): InvoicePrefill {
 export function toApiCreateInvoice(payload: CreateInvoicePayload) {
   return {
     trip_ids: payload.tripIds,
+    billing_scope: payload.billingScope ?? "primary_transport",
     receiver_rfc: payload.receiverRfc,
     receiver_name: payload.receiverName,
     cfdi_usage: payload.cfdiUsage,

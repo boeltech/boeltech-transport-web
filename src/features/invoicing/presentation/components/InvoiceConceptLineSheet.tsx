@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { cn } from "@shared/lib/utils/cn";
 import { Link } from "react-router-dom";
 import {
   Controller,
@@ -46,7 +47,7 @@ import {
 } from "./invoiceConceptSheetLayout";
 import {
   applyConceptTaxFlags,
-  invoiceConceptFormSchema,
+  invoiceConceptSheetSchema,
   readConceptTaxFlags,
   type InvoiceConceptFormLine,
 } from "../validation/invoiceFormSchema";
@@ -75,9 +76,9 @@ function countServiceLinesBefore(
 function buildEmptyServiceLine(taxRate: number): InvoiceConceptFormLine {
   return {
     concept_type: "service",
-    clave_prod_serv: "78121603",
-    clave_unidad: "E48",
-    unidad: "Servicio",
+    clave_prod_serv: "",
+    clave_unidad: "",
+    unidad: "",
     description: "",
     quantity: 1,
     unit_price: 0,
@@ -95,6 +96,7 @@ export interface InvoiceConceptLineSheetProps {
   allConcepts: InvoiceConceptFormLine[];
   catalogServices: BillingServiceConcept[];
   taxRate: number;
+  retentionRequired?: boolean;
   onApply: (values: InvoiceConceptFormLine, editingIndex: number | null) => void;
 }
 
@@ -107,6 +109,7 @@ export function InvoiceConceptLineSheet({
   allConcepts,
   catalogServices,
   taxRate,
+  retentionRequired = false,
   onApply,
 }: InvoiceConceptLineSheetProps) {
   const [showSummary, setShowSummary] = useState(false);
@@ -117,14 +120,16 @@ export function InvoiceConceptLineSheet({
   }, [initialValues, taxRate]);
 
   const form = useForm<InvoiceConceptFormLine>({
-    resolver: zodResolver(invoiceConceptFormSchema) as Resolver<InvoiceConceptFormLine>,
+    resolver: zodResolver(invoiceConceptSheetSchema) as Resolver<InvoiceConceptFormLine>,
     defaultValues,
     mode: "onSubmit",
   });
 
-  const { control, handleSubmit, reset, setValue, getValues, formState } = form;
+  const { control, handleSubmit, reset, setValue, getValues, clearErrors, trigger, formState } =
+    form;
   const conceptType = useWatch({ control, name: "concept_type" });
   const isFlete = conceptType === "flete";
+  const lineRetentionRequired = retentionRequired && isFlete;
   const quantity = useWatch({ control, name: "quantity" }) ?? 0;
   const unitPrice = useWatch({ control, name: "unit_price" }) ?? 0;
   const amount = useWatch({ control, name: "amount" }) ?? 0;
@@ -134,6 +139,39 @@ export function InvoiceConceptLineSheet({
     iva_rate: ivaRate,
     retained_iva_rate: retainedIvaRate,
   });
+
+  const applyCatalogService = (selected: BillingServiceConcept) => {
+    setValue("service_concept_id", selected.id, { shouldDirty: true });
+    setValue("clave_prod_serv", selected.claveProdServ, { shouldDirty: true });
+    setValue("clave_unidad", selected.claveUnidad, { shouldDirty: true });
+    setValue("unidad", selected.unidad, { shouldDirty: true });
+    setValue("description", selected.name, { shouldDirty: true });
+    const flags = applyConceptTaxFlags(
+      selected.ivaAplica,
+      selected.retencionAplica,
+      taxRate,
+    );
+    setValue("iva_rate", flags.iva_rate, { shouldDirty: true });
+    setValue("retained_iva_rate", flags.retained_iva_rate, { shouldDirty: true });
+    setValue("object_imp", flags.object_imp, { shouldDirty: true });
+    if (selected.defaultUnitPrice != null) {
+      setValue("unit_price", selected.defaultUnitPrice, { shouldDirty: true });
+      const qty = getValues("quantity") ?? 1;
+      setValue("amount", syncLineAmount(qty, selected.defaultUnitPrice), {
+        shouldDirty: true,
+      });
+    }
+    clearErrors();
+    void trigger([
+      "description",
+      "clave_prod_serv",
+      "clave_unidad",
+      "unidad",
+      "unit_price",
+      "quantity",
+    ]);
+    setShowSummary(false);
+  };
 
   const applyTaxFlags = (ivaAplica: boolean, retencionAplica: boolean) => {
     const flags = applyConceptTaxFlags(ivaAplica, retencionAplica, taxRate);
@@ -145,7 +183,20 @@ export function InvoiceConceptLineSheet({
   useEffect(() => {
     if (!open) return;
     reset(defaultValues);
-  }, [open, defaultValues, reset]);
+    const line = defaultValues as InvoiceConceptFormLine;
+    if (lineRetentionRequired && line.object_imp === "02") {
+      const flags = readConceptTaxFlags({
+        iva_rate: line.iva_rate,
+        retained_iva_rate: line.retained_iva_rate,
+      });
+      if (flags.ivaAplica && !flags.retencionAplica) {
+        const next = applyConceptTaxFlags(true, true, taxRate);
+        setValue("iva_rate", next.iva_rate);
+        setValue("retained_iva_rate", next.retained_iva_rate);
+        setValue("object_imp", next.object_imp);
+      }
+    }
+  }, [open, defaultValues, reset, lineRetentionRequired, taxRate, setValue]);
 
   const handleSheetOpenChange = (next: boolean) => {
     if (!next) setShowSummary(false);
@@ -201,23 +252,7 @@ export function InvoiceConceptLineSheet({
                       const selected = catalogServices.find((s) => s.id === value);
                       svcField.onChange(value);
                       if (!selected) return;
-                      setValue("clave_prod_serv", selected.claveProdServ);
-                      setValue("clave_unidad", selected.claveUnidad);
-                      setValue("unidad", selected.unidad);
-                      setValue("description", selected.name);
-                      const flags = applyConceptTaxFlags(
-                        selected.ivaAplica,
-                        selected.retencionAplica,
-                        taxRate,
-                      );
-                      setValue("iva_rate", flags.iva_rate);
-                      setValue("retained_iva_rate", flags.retained_iva_rate);
-                      setValue("object_imp", flags.object_imp);
-                      if (selected.defaultUnitPrice != null) {
-                        setValue("unit_price", selected.defaultUnitPrice);
-                        const qty = getValues("quantity") ?? 1;
-                        setValue("amount", syncLineAmount(qty, selected.defaultUnitPrice));
-                      }
+                      applyCatalogService(selected);
                     }}
                   >
                     <SelectTrigger id="concept-sheet-catalog">
@@ -256,11 +291,15 @@ export function InvoiceConceptLineSheet({
                 <FormFieldShell
                   fieldId="concept-sheet-clave"
                   label={copy.claveProdServ}
+                  required
                   errorMessage={fieldState.error?.message}
                 >
                   <ProductoServicioCPSearch
                     value={String(claveField.value ?? "")}
-                    onSelect={(item) => claveField.onChange(item.code)}
+                    onSelect={(item) => {
+                      claveField.onChange(item.code);
+                      void trigger("clave_prod_serv");
+                    }}
                   />
                 </FormFieldShell>
               )}
@@ -272,6 +311,7 @@ export function InvoiceConceptLineSheet({
                 <FormFieldShell
                   fieldId="concept-sheet-unidad"
                   label={copy.claveUnidad}
+                  required
                   errorMessage={fieldState.error?.message}
                 >
                   <UnidadMedidaSearch
@@ -279,6 +319,7 @@ export function InvoiceConceptLineSheet({
                     onSelect={(item) => {
                       unidadField.onChange(item.code);
                       setValue("unidad", item.name || getValues("unidad") || "Servicio");
+                      void trigger(["clave_unidad", "unidad"]);
                     }}
                   />
                 </FormFieldShell>
@@ -293,6 +334,7 @@ export function InvoiceConceptLineSheet({
               <FormFieldShell
                 fieldId="concept-sheet-description"
                 label={copy.description}
+                required
                 errorMessage={fieldState.error?.message}
               >
                 <Input
@@ -316,6 +358,7 @@ export function InvoiceConceptLineSheet({
                 <FormFieldShell
                   fieldId="concept-sheet-quantity"
                   label={copy.quantity}
+                  required
                   errorMessage={fieldState.error?.message}
                 >
                   <Input
@@ -330,6 +373,10 @@ export function InvoiceConceptLineSheet({
                       setValue("amount", syncLineAmount(nextQuantity, unitPrice));
                     }}
                     error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "concept-sheet-quantity",
+                      fieldState.error?.message,
+                    )}
                   />
                 </FormFieldShell>
               )}
@@ -341,6 +388,7 @@ export function InvoiceConceptLineSheet({
                 <FormFieldShell
                   fieldId="concept-sheet-unit-price"
                   label={copy.unitPrice}
+                  required
                   errorMessage={fieldState.error?.message}
                 >
                   <MoneyInput
@@ -380,7 +428,12 @@ export function InvoiceConceptLineSheet({
                 <Checkbox
                   checked={taxFlags.ivaAplica}
                   onCheckedChange={(checked) =>
-                    applyTaxFlags(Boolean(checked), taxFlags.retencionAplica)
+                    applyTaxFlags(
+                      Boolean(checked),
+                      lineRetentionRequired
+                        ? Boolean(checked)
+                        : taxFlags.retencionAplica,
+                    )
                   }
                 />
                 {sheetCopy.ivaAplica}
@@ -388,6 +441,7 @@ export function InvoiceConceptLineSheet({
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={taxFlags.retencionAplica}
+                  disabled={lineRetentionRequired && taxFlags.ivaAplica}
                   onCheckedChange={(checked) =>
                     applyTaxFlags(taxFlags.ivaAplica, Boolean(checked))
                   }
@@ -395,6 +449,9 @@ export function InvoiceConceptLineSheet({
                 {sheetCopy.retencionAplica}
               </label>
             </div>
+            {lineRetentionRequired ? (
+              <p className="text-xs text-muted-foreground">{sheetCopy.retencionRequiredHint}</p>
+            ) : null}
           </div>
 
           <Controller
@@ -417,7 +474,7 @@ export function InvoiceConceptLineSheet({
           </Button>
           <Button
             type="button"
-            className={INVOICE_CONCEPT_SHEET_PRIMARY_BUTTON_CLASS}
+            className={cn(INVOICE_CONCEPT_SHEET_PRIMARY_BUTTON_CLASS, "shrink-0")}
             onClick={() => void submitSheet()}
           >
             {sheetCopy.apply}

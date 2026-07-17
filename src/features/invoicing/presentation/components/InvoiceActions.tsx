@@ -133,6 +133,14 @@ function getStampErrorDescription(error: unknown): string {
     return getErrorMessage(error);
   }
 
+  if (
+    error.code === "STAMP_QUOTA_EXCEEDED" ||
+    error.code === "TRIAL_ENDED" ||
+    error.code === "SUBSCRIPTION_INACTIVE"
+  ) {
+    return error.message;
+  }
+
   if (error.code === "CP31_INVALID_NUMERIC_DATA") {
     const rawDetails = error.details;
     const details = Array.isArray(rawDetails)

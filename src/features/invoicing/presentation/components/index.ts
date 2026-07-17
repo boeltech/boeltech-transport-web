@@ -14,6 +14,10 @@ export { buildInvoiceStats } from "./InvoiceDetailStats";
 export { InvoicePaymentRepRow } from "./InvoicePaymentRepRow";
 export { InvoiceDetailContextStrip } from "./InvoiceDetailContextStrip";
 export {
+  InvoiceBillingScopeBadge,
+  resolveInvoiceBillingScope,
+} from "./InvoiceBillingScopeBadge";
+export {
   InvoiceDetailComprobanteCard,
   InvoiceDetailAmountsPanel,
   InvoiceDetailIssuerReceiverCards,

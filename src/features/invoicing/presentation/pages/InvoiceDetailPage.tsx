@@ -24,6 +24,8 @@ import {
   InvoiceDetailComprobanteCard,
   InvoiceDetailAmountsPanel,
   InvoicePaymentRepRow,
+  InvoiceBillingScopeBadge,
+  resolveInvoiceBillingScope,
 } from "../components";
 import { InvoiceDetailConceptsCard } from "../components/InvoiceDetailConceptsCard";
 import { invoicingCopy } from "../copy/invoicingCopy";
@@ -254,6 +256,9 @@ export function InvoiceDetailPage() {
           <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>{`${invoice.serie}-${invoice.folio}`}</span>
             <InvoiceStatusBadge status={invoice.status} showIcon size="sm" />
+            <InvoiceBillingScopeBadge
+              scope={resolveInvoiceBillingScope(invoice.trips)}
+            />
           </span>
         ),
         subtitle: (

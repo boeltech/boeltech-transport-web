@@ -23,6 +23,7 @@ interface Props {
   control: Control<SubstituteInvoiceSheetValues>;
   setValue: UseFormSetValue<SubstituteInvoiceSheetValues>;
   taxRate: number;
+  retentionRequired?: boolean;
 }
 
 /**
@@ -30,7 +31,12 @@ interface Props {
  * `InvoiceConceptsEditor` (ADR-0061 x ADR-0051 §6.1). Las partidas son la
  * fuente de verdad: la API recalcula agregados y sincroniza `base_rate`.
  */
-export function SubstitutionConceptsSection({ control, setValue, taxRate }: Props) {
+export function SubstitutionConceptsSection({
+  control,
+  setValue,
+  taxRate,
+  retentionRequired = false,
+}: Props) {
   return (
     <Collapsible defaultOpen={false} className={SUBSTITUTION_COLLAPSIBLE_CLASS}>
       <CollapsibleTrigger className={SUBSTITUTION_COLLAPSIBLE_TRIGGER_CLASS}>
@@ -48,6 +54,7 @@ export function SubstitutionConceptsSection({ control, setValue, taxRate }: Prop
           control={control as unknown as Control<InvoiceFormValues>}
           setValue={setValue as unknown as UseFormSetValue<InvoiceFormValues>}
           taxRate={taxRate}
+          retentionRequired={retentionRequired}
         />
       </CollapsibleContent>
     </Collapsible>

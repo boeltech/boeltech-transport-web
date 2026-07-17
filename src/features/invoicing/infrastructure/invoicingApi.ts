@@ -7,6 +7,7 @@
  */
 
 import { apiClient } from "@shared/api";
+import type { ApiPagination } from "@shared/api";
 import type {
   Invoice,
   Payment,
@@ -56,14 +57,19 @@ export const invoicingApi = {
     const qs = params.toString();
     const response = await apiClient.get<{
       data: unknown[];
-      pagination: unknown;
+      pagination: ApiPagination;
     }>(`${INVOICES}${qs ? `?${qs}` : ""}`);
 
     return {
       data: (response.data as unknown[]).map((item) =>
         mapInvoiceListItem(item as Record<string, unknown>),
       ),
-      pagination: response.pagination as PaginatedInvoices["pagination"],
+      pagination: {
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.total_pages,
+      },
     };
   },
 
@@ -275,9 +281,14 @@ export const invoicingApi = {
   // PREFILL
   // ──────────────────────────────────────────────────────────────────────────
 
-  getPrefillFromTrip: async (tripId: string): Promise<InvoicePrefill> => {
+  getPrefillFromTrip: async (
+    tripId: string,
+    scope: "primary_transport" | "accessory" = "primary_transport",
+  ): Promise<InvoicePrefill> => {
+    const qs =
+      scope === "accessory" ? "?scope=accessory" : "";
     const response = await apiClient.get<{ data: unknown }>(
-      `${FINANCE}/prefill/${tripId}`,
+      `${FINANCE}/prefill/${tripId}${qs}`,
     );
     return mapInvoicePrefill(response.data as Record<string, unknown>);
   },

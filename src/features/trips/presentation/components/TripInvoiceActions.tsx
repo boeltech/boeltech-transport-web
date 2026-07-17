@@ -6,7 +6,7 @@
  * La habilitación de "Generar factura" sigue `trip.invoicing.canGenerateInvoice` del API
  * (pre-stamp v2 puede permitirla antes de completar el viaje).
  *
- * Muestra estado de factura ligada (borrador / timbrada / etc.) y enlace a detalle cuando aplica.
+ * ADR-0068: «Facturar servicios adicionales» cuando `canGenerateAccessoryInvoice`.
  *
  * Ubicación: src/features/trips/presentation/components/TripInvoiceActions.tsx
  */
@@ -26,10 +26,9 @@ import {
 import { usePermissions } from "@shared/permissions";
 import type { Trip } from "@features/trips/domain";
 import { getTripInvoicingBadgeConfig } from "@features/trips";
+import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 
-// ============================================================================
-// TYPES
-// ============================================================================
+const copy = tripFiscalCopy.invoiceActions;
 
 export interface TripInvoiceActionsProps {
   trip: Trip;
@@ -41,10 +40,6 @@ export interface TripInvoiceActionsProps {
    */
   presentation?: "inline" | "headerMenu";
 }
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export function TripInvoiceActions({
   trip,
@@ -63,21 +58,35 @@ export function TripInvoiceActions({
   const canShowCreateInvoiceAction =
     canCreateInvoices && trip.invoicing.canGenerateInvoice;
 
+  const canShowAccessoryInvoiceAction =
+    canCreateInvoices && trip.invoicing.canGenerateAccessoryInvoice;
+
+  const accessoryInvoices = trip.invoicing.accessoryInvoices ?? [];
+  const canViewAccessories =
+    (canReadInvoices || canCreateInvoices) && accessoryInvoices.length > 0;
+
   const hasInvoiceEvidence =
     !!trip.invoicing.invoiceId ||
     !!trip.invoicing.invoiceFolio ||
     trip.invoicing.invoiceStatus !== null ||
-    !!trip.invoicing.invoiceCfdiUuid;
+    !!trip.invoicing.invoiceCfdiUuid ||
+    accessoryInvoices.length > 0;
 
   const canShowLinkedInvoiceState =
     !trip.invoicing.canGenerateInvoice &&
-    hasInvoiceEvidence &&
-    (canViewLinkedInvoice || canCreateInvoices);
+    (hasInvoiceEvidence || canShowAccessoryInvoiceAction) &&
+    (canViewLinkedInvoice || canCreateInvoices || canShowAccessoryInvoiceAction);
 
-  // Si ningún estado aplica, no renderizar nada (mantiene el header limpio)
-  if (!canShowCreateInvoiceAction && !canShowLinkedInvoiceState) {
+  if (
+    !canShowCreateInvoiceAction &&
+    !canShowLinkedInvoiceState &&
+    !canShowAccessoryInvoiceAction
+  ) {
     return null;
   }
+
+  const createPrimaryHref = `/invoices/new?trip_id=${trip.id}`;
+  const createAccessoryHref = `/invoices/new?trip_id=${trip.id}&scope=accessory`;
 
   if (canShowCreateInvoiceAction) {
     if (presentation === "headerMenu") {
@@ -86,16 +95,14 @@ export function TripInvoiceActions({
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className={className}>
               <Receipt className="h-4 w-4 shrink-0" />
-              <span className="mx-1.5">Facturación</span>
+              <span className="mx-1.5">{copy.menuLabel}</span>
               <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem
-              onSelect={() => navigate(`/invoices/new?trip_id=${trip.id}`)}
-            >
+            <DropdownMenuItem onSelect={() => navigate(createPrimaryHref)}>
               <Receipt className="mr-2 h-4 w-4" />
-              Generar factura
+              {copy.generatePrimary}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -104,16 +111,15 @@ export function TripInvoiceActions({
     return (
       <Button
         variant="outline"
-        onClick={() => navigate(`/invoices/new?trip_id=${trip.id}`)}
+        onClick={() => navigate(createPrimaryHref)}
         className={className}
       >
         <Receipt className="h-4 w-4 mr-2" />
-        Generar factura
+        {copy.generatePrimary}
       </Button>
     );
   }
 
-  // canShowLinkedInvoiceState: hay factura ligada o el usuario puede crearla
   const tripInvoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing: trip.invoicing,
@@ -125,7 +131,7 @@ export function TripInvoiceActions({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className={className}>
             <Receipt className="h-4 w-4 shrink-0" />
-            <span className="mx-1.5">Facturación</span>
+            <span className="mx-1.5">{copy.menuLabel}</span>
             <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
@@ -144,18 +150,31 @@ export function TripInvoiceActions({
               </div>
             </div>
           </DropdownMenuLabel>
+          {canViewLinkedInvoice || canViewAccessories || canShowAccessoryInvoiceAction ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {canViewLinkedInvoice ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() =>
-                  navigate(`/invoices/${trip.invoicing.invoiceId}`)
-                }
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Ver factura
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem
+              onSelect={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {copy.viewPrimary}
+            </DropdownMenuItem>
+          ) : null}
+          {accessoryInvoices.map((inv) => (
+            <DropdownMenuItem
+              key={inv.id}
+              onSelect={() => navigate(`/invoices/${inv.id}`)}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {copy.viewAccessory(inv.folio)}
+            </DropdownMenuItem>
+          ))}
+          {canShowAccessoryInvoiceAction ? (
+            <DropdownMenuItem onSelect={() => navigate(createAccessoryHref)}>
+              <Receipt className="mr-2 h-4 w-4" />
+              {copy.generateAccessory}
+            </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -183,7 +202,13 @@ export function TripInvoiceActions({
             onClick={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
           >
             <FileText className="h-4 w-4 mr-2" />
-            Ver factura
+            {copy.viewPrimary}
+          </Button>
+        ) : null}
+        {canShowAccessoryInvoiceAction ? (
+          <Button variant="outline" onClick={() => navigate(createAccessoryHref)}>
+            <Receipt className="h-4 w-4 mr-2" />
+            {copy.generateAccessory}
           </Button>
         ) : null}
       </div>

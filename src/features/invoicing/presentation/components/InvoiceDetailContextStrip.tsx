@@ -7,6 +7,7 @@ import { TripListRouteLabel } from "@features/trips";
 import type { Invoice } from "@features/invoicing/domain";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import { InvoiceBillingScopeBadge } from "./InvoiceBillingScopeBadge";
 
 const copy = invoicingCopy;
 const detailCopy = invoicingCopy.detail;
@@ -80,6 +81,7 @@ export function InvoiceDetailContextStrip({
                         <Badge variant="secondary" className="shrink-0">
                           {trip.tripCode}
                         </Badge>
+                        <InvoiceBillingScopeBadge scope={trip.billingScope} />
                         <span className="truncate font-medium">{trip.clientName}</span>
                         <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       </Link>

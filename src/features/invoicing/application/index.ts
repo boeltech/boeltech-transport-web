@@ -19,6 +19,8 @@ export {
   useDownloadInvoiceXml,
 } from "./hooks/useInvoices";
 
+export { useInvoiceReceiverClientType } from "./hooks/useInvoiceReceiverClientType";
+
 export {
   prefetchInvoiceLinkedTrips,
   buildStopsByIdFromCache,

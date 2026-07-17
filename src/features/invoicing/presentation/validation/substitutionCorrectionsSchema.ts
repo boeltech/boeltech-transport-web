@@ -18,8 +18,10 @@ import type {
 import {
   defaultFleteConceptFormLine,
   invoiceConceptFormSchema,
+  inferRetentionRequired,
   mapFormConceptToPayload,
   mapInvoiceConceptToFormInput,
+  refinePersonaMoralRetention,
   type InvoiceConceptFormLine,
 } from "./invoiceFormSchema";
 
@@ -27,6 +29,7 @@ export const RETAINED_TAX_RATE = 0.04;
 
 const retainedTaxUx = z.object({
   apply_retained_tax: z.boolean(),
+  retention_required: z.boolean().optional().default(false),
 });
 
 export const substitutionCorrectionFormFieldsSchema = createInvoiceSchema
@@ -65,6 +68,7 @@ export type SubstituteInvoiceSheetValues = {
   retained_tax: number;
   total: number;
   apply_retained_tax: boolean;
+  retention_required?: boolean;
   concepts: InvoiceConceptFormLine[];
   trip_corrections: TripCorrectionFormEntry[];
   propagate_receiver_to_client: boolean;
@@ -86,7 +90,18 @@ const substituteInvoiceSheetUxSchema = z.object({
 
 export const substituteInvoiceSheetSchema = (
   substitutionCorrectionFormFieldsSchema as unknown as z.ZodObject<z.ZodRawShape>
-).merge(substituteInvoiceSheetUxSchema) as unknown as z.ZodType<SubstituteInvoiceSheetValues>;
+)
+  .merge(substituteInvoiceSheetUxSchema)
+  .superRefine((values, ctx) => {
+    refinePersonaMoralRetention(
+      values as {
+        retention_required?: boolean;
+        concepts: InvoiceConceptFormLine[];
+        retained_tax: number;
+      },
+      ctx,
+    );
+  }) as unknown as z.ZodType<SubstituteInvoiceSheetValues>;
 
 type WritableSubstituteCorrections = {
   -readonly [K in keyof SubstituteStampedInvoiceCorrections]: SubstituteStampedInvoiceCorrections[K];
@@ -156,7 +171,14 @@ export function buildSubstitutionConceptFormLines(
 
 export function defaultSubstituteInvoiceSheetValues(
   invoice: Invoice,
+  options?: { clientType?: string | null },
 ): SubstituteInvoiceSheetValues {
+  const retentionRequired = inferRetentionRequired({
+    clientType: options?.clientType,
+    retainedTax: invoice.retainedTax,
+    receiverRfc: invoice.receiverRfc,
+    concepts: invoice.concepts,
+  });
   return {
     cancellationReason: "",
     notes: "",
@@ -172,7 +194,8 @@ export function defaultSubstituteInvoiceSheetValues(
     total_tax: invoice.totalTax ?? 0,
     retained_tax: invoice.retainedTax ?? 0,
     total: invoice.total ?? 0,
-    apply_retained_tax: (invoice.retainedTax ?? 0) > 0,
+    apply_retained_tax: retentionRequired || (invoice.retainedTax ?? 0) > 0,
+    retention_required: retentionRequired,
     concepts: buildSubstitutionConceptFormLines(invoice),
     trip_corrections: [],
     propagate_receiver_to_client: false,

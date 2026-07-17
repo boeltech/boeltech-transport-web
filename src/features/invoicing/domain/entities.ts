@@ -125,6 +125,8 @@ export interface InvoiceListItem {
   readonly createdByName: string | null;
 }
 
+export type InvoiceBillingScope = "primary_transport" | "accessory";
+
 export interface InvoiceTripRef {
   readonly tripId: string;
   readonly tripCode: string;
@@ -137,6 +139,8 @@ export interface InvoiceTripRef {
   readonly destinationState: string | null;
   /** Tarifa base del viaje (`trips.base_rate`). */
   readonly baseRate: number;
+  /** ADR-0068: rol del vínculo viaje↔factura. */
+  readonly billingScope: InvoiceBillingScope;
 }
 
 export type InvoiceLineConceptType = "flete" | "service";
@@ -253,6 +257,8 @@ export interface PaginatedInvoices {
 
 export interface CreateInvoicePayload {
   tripIds: string[];
+  /** ADR-0068: default primary_transport. */
+  billingScope?: InvoiceBillingScope;
   receiverRfc: string;
   receiverName: string;
   cfdiUsage: string;

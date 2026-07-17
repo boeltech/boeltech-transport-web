@@ -7,8 +7,9 @@ import {
   type Control,
   type UseFormSetValue,
 } from "react-hook-form";
-import { recomputeInvoiceAmountsFromConcepts } from "@boeltech/cfdi-domain";
+import { recomputeInvoiceAmountsFromConcepts, PERSONA_MORAL_RETAINED_IVA_RATE } from "@boeltech/cfdi-domain";
 import { useBillingServiceConcepts } from "@features/settings/application/hooks/useBillingServiceConcepts";
+import type { InvoiceBillingScope } from "@features/invoicing/domain";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -31,6 +32,8 @@ type InvoiceConceptsEditorProps = {
   setValue: UseFormSetValue<InvoiceFormValues>;
   taxRate: number;
   tripBaseRate?: number;
+  retentionRequired?: boolean;
+  billingScope?: InvoiceBillingScope;
 };
 
 function roundMoney(value: number): number {
@@ -42,7 +45,10 @@ export function InvoiceConceptsEditor({
   setValue,
   taxRate,
   tripBaseRate,
+  retentionRequired = false,
+  billingScope = "primary_transport",
 }: InvoiceConceptsEditorProps) {
+  const isAccessory = billingScope === "accessory";
   const conceptsControl = control as unknown as Control<ConceptsFormSlice>;
   const { data: catalogServices = [] } = useBillingServiceConcepts({
     isActive: true,
@@ -85,7 +91,7 @@ export function InvoiceConceptsEditor({
 
     const amounts = recomputeInvoiceAmountsFromConcepts(concepts, discount, {
       tasaIva: taxRate,
-      retainedTaxRate: 0,
+      retainedTaxRate: retentionRequired ? PERSONA_MORAL_RETAINED_IVA_RATE : 0,
     });
 
     setValue("subtotal", amounts.subtotal, { shouldValidate: true });
@@ -94,14 +100,15 @@ export function InvoiceConceptsEditor({
     setValue("total", amounts.total, { shouldValidate: true });
     setValue(
       "apply_retained_tax",
-      (amounts.retained_tax ?? 0) > 0,
+      retentionRequired || (amounts.retained_tax ?? 0) > 0,
       { shouldValidate: false },
     );
-  }, [concepts, discount, taxRate, setValue]);
+  }, [concepts, discount, taxRate, retentionRequired, setValue]);
 
   const fleteLine = concepts.find((line) => line.concept_type === "flete");
   const fleteAmount = fleteLine?.amount ?? 0;
   const fleteMismatch =
+    !isAccessory &&
     tripBaseRate != null &&
     tripBaseRate > 0 &&
     Math.abs(fleteAmount - tripBaseRate) >= 0.01;
@@ -147,7 +154,7 @@ export function InvoiceConceptsEditor({
   return (
     <div className="space-y-4">
       <AlertWithIcon variant="info" title={copy.introTitle}>
-        {copy.introDescription}
+        {isAccessory ? copy.introDescriptionAccessory : copy.introDescription}
       </AlertWithIcon>
 
       {fleteMismatch ? (
@@ -161,6 +168,7 @@ export function InvoiceConceptsEditor({
         onEdit={handleOpenEdit}
         onRemove={remove}
         errorIndices={errorIndices}
+        billingScope={billingScope}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -169,7 +177,7 @@ export function InvoiceConceptsEditor({
         </p>
         <Button type="button" variant="outline" size="sm" onClick={handleOpenCreate}>
           <Plus className="mr-2 h-4 w-4" />
-          {copy.addService}
+          {isAccessory ? copy.addServiceAccessory : copy.addService}
         </Button>
       </div>
 
@@ -182,6 +190,7 @@ export function InvoiceConceptsEditor({
         allConcepts={concepts}
         catalogServices={catalogServices}
         taxRate={taxRate}
+        retentionRequired={retentionRequired}
         onApply={handleApplyFromSheet}
       />
     </div>
