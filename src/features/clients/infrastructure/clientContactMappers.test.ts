@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type {
   ClientContactApiResponse,
   ClientSummaryApiResponse,
+  ClientCreditSummaryApiResponse,
   ClientTripHistoryItemApiResponse,
 } from "../domain";
 import {
   mapClientContact,
   mapClientContactList,
   mapClientSummary,
+  mapClientCreditSummary,
   mapClientTripHistory,
   toApiCreateClientContact,
   toApiUpdateClientContact,
@@ -82,6 +84,31 @@ describe("clientContactMappers", () => {
     expect(summary.excludedTrips).toBe(3);
     expect(summary.totalRevenue).toBe(150000.5);
     expect(summary.avgPaymentDays).toBe(28.4);
+  });
+
+  it("mapClientCreditSummary mapea exposición y breakdown", () => {
+    const raw: ClientCreditSummaryApiResponse = {
+      client_id: "client-1",
+      payment_terms: "credit",
+      credit_days: 30,
+      credit_limit: 100000,
+      breakdown: {
+        invoiced: 45000,
+        unbilled: 12000,
+        pending_draft: 3000,
+      },
+      total_exposure: 60000,
+      available_credit: 40000,
+      utilization_pct: 0.6,
+      status: "ok",
+      next_invoice_due_at: "2026-07-15",
+    };
+    const summary = mapClientCreditSummary({ data: raw });
+    expect(summary.clientId).toBe("client-1");
+    expect(summary.breakdown.pendingDraft).toBe(3000);
+    expect(summary.utilizationPct).toBe(0.6);
+    expect(summary.status).toBe("ok");
+    expect(summary.nextInvoiceDueAt).toBe("2026-07-15");
   });
 
   it("mapClientTripHistory mapea filas y paginación", () => {

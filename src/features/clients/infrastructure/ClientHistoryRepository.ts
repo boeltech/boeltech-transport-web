@@ -1,14 +1,16 @@
 import { apiClient, type ApiSingleResponse } from "@shared/api";
 import type {
   ClientSummary,
-  ClientTripHistoryFilters,
+  ClientCreditSummary,
   ClientTripHistoryItem,
-  IClientHistoryRepository,
+  ClientTripHistoryFilters,
   PaginatedResult,
   ClientSummaryApiResponse,
+  ClientCreditSummaryApiResponse,
   ClientTripHistoryItemApiResponse,
+  IClientHistoryRepository,
 } from "../domain";
-import { mapClientSummary, mapClientTripHistory } from "./clientContactMappers";
+import { mapClientSummary, mapClientTripHistory, mapClientCreditSummary } from "./clientContactMappers";
 
 class ClientHistoryRepository implements IClientHistoryRepository {
   async getSummary(clientId: string): Promise<ClientSummary> {
@@ -16,6 +18,21 @@ class ClientHistoryRepository implements IClientHistoryRepository {
       ApiSingleResponse<ClientSummaryApiResponse>
     >(`/clients/${clientId}/summary`);
     return mapClientSummary(response);
+  }
+
+  async getCreditSummary(
+    clientId: string,
+    prospectiveAmount?: number,
+  ): Promise<ClientCreditSummary> {
+    const params = new URLSearchParams();
+    if (prospectiveAmount != null && prospectiveAmount > 0) {
+      params.set("prospective_amount", String(prospectiveAmount));
+    }
+    const qs = params.toString();
+    const response = await apiClient.get<
+      ApiSingleResponse<ClientCreditSummaryApiResponse>
+    >(`/clients/${clientId}/credit-summary${qs ? `?${qs}` : ""}`);
+    return mapClientCreditSummary(response);
   }
 
   async getTripHistory(

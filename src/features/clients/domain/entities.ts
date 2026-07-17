@@ -77,6 +77,32 @@ export interface ClientSummary {
   lastTripAt: string | null;
 }
 
+export type CreditExposureStatus =
+  | "no_credit_terms"
+  | "no_limit"
+  | "ok"
+  | "warn"
+  | "exceeded";
+
+export interface ClientCreditSummaryBreakdown {
+  invoiced: number;
+  unbilled: number;
+  pendingDraft: number;
+}
+
+export interface ClientCreditSummary {
+  clientId: string;
+  paymentTerms: PaymentTerms;
+  creditDays: number;
+  creditLimit: number | null;
+  breakdown: ClientCreditSummaryBreakdown;
+  totalExposure: number;
+  availableCredit: number | null;
+  utilizationPct: number | null;
+  status: CreditExposureStatus;
+  nextInvoiceDueAt: string | null;
+}
+
 export interface ClientTripHistoryItem {
   tripId: string;
   tripCode: string;
@@ -402,6 +428,12 @@ export const clientQueryKeys = {
     [...clientQueryKeys.contacts(clientId), contactId] as const,
   summary: (clientId: string) =>
     [...clientQueryKeys.detail(clientId), "summary"] as const,
+  creditSummary: (clientId: string, prospectiveAmount?: number) =>
+    [
+      ...clientQueryKeys.detail(clientId),
+      "credit-summary",
+      prospectiveAmount ?? null,
+    ] as const,
   tripHistory: (clientId: string, filters?: ClientTripHistoryFilters) =>
     [...clientQueryKeys.detail(clientId), "trip-history", filters ?? {}] as const,
 } as const;

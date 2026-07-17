@@ -6,11 +6,15 @@ import { mapSingleResponse, type ApiSingleResponse, type DeepCamelCase, deepToCa
 import type {
   ClientContact,
   ClientSummary,
+  ClientCreditSummary,
   ClientTripHistoryItem,
+  CreditExposureStatus,
+  PaymentTerms,
 } from "../domain/entities";
 import type {
   ClientContactApiResponse,
   ClientSummaryApiResponse,
+  ClientCreditSummaryApiResponse,
   ClientTripHistoryItemApiResponse,
   CreateClientContactDTO,
   UpdateClientContactDTO,
@@ -93,6 +97,29 @@ export function mapClientSummary(
     totalRevenue: d.totalRevenue,
     avgPaymentDays: d.avgPaymentDays,
     lastTripAt: d.lastTripAt,
+  };
+}
+
+export function mapClientCreditSummary(
+  response: ApiSingleResponse<ClientCreditSummaryApiResponse>,
+): ClientCreditSummary {
+  const mapped = mapSingleResponse(response);
+  const d = mapped.data;
+  return {
+    clientId: d.clientId,
+    paymentTerms: d.paymentTerms as PaymentTerms,
+    creditDays: d.creditDays,
+    creditLimit: d.creditLimit,
+    breakdown: {
+      invoiced: d.breakdown.invoiced,
+      unbilled: d.breakdown.unbilled,
+      pendingDraft: d.breakdown.pendingDraft,
+    },
+    totalExposure: d.totalExposure,
+    availableCredit: d.availableCredit,
+    utilizationPct: d.utilizationPct,
+    status: d.status as CreditExposureStatus,
+    nextInvoiceDueAt: d.nextInvoiceDueAt,
   };
 }
 

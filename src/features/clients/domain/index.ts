@@ -23,6 +23,9 @@ export type {
   ClientWizardStep,
   ClientContact,
   ClientSummary,
+  ClientCreditSummary,
+  ClientCreditSummaryBreakdown,
+  CreditExposureStatus,
   ClientTripHistoryItem,
   ClientTripHistoryFilters,
 } from "./entities";
@@ -77,6 +80,7 @@ export type {
   ClientAddressApiResponse,
   ClientContactApiResponse,
   ClientSummaryApiResponse,
+  ClientCreditSummaryApiResponse,
   ClientTripHistoryItemApiResponse,
   ClientAddressCartaPorteApiResponse,
   CreateClientApiResponse,

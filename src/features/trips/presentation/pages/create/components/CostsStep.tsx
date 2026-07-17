@@ -2,10 +2,12 @@ import { useMemo, useState } from "react";
 import type { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
 import { AlertCircle, CircleDollarSign, DollarSign, Plus, Receipt } from "lucide-react";
 
+import { useClientCreditSummary } from "@features/clients/application";
 import { useVehicle } from "@features/vehicles/application";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { DetailAlertCard } from "@shared/ui/data-display";
+import { CreditExposureCard, DetailAlertCard } from "@shared/ui/data-display";
+import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
 import { RHFMoneyField } from "@shared/ui/form";
 import { TripExpenseEditableList } from "../../../components/trip-costs";
 
@@ -47,6 +49,18 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const clientId = form.watch("clientId");
   const baseRateRequired =
     cfdiDocumentIntent === "ingreso" && wizardHasContractingClient(clientId);
+
+  const hasContractingClient = wizardHasContractingClient(clientId);
+  const creditSummaryQuery = useClientCreditSummary(
+    hasContractingClient ? clientId : undefined,
+    baseRate > 0 ? baseRate : undefined,
+    { enabled: hasContractingClient },
+  );
+  const creditSummary = creditSummaryQuery.data;
+  const creditWarningMessage =
+    creditSummary && creditSummary.status !== "ok"
+      ? creditExposureCopy.wizardWarning[creditSummary.status]
+      : null;
 
   const { data: vehicle } = useVehicle(vehicleId);
   const expectedFuelEfficiency =
@@ -123,7 +137,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="max-w-sm">
+              <div className="max-w-sm space-y-4">
                 <RHFMoneyField
                   control={form.control}
                   name="baseRate"
@@ -138,6 +152,14 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                         : copy.hint.baseRateNoClient
                   }
                 />
+                {hasContractingClient ? (
+                  <CreditExposureCard
+                    variant="compact"
+                    summary={creditSummaryQuery.data}
+                    isLoading={creditSummaryQuery.isLoading}
+                    isError={creditSummaryQuery.isError}
+                  />
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -214,6 +236,15 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
           snapshot={financialSnapshot}
         />
       </div>
+
+      {creditWarningMessage ? (
+        <DetailAlertCard
+          severity={creditSummary?.status === "exceeded" ? "critical" : "warning"}
+          icon={<AlertCircle className="h-4 w-4" />}
+          title={creditExposureCopy.title}
+          items={[{ text: creditWarningMessage }]}
+        />
+      ) : null}
 
       {financial.health === "critical" ? (
         <DetailAlertCard

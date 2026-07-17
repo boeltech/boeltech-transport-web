@@ -61,5 +61,6 @@ export { useUpdateClientContact } from "./hooks/useUpdateClientContact";
 export { useDeleteClientContact } from "./hooks/useDeleteClientContact";
 export { useSetPrimaryClientContact } from "./hooks/useSetPrimaryClientContact";
 export { useClientSummary } from "./hooks/useClientSummary";
+export { useClientCreditSummary } from "./hooks/useClientCreditSummary";
 export { useClientTripHistory } from "./hooks/useClientTripHistory";
 

@@ -22,14 +22,15 @@ import {
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
+import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
 
-import { useClient, useClientAddresses, useClientSummary } from "../../application";
-import type { Client, ClientSummary } from "../../domain";
+import { useClient, useClientAddresses, useClientSummary, useClientCreditSummary } from "../../application";
+import type { Client, ClientSummary, ClientCreditSummary } from "../../domain";
 import { getClientDisplayName } from "../../domain";
 import {
   ClientActions,
@@ -62,12 +63,29 @@ function buildClientStats(
   client: Client,
   summary: ClientSummary | undefined,
   summaryLoading: boolean,
+  creditSummary: ClientCreditSummary | undefined,
+  creditSummaryLoading: boolean,
 ): StatCardProps[] {
   let creditValue: string;
   let creditDescription: string | undefined;
   if (client.paymentTerms === "cash") {
     creditValue = "N/A";
     creditDescription = "Pago de contado";
+  } else if (creditSummaryLoading) {
+    creditValue = "…";
+    creditDescription = "Calculando exposición";
+  } else if (creditSummary?.status === "no_credit_terms") {
+    creditValue = "N/A";
+    creditDescription = "Pago de contado";
+  } else if (creditSummary?.status === "no_limit") {
+    creditValue = "Sin definir";
+    creditDescription = "Registra límite en edición";
+  } else if (creditSummary?.availableCredit != null) {
+    creditValue = formatMxCurrency(creditSummary.availableCredit);
+    creditDescription =
+      creditSummary.utilizationPct != null
+        ? `${Math.round(creditSummary.utilizationPct * 100)}% utilizado`
+        : "Disponible según límite";
   } else if (client.creditLimit != null && client.creditLimit > 0) {
     creditValue = formatCreditLimit(client.creditLimit);
     creditDescription = "Límite autorizado";
@@ -159,17 +177,34 @@ export function ClientDetailPage() {
     enabled: !!clientId && !clientUnavailable,
   });
 
+  const creditSummaryQuery = useClientCreditSummary(clientId || undefined, undefined, {
+    enabled: !!clientId && !clientUnavailable,
+  });
+
   const [activeTab, setActiveTab] = useState("informacion");
 
   const clientStats = useMemo((): StatCardProps[] => {
     if (!client) return [];
-    return buildClientStats(client, summaryQuery.data, summaryQuery.isLoading);
-  }, [client, summaryQuery.data, summaryQuery.isLoading]);
+    return buildClientStats(
+      client,
+      summaryQuery.data,
+      summaryQuery.isLoading,
+      creditSummaryQuery.data,
+      creditSummaryQuery.isLoading,
+    );
+  }, [
+    client,
+    summaryQuery.data,
+    summaryQuery.isLoading,
+    creditSummaryQuery.data,
+    creditSummaryQuery.isLoading,
+  ]);
 
   const clientAlerts = useMemo(() => {
     if (!client) return undefined;
 
     const cards: ReactElement[] = [];
+    const creditSummary = creditSummaryQuery.data;
 
     const addressesReady =
       addressQuery.isSuccess &&
@@ -222,11 +257,36 @@ export function ClientDetailPage() {
           ]}
         />,
       );
+    } else if (creditSummary?.status === "warn") {
+      cards.push(
+        <DetailAlertCard
+          key="credit-warn"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title={creditExposureCopy.alerts.warnTitle}
+          items={[{ text: creditExposureCopy.alerts.warnBody }]}
+        />,
+      );
+    } else if (creditSummary?.status === "exceeded") {
+      cards.push(
+        <DetailAlertCard
+          key="credit-exceeded"
+          severity="critical"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title={creditExposureCopy.alerts.exceededTitle}
+          items={[{ text: creditExposureCopy.alerts.exceededBody }]}
+        />,
+      );
     }
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [client, addressQuery.isSuccess, addressQuery.data]);
+  }, [
+    client,
+    addressQuery.isSuccess,
+    addressQuery.data,
+    creditSummaryQuery.data,
+  ]);
 
   if (isLoading) {
     return (

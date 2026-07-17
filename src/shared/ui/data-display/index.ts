@@ -46,4 +46,8 @@ export type { SatFieldLabelProps } from "./SatFieldLabel";
 export { ChartCard } from "./ChartCard";
 export type { ChartCardProps } from "./ChartCard";
 
+export { CreditExposureCard } from "./CreditExposureCard";
+export type { CreditExposureCardProps } from "./CreditExposureCard";
+export { creditExposureCopy } from "./creditExposureCopy";
+
 export * from "./charts";

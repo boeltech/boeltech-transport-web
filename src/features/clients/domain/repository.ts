@@ -24,6 +24,7 @@ import type {
   ClientAddressListItem,
   ClientContact,
   ClientSummary,
+  ClientCreditSummary,
   ClientTripHistoryItem,
   ClientTripHistoryFilters,
   ClientType,
@@ -497,6 +498,23 @@ export interface ClientSummaryApiResponse {
   last_trip_at: string | null;
 }
 
+export interface ClientCreditSummaryApiResponse {
+  client_id: string;
+  payment_terms: string;
+  credit_days: number;
+  credit_limit: number | null;
+  breakdown: {
+    invoiced: number;
+    unbilled: number;
+    pending_draft: number;
+  };
+  total_exposure: number;
+  available_credit: number | null;
+  utilization_pct: number | null;
+  status: string;
+  next_invoice_due_at: string | null;
+}
+
 export interface ClientTripHistoryItemApiResponse {
   trip_id: string;
   trip_code: string;
@@ -526,6 +544,10 @@ export interface IClientContactRepository {
 
 export interface IClientHistoryRepository {
   getSummary(clientId: string): Promise<ClientSummary>;
+  getCreditSummary(
+    clientId: string,
+    prospectiveAmount?: number,
+  ): Promise<ClientCreditSummary>;
   getTripHistory(
     clientId: string,
     filters?: ClientTripHistoryFilters,
