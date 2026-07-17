@@ -11,7 +11,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   useForm,
   useWatch,
@@ -34,6 +34,12 @@ import {
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import {
   WizardNavigationBar,
   WizardProgressCard,
@@ -91,10 +97,11 @@ import {
 import {
   DEPARTMENT_OPTIONS,
   POSITION_OPTIONS,
-  WORK_LOCATION_OPTIONS,
   EMERGENCY_RELATIONSHIP_OPTIONS,
   type EmployeeCatalogOption,
 } from "../config/employeeCatalogs";
+import { BranchStatus, useBranches } from "@features/branches";
+import { buildBranchSelectOptionsWithEligibility } from "../utils/branchSelectUtils";
 import {
   employeeSchema,
   defaultEmployeeDomicilio,
@@ -175,7 +182,7 @@ const TAB_FIELDS: Record<TabKey, string[]> = {
   ],
   employment: [
     "hire_date", "employment_type", "department", "position",
-    "job_title", "work_location", "notes", "medical_notes",
+    "job_title", "branch_id", "notes", "medical_notes",
   ],
   compensation: [
     "base_salary", "salary_type", "payment_method",
@@ -355,6 +362,43 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee(id!);
 
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  const branchOptions = useMemo(
+    () =>
+      buildBranchSelectOptionsWithEligibility(
+        branchesResult?.data ?? [],
+        branchesResult?.meta?.overQuota
+          ? branchesResult.meta.planEligibleBranchIds
+          : [],
+        isEditing ? (existing?.branchId ?? undefined) : undefined,
+      ),
+    [
+      branchesResult?.data,
+      branchesResult?.meta?.overQuota,
+      branchesResult?.meta?.planEligibleBranchIds,
+      existing?.branchId,
+      isEditing,
+    ],
+  );
+  const hasBranchOptions = branchOptions.length > 0;
+  const currentBranchOutsidePlan =
+    isEditing &&
+    Boolean(existing?.branchId) &&
+    branchesResult?.meta?.overQuota &&
+    !branchesResult.meta.planEligibleBranchIds.includes(existing.branchId ?? "");
+
   const form = useForm<EmployeeFormValues, unknown, EmployeeFormValues>({
     resolver: zodResolver(employeeSchema) as Resolver<EmployeeFormValues>,
     defaultValues: initialFormValues,
@@ -371,7 +415,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
   const watchedDepartment = useWatch({ control: form.control, name: "department" });
   const watchedPosition = useWatch({ control: form.control, name: "position" });
-  const watchedWorkLocation = useWatch({ control: form.control, name: "work_location" });
+  const watchedBranchId = useWatch({ control: form.control, name: "branch_id" });
   const watchedEmergencyRelationship = useWatch({
     control: form.control,
     name: "emergency_contact_relationship",
@@ -440,10 +484,6 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   const positionOptions = useMemo(
     () => withLegacyCatalogOption(POSITION_OPTIONS, watchedPosition),
     [watchedPosition],
-  );
-  const workLocationOptions = useMemo(
-    () => withLegacyCatalogOption(WORK_LOCATION_OPTIONS, watchedWorkLocation),
-    [watchedWorkLocation],
   );
   const emergencyRelationshipOptions = useMemo(
     () =>
@@ -595,10 +635,14 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
       return next;
     };
 
-    const { domicilio, ...employeeRest } = values;
+    const { domicilio, work_location: _legacyWorkLocation, ...employeeRest } = values;
     const cleaned = normalizeForApi(
       clean(employeeRest as Record<string, unknown>),
     );
+
+    if (isEditing && dirtyFields.branch_id && values.branch_id === undefined) {
+      cleaned.branch_id = null;
+    }
 
     const domicilioDirty = isEmployeeDomicilioDirty(dirtyFields);
     const shouldPersistDomicilio =
@@ -990,11 +1034,43 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
               />
             </FormField>
             <FormField label={fc.label.workLocation}>
-              <RHFSelect
-                control={form.control}
-                name="work_location"
-                options={workLocationOptions}
-              />
+              <div className="space-y-2">
+                {hasBranchOptions ? (
+                  <RHFSelect
+                    control={form.control}
+                    name="branch_id"
+                    options={branchOptions}
+                    placeholder={fc.placeholder.select}
+                  />
+                ) : (
+                  <>
+                    <Select disabled>
+                      <SelectTrigger disabled>
+                        <SelectValue placeholder={fc.placeholder.select} />
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{fc.hint.noBranches}</p>
+                    <Button variant="link" className="h-auto p-0" asChild>
+                      <Link to="/branches/new">{fc.action.createBranch}</Link>
+                    </Button>
+                  </>
+                )}
+                {currentBranchOutsidePlan ? (
+                  <p className="text-xs text-destructive">
+                    La sucursal actual excede la capacidad de tu plan.{" "}
+                    <Link to="/branches" className="underline underline-offset-4">
+                      Ajusta sucursales
+                    </Link>{" "}
+                    o elige una sucursal incluida en el plan al guardar cambios.
+                  </p>
+                ) : null}
+                {isEditing && existing?.workLocation && !watchedBranchId ? (
+                  <p className="text-xs text-muted-foreground">
+                    {fc.hint.legacyWorkLocation(existing.workLocation)}
+                  </p>
+                ) : null}
+              </div>
             </FormField>
           </FormSectionCard>
 
@@ -1259,7 +1335,8 @@ function employeeToFormValues(employee: Employee): EmployeeFormValues {
     department: normalizeOptionalSelect(employee.department),
     position: normalizeOptionalSelect(employee.position),
     job_title: employee.jobTitle ?? "",
-    work_location: normalizeOptionalSelect(employee.workLocation),
+    branch_id: employee.branchId ?? undefined,
+    work_location: employee.workLocation ?? undefined,
     base_salary: employee.baseSalary ?? undefined,
     salary_type: salaryTypeNormalized,
     payment_method: paymentMethodNormalized,

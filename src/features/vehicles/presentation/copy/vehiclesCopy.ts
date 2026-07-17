@@ -101,6 +101,7 @@ export const vehiclesCopy = {
       model: "Modelo",
       year: "Año modelo",
       volumeCapacity: "Volumen útil",
+      baseBranch: "Sucursal base",
       operationalStatus: "Estado operativo",
       registryStatus: "Registro",
       createdAt: "Alta en sistema",
@@ -134,6 +135,16 @@ export const vehiclesCopy = {
       volume: (m3: number) => `${m3} m³`,
       active: "Activo",
       inactive: "Inactivo",
+    },
+  },
+  list: {
+    table: {
+      branch: "Sucursal",
+    },
+    filters: {
+      branch: "Sucursal",
+      allBranches: "Todas las sucursales",
+      chipBranch: (label: string) => `Sucursal: ${label}`,
     },
   },
   form: {
@@ -209,6 +220,7 @@ export const vehiclesCopy = {
       year: "Año modelo",
       type: "Tipo de vehículo",
       color: "Color",
+      baseBranch: "Sucursal base",
       currentMileage: "Odómetro actual",
       loadCapacity: "Carga útil (t)",
       volumeCapacity: "Volumen útil (m³)",
@@ -255,6 +267,7 @@ export const vehiclesCopy = {
       selectConfig: "Seleccionar configuración",
       selectSubtipoRem: "Seleccionar subtipo",
       trailerPlate: "Ej. REM1234",
+      selectBranch: "Seleccionar sucursal",
       optionalInsurer: "Aseguradora por defecto",
       optionalPolicy: "Póliza por defecto",
     },
@@ -262,6 +275,8 @@ export const vehiclesCopy = {
       reviewEmpty: "Sin registrar",
       reviewMileageDefault: "Sin captura (se registrará 0 km)",
       noTrailers: "Sin remolques registrados para esta unidad.",
+      noBranches:
+        "No hay sucursales activas. Crea una sucursal para asignar la unidad a una base operativa.",
     },
     alert: {
       cartaPorteCreate:
@@ -275,6 +290,7 @@ export const vehiclesCopy = {
       saving: "Guardando…",
       addTrailer: "Agregar remolque",
       removeTrailer: "Quitar remolque",
+      createBranch: "Crear sucursal",
     },
     validation: {
       summaryEdit: "Revisa los siguientes campos",

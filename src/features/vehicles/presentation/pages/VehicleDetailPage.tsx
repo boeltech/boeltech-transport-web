@@ -56,6 +56,7 @@ import {
   isExpired,
   isExpiringSoon,
 } from "@shared/utils/dateUtils";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 
 const copy = vehiclesCopy.detail;
 
@@ -330,6 +331,16 @@ export function VehicleDetailPage() {
                             }
                           />
                         ) : null}
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.baseBranch}
+                          value={
+                            formatBranchLabel(
+                              vehicle.branchName,
+                              vehicle.branchCode,
+                            ) ?? copy.hint.empty
+                          }
+                        />
                       </div>
 
                       <Separator />

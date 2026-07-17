@@ -8,7 +8,7 @@
  * Ubicación: src/features/drivers/presentation/pages/DriversListPage.tsx
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { useListingFilters, useToast } from "@shared/hooks";
@@ -32,14 +32,10 @@ import {
 } from "@shared/ui/alert-dialog";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
-import {
-  Plus,
-  Search,
-  AlertTriangle,
-  Loader2,
-} from "lucide-react";
+import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
+import { BranchStatus, useBranches } from "@features/branches";
+import { Plus, Search, AlertTriangle, Loader2 } from "lucide-react";
 
-// Feature imports
 import { useDrivers, useDeleteDriver } from "../../application";
 import {
   DriverStatus,
@@ -48,7 +44,10 @@ import {
   DRIVER_STATUS_LABELS,
 } from "../../domain";
 import { DriverTable, DriverCard, DriverCardSkeleton } from "../components";
+import { driversCopy } from "../copy/driversCopy";
 import { DRIVER_STATUS_CONFIG } from "../index";
+
+const listFilterCopy = driversCopy.list.filters;
 
 // ============================================================================
 // COMPONENT
@@ -58,21 +57,53 @@ export function DriversListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const filters = useListingFilters<"status" | "licenseExpiring">({
+
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  const branchOptions = useMemo(
+    () => buildBranchSelectOptions(branchesResult?.data ?? []),
+    [branchesResult?.data],
+  );
+
+  const branchLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of branchOptions) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, [branchOptions]);
+
+  const filters = useListingFilters<"status" | "licenseExpiring" | "branchId">({
     filters: {
       status: {},
       licenseExpiring: {},
+      branchId: {},
     },
     chipLabels: {
       status: (value) =>
         `Estado: ${DRIVER_STATUS_CONFIG[value as DriverStatusType]?.label || value}`,
       licenseExpiring: () => "Licencias por vencer",
+      branchId: (value) =>
+        listFilterCopy.chipBranch(
+          branchLabelById.get(value) ?? value.slice(0, 8),
+        ),
     },
   });
   const statusFilter = filters.filters.status as DriverStatusType | "";
   const licenseExpiring = filters.filters.licenseExpiring === "true";
+  const branchIdFilter = filters.filters.branchId || "";
 
-  // Fetch drivers
   const { data, isLoading, isFetching, refetch } = useDrivers({
     page: filters.page,
     limit: 10,
@@ -80,19 +111,17 @@ export function DriversListPage() {
       status: statusFilter || undefined,
       search: filters.search || undefined,
       licenseExpiringSoon: licenseExpiring || undefined,
+      branchId: branchIdFilter || undefined,
     },
     sort: { field: "employee_name", direction: "asc" },
   });
 
-  // Data
   const drivers = data?.data ?? [];
 
-  // Delete confirmation dialog state (Radix AlertDialog, alineado a ClientActions / VehicleListPage)
   const [driverToDelete, setDriverToDelete] = useState<DriverListItem | null>(
     null,
   );
 
-  // Mutations
   const deleteMutation = useDeleteDriver({
     onSuccess: () => {
       toast({ title: "Conductor eliminado", variant: "success" });
@@ -108,12 +137,10 @@ export function DriversListPage() {
     },
   });
 
-  // Permisos
   const canCreate = hasPermission("drivers", "create");
   const canEdit = hasPermission("drivers", "update");
   const canDelete = hasPermission("drivers", "delete");
 
-  // Handlers
   const handleView = useCallback(
     (id: string) => navigate(`/drivers/${id}`),
     [navigate],
@@ -182,6 +209,26 @@ export function DriversListPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select
+                value={branchIdFilter || "all"}
+                onValueChange={(value) => filters.setFilter("branchId", value)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder={listFilterCopy.branch} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {listFilterCopy.allBranches}
+                  </SelectItem>
+                  {branchOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Button
                 variant={licenseExpiring ? "secondary" : "outline"}
                 size="sm"

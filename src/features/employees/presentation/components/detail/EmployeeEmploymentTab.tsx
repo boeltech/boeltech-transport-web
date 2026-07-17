@@ -12,6 +12,7 @@ import type { Employee } from "../../../domain/entities";
 import { EMPLOYMENT_TYPE_LABELS } from "../../config/employeeConfig";
 import { formatDate } from "@shared/utils/dateUtils";
 import { employeesCopy } from "../../copy";
+import { formatEmployeeBranchLabel } from "../../utils/branchSelectUtils";
 
 const copy = employeesCopy.detail;
 
@@ -50,7 +51,11 @@ export const EmployeeEmploymentTab = memo(function EmployeeEmploymentTab({
           <InfoRow
             variant="inline"
             label={copy.label.workLocation}
-            value={employee.workLocation}
+            value={formatEmployeeBranchLabel(
+              employee.branchName,
+              employee.branchCode,
+              employee.workLocation,
+            )}
           />
           <InfoRow
             variant="inline"

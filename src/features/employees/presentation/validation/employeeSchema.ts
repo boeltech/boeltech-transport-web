@@ -200,6 +200,8 @@ export const employeeSchema = z.object({
 
   work_location: z.string().max(100, "La ubicación es muy larga").optional(),
 
+  branch_id: z.string().uuid("ID de sucursal inválido").optional(),
+
   // ========================================
   // Compensación (OPCIONAL)
   // ========================================
@@ -285,6 +287,7 @@ export const defaultEmployeeFormValues: EmployeeFormData = {
   position: undefined,
   job_title: "",
   work_location: undefined,
+  branch_id: undefined,
   base_salary: undefined,
   salary_type: undefined,
   payment_method: undefined,

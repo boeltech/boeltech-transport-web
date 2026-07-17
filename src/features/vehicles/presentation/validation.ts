@@ -196,6 +196,7 @@ const vehicleFormCommonShape = {
     .max(new Date().getFullYear() + 1, "Año inválido"),
   type: vehicleTypeSchema.default("truck"),
   color: z.string().max(30).optional().or(z.literal("")),
+  branchId: z.string().uuid().optional().or(z.literal("")),
 
   // Capacities
   loadCapacity: optionalPositiveNumber,
@@ -436,6 +437,7 @@ export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: (keyof CreateVehicleFormData)[][
     "year",
     "type",
     "color",
+    "branchId",
     "currentMileage",
   ],
   [

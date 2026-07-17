@@ -125,6 +125,9 @@ export interface VehicleListItem {
   // Carta Porte 3.1 (útil para filtros y validaciones)
   readonly satTipoPermisoCode: string | null;
   readonly satConfigAutotransporteCode: string | null;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
 }
 
 /**
@@ -171,6 +174,9 @@ export interface Vehicle {
   readonly createdByName: string | null;
   /** Nombre completo del usuario que realizó la última actualización. */
   readonly updatedByName: string | null;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
 }
 
 /**
@@ -191,11 +197,11 @@ export interface VehicleRef {
  * Extiende VehicleListItem con información de disponibilidad.
  * Se usa en el select de vehículos al crear/editar viajes.
  */
-export type AssignableVehicleItem = VehicleListItem &
-  (
-    | { readonly canBeAssigned: true; readonly blockReason?: undefined }
-    | { readonly canBeAssigned: false; readonly blockReason: string }
-  );
+export interface AssignableVehicleItem extends VehicleListItem {
+  readonly canBeAssigned: boolean;
+  readonly blockReason?: string;
+  readonly expiredDocsOverridable?: boolean;
+}
 
 // ============================================================================
 // PAYLOAD TYPES (sent TO backend — camelCase)
@@ -232,6 +238,7 @@ export interface CreateVehiclePayload {
     satSubTipoRemCode: string;
     licensePlate: string;
   }>;
+  readonly branchId?: string;
 }
 
 export interface UpdateVehiclePayload extends Partial<
@@ -250,6 +257,7 @@ export interface VehicleFiltersType {
   readonly type?: VehicleTypeValue;
   readonly isActive?: boolean;
   readonly search?: string;
+  readonly branchId?: string;
 }
 
 export interface VehicleSortOptions {

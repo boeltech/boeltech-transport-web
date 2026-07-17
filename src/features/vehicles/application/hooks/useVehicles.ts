@@ -142,7 +142,7 @@ function hasDocText(value: string | null | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function classifyVehicleForAssignment(
+export function classifyVehicleForAssignment(
   vehicle: VehicleListItem,
 ): AssignableVehicleItem {
   if (!isVehicleStartableStatus(vehicle.status)) {
@@ -172,6 +172,7 @@ function classifyVehicleForAssignment(
       ...vehicle,
       canBeAssigned: false,
       blockReason: "Seguro vencido",
+      expiredDocsOverridable: true,
     };
   }
 
@@ -199,6 +200,7 @@ function classifyVehicleForAssignment(
       ...vehicle,
       canBeAssigned: false,
       blockReason: "Permiso SCT vencido",
+      expiredDocsOverridable: true,
     };
   }
 

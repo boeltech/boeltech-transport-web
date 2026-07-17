@@ -7,7 +7,8 @@
  * Ubicación: src/features/vehicles/presentation/components/VehicleForm.tsx
  */
 
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Controller,
   FormProvider,
@@ -37,6 +38,15 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
 import { getFieldErrorAriaProps } from "@shared/ui/form";
+import { RHFSelect } from "@shared/ui/form/RHFSelect";
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
+import { BranchStatus, useBranches } from "@features/branches";
+import { buildBranchSelectOptionsWithEligibility } from "@shared/utils/branchSelectUtils";
 
 import {
   createVehicleSchema,
@@ -149,6 +159,7 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
       satSubTipoRemCode: remolque.satSubTipoRemCode,
       licensePlate: remolque.licensePlate,
     })),
+    branchId: vehicle.branchId ?? undefined,
   };
 }
 
@@ -247,6 +258,7 @@ const defaultValues: CreateVehicleFormData = {
   aseguraCarga: "",
   polizaCarga: "",
   remolques: [],
+  branchId: undefined,
 };
 
 // ============================================================================
@@ -296,6 +308,45 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       control,
       name: "remolques",
     });
+
+    const { data: branchesResult } = useBranches({
+      page: 1,
+      limit: 100,
+      filters: {
+        isActive: true,
+        status: BranchStatus.ACTIVE,
+      },
+      sort: {
+        field: "name",
+        direction: "asc",
+      },
+    });
+
+    const branchOptions = useMemo(
+      () =>
+        buildBranchSelectOptionsWithEligibility(
+          branchesResult?.data ?? [],
+          branchesResult?.meta?.overQuota
+            ? branchesResult.meta.planEligibleBranchIds
+            : [],
+          isEditMode ? (vehicle?.branchId ?? undefined) : undefined,
+        ),
+      [
+        branchesResult?.data,
+        branchesResult?.meta?.overQuota,
+        branchesResult?.meta?.planEligibleBranchIds,
+        isEditMode,
+        vehicle?.branchId,
+      ],
+    );
+    const hasBranchOptions = branchOptions.length > 0;
+    const currentBranchOutsidePlan =
+      isEditMode &&
+      Boolean(vehicle?.branchId) &&
+      branchesResult?.meta?.overQuota &&
+      !branchesResult.meta.planEligibleBranchIds.includes(
+        vehicle?.branchId ?? "",
+      );
 
     const handleSubmit = rhfHandleSubmit((data) => {
       onSubmit(data);
@@ -413,6 +464,46 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               label={fc.label.color}
               placeholder={fc.placeholder.color}
             />
+            <VehicleGridField
+              fieldId="branchId"
+              label={fc.label.baseBranch}
+              className="sm:col-span-2"
+            >
+              <div className="space-y-2">
+                {hasBranchOptions ? (
+                  <RHFSelect
+                    control={control}
+                    name="branchId"
+                    options={branchOptions}
+                    placeholder={fc.placeholder.selectBranch}
+                  />
+                ) : (
+                  <>
+                    <Select disabled>
+                      <SelectTrigger disabled>
+                        <SelectValue placeholder={fc.placeholder.selectBranch} />
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {fc.hint.noBranches}
+                    </p>
+                    <Button variant="link" className="h-auto p-0" asChild>
+                      <Link to="/branches/new">{fc.action.createBranch}</Link>
+                    </Button>
+                  </>
+                )}
+                {currentBranchOutsidePlan ? (
+                  <p className="text-xs text-destructive">
+                    La sucursal actual excede la capacidad de tu plan.{" "}
+                    <Link to="/branches" className="underline underline-offset-4">
+                      Ajusta sucursales
+                    </Link>{" "}
+                    o elige una sucursal incluida en el plan al guardar cambios.
+                  </p>
+                ) : null}
+              </div>
+            </VehicleGridField>
             <VehicleGridNumberInput
               control={control}
               name="currentMileage"

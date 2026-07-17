@@ -51,6 +51,9 @@ export interface ApiEmployeeRef {
   mobile_phone: string | null;
   curp: string | null;
   rfc: string | null;
+  branch_id?: string | null;
+  branch_name?: string | null;
+  branch_code?: string | null;
 }
 
 /**
@@ -70,6 +73,9 @@ export interface ApiDriverListItemResponse {
   is_license_expired: boolean;
   is_active: boolean;
   created_at: string;
+  branch_id?: string | null;
+  branch_name?: string | null;
+  branch_code?: string | null;
 }
 
 /**
@@ -138,6 +144,9 @@ export interface ApiDriverResponse {
   updated_by: string | null;
   created_by_name: string | null;
   updated_by_name: string | null;
+  branch_id?: string | null;
+  branch_name?: string | null;
+  branch_code?: string | null;
 }
 
 /**
@@ -186,6 +195,9 @@ function mapEmployeeRefToDomain(raw: DeepCamelCase<ApiEmployeeRef>) {
     mobilePhone: raw.mobilePhone ?? null,
     curp: raw.curp,
     rfc: raw.rfc,
+    branchId: raw.branchId ?? null,
+    branchName: raw.branchName ?? null,
+    branchCode: raw.branchCode ?? null,
   };
 }
 
@@ -209,6 +221,9 @@ function mapDriverListItemToDomain(
     isLicenseExpired: raw.isLicenseExpired,
     isActive: raw.isActive,
     createdAt: new Date(raw.createdAt),
+    branchId: raw.branchId ?? null,
+    branchName: raw.branchName ?? null,
+    branchCode: raw.branchCode ?? null,
   };
 }
 
@@ -276,6 +291,9 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
     updatedBy: raw.updatedBy,
     createdByName: raw.createdByName ?? null,
     updatedByName: raw.updatedByName ?? null,
+    branchId: raw.branchId ?? null,
+    branchName: raw.branchName ?? null,
+    branchCode: raw.branchCode ?? null,
   };
 }
 

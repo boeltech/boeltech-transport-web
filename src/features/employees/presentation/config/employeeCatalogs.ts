@@ -33,6 +33,7 @@ export const POSITION_OPTIONS: EmployeeCatalogOption[] = [
   { value: "Auxiliar administrativo", label: "Auxiliar administrativo" },
 ];
 
+/** @deprecated Reemplazado por catálogo Branches (`branch_id`) — OP-L0.18 */
 export const WORK_LOCATION_OPTIONS: EmployeeCatalogOption[] = [
   { value: "Matriz", label: "Matriz" },
   { value: "Patio Norte", label: "Patio Norte" },

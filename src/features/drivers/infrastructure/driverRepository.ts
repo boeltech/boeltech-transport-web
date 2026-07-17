@@ -217,6 +217,7 @@ export class DriverRepository implements IDriverRepository {
         licenseExpiringSoon,
         minExperience,
         maxExperience,
+        branchId,
       } = params.filters;
 
       if (status) {
@@ -230,6 +231,7 @@ export class DriverRepository implements IDriverRepository {
         queryParams.min_experience = minExperience;
       if (maxExperience !== undefined)
         queryParams.max_experience = maxExperience;
+      if (branchId) queryParams.branch_id = branchId;
     }
 
     return queryParams;

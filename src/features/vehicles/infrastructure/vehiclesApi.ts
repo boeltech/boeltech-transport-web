@@ -85,6 +85,9 @@ export const vehiclesApi = {
     if (params?.filters?.search) {
       searchParams.append("search", params.filters.search);
     }
+    if (params?.filters?.branchId) {
+      searchParams.append("branch_id", params.filters.branchId);
+    }
 
     // Sort
     if (params?.sort?.field) {

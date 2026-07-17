@@ -52,6 +52,9 @@ export interface ApiVehicleListItemResponse {
   // Carta Porte 3.1
   sat_tipo_permiso_code: string | null;
   sat_config_autotransporte_code: string | null;
+  branch_id?: string | null;
+  branch_name?: string | null;
+  branch_code?: string | null;
 }
 
 /** GET /api/v1/vehicles/:id — Full detail shape from backend */
@@ -95,6 +98,9 @@ export interface ApiVehicleResponse {
   created_by_name: string | null;
   updated_by_name: string | null;
   remolques?: ApiVehicleRemolqueResponse[];
+  branch_id?: string | null;
+  branch_name?: string | null;
+  branch_code?: string | null;
 }
 
 export interface ApiVehicleRemolqueResponse {
@@ -132,6 +138,9 @@ export function mapVehicleListItem(
     // Carta Porte 3.1
     satTipoPermisoCode: raw.sat_tipo_permiso_code,
     satConfigAutotransporteCode: raw.sat_config_autotransporte_code,
+    branchId: raw.branch_id ?? null,
+    branchName: raw.branch_name ?? null,
+    branchCode: raw.branch_code ?? null,
   };
 }
 
@@ -222,6 +231,9 @@ export function mapVehicleDetail(
       updatedBy: raw.data.updated_by,
       createdByName: raw.data.created_by_name ?? null,
       updatedByName: raw.data.updated_by_name ?? null,
+      branchId: raw.data.branch_id ?? null,
+      branchName: raw.data.branch_name ?? null,
+      branchCode: raw.data.branch_code ?? null,
     },
     message: raw.message,
   };
@@ -268,6 +280,7 @@ export function toApiCreateVehicle(
       sat_sub_tipo_rem_code: r.satSubTipoRemCode,
       license_plate: r.licensePlate,
     })),
+    branch_id: payload.branchId || undefined,
   };
 }
 
@@ -330,6 +343,7 @@ export function toApiUpdateVehicle(
   // Status
   if (payload.status !== undefined) result.status = payload.status;
   if (payload.isActive !== undefined) result.is_active = payload.isActive;
+  if (payload.branchId !== undefined) result.branch_id = payload.branchId;
 
   return result;
 }

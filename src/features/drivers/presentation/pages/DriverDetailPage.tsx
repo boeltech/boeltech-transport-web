@@ -67,6 +67,7 @@ import {
   getExpiryDateString,
 } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 
 const copy = driversCopy.detail;
 
@@ -511,6 +512,16 @@ export function DriverDetailPage() {
                           value={
                             employeePrimaryContactDisplay(driver.employee) ??
                             copy.hint.empty
+                          }
+                        />
+                        <InfoRow
+                          variant="inline"
+                          label={copy.label.branch}
+                          value={
+                            formatBranchLabel(
+                              driver.branchName ?? driver.employee?.branchName,
+                              driver.branchCode ?? driver.employee?.branchCode,
+                            ) ?? copy.hint.empty
                           }
                         />
                       </div>

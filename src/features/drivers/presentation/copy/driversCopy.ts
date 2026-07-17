@@ -124,6 +124,7 @@ export const driversCopy = {
       employeeNumber: "Número de empleado",
       email: "Correo electrónico",
       phone: "Teléfono",
+      branch: "Sucursal base",
       curp: "CURP",
       rfc: "RFC",
       gpsDevice: "Dispositivo GPS",
@@ -166,6 +167,16 @@ export const driversCopy = {
     trips: {
       loadError: "No se pudo cargar el historial de viajes. Intenta de nuevo.",
       empty: "Este conductor aún no tiene viajes registrados.",
+    },
+  },
+  list: {
+    table: {
+      branch: "Sucursal",
+    },
+    filters: {
+      branch: "Sucursal",
+      allBranches: "Todas las sucursales",
+      chipBranch: (label: string) => `Sucursal: ${label}`,
     },
   },
   form: {

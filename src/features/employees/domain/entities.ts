@@ -93,6 +93,9 @@ export interface ApiEmployeeResponse {
   job_title: string | null;
   reports_to: string | null;
   work_location: string | null;
+  branch_id: string | null;
+  branch_name: string | null;
+  branch_code: string | null;
   base_salary: number | null;
   salary_type: SalaryType | null;
   payment_method: PaymentMethod | null;
@@ -201,6 +204,9 @@ export interface Employee {
   jobTitle: string | null;
   reportsTo: string | null;
   workLocation: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  branchCode: string | null;
   baseSalary: number | null;
   salaryType: SalaryType | null;
   paymentMethod: PaymentMethod | null;
@@ -311,6 +317,7 @@ export interface CreateEmployeeDTO {
   job_title?: string;
   reports_to?: string;
   work_location?: string;
+  branch_id?: string | null;
   base_salary?: number;
   salary_type?: SalaryType;
   payment_method?: PaymentMethod;

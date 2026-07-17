@@ -101,6 +101,9 @@ export interface EmployeeRef {
   readonly mobilePhone: string | null;
   readonly curp: string | null;
   readonly rfc: string | null;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
 }
 
 /**
@@ -120,6 +123,9 @@ export interface DriverListItem {
   readonly isLicenseExpired: boolean;
   readonly isActive: boolean;
   readonly createdAt: Date;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
 }
 
 /**
@@ -179,6 +185,9 @@ export interface Driver {
   readonly createdByName: string | null;
   /** Nombre completo del usuario que realizó la última actualización. */
   readonly updatedByName: string | null;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
 }
 
 /**
@@ -234,6 +243,7 @@ export interface DriverFilters {
   readonly licenseExpiringSoonDays?: number;
   readonly minExperience?: number;
   readonly maxExperience?: number;
+  readonly branchId?: string;
 }
 
 export interface DriverSortOptions {

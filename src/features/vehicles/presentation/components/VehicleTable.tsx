@@ -21,6 +21,10 @@ import type { VehicleListItem, VehicleStatusType } from "../../domain";
 import { VEHICLE_TYPE_LABELS } from "../../domain";
 import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
 import { VehicleActions } from "./VehicleActions";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
+import { vehiclesCopy } from "../copy";
+
+const listCopy = vehiclesCopy.list.table;
 
 // ============================================================================
 // TYPES
@@ -47,6 +51,7 @@ const TABLE_HEADERS = [
   { key: "year", label: "Año" },
   { key: "type", label: "Tipo" },
   { key: "plate", label: "Placa" },
+  { key: "branch", label: listCopy.branch },
   { key: "mileage", label: "Kilometraje", className: "text-right" },
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
@@ -89,6 +94,9 @@ function LoadingSkeleton() {
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-24" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-28" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-20 ml-auto" />
@@ -186,6 +194,10 @@ export function VehicleTable({
               {/* Placa */}
               <TableCell className="font-mono">
                 {vehicle.licensePlate}
+              </TableCell>
+
+              <TableCell className="text-muted-foreground">
+                {formatBranchLabel(vehicle.branchName, vehicle.branchCode) ?? "—"}
               </TableCell>
 
               {/* Kilometraje */}

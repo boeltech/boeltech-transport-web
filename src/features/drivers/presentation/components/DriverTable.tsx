@@ -23,6 +23,10 @@ import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { DriverActions } from "./DriverActions";
 import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
+import { driversCopy } from "../copy";
+
+const listCopy = driversCopy.list.table;
 
 // ============================================================================
 // TYPES
@@ -44,6 +48,7 @@ interface DriverTableProps {
 const TABLE_HEADERS = [
   { key: "name", label: "Nombre" },
   { key: "phone", label: "Teléfono" },
+  { key: "branch", label: listCopy.branch },
   { key: "license", label: "Licencia" },
   { key: "expiration", label: "Vencimiento" },
   { key: "trips", label: "Viajes", className: "text-right" },
@@ -82,6 +87,9 @@ function LoadingSkeleton() {
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-28" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-24" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-20" />
@@ -183,6 +191,13 @@ export function DriverTable({
                 {/* Teléfono */}
                 <TableCell>
                   {employeePrimaryContactDisplay(driver.employee) ?? "—"}
+                </TableCell>
+
+                <TableCell className="text-muted-foreground">
+                  {formatBranchLabel(
+                    driver.branchName ?? driver.employee.branchName,
+                    driver.branchCode ?? driver.employee.branchCode,
+                  ) ?? "—"}
                 </TableCell>
 
                 {/* Licencia */}

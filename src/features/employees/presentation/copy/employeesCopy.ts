@@ -154,7 +154,7 @@ export const employeesCopy = {
       department: "Departamento",
       position: "Puesto",
       jobTitle: "Título del trabajo",
-      workLocation: "Ubicación",
+      workLocation: "Sucursal",
       hireDate: "Fecha de ingreso",
       terminationDate: "Fecha de baja",
       terminationReason: "Motivo de baja",
@@ -312,7 +312,7 @@ export const employeesCopy = {
       department: "Departamento",
       position: "Puesto",
       jobTitle: "Título del trabajo",
-      workLocation: "Ubicación / sucursal",
+      workLocation: "Sucursal",
       notes: "Notas generales",
       medicalNotes: "Notas médicas",
       baseSalary: "Salario base",
@@ -349,12 +349,17 @@ export const employeesCopy = {
     },
     hint: {
       legacyOption: (value: string) => `${value} (guardada)`,
+      legacyWorkLocation: (value: string) =>
+        `Ubicación anterior registrada: ${value}`,
+      noBranches:
+        "No hay sucursales registradas. Crea al menos una para asignar empleados.",
       reviewEmpty: "—",
     },
     action: {
       cancel: "Cancelar",
       save: "Guardar cambios",
       saving: "Guardando…",
+      createBranch: "Crear sucursal",
     },
     validation: {
       summaryEdit: "Revisa los siguientes campos",

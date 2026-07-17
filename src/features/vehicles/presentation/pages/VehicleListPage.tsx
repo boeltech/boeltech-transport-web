@@ -8,7 +8,7 @@
  * Ubicación: src/features/vehicles/presentation/pages/VehicleListPage.tsx
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Select,
@@ -30,13 +30,10 @@ import {
 import { useListingFilters, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
-import {
-  Loader2,
-  Plus,
-  Search,
-} from "lucide-react";
+import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
+import { BranchStatus, useBranches } from "@features/branches";
+import { Loader2, Plus, Search } from "lucide-react";
 
-// Feature imports
 import { useVehicles, useDeleteVehicle } from "../../application";
 import {
   VehicleStatus,
@@ -48,7 +45,10 @@ import {
   VEHICLE_TYPE_LABELS,
 } from "../../domain";
 import { VehicleTable, VehicleCard, VehicleCardSkeleton } from "../components";
+import { vehiclesCopy } from "../copy/vehiclesCopy";
 import { VEHICLE_STATUS_CONFIG } from "../index";
+
+const listFilterCopy = vehiclesCopy.list.filters;
 
 // ============================================================================
 // COMPONENT
@@ -58,21 +58,54 @@ export function VehicleListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const filters = useListingFilters<"status" | "type">({
+
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  const branchOptions = useMemo(
+    () => buildBranchSelectOptions(branchesResult?.data ?? []),
+    [branchesResult?.data],
+  );
+
+  const branchLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of branchOptions) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, [branchOptions]);
+
+  const filters = useListingFilters<"status" | "type" | "branchId">({
     filters: {
       status: {},
       type: {},
+      branchId: {},
     },
     chipLabels: {
       status: (value) =>
         `Estado: ${VEHICLE_STATUS_CONFIG[value as VehicleStatusType]?.label || value}`,
-      type: (value) => `Tipo: ${VEHICLE_TYPE_LABELS[value as VehicleTypeValue] || value}`,
+      type: (value) =>
+        `Tipo: ${VEHICLE_TYPE_LABELS[value as VehicleTypeValue] || value}`,
+      branchId: (value) =>
+        listFilterCopy.chipBranch(
+          branchLabelById.get(value) ?? value.slice(0, 8),
+        ),
     },
   });
   const statusFilter = filters.filters.status as VehicleStatusType | "";
   const typeFilter = filters.filters.type as VehicleTypeValue | "";
+  const branchIdFilter = filters.filters.branchId || "";
 
-  // Fetch vehicles
   const { data, isLoading, isFetching, refetch } = useVehicles({
     page: filters.page,
     limit: 10,
@@ -80,19 +113,17 @@ export function VehicleListPage() {
       status: statusFilter || undefined,
       type: typeFilter || undefined,
       search: filters.search || undefined,
+      branchId: branchIdFilter || undefined,
       isActive: true,
     },
     sort: { field: "unit_number", direction: "asc" },
   });
 
-  // Data
   const vehicles = data?.data ?? [];
 
-  // Delete confirmation dialog state (Radix AlertDialog, alineado a ClientActions / VehicleActions buttons)
   const [vehicleToDelete, setVehicleToDelete] =
     useState<VehicleListItem | null>(null);
 
-  // Mutations
   const deleteMutation = useDeleteVehicle({
     onSuccess: () => {
       toast({ title: "Vehículo eliminado", variant: "success" });
@@ -108,12 +139,10 @@ export function VehicleListPage() {
     },
   });
 
-  // Permisos
   const canCreate = hasPermission("vehicles", "create");
   const canEdit = hasPermission("vehicles", "update");
   const canDelete = hasPermission("vehicles", "delete");
 
-  // Handlers
   const handleView = useCallback(
     (id: string) => navigate(`/vehicles/${id}`),
     [navigate],
@@ -191,6 +220,25 @@ export function VehicleListPage() {
                   {Object.values(VehicleType).map((typeValue) => (
                     <SelectItem key={typeValue} value={typeValue}>
                       {VEHICLE_TYPE_LABELS[typeValue]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={branchIdFilter || "all"}
+                onValueChange={(value) => filters.setFilter("branchId", value)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder={listFilterCopy.branch} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {listFilterCopy.allBranches}
+                  </SelectItem>
+                  {branchOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
