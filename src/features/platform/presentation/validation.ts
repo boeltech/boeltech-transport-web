@@ -1,0 +1,80 @@
+import { z } from "zod";
+import { platformCopy } from "./copy/platformCopy";
+
+const createValidation = platformCopy.tenants.create.validation;
+
+export const platformLoginSchema = z.object({
+  email: z.string().trim().email("Correo inválido"),
+  password: z.string().min(1, "La contraseña es requerida"),
+});
+
+export type PlatformLoginFormData = z.infer<typeof platformLoginSchema>;
+
+export const createPlatformTenantSchema = z.object({
+  companyName: z
+    .string()
+    .trim()
+    .min(1, createValidation.companyNameRequired)
+    .max(255, createValidation.companyNameMax),
+  subdomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, createValidation.subdomainMin)
+    .max(50, createValidation.subdomainMax)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, createValidation.subdomainFormat),
+  adminEmail: z.string().trim().email(createValidation.adminEmailInvalid),
+  adminPassword: z
+    .string()
+    .min(8, createValidation.adminPasswordMin)
+    .max(128, createValidation.adminPasswordMax)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      createValidation.adminPasswordComplexity,
+    ),
+  adminFirstName: z
+    .string()
+    .trim()
+    .min(1, createValidation.adminFirstNameRequired)
+    .max(100, createValidation.adminFirstNameMax),
+  adminLastName: z
+    .string()
+    .trim()
+    .min(1, createValidation.adminLastNameRequired)
+    .max(100, createValidation.adminLastNameMax),
+  planCode: z.string().min(1, createValidation.planRequired),
+  declaredFleetBand: z
+    .enum(["1_10", "11_30", "31_100", "100_plus"])
+    .optional()
+    .nullable(),
+});
+
+export type CreatePlatformTenantFormData = z.infer<
+  typeof createPlatformTenantSchema
+>;
+
+export const assignPlatformPlanSchema = z.object({
+  planCode: z.string().min(1, "Selecciona un plan"),
+});
+
+export type AssignPlatformPlanFormData = z.infer<typeof assignPlatformPlanSchema>;
+
+export const suspendPlatformTenantSchema = z.object({
+  reason: z.string().max(500, "Máximo 500 caracteres").optional(),
+});
+
+export type SuspendPlatformTenantFormData = z.infer<
+  typeof suspendPlatformTenantSchema
+>;
+
+export const managePlatformSubscriptionSchema = z.object({
+  planCode: z.string().min(1, "Selecciona un plan"),
+  status: z.enum(["trialing", "active", "past_due", "paused", "canceled"]),
+  billingCycle: z.enum(["monthly", "annual"]),
+  trialEndsAt: z.string().optional(),
+  notes: z.string().max(1000, "Máximo 1000 caracteres").optional(),
+});
+
+export type ManagePlatformSubscriptionFormData = z.infer<
+  typeof managePlatformSubscriptionSchema
+>;

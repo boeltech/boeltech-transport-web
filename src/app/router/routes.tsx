@@ -26,6 +26,7 @@ import {
   ModuleRoute,
   PermissionRoute,
   AdminRoute,
+  PlatformRoute,
 } from "./guards";
 
 // ============================================
@@ -276,6 +277,47 @@ const DesignSystemPage = lazy(() => import("@/pages/design-system"));
 
 // Onboarding guiado (post-invite / primera sesión heurística)
 const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
+
+const PlatformLoginPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformLoginPage,
+  })),
+);
+const PlatformShell = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformShell,
+  })),
+);
+const PlatformDashboardPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformDashboardPage,
+  })),
+);
+const PlatformTenantsListPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformTenantsListPage,
+  })),
+);
+const PlatformTenantCreatePage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformTenantCreatePage,
+  })),
+);
+const PlatformTenantDetailPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformTenantDetailPage,
+  })),
+);
+const PlatformGlobalCatalogsPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformGlobalCatalogsPage,
+  })),
+);
+const PlatformAuditLogPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformAuditLogPage,
+  })),
+);
 
 // Errors
 const NotFoundPage = lazy(() => import("@/pages/errors/not-found"));
@@ -762,6 +804,50 @@ export const router = createBrowserRouter([
                 element: withSuspense(DesignSystemPage),
               },
             ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ==========================================
+  // Plataforma SaaS (tenant 0) — fuera del AppLayout tenant
+  // ==========================================
+  {
+    path: "/platform/login",
+    element: withSuspense(PlatformLoginPage),
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    element: <PlatformRoute />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        element: withSuspense(PlatformShell),
+        children: [
+          {
+            path: "/platform",
+            element: withSuspense(PlatformDashboardPage),
+          },
+          {
+            path: "/platform/tenants",
+            element: withSuspense(PlatformTenantsListPage),
+          },
+          {
+            path: "/platform/tenants/new",
+            element: withSuspense(PlatformTenantCreatePage),
+          },
+          {
+            path: "/platform/tenants/:id",
+            element: withSuspense(PlatformTenantDetailPage),
+          },
+          {
+            path: "/platform/catalogs",
+            element: withSuspense(PlatformGlobalCatalogsPage),
+          },
+          {
+            path: "/platform/audit",
+            element: withSuspense(PlatformAuditLogPage),
           },
         ],
       },
