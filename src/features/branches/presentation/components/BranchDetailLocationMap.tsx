@@ -50,7 +50,12 @@ export function BranchDetailLocationMap({
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const hasCoordinates = hasValidCoordinates(latitude, longitude);
 
-  if (!hasCoordinates || geolocationPending) {
+  if (
+    !hasCoordinates ||
+    geolocationPending ||
+    latitude == null ||
+    longitude == null
+  ) {
     return (
       <div className="mt-4 space-y-3">
         <p className="text-sm font-medium">{mapCopy.title}</p>

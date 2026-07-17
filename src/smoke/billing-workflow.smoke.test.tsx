@@ -87,6 +87,8 @@ const MOCK_USAGE: BillingUsage = {
   overagePriceCents: 600,
   overageTotalCents: 0,
   quotaPolicy: "soft_cap",
+  prepaidRemaining: 0,
+  prepaidConsumed: 0,
   history: [{ periodKey: "2026-06", stampsUsed: 90, overageStamps: 0 }],
 };
 

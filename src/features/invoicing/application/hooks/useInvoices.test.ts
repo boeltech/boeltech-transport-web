@@ -132,6 +132,7 @@ describe("useCancelInvoice cache invalidation", () => {
             destinationCity: "Monterrey",
             destinationState: "NL",
             baseRate: 12000,
+            billingScope: "primary_transport",
           },
         ],
       } as Invoice,
@@ -175,6 +176,7 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
         destinationCity: "CDMX",
         destinationState: "CMX",
         baseRate: 43000,
+        billingScope: "primary_transport",
       },
     ]),
     original: makeInvoice(invoiceId, [
@@ -188,6 +190,7 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
         destinationCity: "CDMX",
         destinationState: "CMX",
         baseRate: 40000,
+        billingScope: "primary_transport",
       },
     ]),
   });

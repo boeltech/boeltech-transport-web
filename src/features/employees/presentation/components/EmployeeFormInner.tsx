@@ -397,7 +397,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     isEditing &&
     Boolean(existing?.branchId) &&
     branchesResult?.meta?.overQuota &&
-    !branchesResult.meta.planEligibleBranchIds.includes(existing.branchId ?? "");
+    !branchesResult.meta.planEligibleBranchIds.includes(
+      existing?.branchId ?? "",
+    );
 
   const form = useForm<EmployeeFormValues, unknown, EmployeeFormValues>({
     resolver: zodResolver(employeeSchema) as Resolver<EmployeeFormValues>,

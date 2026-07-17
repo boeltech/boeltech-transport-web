@@ -224,7 +224,9 @@ export function PlatformTenantCreatePage() {
           title: copy.title,
           subtitle: copy.description,
         }}
-      />
+      >
+        {null}
+      </FormPageShell>
     );
   }
 

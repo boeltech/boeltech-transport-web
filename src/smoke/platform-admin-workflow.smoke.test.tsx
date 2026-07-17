@@ -74,6 +74,8 @@ function createActiveTenant(): PlatformTenantDetail {
     status: "active",
     planCode: "operacion_esencial",
     planName: "Operación Esencial",
+    declaredFleetBand: null,
+    declaredFleetUnits: null,
     userCount: 3,
     branchCount: 1,
     tripCount: 12,

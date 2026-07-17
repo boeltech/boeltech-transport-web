@@ -113,6 +113,7 @@ function buildInvoice(): Invoice {
         destinationCity: "Saltillo",
         destinationState: "CO",
         baseRate: 1000,
+        billingScope: "primary_transport",
       },
     ],
     concepts: [],

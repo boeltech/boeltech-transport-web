@@ -251,6 +251,7 @@ export function defaultInvoiceFormValues(): InvoiceFormValues {
     notes: "",
     apply_retained_tax: false,
     retention_required: false,
+    billing_scope: "primary_transport",
     trip_ids: [],
     concepts: [defaultFleteConceptFormLine(0)],
   };

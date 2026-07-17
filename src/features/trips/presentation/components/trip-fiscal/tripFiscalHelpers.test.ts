@@ -65,8 +65,6 @@ function makeStop(overrides: Partial<TripStop> = {}): TripStop {
   };
 }
 
-import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
-
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
     id: "trip-1",

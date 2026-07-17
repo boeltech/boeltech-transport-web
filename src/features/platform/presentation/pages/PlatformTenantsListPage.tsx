@@ -166,6 +166,7 @@ export function PlatformTenantsListPage() {
       ) : null}
 
       <ListPageShell
+        title={copy.title}
         showHeader={false}
         entityLabelPlural={copy.entityLabelPlural}
         items={tenants}

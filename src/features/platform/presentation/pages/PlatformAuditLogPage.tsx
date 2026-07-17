@@ -322,6 +322,7 @@ export function PlatformAuditLogPage() {
       ) : null}
 
       <ListPageShell
+        title={copy.title}
         showHeader={false}
         entityLabelPlural={copy.entityLabelPlural}
         items={entries}

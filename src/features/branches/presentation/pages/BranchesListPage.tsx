@@ -211,7 +211,7 @@ export function BranchesListPage() {
     const chips = [...filters.activeChips];
     if (showDeleted) {
       chips.push({
-        key: "deleted-view",
+        id: "deleted-view",
         label: branchesCopy.list.showDeleted.chip,
         onRemove: () => setShowDeleted(false),
       });

@@ -215,7 +215,12 @@ function seedBranchApiMocks() {
       ["read", "create", "update", "delete", "export"].includes(action),
   );
 
-  mockGetAll.mockImplementation(async (params?: { filters?: { isActive?: boolean } }) => {
+  mockGetAll.mockImplementation(
+    async (params?: {
+      filters?: { isActive?: boolean };
+      page?: number;
+      limit?: number;
+    }) => {
     const showDeleted = params?.filters?.isActive === false;
     const data = showDeleted ? deletedBranches : activeBranches;
     return {
@@ -228,7 +233,8 @@ function seedBranchApiMocks() {
       },
       meta: buildBranchListMeta({ activeCount: activeBranches.length }),
     };
-  });
+  },
+  );
 
   mockGetById.mockImplementation(async (id: string) => {
     const listItem = findBranchInStore(id);
