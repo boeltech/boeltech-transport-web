@@ -36,6 +36,7 @@ import {
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { getTripInvoicingBadgeConfig } from "../uiHelpers";
+import { TripOverdueBadge } from "./TripOverdueBadge";
 
 interface TripCardProps {
   trip: TripListItem;
@@ -210,6 +211,7 @@ export const TripCard = memo(function TripCard({
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
+            <TripOverdueBadge trip={trip} />
             {trip.requiresFiscalAttention ? (
               <Badge variant="destructive" className="text-xs">
                 Fiscal

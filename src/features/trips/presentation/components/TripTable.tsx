@@ -25,6 +25,7 @@ import {
 } from "../uiHelpers";
 import { TripActions } from "./TripActions";
 import { TripListRouteLabel } from "./TripListRouteLabel";
+import { TripOverdueBadge } from "./TripOverdueBadge";
 import { formatDate, formatTime } from "@shared/utils/dateUtils";
 
 // ============================================================================
@@ -214,7 +215,10 @@ export function TripTable({
 
               {/* Estado */}
               <TableCell>
-                <TripStatusBadge status={trip.status} size="sm" showIcon />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <TripStatusBadge status={trip.status} size="sm" showIcon />
+                  <TripOverdueBadge trip={trip} />
+                </div>
               </TableCell>
 
               {/* Facturación */}

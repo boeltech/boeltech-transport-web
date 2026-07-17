@@ -18,6 +18,8 @@ export interface ListingDateRangeFilterProps {
   heading?: string;
   placeholder?: string;
   idPrefix?: string;
+  /** Clases extra para el botón trigger (p. ej. `w-full` en un panel de filtros). */
+  triggerClassName?: string;
 }
 
 type DateDraftState = { fromDate: string; toDate: string };
@@ -32,6 +34,7 @@ export function ListingDateRangeFilter({
   heading = "Filtrar por fecha",
   placeholder = "Filtrar por fecha",
   idPrefix = "listing-date",
+  triggerClassName,
 }: ListingDateRangeFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dateDraft, setDateDraft] = useState<DateDraftState>(EMPTY_DATE_DRAFT);
@@ -86,6 +89,7 @@ export function ListingDateRangeFilter({
           className={cn(
             "w-auto justify-start text-left font-normal",
             hasDateFilter && "pr-2",
+            triggerClassName,
           )}
         >
           <Calendar className="mr-2 h-4 w-4" />

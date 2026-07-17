@@ -13,18 +13,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
 import { useListingFilters, useToast } from "@shared/hooks";
 import type { ActiveFilterChip } from "@shared/ui/listing";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
+import { formatListingDateRangeLabel } from "@shared/ui/listing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,13 +36,7 @@ import {
 import { Textarea } from "@shared/ui/text-area";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { usePermissions } from "@shared/permissions";
-import {
-  Plus,
-  Search,
-  Calendar,
-  X,
-  Filter,
-} from "lucide-react";
+import { Plus, Search, AlertTriangle, Clock } from "lucide-react";
 
 // Feature imports
 import {
@@ -59,40 +44,18 @@ import {
   useDeleteTrip,
   useCancelTrip,
 } from "../../application";
-import { type TripStatusType, type TripInvoiceStatus } from "../../domain";
+import { type TripStatusType } from "../../domain";
 import {
   TripTable,
   TripCard,
   TripCardSkeleton,
+  TripListFilters,
+  parseTripInvoiceStatusFilter,
+  getTripInvoiceStatusLabel,
 } from "../components";
 import { TRIP_STATUS_CONFIG } from "../index";
-import { formatDate } from "@shared/utils/dateUtils";
-
-const EMPTY_TRIP_DATE_DRAFT = { dateFrom: "", dateTo: "" } as const;
-type TripDateDraftState = { dateFrom: string; dateTo: string };
-
-const TRIP_INVOICE_STATUS_FILTER_VALUES: TripInvoiceStatus[] = [
-  "draft",
-  "stamped",
-  "cancellation_pending",
-  "cancelled",
-];
-
-const TRIP_INVOICE_STATUS_LABELS: Record<TripInvoiceStatus, string> = {
-  draft: "Borrador",
-  stamped: "Timbrada",
-  cancellation_pending: "Pend. cancelación SAT",
-  cancelled: "Cancelada",
-};
-
-function parseInvoiceStatusFilter(
-  raw: string | null,
-): TripInvoiceStatus | undefined {
-  if (!raw) return undefined;
-  return TRIP_INVOICE_STATUS_FILTER_VALUES.includes(raw as TripInvoiceStatus)
-    ? (raw as TripInvoiceStatus)
-    : undefined;
-}
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { tripsListCopy } from "../copy/listCopy";
 
 // ============================================================================
 // COMPONENT
@@ -103,8 +66,6 @@ export function TripsListPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
-  const [dateDraft, setDateDraft] = useState<TripDateDraftState>(EMPTY_TRIP_DATE_DRAFT);
 
   // Estado para diálogos de confirmación
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -122,32 +83,18 @@ export function TripsListPage() {
   });
   const status = (filters.filters.status || null) as TripStatusType | null;
 
-  // Filtro de fecha — local porque combina dos params relacionados
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
   const fiscalAttentionOnly = searchParams.get("fiscalAttention") === "1";
-  const invoiceStatusFilter = parseInvoiceStatusFilter(
+  const overdueOnly = searchParams.get("overdue") === "1";
+  const invoiceStatusFilter = parseTripInvoiceStatusFilter(
     searchParams.get("invoiceStatus"),
   );
-
-  const syncDateDraftFromUrl = useCallback(() => {
-    setDateDraft({ dateFrom, dateTo });
-  }, [dateFrom, dateTo]);
-
-  const handleDatePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setIsDateFilterOpen(open);
-      if (open) {
-        syncDateDraftFromUrl();
-      }
-    },
-    [syncDateDraftFromUrl],
-  );
-
-  const dateDraftMatchesApplied = useMemo(
-    () => dateDraft.dateFrom === dateFrom && dateDraft.dateTo === dateTo,
-    [dateDraft, dateFrom, dateTo],
-  );
+  const originBranchIdParam = searchParams.get("originBranchId")?.trim() || "";
+  const originBranchFilter =
+    originBranchIdParam === "unassigned"
+      ? ("unassigned" as const)
+      : originBranchIdParam || undefined;
 
   // Fetch trips
   const { data, isLoading, isFetching, refetch } = useTrips({
@@ -160,9 +107,25 @@ export function TripsListPage() {
       dateTo: dateTo || undefined,
       requiresFiscalAttention: fiscalAttentionOnly ? true : undefined,
       invoiceStatus: invoiceStatusFilter,
+      overdueOnly: overdueOnly ? true : undefined,
+      originBranchId: originBranchFilter,
     },
     sort: { field: "scheduled_departure", direction: "desc" },
   });
+
+  const { data: overdueCountData } = useTrips(
+    {
+      page: 1,
+      limit: 1,
+      filters: { overdueOnly: true },
+    },
+    {
+      staleTime: 60_000,
+      enabled: !overdueOnly,
+    },
+  );
+
+  const overdueTripCount = overdueCountData?.pagination.total ?? 0;
 
   // Mutations
   const deleteMutation = useDeleteTrip({
@@ -197,21 +160,27 @@ export function TripsListPage() {
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
   const hasFiscalFilter = fiscalAttentionOnly || !!invoiceStatusFilter;
-  const hasFilters = filters.hasFilters || hasDateFilter || hasFiscalFilter;
+  const hasOverdueFilter = overdueOnly;
+  const hasOriginBranchFilter = Boolean(originBranchFilter);
+  const hasFilters =
+    filters.hasFilters ||
+    hasDateFilter ||
+    hasFiscalFilter ||
+    hasOverdueFilter ||
+    hasOriginBranchFilter;
 
   // Permissions
   const canCreate = hasPermission("trips", "create");
   const canEdit = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
 
-  // Date filter display text
-  const dateFilterText = hasDateFilter
-    ? dateFrom && dateTo
-      ? `${formatDate(dateFrom)} - ${formatDate(dateTo)}`
-      : dateFrom
-        ? `Desde ${formatDate(dateFrom)}`
-        : `Hasta ${formatDate(dateTo)}`
-    : "Filtrar por fecha";
+  const dateFilterChipLabel = tripsListCopy.chip.date(
+    formatListingDateRangeLabel(
+      dateFrom,
+      dateTo,
+      tripsListCopy.filter.datePlaceholder,
+    ),
+  );
 
   // Handlers
   const handleView = useCallback(
@@ -256,24 +225,22 @@ export function TripsListPage() {
     [filters],
   );
 
-  const handleApplyDateFilters = useCallback(() => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (dateDraft.dateFrom) params.set("dateFrom", dateDraft.dateFrom);
-      else params.delete("dateFrom");
-      if (dateDraft.dateTo) params.set("dateTo", dateDraft.dateTo);
-      else params.delete("dateTo");
-      params.set("page", "1");
-      return params;
-    });
-    setIsDateFilterOpen(false);
-  }, [setSearchParams, dateDraft]);
+  const handleApplyDateRange = useCallback(
+    (from: string, to: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (from) params.set("dateFrom", from);
+        else params.delete("dateFrom");
+        if (to) params.set("dateTo", to);
+        else params.delete("dateTo");
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
 
-  const handleCancelDatePopover = useCallback(() => {
-    setIsDateFilterOpen(false);
-  }, []);
-
-  const handleClearDateFilter = useCallback(() => {
+  const handleClearDateRange = useCallback(() => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       params.delete("dateFrom");
@@ -281,16 +248,48 @@ export function TripsListPage() {
       params.set("page", "1");
       return params;
     });
-    setDateDraft({ ...EMPTY_TRIP_DATE_DRAFT });
-    setIsDateFilterOpen(false);
   }, [setSearchParams]);
+
+  const handleFiscalAttentionChange = useCallback(
+    (attentionOnly: boolean) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (attentionOnly) params.set("fiscalAttention", "1");
+        else params.delete("fiscalAttention");
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const handleInvoiceStatusChange = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (value === "all") params.delete("invoiceStatus");
+        else params.set("invoiceStatus", value);
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
 
   const clearAllTripsFilters = useCallback(() => {
     filters.setSearchInput("");
     setSearchParams(new URLSearchParams());
-    setDateDraft({ ...EMPTY_TRIP_DATE_DRAFT });
-    setIsDateFilterOpen(false);
   }, [filters, setSearchParams]);
+
+  const handleOverdueToggle = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (overdueOnly) params.delete("overdue");
+      else params.set("overdue", "1");
+      params.set("page", "1");
+      return params;
+    });
+  }, [overdueOnly, setSearchParams]);
 
   const activeFilterChips: ActiveFilterChip[] = [
     ...filters.activeChips,
@@ -298,15 +297,8 @@ export function TripsListPage() {
       ? [
           {
             id: "fiscal",
-            label: "Atención fiscal",
-            onRemove: () => {
-              setSearchParams((prev) => {
-                const p = new URLSearchParams(prev);
-                p.delete("fiscalAttention");
-                p.set("page", "1");
-                return p;
-              });
-            },
+            label: tripsListCopy.chip.fiscalAttention,
+            onRemove: () => handleFiscalAttentionChange(false),
           },
         ]
       : []),
@@ -314,13 +306,43 @@ export function TripsListPage() {
       ? [
           {
             id: "invoice-status",
-            label: `Factura: ${TRIP_INVOICE_STATUS_LABELS[invoiceStatusFilter]}`,
+            label: tripsListCopy.chip.invoice(
+              getTripInvoiceStatusLabel(invoiceStatusFilter),
+            ),
+            onRemove: () => handleInvoiceStatusChange("all"),
+          },
+        ]
+      : []),
+    ...(hasOverdueFilter
+      ? [
+          {
+            id: "overdue",
+            label: tripsListCopy.chip.overdue,
             onRemove: () => {
               setSearchParams((prev) => {
-                const p = new URLSearchParams(prev);
-                p.delete("invoiceStatus");
-                p.set("page", "1");
-                return p;
+                const params = new URLSearchParams(prev);
+                params.delete("overdue");
+                params.set("page", "1");
+                return params;
+              });
+            },
+          },
+        ]
+      : []),
+    ...(hasOriginBranchFilter
+      ? [
+          {
+            id: "origin-branch",
+            label:
+              originBranchFilter === "unassigned"
+                ? tripsListCopy.chip.originBranchUnassigned
+                : tripsListCopy.chip.originBranch(originBranchIdParam),
+            onRemove: () => {
+              setSearchParams((prev) => {
+                const params = new URLSearchParams(prev);
+                params.delete("originBranchId");
+                params.set("page", "1");
+                return params;
               });
             },
           },
@@ -330,8 +352,8 @@ export function TripsListPage() {
       ? [
           {
             id: "date",
-            label: `Fecha: ${dateFilterText}`,
-            onRemove: handleClearDateFilter,
+            label: dateFilterChipLabel,
+            onRemove: handleClearDateRange,
           },
         ]
       : []),
@@ -342,6 +364,26 @@ export function TripsListPage() {
       <ListPageShell
         title="Viajes"
         description="Gestiona los viajes de tu flota"
+        beforeToolbar={
+          !overdueOnly && overdueTripCount > 0 ? (
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{tripsListCopy.banner.title}</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>{tripsListCopy.banner.body(overdueTripCount)}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 border-warning/40 bg-background"
+                  onClick={handleOverdueToggle}
+                >
+                  {tripsListCopy.banner.action}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : undefined
+        }
         primaryAction={{
           label: "Nuevo Viaje",
           icon: <Plus className="h-4 w-4" />,
@@ -351,260 +393,40 @@ export function TripsListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: "Buscar por código, origen, destino...",
+            placeholder: tripsListCopy.filter.searchPlaceholder,
           },
           filters: (
-            <>
-              <Select value={status || "all"} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  {Object.entries(TRIP_STATUS_CONFIG).map(([value, config]) => (
-                    <SelectItem key={value} value={value}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "w-2 h-2 rounded-full",
-                            config.bgColor
-                              .replace("bg-", "bg-")
-                              .replace("100", "500"),
-                          )}
-                        />
-                        {config.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={fiscalAttentionOnly ? "yes" : "all"}
-                onValueChange={(v) => {
-                  setSearchParams((prev) => {
-                    const p = new URLSearchParams(prev);
-                    if (v === "yes") p.set("fiscalAttention", "1");
-                    else p.delete("fiscalAttention");
-                    p.set("page", "1");
-                    return p;
-                  });
-                }}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Fiscal" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos (fiscal)</SelectItem>
-                  <SelectItem value="yes">Solo atención fiscal</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={invoiceStatusFilter ?? "all"}
-                onValueChange={(v) => {
-                  setSearchParams((prev) => {
-                    const p = new URLSearchParams(prev);
-                    if (v === "all") p.delete("invoiceStatus");
-                    else p.set("invoiceStatus", v);
-                    p.set("page", "1");
-                    return p;
-                  });
-                }}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Estado factura" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las facturas</SelectItem>
-                  {TRIP_INVOICE_STATUS_FILTER_VALUES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {TRIP_INVOICE_STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Popover open={isDateFilterOpen} onOpenChange={handleDatePopoverOpenChange}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={hasDateFilter ? "secondary" : "outline"}
-                    className={cn(
-                      "w-auto justify-start text-left font-normal",
-                      hasDateFilter && "pr-2",
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    <span className="max-w-[260px] truncate">{dateFilterText}</span>
-                    {hasDateFilter ? (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        className="ml-2 rounded p-1 hover:bg-muted"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleClearDateFilter();
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.stopPropagation();
-                            handleClearDateFilter();
-                          }
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </span>
-                    ) : null}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[24rem] p-4" align="start">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Filter className="h-4 w-4" />
-                      Filtrar por fecha de salida
-                    </div>
-
-                    <div className="space-y-2 border-b pb-3">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="trips-date-from">Desde</Label>
-                          <Input
-                            id="trips-date-from"
-                            type="date"
-                            value={dateDraft.dateFrom}
-                            max={dateDraft.dateTo || undefined}
-                            onChange={(e) =>
-                              setDateDraft((d) => ({ ...d, dateFrom: e.target.value }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="trips-date-to">Hasta</Label>
-                          <Input
-                            id="trips-date-to"
-                            type="date"
-                            value={dateDraft.dateTo}
-                            min={dateDraft.dateFrom || undefined}
-                            onChange={(e) =>
-                              setDateDraft((d) => ({ ...d, dateTo: e.target.value }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Rango rápido</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date().toISOString().split("T")[0];
-                            setDateDraft({ dateFrom: today, dateTo: today });
-                          }}
-                        >
-                          Hoy
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date();
-                            const weekAgo = new Date(today);
-                            weekAgo.setDate(today.getDate() - 7);
-                            setDateDraft({
-                              dateFrom: weekAgo.toISOString().split("T")[0],
-                              dateTo: today.toISOString().split("T")[0],
-                            });
-                          }}
-                        >
-                          Última semana
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date();
-                            const monthAgo = new Date(today);
-                            monthAgo.setMonth(today.getMonth() - 1);
-                            setDateDraft({
-                              dateFrom: monthAgo.toISOString().split("T")[0],
-                              dateTo: today.toISOString().split("T")[0],
-                            });
-                          }}
-                        >
-                          Último mes
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const today = new Date();
-                            const firstDay = new Date(
-                              today.getFullYear(),
-                              today.getMonth(),
-                              1,
-                            );
-                            setDateDraft({
-                              dateFrom: firstDay.toISOString().split("T")[0],
-                              dateTo: today.toISOString().split("T")[0],
-                            });
-                          }}
-                        >
-                          Este mes
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                      {hasDateFilter ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start text-muted-foreground sm:order-1"
-                          onClick={handleClearDateFilter}
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          Limpiar fechas
-                        </Button>
-                      ) : (
-                        <span className="hidden sm:block sm:order-1" />
-                      )}
-                      <div className="flex w-full gap-2 sm:order-2 sm:w-auto sm:justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          onClick={handleCancelDatePopover}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          disabled={dateDraftMatchesApplied}
-                          onClick={handleApplyDateFilters}
-                        >
-                          Aplicar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </>
+            <TripListFilters
+              status={status}
+              fiscalAttentionOnly={fiscalAttentionOnly}
+              invoiceStatusFilter={invoiceStatusFilter}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onStatusChange={handleStatusChange}
+              onFiscalAttentionChange={handleFiscalAttentionChange}
+              onInvoiceStatusChange={handleInvoiceStatusChange}
+              onApplyDateRange={handleApplyDateRange}
+              onClearDateRange={handleClearDateRange}
+            />
+          ),
+          extraActions: (
+            <Button
+              type="button"
+              variant={overdueOnly ? "secondary" : "outline"}
+              size="sm"
+              className={cn(
+                overdueOnly &&
+                  "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
+              )}
+              onClick={handleOverdueToggle}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              {tripsListCopy.filter.overdue}
+            </Button>
           ),
           onRefresh: async () => {
             await refetch();
-            toast({ title: "Lista actualizada", variant: "success" });
+            toast({ title: tripsListCopy.refreshSuccess, variant: "success" });
           },
           isRefreshing: isFetching,
           activeFilterChips,
@@ -651,10 +473,14 @@ export function TripsListPage() {
         renderCardSkeleton={() => <TripCardSkeleton />}
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title: "No se encontraron viajes",
-          description: hasFilters
-            ? "Intenta ajustar los filtros de búsqueda"
-            : "Comienza creando tu primer viaje",
+          title: hasOverdueFilter
+            ? tripsListCopy.empty.overdueTitle
+            : "No se encontraron viajes",
+          description: hasOverdueFilter
+            ? tripsListCopy.empty.overdueDescription
+            : hasFilters
+              ? "Intenta ajustar los filtros de búsqueda"
+              : "Comienza creando tu primer viaje",
           cta: canCreate
             ? {
                 label: "Nuevo Viaje",

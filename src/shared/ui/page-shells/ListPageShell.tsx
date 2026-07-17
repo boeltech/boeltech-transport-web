@@ -25,6 +25,11 @@ import { memo, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
+import {
   ActiveFilterChips,
   ListingPagination,
   ListingResultsSummary,
@@ -129,6 +134,39 @@ export interface ListPageShellProps<TItem> {
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+function ListPageShellPrimaryActionButton({
+  action,
+}: {
+  action: ListPageShellPrimaryAction;
+}) {
+  const button = (
+    <Button
+      onClick={action.onClick}
+      leftIcon={action.icon}
+      disabled={action.disabled}
+    >
+      {action.label}
+    </Button>
+  );
+
+  if (action.disabled && action.disabledTitle) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{button}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{action.disabledTitle}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return button;
+}
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -169,14 +207,7 @@ function ListPageShellInner<TItem>({
             ) : null}
           </div>
           {showActionButton ? (
-            <Button
-              onClick={primaryAction.onClick}
-              leftIcon={primaryAction.icon}
-              disabled={primaryAction.disabled}
-              title={primaryAction.disabled ? primaryAction.disabledTitle : undefined}
-            >
-              {primaryAction.label}
-            </Button>
+            <ListPageShellPrimaryActionButton action={primaryAction} />
           ) : null}
         </div>
       ) : null}

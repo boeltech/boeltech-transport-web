@@ -3,8 +3,16 @@
  */
 
 export { TripCard, TripCardSkeleton } from "./TripCard";
+export {
+  TripListFilters,
+} from "./TripListFilters";
+export {
+  parseTripInvoiceStatusFilter,
+  getTripInvoiceStatusLabel,
+} from "../utils/tripListFilterUtils";
 export { TripListRouteLabel } from "./TripListRouteLabel";
 export { TripTable } from "./TripTable";
+export { InvoiceableTripPickerSheet } from "./InvoiceableTripPickerSheet";
 export { TripActions } from "./TripActions";
 export { StartTripSheet } from "./trip-tracking/StartTripSheet";
 export { TripInvoiceActions } from "./TripInvoiceActions";

@@ -13,6 +13,7 @@ export {
   TripTrackingMap,
   TripTrackingTab,
   TripTable,
+  InvoiceableTripPickerSheet,
 } from "./components";
 
 // Config
