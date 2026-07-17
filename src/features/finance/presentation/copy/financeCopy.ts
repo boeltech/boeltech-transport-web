@@ -235,6 +235,13 @@ export const financeCopy = {
         "Genera CFDI desde un viaje elegible en el módulo Viajes.",
       tripsPath: "/trips",
     },
+    newInvoiceCta: {
+      label: "Nueva factura",
+      tooltip:
+        "Selecciona un viaje facturable para generar un nuevo CFDI",
+      emptyDescription:
+        "Crea tu primera factura seleccionando un viaje facturable.",
+    },
   },
   profitability: {
     scope: {

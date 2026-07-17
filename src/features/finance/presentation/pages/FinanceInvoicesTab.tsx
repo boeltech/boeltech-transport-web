@@ -1,8 +1,9 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Receipt } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
+import { InvoiceableTripPickerSheet } from "@features/trips";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,6 @@ import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { financeCopy } from "../copy";
 import {
   canShowInvoiceFromTripCta,
-  FINANCE_INVOICE_FROM_TRIP_CTA,
 } from "../utils/financeInvoiceFromTripCta";
 
 interface FinanceInvoicesTabProps {
@@ -38,6 +38,7 @@ interface FinanceInvoicesTabProps {
 }
 
 const invoiceStatusLabels = financeCopy.invoices.statusLabels;
+const newInvoiceCta = financeCopy.invoices.newInvoiceCta;
 
 export function FinanceInvoicesTab({
   showFinanceSummaryMetrics,
@@ -46,6 +47,7 @@ export function FinanceInvoicesTab({
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const filters = useFinanceListingFilters<"status">({
     filters: { status: {} },
@@ -105,6 +107,13 @@ export function FinanceInvoicesTab({
     [navigate],
   );
 
+  const handleTripSelected = useCallback(
+    (tripId: string) => {
+      navigate(`/invoices/new?trip_id=${tripId}&from=finance`);
+    },
+    [navigate],
+  );
+
   const kpiStrip =
     showFinanceSummaryMetrics ? (
       <FinanceInvoicesSummaryCards
@@ -120,6 +129,7 @@ export function FinanceInvoicesTab({
     ) : undefined;
 
   return (
+    <>
     <ListPageShell<FinanceInvoiceListItem>
       title={financeCopy.invoices.title}
       showHeader={false}
@@ -153,12 +163,11 @@ export function FinanceInvoicesTab({
         ),
         extraActions: canInvoiceFromTrip ? (
           <Button
-            variant="outline"
-            onClick={() => navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath)}
-            title={FINANCE_INVOICE_FROM_TRIP_CTA.tooltip}
+            onClick={() => setPickerOpen(true)}
+            title={newInvoiceCta.tooltip}
           >
-            <Receipt className="h-4 w-4 mr-2" />
-            {FINANCE_INVOICE_FROM_TRIP_CTA.label}
+            <Plus className="h-4 w-4 mr-2" />
+            {newInvoiceCta.label}
           </Button>
         ) : undefined,
         onRefresh: handleRefresh,
@@ -175,7 +184,7 @@ export function FinanceInvoicesTab({
               page: filters.page,
               totalPages: data.pagination.totalPages,
               total: data.pagination.total,
-              limit: data.pagination.limit,
+              limit: data.pagination.limit ?? FINANCE_INVOICES_PAGE_SIZE,
             }
           : undefined
       }
@@ -193,12 +202,12 @@ export function FinanceInvoicesTab({
         title: financeCopy.invoices.empty.title,
         description: filters.hasFilters
           ? financeCopy.invoices.empty.withFilters
-          : FINANCE_INVOICE_FROM_TRIP_CTA.emptyDescription,
+          : newInvoiceCta.emptyDescription,
         cta: canInvoiceFromTrip
           ? {
-              label: FINANCE_INVOICE_FROM_TRIP_CTA.label,
-              icon: <Receipt className="h-4 w-4" />,
-              onClick: () => navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath),
+              label: newInvoiceCta.label,
+              icon: <Plus className="h-4 w-4" />,
+              onClick: () => setPickerOpen(true),
             }
           : undefined,
         secondaryCta: filters.hasFilters
@@ -210,5 +219,13 @@ export function FinanceInvoicesTab({
           : undefined,
       }}
     />
+    {canInvoiceFromTrip ? (
+      <InvoiceableTripPickerSheet
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleTripSelected}
+      />
+    ) : null}
+    </>
   );
 }

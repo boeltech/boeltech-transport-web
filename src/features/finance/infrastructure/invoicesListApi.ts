@@ -1,4 +1,5 @@
 import { apiClient } from "@shared/api";
+import type { ApiPagination } from "@shared/api";
 import type {
   FinanceInvoiceListFilters,
   FinanceInvoiceListItem,
@@ -39,14 +40,19 @@ export const financeInvoicesListApi = {
     const qs = params.toString();
     const response = await apiClient.get<{
       data: unknown[];
-      pagination: PaginatedFinanceInvoices["pagination"];
+      pagination: ApiPagination;
     }>(`${INVOICES}${qs ? `?${qs}` : ""}`);
 
     return {
       data: (response.data as unknown[]).map((item) =>
         mapInvoiceListItem(item as Record<string, unknown>),
       ),
-      pagination: response.pagination,
+      pagination: {
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.total_pages,
+      },
     };
   },
 };
