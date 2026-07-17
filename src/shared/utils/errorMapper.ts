@@ -91,6 +91,30 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
     "Tu plan permite hasta 3 usuarios. Contacta a soporte para ampliar tu plan.",
   BRANCH_LIMIT_REACHED:
     "Tu plan permite 1 sucursal. Contacta a soporte para ampliar tu plan.",
+  BRANCH_NOT_PLAN_ELIGIBLE:
+    "Esta sucursal excede la capacidad de tu plan. Ajusta sucursales o mejora tu plan.",
+  BRANCH_OVER_QUOTA_BLOCKS_PLAN_CHANGE:
+    "El tenant tiene más sucursales activas de las que permite el plan destino. Consolida sucursales antes de asignar este plan.",
+  BRANCH_RECONCILE_INVALID_SELECTION:
+    "La selección de sucursales para ajustar al plan no es válida.",
+  BRANCH_CODE_EXISTS:
+    "Ya existe una sucursal activa con ese código. Elige otro código.",
+  MAIN_BRANCH_EXISTS:
+    "Ya existe una sucursal principal activa. Designa otra matriz antes de continuar.",
+  MAIN_BRANCH_DELETE_BLOCKED:
+    "No se puede eliminar la sucursal principal. Designa otra matriz antes de continuar.",
+
+  // ===== PLAN / BILLING SaaS =====
+  MODULE_NOT_ENTITLED:
+    "Este módulo no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+
+  // ===== FACTURACIÓN (OP-L0.3 retención PM) =====
+  PERSONA_MORAL_RETENTION_REQUIRED:
+    "La retención IVA del 4% es obligatoria para receptores persona moral con conceptos gravados.",
+  PERSONA_MORAL_RETENTION_INCOHERENT:
+    "Los importes de retención no coinciden con el 4% requerido para persona moral.",
+  INVOICE_CONCEPTS_INVALID:
+    "Las partidas de la factura no son coherentes con los importes totales.",
 
   // ===== AUTENTICACIÓN Y AUTORIZACIÓN =====
   INVALID_CREDENTIALS:
@@ -109,6 +133,14 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   SERVICE_UNAVAILABLE: "Servicio no disponible. Intente más tarde.",
   NETWORK_ERROR: "Error de conexión. Verifique su conexión a internet.",
   TIMEOUT: "La operación tardó demasiado. Intente nuevamente.",
+
+  // ===== CATÁLOGOS =====
+  CATALOG_CSV_TYPE_MISMATCH:
+    "El archivo CSV no corresponde al tipo de catálogo seleccionado. Verifica el catálogo y vuelve a intentar.",
+  CATALOG_NOT_IMPORTABLE:
+    "Este catálogo no admite importación masiva desde CSV.",
+  EMPTY_CSV: "El archivo CSV está vacío o no tiene encabezados.",
+  NO_DATA_ROWS: "El archivo CSV no contiene filas de datos.",
 
   // ===== ERRORES GENÉRICOS =====
   UNKNOWN_ERROR: "Ha ocurrido un error inesperado",
