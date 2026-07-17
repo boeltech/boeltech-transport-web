@@ -17,6 +17,11 @@ export {
   getParentCatalogType,
   isSatCatalog,
   isInternalCatalog,
+  isGlobalCatalog,
+  isInternalCatalogType,
+  isCatalogReadOnly,
+  isCatalogItemMutable,
+  isTenantManagedCatalog,
 } from "./entities";
 
 export type {

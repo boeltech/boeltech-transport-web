@@ -8,6 +8,7 @@
  */
 
 import { apiClient, type MappedSingleResult } from "@shared/api";
+import type { AxiosRequestConfig } from "axios";
 import type {
   CatalogType,
   CatalogItem,
@@ -231,6 +232,7 @@ export class CatalogRepository implements ICatalogRepository {
     typeCode: string,
     file: File,
     options: CatalogImportOptions,
+    requestConfig?: AxiosRequestConfig,
   ): Promise<CatalogImportResult> {
     const formData = new FormData();
     formData.append("file", file);
@@ -246,7 +248,7 @@ export class CatalogRepository implements ICatalogRepository {
     const response = await apiClient.post<{
       data: ApiCatalogImportResultResponse;
       message?: string;
-    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import`, formData);
+    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import`, formData, requestConfig);
 
     return mapCatalogImportResult(response.data);
   }
@@ -254,6 +256,7 @@ export class CatalogRepository implements ICatalogRepository {
   async validateImport(
     typeCode: string,
     file: File,
+    requestConfig?: AxiosRequestConfig,
   ): Promise<CatalogValidationResult> {
     const formData = new FormData();
     formData.append("file", file);
@@ -261,7 +264,7 @@ export class CatalogRepository implements ICatalogRepository {
     const response = await apiClient.post<{
       data: ApiCatalogValidationResultResponse;
       message?: string;
-    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import/validate`, formData);
+    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import/validate`, formData, requestConfig);
 
     return mapCatalogValidationResult(response.data);
   }

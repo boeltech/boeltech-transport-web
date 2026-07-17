@@ -1,14 +1,7 @@
 /**
  * CatalogDetailPage (Settings Integration)
- * Clean Architecture - Presentation Layer
  *
- * Página de detalle de un catálogo específico.
- * Usa el SettingsLayout para navegación consistente.
- *
- * ACTUALIZADO: Soporte para catálogos grandes usando useCatalogSearch
- * con paginación del lado del servidor.
- *
- * Ubicación: src/features/catalogs/presentation/pages/CatalogDetailPage.tsx
+ * Detalle de catálogo: regulatorios e internos en solo lectura para el tenant.
  */
 
 import { memo, useState, useCallback, useMemo } from "react";
@@ -16,7 +9,7 @@ import { useDebounce } from "@shared/hooks/use-debounce";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
-  Upload,
+  Plus,
   Database,
   FileText,
   AlertTriangle,
@@ -47,28 +40,21 @@ import {
   useCatalogSearch,
 } from "../../application/hooks";
 import { CatalogItemsTable } from "../components/CatalogItemsTable";
-import { CatalogImportWizard } from "../components/CatalogImportWizard";
+import { CatalogGlobalReadOnlyBanner } from "../components/CatalogGlobalReadOnlyBanner";
+import { CatalogItemFormSheet } from "../components/CatalogItemFormSheet";
+import { CatalogItemRowActions } from "../components/CatalogItemRowActions";
+import { catalogsCopy } from "../copy/catalogsCopy";
 import {
-  isSatCatalog,
+  isGlobalCatalog,
+  isCatalogReadOnly,
+  isCatalogItemMutable,
   isHierarchicalCatalog,
   CATALOG_SOURCE_LABELS,
   type CatalogItem,
 } from "../../domain";
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/**
- * Umbral para considerar un catálogo como "grande".
- * Los catálogos con más items que este umbral usarán búsqueda server-side.
- */
 const LARGE_CATALOG_THRESHOLD = 1000;
 
-/**
- * Catálogos conocidos como grandes que siempre usarán búsqueda server-side.
- * Esto evita hacer un fetch inicial para determinar el tamaño.
- */
 const KNOWN_LARGE_CATALOGS = [
   "sat_municipio",
   "sat_localidad",
@@ -82,40 +68,24 @@ const KNOWN_LARGE_CATALOGS = [
 
 const DEFAULT_PAGE_SIZE = 50;
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
 export const CatalogDetailPage = memo(function CatalogDetailPage() {
   const { typeCode } = useParams<{ typeCode: string }>();
   const { hasPermission } = usePermissions();
+  const copy = catalogsCopy;
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // STATE
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const [importWizardOpen, setImportWizardOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [currentPage, setCurrentPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // DERIVED STATE
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Determinar si es un catálogo grande conocido
   const isKnownLargeCatalog = typeCode
     ? KNOWN_LARGE_CATALOGS.includes(typeCode)
     : false;
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // DATA FETCHING
-  // ══════════════════════════════════════════════════════════════════════════
-
   const { data: types, isLoading: isLoadingTypes } = useCatalogTypes();
   const { data: statistics } = useCatalogStatistics();
 
-  // Para catálogos pequeños: cargar todos los items
   const { data: allItems, isLoading: isLoadingAllItems } = useCatalogItems(
     typeCode ?? "",
     undefined,
@@ -123,10 +93,6 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
       enabled: !!typeCode && !isKnownLargeCatalog,
     },
   );
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // COMPUTED VALUES
-  // ══════════════════════════════════════════════════════════════════════════
 
   const catalogType = useMemo(
     () => types?.find((t) => t.code === typeCode),
@@ -137,6 +103,18 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     () => statistics?.find((s) => s.typeCode === typeCode),
     [statistics, typeCode],
   );
+
+  const isGlobal = catalogType ? isGlobalCatalog(catalogType) : false;
+  const isReadOnly = catalogType ? isCatalogReadOnly(catalogType) : true;
+  const canCreate =
+    catalogType &&
+    isCatalogItemMutable(catalogType) &&
+    hasPermission("catalogs", "create");
+  const canMutate =
+    catalogType &&
+    isCatalogItemMutable(catalogType) &&
+    (hasPermission("catalogs", "update") ||
+      hasPermission("catalogs", "delete"));
 
   const isLargeCatalog = useMemo(() => {
     if (isKnownLargeCatalog) return true;
@@ -195,11 +173,8 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
 
   const catalogTotalCount = catalogStats?.itemCount ?? listTotal;
 
-  const isSat = typeCode ? isSatCatalog(typeCode) : false;
-  const canImport = hasPermission("catalogs", "import") && isSat;
   const isHierarchical = typeCode ? isHierarchicalCatalog(typeCode) : false;
 
-  // También detectar jerarquía por datos
   const hasParentCodes = useMemo(
     () => displayItems.some((item) => item.parentCode !== null) ?? false,
     [displayItems],
@@ -210,14 +185,6 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
   const isLoading =
     isLoadingTypes || (isLargeCatalog ? isLoadingSearch : isLoadingAllItems);
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // HANDLERS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const handleImportOpenChange = useCallback((open: boolean) => {
-    setImportWizardOpen(open);
-  }, []);
-
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
     setCurrentPage(1);
@@ -227,17 +194,26 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     setCurrentPage(page);
   }, []);
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // DERIVED LABELS
-  // ══════════════════════════════════════════════════════════════════════════
+  const handleAddRecord = useCallback(() => {
+    setEditingItem(null);
+    setFormOpen(true);
+  }, []);
+
+  const handleEditItem = useCallback((item: CatalogItem) => {
+    setEditingItem(item);
+    setFormOpen(true);
+  }, []);
+
+  const handleFormOpenChange = useCallback((open: boolean) => {
+    setFormOpen(open);
+    if (!open) {
+      setEditingItem(null);
+    }
+  }, []);
 
   const sourceLabel = catalogType?.source
     ? (CATALOG_SOURCE_LABELS[catalogType.source] ?? catalogType.source)
-    : "Interno";
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Loading State
-  // ══════════════════════════════════════════════════════════════════════════
+    : copy.badges.internal;
 
   if (isLoadingTypes) {
     return (
@@ -247,23 +223,21 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Not Found
-  // ══════════════════════════════════════════════════════════════════════════
-
   if (!catalogType) {
     return (
       <SettingsLayout sectionTitle="No encontrado">
-        <div className="text-center py-12">
-          <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-lg font-semibold mb-2">Catálogo no encontrado</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            El catálogo "{typeCode}" no existe o no está disponible.
+        <div className="py-12 text-center">
+          <Database className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h2 className="mb-2 text-lg font-semibold">
+            {copy.detail.notFoundTitle}
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {copy.detail.notFoundDescription(typeCode ?? "")}
           </p>
           <Button asChild>
             <Link to="/settings/catalogs">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a Catálogos
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {copy.detail.back}
             </Link>
           </Button>
         </div>
@@ -271,63 +245,68 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Main Content
-  // ══════════════════════════════════════════════════════════════════════════
-
   return (
     <SettingsLayout sectionTitle={catalogType.name}>
       <div className="space-y-6">
-        {/* Back button */}
         <div>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/settings/catalogs">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a Catálogos
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {copy.detail.back}
             </Link>
           </Button>
         </div>
 
-        {/* Header info */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold">{catalogType.name}</h2>
-              <Badge variant={isSat ? "default" : "secondary"}>
-                {sourceLabel}
+              <Badge variant={isGlobal ? "default" : "secondary"}>
+                {isGlobal ? copy.badges.regulatory : copy.badges.internal}
               </Badge>
-              {showParentColumn && (
+              {isReadOnly ? (
+                <Badge variant="outline">{copy.badges.readOnly}</Badge>
+              ) : null}
+              {showParentColumn ? (
                 <Badge variant="outline">
-                  <Layers className="h-3 w-3 mr-1" />
+                  <Layers className="mr-1 h-3 w-3" />
                   Jerárquico
                 </Badge>
-              )}
-              {isLargeCatalog && (
+              ) : null}
+              {isLargeCatalog ? (
                 <Badge variant="warning" tone="soft">
-                  <Database className="h-3 w-3 mr-1" />
+                  <Database className="mr-1 h-3 w-3" />
                   Grande
                 </Badge>
-              )}
+              ) : null}
             </div>
-            <p className="text-sm text-muted-foreground font-mono">
+            <p className="font-mono text-sm text-muted-foreground">
               {catalogType.code}
             </p>
-            {catalogType.description && (
-              <p className="text-sm text-muted-foreground mt-1">
+            {catalogType.description ? (
+              <p className="mt-1 text-sm text-muted-foreground">
                 {catalogType.description}
               </p>
-            )}
+            ) : null}
           </div>
 
-          {canImport && (
-            <Button onClick={() => setImportWizardOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Importar
+          {canCreate ? (
+            <Button onClick={handleAddRecord}>
+              <Plus className="mr-2 h-4 w-4" />
+              {copy.detail.addRecord}
             </Button>
-          )}
+          ) : null}
         </div>
 
-        {/* Stats */}
+        {isReadOnly ? (
+          <CatalogGlobalReadOnlyBanner
+            variant="detail"
+            scope={isGlobal ? "global" : "internal"}
+            sourceLabel={sourceLabel}
+            version={catalogStats?.currentVersion}
+          />
+        ) : null}
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Registros"
@@ -355,22 +334,22 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
           />
         </div>
 
-        {/* Large catalog info */}
-        {isLargeCatalog && (
+        {isLargeCatalog ? (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Este catálogo tiene más de{" "}
-              {LARGE_CATALOG_THRESHOLD.toLocaleString()} registros. La búsqueda
-              se realiza en el servidor. Escribe para filtrar los resultados.
+              {copy.detail.largeCatalogHint(
+                LARGE_CATALOG_THRESHOLD.toLocaleString("es-MX"),
+              )}
             </AlertDescription>
           </Alert>
-        )}
+        ) : null}
 
-        {/* Items section with search and pagination */}
         <SettingsCard
-          title="Registros"
-          description={`${catalogTotalCount.toLocaleString("es-MX")} registros en este catálogo`}
+          title={copy.detail.recordsSection}
+          description={copy.detail.recordsDescription(
+            catalogTotalCount.toLocaleString("es-MX"),
+          )}
         >
           <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -403,6 +382,17 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
               isLoading={isLargeCatalog ? isLoadingSearch : isLoadingAllItems}
               showParentCode={showParentColumn}
               showDescription={!isLargeCatalog}
+              renderRowActions={
+                canMutate && typeCode
+                  ? (item) => (
+                      <CatalogItemRowActions
+                        typeCode={typeCode}
+                        item={item}
+                        onEdit={handleEditItem}
+                      />
+                    )
+                  : undefined
+              }
             />
 
             <ListingPagination
@@ -413,22 +403,19 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
           </div>
         </SettingsCard>
 
-        {/* Import Wizard */}
-        {typeCode && (
-          <CatalogImportWizard
+        {canCreate && typeCode ? (
+          <CatalogItemFormSheet
             typeCode={typeCode}
-            open={importWizardOpen}
-            onOpenChange={handleImportOpenChange}
+            open={formOpen}
+            onOpenChange={handleFormOpenChange}
+            item={editingItem}
+            showParentCode={showParentColumn}
           />
-        )}
+        ) : null}
       </div>
     </SettingsLayout>
   );
 });
-
-// ============================================================================
-// SKELETON
-// ============================================================================
 
 function CatalogDetailSkeleton() {
   return (

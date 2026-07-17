@@ -6,7 +6,7 @@
  * Con `embedded`, solo renderiza la tabla (búsqueda/paginación en el padre).
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import {
   Table,
   TableBody,
@@ -39,6 +39,8 @@ export interface CatalogItemsTableProps {
   className?: string;
   /** Si true, el padre controla búsqueda y paginación. */
   embedded?: boolean;
+  /** Columna de acciones por fila (permisos resueltos en el padre). */
+  renderRowActions?: (item: CatalogItem) => ReactNode;
 }
 
 // ============================================================================
@@ -53,6 +55,7 @@ export function CatalogItemsTable({
   pageSize = 20,
   className,
   embedded = false,
+  renderRowActions,
 }: CatalogItemsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,6 +91,7 @@ export function CatalogItemsTable({
         <CatalogItemsTableSkeleton
           showDescription={showDescription}
           showParentCode={showParentCode}
+          showActions={Boolean(renderRowActions)}
         />
       </div>
     );
@@ -118,6 +122,7 @@ export function CatalogItemsTable({
         items={paginatedItems}
         showDescription={showDescription}
         showParentCode={showParentCode}
+        renderRowActions={renderRowActions}
         emptyMessage={
           !embedded && searchTerm
             ? "No se encontraron resultados"
@@ -145,6 +150,7 @@ interface CatalogItemsTableBodyProps {
   showDescription: boolean;
   showParentCode: boolean;
   emptyMessage: string;
+  renderRowActions?: (item: CatalogItem) => ReactNode;
 }
 
 function CatalogItemsTableBody({
@@ -152,9 +158,14 @@ function CatalogItemsTableBody({
   showDescription,
   showParentCode,
   emptyMessage,
+  renderRowActions,
 }: CatalogItemsTableBodyProps) {
   const colSpan =
-    2 + (showDescription ? 1 : 0) + (showParentCode ? 1 : 0) + 1;
+    2 +
+    (showDescription ? 1 : 0) +
+    (showParentCode ? 1 : 0) +
+    1 +
+    (renderRowActions ? 1 : 0);
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -170,6 +181,9 @@ function CatalogItemsTableBody({
               <TableHead className="w-[100px]">Padre</TableHead>
             ) : null}
             <TableHead className="w-[100px] text-center">Estado</TableHead>
+            {renderRowActions ? (
+              <TableHead className="w-[72px] text-right">Acciones</TableHead>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -207,6 +221,11 @@ function CatalogItemsTableBody({
                     </Badge>
                   )}
                 </TableCell>
+                {renderRowActions ? (
+                  <TableCell className="text-right">
+                    {renderRowActions(item)}
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))
           )}
@@ -219,9 +238,11 @@ function CatalogItemsTableBody({
 function CatalogItemsTableSkeleton({
   showDescription,
   showParentCode,
+  showActions = false,
 }: {
   showDescription: boolean;
   showParentCode: boolean;
+  showActions?: boolean;
 }) {
   return (
     <div className="border rounded-lg">
@@ -233,6 +254,7 @@ function CatalogItemsTableSkeleton({
             {showDescription ? <TableHead>Descripción</TableHead> : null}
             {showParentCode ? <TableHead>Padre</TableHead> : null}
             <TableHead>Estado</TableHead>
+            {showActions ? <TableHead>Acciones</TableHead> : null}
           </TableRow>
         </TableHeader>
         <TableBody>

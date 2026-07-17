@@ -411,3 +411,41 @@ export function isSatCatalog(typeCode: string): boolean {
 export function isInternalCatalog(typeCode: string): boolean {
   return !typeCode.startsWith("sat_") && !typeCode.startsWith("banxico_");
 }
+
+export function isGlobalCatalog(type: Pick<CatalogType, "isGlobal">): boolean {
+  return type.isGlobal;
+}
+
+/** Catálogo no global (tab Internos en settings). */
+export function isInternalCatalogType(
+  type: Pick<CatalogType, "isGlobal">,
+): boolean {
+  return !type.isGlobal;
+}
+
+/**
+ * Catálogos consultables por el tenant sin mutación local (SAT/global e internos ERP).
+ */
+export function isCatalogReadOnly(
+  type: Pick<CatalogType, "isGlobal" | "source">,
+): boolean {
+  if (type.isGlobal) return true;
+  return type.source === CatalogSource.INTERNAL;
+}
+
+/** True solo si el tenant puede crear/editar/eliminar ítems (ninguno en L0 actual). */
+export function isCatalogItemMutable(
+  type: Pick<CatalogType, "isGlobal" | "source">,
+): boolean {
+  return !isCatalogReadOnly(type);
+}
+
+/**
+ * @deprecated Usar {@link isInternalCatalogType} para filtrar tab internos
+ * o {@link isCatalogItemMutable} para CRUD.
+ */
+export function isTenantManagedCatalog(
+  type: Pick<CatalogType, "isGlobal" | "source">,
+): boolean {
+  return isCatalogItemMutable(type);
+}

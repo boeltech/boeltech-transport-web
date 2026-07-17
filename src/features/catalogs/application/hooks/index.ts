@@ -76,6 +76,12 @@ export {
 } from "./useRegimenFiscalLabel";
 
 export {
+  useCreateCatalogItem,
+  useUpdateCatalogItem,
+  useDeleteCatalogItem,
+} from "./useCatalogItemMutations";
+
+export {
   useFormaPagoLabel,
   type UseFormaPagoLabelResult,
 } from "./useFormaPagoLabel";

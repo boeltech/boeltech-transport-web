@@ -67,6 +67,7 @@ import {
   CATALOG_TYPE_LABELS,
 } from "../../domain";
 import { suggestNextVersion } from "@shared/utils/dateUtils";
+import { getErrorMessage, isErrorCode } from "@shared/utils/errorMapper";
 
 // ============================================================================
 // TYPES
@@ -77,6 +78,7 @@ export interface CatalogImportWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (result: CatalogImportResult) => void;
+  authScope?: "platform" | "tenant";
 }
 
 type WizardStep = "upload" | "validate" | "import" | "result";
@@ -105,6 +107,7 @@ export function CatalogImportWizard({
   open,
   onOpenChange,
   onSuccess,
+  authScope,
 }: CatalogImportWizardProps) {
   // ══════════════════════════════════════════════════════════════════════════
   // State
@@ -123,12 +126,14 @@ export function CatalogImportWizard({
     validate,
     isValidating,
     validationResult,
+    validationError,
     resetValidation,
     import: importCatalog,
     isImporting,
     importResult,
+    importError,
     resetAll,
-  } = useCatalogImportWizard();
+  } = useCatalogImportWizard(catalogType?.currentVersion);
 
   // Calcular versión sugerida basada en la versión actual
   const suggestedVersion = suggestNextVersion(
@@ -209,14 +214,14 @@ export function CatalogImportWizard({
     if (!file) return;
 
     validate(
-      { typeCode, file },
+      { typeCode, file, ...(authScope ? { authScope } : {}) },
       {
         onSuccess: () => {
           setStep("validate");
         },
       },
     );
-  }, [file, typeCode, validate]);
+  }, [file, typeCode, validate, authScope]);
 
   const handleImport = useCallback(
     (data: ImportOptionsForm) => {
@@ -232,7 +237,7 @@ export function CatalogImportWizard({
       };
 
       importCatalog(
-        { typeCode, file, options },
+        { typeCode, file, options, ...(authScope ? { authScope } : {}) },
         {
           onSuccess: (result) => {
             setStep("result");
@@ -241,7 +246,7 @@ export function CatalogImportWizard({
         },
       );
     },
-    [file, typeCode, importCatalog, onSuccess],
+    [file, typeCode, importCatalog, onSuccess, authScope],
   );
 
   const handleBack = useCallback(() => {
@@ -392,6 +397,22 @@ export function CatalogImportWizard({
           )}
         </AlertDescription>
       </Alert>
+
+      {validationError && isErrorCode(validationError, "CATALOG_CSV_TYPE_MISMATCH") ? (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
+          <AlertDescription>{getErrorMessage(validationError)}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {importError && isErrorCode(importError, "CATALOG_CSV_TYPE_MISMATCH") ? (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
+          <AlertDescription>{getErrorMessage(importError)}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* Actions */}
       <div className="flex justify-end gap-2">

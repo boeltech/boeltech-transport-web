@@ -18,6 +18,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks/useToast";
+import { getErrorMessage, isErrorCode } from "@shared/utils/errorMapper";
 import { suggestNextVersion } from "@shared/utils/dateUtils";
 import {
   type CatalogImportResult,
@@ -36,11 +37,13 @@ export interface ImportCatalogParams {
   typeCode: string;
   file: File;
   options: CatalogImportOptions;
+  authScope?: "platform" | "tenant";
 }
 
 export interface ValidateCatalogParams {
   typeCode: string;
   file: File;
+  authScope?: "platform" | "tenant";
 }
 
 // ============================================================================
@@ -64,8 +67,11 @@ export function useCatalogImport(
       typeCode,
       file,
       options: importOptions,
+      authScope,
     }: ImportCatalogParams) => {
-      return catalogRepository.importCatalog(typeCode, file, importOptions);
+      return catalogRepository.importCatalog(typeCode, file, importOptions, {
+        ...(authScope ? { authScope } : {}),
+      });
     },
     onSuccess: (data, variables) => {
       // Invalidar queries relacionadas
@@ -94,9 +100,10 @@ export function useCatalogImport(
     },
     onError: (error) => {
       toast({
-        title: "Error en la importación",
-        description:
-          error.message || "Ocurrió un error al importar el catálogo",
+        title: isErrorCode(error, "CATALOG_CSV_TYPE_MISMATCH")
+          ? "Tipo de catálogo incorrecto"
+          : "Error en la importación",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -120,8 +127,10 @@ export function useCatalogValidate(
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ typeCode, file }: ValidateCatalogParams) => {
-      return catalogRepository.validateImport(typeCode, file);
+    mutationFn: async ({ typeCode, file, authScope }: ValidateCatalogParams) => {
+      return catalogRepository.validateImport(typeCode, file, {
+        ...(authScope ? { authScope } : {}),
+      });
     },
     onSuccess: (data) => {
       if (data.isValid) {
@@ -139,8 +148,10 @@ export function useCatalogValidate(
     },
     onError: (error) => {
       toast({
-        title: "Error en la validación",
-        description: error.message || "Ocurrió un error al validar el archivo",
+        title: isErrorCode(error, "CATALOG_CSV_TYPE_MISMATCH")
+          ? "Tipo de catálogo incorrecto"
+          : "Error en la validación",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     },
