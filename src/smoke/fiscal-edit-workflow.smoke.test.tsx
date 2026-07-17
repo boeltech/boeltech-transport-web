@@ -182,11 +182,14 @@ function createTrip(stops: TripStop[]): Trip {
     cancellationReason: null,
     invoicing: {
       hasActiveInvoice: true,
+      hasActivePrimaryInvoice: true,
       canGenerateInvoice: false,
+      canGenerateAccessoryInvoice: true,
       invoiceId: INVOICE_ID,
       invoiceFolio: "A-100",
       invoiceCfdiUuid: null,
       invoiceStatus: "draft",
+      accessoryInvoices: [],
       blockReason: null,
     },
     requiresFiscalAttention: true,
@@ -379,7 +382,7 @@ describe("smoke fiscal-edit workflow", () => {
     await user.clear(rfcInput);
     await user.type(rfcInput, "XAXX010101000");
 
-    const reasonInput = screen.getByLabelText("Razón del cambio");
+    const reasonInput = screen.getByLabelText(/Motivo del cambio/i);
     await user.type(reasonInput, "RFC rechazado por el PAC");
 
     const propagateCheckbox = screen.getByRole("checkbox", {

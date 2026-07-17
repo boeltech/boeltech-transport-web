@@ -15,8 +15,26 @@ npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
 npm run test:smoke:notifications # smoke inbox campana + /notifications
 npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
+npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
+npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
+npm run test:smoke:catalogs-tenant # smoke catálogos tenant: sin import SAT + CRUD internos
+npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + wizard Costos
+npm run test:smoke:branches      # smoke sucursales: listado → detalle (mapa geo) → export → baja/restaurar + wizard alta
+npm run test:smoke:branch-kpis   # smoke SUC-M12 widget dashboard compare + tarjeta KPI detalle sucursal
+npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria (CTA/scope/badge)
 ```
 
+**Crédito L0 (ADR-0049):** semáforo en detalle cliente + wizard Costos (`GET /clients/:id/credit-summary`) · sin bloqueo. Guía usuario: `D:\cowork\boeltech\erp-transport\docs\finanzas\credito-disponible-semaforo-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\credit-exposure\sdd.md`.
+
+**Plataforma (ADR-0062):** consola en `/platform/*` (panel, empresas, catálogos globales, **auditoría** `/platform/audit`) · login `/platform/login` · API `POST /api/v1/platform/auth/login` · requiere backend Fase 3+ y migr. **106** (`platform_owner` en enum) + `npm run seed:platform-owner` en API.
+
+**Billing SaaS v1 (ADR-0064):** `@features/billing` read-only en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención) · consola platform (suscripción, entitlements, export conciliación CSV) · paywall `internal_staff_compensation` en wizard viajes. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md`.
+
+**Multifactura por viaje (ADR-0068):** factura de flete (primaria + Carta Porte) y N facturas accesorias (solo servicios, sin CP) ligadas al mismo viaje · UI `?scope=accessory` · smoke `npm run test:smoke:trip-multi-invoice`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\facturas-accesorias-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\trip-multi-invoice\sdd.md`.
+
+**Sucursales:** detalle `/branches/:id` muestra mapa read-only Mapbox si hay `latitude`/`longitude` (`VITE_MAPBOX_PUBLIC_TOKEN`) y card **Historial de cambios** (`GET /branches/:id/activity`); captura/edición geo en alta y `/branches/:id/edit` vía `AddressInput`. **Sobrecupo de plan:** `meta.over_quota` en listado + wizard `POST /branches/reconcile-plan` + filtro de asignación en empleados. **SUC-M8a (ADR-0065):** `trips.origin_branch_id`, `vehicles.branch_id`, sucursal conductor heredada del empleado, filtro suave de flota; **cross-dock** en parada origen vía `AddressPicker` (`owner_type=branch`) + aviso en sheet de parada (sin checkbox en RouteStep). **SUC-M12 (ADR-0067):** widget `branch_kpis` en dashboard (comparar ≤3 sucursales) + `BranchOperationalKpiCard` en detalle; API `GET /dashboard/branch-kpis`; drill-down `GET /trips?origin_branch_id=`. Guía: `D:\cowork\boeltech\erp-transport\docs\sucursales\dashboard-kpis-usuario.md`. **Documentación vencida (ADR-0066):** toggle «Permitir documentación vencida» en paso 1 del wizard (seguro/SCT/licencia) + `allow_expired_docs` transitorio en create/update trip.
+
+Guía usuario plataforma: `D:\cowork\boeltech\erp-transport\docs\plataforma\panel-tenant0-usuario.md`  
 Guía usuario aprobaciones: `D:\cowork\boeltech\erp-transport\docs\finanzas\aprobaciones-centralizadas-usuario.md`  
 Guía usuario corrección fiscal: `D:\cowork\boeltech\erp-transport\docs\viajes\corregir-datos-fiscales-viaje-usuario.md`
 
