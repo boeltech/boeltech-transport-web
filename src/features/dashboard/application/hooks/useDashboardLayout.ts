@@ -70,6 +70,7 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
   const userRole = user?.role;
 
   const canReadTrips = hasPermission("trips", "read");
+  const canReadBranches = hasPermission("branches", "read");
 
   const gateRole: UserRole | undefined =
     persistMode === "role" ? roleForEdit : userRole;
@@ -77,8 +78,8 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
   const showFinance = canAccessFinanceSummaryRoute(gateRole);
 
   const gateCtx: DashboardWidgetGateContext = useMemo(
-    () => ({ canReadTrips, showFinance }),
-    [canReadTrips, showFinance],
+    () => ({ canReadTrips, showFinance, canReadBranches }),
+    [canReadTrips, showFinance, canReadBranches],
   );
 
   const [layout, setLayout] = useState<DashboardLayout>(() =>
@@ -197,6 +198,7 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     getSpanClass,
     persistMode,
     canReadTrips,
+    canReadBranches,
     showFinance,
   };
 }

@@ -171,4 +171,54 @@ export const dashboardCopy = {
     ariaLabel: "Gráfico de barras: tendencia mensual plan vs real",
     monthsOption: (months: number) => `${months}m`,
   },
+  branchKpis: {
+    title: "KPIs por sucursal",
+    description: "Comparativa operativa por sucursal (hasta 3)",
+    periodLabel: (label: string) => `Período: ${label}`,
+    periodOptions: {
+      ariaLabel: "Período de KPIs",
+      current_month: "Mes actual",
+      last_30: "30 días",
+      last_90: "90 días",
+    },
+    compareLabel: "Comparar sucursales",
+    maxBranchesHint: "Selecciona hasta 3 sucursales",
+    unassignedOption: "Sin sucursal",
+    unassignedTooltip:
+      "Viajes, vehículos o conductores sin sucursal asignada (datos legacy o sin etiquetar).",
+    singleBranchHint:
+      "Cuando registres otra sucursal activa podrás comparar desempeño entre terminales.",
+    noBranches: {
+      title: "Sin sucursales activas",
+      description: "Crea sucursales para ver KPIs comparativos por terminal.",
+      cta: "Ir a sucursales",
+    },
+    table: {
+      branch: "Sucursal",
+      tripsMonth: "Viajes",
+      inProgress: "En curso",
+      completed: "Completados",
+      vehicles: "Vehículos",
+      drivers: "Conductores",
+      margin: "Margen",
+      viewTrips: "Ver viajes",
+    },
+    chart: {
+      completed: "Completados",
+      vehicles: "Vehículos",
+      margin: "Margen",
+      empty: "Selecciona sucursales para ver la comparativa.",
+    },
+    compareCta: "Comparar sucursales",
+    trend: {
+      title: "Tendencia multi-mes",
+      description: "Viajes completados por mes calendario (hasta 3 sucursales)",
+      ariaLabel: "Gráfico de tendencia de viajes completados por sucursal",
+      monthsOption: (months: number) => `${months}m`,
+      empty: "Sin viajes completados en el rango seleccionado.",
+      emptySelection: "Selecciona al menos una sucursal para ver la tendencia.",
+      footer: (months: number, periods: number) =>
+        `Últimos ${months} meses · ${periods} períodos con datos`,
+    },
+  },
 } as const;

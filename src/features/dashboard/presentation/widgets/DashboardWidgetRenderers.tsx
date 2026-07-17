@@ -8,6 +8,7 @@ import {
   DashboardOperationsSnapshot,
   DashboardRecentTrips,
   DashboardTripsByDayChart,
+  DashboardBranchKpisWidget,
 } from "../components";
 
 export function renderOperationsSnapshot(ctx: DashboardWidgetContext) {
@@ -85,6 +86,16 @@ export function renderFinancialTrend(ctx: DashboardWidgetContext) {
       isLoading={ctx.financialTrendLoading}
       months={ctx.financialTrendMonths}
       onMonthsChange={ctx.setFinancialTrendMonths}
+    />
+  );
+}
+
+export function renderBranchKpis(ctx: DashboardWidgetContext) {
+  return (
+    <DashboardBranchKpisWidget
+      showFinance={ctx.showFinance}
+      navigate={ctx.navigate}
+      initialCompareBranchIds={ctx.compareBranchIds}
     />
   );
 }

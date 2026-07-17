@@ -12,4 +12,5 @@ export {
   renderOperationsSnapshot,
   renderRecentTrips,
   renderTripsByDay,
+  renderBranchKpis,
 } from "./DashboardWidgetRenderers";

@@ -8,3 +8,6 @@ export { DashboardMetricTrendCards } from "./DashboardMetricTrendCards";
 export { DashboardOperationsSnapshot } from "./DashboardOperationsSnapshot";
 export { DashboardRecentTrips } from "./DashboardRecentTrips";
 export { DashboardTripsByDayChart } from "./DashboardTripsByDayChart";
+export { DashboardBranchKpisWidget } from "./DashboardBranchKpisWidget";
+export { BranchKpisPeriodSelect } from "./BranchKpisPeriodSelect";
+export { BranchKpisTrendChart } from "./BranchKpisTrendChart";

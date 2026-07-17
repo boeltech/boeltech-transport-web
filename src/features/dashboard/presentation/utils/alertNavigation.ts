@@ -7,7 +7,7 @@ export function handleAlertClick(
 ) {
   switch (alert.type) {
     case "overdue_trip":
-      navigate(`/trips/${alert.entity_id}`);
+      navigate("/trips?overdue=1");
       break;
     case "license_expiring":
     case "medical_certificate_expiring":

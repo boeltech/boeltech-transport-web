@@ -17,6 +17,7 @@ export const DASHBOARD_WIDGET_IDS = [
   "trips_by_day",
   "financial_comparison",
   "financial_trend",
+  "branch_kpis",
 ] as const;
 
 export type WidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
@@ -46,6 +47,7 @@ export interface DashboardLayout {
 export interface DashboardWidgetGateContext {
   canReadTrips: boolean;
   showFinance: boolean;
+  canReadBranches: boolean;
 }
 
 export interface DashboardWidgetDefinition {
@@ -126,6 +128,15 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       defaultVisible: true,
       defaultOrder: 7,
       gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
+    },
+    {
+      id: "branch_kpis",
+      title: "KPIs por sucursal",
+      span: "full",
+      defaultVisible: true,
+      defaultOrder: 8,
+      gate: ({ canReadTrips, canReadBranches }) =>
+        canReadTrips && canReadBranches,
     },
   ] as const;
 

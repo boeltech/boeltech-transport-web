@@ -39,6 +39,7 @@ describe("dashboard layout", () => {
     const filtered = applyRbac(layout, {
       canReadTrips: true,
       showFinance: false,
+      canReadBranches: true,
     });
     expect(
       filtered.widgets.some((w) => w.id === "financial_trend"),

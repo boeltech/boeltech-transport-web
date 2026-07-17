@@ -117,6 +117,90 @@ export interface TripsByDayData {
   points: TripsByDayPoint[];
 }
 
+export interface BranchKpisPeriod {
+  from: string;
+  to: string;
+  label: string;
+}
+
+export const BRANCH_KPIS_PERIOD_VALUES = [
+  "current_month",
+  "last_30",
+  "last_90",
+] as const;
+
+export type BranchKpisPeriodValue =
+  (typeof BRANCH_KPIS_PERIOD_VALUES)[number];
+
+export const DEFAULT_BRANCH_KPIS_PERIOD: BranchKpisPeriodValue =
+  "current_month";
+
+export interface BranchKpisTrips {
+  total: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+}
+
+export interface BranchKpisFleet {
+  vehiclesTotal: number;
+  vehiclesAvailable: number;
+  vehiclesOnTrip: number;
+  vehiclesInMaintenance: number;
+}
+
+export interface BranchKpisDrivers {
+  total: number;
+  available: number;
+  onTrip: number;
+}
+
+export interface BranchKpisFinancialMonth {
+  tripCount: number;
+  actualRevenue: number;
+  actualCost: number;
+  actualMargin: number;
+}
+
+export interface BranchKpisRow {
+  branchId: string | null;
+  branchCode: string | null;
+  branchName: string;
+  trips: BranchKpisTrips;
+  fleet: BranchKpisFleet;
+  drivers: BranchKpisDrivers;
+  financialMonth: BranchKpisFinancialMonth | null;
+}
+
+export interface BranchKpisData {
+  period: BranchKpisPeriod;
+  rows: BranchKpisRow[];
+}
+
+export type BranchKpisSelectionToken = string | "unassigned";
+
+export type BranchKpisTrendMonths = 6 | 12;
+
+export interface BranchKpisTrendFinancial {
+  actualRevenue: number[];
+  actualCost: number[];
+  actualMargin: number[];
+}
+
+export interface BranchKpisTrendSeries {
+  branchId: string | null;
+  branchCode: string | null;
+  branchName: string;
+  tripsCompleted: number[];
+  financial: BranchKpisTrendFinancial | null;
+}
+
+export interface BranchKpisTrendData {
+  months: number;
+  periods: string[];
+  series: BranchKpisTrendSeries[];
+}
+
 // ============================================
 // UI Constants
 // ============================================

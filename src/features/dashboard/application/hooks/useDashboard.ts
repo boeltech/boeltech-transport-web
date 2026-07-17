@@ -38,6 +38,30 @@ export const dashboardQueryKeys = {
     [...dashboardQueryKeys.all, "trips-by-day", days] as const,
   financialTrend: (months: number) =>
     [...dashboardQueryKeys.all, "financial-trend", months] as const,
+  branchKpis: (
+    branchIds?: string[],
+    includeUnassigned?: boolean,
+    period: string = "current_month",
+  ) =>
+    [
+      ...dashboardQueryKeys.all,
+      "branch-kpis",
+      branchIds ?? [],
+      includeUnassigned ?? false,
+      period,
+    ] as const,
+  branchKpisTrend: (
+    months: number,
+    branchIds?: string[],
+    includeUnassigned?: boolean,
+  ) =>
+    [
+      ...dashboardQueryKeys.all,
+      "branch-kpis-trend",
+      months,
+      branchIds ?? [],
+      includeUnassigned ?? false,
+    ] as const,
 };
 
 // ============================================

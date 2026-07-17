@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   RefreshCw,
@@ -36,7 +36,18 @@ import { Button } from "@/shared/ui/button";
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data, isLoading, isError, refetch, isFetching } = useDashboard();
+
+  const compareBranchIds = useMemo(() => {
+    const raw = searchParams.get("compareBranches");
+    if (!raw?.trim()) return undefined;
+    return raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }, [searchParams]);
 
   const layoutApi = useDashboardLayout({ persistMode: "user" });
   const { visibleWidgets, getSpanClass, canReadTrips, showFinance } = layoutApi;
@@ -86,6 +97,7 @@ function DashboardPage() {
       financialTrendLoading,
       financialTrendMonths,
       setFinancialTrendMonths,
+      compareBranchIds,
     }),
     [
       data,
@@ -101,6 +113,7 @@ function DashboardPage() {
       financialTrend,
       financialTrendLoading,
       financialTrendMonths,
+      compareBranchIds,
     ],
   );
 

@@ -26,4 +26,5 @@ export interface DashboardWidgetContext {
   financialTrendLoading: boolean;
   financialTrendMonths: FinancialTrendMonths;
   setFinancialTrendMonths: (months: FinancialTrendMonths) => void;
+  compareBranchIds?: string[];
 }

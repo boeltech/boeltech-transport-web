@@ -21,6 +21,7 @@ import {
   renderOperationsSnapshot,
   renderRecentTrips,
   renderTripsByDay,
+  renderBranchKpis,
 } from "./DashboardWidgetParts";
 
 export interface DashboardWidgetRegistryEntry {
@@ -45,6 +46,7 @@ const RENDER_BY_ID: Record<
   trips_by_day: renderTripsByDay,
   financial_comparison: renderFinancialComparison,
   financial_trend: renderFinancialTrend,
+  branch_kpis: renderBranchKpis,
 };
 
 export const DASHBOARD_WIDGETS: DashboardWidgetRegistryEntry[] =
