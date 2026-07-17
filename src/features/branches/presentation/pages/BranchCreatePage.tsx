@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
+import type { WizardStepRenderHelpers } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast } from "@shared/hooks";
 import {
   getErrorMessage,
@@ -31,6 +32,26 @@ export function BranchCreatePage() {
         toast({
           title: branchesCopy.limitReached.title,
           description: error.message || branchesCopy.limitReached.description,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (isApiError(error) && error.code === "BRANCH_CODE_EXISTS") {
+        toast({
+          title: branchesCopy.errors.codeExists.title,
+          description:
+            error.message || branchesCopy.errors.codeExists.description,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (isApiError(error) && error.code === "MAIN_BRANCH_EXISTS") {
+        toast({
+          title: branchesCopy.errors.mainExists.title,
+          description:
+            error.message || branchesCopy.errors.mainExists.description,
           variant: "destructive",
         });
         return;
@@ -67,22 +88,32 @@ export function BranchCreatePage() {
   const isSubmitting = createMutation.isPending;
 
   const renderStep = useCallback(
-    (currentStep: number) => (
-      <>
-        {currentStep < 2 ? (
-          <p className="mb-4 max-w-md text-sm text-muted-foreground">
-            {branchesCopy.create.stepHint}
-          </p>
-        ) : null}
-        <BranchForm
-          ref={formRef}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          wizardMode
-          wizardStepIndex={currentStep}
-        />
-      </>
-    ),
+    (currentStep: number, helpers?: WizardStepRenderHelpers) => {
+      const stepHint =
+        currentStep === 0
+          ? branchesCopy.create.stepHints.general
+          : currentStep === 1
+            ? branchesCopy.create.stepHints.address
+            : null;
+
+      return (
+        <>
+          {stepHint ? (
+            <p className="mb-4 max-w-xl text-sm text-muted-foreground">
+              {stepHint}
+            </p>
+          ) : null}
+          <BranchForm
+            ref={formRef}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            wizardMode
+            wizardStepIndex={currentStep}
+            onEditStep={helpers?.goToStep}
+          />
+        </>
+      );
+    },
     [handleSubmit, isSubmitting],
   );
 

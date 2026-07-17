@@ -9,6 +9,70 @@ export const branchesCopy = {
       "Tu plan actual no permite registrar más sucursales. Contacta a soporte para ampliar tu plan.",
     createDisabled: "Límite de plan alcanzado",
   },
+  overQuota: {
+    title: "Sucursales por encima de tu plan",
+    description: (active: number, max: number) =>
+      `Tienes ${active} sucursal(es) activa(s) y tu plan incluye ${max}. Debes consolidar sucursales o mejorar tu plan para seguir asignando empleados a todas.`,
+    adjustAction: "Ajustar sucursales al plan",
+    billingHint: "Revisa tu plan comercial en Suscripción.",
+    reconcileSuccess: "Sucursales ajustadas al plan",
+    reconcileError: "No se pudo ajustar las sucursales al plan",
+    sheet: {
+      title: "Ajustar sucursales al plan",
+      description:
+        "Elige qué sucursales conservarás activas. Las demás se desactivarán y sus empleados deberán moverse a una que permanezca activa.",
+      intro: {
+        title: "Tu plan incluye menos sucursales de las que tienes activas",
+        body: (active: number, max: number) =>
+          `Tienes ${active} sucursales activas y tu plan permite ${max}. Conserva ${max} y reasigna a sus empleados antes de confirmar.`,
+      },
+      selectionTitle: "Sucursales a conservar",
+      counter: (selected: number, max: number) =>
+        `${selected} de ${max} seleccionadas`,
+      mainBadge: "Matriz",
+      newMainBadge: "Nueva matriz",
+      makeMain: "Hacer matriz",
+      keepBadge: "Se conserva",
+      deactivateBadge: "Se desactivará",
+      mainHint:
+        "La sucursal que conserves quedará como matriz de tu empresa; no necesitas cambiarla antes.",
+      newMainNote: (label: string) => `${label} pasará a ser tu matriz.`,
+      employeeCount: (count: number) =>
+        `${count} ${count === 1 ? "empleado" : "empleados"}`,
+      noEmployees: "Sin empleados",
+      employeesTitle: "Reasignar empleados",
+      employeesHint:
+        "Estas sucursales se desactivarán. Mueve a sus empleados a una de las que conservarás.",
+      destinationLabel: "Mover empleados a",
+      destinationPlaceholder: "Selecciona una sucursal",
+      confirm: "Confirmar ajuste",
+      submitting: "Ajustando…",
+      emptyBranches: "No hay sucursales activas para ajustar.",
+      disabledReason: {
+        selection: (max: number) =>
+          `Selecciona ${max} ${max === 1 ? "sucursal" : "sucursales"} para continuar.`,
+        reassign:
+          "Asigna un destino a los empleados de las sucursales que se desactivarán.",
+      },
+    },
+  },
+  errors: {
+    codeExists: {
+      title: "Código duplicado",
+      description:
+        "Ya existe una sucursal activa con ese código. Elige otro código.",
+    },
+    mainExists: {
+      title: "Matriz ya registrada",
+      description:
+        "Ya existe una sucursal principal activa. Designa otra matriz antes de marcar esta como principal.",
+    },
+    mainDeleteBlocked: {
+      title: "No se puede eliminar la matriz",
+      description:
+        "Designa otra sucursal como principal antes de eliminar la matriz.",
+    },
+  },
   list: {
     title: "Sucursales",
     description: "Catálogo de sucursales de la empresa",
@@ -16,6 +80,28 @@ export const branchesCopy = {
     primaryAction: "Nueva sucursal",
     searchPlaceholder: "Buscar sucursal...",
     refreshSuccess: "Lista actualizada",
+    capacity: {
+      limited: (active: number, max: number) =>
+        `${active} de ${max} sucursales activas`,
+      unlimited: (active: number) => `Sin límite (${active} activas)`,
+      limitReachedHint: "Límite de plan alcanzado",
+      overQuotaHint: (active: number, max: number) =>
+        `${active} activas · tu plan incluye ${max}`,
+    },
+    export: {
+      label: "Exportar CSV",
+      exporting: "Exportando...",
+      toast: {
+        success: "Exportación completada",
+        empty: "No hay sucursales para exportar con los filtros actuales",
+        error: "Error al exportar sucursales",
+      },
+      filePrefix: "sucursales",
+    },
+    showDeleted: {
+      label: "Mostrar eliminadas",
+      chip: "Vista: eliminadas",
+    },
     columns: {
       code: "Código",
       name: "Nombre",
@@ -43,21 +129,26 @@ export const branchesCopy = {
     toasts: {
       deleteSuccess: "Sucursal eliminada",
       deleteError: "Error al eliminar sucursal",
+      restoreSuccess: "Sucursal restaurada",
+      restoreError: "Error al restaurar sucursal",
     },
   },
   detail: {
     title: "Detalle de sucursal",
-    subtitle: (code: string) => `Código ${code}`,
+    header: {
+      backLabel: "Volver a sucursales",
+      subtitle: (code: string) => `Código ${code}`,
+    },
     notFound: {
       title: "Sucursal no encontrada",
       description: "No se encontró la sucursal solicitada.",
       backLabel: "Volver a sucursales",
     },
     stats: {
-      isMain: "Sucursal principal",
-      isMainYes: "Sí",
-      isMainNo: "No",
-      operationalStatus: "Estado operativo",
+      isMain: "Tipo",
+      isMainYes: "Principal",
+      isMainNo: "Secundaria",
+      operationalStatus: "Estado",
       active: "Activa",
       inactive: "Inactiva",
     },
@@ -65,36 +156,88 @@ export const branchesCopy = {
       contact: "Contacto",
       address: "Dirección",
       notes: "Notas",
+      employees: "Empleados asignados",
+      vehicles: "Vehículos asignados",
+    },
+    employees: {
+      empty: "No hay empleados asignados a esta sucursal.",
+      count: (n: number) =>
+        n === 1 ? "1 empleado asignado" : `${n} empleados asignados`,
+      viewEmployee: "Ver empleado",
+    },
+    vehicles: {
+      empty: "No hay vehículos asignados a esta sucursal.",
+      count: (n: number) =>
+        n === 1 ? "1 vehículo asignado" : `${n} vehículos asignados`,
+      viewVehicle: "Ver vehículo",
     },
     fields: {
       manager: "Responsable",
       phone: "Teléfono",
       email: "Correo",
-      street: "Calle",
-      neighborhood: "Colonia",
-      cityState: "Ciudad / Estado",
-      postalCountry: "CP / País",
-      notDefined: "No definido",
-      neighborhoodNotDefined: "No definida",
-      notesEmpty: "Sin notas registradas",
+      notDefined: "No registrado",
+      notesEmpty: "Sin notas",
+      addressEmpty: "Sin dirección registrada",
+    },
+    map: {
+      title: "Ubicación en mapa",
+      confirmedLabel: "Ubicación confirmada",
+      noCoordinates: "Sin coordenadas registradas",
+      noCoordinatesHint:
+        "Completa la geolocalización en la edición de la sucursal.",
+      noMapboxToken:
+        "Configura VITE_MAPBOX_PUBLIC_TOKEN para habilitar el mapa interactivo.",
+      completeLocationCta: "Completar ubicación",
+      openExternal: "Abrir en mapa",
+    },
+    activity: {
+      title: "Historial de cambios",
+      empty:
+        "Aún no hay eventos registrados. Los cambios (alta, edición, baja y restauración) aparecerán aquí.",
+      syntheticHint: "Registro inferido de datos de auditoría",
+      loadMore: "Cargar más",
+      refresh: "Actualizar historial",
+      error: "No se pudo cargar el historial de la sucursal.",
     },
     alerts: {
       inactiveMain: {
-        title: "Sucursal principal inactiva",
-        text: "Esta sucursal está inactiva pero marcada como principal. Revisa el estado operativo.",
+        title: "Principal inactiva",
+        text: "Esta sucursal es la matriz pero está inactiva. Revisa su estado.",
       },
       missingContact: {
-        title: "Sin datos de contacto",
-        text: "No hay teléfono ni correo registrados para esta sucursal.",
+        title: "Sin contacto",
+        text: "No hay teléfono ni correo registrados.",
+      },
+      geolocationPending: {
+        title: "Geolocalización pendiente",
+        text: "Faltan coordenadas en el mapa.",
+      },
+    },
+    kpis: {
+      title: "Desempeño operativo",
+      compareCta: "Comparar en dashboard",
+      periodLabel: (label: string) => `Período: ${label}`,
+      loading: "Cargando indicadores…",
+      error: "No se pudieron cargar los KPIs de la sucursal.",
+      viewTrips: "Ver viajes",
+      metrics: {
+        tripsMonth: "Viajes",
+        inProgress: "En curso",
+        completed: "Completados",
+        vehicles: "Vehículos asignados",
+        drivers: "Conductores",
+        margin: "Margen",
+      },
+      trend: {
+        title: "Tendencia multi-mes",
+        description: "Viajes completados por mes calendario",
+        empty: "Sin viajes completados en el rango seleccionado.",
       },
     },
     toasts: {
       deleteSuccess: "Sucursal eliminada",
       deleteError: "Error al eliminar sucursal",
     },
-    /** Reservado para tabs futuros (empleados, historial, etc.). */
-    tabsFutureNote:
-      "Tabs de sub-recursos (empleados asignados, historial) pendientes de implementación.",
   },
   create: {
     title: "Nueva sucursal",
@@ -103,7 +246,12 @@ export const branchesCopy = {
     stepsAriaLabel: "Pasos para registrar sucursal",
     submitLabel: "Crear sucursal",
     submittingLabel: "Creando...",
-    stepHint: "Completa los campos obligatorios del paso para continuar.",
+    stepHints: {
+      general:
+        "Datos de identificación y contacto. Los campos con * son obligatorios.",
+      address:
+        "Domicilio de la sucursal. Calle y número exterior son obligatorios; al capturar el código postal se autocompletan estado, municipio y colonias. Puedes confirmar la ubicación en el mapa de forma opcional.",
+    },
     steps: [
       {
         id: "general",
@@ -130,7 +278,8 @@ export const branchesCopy = {
   edit: {
     title: "Editar sucursal",
     titleWithName: (name: string) => `Editar ${name}`,
-    subtitle: (code: string) => `Código: ${code}`,
+    subtitle: (code: string) => `Código ${code}`,
+    backLabel: "Volver al detalle",
     notFound: {
       title: "Sucursal no encontrada",
       description: "No existe la sucursal que intentas editar.",
@@ -146,14 +295,29 @@ export const branchesCopy = {
     validationToastTitle: "Revisa el formulario",
     validationSummaryWizard: "Revisa la información de la sucursal",
     validationSummaryEdit: "Revisa los siguientes campos",
+    validationAddressSummary: "Revisa los campos de dirección antes de guardar.",
     sections: {
       general: {
         title: "Datos generales",
         description: "Información principal y datos de contacto",
+        editDescription: "Identificación y estado operativo",
+      },
+      contact: {
+        title: "Contacto",
+        description: "Teléfono, correo y responsable de la sucursal",
       },
       address: {
-        title: "Dirección y notas",
-        description: "Ubicación física de la sucursal",
+        title: "Dirección",
+        description:
+          "País, estado, código postal, calle y número exterior son obligatorios; municipio y colonia son opcionales.",
+      },
+      geolocation: {
+        description:
+          "Opcional. Confirma en el mapa el punto exacto de la sucursal para rutas y seguimiento.",
+      },
+      notes: {
+        title: "Notas",
+        description: "Información operativa adicional (opcional)",
       },
       review: {
         title: "Revisión",
@@ -165,16 +329,89 @@ export const branchesCopy = {
       saveChanges: "Guardar cambios",
       create: "Crear sucursal",
     },
+    actions: {
+      cancel: "Cancelar",
+    },
+    fields: {
+      code: {
+        label: "Código",
+        placeholder: "Ej. MTY-01",
+        hint: "Identificador corto y único. Solo letras, números y guiones.",
+        hintLocked: "El código no se puede cambiar una vez creada la sucursal.",
+      },
+      name: {
+        label: "Nombre",
+        placeholder: "Sucursal Monterrey",
+      },
+      status: {
+        label: "Estado",
+        placeholder: "Selecciona estado",
+      },
+      isMain: {
+        label: "Sucursal principal",
+        description: "Marca esta opción solo para la sucursal matriz.",
+        yes: "Sí",
+        no: "No",
+      },
+      phone: {
+        label: "Teléfono",
+        placeholder: "81 1234 5678",
+      },
+      email: {
+        label: "Correo",
+        placeholder: "sucursal@empresa.com",
+      },
+      managerName: {
+        label: "Responsable",
+        placeholder: "Nombre del responsable de sucursal",
+      },
+      notes: {
+        label: "Notas",
+        placeholder: "Notas operativas de la sucursal (opcional)",
+      },
+    },
+    mainInactiveWarning: {
+      title: "Principal e inactiva",
+      text: "Marcaste la sucursal como principal pero su estado es inactivo. Normalmente la matriz debe permanecer activa.",
+      editText:
+        "Esta sucursal es la matriz pero está inactiva. Revisa su estado operativo.",
+    },
+    review: {
+      hint: "Revisa la información antes de crear la sucursal. Usa «Editar» para corregir un bloque.",
+      editLabel: "Editar",
+      general: "Datos generales",
+      contact: "Contacto",
+      address: "Dirección",
+      notes: "Notas",
+      code: "Código",
+      name: "Nombre",
+      status: "Estado",
+      isMain: "Sucursal principal",
+      isMainYes: "Sí",
+      isMainNo: "No",
+      phone: "Teléfono",
+      email: "Correo",
+      manager: "Responsable",
+      coordinates: "Coordenadas",
+      empty: "No registrado",
+      notesEmpty: "Sin notas",
+    },
   },
   actions: {
     viewDetail: "Ver detalle",
     edit: "Editar",
     delete: "Eliminar",
     deleting: "Eliminando...",
+    restore: "Restaurar",
+    restoring: "Restaurando...",
     cancel: "Cancelar",
     deleteTitle: "¿Eliminar sucursal?",
     deleteDescription: (name: string) =>
       `Esta acción eliminará la sucursal ${name}. Esta acción no se puede deshacer.`,
+    restoreTitle: "¿Restaurar sucursal?",
+    restoreDescription: (name: string) =>
+      `La sucursal ${name} volverá a estar activa en el catálogo.`,
+    mainDeleteDisabled: "Designa otra matriz antes de eliminar esta sucursal",
     viewMore: "Ver más",
   },
   card: {

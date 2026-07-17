@@ -1,9 +1,12 @@
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Plus, Search } from "lucide-react";
+import { Building2, Download, Plus, Search } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { Button } from "@shared/ui/button";
+import { Checkbox } from "@shared/ui/checkbox";
+import { Label } from "@shared/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,14 +15,32 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
+import {
   BranchStatus,
   BRANCH_STATUS_LABELS,
+  type BranchQueryParams,
   type BranchSortOptions,
   type BranchStatusType,
 } from "../../domain";
-import { useBranches, useDeleteBranch } from "../../application";
-import { BranchCard, BranchCardSkeleton, BranchTable } from "../components";
+import {
+  useBranches,
+  useDeleteBranch,
+  useExportBranches,
+  useRestoreBranch,
+} from "../../application";
+import {
+  BranchCapacityBanner,
+  BranchCard,
+  BranchCardSkeleton,
+  BranchOverQuotaBanner,
+  BranchReconcilePlanSheet,
+  BranchTable,
+} from "../components";
 import { branchesCopy } from "../copy/branchesCopy";
+import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
 
 const DEFAULT_SORT_FIELD: BranchSortOptions["field"] = "name";
 
@@ -28,6 +49,8 @@ export function BranchesListPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
   const filters = useListingFilters<"status" | "main">({
     filters: {
       status: {},
@@ -50,20 +73,57 @@ export function BranchesListPage() {
     DEFAULT_SORT_FIELD;
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
 
-  const { data, isLoading, isFetching, refetch } = useBranches({
-    page: filters.page,
-    limit: 10,
-    filters: {
-      status: statusFilter || undefined,
-      isMain: mainFilter ? mainFilter === "true" : undefined,
-      search: filters.search || undefined,
-      isActive: true,
+  const listParams = useMemo<BranchQueryParams>(
+    () => ({
+      page: filters.page,
+      limit: 10,
+      filters: {
+        status: statusFilter || undefined,
+        isMain: mainFilter ? mainFilter === "true" : undefined,
+        search: filters.search || undefined,
+        isActive: showDeleted ? false : true,
+      },
+      sort: {
+        field: sortBy,
+        direction: sortOrder,
+      },
+    }),
+    [
+      filters.page,
+      filters.search,
+      mainFilter,
+      showDeleted,
+      sortBy,
+      sortOrder,
+      statusFilter,
+    ],
+  );
+
+  const { data, isLoading, isFetching, refetch } = useBranches(listParams);
+  const { exportBranches, isExporting } = useExportBranches();
+
+  const showBranchErrorToast = useCallback(
+    (error: Error, fallbackTitle: string) => {
+      const known = getBranchMutationErrorToast(error);
+      if (known) {
+        toast({
+          title: known.title,
+          description: known.description,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: fallbackTitle,
+        description: isApiError(error)
+          ? error.getDetailedMessage(3)
+          : getErrorMessage(error),
+        variant: "destructive",
+      });
     },
-    sort: {
-      field: sortBy,
-      direction: sortOrder,
-    },
-  });
+    [toast],
+  );
 
   const deleteMutation = useDeleteBranch({
     onSuccess: () => {
@@ -74,17 +134,29 @@ export function BranchesListPage() {
       void refetch();
     },
     onError: (error) => {
+      showBranchErrorToast(error, branchesCopy.list.toasts.deleteError);
+    },
+  });
+
+  const restoreMutation = useRestoreBranch({
+    onSuccess: () => {
       toast({
-        title: branchesCopy.list.toasts.deleteError,
-        description: error.message,
-        variant: "destructive",
+        title: branchesCopy.list.toasts.restoreSuccess,
+        variant: "success",
       });
+      void refetch();
+    },
+    onError: (error) => {
+      showBranchErrorToast(error, branchesCopy.list.toasts.restoreError);
     },
   });
 
   const branches = data?.data ?? [];
   const canCreate = hasPermission("branches", "create");
   const canDelete = hasPermission("branches", "delete");
+  const canExport = hasPermission("branches", "export");
+  const canRestore = hasPermission("branches", "update");
+  const branchLimitReached = !showDeleted && (data?.meta?.limitReached ?? false);
 
   const handleCreate = useCallback(() => navigate("/branches/new"), [navigate]);
 
@@ -98,11 +170,23 @@ export function BranchesListPage() {
 
   const handleDelete = useCallback(
     (id: string) => {
-      if (!canDelete) return;
+      if (!canDelete || showDeleted) return;
       deleteMutation.mutate(id);
     },
-    [canDelete, deleteMutation],
+    [canDelete, deleteMutation, showDeleted],
   );
+
+  const handleRestore = useCallback(
+    (id: string) => {
+      if (!canRestore || !showDeleted) return;
+      restoreMutation.mutate(id);
+    },
+    [canRestore, restoreMutation, showDeleted],
+  );
+
+  const handleExport = useCallback(() => {
+    void exportBranches(listParams);
+  }, [exportBranches, listParams]);
 
   const handleSortChange = useCallback(
     (field: string) => {
@@ -123,15 +207,40 @@ export function BranchesListPage() {
     [setSearchParams],
   );
 
+  const activeFilterChips = useMemo(() => {
+    const chips = [...filters.activeChips];
+    if (showDeleted) {
+      chips.push({
+        key: "deleted-view",
+        label: branchesCopy.list.showDeleted.chip,
+        onRemove: () => setShowDeleted(false),
+      });
+    }
+    return chips;
+  }, [filters.activeChips, showDeleted]);
+
   return (
+    <>
     <ListPageShell
       title={branchesCopy.list.title}
       description={branchesCopy.list.description}
+      beforeToolbar={
+        <>
+          <BranchOverQuotaBanner
+            meta={data?.meta}
+            canReconcile={canDelete && !showDeleted}
+            onReconcile={() => setReconcileOpen(true)}
+          />
+          <BranchCapacityBanner meta={data?.meta} />
+        </>
+      }
       primaryAction={{
         label: branchesCopy.list.primaryAction,
         icon: <Plus className="h-4 w-4" />,
         onClick: handleCreate,
-        visible: canCreate,
+        visible: canCreate && !showDeleted,
+        disabled: branchLimitReached,
+        disabledTitle: branchesCopy.limitReached.createDisabled,
       }}
       toolbar={{
         search: {
@@ -170,13 +279,48 @@ export function BranchesListPage() {
                 <SelectItem value="false">{branchesCopy.list.filters.typeSecondary}</SelectItem>
               </SelectContent>
             </Select>
+            {canDelete ? (
+              <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <Checkbox
+                  id="show-deleted-branches"
+                  checked={showDeleted}
+                  onCheckedChange={(checked) => {
+                    setShowDeleted(checked === true);
+                    filters.setPage(1);
+                  }}
+                />
+                <Label
+                  htmlFor="show-deleted-branches"
+                  className="cursor-pointer text-sm font-normal"
+                >
+                  {branchesCopy.list.showDeleted.label}
+                </Label>
+              </div>
+            ) : null}
           </>
         ),
+        extraActions: canExport ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isExporting}
+            onClick={handleExport}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {isExporting
+              ? branchesCopy.list.export.exporting
+              : branchesCopy.list.export.label}
+          </Button>
+        ) : null,
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
-        activeFilterChips: filters.activeChips,
-        onClearFilters: filters.clearAll,
-        hasFilters: filters.hasFilters,
+        activeFilterChips,
+        onClearFilters: () => {
+          filters.clearAll();
+          setShowDeleted(false);
+        },
+        hasFilters: filters.hasFilters || showDeleted,
         viewMode: filters.viewModeProps,
       }}
       isLoading={isLoading}
@@ -197,8 +341,11 @@ export function BranchesListPage() {
         <BranchTable
           branches={branches}
           isLoading={isLoading}
-          onDelete={canDelete ? handleDelete : undefined}
+          showDeleted={showDeleted}
+          onDelete={canDelete && !showDeleted ? handleDelete : undefined}
+          onRestore={canRestore && showDeleted ? handleRestore : undefined}
           isDeleting={deleteMutation.isPending}
+          isRestoring={restoreMutation.isPending}
           sortBy={sortBy}
           sortOrder={sortOrder}
           onSort={handleSortChange}
@@ -209,8 +356,11 @@ export function BranchesListPage() {
           <BranchCard
             key={branch.id}
             branch={branch}
-            onDelete={canDelete ? handleDelete : undefined}
+            showDeleted={showDeleted}
+            onDelete={canDelete && !showDeleted ? handleDelete : undefined}
+            onRestore={canRestore && showDeleted ? handleRestore : undefined}
             isDeleting={deleteMutation.isPending}
+            isRestoring={restoreMutation.isPending}
           />
         ))
       }
@@ -218,24 +368,31 @@ export function BranchesListPage() {
       emptyState={{
         icon: <Search className="h-10 w-10 text-muted-foreground" />,
         title: branchesCopy.list.empty.title,
-        description: filters.hasFilters
+        description: filters.hasFilters || showDeleted
           ? branchesCopy.list.empty.descriptionFiltered
           : branchesCopy.list.empty.descriptionDefault,
-        cta: canCreate
+        cta: canCreate && !showDeleted
           ? {
-              label: branchesCopy.list.primaryAction,
+              label: branchLimitReached
+                ? branchesCopy.limitReached.createDisabled
+                : branchesCopy.list.primaryAction,
               icon: <Building2 className="h-4 w-4" />,
-              onClick: handleCreate,
+              onClick: branchLimitReached ? () => undefined : handleCreate,
             }
           : undefined,
-        secondaryCta: filters.hasFilters
+        secondaryCta: filters.hasFilters || showDeleted
           ? {
               label: branchesCopy.list.empty.clearFilters,
-              onClick: filters.clearAll,
+              onClick: () => {
+                filters.clearAll();
+                setShowDeleted(false);
+              },
               variant: "outline",
             }
           : undefined,
       }}
     />
+    <BranchReconcilePlanSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
+  </>
   );
 }

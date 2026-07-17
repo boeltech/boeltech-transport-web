@@ -1,28 +1,33 @@
 import { useNavigate } from "react-router-dom";
-import { Building2, Eye, MapPin, MoreVertical, Pencil, Phone, Trash2 } from "lucide-react";
+import { Building2, Eye, MapPin, Phone } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@shared/ui/dropdown-menu";
 import type { BranchListItem } from "../../domain";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
+import { formatBranchListLocation } from "../utils/branchAddressFormatters";
 import { branchesCopy } from "../copy/branchesCopy";
+import { BranchActions } from "./BranchActions";
 
 interface BranchCardProps {
   branch: BranchListItem;
+  showDeleted?: boolean;
   onDelete?: (id: string) => void;
+  onRestore?: (id: string) => void;
   isDeleting?: boolean;
+  isRestoring?: boolean;
 }
 
-export function BranchCard({ branch, onDelete, isDeleting }: BranchCardProps) {
+export function BranchCard({
+  branch,
+  showDeleted = false,
+  onDelete,
+  onRestore,
+  isDeleting,
+  isRestoring,
+}: BranchCardProps) {
   const navigate = useNavigate();
-  const hasDelete = Boolean(onDelete);
+  const hasActions = Boolean(onDelete || onRestore);
 
   const handleView = () => navigate(`/branches/${branch.id}`);
 
@@ -53,51 +58,19 @@ export function BranchCard({ branch, onDelete, isDeleting }: BranchCardProps) {
             </div>
           </div>
 
-          {hasDelete ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Acciones</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleView();
-                  }}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  {branchesCopy.actions.viewDetail}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/branches/${branch.id}/edit`);
-                  }}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {branchesCopy.actions.edit}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  disabled={isDeleting}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete?.(branch.id);
-                  }}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {isDeleting ? branchesCopy.actions.deleting : branchesCopy.actions.delete}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {hasActions ? (
+            <div onClick={(e) => e.stopPropagation()}>
+              <BranchActions
+                branchId={branch.id}
+                branchName={branch.name}
+                isActive={!showDeleted && branch.isActive}
+                isMain={branch.isMain}
+                onDelete={onDelete}
+                onRestore={onRestore}
+                isDeleting={isDeleting}
+                isRestoring={isRestoring}
+              />
+            </div>
           ) : null}
         </div>
       </CardHeader>
@@ -107,7 +80,7 @@ export function BranchCard({ branch, onDelete, isDeleting }: BranchCardProps) {
           <div className="flex items-center gap-2 text-muted-foreground">
             <MapPin className="h-4 w-4 shrink-0" />
             <span className="truncate">
-              {branch.city}, {branch.state}
+              {formatBranchListLocation(branch.city, branch.state) || "—"}
             </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">

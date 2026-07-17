@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
   DropdownMenu,
@@ -19,34 +19,55 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { usePermissions } from "@shared/permissions";
 import { branchesCopy } from "../copy/branchesCopy";
 
 interface BranchActionsProps {
   branchId: string;
   branchName: string;
+  isActive?: boolean;
+  isMain?: boolean;
   variant?: "dropdown" | "buttons";
   onDelete?: (id: string) => void;
+  onRestore?: (id: string) => void;
   isDeleting?: boolean;
+  isRestoring?: boolean;
 }
 
 export function BranchActions({
   branchId,
   branchName,
+  isActive = true,
+  isMain = false,
   variant = "dropdown",
   onDelete,
+  onRestore,
   isDeleting = false,
+  isRestoring = false,
 }: BranchActionsProps) {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmRestoreOpen, setConfirmRestoreOpen] = useState(false);
 
   const canUpdate = hasPermission("branches", "update");
   const canDelete = hasPermission("branches", "delete");
+  const canRestore = canUpdate && Boolean(onRestore) && !isActive;
+  const canDeleteBranch = canDelete && Boolean(onDelete) && isActive && !isMain;
 
   const handleDelete = () => {
     onDelete?.(branchId);
     setConfirmDeleteOpen(false);
+  };
+
+  const handleRestore = () => {
+    onRestore?.(branchId);
+    setConfirmRestoreOpen(false);
   };
 
   const deleteDialog = (
@@ -74,11 +95,59 @@ export function BranchActions({
     </AlertDialog>
   );
 
+  const restoreDialog = (
+    <AlertDialog open={confirmRestoreOpen} onOpenChange={setConfirmRestoreOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{branchesCopy.actions.restoreTitle}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {branchesCopy.actions.restoreDescription(branchName)}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRestoring}>
+            {branchesCopy.actions.cancel}
+          </AlertDialogCancel>
+          <AlertDialogAction disabled={isRestoring} onClick={handleRestore}>
+            {isRestoring
+              ? branchesCopy.actions.restoring
+              : branchesCopy.actions.restore}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  const deleteButton =
+    isMain && isActive && canDelete ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <Button variant="destructive" size="sm" disabled>
+              <Trash2 className="mr-2 h-4 w-4" />
+              {branchesCopy.actions.delete}
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{branchesCopy.actions.mainDeleteDisabled}</TooltipContent>
+      </Tooltip>
+    ) : canDeleteBranch ? (
+      <Button
+        variant="destructive"
+        size="sm"
+        disabled={isDeleting}
+        onClick={() => setConfirmDeleteOpen(true)}
+      >
+        <Trash2 className="mr-2 h-4 w-4" />
+        {isDeleting ? branchesCopy.actions.deleting : branchesCopy.actions.delete}
+      </Button>
+    ) : null;
+
   if (variant === "buttons") {
     return (
       <>
         <div className="flex items-center gap-2">
-          {canUpdate ? (
+          {canUpdate && isActive ? (
             <Button
               variant="outline"
               size="sm"
@@ -88,19 +157,23 @@ export function BranchActions({
               {branchesCopy.actions.edit}
             </Button>
           ) : null}
-          {canDelete ? (
+          {canRestore ? (
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              disabled={isDeleting}
-              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={isRestoring}
+              onClick={() => setConfirmRestoreOpen(true)}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {branchesCopy.actions.delete}
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {isRestoring
+                ? branchesCopy.actions.restoring
+                : branchesCopy.actions.restore}
             </Button>
           ) : null}
+          {deleteButton}
         </div>
         {deleteDialog}
+        {restoreDialog}
       </>
     );
   }
@@ -119,28 +192,44 @@ export function BranchActions({
             <Eye className="mr-2 h-4 w-4" />
             {branchesCopy.actions.viewDetail}
           </DropdownMenuItem>
-          {canUpdate ? (
+          {canUpdate && isActive ? (
             <DropdownMenuItem onClick={() => navigate(`/branches/${branchId}/edit`)}>
               <Pencil className="mr-2 h-4 w-4" />
               {branchesCopy.actions.edit}
             </DropdownMenuItem>
           ) : null}
-          {canDelete ? (
+          {canRestore ? (
+            <DropdownMenuItem
+              disabled={isRestoring}
+              onClick={() => setConfirmRestoreOpen(true)}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {branchesCopy.actions.restore}
+            </DropdownMenuItem>
+          ) : null}
+          {canDelete && isActive ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                disabled={isDeleting}
-                onClick={() => setConfirmDeleteOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {branchesCopy.actions.delete}
-              </DropdownMenuItem>
+              {isMain ? (
+                <DropdownMenuItem disabled>
+                  {branchesCopy.actions.mainDeleteDisabled}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  disabled={isDeleting}
+                  onClick={() => setConfirmDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {branchesCopy.actions.delete}
+                </DropdownMenuItem>
+              )}
             </>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
       {deleteDialog}
+      {restoreDialog}
     </>
   );
 }

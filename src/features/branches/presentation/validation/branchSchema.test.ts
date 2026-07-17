@@ -6,34 +6,26 @@ import {
   branchFormToUpdateDTO,
   defaultBranchFormValues,
 } from "./branchSchema";
+import { defaultBranchOperationalAddressValues } from "./branchOperationalAddressSchema";
+
+const validAddress = {
+  ...defaultBranchOperationalAddressValues,
+  street: "Av. Principal",
+  exteriorNumber: "100",
+  postalCode: "64000",
+  satStateCode: "19",
+};
 
 describe("branchFormSchema", () => {
-  it("accepts valid form data", () => {
+  it("accepts valid form data with nested address", () => {
     const result = branchFormSchema.safeParse({
       ...defaultBranchFormValues,
       code: "MTY-01",
       name: "Sucursal Monterrey",
-      street: "Av. Principal",
-      city: "Monterrey",
-      state: "Nuevo León",
-      postalCode: "64000",
+      address: validAddress,
     });
 
     expect(result.success).toBe(true);
-  });
-
-  it("rejects missing required street", () => {
-    const result = branchFormSchema.safeParse({
-      ...defaultBranchFormValues,
-      code: "MTY-01",
-      name: "Sucursal Monterrey",
-      street: "",
-      city: "Monterrey",
-      state: "Nuevo León",
-      postalCode: "64000",
-    });
-
-    expect(result.success).toBe(false);
   });
 
   it("rejects invalid email", () => {
@@ -41,10 +33,7 @@ describe("branchFormSchema", () => {
       ...defaultBranchFormValues,
       code: "MTY-01",
       name: "Sucursal Monterrey",
-      street: "Av. Principal",
-      city: "Monterrey",
-      state: "Nuevo León",
-      postalCode: "64000",
+      address: validAddress,
       email: "invalid-email",
     });
 
@@ -53,20 +42,17 @@ describe("branchFormSchema", () => {
 });
 
 describe("branchFormToCreateDTO", () => {
-  it("trims strings and omits empty optional fields", () => {
+  it("maps nested address to API payload", () => {
     const dto = branchFormToCreateDTO({
       code: " MTY-01 ",
       name: " Sucursal Monterrey ",
       status: BranchStatus.ACTIVE,
       isMain: true,
-      street: " Av. Principal ",
-      exteriorNumber: "",
-      interiorNumber: "",
-      neighborhood: "",
-      city: " Monterrey ",
-      state: " Nuevo León ",
-      postalCode: " 64000 ",
-      country: " México ",
+      address: {
+        ...validAddress,
+        interiorNumber: null,
+        neighborhoodName: "",
+      },
       phone: "",
       email: "",
       managerName: "",
@@ -78,25 +64,34 @@ describe("branchFormToCreateDTO", () => {
       name: "Sucursal Monterrey",
       status: BranchStatus.ACTIVE,
       isMain: true,
-      street: "Av. Principal",
-      city: "Monterrey",
-      state: "Nuevo León",
-      postalCode: "64000",
-      country: "México",
+      address: {
+        street: "Av. Principal",
+        exterior_number: "100",
+        interior_number: undefined,
+        neighborhood_name: undefined,
+        postal_code: "64000",
+        sat_country_code: "MEX",
+        sat_state_code: "19",
+        sat_municipality_code: null,
+        sat_locality_code: null,
+        locality_name: null,
+        sat_neighborhood_code: null,
+        latitude: null,
+        longitude: null,
+        location_name: "Sucursal Monterrey",
+        reference: null,
+      },
     });
   });
 });
 
 describe("branchFormToUpdateDTO", () => {
-  it("maps empty optional strings to null for update", () => {
+  it("maps nested address for update", () => {
     const dto = branchFormToUpdateDTO({
       ...defaultBranchFormValues,
       code: "MTY-01",
       name: "Sucursal actualizada",
-      street: "Av. Principal",
-      city: "Monterrey",
-      state: "Nuevo León",
-      postalCode: "64000",
+      address: validAddress,
       phone: "",
       email: "",
       managerName: "",
@@ -107,8 +102,10 @@ describe("branchFormToUpdateDTO", () => {
       name: "Sucursal actualizada",
       phone: null,
       email: null,
-      managerName: null,
-      notes: null,
+      address: {
+        sat_state_code: "19",
+        postal_code: "64000",
+      },
     });
   });
 });

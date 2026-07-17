@@ -8,15 +8,29 @@ import {
   type MappedPaginatedResult,
   type MappedSingleResult,
 } from "@shared/api";
-import type { Branch, BranchListItem, BranchQueryParams } from "../domain/entities";
+import type {
+  Branch,
+  BranchEmployeeReassignment,
+  BranchListMeta,
+  BranchManagementEvent,
+  BranchQueryParams,
+  BranchReconcilePreview,
+} from "../domain/entities";
 import type { CreateBranchDTO, UpdateBranchDTO } from "../domain/repository";
 import {
+  mapBranchCapacityMeta,
+  mapBranchReconcilePreview,
   mapPaginatedBranches,
+  mapPaginatedBranchActivity,
   mapSingleBranch,
   toApiCreateBranch,
   toApiUpdateBranch,
-  type ApiBranchListItemResponse,
+  type ApiBranchListMeta,
+  type ApiBranchListResponse,
+  type ApiBranchManagementEventResponse,
+  type ApiBranchReconcilePreview,
   type ApiBranchResponse,
+  type MappedBranchListResult,
 } from "./mappers";
 
 const BRANCHES_ENDPOINT = "/branches";
@@ -24,7 +38,7 @@ const BRANCHES_ENDPOINT = "/branches";
 export const branchesApi = {
   getAll: async (
     params?: BranchQueryParams,
-  ): Promise<MappedPaginatedResult<BranchListItem>> => {
+  ): Promise<MappedBranchListResult> => {
     const queryParams: Record<string, unknown> = {
       page: params?.page ?? 1,
       limit: params?.limit ?? 10,
@@ -40,11 +54,12 @@ export const branchesApi = {
     }
     if (params?.filters?.search) queryParams.search = params.filters.search;
 
-    const response = await apiClient.get<
-      ApiPaginatedResponse<ApiBranchListItemResponse>
-    >(BRANCHES_ENDPOINT, {
-      params: queryParams,
-    });
+    const response = await apiClient.get<ApiBranchListResponse>(
+      BRANCHES_ENDPOINT,
+      {
+        params: queryParams,
+      },
+    );
     return mapPaginatedBranches(response);
   },
 
@@ -93,5 +108,54 @@ export const branchesApi = {
       `${BRANCHES_ENDPOINT}/${id}`,
     );
     return mapActionResponse(response);
+  },
+
+  restore: async (id: string): Promise<MappedSingleResult<Branch>> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiBranchResponse>>(
+      `${BRANCHES_ENDPOINT}/${id}/restore`,
+    );
+    return mapSingleBranch(response);
+  },
+
+  getActivity: async (
+    branchId: string,
+    params?: { page?: number; limit?: number; action?: string },
+  ): Promise<MappedPaginatedResult<BranchManagementEvent>> => {
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ApiBranchManagementEventResponse>
+    >(`${BRANCHES_ENDPOINT}/${branchId}/activity`, {
+      params: {
+        page: params?.page ?? 1,
+        limit: params?.limit ?? 25,
+        ...(params?.action ? { action: params.action } : {}),
+      },
+    });
+    return mapPaginatedBranchActivity(response);
+  },
+
+  getReconcilePreview: async (): Promise<MappedSingleResult<BranchReconcilePreview>> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiBranchReconcilePreview>>(
+      `${BRANCHES_ENDPOINT}/reconcile-plan/preview`,
+    );
+    return mapBranchReconcilePreview(response);
+  },
+
+  reconcilePlan: async (input: {
+    keepBranchIds: string[];
+    mainBranchId?: string;
+    employeeReassignments: BranchEmployeeReassignment[];
+  }): Promise<MappedSingleResult<BranchListMeta>> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiBranchListMeta>>(
+      `${BRANCHES_ENDPOINT}/reconcile-plan`,
+      {
+        keep_branch_ids: input.keepBranchIds,
+        ...(input.mainBranchId ? { main_branch_id: input.mainBranchId } : {}),
+        employee_reassignments: input.employeeReassignments.map((item) => ({
+          from_branch_id: item.fromBranchId,
+          to_branch_id: item.toBranchId,
+        })),
+      },
+    );
+    return mapBranchCapacityMeta(response);
   },
 };

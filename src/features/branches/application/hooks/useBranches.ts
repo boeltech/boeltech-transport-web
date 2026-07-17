@@ -75,3 +75,18 @@ export const useDeleteBranch = (callbacks?: MutationCallbacks<void>) => {
     onError: (error: Error) => callbacks?.onError?.(error),
   });
 };
+
+export const useRestoreBranch = (callbacks?: MutationCallbacks<{ id: string }>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => branchesApi.restore(id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: branchQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: branchQueryKeys.detail(result.data.id),
+      });
+      callbacks?.onSuccess?.({ id: result.data.id });
+    },
+    onError: (error: Error) => callbacks?.onError?.(error),
+  });
+};

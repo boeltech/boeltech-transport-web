@@ -12,14 +12,18 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
 import type { BranchListItem } from "../../domain";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
+import { formatBranchListLocation } from "../utils/branchAddressFormatters";
 import { branchesCopy } from "../copy/branchesCopy";
 import { BranchActions } from "./BranchActions";
 
 interface BranchTableProps {
   branches: BranchListItem[];
   isLoading: boolean;
+  showDeleted?: boolean;
   onDelete?: (id: string) => void;
+  onRestore?: (id: string) => void;
   isDeleting?: boolean;
+  isRestoring?: boolean;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (field: string) => void;
@@ -28,8 +32,11 @@ interface BranchTableProps {
 export function BranchTable({
   branches,
   isLoading,
+  showDeleted = false,
   onDelete,
+  onRestore,
   isDeleting,
+  isRestoring,
   sortBy,
   sortOrder,
   onSort,
@@ -134,7 +141,7 @@ export function BranchTable({
                   </Badge>
                 ) : null}
               </TableCell>
-              <TableCell>{branch.city}, {branch.state}</TableCell>
+              <TableCell>{formatBranchListLocation(branch.city, branch.state) || "—"}</TableCell>
               <TableCell>{branch.phone || "—"}</TableCell>
               <TableCell>
                 <BranchStatusBadge status={branch.status} size="sm" showIcon />
@@ -143,8 +150,12 @@ export function BranchTable({
                 <BranchActions
                   branchId={branch.id}
                   branchName={branch.name}
+                  isActive={!showDeleted && branch.isActive}
+                  isMain={branch.isMain}
                   onDelete={onDelete}
+                  onRestore={onRestore}
                   isDeleting={isDeleting}
+                  isRestoring={isRestoring}
                 />
               </TableCell>
             </TableRow>
