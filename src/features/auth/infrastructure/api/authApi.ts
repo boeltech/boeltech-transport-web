@@ -98,7 +98,9 @@ export const authApi = {
    * Obtener perfil del usuario autenticado
    */
   getProfile: async (): Promise<UserJSON> => {
-    const response = await apiClient.get<ApiEnvelope<UserApi>>("/auth/profile");
+    const response = await apiClient.get<ApiEnvelope<UserApi>>("/auth/profile", {
+      authScope: "tenant",
+    });
     return mapUserApiToJson(response.data);
   },
 

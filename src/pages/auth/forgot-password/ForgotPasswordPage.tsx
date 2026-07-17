@@ -31,17 +31,19 @@ const ForgotPasswordPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const savedSubdomain = tokenStorage.getSubdomain() || "";
+  const savedSubdomain = tokenStorage.getSubdomain()?.trim() || "";
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
       email: "",
-      subdomain: savedSubdomain,
+      // No precargar: evita enviar el reset al tenant equivocado.
+      subdomain: "",
     },
   });
 
@@ -79,10 +81,19 @@ const ForgotPasswordPage = () => {
                 <CheckCircle className="h-8 w-8 text-success" />
               </div>
               <h2 className="mb-2 text-xl font-semibold">Revisa tu correo</h2>
-              <p className="mb-6 text-muted-foreground">
+              <p className="mb-2 text-muted-foreground">
                 Si el email existe en nuestro sistema, recibirás instrucciones
-                para restablecer tu contraseña.
+                para restablecer tu contraseña. Revisa también spam o
+                promociones.
               </p>
+              {import.meta.env.DEV ? (
+                <p className="mb-6 text-sm text-muted-foreground">
+                  En desarrollo: si no llega el correo, revisa los logs de la
+                  API (Brevo / IPs autorizadas).
+                </p>
+              ) : (
+                <div className="mb-6" />
+              )}
               <Link to="/login">
                 <Button>
                   <ArrowLeft className="mr-2 h-4 w-4" />
@@ -130,12 +141,31 @@ const ForgotPasswordPage = () => {
                 id="subdomain"
                 type="text"
                 placeholder="mi-empresa"
+                autoComplete="organization"
                 {...register("subdomain")}
                 {...getRegisterFieldErrorProps(
                   "subdomain",
                   errors.subdomain?.message,
                 )}
               />
+              <p className="text-xs text-muted-foreground">
+                Debe coincidir con el código de empresa del login (no el nombre
+                comercial).
+              </p>
+              {savedSubdomain ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() =>
+                    setValue("subdomain", savedSubdomain, {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                    })
+                  }
+                >
+                  Usar empresa: {savedSubdomain}
+                </button>
+              ) : null}
               <FieldInlineError
                 fieldId="subdomain"
                 message={errors.subdomain?.message}

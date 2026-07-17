@@ -22,9 +22,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { apiClient } from "@/shared/api";
-
-// Domain
 import {
   User,
   type AuthState,
@@ -43,7 +40,8 @@ import {
 import {
   AuthRepository,
   tokenStorage,
-  setupAuthInterceptor,
+  setTenantUnauthorizedHandler,
+  setTenantTokenRefreshedHandler,
 } from "../../infrastructure";
 import { consumeFreshLoginSession } from "../../infrastructure/storage/tokenStorage";
 import { clearSentryUser, setSentryUser } from "@/shared/observability/sentry";
@@ -168,26 +166,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   // ==========================================
-  // Configurar interceptores (una sola vez)
+  // Handlers de sesión tenant (interceptores en AxiosAuthSetup / App)
   // ==========================================
   useEffect(() => {
-    const detach = setupAuthInterceptor(apiClient.getAxiosInstance(), {
-      onUnauthorized: () => {
-        console.log("[AuthProvider] Unauthorized — ending session");
-        void handleLogout({ sessionExpired: true });
-      },
-      onForbidden: () => {
-        // 403 puede ser contextual a un recurso. Evitamos redirección global forzada.
-        console.log("[AuthProvider] Forbidden - keeping current route");
-      },
-      onTokenRefreshed: (newToken) => {
-        console.log("[AuthProvider] Token refreshed");
-        setState((prev) => ({ ...prev, token: newToken }));
-      },
+    setTenantUnauthorizedHandler(() => {
+      console.log("[AuthProvider] Unauthorized — ending session");
+      void handleLogout({ sessionExpired: true });
+    });
+    setTenantTokenRefreshedHandler((newToken) => {
+      console.log("[AuthProvider] Token refreshed");
+      setState((prev) => ({ ...prev, token: newToken }));
     });
 
-    return detach;
-  }, [handleLogout, navigate]);
+    return () => {
+      setTenantUnauthorizedHandler(() => {});
+      setTenantTokenRefreshedHandler(() => {});
+    };
+  }, [handleLogout]);
 
   useEffect(() => {
     if (state.user) {
@@ -265,36 +260,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isLoading: false,
           });
         } else {
-          setState({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
-          navigate("/login", {
-            replace: true,
-            state: { sessionExpired: true },
-          });
+          await handleLogout({ sessionExpired: true });
         }
       } catch (error) {
         console.error("[AuthProvider] Verification failed:", error);
-        setState({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-        navigate("/login", {
-          replace: true,
-          state: { sessionExpired: true },
-        });
+        await handleLogout({ sessionExpired: true });
       }
     };
 
     if (state.isLoading) {
       verifyAuth();
     }
-  }, [state.isLoading, verifyAuthUseCase, navigate]);
+  }, [state.isLoading, verifyAuthUseCase, handleLogout]);
 
   // ==========================================
   // Login

@@ -15,6 +15,8 @@ import {
   type AxiosError,
 } from "axios";
 import { tokenStorage } from "../storage/tokenStorage";
+import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
+import { notifyPlatformUnauthorized } from "@features/platform/infrastructure/platformSessionHandlers";
 
 // ============================================
 // TYPES
@@ -68,8 +70,28 @@ function replayPending(instance: AxiosInstance, accessToken: string): void {
   pendingRetries.length = 0;
 }
 
-function isRefreshRequest(requestConfig: InternalAxiosRequestConfig): boolean {
+function resolveAuthScope(
+  requestConfig: InternalAxiosRequestConfig,
+): "platform" | "tenant" {
+  if (requestConfig.authScope === "platform") return "platform";
+  if (requestConfig.authScope === "tenant") return "tenant";
   const url = requestConfig.url ?? "";
+  if (url.includes("/platform/")) return "platform";
+  return "tenant";
+}
+
+function getTokenStorage(scope: "platform" | "tenant") {
+  return scope === "platform" ? platformTokenStorage : tokenStorage;
+}
+
+function isRefreshRequest(
+  requestConfig: InternalAxiosRequestConfig,
+  scope: "platform" | "tenant",
+): boolean {
+  const url = requestConfig.url ?? "";
+  if (scope === "platform") {
+    return url.includes("/platform/auth/refresh");
+  }
   return url.includes("/auth/refresh");
 }
 
@@ -83,18 +105,27 @@ function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
     url.includes("/auth/refresh") ||
     url.includes("/auth/forgot-password") ||
     url.includes("/auth/reset-password") ||
-    url.includes("/auth/verify-reset-token")
+    url.includes("/auth/verify-reset-token") ||
+    url.includes("/platform/auth/login") ||
+    url.includes("/platform/auth/refresh")
   );
 }
 
-async function refreshAccessToken(instance: AxiosInstance): Promise<string> {
-  const refreshToken = tokenStorage.getRefreshToken();
+async function refreshAccessToken(
+  instance: AxiosInstance,
+  scope: "platform" | "tenant",
+): Promise<string> {
+  const storage = getTokenStorage(scope);
+  const refreshToken = storage.getRefreshToken();
 
   if (!refreshToken) {
     throw new Error("No refresh token available");
   }
 
-  const response = await instance.post("/auth/refresh", {
+  const endpoint =
+    scope === "platform" ? "/platform/auth/refresh" : "/auth/refresh";
+
+  const response = await instance.post(endpoint, {
     refresh_token: refreshToken,
   });
 
@@ -104,7 +135,7 @@ async function refreshAccessToken(instance: AxiosInstance): Promise<string> {
     throw new Error("Refresh response missing access_token");
   }
 
-  tokenStorage.setToken(newToken);
+  storage.setToken(newToken);
   return newToken;
 }
 
@@ -128,7 +159,9 @@ export function setupAuthInterceptor(
 ): () => void {
   const requestInterceptorId = axiosInstance.interceptors.request.use(
     (requestConfig: InternalAxiosRequestConfig) => {
-      const token = tokenStorage.getToken();
+      const scope = resolveAuthScope(requestConfig);
+      const storage = getTokenStorage(scope);
+      const token = storage.getToken();
 
       if (token && !isPublicAuthPath(requestConfig)) {
         setBearerToken(requestConfig, token);
@@ -161,11 +194,18 @@ export function setupAuthInterceptor(
         return Promise.reject(error);
       }
 
-      if (isRefreshRequest(originalRequest)) {
+      const scope = resolveAuthScope(originalRequest);
+
+      if (isRefreshRequest(originalRequest, scope)) {
         console.error(
           "[AuthInterceptor] Refresh endpoint returned 401 — ending session",
         );
-        config.onUnauthorized();
+        if (scope === "platform") {
+          platformTokenStorage.clear();
+          notifyPlatformUnauthorized();
+        } else {
+          config.onUnauthorized();
+        }
         return Promise.reject(error);
       }
 
@@ -173,7 +213,12 @@ export function setupAuthInterceptor(
         console.error(
           "[AuthInterceptor] 401 after retry — refresh did not fix access",
         );
-        config.onUnauthorized();
+        if (scope === "platform") {
+          platformTokenStorage.clear();
+          notifyPlatformUnauthorized();
+        } else {
+          config.onUnauthorized();
+        }
         return Promise.reject(error);
       }
 
@@ -193,9 +238,11 @@ export function setupAuthInterceptor(
 
       try {
         console.log("[AuthInterceptor] 401 received, attempting token refresh...");
-        const newToken = await refreshAccessToken(axiosInstance);
+        const newToken = await refreshAccessToken(axiosInstance, scope);
         console.log("[AuthInterceptor] Token refreshed successfully");
-        config.onTokenRefreshed?.(newToken);
+        if (scope === "tenant") {
+          config.onTokenRefreshed?.(newToken);
+        }
 
         replayPending(axiosInstance, newToken);
 
@@ -204,7 +251,12 @@ export function setupAuthInterceptor(
       } catch (refreshError) {
         console.error("[AuthInterceptor] Token refresh failed:", refreshError);
         rejectPending(refreshError);
-        config.onUnauthorized();
+        if (scope === "platform") {
+          platformTokenStorage.clear();
+          notifyPlatformUnauthorized();
+        } else {
+          config.onUnauthorized();
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

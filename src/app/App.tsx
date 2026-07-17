@@ -5,6 +5,7 @@ import {
   RouterProvider,
   ThemeProvider,
   ToastProvider,
+  AxiosAuthSetup,
 } from "@app/providers";
 
 /**
@@ -17,11 +18,13 @@ const App = () => {
   return (
     <ErrorBoundary>
       <QueryProvider>
-        <ThemeProvider defaultMode="system">
-          <ToastProvider>
-            <RouterProvider />
-          </ToastProvider>
-        </ThemeProvider>
+        <AxiosAuthSetup>
+          <ThemeProvider defaultMode="system">
+            <ToastProvider>
+              <RouterProvider />
+            </ToastProvider>
+          </ThemeProvider>
+        </AxiosAuthSetup>
       </QueryProvider>
     </ErrorBoundary>
   );

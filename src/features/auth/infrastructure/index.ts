@@ -24,6 +24,13 @@ export {
   type AuthInterceptorConfig,
 } from "./interceptors/authInterceptor";
 
+export {
+  setTenantUnauthorizedHandler,
+  notifyTenantUnauthorized,
+  setTenantTokenRefreshedHandler,
+  notifyTenantTokenRefreshed,
+} from "./sessionHandlers";
+
 // Hooks
 export {
   useAuth,

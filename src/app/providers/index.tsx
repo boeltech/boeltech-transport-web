@@ -6,3 +6,4 @@ export { PermissionProvider } from "./PermissionProvider";
 export { ThemeProvider } from "./ThemeProvider";
 export { ToastProvider } from "./ToastProvider";
 export { SidebarProvider, useSidebar } from "./SidebarProvider";
+export { AxiosAuthSetup } from "./AxiosAuthSetup";

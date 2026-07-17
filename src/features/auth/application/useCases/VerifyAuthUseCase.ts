@@ -76,9 +76,8 @@ export class VerifyAuthUseCase {
         message,
       );
 
-      // 5. Si la verificación falla, limpiar el storage
-      this.tokenStorage.clear();
-
+      // No limpiar storage aquí: el interceptor puede estar refrescando el token
+      // y AuthProvider despacha logout centralizado si la sesión ya no es válida.
       return null;
     }
   }
