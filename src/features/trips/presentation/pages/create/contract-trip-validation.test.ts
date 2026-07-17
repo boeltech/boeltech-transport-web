@@ -120,6 +120,39 @@ describe("Trip API payload contract (update/status/query)", () => {
     expect(wrapper.ok).toBe(false);
   });
 
+  it("accepts overdue_only in trip query contract", () => {
+    const result = tripQuerySchema.safeParse({
+      page: 1,
+      limit: 20,
+      overdue_only: "1",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.overdue_only).toBe(true);
+    }
+  });
+
+  it("accepts invoiceable in trip query contract", () => {
+    const result = tripQuerySchema.safeParse({
+      page: 1,
+      limit: 20,
+      invoiceable: "1",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.invoiceable).toBe(true);
+    }
+  });
+
+  it("validateTripQueryApiPayload includes invoiceable when set", () => {
+    const wrapper = validateTripQueryApiPayload({
+      page: 1,
+      limit: 20,
+      invoiceable: true,
+    });
+    expect(wrapper.ok).toBe(true);
+  });
+
   it("validateTripQueryApiPayload matches tripQuerySchema.safeParse", () => {
     const querySnake = {
       page: 1,

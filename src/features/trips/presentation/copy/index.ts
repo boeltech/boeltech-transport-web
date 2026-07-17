@@ -41,3 +41,4 @@ export {
   resolveStopFiscalUiContext,
 } from "./wizard";
 export type { CfdiDocumentIntent, StopFiscalUiContext } from "./wizard";
+export { tripsListCopy } from "./listCopy";

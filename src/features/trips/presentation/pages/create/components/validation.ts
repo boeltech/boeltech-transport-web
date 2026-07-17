@@ -714,6 +714,7 @@ export const tripWizardSchema = z.object({
   vehicleId: z.string().min(1, "Vehículo requerido"),
   driverId: z.string().min(1, "Conductor requerido"),
   clientId: z.string().optional(),
+  originBranchId: z.string().uuid().optional().or(z.literal("")),
   /**
    * Intención del comprobante fiscal asociado al viaje (orientación UX y futuro timbrado).
    * No sustituye la decisión del PAC; Profact valida RFC en timbrado.
@@ -805,7 +806,7 @@ export const WIZARD_STEPS = [
     id: "route",
     title: shell.step.route.title,
     description: shell.step.route.description,
-    fields: ["stops"],
+    fields: ["stops", "originBranchId"],
   },
   {
     id: "cargo",
@@ -837,6 +838,7 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   vehicleId: "",
   driverId: "",
   clientId: "",
+  originBranchId: "",
   cfdiDocumentIntent: "ingreso",
   scheduledDeparture: "",
   scheduledArrival: "",

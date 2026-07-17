@@ -11,6 +11,7 @@ export const routeCopy = {
     distanceFromPrevious: "distancia desde parada anterior",
     estimatedArrival: "hora estimada de llegada",
     noAddress: "Sin dirección especificada",
+    originBranch: "Sucursal de origen",
   },
   format: {
     stopFallback: (index: number) => `Parada ${index + 1}`,
@@ -40,6 +41,10 @@ export const routeCopy = {
     addDestination: "Agregar destino",
     evaluateWaypoints: "Evaluar si requiere escalas",
     routeReady: "Ruta lista. Ya puedes avanzar a Cargas.",
+    createBranch: "Crear sucursal",
+  },
+  placeholder: {
+    selectOriginBranch: "Seleccionar sucursal",
   },
   section: {
     quickGuide: "Guía rápida de ruta",
@@ -58,6 +63,7 @@ export const routeCopy = {
       "Las escalas son opcionales. Puedes agregarlas para carga o descarga parcial",
     noDestinationTitle: "Sin parada de destino",
     noDestinationHint: "Agregue el punto final del viaje",
+    noBranches: "No hay sucursales activas",
   },
   hint: {
     savedAddress:
@@ -66,6 +72,8 @@ export const routeCopy = {
       "En traslado, revise en cada parada quién entrega y quién recibe según la operación real.",
     ingresoFiscal:
       "En ingreso, el cliente que contrata el viaje suele ser la referencia principal; las demás contrapartes por ubicación se capturan en cada parada.",
+    originBranch:
+      "Base operativa del viaje: filtra la flota sugerida y queda registrada para reportes. No es, por defecto, el punto de carga fiscal de la mercancía.",
   },
   stopForm: {
     title: {
@@ -109,6 +117,12 @@ export const routeCopy = {
       missingGeolocationTitle: "Falta geolocalización en la dirección precargada",
       missingGeolocationBody:
         "Esta dirección precargada no tiene latitud / longitud registradas. Captúralas desde el mapa o ingrésalas manualmente para calcular distancias y cumplir Carta Porte 3.1.",
+      branchCrossDockTitle: "Carga en sucursal (cross-dock)",
+      branchCrossDockBody:
+        "Consolidación en sucursal: la mercancía se carga aquí, no en la recolección del cliente. Para flete directo, elige una dirección de cliente.",
+      branchOriginMismatchTitle: "Sucursal distinta a la de origen del viaje",
+      branchOriginMismatch:
+        "La sucursal precargada no coincide con la sucursal de origen del viaje. Revisa si el tag operativo sigue siendo el correcto.",
     },
     validation: {
       missingField: "Tipo de parada",
@@ -146,7 +160,7 @@ export const routeCopy = {
     addressOrigin: {
       title: "Origen de la dirección",
       description:
-        "Busca y reutiliza un domicilio del catálogo (cliente o directorio del tenant). Al seleccionar se copia a esta parada; editar aquí no modifica la fuente.",
+        "Busca un domicilio del catálogo (cliente, sucursal en origen o directorio del tenant). Al seleccionar se copia a esta parada; editar aquí no modifica la fuente.",
       pickerLabel: "Buscar dirección existente",
       pickerPlaceholder: "Nombre, calle o código postal…",
     },

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { StopType, TripStatus, type Trip } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 
 import { mapTripToWizardFormValues } from "./tripFormMappers";
 
@@ -26,15 +27,9 @@ const baseTrip = {
   status: TripStatus.SCHEDULED,
   notes: "Notas del viaje",
   cancellationReason: null,
-  invoicing: {
-    hasActiveInvoice: false,
+  invoicing: tripInvoicingFixture({
     canGenerateInvoice: true,
-    blockReason: null,
-    invoiceId: null,
-    invoiceFolio: null,
-    invoiceCfdiUuid: null,
-    invoiceStatus: null,
-  },
+  }),
   requiresFiscalAttention: false,
   fiscalActionRequired: null,
   totalDistRec: null,

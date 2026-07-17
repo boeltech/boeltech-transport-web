@@ -9,9 +9,9 @@ import { toAddressSnapshot } from "@shared/ui/address-picker/addressSnapshot";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import type { TripStopFormValues } from "./validation";
 
-/** Fuente de catálogo cliente para write-back (ADR-0053 snapshot — sin FK en form). */
+/** Fuente de catálogo para write-back o hidratación (ADR-0053 snapshot — sin FK en form). */
 export type StopAddressPrefillRef = {
-  ownerType: "client";
+  ownerType: "client" | "branch";
   ownerId: string;
   catalogAddressId: string;
 };
@@ -163,12 +163,14 @@ export function getEmptyStopDialogValues(): StopDialogFormValues {
 export function buildStopPrefillRefFromSearchItem(
   item: AddressSearchListItem,
 ): StopAddressPrefillRef | null {
-  if (item.ownerType !== "client") return null;
-  return {
-    ownerType: "client",
-    ownerId: item.ownerId,
-    catalogAddressId: item.id,
-  };
+  if (item.ownerType === "client" || item.ownerType === "branch") {
+    return {
+      ownerType: item.ownerType,
+      ownerId: item.ownerId,
+      catalogAddressId: item.id,
+    };
+  }
+  return null;
 }
 
 /** Snapshot SAT/geo desde AddressPicker — sin FK a la fuente (ADR-0053). */
@@ -391,6 +393,10 @@ export function mergeDialogWithClientCatalog(
   clientFiscalFallback?: ClientFiscalFallback | null,
   prefillCatalogRef?: StopAddressPrefillRef | null,
 ): StopFormData {
+  if (prefillCatalogRef?.ownerType === "branch") {
+    return dialogToStopFormData(w);
+  }
+
   const snapshotMode = prefillCatalogRef != null;
   const hasLegacyFk = Boolean(w.clientAddressId);
   const hasCatalogContext =

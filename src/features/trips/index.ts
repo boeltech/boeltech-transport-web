@@ -108,6 +108,7 @@ export {
   TripTrackingTab,
   TripStatusBadge,
   TripTable,
+  InvoiceableTripPickerSheet,
   WizardSteps,
 } from "./presentation";
 

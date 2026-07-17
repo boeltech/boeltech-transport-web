@@ -137,6 +137,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     vehicleId: trip.vehicleId,
     driverId: trip.driverId,
     clientId: trip.clientId || "",
+    originBranchId: trip.originBranchId ?? "",
     cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",
     scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
     scheduledArrival: trip.scheduledArrival

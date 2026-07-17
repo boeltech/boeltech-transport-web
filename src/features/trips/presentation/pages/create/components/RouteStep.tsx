@@ -20,6 +20,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
@@ -58,6 +59,15 @@ import {
   createGeoProviderBundle,
 } from "@shared/geolocation";
 import { useToast } from "@shared/hooks";
+import { RHFSelect } from "@shared/ui/form/RHFSelect";
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
+import { BranchStatus, useBranches } from "@features/branches";
+import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   AlertDialog,
@@ -112,6 +122,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const cfdiDocumentIntent =
     form.watch("cfdiDocumentIntent") === "traslado" ? "traslado" : "ingreso";
   const watchedStops = form.watch("stops");
+  const originBranchId = form.watch("originBranchId");
   const showRecalculateMissingDistances = useMemo(
     () => hasMissingStopDistances(watchedStops),
     [watchedStops],
@@ -132,6 +143,26 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     useState(false);
 
   const { toast } = useToast();
+
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  const branchOptions = useMemo(
+    () => buildBranchSelectOptions(branchesResult?.data ?? []),
+    [branchesResult?.data],
+  );
+  const hasBranchOptions = branchOptions.length > 0;
+
   const segmentsDistanceUseCase = useMemo(() => {
     const bundle = createGeoProviderBundle();
     return new CalculateSegmentsDistanceUseCase(bundle.distanceMatrixProvider);
@@ -367,14 +398,16 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         ? (form.getValues("scheduledArrival") ?? undefined)
         : undefined;
 
-    setDialogInitialData({
+    const initialData: StopFormData = {
       stopCategory: category,
       stopType: defaultOperations as TripStopFormValues["stopType"],
       estimatedArrival: initialEstimatedArrival,
       previousStopLatitude: previousStop?.latitude ?? undefined,
       previousStopLongitude: previousStop?.longitude ?? undefined,
       previousStopLabel: previousStop?.label,
-    });
+    };
+
+    setDialogInitialData(initialData);
     setEditingStopIndex(null);
     setIsDialogOpen(true);
   };
@@ -1064,7 +1097,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => openAddDialog(type)}
+        onClick={() => void openAddDialog(type)}
         className={cn(
           type === "origin" &&
             "border-success/30 text-success-soft-foreground hover:bg-success-soft",
@@ -1146,6 +1179,48 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            <SectionHeadingWithHint
+              noTitleWrap
+              title={copy.label.originBranch}
+              hintLabel={copy.label.originBranch}
+              hint={copy.hint.originBranch}
+            />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-md space-y-3">
+            {hasBranchOptions ? (
+              <RHFSelect
+                control={form.control}
+                name="originBranchId"
+                options={branchOptions}
+                placeholder={copy.placeholder.selectOriginBranch}
+              />
+            ) : (
+              <>
+                <Select disabled>
+                  <SelectTrigger disabled>
+                    <SelectValue
+                      placeholder={copy.placeholder.selectOriginBranch}
+                    />
+                  </SelectTrigger>
+                  <SelectContent />
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {copy.state.noBranches}
+                </p>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link to="/branches/new">{copy.action.createBranch}</Link>
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Bloque ORIGEN */}
       <Card>
         <CardHeader className="pb-3">
@@ -1186,7 +1261,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => openAddDialog("waypoint")}
+                onClick={() => void openAddDialog("waypoint")}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Escala
@@ -1286,6 +1361,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
             ? tripContractingClientId
             : undefined
         }
+        originBranchId={originBranchId?.trim() || undefined}
       />
 
       <AlertDialog

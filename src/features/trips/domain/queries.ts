@@ -34,6 +34,12 @@ export interface TripFilters {
     | "stamped"
     | "cancellation_pending"
     | "cancelled";
+  /** Solo viajes in_progress con llegada programada vencida (overdue_trip). */
+  readonly overdueOnly?: boolean;
+  /** Solo viajes elegibles para facturar (pre-emisión v2, sin factura activa). */
+  readonly invoiceableOnly?: boolean;
+  /** Filtro por sucursal de origen (`origin_branch_id`); `unassigned` = NULL. */
+  readonly originBranchId?: string | "unassigned";
 }
 
 /**

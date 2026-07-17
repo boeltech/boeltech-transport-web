@@ -13,6 +13,7 @@ import {
   formatDuration,
   formatMileage,
 } from "@features/trips";
+import { useInternalStaffEntitlement } from "@features/billing";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -95,6 +96,15 @@ export function TripDetailOperationTab({
   distance,
   canEditStructural,
 }: TripDetailOperationTabProps) {
+  const {
+    hasModule: hasInternalStaffModule,
+    isFetched: isInternalStaffEntitlementFetched,
+  } = useInternalStaffEntitlement();
+  const showInternalStaffEntitlementWarning =
+    isInternalStaffEntitlementFetched &&
+    !hasInternalStaffModule &&
+    Boolean(trip.internalStaff && trip.internalStaff.length > 0);
+
   return (
     <div className="space-y-6">
       <DetailAlertCard
@@ -182,6 +192,21 @@ export function TripDetailOperationTab({
 
             {trip.internalStaff && trip.internalStaff.length > 0 ? (
               <>
+                {showInternalStaffEntitlementWarning ? (
+                  <DetailAlertCard
+                    severity="warning"
+                    title="Módulo no activo"
+                    className="my-3"
+                  >
+                    <p className="text-sm text-muted-foreground">
+                      Este viaje incluye equipo de apoyo, pero el add-on ya no
+                      está activo en tu cuenta. Los datos se muestran solo lectura.
+                    </p>
+                    <Button variant="link" className="mt-2 h-auto p-0" asChild>
+                      <Link to="/settings/subscription">Ver plan y consumo</Link>
+                    </Button>
+                  </DetailAlertCard>
+                ) : null}
                 <Separator className="my-3" />
                 <div className="space-y-2">
                   <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">

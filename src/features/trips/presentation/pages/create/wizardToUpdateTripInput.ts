@@ -9,7 +9,11 @@ import { buildUpdateTripInputFromCreateInput } from "./updateTripPayloadShared";
 
 export function buildUpdateTripInputFromWizardValues(
   data: TripWizardFormValues,
+  assignmentContext?: {
+    vehicle?: { insuranceExpiry: string | null; sctPermitExpiry: string | null };
+    driver?: { isLicenseExpired: boolean };
+  },
 ): UpdateTripInput {
-  const base = buildCreateTripInputFromWizardValues(data);
+  const base = buildCreateTripInputFromWizardValues(data, assignmentContext);
   return buildUpdateTripInputFromCreateInput(base);
 }

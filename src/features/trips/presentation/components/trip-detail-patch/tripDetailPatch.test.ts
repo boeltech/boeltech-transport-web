@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { StopType, TripStatus, type Trip } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 
 import { validateUpdateTripApiPayload } from "../../pages/create/validateTripApiPayload";
 import { buildScheduleUpdateInput } from "./tripSchedulePatch";
@@ -28,15 +29,9 @@ const baseTrip = {
   status: TripStatus.SCHEDULED,
   notes: "Notas",
   cancellationReason: null,
-  invoicing: {
-    hasActiveInvoice: false,
+  invoicing: tripInvoicingFixture({
     canGenerateInvoice: true,
-    blockReason: null,
-    invoiceId: null,
-    invoiceFolio: null,
-    invoiceUuid: null,
-    invoiceStatus: null,
-  },
+  }),
   requiresFiscalAttention: false,
   fiscalActionRequired: null,
   totalDistRec: null,

@@ -11,9 +11,14 @@ import {
   mapWizardCargosToCreateInput,
 } from "./wizardCargoPayload";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
+import { deriveAllowExpiredDocs } from "./tripAssignmentExpiredDocs";
 
 export function buildCreateTripInputFromWizardValues(
   data: TripWizardFormValues,
+  assignmentContext?: {
+    vehicle?: { insuranceExpiry: string | null; sctPermitExpiry: string | null };
+    driver?: { isLicenseExpired: boolean };
+  },
 ): CreateTripInput {
   const mercanciasHeader = buildMercanciasHeaderSummary(data.cargos);
   const originStop = data.stops?.find((stop) => stop.stopType.includes("origin"));
@@ -27,6 +32,7 @@ export function buildCreateTripInputFromWizardValues(
     vehicleId: data.vehicleId,
     driverId: data.driverId,
     clientId: data.clientId,
+    originBranchId: data.originBranchId?.trim() || undefined,
     cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
     scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
     scheduledArrival: data.scheduledArrival
@@ -62,5 +68,8 @@ export function buildCreateTripInputFromWizardValues(
       notes: expense.notes || undefined,
       isEstimated: true,
     })),
+    allowExpiredDocs: assignmentContext
+      ? deriveAllowExpiredDocs(assignmentContext.vehicle, assignmentContext.driver)
+      : undefined,
   };
 }

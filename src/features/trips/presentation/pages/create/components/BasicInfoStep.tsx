@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -55,6 +56,10 @@ import {
 } from "@shared/ui/table";
 
 import type { TripWizardFormValues } from "./validation";
+import {
+  shouldClearDriverSelection,
+  shouldClearVehicleSelection,
+} from "../tripAssignmentSelectability";
 import type { AssignableDriverItem } from "../tripAssignmentDrivers";
 import type { BusyAssignmentResourceIds } from "../tripAssignmentBusyResources";
 import {
@@ -64,6 +69,8 @@ import {
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import type { DriverListItem } from "@features/drivers/domain";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { useInternalStaffEntitlement } from "@features/billing";
 
 // Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
 import { useVehicle } from "@features/vehicles/application";
@@ -145,9 +152,19 @@ export function BasicInfoStep({
   isLoadingClients,
 }: BasicInfoStepProps) {
   const { control } = form;
+  const {
+    hasModule: hasInternalStaffModule,
+    isFetched: isInternalStaffEntitlementFetched,
+  } = useInternalStaffEntitlement();
+  const isInternalStaffPaywalled =
+    isInternalStaffEntitlementFetched && !hasInternalStaffModule;
+
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
+  const originBranchId = form.watch("originBranchId");
   const watchedInternalStaff = form.watch("internalStaff");
+  const [showAllFleet, setShowAllFleet] = useState(false);
+  const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
   const internalStaffValues = useMemo(
     () =>
       watchedInternalStaff != null && watchedInternalStaff.length > 0
@@ -181,11 +198,82 @@ export function BasicInfoStep({
   });
 
   // ── Procesar vehículos ────────────────────────────────────────────────────
-  const assignableVehicles = vehicles.filter((v) => v.canBeAssigned);
-  const blockedVehicles = vehicles.filter((v) => !v.canBeAssigned);
+  const matchesOriginBranch = useCallback(
+    (branchId: string | null | undefined) => {
+      if (showAllFleet) return true;
+      const originId = originBranchId?.trim();
+      if (!originId) return true;
+      return !branchId || branchId === originId;
+    },
+    [showAllFleet, originBranchId],
+  );
+
+  const scopedVehicles = useMemo(
+    () => vehicles.filter((vehicle) => matchesOriginBranch(vehicle.branchId)),
+    [vehicles, matchesOriginBranch],
+  );
+
+  const scopedDrivers = useMemo(
+    () => drivers.filter((driver) => matchesOriginBranch(driver.branchId)),
+    [drivers, matchesOriginBranch],
+  );
+
+  const assignableVehicles = scopedVehicles.filter((v) => v.canBeAssigned);
+  const expiredDocsVehicles = scopedVehicles.filter(
+    (v) =>
+      !v.canBeAssigned && allowExpiredDocs && v.expiredDocsOverridable === true,
+  );
+  const blockedVehicles = scopedVehicles.filter(
+    (v) =>
+      !v.canBeAssigned && !(allowExpiredDocs && v.expiredDocsOverridable === true),
+  );
+
+  const hasExpiredDocsInScope = useMemo(
+    () =>
+      scopedVehicles.some((v) => v.expiredDocsOverridable === true) ||
+      scopedDrivers.some((d) => d.expiredDocsOverridable === true),
+    [scopedVehicles, scopedDrivers],
+  );
+
+  const selectedVehicleAssignment = useMemo(
+    () => scopedVehicles.find((vehicle) => vehicle.id === selectedVehicleId),
+    [scopedVehicles, selectedVehicleId],
+  );
+
+  const selectedDriverAssignment = useMemo(
+    () => scopedDrivers.find((driver) => driver.id === selectedDriverId),
+    [scopedDrivers, selectedDriverId],
+  );
+
+  const expiredAssignmentAlertItems = useMemo(() => {
+    const items: Array<{ label: string; text: string }> = [];
+    if (
+      selectedVehicleAssignment?.expiredDocsOverridable &&
+      selectedVehicleAssignment.blockReason
+    ) {
+      items.push({
+        label: copy.label.vehicle,
+        text: copy.alert.expiredVehicleItem(
+          selectedVehicleAssignment.blockReason,
+        ),
+      });
+    }
+    if (
+      selectedDriverAssignment?.expiredDocsOverridable &&
+      selectedDriverAssignment.blockReason
+    ) {
+      items.push({
+        label: copy.label.driver,
+        text: copy.alert.expiredDriverItem(
+          selectedDriverAssignment.blockReason,
+        ),
+      });
+    }
+    return items;
+  }, [selectedVehicleAssignment, selectedDriverAssignment]);
 
   // ── Procesar conductores (clasificación previa en TripFormPage) ───────────
-  const processedDrivers = drivers;
+  const processedDrivers = scopedDrivers;
   const activeEmployees = useMemo(
     () => (employeesResult?.data ?? []).filter(isEmployeeActive),
     [employeesResult?.data],
@@ -216,7 +304,7 @@ export function BasicInfoStep({
     return ids;
   }, [internalStaffValues]);
 
-  const { assignableDriversForConductorSelect, blockedDriversForConductorSelect } =
+  const { assignableDriversForConductorSelect, expiredDocsDriversForConductorSelect, blockedDriversForConductorSelect } =
     useMemo(() => {
       const keepInDriverSelect = (d: AssignableDriverItem) => {
         if (d.id === selectedDriverId) return true;
@@ -225,14 +313,30 @@ export function BasicInfoStep({
       const assignable = processedDrivers.filter(
         (d) => d.canBeAssigned && keepInDriverSelect(d),
       );
+      const expiredDocsSelectable = processedDrivers.filter(
+        (d) =>
+          !d.canBeAssigned &&
+          d.expiredDocsOverridable === true &&
+          allowExpiredDocs &&
+          keepInDriverSelect(d),
+      );
       const blocked = processedDrivers.filter(
-        (d) => !d.canBeAssigned && keepInDriverSelect(d),
+        (d) =>
+          !d.canBeAssigned &&
+          !(allowExpiredDocs && d.expiredDocsOverridable === true) &&
+          keepInDriverSelect(d),
       );
       return {
         assignableDriversForConductorSelect: assignable,
+        expiredDocsDriversForConductorSelect: expiredDocsSelectable,
         blockedDriversForConductorSelect: blocked,
       };
-    }, [processedDrivers, supportStaffEmployeeIds, selectedDriverId]);
+    }, [
+      processedDrivers,
+      supportStaffEmployeeIds,
+      selectedDriverId,
+      allowExpiredDocs,
+    ]);
 
   /** No listar como apoyo: ya en tabla + conductor principal actual. */
   const excludeEmployeeIdsForSupportDraft = useMemo(() => {
@@ -257,6 +361,51 @@ export function BasicInfoStep({
       form.setValue("startMileage", vehicleDetail.currentMileage);
     }
   }, [vehicleDetail, form]);
+
+  // Limpiar selección si deja de ser válida al desactivar filtros suaves (flota / docs vencidas).
+  useEffect(() => {
+    if (!selectedVehicleId) return;
+    const vehicle = vehicles.find((item) => item.id === selectedVehicleId);
+    if (
+      shouldClearVehicleSelection(vehicle, {
+        allowExpiredDocs,
+        inBranchScope: matchesOriginBranch(vehicle?.branchId),
+      })
+    ) {
+      form.setValue("vehicleId", "", { shouldDirty: true, shouldValidate: true });
+      form.setValue("startMileage", undefined, { shouldDirty: true });
+      form.setValue("vehicleCurrentMileage", undefined, { shouldDirty: true });
+    }
+  }, [
+    allowExpiredDocs,
+    showAllFleet,
+    originBranchId,
+    selectedVehicleId,
+    vehicles,
+    matchesOriginBranch,
+    form,
+  ]);
+
+  useEffect(() => {
+    if (!selectedDriverId) return;
+    const driver = drivers.find((item) => item.id === selectedDriverId);
+    if (
+      shouldClearDriverSelection(driver, {
+        allowExpiredDocs,
+        inBranchScope: matchesOriginBranch(driver?.branchId),
+      })
+    ) {
+      form.setValue("driverId", "", { shouldDirty: true, shouldValidate: true });
+    }
+  }, [
+    allowExpiredDocs,
+    showAllFleet,
+    originBranchId,
+    selectedDriverId,
+    drivers,
+    matchesOriginBranch,
+    form,
+  ]);
 
   const draftEmployeeSelectValue =
     draftEmployeeId.trim() !== "" &&
@@ -367,13 +516,56 @@ export function BasicInfoStep({
       {/* ASIGNACIONES                                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Truck className="h-5 w-5" /> {copy.section.assignments}
           </CardTitle>
+          <p className="text-sm text-muted-foreground">{copy.hint.assignmentsScope}</p>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+        <CardContent className="space-y-5">
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <p className="text-sm font-medium">{copy.section.listingOptions}</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="showAllFleet"
+                  checked={showAllFleet}
+                  onCheckedChange={(checked) => setShowAllFleet(checked === true)}
+                />
+                <Label htmlFor="showAllFleet" className="text-sm font-normal">
+                  {copy.label.showAllFleet}
+                </Label>
+              </div>
+              {!showAllFleet && originBranchId?.trim() ? (
+                <p className="pl-6 text-xs text-muted-foreground">
+                  {copy.hint.fleetBranchFilter}
+                </p>
+              ) : null}
+            </div>
+            {hasExpiredDocsInScope ? (
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="allowExpiredDocs"
+                  className="mt-0.5"
+                  checked={allowExpiredDocs}
+                  onCheckedChange={(checked) =>
+                    setAllowExpiredDocs(checked === true)
+                  }
+                />
+                <Label htmlFor="allowExpiredDocs" className="cursor-pointer">
+                  <SectionHeadingWithHint
+                    noTitleWrap
+                    title={copy.label.allowExpiredDocs}
+                    hintLabel={copy.hintLabel.allowExpiredDocs}
+                    hint={<>{copy.hint.allowExpiredDocs}</>}
+                    titleClassName="text-sm font-normal"
+                  />
+                </Label>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="vehicleId"
@@ -405,7 +597,7 @@ export function BasicInfoStep({
                       <SelectValue placeholder={copy.placeholder.selectVehicle} />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicles.length === 0 && !isLoadingVehicles ? (
+                      {scopedVehicles.length === 0 && !isLoadingVehicles ? (
                         <SelectItem value="no-vehicles" disabled>
                           {copy.state.noVehicles}
                         </SelectItem>
@@ -421,8 +613,36 @@ export function BasicInfoStep({
                               ))}
                             </SelectGroup>
                           )}
+                          {expiredDocsVehicles.length > 0 && (
+                            <SelectGroup>
+                              {assignableVehicles.length > 0 ? (
+                                <SelectSeparator />
+                              ) : null}
+                              <SelectLabel className="flex items-center gap-1.5 text-warning">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {copy.state.withExpiredDocs}
+                              </SelectLabel>
+                              {expiredDocsVehicles.map((v) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  <span className="flex items-center gap-2">
+                                    {copy.format.vehicleOption(
+                                      v.unitNumber,
+                                      v.licensePlate,
+                                    )}
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-[10px]"
+                                    >
+                                      {v.blockReason}
+                                    </Badge>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
                           {blockedVehicles.length > 0 &&
-                            assignableVehicles.length > 0 && (
+                            (assignableVehicles.length > 0 ||
+                              expiredDocsVehicles.length > 0) && (
                               <SelectSeparator />
                             )}
                           {blockedVehicles.length > 0 && (
@@ -495,6 +715,7 @@ export function BasicInfoStep({
                           {copy.state.noDrivers}
                         </SelectItem>
                       ) : assignableDriversForConductorSelect.length === 0 &&
+                        expiredDocsDriversForConductorSelect.length === 0 &&
                         blockedDriversForConductorSelect.length === 0 ? (
                         <SelectItem value="no-drivers-available" disabled>
                           {copy.state.noDriversOutsideSupportStaff}
@@ -511,8 +732,33 @@ export function BasicInfoStep({
                               ))}
                             </SelectGroup>
                           )}
+                          {expiredDocsDriversForConductorSelect.length > 0 && (
+                            <SelectGroup>
+                              {assignableDriversForConductorSelect.length > 0 ? (
+                                <SelectSeparator />
+                              ) : null}
+                              <SelectLabel className="flex items-center gap-1.5 text-warning">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {copy.state.withExpiredDocs}
+                              </SelectLabel>
+                              {expiredDocsDriversForConductorSelect.map((d) => (
+                                <SelectItem key={d.id} value={d.id}>
+                                  <span className="flex items-center gap-2">
+                                    {d.displayName}
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-[10px]"
+                                    >
+                                      {d.blockReason}
+                                    </Badge>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
                           {blockedDriversForConductorSelect.length > 0 &&
-                            assignableDriversForConductorSelect.length > 0 && (
+                            (assignableDriversForConductorSelect.length > 0 ||
+                              expiredDocsDriversForConductorSelect.length > 0) && (
                               <SelectSeparator />
                             )}
                           {blockedDriversForConductorSelect.length > 0 && (
@@ -548,7 +794,18 @@ export function BasicInfoStep({
                 </FormFieldShell>
               )}
             />
+          </div>
 
+          {expiredAssignmentAlertItems.length > 0 ? (
+            <DetailAlertCard
+              severity="warning"
+              icon={<AlertTriangle className="h-4 w-4" />}
+              title={copy.alert.expiredAssignmentTitle}
+              items={expiredAssignmentAlertItems}
+            />
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="clientId"
@@ -604,13 +861,12 @@ export function BasicInfoStep({
               render={({ field, fieldState }) => (
                 <FormFieldShell
                   fieldId="cfdiDocumentIntent"
-                  className="sm:col-span-3"
                   label={
                     <SectionHeadingWithHint
                       noTitleWrap
                       title={copy.label.cfdiDocumentIntent}
                       hintLabel={copy.hintLabel.cfdiDocumentIntent}
-                      hint={<>{copy.hint.cfdiDocumentIntent}</>}
+                      hint={<>{copy.hintLabel.cfdiDocumentIntentDetail}</>}
                     />
                   }
                   errorMessage={fieldState.error?.message}
@@ -663,8 +919,22 @@ export function BasicInfoStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          
+          {isInternalStaffPaywalled ? (
+            <DetailAlertCard severity="warning" title={copy.paywall.title}>
+              <p className="text-sm text-muted-foreground">{copy.paywall.description}</p>
+              <Button variant="link" className="mt-2 h-auto p-0" asChild>
+                <Link to="/settings/subscription">{copy.paywall.cta}</Link>
+              </Button>
+            </DetailAlertCard>
+          ) : null}
 
+          <div
+            className={
+              isInternalStaffPaywalled
+                ? "pointer-events-none space-y-4 opacity-60"
+                : "space-y-4"
+            }
+          >
           <div className="rounded-md border p-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -882,6 +1152,7 @@ export function BasicInfoStep({
                 )}
               </TableBody>
             </Table>
+          </div>
           </div>
         </CardContent>
       </Card>

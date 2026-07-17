@@ -48,13 +48,23 @@ export interface ApiTripFiscalActionRequiredResponse {
   suggested_actions?: string[];
 }
 
+export interface ApiTripAccessoryInvoice {
+  id: string;
+  folio: string;
+  status: string;
+  total: number;
+}
+
 export interface ApiTripInvoicingResponse {
   has_active_invoice?: boolean;
+  has_active_primary_invoice?: boolean;
   can_generate_invoice?: boolean;
+  can_generate_accessory_invoice?: boolean;
   invoice_id?: string | null;
   invoice_folio?: string | null;
   invoice_cfdi_uuid?: string | null;
   invoice_status?: "draft" | "stamped" | "cancellation_pending" | "cancelled" | null;
+  accessory_invoices?: ApiTripAccessoryInvoice[];
   block_reason?: string | null;
 }
 
@@ -355,6 +365,7 @@ export interface ApiTripResponse {
   vehicle_id: string;
   driver_id: string;
   client_id: string | null;
+  origin_branch_id?: string | null;
 
   // Fechas
   scheduled_departure: string;

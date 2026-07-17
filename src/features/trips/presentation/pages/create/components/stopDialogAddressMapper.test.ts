@@ -58,7 +58,7 @@ describe("addressSearchItemToDialogSlice — snapshot ADR-0053", () => {
 
     expect(slice.clientId).toBe("client-1");
     expect(slice.addressId).toBe("");
-    expect(slice.clientAddressId).toBe("");
+    expect(slice.clientAddressId).toBe("client-addr-1");
   });
 
   it("copia RFC y nombre fiscal cuando la fuente los trae", () => {
@@ -74,11 +74,21 @@ describe("addressSearchItemToDialogSlice — snapshot ADR-0053", () => {
 });
 
 describe("buildStopPrefillRefFromSearchItem", () => {
-  it("retorna ref solo para client", () => {
+  it("retorna ref para client y branch", () => {
     expect(buildStopPrefillRefFromSearchItem(clientSearchItem)).toEqual({
       ownerType: "client",
       ownerId: "client-1",
       catalogAddressId: "client-addr-1",
+    });
+    expect(buildStopPrefillRefFromSearchItem({
+      ...clientSearchItem,
+      id: "branch-addr-1",
+      ownerType: "branch",
+      ownerId: "branch-1",
+    })).toEqual({
+      ownerType: "branch",
+      ownerId: "branch-1",
+      catalogAddressId: "branch-addr-1",
     });
     expect(buildStopPrefillRefFromSearchItem(partnerSearchItem)).toBeNull();
   });
@@ -203,6 +213,30 @@ describe("mergeDialogWithClientCatalog — coordenadas", () => {
     expect(out.clientAddressId).toBeUndefined();
     expect(out.clientId).toBe("client-1");
     expect(out.street).toBe("Av Editada");
+  });
+
+  it("en snapshot mode branch no mezcla catálogo cliente", () => {
+    const w = {
+      ...getEmptyStopDialogValues(),
+      street: "Av Sucursal",
+      stopCategory: "origin" as const,
+      stopType: ["pickup"] as ["pickup"],
+    };
+
+    const out = mergeDialogWithClientCatalog(
+      w,
+      catalogWithCoords,
+      true,
+      null,
+      {
+        ownerType: "branch",
+        ownerId: "branch-1",
+        catalogAddressId: "branch-addr-1",
+      },
+    );
+
+    expect(out.street).toBe("Av Sucursal");
+    expect(out.clientId).toBeUndefined();
   });
 });
 

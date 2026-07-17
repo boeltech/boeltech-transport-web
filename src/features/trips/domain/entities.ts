@@ -126,14 +126,25 @@ export interface TripFiscalActionRequired {
   readonly suggestedActions?: readonly string[];
 }
 
+export interface TripAccessoryInvoice {
+  readonly id: string;
+  readonly folio: string;
+  readonly status: string;
+  readonly total: number;
+}
+
 export interface TripInvoicing {
+  /** BC: equivale a hasActivePrimaryInvoice (ADR-0068). */
   readonly hasActiveInvoice: boolean;
+  readonly hasActivePrimaryInvoice: boolean;
   readonly canGenerateInvoice: boolean;
+  readonly canGenerateAccessoryInvoice: boolean;
   readonly invoiceId: string | null;
   readonly invoiceFolio: string | null;
   /** UUID del CFDI timbrado (solo lectura / operación fiscal). */
   readonly invoiceCfdiUuid: string | null;
   readonly invoiceStatus: TripInvoiceStatus | null;
+  readonly accessoryInvoices: readonly TripAccessoryInvoice[];
   readonly blockReason: string | null;
 }
 
@@ -452,6 +463,7 @@ export interface Trip {
   readonly vehicleId: string;
   readonly driverId: string;
   readonly clientId: string | null;
+  readonly originBranchId: string | null;
 
   // Fechas programadas
   readonly scheduledDeparture: Date;

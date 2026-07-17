@@ -4,6 +4,7 @@
 export const basicInfoCopy = {
   section: {
     assignments: "Asignaciones",
+    listingOptions: "Opciones de listado",
     supportStaff: "Equipo de apoyo",
     scheduling: "Programación",
   },
@@ -15,6 +16,8 @@ export const basicInfoCopy = {
     scheduledDeparture: "Salida programada",
     scheduledArrival: "Llegada estimada",
     startMileage: "Kilometraje inicial",
+    showAllFleet: "Ver toda la flota",
+    allowExpiredDocs: "Permitir documentación vencida",
     supportStaffPositionFilter: "Filtrar empleados por puesto",
     supportStaffEmployee: "Empleado",
     paymentResponsible: "Responsable de pago",
@@ -24,20 +27,29 @@ export const basicInfoCopy = {
     tableNotes: "Notas",
   },
   hint: {
+    assignmentsScope:
+      "Asigna vehículo, conductor y cliente. Las paradas se capturan en el paso Ruta.",
     client:
-      "Quién contrata el servicio de transporte. Quién entrega y quién recibe en cada ubicación se captura por parada en el paso Ruta.",
+      "Quién contrata el servicio. Entrega y recepción por parada se definen en Ruta.",
     cfdiDocumentIntent:
-      "Indica si el servicio se documentará principalmente como ingreso (factura de servicio) o como traslado (movimiento entre ubicaciones). Ajusta etiquetas en Ruta y paradas; el timbrado validará los datos finos.",
+      "Define si el viaje se documenta como ingreso o traslado. Ajusta etiquetas en Ruta.",
     supportStaff:
       "Personal que acompaña la operación y puede marcarse como responsable de pago de honorarios o viáticos. No sustituye al conductor principal del viaje.",
     scheduledArrival:
       "Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos puntos, se actualiza el otro.",
+    fleetBranchFilter:
+      "Listado filtrado por sucursal de origen. Activa la opción para ver todo el catálogo.",
+    allowExpiredDocs:
+      "Muestra activos con seguro, permiso SCT o licencia vencidos para asignarlos.",
   },
   hintLabel: {
     client: "Cliente que contrata",
     cfdiDocumentIntent: "Tipo de comprobante del viaje",
     scheduledArrival: "Llegada estimada",
     supportStaff: "Equipo de apoyo interno",
+    allowExpiredDocs: "Permitir documentación vencida",
+    cfdiDocumentIntentDetail:
+      "Ingreso: factura de servicio. Traslado: movimiento entre ubicaciones. El timbrado validará los datos finales.",
   },
   placeholder: {
     selectVehicle: "Seleccionar vehículo",
@@ -51,6 +63,7 @@ export const basicInfoCopy = {
   },
   state: {
     available: "Disponibles",
+    withExpiredDocs: "Con documentación vencida",
     notAssignable: "No asignables",
     noVehicles: "No hay vehículos disponibles",
     noDrivers: "No hay conductores disponibles",
@@ -61,6 +74,11 @@ export const basicInfoCopy = {
       "Completa el formulario superior y pulsa Agregar para listar colaboradores aquí.",
     yes: "Sí",
     dash: "—",
+  },
+  alert: {
+    expiredAssignmentTitle: "Documentación vencida en la asignación",
+    expiredVehicleItem: (reason: string) => reason,
+    expiredDriverItem: (reason: string) => reason,
   },
   cfdiIntent: {
     ingreso: "Ingreso — factura de servicio",
@@ -83,6 +101,12 @@ export const basicInfoCopy = {
     alreadyInSupportStaff: "Este empleado ya está en el equipo de apoyo.",
     driverInSupportStaff:
       "El conductor principal no puede figurar en el equipo de apoyo.",
+  },
+  paywall: {
+    title: "Módulo no contratado",
+    description:
+      "El equipo de apoyo interno requiere el add-on de compensación interna. Actívalo desde Plan y consumo o contacta a Boeltech.",
+    cta: "Ver plan y consumo",
   },
   format: {
     vehicleOption: (unitNumber: string, licensePlate: string) =>

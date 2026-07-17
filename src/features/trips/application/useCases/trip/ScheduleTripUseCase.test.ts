@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ITripRepository, Trip } from "@features/trips/domain";
 import { TripStatus } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { ScheduleTripUseCase } from "./ScheduleTripUseCase";
 
 function draftTrip(over: Partial<Trip> = {}): Trip {
@@ -12,6 +13,7 @@ function draftTrip(over: Partial<Trip> = {}): Trip {
     vehicleId: "11111111-1111-4111-8111-111111111111",
     driverId: "22222222-2222-4222-8222-222222222222",
     clientId: null,
+    originBranchId: null,
     scheduledDeparture: new Date("2030-05-10T12:00:00.000Z"),
     scheduledArrival: new Date("2030-05-11T12:00:00.000Z"),
     actualDeparture: null,
@@ -40,15 +42,7 @@ function draftTrip(over: Partial<Trip> = {}): Trip {
     status: TripStatus.DRAFT,
     notes: null,
     cancellationReason: null,
-    invoicing: {
-      hasActiveInvoice: false,
-      canGenerateInvoice: false,
-      invoiceId: null,
-      invoiceFolio: null,
-      invoiceCfdiUuid: null,
-      invoiceStatus: null,
-      blockReason: null,
-    },
+    invoicing: tripInvoicingFixture(),
     requiresFiscalAttention: false,
     fiscalActionRequired: null,
     totalDistRec: null,

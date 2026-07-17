@@ -482,6 +482,7 @@ export interface CreateTripInput {
   vehicleId: string;
   driverId: string;
   clientId?: string;
+  originBranchId?: string;
 
   /** Intención CFDI (Ingreso vs Traslado) — UX y futuro timbrado. */
   cfdiDocumentIntent?: "ingreso" | "traslado";
@@ -537,6 +538,9 @@ export interface CreateTripInput {
     startImmediately?: boolean;
     startMileage?: number;
   };
+
+  /** Flag transitorio: permite asignar activos con documentación vencida. */
+  allowExpiredDocs?: boolean;
 }
 
 /**
@@ -547,6 +551,7 @@ export interface UpdateTripInput {
   vehicleId?: string;
   driverId?: string;
   clientId?: string | null;
+  originBranchId?: string | null;
 
   cfdiDocumentIntent?: "ingreso" | "traslado";
 
@@ -592,6 +597,9 @@ export interface UpdateTripInput {
 
   /** Gastos estimados (reemplazo o merge según API) */
   estimatedExpenses?: CreateExpenseInput[];
+
+  /** Flag transitorio: permite asignar activos con documentación vencida. */
+  allowExpiredDocs?: boolean;
 }
 
 /**

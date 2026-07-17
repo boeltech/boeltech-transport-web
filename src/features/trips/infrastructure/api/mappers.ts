@@ -105,7 +105,9 @@ function mapApiTripInvoicing(
   const invoiceFolio = api?.invoice_folio ?? null;
   const invoiceStatus = api?.invoice_status ?? null;
   const invoiceCfdiUuid = api?.invoice_cfdi_uuid ?? null;
-  const hasActiveInvoice = api?.has_active_invoice ?? false;
+  const hasActivePrimaryInvoice =
+    api?.has_active_primary_invoice ?? api?.has_active_invoice ?? false;
+  const hasActiveInvoice = hasActivePrimaryInvoice;
   const hasLinkedInvoiceEvidence =
     !!invoiceId ||
     !!invoiceFolio ||
@@ -114,14 +116,25 @@ function mapApiTripInvoicing(
   const canGenerateInvoice =
     api?.can_generate_invoice ??
     (tripStatus === "completed" && !hasActiveInvoice && !hasLinkedInvoiceEvidence);
+  const canGenerateAccessoryInvoice =
+    api?.can_generate_accessory_invoice ?? hasActivePrimaryInvoice;
+  const accessoryInvoices = (api?.accessory_invoices ?? []).map((item) => ({
+    id: item.id,
+    folio: item.folio,
+    status: item.status,
+    total: Number(item.total) || 0,
+  }));
 
   return {
     hasActiveInvoice,
+    hasActivePrimaryInvoice,
     canGenerateInvoice,
+    canGenerateAccessoryInvoice,
     invoiceId,
     invoiceFolio,
     invoiceCfdiUuid,
     invoiceStatus,
+    accessoryInvoices,
     blockReason: api?.block_reason ?? null,
   };
 }
@@ -472,6 +485,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     vehicleId: api.vehicle_id,
     driverId: api.driver_id,
     clientId: api.client_id,
+    originBranchId: api.origin_branch_id ?? null,
 
     // Fechas
     scheduledDeparture: toDate(api.scheduled_departure),

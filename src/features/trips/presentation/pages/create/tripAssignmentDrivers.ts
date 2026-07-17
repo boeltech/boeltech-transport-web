@@ -7,6 +7,7 @@ export interface AssignableDriverItem extends DriverListItem {
   canBeAssigned: boolean;
   blockReason?: string;
   displayName: string;
+  expiredDocsOverridable?: boolean;
 }
 
 function getDriverDisplayName(driver: DriverListItem): string {
@@ -28,7 +29,10 @@ function getDriverDisplayName(driver: DriverListItem): string {
 
 export function classifyDriverAssignability(
   driver: DriverListItem,
-): Pick<AssignableDriverItem, "canBeAssigned" | "blockReason"> {
+): Pick<
+  AssignableDriverItem,
+  "canBeAssigned" | "blockReason" | "expiredDocsOverridable"
+> {
   if (!driver.isActive) {
     return { canBeAssigned: false, blockReason: "Inactivo" };
   }
@@ -49,7 +53,11 @@ export function classifyDriverAssignability(
   }
 
   if (driver.isLicenseExpired) {
-    return { canBeAssigned: false, blockReason: "Licencia vencida" };
+    return {
+      canBeAssigned: false,
+      blockReason: "Licencia vencida",
+      expiredDocsOverridable: true,
+    };
   }
 
   if (isExpiringSoon(driver.licenseExpiry, 30)) {
@@ -64,7 +72,8 @@ export function buildAssignableDriversForTripWizard(
   busyDriverIds: ReadonlySet<string>,
 ): AssignableDriverItem[] {
   return drivers.map((driver) => {
-    const { canBeAssigned, blockReason } = classifyDriverAssignability(driver);
+    const { canBeAssigned, blockReason, expiredDocsOverridable } =
+      classifyDriverAssignability(driver);
 
     if (canBeAssigned && busyDriverIds.has(driver.id)) {
       return {
@@ -79,6 +88,7 @@ export function buildAssignableDriversForTripWizard(
       ...driver,
       canBeAssigned,
       blockReason,
+      expiredDocsOverridable,
       displayName: getDriverDisplayName(driver),
     };
   });

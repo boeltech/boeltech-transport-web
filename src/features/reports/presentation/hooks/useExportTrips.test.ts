@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TripListItem } from "@features/trips/domain";
 import { TripStatus } from "@features/trips";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import type { IGetTripsUseCase } from "@features/trips/application/useCases/trip/GetTripsUseCase";
 import { fetchAllTripsForExport } from "./useExportTrips";
 
@@ -24,15 +25,7 @@ const trip = (id: string): TripListItem =>
     estimatedProfit: 0,
     cargoCount: 0,
     clientCount: 0,
-    invoicing: {
-      hasActiveInvoice: false,
-      canGenerateInvoice: false,
-      invoiceId: null,
-      invoiceFolio: null,
-      invoiceCfdiUuid: null,
-      invoiceStatus: null,
-      blockReason: null,
-    },
+    invoicing: tripInvoicingFixture(),
     requiresFiscalAttention: false,
     createdAt: new Date("2026-05-31T12:00:00.000Z"),
   }) as TripListItem;

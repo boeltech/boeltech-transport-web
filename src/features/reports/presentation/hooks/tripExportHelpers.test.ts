@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TripListItem } from "@features/trips/domain";
 import { TripStatus } from "@features/trips";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import {
   formatTripExportDateTime,
   mapTripListItemToCsvRow,
@@ -27,15 +28,9 @@ const sampleTrip: TripListItem = {
   estimatedProfit: 1500,
   cargoCount: 1,
   clientCount: 1,
-  invoicing: {
-    hasActiveInvoice: false,
+  invoicing: tripInvoicingFixture({
     canGenerateInvoice: true,
-    invoiceId: null,
-    invoiceFolio: null,
-    invoiceCfdiUuid: null,
-    invoiceStatus: null,
-    blockReason: null,
-  },
+  }),
   requiresFiscalAttention: false,
   createdAt: new Date("2026-05-31T12:00:00.000Z"),
 };

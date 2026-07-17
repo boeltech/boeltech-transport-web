@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TripStatus, type Trip, type TripStop } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import {
   buildFixSheetInitialValues,
   canApplyStopFiscalCorrection,
@@ -64,19 +65,19 @@ function makeStop(overrides: Partial<TripStop> = {}): TripStop {
   };
 }
 
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
+
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
     id: "trip-1",
     status: TripStatus.COMPLETED,
-    invoicing: {
+    invoicing: tripInvoicingFixture({
       hasActiveInvoice: true,
       canGenerateInvoice: false,
       invoiceId: "inv-1",
       invoiceFolio: "A-1",
-      invoiceCfdiUuid: null,
       invoiceStatus: "draft",
-      blockReason: null,
-    },
+    }),
     ...overrides,
   } as Trip;
 }
@@ -119,15 +120,14 @@ describe("tripFiscalHelpers", () => {
     expect(
       shouldShowFiscalWarningChip(
         makeTrip({
-          invoicing: {
+          invoicing: tripInvoicingFixture({
             hasActiveInvoice: true,
             canGenerateInvoice: false,
             invoiceId: "inv-1",
             invoiceFolio: "A-1",
             invoiceCfdiUuid: "uuid",
             invoiceStatus: "stamped",
-            blockReason: null,
-          },
+          }),
         }),
         invalidStop,
       ),
@@ -150,15 +150,14 @@ describe("tripFiscalHelpers", () => {
       rfcRemitenteDestinatario: "EKU9003173C9",
     });
     const trip = makeTrip({
-      invoicing: {
+      invoicing: tripInvoicingFixture({
         hasActiveInvoice: true,
         canGenerateInvoice: false,
         invoiceId: "inv-1",
         invoiceFolio: "A-1",
         invoiceCfdiUuid: "uuid",
         invoiceStatus: "stamped",
-        blockReason: null,
-      },
+      }),
     });
 
     expect(canApplyStopFiscalCorrection(trip)).toBe(false);

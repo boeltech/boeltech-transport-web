@@ -44,6 +44,7 @@ import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
 import {
   MapPin,
   AlertCircle,
+  Building2,
   Phone,
   ScrollText,
 } from "lucide-react";
@@ -55,6 +56,7 @@ import {
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import { DetailAlertCard } from "@shared/ui/data-display/DetailAlertCard";
 import { StopFormSheetCategorySection, StopFormSheetAddressOriginSection } from "./stop-form";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
@@ -141,6 +143,8 @@ export interface StopFormSheetProps {
   cfdiDocumentIntent?: CfdiDocumentIntent;
   /** Cliente contratante del viaje (paso 1) — fallback fiscal cuando la precarga no es de ese cliente. */
   tripContractingClientId?: string;
+  /** Sucursal de origen operativa del viaje — aviso si difiere de la sucursal precargada. */
+  originBranchId?: string;
 }
 
 const STOP_OPERATION_OPTIONS = [
@@ -220,6 +224,7 @@ export function StopFormSheet({
   mode = "create",
   cfdiDocumentIntent = "ingreso",
   tripContractingClientId,
+  originBranchId,
 }: StopFormSheetProps) {
   const [attemptedSubmitValidation, setAttemptedSubmitValidation] = useState(false);
   const validationAlertRef = useRef<HTMLDivElement | null>(null);
@@ -253,10 +258,15 @@ export function StopFormSheet({
   const clientAddressId = useWatch({ control, name: "clientAddressId" }) ?? "";
 
   const catalogClientId =
-    prefillCatalogRef?.ownerId ??
-    (clientAddressId ? clientId : "");
+    prefillCatalogRef?.ownerType === "client"
+      ? prefillCatalogRef.ownerId
+      : clientAddressId
+        ? clientId
+        : "";
   const catalogAddressId =
-    prefillCatalogRef?.catalogAddressId ?? clientAddressId;
+    prefillCatalogRef?.ownerType === "client"
+      ? prefillCatalogRef.catalogAddressId
+      : clientAddressId;
 
   const { data: clients = [] } = useActiveClients();
   const { data: selectedAddressFull } = useClientAddress(
@@ -285,12 +295,16 @@ export function StopFormSheet({
     return null;
   }, [clientId, clients, prefillCatalogRef?.ownerId, tripContractingClientId]);
 
-  const defaultOwnerTypes = useMemo((): SearchableOwnerType[] | undefined => {
-    if (tripContractingClientId && tripContractingClientId !== "no-client") {
-      return ["client", "tenant"];
+  const stopCategory =
+    useWatch({ control, name: "stopCategory" }) ??
+    initialData?.stopCategory;
+
+  const defaultOwnerTypes = useMemo((): SearchableOwnerType[] => {
+    if (stopCategory === "origin") {
+      return ["client", "branch", "tenant"];
     }
-    return undefined;
-  }, [tripContractingClientId]);
+    return ["client", "tenant"];
+  }, [stopCategory]);
 
   // Al abrir el diálogo: hidratar desde initialData (cada apertura, no solo el primer mount)
   useEffect(() => {
@@ -397,7 +411,12 @@ export function StopFormSheet({
 
   // Detalle de catálogo tras picker (ADR-0053): localidad, interior, contacto, etc.
   useEffect(() => {
-    if (!catalogAddressId || !selectedAddress || !prefillCatalogRef) {
+    if (
+      !catalogAddressId ||
+      !selectedAddress ||
+      !prefillCatalogRef ||
+      prefillCatalogRef.ownerType !== "client"
+    ) {
       if (!clientAddressId || !selectedAddress) {
         lastSyncedCatalogIdRef.current = null;
       }
@@ -459,8 +478,18 @@ export function StopFormSheet({
       setPrefillCatalogRef(buildStopPrefillRefFromSearchItem(item));
       applyDialogSlice(addressSearchItemToDialogSlice(item));
       setUseAddressFiscalData(item.ownerType === "client");
+
+      if (item.ownerType === "branch" && getValues("stopCategory") === "origin") {
+        const currentTypes = getValues("stopType") || [];
+        if (!currentTypes.includes("pickup")) {
+          setValue("stopType", [...currentTypes, "pickup"], {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }
     },
-    [applyDialogSlice],
+    [applyDialogSlice, getValues, setValue],
   );
 
   const handlePrefillClear = useCallback(() => {
@@ -760,13 +789,22 @@ export function StopFormSheet({
     Boolean(displayStop.clientAddressId);
   /** Solo datos fiscales opcionales desde catálogo; domicilio y geo siempre editables con prefill. */
   const isFiscalDataLocked =
-    (prefillCatalogRef != null || Boolean(displayStop.clientAddressId)) &&
-    useAddressFiscalData;
+    ((prefillCatalogRef?.ownerType === "client" ||
+      Boolean(displayStop.clientAddressId)) &&
+      useAddressFiscalData);
   const showMissingGeolocationNotice = shouldShowPrefillMissingGeolocationNotice({
     hasAddressPrefill,
     latitude: displayStop.latitude,
     longitude: displayStop.longitude,
   });
+
+  const isBranchOriginPrefill =
+    selectedPrefillItem?.ownerType === "branch" &&
+    displayStop.stopCategory === "origin";
+  const showBranchOriginMismatch =
+    isBranchOriginPrefill &&
+    Boolean(originBranchId?.trim()) &&
+    selectedPrefillItem?.ownerId !== originBranchId?.trim();
   const geolocationPanelMode = resolveGeolocationPanelMode({
     isOriginStop:
       displayStop.stopCategory === "origin" ||
@@ -980,6 +1018,24 @@ export function StopFormSheet({
             onPrefillClear={handlePrefillClear}
             defaultOwnerTypes={defaultOwnerTypes}
           />
+
+          {isBranchOriginPrefill ? (
+            <DetailAlertCard
+              severity="info"
+              icon={<Building2 className="h-4 w-4" />}
+              title={stopForm.alert.branchCrossDockTitle}
+              items={[{ text: stopForm.alert.branchCrossDockBody }]}
+            />
+          ) : null}
+
+          {showBranchOriginMismatch ? (
+            <DetailAlertCard
+              severity="warning"
+              icon={<AlertCircle className="h-4 w-4" />}
+              title={stopForm.alert.branchOriginMismatchTitle}
+              items={[{ text: stopForm.alert.branchOriginMismatch }]}
+            />
+          ) : null}
 
           {showMissingGeolocationNotice ? (
             <Alert variant="warning">

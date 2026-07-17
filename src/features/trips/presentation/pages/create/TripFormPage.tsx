@@ -51,6 +51,7 @@ import {
 import { useAssignableVehicles } from "@features/vehicles/application";
 import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
+import { BranchStatus, useBranches } from "@features/branches";
 import { useEmployees } from "@features/employees";
 import type { EmployeeListItem } from "@features/employees";
 import type { DriverListItem } from "@features/drivers/domain";
@@ -93,6 +94,7 @@ const cargo = wizardCopy.cargo;
 
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import { buildUpdateTripInputFromWizardValues } from "./wizardToUpdateTripInput";
+import { buildTripAssignmentContext } from "./tripAssignmentExpiredDocs";
 import { mapTripToWizardFormValues } from "./tripFormMappers";
 import {
   summarizeTripApiPayloadErrors,
@@ -276,6 +278,32 @@ export function TripFormPage() {
     defaultValues: defaultWizardFormValues,
     mode: "onChange",
   });
+
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const branches = branchesResult?.data ?? [];
+    if (branches.length === 0) return;
+    const currentOriginBranchId = form.getValues("originBranchId")?.trim();
+    if (currentOriginBranchId) return;
+    const mainBranch = branches.find((branch) => branch.isMain);
+    const defaultBranchId = mainBranch?.id ?? branches[0]?.id;
+    if (defaultBranchId) {
+      form.setValue("originBranchId", defaultBranchId, { shouldDirty: false });
+    }
+  }, [isEditMode, branchesResult?.data, form]);
 
   // Field arrays para stops, cargos y expenses
   const stopsFieldArray = useFieldArray({
@@ -708,7 +736,15 @@ export function TripFormPage() {
     // MODO EDICIÓN: Usar updateMutation
     // ════════════════════════════════════════════════════════════════════════
     if (isEditMode && id) {
-      const preparedData = buildUpdateTripInputFromWizardValues(data);
+      const assignmentContext = buildTripAssignmentContext(
+        data,
+        vehicles,
+        assignableDrivers,
+      );
+      const preparedData = buildUpdateTripInputFromWizardValues(
+        data,
+        assignmentContext,
+      );
 
       const updateApiCheck = validateUpdateTripApiPayload(preparedData);
       if (!updateApiCheck.ok) {
@@ -728,7 +764,15 @@ export function TripFormPage() {
     // MODO CREACIÓN: Endpoint transaccional
     // ════════════════════════════════════════════════════════════════════════
 
-    const wizardPayload = buildCreateTripInputFromWizardValues(data);
+    const assignmentContext = buildTripAssignmentContext(
+      data,
+      vehicles,
+      assignableDrivers,
+    );
+    const wizardPayload = buildCreateTripInputFromWizardValues(
+      data,
+      assignmentContext,
+    );
 
     const createApiCheck = validateCreateTripApiPayload(wizardPayload);
     if (!createApiCheck.ok) {
@@ -772,6 +816,8 @@ export function TripFormPage() {
     id,
     toast,
     navigate,
+    vehicles,
+    assignableDrivers,
   ]);
 
   const handleSubmit = useCallback(async () => {

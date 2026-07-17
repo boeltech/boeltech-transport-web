@@ -118,6 +118,7 @@ export type {
   TripInvoiceStatus,
   TripFiscalActionRequired,
   TripInvoicing,
+  TripAccessoryInvoice,
 
   // Main Entities
   CargoMovement,

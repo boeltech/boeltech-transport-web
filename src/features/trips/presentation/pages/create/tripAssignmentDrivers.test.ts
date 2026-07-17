@@ -48,5 +48,19 @@ describe("buildAssignableDriversForTripWizard", () => {
       canBeAssigned: false,
       blockReason: "En viaje",
     });
+    expect(result[0]?.expiredDocsOverridable).toBeUndefined();
+  });
+
+  it("marks expired license as overridable", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-expired", isLicenseExpired: true })],
+      new Set(),
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Licencia vencida",
+      expiredDocsOverridable: true,
+    });
   });
 });

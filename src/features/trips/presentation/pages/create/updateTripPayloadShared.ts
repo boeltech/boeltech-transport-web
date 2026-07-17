@@ -11,6 +11,7 @@ export function buildUpdateTripInputFromCreateInput(
     vehicleId: base.vehicleId,
     driverId: base.driverId,
     clientId: base.clientId,
+    originBranchId: base.originBranchId,
     cfdiDocumentIntent: base.cfdiDocumentIntent,
     scheduledDeparture: base.scheduledDeparture,
     scheduledArrival: base.scheduledArrival,
@@ -30,5 +31,6 @@ export function buildUpdateTripInputFromCreateInput(
     stops: base.stops,
     cargos: base.cargos,
     estimatedExpenses: base.estimatedExpenses,
+    allowExpiredDocs: base.allowExpiredDocs,
   };
 }

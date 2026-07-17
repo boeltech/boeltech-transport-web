@@ -217,6 +217,15 @@ export class TripRepository implements ITripRepository {
       if (params.filters.invoiceStatus) {
         query.invoice_status = params.filters.invoiceStatus;
       }
+      if (params.filters.overdueOnly === true) {
+        query.overdue_only = true;
+      }
+      if (params.filters.invoiceableOnly === true) {
+        query.invoiceable = true;
+      }
+      if (params.filters.originBranchId) {
+        query.origin_branch_id = params.filters.originBranchId;
+      }
     }
 
     return query;
