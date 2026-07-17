@@ -94,6 +94,7 @@ function groupItemsByOwner(
 ): Record<SearchableOwnerType, AddressSearchListItem[]> {
   const groups: Record<SearchableOwnerType, AddressSearchListItem[]> = {
     client: [],
+    branch: [],
     tenant: [],
   };
   for (const item of items) {

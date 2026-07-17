@@ -28,7 +28,7 @@ export type AddressSearchListItemRaw = DeepCamelCase<{
   destinatario_name?: string | null;
 }>;
 
-type SearchableOwnerTypeRaw = "client" | "tenant";
+type SearchableOwnerTypeRaw = "client" | "branch" | "tenant";
 
 export function mapAddressSearchListItem(
   raw: AddressSearchListItemRaw,

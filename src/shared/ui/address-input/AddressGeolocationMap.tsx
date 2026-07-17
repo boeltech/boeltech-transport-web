@@ -16,6 +16,8 @@ interface AddressGeolocationMapProps {
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const DEFAULT_ZOOM = 4.5;
 const FOCUS_ZOOM = 15;
+/** Coincide con el redondeo a 6 decimales que emitimos en drag/click. */
+const COORDS_EPSILON = 1e-6;
 
 function scheduleMapResize(map: mapboxgl.Map) {
   requestAnimationFrame(() => {
@@ -46,11 +48,21 @@ export function AddressGeolocationMap({
   const onCoordinatesChangeRef = useRef(onCoordinatesChange);
   const disabledRef = useRef(disabled);
   const prevMapboxStyleRef = useRef(mapboxStyle);
+  /** Últimas coordenadas emitidas por interacción del usuario (drag/click). */
+  const lastEmittedRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     onCoordinatesChangeRef.current = onCoordinatesChange;
   }, [onCoordinatesChange]);
+
+  const emitCoordinates = useCallback(
+    (coords: { latitude: number; longitude: number }) => {
+      lastEmittedRef.current = coords;
+      onCoordinatesChangeRef.current(coords);
+    },
+    [],
+  );
 
   useEffect(() => {
     disabledRef.current = disabled;
@@ -69,6 +81,13 @@ export function AddressGeolocationMap({
     }
 
     const lngLat: [number, number] = [longitude as number, latitude as number];
+    // Si estas coordenadas provienen de un drag/click en el mapa, el marcador ya
+    // está en el punto exacto que soltó el usuario: no reposicionar ni recentrar.
+    const isUserInteraction =
+      lastEmittedRef.current != null &&
+      Math.abs(lastEmittedRef.current.latitude - (latitude as number)) < COORDS_EPSILON &&
+      Math.abs(lastEmittedRef.current.longitude - (longitude as number)) < COORDS_EPSILON;
+
     if (!markerRef.current) {
       const marker = new mapboxgl.Marker({ draggable: !disabledRef.current })
         .setLngLat(lngLat)
@@ -76,22 +95,28 @@ export function AddressGeolocationMap({
       marker.on("dragend", () => {
         if (disabledRef.current) return;
         const dragged = marker.getLngLat();
-        onCoordinatesChangeRef.current({
+        emitCoordinates({
           latitude: Number(dragged.lat.toFixed(6)),
           longitude: Number(dragged.lng.toFixed(6)),
         });
       });
       markerRef.current = marker;
-      map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 700 });
+      if (!isUserInteraction) {
+        map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 700 });
+      }
       scheduleMapResize(map);
       return;
     }
 
     markerRef.current.setDraggable(!disabledRef.current);
+    if (isUserInteraction) {
+      // Mantener la vista estable; el pin permanece donde lo dejó el usuario.
+      return;
+    }
     markerRef.current.setLngLat(lngLat);
     map.flyTo({ center: lngLat, zoom: FOCUS_ZOOM, duration: 500 });
     scheduleMapResize(map);
-  }, [isVisible, latitude, longitude]);
+  }, [emitCoordinates, isVisible, latitude, longitude]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -132,11 +157,10 @@ export function AddressGeolocationMap({
 
     map.on("click", (event) => {
       if (disabledRef.current) return;
-      const coords = {
+      emitCoordinates({
         latitude: Number(event.lngLat.lat.toFixed(6)),
         longitude: Number(event.lngLat.lng.toFixed(6)),
-      };
-      onCoordinatesChangeRef.current(coords);
+      });
     });
 
     const resize = () => scheduleMapResize(map);
@@ -152,7 +176,7 @@ export function AddressGeolocationMap({
     mapRef.current = map;
     prevMapboxStyleRef.current = mapboxStyle;
     scheduleMapResizeAfterReveal(map);
-  }, [isVisible, mapboxStyle, syncMarker, token]);
+  }, [emitCoordinates, isVisible, mapboxStyle, syncMarker, token]);
 
   useEffect(() => {
     return () => {

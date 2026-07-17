@@ -3,7 +3,8 @@ export type AddressFormUiContext =
   | "additional"
   | "companyFiscal"
   | "employeePersonal"
-  | "tripStop";
+  | "tripStop"
+  | "branchOperational";
 
 export interface AddressFormCopy {
   locationNamePlaceholder: string;
@@ -35,5 +36,10 @@ export const ADDRESS_FORM_COPY: Record<AddressFormUiContext, AddressFormCopy> = 
     locationNamePlaceholder: "Ej: Bodega Central, CEDIS Norte, Planta Monterrey",
     globalInfoMessage:
       "Ubicación de la parada para Carta Porte. País, estado y código postal son obligatorios; confirma coordenadas en el mapa antes de guardar.",
+  },
+  branchOperational: {
+    locationNamePlaceholder: "Ej: Sucursal Monterrey Centro",
+    globalInfoMessage:
+      "Domicilio operativo de la sucursal. País, estado, código postal, calle y número exterior son obligatorios; municipio y colonia son opcionales. La ubicación en mapa es opcional.",
   },
 };

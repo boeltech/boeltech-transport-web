@@ -2,7 +2,7 @@
  * Domain types for aggregated address search (ADR-0053 / WS-ADDR-PRELOAD).
  */
 
-export const SEARCHABLE_OWNER_TYPES = ["client", "tenant"] as const;
+export const SEARCHABLE_OWNER_TYPES = ["client", "branch", "tenant"] as const;
 
 export type SearchableOwnerType = (typeof SEARCHABLE_OWNER_TYPES)[number];
 

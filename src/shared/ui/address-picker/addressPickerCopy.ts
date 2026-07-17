@@ -12,6 +12,7 @@ export const ADDRESS_PICKER_COPY = {
   geolocated: "Con ubicación en mapa",
   groups: {
     client: "Cliente",
+    branch: "Sucursal",
     tenant: "Directorio",
   } as const,
   aria: {

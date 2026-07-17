@@ -31,6 +31,7 @@ const UI_CONTEXT_TO_SHARED: Record<AddressFormUiContext, SharedAddressContext> =
   companyFiscal: "company",
   employeePersonal: "personal",
   tripStop: "trip_stop",
+  branchOperational: "branch",
 };
 
 /**

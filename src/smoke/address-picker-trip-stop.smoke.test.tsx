@@ -76,6 +76,28 @@ function TripStopPrefillHarness() {
   );
 }
 
+const branchItem: AddressSearchListItem = {
+  id: "33333333-3333-4333-8333-333333333333",
+  ownerType: "branch",
+  ownerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  ownerLabel: "SUC-N",
+  addressType: "branch",
+  locationName: "CEDIS Norte",
+  street: "Av Sucursal",
+  exteriorNumber: "50",
+  postalCode: "64000",
+  satStateCode: "19",
+  satMunicipalityCode: "006",
+  neighborhoodName: null,
+  satNeighborhoodCode: null,
+  latitude: 25.7,
+  longitude: -100.3,
+  geolocationPending: false,
+  isPrimary: true,
+  isActive: true,
+  isCartaPorteReady: true,
+};
+
 describe("address-picker trip stop smoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -118,5 +140,42 @@ describe("address-picker trip stop smoke", () => {
     expect(screen.getByTestId("location-name")).toHaveTextContent("Bodega Apodaca");
     expect(screen.getByTestId("street")).toHaveTextContent("Av Industria");
     expect(screen.getByTestId("latitude")).toHaveTextContent("25.78");
+  });
+
+  it("precarga sucursal como snapshot sin clientId", async () => {
+    const user = userEvent.setup();
+    vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
+      data: [branchItem],
+      pagination: { limit: 20, nextCursor: null, hasMore: false },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TripStopPrefillHarness />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.type(
+      screen.getByPlaceholderText(/nombre, calle o código postal/i),
+      "cedis",
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("CEDIS Norte"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("stop-snapshot")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("address-id")).toHaveTextContent("");
+    expect(screen.getByTestId("client-address-id")).toHaveTextContent("");
+    expect(screen.getByTestId("location-name")).toHaveTextContent("CEDIS Norte");
   });
 });

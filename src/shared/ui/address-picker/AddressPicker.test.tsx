@@ -43,6 +43,16 @@ const tenantItem: AddressSearchListItem = {
   isCartaPorteReady: false,
 };
 
+const branchItem: AddressSearchListItem = {
+  ...clientItem,
+  id: "33333333-3333-4333-8333-333333333333",
+  ownerType: "branch",
+  ownerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  ownerLabel: "SUC-01",
+  locationName: "CEDIS Norte",
+  addressType: "branch",
+};
+
 function renderPicker(onSelect = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -59,7 +69,7 @@ describe("AddressPicker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
-      data: [clientItem, tenantItem],
+      data: [clientItem, branchItem, tenantItem],
       pagination: { limit: 20, nextCursor: null, hasMore: false },
     });
   });
@@ -85,10 +95,11 @@ describe("AddressPicker", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Cliente")).toBeInTheDocument();
+      expect(screen.getByText("Sucursal")).toBeInTheDocument();
       expect(screen.getByText("Directorio")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Domicilio CP")).toBeInTheDocument();
+    expect(screen.getAllByText("Domicilio CP").length).toBeGreaterThan(0);
     await user.click(screen.getByText("Bodega Alpha"));
 
     expect(onSelect).toHaveBeenCalledWith(clientItem);
