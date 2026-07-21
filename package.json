@@ -32,7 +32,7 @@
     "test:smoke:trip-multi-invoice": "vitest run src/smoke/trip-multi-invoice.smoke.test.tsx src/features/trips/infrastructure/api/mappers.test.ts src/features/invoicing/infrastructure/mappers.test.ts"
   },
   "dependencies": {
-    "@boeltech/cfdi-domain": "file:../boeltech-cfdi-domain",
+    "@boeltech/cfdi-domain": "0.16.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
