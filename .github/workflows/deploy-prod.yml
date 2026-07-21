@@ -12,7 +12,7 @@ env:
   AWS_REGION: us-east-1
   S3_BUCKET: boeltech-web-prod
   CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID_PROD }}
-  VITE_API_URL: https://api.boeltech.mx/api/v1
+  VITE_API_URL: https://api.boeltech.com/api/v1
 
 jobs:
   deploy:
