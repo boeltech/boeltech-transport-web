@@ -47,7 +47,7 @@ export function ChartCard({
     <Card className={className}>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1.5">
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="font-medium tracking-tight">{title}</CardTitle>
           {description ? (
             <CardDescription>{description}</CardDescription>
           ) : null}

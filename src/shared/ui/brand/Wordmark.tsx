@@ -2,7 +2,7 @@
  * Wordmark — Boeltech brand mark
  *
  * Marca tipográfica de Boeltech. Sin ícono, sin símbolo: solo el wordmark
- * en Geist Sans con tracking ajustado y color primario.
+ * en IBM Plex Sans con tracking ajustado y color primario.
  *
  * Variantes:
  *   - default:  "Boeltech" completo, optimizado para el header del sidebar

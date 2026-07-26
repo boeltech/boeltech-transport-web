@@ -17,7 +17,7 @@ function AppShellMockup() {
       aria-hidden
     >
       <div className="flex h-48">
-        {/* Sidebar */}
+        {/* Sidebar — active soft tint, sin user footer */}
         <div className="flex w-16 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sm:w-20">
           <div className="flex h-10 items-center justify-center border-b border-sidebar-border">
             <div className="h-3 w-3 rounded-sm bg-sidebar-primary" />
@@ -26,34 +26,41 @@ function AppShellMockup() {
             {[0, 1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className={`h-6 rounded-md ${i === 0 ? "bg-sidebar-accent" : "bg-sidebar-accent/40"}`}
+                className={`relative h-6 rounded-md ${
+                  i === 0
+                    ? "bg-primary/10 before:absolute before:left-0 before:top-1/2 before:h-3 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary"
+                    : "bg-sidebar-accent/40"
+                }`}
               />
             ))}
+          </div>
+          <div className="border-t border-sidebar-border p-1.5">
+            <div className="mx-auto h-5 w-5 rounded bg-muted/50" />
           </div>
         </div>
 
         {/* Main + header */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-10 items-center justify-between border-b bg-background/95 px-2">
-            <div className="h-5 w-20 rounded border bg-muted/50" />
-            <div className="flex gap-1">
+            <div className="h-5 w-24 rounded-full bg-muted/60" />
+            <div className="flex gap-1.5">
               <div className="h-5 w-5 rounded bg-muted/60" />
               <div className="h-5 w-5 rounded bg-muted/60" />
               <div className="h-5 w-6 rounded-full bg-primary/80" />
             </div>
           </div>
-          <div className="flex-1 bg-muted/20 p-2">
+          <div className="flex-1 bg-background p-2">
             <div className="mx-auto max-w-[90%] space-y-1.5">
               <div className="h-4 w-1/2 rounded bg-foreground/10" />
               <div className="h-3 w-1/3 rounded bg-muted-foreground/20" />
-              <div className="mt-2 h-16 rounded-md border bg-card" />
+              <div className="mt-2 h-16 rounded-xl border bg-card shadow-sm" />
             </div>
           </div>
         </div>
       </div>
       <p className="border-t bg-muted/30 px-3 py-2 text-[10px] text-muted-foreground">
-        Sidebar 70px colapsado (260px expandido) · Header h-16 · Outlet con page
-        shell
+        Active soft (primary/10) · Search pill ⌘K · Card shadow-sm · Logout solo
+        en header
       </p>
     </div>
   );
@@ -130,9 +137,10 @@ export function AppShellSection() {
               </p>
               <ul className="list-inside list-disc space-y-1 text-muted-foreground">
                 <li>Sidebar: 260px / 70px colapsado (lg+)</li>
-                <li>Header fijo: h-16, offset según sidebar</li>
-                <li>Main: pt-20, max-w-7xl, padding responsive</li>
-                <li>Tokens sidebar: bg-sidebar, border-sidebar-border</li>
+                <li>Nav activa: soft tint primary/10 + barra 2px</li>
+                <li>Header fijo: h-16, search pill ⌘K</li>
+                <li>Main: pt-20, max-w-7xl · canvas off-white vs card blanco</li>
+                <li>Usuario / logout solo en menú del header</li>
               </ul>
             </div>
           </div>
@@ -197,15 +205,15 @@ export function AppShellSection() {
               <p className="font-medium">Izquierda</p>
               <ul className="mt-2 list-inside list-disc text-muted-foreground">
                 <li>Menú móvil (&lt; lg)</li>
-                <li>Navegación rápida ⌘K (md+)</li>
+                <li>Search pill ⌘K (md+)</li>
                 <li>Misma data filtrada que el sidebar</li>
               </ul>
             </div>
             <div className="rounded-lg border p-4">
               <p className="font-medium">Derecha</p>
               <ul className="mt-2 list-inside list-disc text-muted-foreground">
-                <li>Notificaciones (placeholder)</li>
-                <li>Toggle tema</li>
+                <li>Notificaciones (inbox)</li>
+                <li>Ciclo de tema</li>
                 <li>Menú usuario (tenant, perfil, logout)</li>
               </ul>
             </div>

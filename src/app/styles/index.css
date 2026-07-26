@@ -3,17 +3,17 @@
 /* ============================================================
  * Self-hosted fonts (Fase 1)
  *
- * Geist Sans y JetBrains Mono se autohospedan vía @fontsource.
+ * IBM Plex Sans y JetBrains Mono se autohospedan vía @fontsource.
  * Estas dependencias se instalan con:
  *
- *   npm install @fontsource-variable/geist @fontsource-variable/jetbrains-mono
+ *   npm install @fontsource-variable/ibm-plex-sans @fontsource-variable/jetbrains-mono
  *
  * Subsets:
  *   - latin (incluido por default)
  *   - latin-ext (opcional; activa import específico si necesitas
  *     caracteres especiales en español MX como "Á", "Ñ", etc.)
  * ============================================================ */
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/ibm-plex-sans";
 @import "@fontsource-variable/jetbrains-mono";
 
 @plugin "tailwindcss-animate";
@@ -78,8 +78,8 @@
 
   /* Typography — Fase 1 */
   --font-sans:
-    "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
     Menlo, Consolas, monospace;
@@ -152,7 +152,8 @@
   --primary-950: oklch(0.15 0.08 250);
 
   /* ── Surfaces ───────────────────────────────────────────────── */
-  --background: oklch(1 0 0);
+  /* Canvas ligeramente off-white (hue brand) vs card blanco puro */
+  --background: oklch(0.985 0.005 250);
   --foreground: oklch(0.18 0.01 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.01 250);

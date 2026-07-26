@@ -280,10 +280,13 @@ export const ThemeSwitch = memo(function ThemeSwitch({
 interface ThemeSegmentedProps {
   /** Clases adicionales */
   className?: string;
+  /** Mostrar etiquetas también en viewport estrecho (default: solo desde sm). */
+  alwaysShowLabels?: boolean;
 }
 
 export const ThemeSegmented = memo(function ThemeSegmented({
   className,
+  alwaysShowLabels = false,
 }: ThemeSegmentedProps) {
   const { mode, setMode } = useTheme();
 
@@ -313,7 +316,9 @@ export const ThemeSegmented = memo(function ThemeSegmented({
           )}
         >
           <Icon className="h-4 w-4" />
-          <span className="hidden sm:inline">{label}</span>
+          <span className={cn(!alwaysShowLabels && "hidden sm:inline")}>
+            {label}
+          </span>
         </button>
       ))}
     </div>

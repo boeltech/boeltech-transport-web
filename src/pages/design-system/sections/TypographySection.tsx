@@ -2,7 +2,7 @@
  * TypographySection
  *
  * Muestra:
- *   - Familia sans (Geist) en pesos disponibles
+ *   - Familia sans (IBM Plex Sans) en pesos disponibles
  *   - Familia mono (JetBrains Mono) con sample de RFC, UUID, totales
  *   - Escala tipográfica con line-heights
  *   - Feature settings (tabular-nums en tablas)
@@ -34,7 +34,7 @@ export function TypographySection() {
       {/* Sans family */}
       <Card>
         <CardHeader>
-          <CardTitle>Geist Sans — UI + display</CardTitle>
+          <CardTitle>IBM Plex Sans — UI + display</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">

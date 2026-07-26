@@ -80,7 +80,7 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "typography",
     label: "Tipografía",
     icon: Type,
-    description: "Geist Sans + JetBrains Mono, escala y feature settings",
+    description: "IBM Plex Sans + JetBrains Mono, escala y feature settings",
     group: "Foundations",
   },
   {
