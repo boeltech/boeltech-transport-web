@@ -13,6 +13,15 @@ interface AppConfig {
     provider: "mapbox" | "stub";
     mapboxPublicToken: string;
   };
+  turnstile: {
+    siteKey: string;
+  };
+  auth: {
+    /** Espejo UX de PUBLIC_SELF_SERVE_REGISTER (API). Default true. */
+    publicSelfServeRegister: boolean;
+    /** Alinear con AUTH_SESSION_MODE de la API (Fase 4). Default cookies. */
+    sessionMode: "bearer" | "dual" | "cookies";
+  };
   app: {
     name: string;
     version: string;
@@ -42,6 +51,18 @@ const config: AppConfig = {
       "mapbox",
     mapboxPublicToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || "",
   },
+  turnstile: {
+    siteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
+  },
+  auth: {
+    publicSelfServeRegister: parseEnvBool(
+      import.meta.env.VITE_PUBLIC_SELF_SERVE_REGISTER,
+      true,
+    ),
+    sessionMode: parseAuthSessionMode(
+      import.meta.env.VITE_AUTH_SESSION_MODE,
+    ),
+  },
   app: {
     name: import.meta.env.VITE_APP_NAME || "Boeltech ERP",
     version: import.meta.env.VITE_APP_VERSION || "1.0.0",
@@ -64,7 +85,26 @@ const config: AppConfig = {
 Object.freeze(config);
 Object.freeze(config.api);
 Object.freeze(config.geolocation);
+Object.freeze(config.turnstile);
+Object.freeze(config.auth);
 Object.freeze(config.app);
 Object.freeze(config.observability);
 
 export default config;
+
+function parseEnvBool(raw: string | undefined, defaultValue: boolean): boolean {
+  if (raw === undefined || raw === "") {
+    return defaultValue;
+  }
+  return raw === "1" || raw.toLowerCase() === "true";
+}
+
+function parseAuthSessionMode(
+  raw: string | undefined,
+): "bearer" | "dual" | "cookies" {
+  const value = (raw ?? "cookies").trim().toLowerCase();
+  if (value === "bearer" || value === "dual" || value === "cookies") {
+    return value;
+  }
+  return "cookies";
+}
