@@ -4,6 +4,7 @@ export { DashboardFinancialComparisonChart } from "./DashboardFinancialCompariso
 export { DashboardFinancialTrendChart } from "./DashboardFinancialTrendChart";
 export type { FinancialTrendMonths } from "./DashboardFinancialTrendChart";
 export { DashboardFleetDriversCharts } from "./DashboardFleetDriversCharts";
+export { DashboardKpiStrip } from "./DashboardKpiStrip";
 export { DashboardMetricTrendCards } from "./DashboardMetricTrendCards";
 export { DashboardOperationsSnapshot } from "./DashboardOperationsSnapshot";
 export { DashboardRecentTrips } from "./DashboardRecentTrips";

@@ -22,14 +22,18 @@ function FinancialTrendMonthSelector({
   onChange: (months: FinancialTrendMonths) => void;
 }) {
   return (
-    <div className="flex gap-0.5 rounded-md border bg-muted/40 p-0.5">
+    <div className="flex gap-0.5 rounded-lg bg-muted/50 p-0.5">
       {TREND_MONTH_OPTIONS.map((months) => (
         <Button
           key={months}
           type="button"
-          variant={value === months ? "secondary" : "ghost"}
+          variant="ghost"
           size="sm"
-          className="h-7 px-2.5 text-xs"
+          className={
+            value === months
+              ? "h-7 bg-background px-2.5 text-xs text-foreground shadow-none hover:bg-background"
+              : "h-7 px-2.5 text-xs text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
+          }
           onClick={() => onChange(months)}
         >
           {dashboardCopy.financialTrend.monthsOption(months)}

@@ -1,49 +1,8 @@
-import { cn } from "@shared/lib/utils/cn";
+import { useMemo } from "react";
 import type { useDashboard } from "../../application/hooks/useDashboard";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
-import { Skeleton } from "@shared/ui/skeleton";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import { formatDashboardTodayLabel } from "../utils/dashboardChartHelpers";
-
-function SnapshotMetric({
-  label,
-  value,
-  tone = "default",
-  isLoading,
-}: {
-  label: string;
-  value: string | number | undefined;
-  tone?: "default" | "warning" | "success" | "destructive";
-  isLoading?: boolean;
-}) {
-  const toneClass =
-    tone === "warning"
-      ? "text-warning"
-      : tone === "success"
-        ? "text-success"
-        : tone === "destructive"
-          ? "text-destructive"
-          : "text-foreground";
-
-  return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      {isLoading ? (
-        <Skeleton className="h-5 w-10" />
-      ) : (
-        <span className={cn("text-sm font-semibold tabular-nums", toneClass)}>
-          {value ?? "—"}
-        </span>
-      )}
-    </div>
-  );
-}
+import { DashboardKpiStrip } from "./DashboardKpiStrip";
 
 interface DashboardOperationsSnapshotProps {
   data: ReturnType<typeof useDashboard>["data"];
@@ -56,57 +15,62 @@ export function DashboardOperationsSnapshot({
 }: DashboardOperationsSnapshotProps) {
   const stats = data?.stats;
   const alertCount = data?.alerts?.length ?? 0;
+  const periodCaption = dashboardCopy.operationsSnapshot.description;
+  const today = formatDashboardTodayLabel();
+
+  const cells = useMemo(
+    () => [
+      {
+        label: dashboardCopy.operationsSnapshot.metrics.inProgress,
+        value: stats?.trips.in_progress,
+        caption: today,
+        isLoading,
+      },
+      {
+        label: dashboardCopy.operationsSnapshot.metrics.completedThisMonth,
+        value: stats?.trips.completed_this_month,
+        caption: periodCaption,
+        tone: "success" as const,
+        isLoading,
+      },
+      {
+        label: dashboardCopy.operationsSnapshot.metrics.activeAlerts,
+        value: alertCount,
+        caption: periodCaption,
+        tone: (alertCount > 0 ? "warning" : "default") as
+          | "warning"
+          | "default",
+        isLoading,
+      },
+      {
+        label: dashboardCopy.operationsSnapshot.metrics.fleetOnTrip,
+        value: stats
+          ? dashboardCopy.operationsSnapshot.metrics.fleetOnTripValue(
+              stats.vehicles.on_trip,
+              stats.vehicles.total,
+            )
+          : undefined,
+        caption: periodCaption,
+        isLoading,
+      },
+    ],
+    [stats, alertCount, isLoading, periodCaption, today],
+  );
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <p className="text-xs capitalize text-muted-foreground">
-          {formatDashboardTodayLabel()}
-        </p>
-        <CardTitle className="text-lg">
+    <div className="space-y-3">
+      <div className="px-0.5">
+        <h2 className="text-base font-medium tracking-tight">
           {dashboardCopy.operationsSnapshot.title}
-        </CardTitle>
-        <CardDescription>
+        </h2>
+        <p className="text-sm text-muted-foreground">
           {dashboardCopy.operationsSnapshot.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="divide-y">
-        <SnapshotMetric
-          label={dashboardCopy.operationsSnapshot.metrics.inProgress}
-          value={stats?.trips.in_progress}
-          isLoading={isLoading}
-        />
-        <SnapshotMetric
-          label={dashboardCopy.operationsSnapshot.metrics.completedThisMonth}
-          value={stats?.trips.completed_this_month}
-          tone="success"
-          isLoading={isLoading}
-        />
-        <SnapshotMetric
-          label={dashboardCopy.operationsSnapshot.metrics.cancelledThisMonth}
-          value={stats?.trips.cancelled_this_month}
-          tone="destructive"
-          isLoading={isLoading}
-        />
-        <SnapshotMetric
-          label={dashboardCopy.operationsSnapshot.metrics.activeAlerts}
-          value={alertCount}
-          tone={alertCount > 0 ? "warning" : "default"}
-          isLoading={isLoading}
-        />
-        <SnapshotMetric
-          label={dashboardCopy.operationsSnapshot.metrics.fleetOnTrip}
-          value={
-            stats
-              ? dashboardCopy.operationsSnapshot.metrics.fleetOnTripValue(
-                  stats.vehicles.on_trip,
-                  stats.vehicles.total,
-                )
-              : undefined
-          }
-          isLoading={isLoading}
-        />
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+      <DashboardKpiStrip
+        cells={cells}
+        aria-label={dashboardCopy.operationsSnapshot.title}
+      />
+    </div>
   );
 }

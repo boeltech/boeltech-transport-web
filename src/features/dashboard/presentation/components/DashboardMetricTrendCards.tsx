@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { useNavigate } from "react-router-dom";
 import {
   BoeltechBarChart,
-  MetricTrendCard,
   Sparkline,
 } from "@shared/ui/data-display";
+import { Skeleton } from "@shared/ui/skeleton";
+import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
 import type { useDashboard } from "../../application/hooks/useDashboard";
 import type { useFinanceSummary } from "@features/finance";
@@ -22,6 +23,62 @@ interface DashboardMetricTrendCardsProps {
   financeLoading: boolean;
   collectedTrendData: { value: number }[];
   financeSummary?: ReturnType<typeof useFinanceSummary>["data"];
+}
+
+function MetricCell({
+  title,
+  subtitle,
+  value,
+  trend,
+  isLoading,
+  onClick,
+  className,
+}: {
+  title: string;
+  subtitle?: string;
+  value: string;
+  trend?: ReactNode;
+  isLoading?: boolean;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const body = (
+    <div
+      className={cn(
+        "flex h-full items-center justify-between gap-4 p-5 sm:p-6",
+        className,
+      )}
+    >
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        {subtitle ? (
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        ) : null}
+        {isLoading ? (
+          <Skeleton className="mt-1 h-8 w-28" />
+        ) : (
+          <p className="text-2xl font-semibold tabular-nums tracking-tight">
+            {value}
+          </p>
+        )}
+      </div>
+      {trend && !isLoading ? (
+        <div className="w-[100px] shrink-0" aria-hidden>
+          {trend}
+        </div>
+      ) : isLoading && trend ? (
+        <Skeleton className="h-8 w-[100px] shrink-0 rounded" />
+      ) : null}
+    </div>
+  );
+
+  if (!onClick) return body;
+
+  return (
+    <button type="button" className="w-full text-left" onClick={onClick}>
+      {body}
+    </button>
+  );
 }
 
 export function DashboardMetricTrendCards({
@@ -73,62 +130,62 @@ export function DashboardMetricTrendCards({
       : undefined;
 
   return (
-    <div className="space-y-4">
-      <MetricTrendCard
-        title={dashboardCopy.metrics.baseRate.title}
-        subtitle={dashboardCopy.metrics.baseRate.subtitle}
-        value={
-          financialMonth
-            ? formatMxCurrencyWhole(financialMonth.actual_revenue)
-            : "—"
-        }
-        trend={activitySparkline}
-        tone="primary"
-        isLoading={isLoading || tripsByDayLoading}
-        onClick={showFinance ? () => navigate("/finance") : undefined}
-      />
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="grid md:grid-cols-2 md:divide-x">
+        <MetricCell
+          title={dashboardCopy.metrics.baseRate.title}
+          subtitle={dashboardCopy.metrics.baseRate.subtitle}
+          value={
+            financialMonth
+              ? formatMxCurrencyWhole(financialMonth.actual_revenue)
+              : "—"
+          }
+          trend={activitySparkline}
+          isLoading={isLoading || tripsByDayLoading}
+          onClick={showFinance ? () => navigate("/finance") : undefined}
+          className="border-b md:border-b-0"
+        />
 
-      {showFinance ? (
-        <MetricTrendCard
-          title={dashboardCopy.metrics.collected.title}
-          subtitle={dashboardCopy.metrics.collected.subtitle}
-          value={
-            financeSummary
-              ? formatMxCurrencyWhole(financeSummary.collectedThisMonth)
-              : "—"
-          }
-          trend={collectedSparkline}
-          tone="success"
-          isLoading={isLoading || financeLoading}
-          onClick={() => navigate("/finance")}
-        />
-      ) : (
-        <MetricTrendCard
-          title={dashboardCopy.metrics.fleetUtilization.title}
-          subtitle={fleetUtilizationSubtitle}
-          value={
-            vehicles
-              ? dashboardCopy.operationsSnapshot.metrics.fleetOnTripValue(
-                  vehicles.on_trip,
-                  vehicles.total,
-                )
-              : "—"
-          }
-          trend={
-            financialMiniData.length > 0 ? (
-              <BoeltechBarChart
-                data={financialMiniData}
-                series={DASHBOARD_FINANCIAL_MINI_SERIES}
-                height={40}
-                showLegend={false}
-              />
-            ) : undefined
-          }
-          tone="info"
-          isLoading={isLoading}
-          onClick={() => navigate("/vehicles")}
-        />
-      )}
+        {showFinance ? (
+          <MetricCell
+            title={dashboardCopy.metrics.collected.title}
+            subtitle={dashboardCopy.metrics.collected.subtitle}
+            value={
+              financeSummary
+                ? formatMxCurrencyWhole(financeSummary.collectedThisMonth)
+                : "—"
+            }
+            trend={collectedSparkline}
+            isLoading={isLoading || financeLoading}
+            onClick={() => navigate("/finance")}
+          />
+        ) : (
+          <MetricCell
+            title={dashboardCopy.metrics.fleetUtilization.title}
+            subtitle={fleetUtilizationSubtitle}
+            value={
+              vehicles
+                ? dashboardCopy.operationsSnapshot.metrics.fleetOnTripValue(
+                    vehicles.on_trip,
+                    vehicles.total,
+                  )
+                : "—"
+            }
+            trend={
+              financialMiniData.length > 0 ? (
+                <BoeltechBarChart
+                  data={financialMiniData}
+                  series={DASHBOARD_FINANCIAL_MINI_SERIES}
+                  height={40}
+                  showLegend={false}
+                />
+              ) : undefined
+            }
+            isLoading={isLoading}
+            onClick={() => navigate("/vehicles")}
+          />
+        )}
+      </div>
     </div>
   );
 }

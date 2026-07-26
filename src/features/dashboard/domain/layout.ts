@@ -68,7 +68,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
     {
       id: "operations_snapshot",
       title: "Actualización operativa",
-      span: "third",
+      span: "full",
       defaultVisible: true,
       defaultOrder: 0,
       gate: ({ canReadTrips }) => canReadTrips,
@@ -76,7 +76,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
     {
       id: "metric_trends",
       title: "Métricas del mes",
-      span: "third",
+      span: "half",
       defaultVisible: true,
       defaultOrder: 1,
       gate: ({ canReadTrips }) => canReadTrips,
@@ -84,7 +84,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
     {
       id: "alerts",
       title: "Requiere atención",
-      span: "third",
+      span: "half",
       defaultVisible: true,
       defaultOrder: 2,
       gate: ({ canReadTrips }) => canReadTrips,

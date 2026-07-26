@@ -3,6 +3,7 @@ import { Route } from "lucide-react";
 import { BoeltechLineChart, ChartCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Button } from "@shared/ui/button";
+import { cn } from "@shared/lib/utils/cn";
 import type { TripsByDayData } from "../../domain/types";
 import { DASHBOARD_TRIPS_BY_DAY_SERIES } from "../config/dashboardChartConfig";
 import { dashboardCopy } from "../copy/dashboardCopy";
@@ -21,14 +22,19 @@ function TripsDaySelector({
   onChange: (days: TripsDayRange) => void;
 }) {
   return (
-    <div className="flex gap-0.5 rounded-md border bg-muted/40 p-0.5">
+    <div className="flex gap-0.5 rounded-lg bg-muted/50 p-0.5">
       {TRIPS_DAY_OPTIONS.map((days) => (
         <Button
           key={days}
           type="button"
-          variant={value === days ? "secondary" : "ghost"}
+          variant="ghost"
           size="sm"
-          className="h-7 px-2.5 text-xs"
+          className={cn(
+            "h-7 px-2.5 text-xs shadow-none",
+            value === days
+              ? "bg-background text-foreground hover:bg-background"
+              : "text-muted-foreground hover:bg-transparent hover:text-foreground",
+          )}
           onClick={() => onChange(days)}
         >
           {days}d
