@@ -27,5 +27,5 @@ export { SettingsSidebar } from "./components/SettingsSidebar";
 export { GeneralSettingsPage } from "./pages/GeneralSettingsPage";
 export { BillingSettingsPage } from "./pages/BillingSettingsPage";
 export { NotificationsSettingsPage } from "./pages/NotificationsSettingsPage";
-export { SecuritySettingsPage } from "./pages/SecuritySettingsPage";
+export { SecuritySettingsPage, UserSecuritySettings } from "./pages/SecuritySettingsPage";
 export { IntegrationsSettingsPage } from "./pages/IntegrationsSettingsPage";

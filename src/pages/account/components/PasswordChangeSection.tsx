@@ -15,6 +15,7 @@ import {
   type ChangePasswordFormData,
 } from "@features/auth";
 import { userQueryKeys } from "@features/users";
+import { accountCopy } from "../accountCopy";
 import { Button } from "@shared/ui/button";
 import {
   Card,
@@ -50,16 +51,16 @@ import { cn } from "@shared/lib/utils/cn";
 function PasswordRequirementsList({ password }: { password: string }) {
   const s = getPasswordRequirementStatus(password);
   const items: { key: keyof typeof s; label: string; met: boolean }[] = [
-    { key: "minLength", label: "Al menos 8 caracteres", met: s.minLength },
-    { key: "hasUppercase", label: "Una letra mayúscula", met: s.hasUppercase },
-    { key: "hasLowercase", label: "Una letra minúscula", met: s.hasLowercase },
-    { key: "hasDigit", label: "Un número", met: s.hasDigit },
+    { key: "minLength", label: accountCopy.password.reqMinLength, met: s.minLength },
+    { key: "hasUppercase", label: accountCopy.password.reqUpper, met: s.hasUppercase },
+    { key: "hasLowercase", label: accountCopy.password.reqLower, met: s.hasLowercase },
+    { key: "hasDigit", label: accountCopy.password.reqDigit, met: s.hasDigit },
   ];
 
   return (
     <ul
       className="grid gap-1.5 text-sm sm:grid-cols-2"
-      aria-label="Requisitos de la nueva contraseña"
+      aria-label={accountCopy.password.requirementsLabel}
     >
       {items.map(({ key, label, met }) => (
         <li
@@ -147,8 +148,8 @@ export function PasswordChangeSection() {
     });
     setShowNewPassword(true);
     toast({
-      title: "Contraseña sugerida",
-      description: "Puedes usarla o sustituirla por la que prefieras.",
+      title: accountCopy.password.suggestedTitle,
+      description: accountCopy.password.suggestedDescription,
       variant: "success",
     });
   }, [passwordForm, toast]);
@@ -167,15 +168,14 @@ export function PasswordChangeSection() {
       });
       setSheetOpen(false);
       toast({
-        title: "Contraseña actualizada",
-        description:
-          "Tu sesión en este dispositivo sigue activa con nuevos tokens. En otros dispositivos deberás iniciar sesión de nuevo.",
+        title: accountCopy.password.updatedTitle,
+        description: accountCopy.password.updatedDescription,
         variant: "success",
       });
     } catch (error) {
       const mapped = mapBackendError(error);
       toast({
-        title: "No se pudo cambiar la contraseña",
+        title: accountCopy.password.failedTitle,
         description: mapped.message,
         variant: "destructive",
       });
@@ -213,17 +213,13 @@ export function PasswordChangeSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Lock className="h-4 w-4" aria-hidden />
-            Contraseña
+            {accountCopy.password.title}
           </CardTitle>
-          <CardDescription>
-            Actualiza tu contraseña cuando quieras. Al guardar, esta sesión se
-            renueva automáticamente; en otros navegadores o dispositivos hará
-            falta volver a iniciar sesión.
-          </CardDescription>
+          <CardDescription>{accountCopy.password.description}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button type="button" onClick={() => setSheetOpen(true)}>
-            Cambiar contraseña
+            {accountCopy.password.changeCta}
           </Button>
         </CardContent>
       </Card>
@@ -234,10 +230,9 @@ export function PasswordChangeSection() {
           className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md"
         >
           <SheetHeader className="text-left">
-            <SheetTitle>Cambiar contraseña</SheetTitle>
+            <SheetTitle>{accountCopy.password.sheetTitle}</SheetTitle>
             <SheetDescription>
-              Confirma tu contraseña actual y define una nueva. Esta sesión se
-              mantendrá activa; otras sesiones quedarán invalidadas.
+              {accountCopy.password.sheetDescription}
             </SheetDescription>
           </SheetHeader>
 
@@ -256,7 +251,7 @@ export function PasswordChangeSection() {
                     return (
                       <FormFieldShell
                         fieldId={fieldId}
-                        label="Contraseña actual"
+                        label={accountCopy.password.current}
                         errorMessage={errorMessage}
                       >
                         <div className="flex min-w-0 flex-1 gap-2">
@@ -307,7 +302,7 @@ export function PasswordChangeSection() {
                       return (
                         <FormFieldShell
                           fieldId={fieldId}
-                          label="Nueva contraseña"
+                          label={accountCopy.password.newPassword}
                           errorMessage={errorMessage}
                         >
                           <div className="flex min-w-0 flex-1 gap-2">
@@ -357,7 +352,7 @@ export function PasswordChangeSection() {
                     onClick={handleGenerateNewPassword}
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Sugerir contraseña segura
+                    {accountCopy.password.suggest}
                   </Button>
                 </div>
 
@@ -372,11 +367,13 @@ export function PasswordChangeSection() {
                       newPasswordValue !== confirmValue;
                     const errorMessage =
                       fieldState.error?.message ??
-                      (confirmMismatch ? "Las contraseñas no coinciden" : undefined);
+                      (confirmMismatch
+                        ? accountCopy.password.mismatch
+                        : undefined);
                     return (
                       <FormFieldShell
                         fieldId={fieldId}
-                        label="Confirmar nueva contraseña"
+                        label={accountCopy.password.confirm}
                         errorMessage={errorMessage}
                       >
                         <div className="flex min-w-0 flex-1 gap-2">
@@ -414,7 +411,7 @@ export function PasswordChangeSection() {
                         </div>
                         {passwordsMatch && (
                           <p className="text-sm text-success">
-                            Las contraseñas coinciden
+                            {accountCopy.password.match}
                           </p>
                         )}
                       </FormFieldShell>
@@ -429,7 +426,7 @@ export function PasswordChangeSection() {
                     onClick={() => handleSheetOpenChange(false)}
                     disabled={isPasswordSaving}
                   >
-                    Cancelar
+                    {accountCopy.password.cancel}
                   </Button>
                   <Button type="submit" disabled={isPasswordSaving || !canSubmit}>
                     {isPasswordSaving ? (
@@ -438,10 +435,10 @@ export function PasswordChangeSection() {
                           className="mr-2 h-4 w-4 animate-spin"
                           aria-hidden
                         />
-                        Guardando…
+                        {accountCopy.password.saving}
                       </>
                     ) : (
-                      "Guardar nueva contraseña"
+                      accountCopy.password.save
                     )}
                   </Button>
                 </SheetFooter>

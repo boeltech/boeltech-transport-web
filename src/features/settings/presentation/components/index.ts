@@ -5,6 +5,7 @@
  */
 
 export { SettingsSidebar } from "./SettingsSidebar";
+export { SettingsNavTabs } from "./SettingsNavTabs";
 export {
   SettingsLayout,
   SettingsSection,
@@ -13,3 +14,4 @@ export {
 export { CompanySettingsForm } from "./CompanySettingsForm";
 export { LogoUpload } from "./LogoUpload";
 export { NotificationSettingsForm } from "./NotificationSettingsForm";
+export { TotpSetupQr } from "./TotpSetupQr";

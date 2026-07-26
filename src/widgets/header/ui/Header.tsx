@@ -100,17 +100,18 @@ export const Header = memo(function Header({ className }: HeaderProps) {
         <div className="hidden md:flex">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             className={cn(
-              "relative h-9 w-64 justify-start text-muted-foreground",
-              "border bg-background pl-10 pr-12 font-normal shadow-none hover:bg-background",
+              "relative h-9 w-72 justify-start rounded-full text-muted-foreground",
+              "border-0 bg-muted/60 pl-10 pr-14 font-normal shadow-none",
+              "hover:bg-muted hover:text-muted-foreground",
             )}
             onClick={() => setCommandOpen(true)}
             aria-label="Abrir navegación rápida"
           >
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <span className="truncate text-sm">Ir a página…</span>
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
               ⌘K
             </kbd>
           </Button>
@@ -122,14 +123,9 @@ export const Header = memo(function Header({ className }: HeaderProps) {
       {/* ==========================================
           Lado derecho
           ========================================== */}
-      <div className="flex items-center gap-2">
-        {/* Notificaciones */}
+      <div className="flex items-center gap-3">
         <NotificationInboxButton />
-
-        {/* Ciclo de tema: system → light → dark */}
         <ThemeCycleButton />
-
-        {/* Menú de usuario */}
         <UserMenu user={user} onLogout={logout} />
       </div>
     </header>
@@ -183,7 +179,7 @@ const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
 
         {/* Opciones de navegación */}
         <DropdownMenuItem asChild>
-          <Link to="/profile">
+          <Link to="/account">
             <User className="mr-2 h-4 w-4" />
             Mi cuenta
           </Link>

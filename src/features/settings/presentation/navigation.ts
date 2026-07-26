@@ -12,7 +12,6 @@ import {
   FileText,
   Bell,
   LayoutDashboard,
-  Shield,
   Plug,
   MapPin,
   CreditCard,
@@ -102,15 +101,6 @@ export const settingsNavItems: SettingsNavItem[] = [
     path: "/settings/dashboard-layouts",
     icon: LayoutDashboard,
     permission: { module: "settings", action: "update" },
-  },
-  {
-    id: SettingsSection.SECURITY,
-    label: "Seguridad",
-    description: "Políticas de contraseñas y autenticación",
-    path: "/settings/security",
-    icon: Shield,
-    disabled: true,
-    badge: "Próximamente",
   },
   {
     id: SettingsSection.INTEGRATIONS,

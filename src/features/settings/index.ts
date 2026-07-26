@@ -83,6 +83,8 @@ export {
   SettingsSection as SettingsSectionComponent,
   SettingsCard,
   SettingsSidebar,
+  // Account security panels (Mi cuenta)
+  UserSecuritySettings,
 } from "./presentation";
 
 export type { SettingsNavItem } from "./presentation";

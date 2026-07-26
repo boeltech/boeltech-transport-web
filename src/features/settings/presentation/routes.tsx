@@ -54,12 +54,6 @@ const NotificationsSettingsPage = lazy(() =>
   })),
 );
 
-const SecuritySettingsPage = lazy(() =>
-  import("./pages/SecuritySettingsPage").then((m) => ({
-    default: m.SecuritySettingsPage,
-  })),
-);
-
 const IntegrationsSettingsPage = lazy(() =>
   import("./pages/IntegrationsSettingsPage").then((m) => ({
     default: m.IntegrationsSettingsPage,
@@ -123,7 +117,7 @@ function SettingsIndexRedirect() {
  * /settings/catalogs/:typeCode → Detalle de catálogo
  * /settings/billing      → Facturación electrónica
  * /settings/notifications → Preferencias de notificaciones
- * /settings/security     → Seguridad (próximamente)
+ * /settings/security     → Redirect a /account/security
  * /settings/integrations → Integraciones (próximamente)
  */
 export function SettingsRoutes() {
@@ -191,19 +185,8 @@ export function SettingsRoutes() {
         <Route path="billing" element={<BillingSettingsPage />} />
         <Route path="billing/service-concepts" element={<BillingServiceConceptsPage />} />
 
-        {/* SaaS subscription (read-only) */}
-        <Route
-          path="subscription"
-          element={
-            <PermissionGuard
-              module="billing"
-              action="read"
-              fallback={<Navigate to="/forbidden" replace />}
-            >
-              <BillingSubscriptionPage />
-            </PermissionGuard>
-          }
-        />
+        {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
+        <Route path="subscription" element={<BillingSubscriptionPage />} />
 
         {/* Notification Settings */}
         <Route
@@ -233,8 +216,11 @@ export function SettingsRoutes() {
           }
         />
 
-        {/* Security Settings (placeholder) */}
-        <Route path="security" element={<SecuritySettingsPage />} />
+        {/* Seguridad del usuario → Mi cuenta */}
+        <Route
+          path="security"
+          element={<Navigate to="/account/security" replace />}
+        />
 
         {/* Integrations Settings (placeholder) */}
         <Route path="integrations" element={<IntegrationsSettingsPage />} />
