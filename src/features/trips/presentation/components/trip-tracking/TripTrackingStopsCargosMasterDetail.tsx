@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ListOrdered, Package, Truck } from "lucide-react";
 
 import {
@@ -50,6 +50,7 @@ import { CargoActionInline } from "./CargoActionInline";
 import { CargoStateMachineLegend } from "./CargoStateMachineLegend";
 import { StopActionInline } from "./StopActionInline";
 import { StopStateMachineLegend } from "./StopStateMachineLegend";
+import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 import {
   buildTrackingItineraryRows,
   getTrackingStopRoleHint,
@@ -57,7 +58,9 @@ import {
   type InlineStopAction,
   type TrackingItineraryRow,
 } from "./trackingOperationalHelpers";
+import { isOriginStop } from "../trackingStopEligibility";
 import { trackingCopy } from "./trackingCopy";
+import type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
 import {
   TrackingStopStatusBadgeRow,
   trackingStopStatusForBadge,
@@ -80,6 +83,12 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   onDepart?: () => void;
   onDepartOrigin?: () => void;
   onCloseTrip?: () => void;
+  /** Evidencia contextual: el padre abre sheets con esta parada como referencia GPS. */
+  onRegisterNote?: (stop: TripStop) => void;
+  onRegisterIncident?: (stop: TripStop) => void;
+  canRegisterEvidence?: boolean;
+  /** Focus request from the guide card (cargo blocked → jump to stop). */
+  focusRequest?: TrackingOperationalFocusRequest | null;
   className?: string;
 };
 
@@ -252,6 +261,9 @@ type TripTrackingStopOperationDetailProps = {
   onDepart?: () => void;
   onDepartOrigin?: () => void;
   onCloseTrip?: () => void;
+  onRegisterNote?: (stop: TripStop) => void;
+  onRegisterIncident?: (stop: TripStop) => void;
+  canRegisterEvidence?: boolean;
 };
 
 function TripTrackingStopOperationDetail({
@@ -270,6 +282,9 @@ function TripTrackingStopOperationDetail({
   onDepart,
   onDepartOrigin,
   onCloseTrip,
+  onRegisterNote,
+  onRegisterIncident,
+  canRegisterEvidence = false,
 }: TripTrackingStopOperationDetailProps) {
   const { primary, secondary } = formatStopTimelineLabel(
     row.stop,
@@ -289,6 +304,10 @@ function TripTrackingStopOperationDetail({
   const stopActive = canOperateCargoAtStop(row.stop, tripStatus);
   const cargoBlock = getCargoBlockAtStop(row.stop, cargos, orderedStops);
   const cargoActionsEnabled = tripInProgress && stopActive;
+  const showEvidenceToolbar =
+    canRegisterEvidence &&
+    onRegisterNote != null &&
+    onRegisterIncident != null;
 
   return (
     <div className="space-y-4">
@@ -330,7 +349,8 @@ function TripTrackingStopOperationDetail({
           <StopActionInline
             label={actionLabel}
             action={inlineAction.action}
-            variant={inlineAction.variant}
+            variant="default"
+            size="lg"
             onClick={() =>
               dispatchInlineStopAction(inlineAction, {
                 onStartTrip,
@@ -340,6 +360,23 @@ function TripTrackingStopOperationDetail({
                 onCloseTrip,
               })
             }
+          />
+        </section>
+      ) : null}
+
+      {showEvidenceToolbar ? (
+        <section className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {trackingCopy.label.evidenceAtStop}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {trackingCopy.hint.evidenceAtStop}
+          </p>
+          <TrackingEvidenceActions
+            onRegisterNote={() => onRegisterNote(row.stop)}
+            onRegisterIncident={() => onRegisterIncident(row.stop)}
+            canRegisterNote={canRegisterEvidence}
+            canRegisterIncident={canRegisterEvidence}
           />
         </section>
       ) : null}
@@ -454,10 +491,24 @@ export function TripTrackingStopsCargosMasterDetail({
   onDepart,
   onDepartOrigin,
   onCloseTrip,
+  onRegisterNote,
+  onRegisterIncident,
+  canRegisterEvidence = tripStatus === TripStatus.IN_PROGRESS,
+  focusRequest = null,
   className,
 }: TripTrackingStopsCargosMasterDetailProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * Selección explícita del operador. Caduca cuando avanza el objetivo
+   * operativo (`actionTargetId`) o llega un `focusRequest` nuevo.
+   */
+  const [userSelectedId, setUserSelectedId] = useState<string | null>(null);
+  const [selectionEpochTargetId, setSelectionEpochTargetId] = useState<
+    string | null
+  >(null);
+  const [appliedFocusNonce, setAppliedFocusNonce] = useState<number | null>(
+    null,
+  );
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   const rows = useMemo(
@@ -465,14 +516,60 @@ export function TripTrackingStopsCargosMasterDetail({
     [stops, tripTimes, cargos],
   );
 
+  const actionTargetId = useMemo(
+    () => rows.find((row) => row.isActionTarget)?.stop.id ?? null,
+    [rows],
+  );
+
+  // Ajuste de estado durante render (patrón React vs useEffect+setState en cascada).
+  if (
+    focusRequest != null &&
+    focusRequest.nonce !== appliedFocusNonce &&
+    rows.some((row) => row.stop.id === focusRequest.stopId)
+  ) {
+    setAppliedFocusNonce(focusRequest.nonce);
+    setUserSelectedId(focusRequest.stopId);
+    setSelectionEpochTargetId(actionTargetId);
+  }
+
+  useEffect(() => {
+    if (focusRequest == null || !isMobile) return;
+    if (!rows.some((row) => row.stop.id === focusRequest.stopId)) return;
+    setMobileSheetOpen(true);
+  }, [focusRequest, isMobile, rows]);
+
   const resolvedViewId = useMemo(() => {
     if (rows.length === 0) return null;
-    if (selectedId != null && rows.some((row) => row.stop.id === selectedId)) {
-      return selectedId;
+
+    const userSelectionValid =
+      userSelectedId != null &&
+      rows.some((row) => row.stop.id === userSelectedId) &&
+      selectionEpochTargetId === actionTargetId;
+
+    if (userSelectionValid) {
+      return userSelectedId;
     }
-    const actionTarget = rows.find((row) => row.isActionTarget);
-    return actionTarget?.stop.id ?? rows[0].stop.id;
-  }, [rows, selectedId]);
+
+    if (actionTargetId != null) {
+      return actionTargetId;
+    }
+
+    if (tripStatus === TripStatus.SCHEDULED) {
+      return (
+        rows.find((row) => isOriginStop(row.stop))?.stop.id ??
+        rows[0]?.stop.id ??
+        null
+      );
+    }
+
+    return rows[0]?.stop.id ?? null;
+  }, [
+    rows,
+    userSelectedId,
+    selectionEpochTargetId,
+    actionTargetId,
+    tripStatus,
+  ]);
 
   const listHighlightId = resolvedViewId;
   const selectedRow = useMemo(
@@ -486,7 +583,8 @@ export function TripTrackingStopsCargosMasterDetail({
     tripStatus === TripStatus.SCHEDULED || tripStatus === TripStatus.IN_PROGRESS;
 
   const handleSelect = (stopId: string) => {
-    setSelectedId(stopId);
+    setUserSelectedId(stopId);
+    setSelectionEpochTargetId(actionTargetId);
     if (isMobile) {
       setMobileSheetOpen(true);
     }
@@ -511,6 +609,9 @@ export function TripTrackingStopsCargosMasterDetail({
         onDepart,
         onDepartOrigin,
         onCloseTrip,
+        onRegisterNote,
+        onRegisterIncident,
+        canRegisterEvidence,
       }
     : null;
 

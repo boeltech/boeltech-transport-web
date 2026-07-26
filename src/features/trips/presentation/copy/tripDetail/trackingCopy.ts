@@ -6,6 +6,9 @@ export const trackingCopy = {
   section: {
     status: "Estado operativo",
     actions: "Acciones de seguimiento",
+    objective: "Objetivo actual",
+    evidence: "Evidencia del viaje",
+    metrics: "Métricas del viaje",
     itinerary: "Itinerario operativo",
     stopsAndCargos: "Paradas y cargas",
     timeline: "Timeline operativo",
@@ -28,8 +31,12 @@ export const trackingCopy = {
     departureAt: "Fecha y hora de salida",
     startMileage: "Kilometraje inicial",
     currentTarget: "Objetivo actual",
+    distancePlanned: "Dist. planificada",
+    distanceActual: "Dist. real",
+    eta: "ETA",
     cargoCount: (count: number) =>
       count === 1 ? "1 carga" : `${count} cargas`,
+    evidenceAtStop: "Evidencia en esta parada",
   },
   sheet: {
     startDescription:
@@ -77,11 +84,25 @@ export const trackingCopy = {
     readOnly: "Solo lectura",
     noEvents: "Sin eventos",
     noStops: "Sin paradas en la ruta",
+    noEta: "Sin ETA",
   },
   hint: {
     scope: "Seguimiento registra eventos y evidencias operativas.",
     map: "Ubicación de paradas y eventos con GPS.",
     itinerary: "Progreso por parada. «Objetivo actual» indica dónde actuar.",
+    objectiveGuide:
+      "Resumen de la siguiente operación. Las acciones de parada y carga se ejecutan en Paradas y cargas.",
+    readOnlyGuide:
+      "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, timeline y mapa abajo.",
+    idleGuide:
+      "No hay una acción de parada pendiente. Puedes revisar cargas o registrar evidencia si aplica.",
+    executeInStopsAndCargos:
+      "Ejecuta esta acción en la sección Paradas y cargas.",
+    evidenceAtStop:
+      "La nota o incidente usará esta parada como referencia de ubicación cuando tenga coordenadas.",
+    distancePlanned: "Calculada desde las paradas del viaje.",
+    distanceActual: "Distancia real proyectada por el seguimiento.",
+    eta: "Basado en la programación del viaje.",
     stopsAndCargos:
       "Selecciona una parada para ver acciones operativas y cargas vinculadas.",
     selectStop: "Selecciona una parada de la lista para operar.",

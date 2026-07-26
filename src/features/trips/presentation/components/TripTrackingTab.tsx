@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Route,
 } from "lucide-react";
-import { getOrderedStops, TripStatus, type TripStatusType } from "@features/trips/domain";
+import { getOrderedStops, TripStatus, type TripStatusType, type TripStop } from "@features/trips/domain";
 import {
   useTripCargos,
   useTripTimeline,
@@ -41,6 +41,7 @@ import {
   getTrackingIncidentTimelineMeta,
   TripTrackingStopsCargosMasterDetail,
   TripTrackingNextActionCard,
+  TripTrackingProgressStrip,
   trackingCopy,
 } from "./trip-tracking";
 import {
@@ -50,7 +51,6 @@ import {
 import { getCargoStatusVariant } from "./trip-cargos/tripCargoDetailHelpers";
 import { useToast } from "@shared/hooks";
 import { tripDetailCopy } from "../copy";
-import { progressCopy } from "../copy";
 import { isOriginStop } from "./trackingStopEligibility";
 
 interface TripTrackingTabProps {
@@ -77,6 +77,14 @@ export function TripTrackingTab({
   const [departOriginSheetOpen, setDepartOriginSheetOpen] = useState(false);
   const [noteSheetOpen, setNoteSheetOpen] = useState(false);
   const [incidentSheetOpen, setIncidentSheetOpen] = useState(false);
+  /** Parada elegida al abrir evidencia desde el detail; null = fallback operativo. */
+  const [evidenceReferenceStop, setEvidenceReferenceStop] =
+    useState<TripStop | null>(null);
+  const [operationalFocusRequest, setOperationalFocusRequest] = useState<{
+    stopId: string;
+    nonce: number;
+  } | null>(null);
+  const operationalFocusNonceRef = useRef(0);
   const [refreshTickMs, setRefreshTickMs] = useState(() => Date.now());
   const [pendingCargoAction, setPendingCargoAction] = useState<{
     cargoId: string;
@@ -272,6 +280,29 @@ export function TripTrackingTab({
 
   const canOperateStops = tripStatus === TripStatus.IN_PROGRESS;
 
+  const openNoteSheet = (stop: TripStop | null = null) => {
+    setEvidenceReferenceStop(stop);
+    setNoteSheetOpen(true);
+  };
+
+  const openIncidentSheet = (stop: TripStop | null = null) => {
+    setEvidenceReferenceStop(stop);
+    setIncidentSheetOpen(true);
+  };
+
+  const handleNoteSheetOpenChange = (open: boolean) => {
+    setNoteSheetOpen(open);
+    if (!open) setEvidenceReferenceStop(null);
+  };
+
+  const handleIncidentSheetOpenChange = (open: boolean) => {
+    setIncidentSheetOpen(open);
+    if (!open) setEvidenceReferenceStop(null);
+  };
+
+  const evidenceReferenceStopForSheets =
+    evidenceReferenceStop ?? referenceStopForGps;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -317,72 +348,23 @@ export function TripTrackingTab({
         tripStatus={tripStatus}
         stops={orderedStops}
         cargos={cargos}
-        onStartTrip={() => setStartSheetOpen(true)}
-        onArrive={() => setArrivalSheetOpen(true)}
-        onDepart={() => setDepartureSheetOpen(true)}
-        onDepartOrigin={() => setDepartOriginSheetOpen(true)}
-        onCloseTrip={() => setTripArrivalSheetOpen(true)}
-        onRegisterNote={() => setNoteSheetOpen(true)}
-        onRegisterIncident={() => setIncidentSheetOpen(true)}
+        onRegisterNote={() => openNoteSheet(null)}
+        onRegisterIncident={() => openIncidentSheet(null)}
+        onNavigateToOperationalHub={(stopId) => {
+          operationalFocusNonceRef.current += 1;
+          setOperationalFocusRequest({
+            stopId,
+            nonce: operationalFocusNonceRef.current,
+          });
+        }}
         canRegisterNote={canOperateStops}
         canRegisterIncident={canOperateStops}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>{progressCopy.label.percent}</CardDescription>
-            <CardTitle className="text-2xl">
-              {timeline.progress.percentComplete}%
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            {progressCopy.hint.completedStops(
-              timeline.progress.stopsCompleted,
-              timeline.progress.stopsTotal,
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Distancia planificada</CardDescription>
-            <CardTitle className="text-2xl">
-              {timeline.progress.distancePlannedKm != null
-                ? `${timeline.progress.distancePlannedKm.toLocaleString("es-MX")} km`
-                : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Calculada desde las paradas del viaje
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Distancia real</CardDescription>
-            <CardTitle className="text-2xl">
-              {timeline.progress.distanceActualKm != null
-                ? `${timeline.progress.distanceActualKm.toLocaleString("es-MX")} km`
-                : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            total_dist_rec proyectado por tracking
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>ETA</CardDescription>
-            <CardTitle className="text-base">
-              {timeline.progress.estimatedArrival
-                ? formatDateTime(timeline.progress.estimatedArrival.toISOString())
-                : "Sin ETA"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Basado en la programacion del viaje
-          </CardContent>
-        </Card>
-      </div>
+      <TripTrackingProgressStrip
+        progress={timeline.progress}
+        readOnly={!canOperateStops && tripStatus !== TripStatus.SCHEDULED}
+      />
 
       <TripTrackingStopsCargosMasterDetail
         stops={orderedStops}
@@ -397,6 +379,10 @@ export function TripTrackingTab({
         onDepart={() => setDepartureSheetOpen(true)}
         onDepartOrigin={() => setDepartOriginSheetOpen(true)}
         onCloseTrip={() => setTripArrivalSheetOpen(true)}
+        onRegisterNote={openNoteSheet}
+        onRegisterIncident={openIncidentSheet}
+        canRegisterEvidence={canOperateStops}
+        focusRequest={operationalFocusRequest}
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -574,15 +560,15 @@ export function TripTrackingTab({
       />
       <RegisterTrackingNoteSheet
         tripId={tripId}
-        referenceStop={referenceStopForGps}
+        referenceStop={evidenceReferenceStopForSheets}
         open={noteSheetOpen}
-        onOpenChange={setNoteSheetOpen}
+        onOpenChange={handleNoteSheetOpenChange}
       />
       <RegisterTrackingIncidentSheet
         tripId={tripId}
-        referenceStop={referenceStopForGps}
+        referenceStop={evidenceReferenceStopForSheets}
         open={incidentSheetOpen}
-        onOpenChange={setIncidentSheetOpen}
+        onOpenChange={handleIncidentSheetOpenChange}
       />
     </div>
   );

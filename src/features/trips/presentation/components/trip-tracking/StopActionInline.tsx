@@ -16,6 +16,8 @@ export type StopActionInlineProps = {
   pending?: boolean;
   disabled?: boolean;
   variant?: "default" | "outline";
+  /** `lg` en el hub operativo (única CTA de parada del tab). */
+  size?: "sm" | "default" | "lg";
   className?: string;
 };
 
@@ -26,18 +28,25 @@ export function StopActionInline({
   pending = false,
   disabled = false,
   variant = "outline",
+  size = "sm",
   className,
 }: StopActionInlineProps) {
   const transitionId = useId();
   const transitionText = STOP_TRANSITION_COPY[action];
+  const isProminent = size === "lg" || size === "default";
 
   return (
     <div className={cn("space-y-0.5", className)}>
       <Button
         type="button"
-        size="sm"
+        size={size}
         variant={variant}
-        className="h-auto min-h-8 w-full justify-start whitespace-normal py-1.5 text-left text-xs sm:w-auto"
+        className={cn(
+          "w-full justify-start whitespace-normal text-left sm:w-auto",
+          isProminent
+            ? "h-auto min-h-10 py-2.5 text-sm"
+            : "h-auto min-h-8 py-1.5 text-xs",
+        )}
         disabled={disabled || pending}
         onClick={onClick}
         aria-describedby={transitionId}

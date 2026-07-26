@@ -19,6 +19,11 @@ export { StopStateMachineLegend } from "./StopStateMachineLegend";
 export { CargoStateMachineLegend } from "./CargoStateMachineLegend";
 export { TripTrackingNextActionCard } from "./TripTrackingNextActionCard";
 export type { TripTrackingNextActionCardProps } from "./TripTrackingNextActionCard";
+export type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
+export { TrackingEvidenceActions } from "./TrackingEvidenceActions";
+export type { TrackingEvidenceActionsProps } from "./TrackingEvidenceActions";
+export { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
+export type { TripTrackingProgressStripProps } from "./TripTrackingProgressStrip";
 export {
   STOP_TRANSITION_COPY,
   CARGO_TRANSITION_COPY,
