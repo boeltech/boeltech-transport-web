@@ -77,6 +77,9 @@ export {
 
   // Types
   type AuthResponse,
+  type LoginResult,
+  type MfaChallengeResponse,
+  isMfaChallenge,
   type RefreshResponse,
   type AuthState,
   type AuthErrorCode,
@@ -87,6 +90,9 @@ export {
   type UpdateMyProfilePayload,
   type ChangePasswordPayload,
   type ChangePasswordResult,
+  type MfaStatus,
+  type MfaSetupResult,
+  type AuthSessionItem,
 } from "./domain";
 
 // ============================================================================
@@ -108,6 +114,8 @@ export {
 export {
   // Storage
   tokenStorage,
+  markFreshLoginSession,
+  consumeFreshLoginSession,
 
   // API
   authApi,
@@ -138,6 +146,7 @@ export {
   AuthProvider,
   AuthContext,
   type AuthContextType,
+  EmailVerificationBanner,
 
   // Schemas
   loginSchema,

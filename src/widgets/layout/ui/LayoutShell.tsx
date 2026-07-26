@@ -17,6 +17,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
 import { Header } from "@/widgets/header";
+import { EmailVerificationBanner } from "@features/auth";
 
 // ============================================
 // Constantes
@@ -81,6 +82,7 @@ export function LayoutShell() {
           {/* Content wrapper con padding */}
           <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
             <div className="mx-auto max-w-7xl">
+              <EmailVerificationBanner />
               <Outlet />
             </div>
           </div>

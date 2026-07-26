@@ -107,6 +107,10 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   // ===== PLAN / BILLING SaaS =====
   MODULE_NOT_ENTITLED:
     "Este módulo no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+  SUBSCRIPTION_REQUIRED:
+    "Tu empresa no tiene una suscripción activa. Contacta a Boeltech para activar o reactivar el plan.",
+  SUBSCRIPTION_INACTIVE:
+    "No hay una suscripción activa para timbrar. Contacta a Boeltech o reactiva el plan.",
 
   // ===== FACTURACIÓN (OP-L0.3 retención PM) =====
   PERSONA_MORAL_RETENTION_REQUIRED:
@@ -119,6 +123,39 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   // ===== AUTENTICACIÓN Y AUTORIZACIÓN =====
   INVALID_CREDENTIALS:
     "Credenciales incorrectas. Verifica tu correo y contraseña.",
+  ACCOUNT_LOCKED:
+    "Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.",
+  RATE_LIMIT_EXCEEDED:
+    "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+  EMAIL_NOT_VERIFIED:
+    "Verifica tu correo electrónico antes de completar el onboarding.",
+  EMAIL_DISPOSABLE:
+    "Usa un correo corporativo o personal permanente. No se aceptan correos temporales.",
+  PASSWORD_COMPROMISED:
+    "Esta contraseña aparece en filtraciones conocidas. Elige otra más segura.",
+  REGISTRATION_CLOSED:
+    "El registro público está cerrado. Solicita acceso a Boeltech o usa una invitación.",
+  MFA_INVALID:
+    "Código de autenticación incorrecto. Revisa la app o usa un código de recuperación.",
+  MFA_CHALLENGE_EXPIRED:
+    "El desafío de verificación expiró. Inicia sesión de nuevo.",
+  MFA_ALREADY_ENABLED:
+    "La autenticación en dos pasos ya está activada.",
+  MFA_NOT_ENABLED:
+    "La autenticación en dos pasos no está activada.",
+  SESSION_NOT_FOUND: "Sesión no encontrada o ya cerrada.",
+  CAPTCHA_REQUIRED: "Completa la verificación anti-bot.",
+  CAPTCHA_INVALID: "Verificación anti-bot inválida. Inténtalo de nuevo.",
+  CAPTCHA_NOT_CONFIGURED:
+    "Verificación anti-bot no disponible. Contacta a soporte.",
+  EMAIL_SEND_FAILED:
+    "No se pudo enviar el correo. Inténtalo de nuevo en unos minutos.",
+  EMAIL_PROVIDER_UNAUTHORIZED_IP:
+    "El servidor de correo no autoriza esta IP. Contacta a soporte o autoriza la IP en Brevo.",
+  INVALID_EMAIL_VERIFICATION_TOKEN:
+    "El enlace de verificación es inválido o ya expiró.",
+  REFRESH_TOKEN_REUSE:
+    "Tu sesión dejó de ser válida. Inicia sesión de nuevo.",
   TENANT_NOT_FOUND: "Empresa no encontrada. Verifica el identificador.",
   USER_INACTIVE: "Tu cuenta de usuario está inactiva.",
   TENANT_SUSPENDED: "La cuenta de esta empresa está suspendida.",

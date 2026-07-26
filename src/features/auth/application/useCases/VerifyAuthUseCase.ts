@@ -1,10 +1,5 @@
 /**
- * Auth Application - Use Cases
- * Clean Architecture - Application Layer
- *
- * Casos de uso del dominio de autenticación.
- *
- * Ubicación: src/features/auth/application/useCases.ts
+ * Verify Auth Use Case
  */
 
 import {
@@ -13,21 +8,11 @@ import {
   type IAuthRepository,
   type ITokenStorage,
 } from "../../domain";
+import {
+  persistsAuthTokens,
+  usesAuthCookies,
+} from "../../infrastructure/sessionMode";
 
-// ============================================
-// VERIFY AUTH USE CASE
-// ============================================
-
-/**
- * Caso de Uso: Verificar Autenticación
- *
- * Responsabilidades:
- * 1. Verificar si existe un token en el storage
- * 2. Validar el token contra el backend
- * 3. Obtener datos actualizados del usuario
- * 4. Crear entidad de dominio User
- * 5. Actualizar el usuario en el storage
- */
 export class VerifyAuthUseCase {
   private readonly authRepository: IAuthRepository;
   private readonly tokenStorage: ITokenStorage;
@@ -37,34 +22,30 @@ export class VerifyAuthUseCase {
     this.tokenStorage = tokenStorage;
   }
 
-  /**
-   * Ejecuta el caso de uso de verificación
-   */
   async execute(): Promise<User | null> {
-    // 1. Verificar si existe un token
     const token = this.tokenStorage.getToken();
+    const hasCookieSessionHint =
+      usesAuthCookies() &&
+      (!persistsAuthTokens() || Boolean(this.tokenStorage.getUser()));
 
-    if (!token) {
-      console.log("[VerifyAuthUseCase] No token found in storage");
+    if (!token && !hasCookieSessionHint) {
+      console.log("[VerifyAuthUseCase] No session material found");
       return null;
     }
 
     try {
-      console.log("[VerifyAuthUseCase] Token found, verifying with backend...");
+      console.log("[VerifyAuthUseCase] Verifying session with backend...");
 
-      // 2. Validar token y obtener perfil del usuario
       const userData = await this.authRepository.getProfile();
 
-      console.log("[VerifyAuthUseCase] Token valid, user:", userData.email);
+      console.log("[VerifyAuthUseCase] Session valid, user:", userData.email);
 
-      // 3. Crear entidades de dominio
       const tenant = Tenant.create(userData.tenant);
       const user = User.create({
         ...userData,
         tenant,
       });
 
-      // 4. Actualizar usuario en storage
       this.tokenStorage.setUser(user.toJSON());
 
       return user;
@@ -75,9 +56,6 @@ export class VerifyAuthUseCase {
         "[VerifyAuthUseCase] Token verification failed:",
         message,
       );
-
-      // No limpiar storage aquí: el interceptor puede estar refrescando el token
-      // y AuthProvider despacha logout centralizado si la sesión ya no es válida.
       return null;
     }
   }

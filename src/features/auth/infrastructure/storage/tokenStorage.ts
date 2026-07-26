@@ -3,16 +3,14 @@
  * Clean Architecture - Infrastructure Layer
  *
  * Almacenamiento de tokens y datos de autenticación en localStorage.
+ * En AUTH_SESSION_MODE=cookies no se persisten access/refresh tenant.
  *
  * Ubicación: src/features/auth/infrastructure/storage/tokenStorage.ts
  */
 
 import type { ITokenStorage } from "../../domain";
 import type { UserJSON } from "../../domain";
-
-// ============================================
-// STORAGE KEYS
-// ============================================
+import { persistsAuthTokens } from "../sessionMode";
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: "erp_access_token",
@@ -21,7 +19,6 @@ const STORAGE_KEYS = {
   SUBDOMAIN: "erp_subdomain",
 } as const;
 
-/** Tras login/register en LoginPage (fuera de AuthProvider): omitir spinner de verificación. */
 const FRESH_LOGIN_KEY = "erp_auth_fresh_login";
 
 export function markFreshLoginSession(): void {
@@ -36,23 +33,26 @@ export function consumeFreshLoginSession(): boolean {
   return fresh;
 }
 
-// ============================================
-// TOKEN STORAGE IMPLEMENTATION
-// ============================================
+/** Limpia tokens tenant legado si el modo ya no los persiste. */
+function purgePersistedTokensIfNeeded(): void {
+  if (persistsAuthTokens()) return;
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+}
 
-/**
- * Implementación de ITokenStorage usando localStorage
- */
+purgePersistedTokensIfNeeded();
+
 export const tokenStorage: ITokenStorage = {
-  // ==========================================
-  // Access Token
-  // ==========================================
-
   getToken: (): string | null => {
+    if (!persistsAuthTokens()) return null;
     return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   },
 
   setToken: (token: string): void => {
+    if (!persistsAuthTokens()) {
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
   },
 
@@ -60,25 +60,22 @@ export const tokenStorage: ITokenStorage = {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
   },
 
-  // ==========================================
-  // Refresh Token
-  // ==========================================
-
   getRefreshToken: (): string | null => {
+    if (!persistsAuthTokens()) return null;
     return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
   },
 
   setRefreshToken: (token: string): void => {
+    if (!persistsAuthTokens()) {
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      return;
+    }
     localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, token);
   },
 
   removeRefreshToken: (): void => {
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   },
-
-  // ==========================================
-  // User
-  // ==========================================
 
   getUser: (): UserJSON | null => {
     const userJson = localStorage.getItem(STORAGE_KEYS.USER);
@@ -99,10 +96,6 @@ export const tokenStorage: ITokenStorage = {
     localStorage.removeItem(STORAGE_KEYS.USER);
   },
 
-  // ==========================================
-  // Subdomain
-  // ==========================================
-
   getSubdomain: (): string | null => {
     return localStorage.getItem(STORAGE_KEYS.SUBDOMAIN);
   },
@@ -111,18 +104,16 @@ export const tokenStorage: ITokenStorage = {
     localStorage.setItem(STORAGE_KEYS.SUBDOMAIN, subdomain);
   },
 
-  // ==========================================
-  // Utilities
-  // ==========================================
-
   clear: (): void => {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
-    // No limpiamos subdomain para recordar la empresa
   },
 
   hasSession: (): boolean => {
-    return !!localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (persistsAuthTokens()) {
+      return !!localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    }
+    return !!localStorage.getItem(STORAGE_KEYS.USER);
   },
 };

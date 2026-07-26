@@ -3,8 +3,7 @@
  * Clean Architecture - Infrastructure Layer
  *
  * Interceptores de Axios para autenticación.
- *
- * Ubicación: src/features/auth/infrastructure/interceptors/authInterceptor.ts
+ * Fase 4: tenant puede usar cookies httpOnly (sin Bearer en storage).
  */
 
 import {
@@ -17,26 +16,18 @@ import {
 import { tokenStorage } from "../storage/tokenStorage";
 import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 import { notifyPlatformUnauthorized } from "@features/platform/infrastructure/platformSessionHandlers";
+import {
+  persistsAuthTokens,
+  sendsBearerFromStorage,
+  usesAuthCookies,
+} from "../sessionMode";
 
-// ============================================
-// TYPES
-// ============================================
-
-/**
- * Configuración del interceptor de autenticación
- */
 export interface AuthInterceptorConfig {
-  /** Callback cuando la sesión ya no es válida (refresh fallido, 401 definitivo, etc.) */
   onUnauthorized: () => void;
-  /** Callback cuando se recibe un 403 Forbidden */
   onForbidden: () => void;
-  /** Callback cuando se refresca el token exitosamente */
+  onSubscriptionRequired?: () => void;
   onTokenRefreshed?: (newToken: string) => void;
 }
-
-// ============================================
-// Estado compartido (solo entre peticiones en la misma pestaña)
-// ============================================
 
 let isRefreshing = false;
 
@@ -64,7 +55,9 @@ function rejectPending(error: unknown): void {
 
 function replayPending(instance: AxiosInstance, accessToken: string): void {
   pendingRetries.forEach(({ resolve, reject, config }) => {
-    setBearerToken(config, accessToken);
+    if (accessToken) {
+      setBearerToken(config, accessToken);
+    }
     instance(config).then(resolve).catch(reject);
   });
   pendingRetries.length = 0;
@@ -95,7 +88,6 @@ function isRefreshRequest(
   return url.includes("/auth/refresh");
 }
 
-/** Rutas de auth que no deben enviar Bearer (evita adjuntar JWT expirado innecesariamente). */
 function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
   const url = requestConfig.url ?? "";
   return (
@@ -106,8 +98,27 @@ function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
     url.includes("/auth/forgot-password") ||
     url.includes("/auth/reset-password") ||
     url.includes("/auth/verify-reset-token") ||
+    url.includes("/auth/verify-email") ||
+    url.includes("/auth/mfa/verify") ||
+    url.includes("/onboarding/") ||
     url.includes("/platform/auth/login") ||
     url.includes("/platform/auth/refresh")
+  );
+}
+
+function isRegistrationClosedForbidden(error: AxiosError): boolean {
+  if (error.response?.status !== 403) {
+    return false;
+  }
+  const body = error.response.data as { code?: string } | undefined;
+  return body?.code === "REGISTRATION_CLOSED";
+}
+
+function canAttemptTenantCookieRefresh(): boolean {
+  return (
+    usesAuthCookies() &&
+    !persistsAuthTokens() &&
+    Boolean(tokenStorage.getUser())
   );
 }
 
@@ -115,15 +126,21 @@ async function refreshAccessToken(
   instance: AxiosInstance,
   scope: "platform" | "tenant",
 ): Promise<string> {
+  const endpoint =
+    scope === "platform" ? "/platform/auth/refresh" : "/auth/refresh";
+
+  if (scope === "tenant" && canAttemptTenantCookieRefresh()) {
+    await instance.post(endpoint, {});
+    // erp_at renovada vía Set-Cookie; no hay token legible en JS
+    return "";
+  }
+
   const storage = getTokenStorage(scope);
   const refreshToken = storage.getRefreshToken();
 
   if (!refreshToken) {
     throw new Error("No refresh token available");
   }
-
-  const endpoint =
-    scope === "platform" ? "/platform/auth/refresh" : "/auth/refresh";
 
   const response = await instance.post(endpoint, {
     refresh_token: refreshToken,
@@ -132,27 +149,21 @@ async function refreshAccessToken(
   const newToken = response?.data?.data?.access_token as string | undefined;
 
   if (!newToken) {
+    // dual/cookies: body puede omitir tokens; cookie renovada
+    if (scope === "tenant" && usesAuthCookies()) {
+      return "";
+    }
     throw new Error("Refresh response missing access_token");
   }
 
   storage.setToken(newToken);
+  const newRefresh = response?.data?.data?.refresh_token as string | undefined;
+  if (newRefresh) {
+    storage.setRefreshToken(newRefresh);
+  }
   return newToken;
 }
 
-// ============================================
-// INTERCEPTOR
-// ============================================
-
-/**
- * Configurar interceptores de autenticación en Axios.
- *
- * Responsabilidades:
- * 1. Adjuntar JWT salvo en rutas públicas de `/auth/*`.
- * 2. Ante 401: un solo refresh en paralelo y reintento de peticiones encoladas.
- * 3. Si el refresh falla o sigue 401 después de reintento → `onUnauthorized`.
- *
- * @returns función para ejectar interceptores (evitar duplicados si el effect se re-ejecuta).
- */
 export function setupAuthInterceptor(
   axiosInstance: AxiosInstance,
   config: AuthInterceptorConfig,
@@ -163,7 +174,14 @@ export function setupAuthInterceptor(
       const storage = getTokenStorage(scope);
       const token = storage.getToken();
 
-      if (token && !isPublicAuthPath(requestConfig)) {
+      const attachBearer =
+        scope === "platform"
+          ? Boolean(token) && !isPublicAuthPath(requestConfig)
+          : sendsBearerFromStorage() &&
+            Boolean(token) &&
+            !isPublicAuthPath(requestConfig);
+
+      if (attachBearer && token) {
         setBearerToken(requestConfig, token);
       }
 
@@ -180,8 +198,19 @@ export function setupAuthInterceptor(
         | undefined;
 
       if (error.response?.status === 403) {
+        if (isRegistrationClosedForbidden(error)) {
+          return Promise.reject(error);
+        }
         console.log("[AuthInterceptor] 403 Forbidden received");
         config.onForbidden();
+        return Promise.reject(error);
+      }
+
+      if (error.response?.status === 402) {
+        const body = error.response.data as { code?: string } | undefined;
+        if (body?.code === "SUBSCRIPTION_REQUIRED") {
+          config.onSubscriptionRequired?.();
+        }
         return Promise.reject(error);
       }
 
@@ -191,6 +220,10 @@ export function setupAuthInterceptor(
 
       if (!originalRequest) {
         config.onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      if (isPublicAuthPath(originalRequest)) {
         return Promise.reject(error);
       }
 
@@ -222,6 +255,24 @@ export function setupAuthInterceptor(
         return Promise.reject(error);
       }
 
+      const storage = getTokenStorage(scope);
+      const hasRefreshMaterial =
+        scope === "tenant" && canAttemptTenantCookieRefresh()
+          ? true
+          : Boolean(storage.getRefreshToken());
+
+      if (!hasRefreshMaterial) {
+        if (storage.getToken() || (scope === "tenant" && storage.getUser())) {
+          if (scope === "platform") {
+            platformTokenStorage.clear();
+            notifyPlatformUnauthorized();
+          } else {
+            config.onUnauthorized();
+          }
+        }
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -240,13 +291,15 @@ export function setupAuthInterceptor(
         console.log("[AuthInterceptor] 401 received, attempting token refresh...");
         const newToken = await refreshAccessToken(axiosInstance, scope);
         console.log("[AuthInterceptor] Token refreshed successfully");
-        if (scope === "tenant") {
+        if (scope === "tenant" && newToken) {
           config.onTokenRefreshed?.(newToken);
         }
 
         replayPending(axiosInstance, newToken);
 
-        setBearerToken(originalRequest, newToken);
+        if (newToken) {
+          setBearerToken(originalRequest, newToken);
+        }
         return await axiosInstance(originalRequest);
       } catch (refreshError) {
         console.error("[AuthInterceptor] Token refresh failed:", refreshError);
@@ -257,7 +310,7 @@ export function setupAuthInterceptor(
         } else {
           config.onUnauthorized();
         }
-        return Promise.reject(refreshError);
+        return Promise.reject(error);
       } finally {
         isRefreshing = false;
       }

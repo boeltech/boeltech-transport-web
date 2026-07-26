@@ -743,7 +743,7 @@ export function setupErrorInterceptor(instance: AxiosInstance): () => void {
        * siguiente handler ya no ve `error.response` y no puede refrescar token ni
        * despachar `onForbidden` correctamente.
        */
-      if (status === 401 || status === 403) {
+      if (status === 401 || status === 403 || status === 402) {
         return Promise.reject(error);
       }
 

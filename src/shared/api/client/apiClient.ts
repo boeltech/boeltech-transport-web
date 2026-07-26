@@ -7,6 +7,7 @@ import {
 import { config } from "@shared/config/index";
 import { deepToSnake } from "../utils/case-transformer";
 import { setupErrorInterceptor } from "../interceptors/error-handler";
+import { usesAuthCookies } from "@features/auth/infrastructure/sessionMode";
 
 /**
  * Clase Singleton para el cliente API
@@ -54,6 +55,7 @@ class ApiClient {
       baseURL: config.api.baseUrl,
       timeout: config.api.timeout,
       headers: config.api.headers,
+      withCredentials: usesAuthCookies(),
       // Validar status codes
       validateStatus: (status) => status >= 200 && status < 300,
     });

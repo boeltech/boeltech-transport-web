@@ -17,9 +17,24 @@ import type { User, UserJSON } from "./entities";
  * Respuesta del endpoint POST /api/v1/auth/login
  */
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
   user: UserJSON;
+}
+
+/** Challenge MFA tras credenciales OK (sin tokens de sesión aún). */
+export interface MfaChallengeResponse {
+  needsMfa: true;
+  mfaChallengeToken: string;
+  mfaChallengeExpiresAt: string;
+}
+
+export type LoginResult = AuthResponse | MfaChallengeResponse;
+
+export function isMfaChallenge(
+  result: LoginResult,
+): result is MfaChallengeResponse {
+  return "needsMfa" in result && result.needsMfa === true;
 }
 
 /**
@@ -27,6 +42,7 @@ export interface AuthResponse {
  */
 export interface RefreshResponse {
   accessToken: string;
+  refreshToken?: string;
 }
 
 export interface ApiEnvelope<T> {
@@ -48,16 +64,47 @@ export interface UserApi {
   last_login?: string;
   permissions?: string[];
   onboarding_completed_at?: string | null;
+  email_verified_at?: string | null;
 }
 
 export interface LoginApiData {
-  access_token: string;
-  refresh_token: string;
+  access_token?: string;
+  refresh_token?: string;
   user: UserApi;
 }
 
+export interface LoginMfaChallengeApiData {
+  needs_mfa: true;
+  mfa_challenge_token: string;
+  mfa_challenge_expires_at: string;
+}
+
+export type LoginApiPayload = LoginApiData | LoginMfaChallengeApiData;
+
 export interface RefreshApiData {
   access_token: string;
+  refresh_token?: string;
+}
+
+export interface MfaStatus {
+  enabled: boolean;
+  enabledAt: string | null;
+}
+
+export interface MfaSetupResult {
+  otpauthUrl: string;
+  secret: string;
+}
+
+export interface AuthSessionItem {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+  userAgent: string | null;
+  ip: string | null;
+  label: string | null;
+  current: boolean;
 }
 
 // ============================================
@@ -85,6 +132,10 @@ export type AuthErrorCode =
   | "INVALID_CREDENTIALS"
   | "USER_INACTIVE"
   | "ACCOUNT_LOCKED"
+  | "RATE_LIMIT_EXCEEDED"
+  | "EMAIL_NOT_VERIFIED"
+  | "CAPTCHA_REQUIRED"
+  | "CAPTCHA_INVALID"
   | "TENANT_NOT_FOUND"
   | "TENANT_SUSPENDED"
   | "TOKEN_EXPIRED"
@@ -152,7 +203,7 @@ export interface IAuthRepository {
     email: string;
     password: string;
     subdomain: string;
-  }): Promise<AuthResponse>;
+  }): Promise<LoginResult>;
   logout(refreshToken?: string): Promise<void>;
   getProfile(): Promise<UserJSON>;
   updateProfile(payload: UpdateMyProfilePayload): Promise<UpdateProfileResult>;

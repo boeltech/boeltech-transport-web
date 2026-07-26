@@ -10,7 +10,7 @@
 import { authApi } from "../api/authApi";
 import type {
   IAuthRepository,
-  AuthResponse,
+  LoginResult,
   ChangePasswordPayload,
   ChangePasswordResult,
   RefreshResponse,
@@ -26,42 +26,34 @@ import type {
  * Delega llamadas a authApi.
  */
 export class AuthRepository implements IAuthRepository {
-  /**
-   * Autentica un usuario
-   */
   async login(credentials: {
     email: string;
     password: string;
     subdomain: string;
-  }): Promise<AuthResponse> {
+  }): Promise<LoginResult> {
     return authApi.login(credentials);
   }
 
-  /**
-   * Cierra la sesión de un usuario
-   */
   async logout(refreshToken?: string): Promise<void> {
     return authApi.logout(refreshToken);
   }
 
-  /**
-   * Obtiene el perfil del usuario autenticado
-   */
   async getProfile(): Promise<UserJSON> {
     return authApi.getProfile();
   }
 
-  async updateProfile(payload: UpdateMyProfilePayload): Promise<UpdateProfileResult> {
+  async updateProfile(
+    payload: UpdateMyProfilePayload,
+  ): Promise<UpdateProfileResult> {
     return authApi.updateProfile(payload);
   }
 
-  async changePassword(payload: ChangePasswordPayload): Promise<ChangePasswordResult> {
+  async changePassword(
+    payload: ChangePasswordPayload,
+  ): Promise<ChangePasswordResult> {
     return authApi.changePassword(payload);
   }
 
-  /**
-   * Refresca el token de acceso
-   */
   async refreshToken(refreshToken: string): Promise<RefreshResponse> {
     return authApi.refresh(refreshToken);
   }

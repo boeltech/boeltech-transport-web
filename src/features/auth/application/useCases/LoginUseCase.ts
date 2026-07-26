@@ -1,10 +1,6 @@
 /**
  * Auth Application - Use Cases
  * Clean Architecture - Application Layer
- *
- * Casos de uso del dominio de autenticación.
- *
- * Ubicación: src/features/auth/application/useCases.ts
  */
 
 import {
@@ -14,25 +10,20 @@ import {
   type LoginCredentials,
   type IAuthRepository,
   type ITokenStorage,
+  isMfaChallenge,
 } from "../../domain";
-
-// ============================================
-// LOGIN USE CASE
-// ============================================
+import { persistsAuthTokens } from "../../infrastructure/sessionMode";
 
 export interface LoginUseCaseResult {
   user: User;
-  accessToken: Token;
+  accessToken: Token | null;
 }
 
 /**
  * Caso de Uso: Login
  *
- * Responsabilidades:
- * 1. Validar credenciales
- * 2. Autenticar usuario contra el backend
- * 3. Crear entidades de dominio
- * 4. Persistir tokens y datos de usuario
+ * El challenge MFA se resuelve en LoginPage (verifyMfaLogin).
+ * En modo cookies no persiste tokens en localStorage.
  */
 export class LoginUseCase {
   private readonly authRepository: IAuthRepository;
@@ -43,42 +34,47 @@ export class LoginUseCase {
     this.tokenStorage = tokenStorage;
   }
 
-  /**
-   * Ejecuta el caso de uso de login
-   */
   async execute(credentials: LoginCredentials): Promise<LoginUseCaseResult> {
-    // 1. Validar entrada
     this.validateCredentials(credentials);
 
-    // 2. Autenticar contra el backend
     const response = await this.authRepository.login({
       email: credentials.email,
       password: credentials.password,
       subdomain: credentials.subdomain,
     });
 
-    // 3. Crear entidades de dominio
+    if (isMfaChallenge(response)) {
+      throw new Error(
+        "Se requiere verificación MFA. Completa el segundo factor en el inicio de sesión.",
+      );
+    }
+
     const tenant = Tenant.create(response.user.tenant);
     const user = User.create({
       ...response.user,
       tenant,
     });
 
-    const accessToken = Token.create(response.accessToken);
-    const refreshToken = Token.create(response.refreshToken);
+    if (persistsAuthTokens() && response.accessToken && response.refreshToken) {
+      this.tokenStorage.setToken(response.accessToken);
+      this.tokenStorage.setRefreshToken(response.refreshToken);
+    } else {
+      this.tokenStorage.removeToken();
+      this.tokenStorage.removeRefreshToken();
+    }
 
-    // 4. Persistir en storage
-    this.tokenStorage.setToken(accessToken.toString());
-    this.tokenStorage.setRefreshToken(refreshToken.toString());
     this.tokenStorage.setUser(user.toJSON());
     this.tokenStorage.setSubdomain(credentials.subdomain);
 
-    return { user, accessToken };
+    return {
+      user,
+      accessToken:
+        persistsAuthTokens() && response.accessToken
+          ? Token.create(response.accessToken)
+          : null,
+    };
   }
 
-  /**
-   * Valida las credenciales de entrada
-   */
   private validateCredentials(credentials: LoginCredentials): void {
     if (!credentials.email || credentials.email.trim() === "") {
       throw new Error("Email is required");

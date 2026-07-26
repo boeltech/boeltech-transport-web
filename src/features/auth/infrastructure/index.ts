@@ -12,6 +12,13 @@ export {
   consumeFreshLoginSession,
 } from "./storage/tokenStorage";
 
+export {
+  authSessionMode,
+  usesAuthCookies,
+  persistsAuthTokens,
+  sendsBearerFromStorage,
+} from "./sessionMode";
+
 // API
 export { authApi } from "./api/authApi";
 

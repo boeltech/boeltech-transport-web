@@ -8,6 +8,8 @@ export {
   type AuthContextType,
 } from "./AuthProvider";
 
+export { EmailVerificationBanner } from "./EmailVerificationBanner";
+
 export {
   loginSchema,
   forgotPasswordSchema,

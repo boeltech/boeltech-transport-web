@@ -15,9 +15,14 @@ import {
 import type {
   ApiEnvelope,
   AuthResponse,
+  AuthSessionItem,
   ChangePasswordPayload,
   ChangePasswordResult,
+  LoginApiPayload,
   LoginApiData,
+  LoginResult,
+  MfaSetupResult,
+  MfaStatus,
   RefreshApiData,
   RefreshResponse,
   UpdateMyProfilePayload,
@@ -25,6 +30,7 @@ import type {
   UserApi,
   UserJSON,
 } from "../../domain";
+import { tokenStorage } from "../storage/tokenStorage";
 
 const mapUserApiToJson = (user: UserApi): UserJSON => ({
   id: user.id,
@@ -39,43 +45,152 @@ const mapUserApiToJson = (user: UserApi): UserJSON => ({
     user.onboarding_completed_at !== undefined
       ? user.onboarding_completed_at
       : undefined,
+  emailVerifiedAt:
+    user.email_verified_at !== undefined ? user.email_verified_at : undefined,
 });
+
+function mapLoginPayload(data: LoginApiPayload): LoginResult {
+  if ("needs_mfa" in data && data.needs_mfa === true) {
+    return {
+      needsMfa: true,
+      mfaChallengeToken: data.mfa_challenge_token,
+      mfaChallengeExpiresAt: data.mfa_challenge_expires_at,
+    };
+  }
+  const session = data as LoginApiData;
+  return {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    user: mapUserApiToJson(session.user),
+  };
+}
 
 /**
  * API de Autenticación
- *
- * Endpoints:
- * - POST /api/v1/auth/login    - Iniciar sesión
- * - POST /api/v1/auth/refresh  - Renovar token
- * - POST /api/v1/auth/logout   - Cerrar sesión
- * - GET   /api/v1/auth/profile  - Obtener perfil del usuario
- * - PATCH /api/v1/auth/profile  - Actualizar perfil (nombre, apellido, email)
- * - POST  /api/v1/auth/change-password - Cambiar contraseña (sesión activa)
  */
 export const authApi = {
-  /**
-   * Iniciar sesión
-   */
   login: async (credentials: {
     email: string;
     password: string;
     subdomain: string;
-  }): Promise<AuthResponse> => {
-    const response = await apiClient.post<ApiEnvelope<LoginApiData>>(
+    captchaToken?: string;
+  }): Promise<LoginResult> => {
+    const response = await apiClient.post<ApiEnvelope<LoginApiPayload>>(
       "/auth/login",
       credentials,
     );
+    return mapLoginPayload(response.data);
+  },
 
+  verifyMfaLogin: async (payload: {
+    mfaChallengeToken: string;
+    code: string;
+  }): Promise<AuthResponse> => {
+    const response = await apiClient.post<ApiEnvelope<LoginApiPayload>>(
+      "/auth/mfa/verify",
+      payload,
+    );
+    const mapped = mapLoginPayload(response.data);
+    if ("needsMfa" in mapped) {
+      throw new Error("Respuesta MFA inesperada");
+    }
+    return mapped;
+  },
+
+  getMfaStatus: async (): Promise<MfaStatus> => {
+    const raw = await apiClient.get<
+      ApiSingleResponse<{ enabled: boolean; enabled_at: string | null }>
+    >("/auth/mfa/status");
+    const { data } = mapSingleResponse(raw);
     return {
-      accessToken: response.data.access_token,
-      refreshToken: response.data.refresh_token,
-      user: mapUserApiToJson(response.data.user),
+      enabled: Boolean(data.enabled),
+      enabledAt:
+        (data as { enabledAt?: string | null }).enabledAt ??
+        (data as { enabled_at?: string | null }).enabled_at ??
+        null,
     };
   },
 
-  /**
-   * Renovar token de acceso
-   */
+  setupMfa: async (): Promise<MfaSetupResult> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ otpauth_url: string; secret: string }>
+    >("/auth/mfa/setup");
+    const { data } = mapSingleResponse(raw);
+    return {
+      otpauthUrl:
+        (data as { otpauthUrl?: string }).otpauthUrl ??
+        (data as { otpauth_url?: string }).otpauth_url!,
+      secret: data.secret,
+    };
+  },
+
+  confirmMfa: async (code: string): Promise<{ recoveryCodes: string[] }> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ recovery_codes: string[] }>
+    >("/auth/mfa/confirm", { code });
+    const { data } = mapSingleResponse(raw);
+    const codes =
+      (data as { recoveryCodes?: string[] }).recoveryCodes ??
+      (data as { recovery_codes?: string[] }).recovery_codes ??
+      [];
+    return { recoveryCodes: codes };
+  },
+
+  disableMfa: async (payload: {
+    password: string;
+    code: string;
+  }): Promise<void> => {
+    await apiClient.post("/auth/mfa/disable", payload);
+  },
+
+  listSessions: async (): Promise<AuthSessionItem[]> => {
+    const refreshToken = tokenStorage.getRefreshToken();
+    const raw = await apiClient.get<
+      ApiSingleResponse<
+        Array<{
+          id: string;
+          created_at: string;
+          last_used_at: string | null;
+          expires_at: string;
+          user_agent: string | null;
+          ip: string | null;
+          label: string | null;
+          current: boolean;
+        }>
+      >
+    >(
+      "/auth/sessions",
+      refreshToken
+        ? { headers: { "X-Refresh-Token": refreshToken } }
+        : undefined,
+    );
+    const { data } = mapSingleResponse(raw);
+    return (data as AuthSessionItem[]).map((s) => ({
+      id: s.id,
+      createdAt:
+        (s as { createdAt?: string }).createdAt ??
+        (s as { created_at?: string }).created_at!,
+      lastUsedAt:
+        (s as { lastUsedAt?: string | null }).lastUsedAt ??
+        (s as { last_used_at?: string | null }).last_used_at ??
+        null,
+      expiresAt:
+        (s as { expiresAt?: string }).expiresAt ??
+        (s as { expires_at?: string }).expires_at!,
+      userAgent:
+        (s as { userAgent?: string | null }).userAgent ??
+        (s as { user_agent?: string | null }).user_agent ??
+        null,
+      ip: s.ip ?? null,
+      label: s.label ?? null,
+      current: Boolean(s.current),
+    }));
+  },
+
+  revokeSession: async (sessionId: string): Promise<void> => {
+    await apiClient.delete(`/auth/sessions/${sessionId}`);
+  },
+
   refresh: async (refreshToken: string): Promise<RefreshResponse> => {
     const response = await apiClient.post<ApiEnvelope<RefreshApiData>>(
       "/auth/refresh",
@@ -84,19 +199,14 @@ export const authApi = {
 
     return {
       accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
     };
   },
 
-  /**
-   * Cerrar sesión
-   */
   logout: async (refreshToken?: string): Promise<void> => {
     await apiClient.post("/auth/logout", { refreshToken });
   },
 
-  /**
-   * Obtener perfil del usuario autenticado
-   */
   getProfile: async (): Promise<UserJSON> => {
     const response = await apiClient.get<ApiEnvelope<UserApi>>("/auth/profile", {
       authScope: "tenant",
@@ -104,14 +214,11 @@ export const authApi = {
     return mapUserApiToJson(response.data);
   },
 
-  /**
-   * Cambiar contraseña con sesión activa (invalida access JWT previos; devuelve nuevos tokens).
-   */
   changePassword: async (
     payload: ChangePasswordPayload,
   ): Promise<ChangePasswordResult> => {
     const raw = await apiClient.post<
-      ApiSingleResponse<{ access_token: string; refresh_token: string }>
+      ApiSingleResponse<{ access_token?: string; refresh_token?: string }>
     >("/auth/change-password", {
       currentPassword: payload.currentPassword,
       password: payload.newPassword,
@@ -119,15 +226,12 @@ export const authApi = {
     });
     const { data, message } = mapSingleResponse(raw);
     return {
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
+      accessToken: data.accessToken ?? "",
+      refreshToken: data.refreshToken ?? "",
       ...(message ? { message } : {}),
     };
   },
 
-  /**
-   * Marca el onboarding de producto como completado (persistente en servidor).
-   */
   completeProductOnboarding: async (): Promise<void> => {
     const raw = await apiClient.post<
       ApiSingleResponse<{ onboarding_completed_at: string }>
@@ -135,10 +239,26 @@ export const authApi = {
     mapSingleResponse(raw);
   },
 
-  /**
-   * Actualizar perfil del usuario autenticado (campos básicos de cuenta).
-   * El body se envía en camelCase; el cliente serializa a snake_case.
-   */
+  verifyEmail: async (token: string): Promise<{ emailVerifiedAt: string }> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ email_verified_at: string }>
+    >("/auth/verify-email", { token });
+    const { data } = mapSingleResponse(raw);
+    return {
+      emailVerifiedAt:
+        (data as { emailVerifiedAt?: string }).emailVerifiedAt ??
+        (data as { email_verified_at?: string }).email_verified_at!,
+    };
+  },
+
+  resendEmailVerification: async (): Promise<{ message?: string }> => {
+    const raw = await apiClient.post<ApiSingleResponse<null>>(
+      "/auth/resend-email-verification",
+    );
+    const { message } = mapSingleResponse(raw);
+    return message ? { message } : {};
+  },
+
   updateProfile: async (
     payload: UpdateMyProfilePayload,
   ): Promise<UpdateProfileResult> => {
@@ -160,6 +280,7 @@ export const authApi = {
       lastLogin: data.lastLogin,
       permissions: data.permissions,
       onboardingCompletedAt: data.onboardingCompletedAt,
+      emailVerifiedAt: data.emailVerifiedAt,
     };
     return {
       user,

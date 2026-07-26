@@ -116,6 +116,8 @@ export interface UserData {
   permissions?: string[];
   /** ISO desde API; null = onboarding de producto pendiente */
   onboardingCompletedAt?: string | Date | null;
+  /** ISO desde API; null = correo no verificado (AUTH-HARDEN soft-gate) */
+  emailVerifiedAt?: string | Date | null;
 }
 
 /**
@@ -131,6 +133,7 @@ export interface UserJSON {
   lastLogin?: string;
   permissions?: string[];
   onboardingCompletedAt?: string | null;
+  emailVerifiedAt?: string | null;
 }
 
 /**
@@ -153,12 +156,15 @@ export class User {
   public readonly permissions?: string[];
   /** undefined = dato no cargado; null = onboarding pendiente */
   public readonly onboardingCompletedAt?: Date | null;
+  /** undefined = no cargado; null = sin verificar */
+  public readonly emailVerifiedAt?: Date | null;
 
   private constructor(
     data: UserData & {
       tenant: Tenant;
       lastLogin?: Date;
       onboardingCompletedAt?: Date | null;
+      emailVerifiedAt?: Date | null;
     },
   ) {
     this.id = data.id;
@@ -170,6 +176,7 @@ export class User {
     this.lastLogin = data.lastLogin;
     this.permissions = data.permissions;
     this.onboardingCompletedAt = data.onboardingCompletedAt;
+    this.emailVerifiedAt = data.emailVerifiedAt;
     this.validate();
   }
 
@@ -202,11 +209,24 @@ export class User {
           : data.onboardingCompletedAt;
     }
 
+    let emailVerifiedDate: Date | null | undefined;
+    if (data.emailVerifiedAt === undefined) {
+      emailVerifiedDate = undefined;
+    } else if (data.emailVerifiedAt === null) {
+      emailVerifiedDate = null;
+    } else {
+      emailVerifiedDate =
+        typeof data.emailVerifiedAt === "string"
+          ? new Date(data.emailVerifiedAt)
+          : data.emailVerifiedAt;
+    }
+
     return new User({
       ...data,
       tenant,
       lastLogin: lastLoginDate,
       onboardingCompletedAt: onboardingDate,
+      emailVerifiedAt: emailVerifiedDate,
     });
   }
 
@@ -224,6 +244,12 @@ export class User {
           : json.onboardingCompletedAt === null
             ? null
             : new Date(json.onboardingCompletedAt),
+      emailVerifiedAt:
+        json.emailVerifiedAt === undefined
+          ? undefined
+          : json.emailVerifiedAt === null
+            ? null
+            : new Date(json.emailVerifiedAt),
     });
   }
 
@@ -318,6 +344,12 @@ export class User {
           : this.onboardingCompletedAt === null
             ? null
             : this.onboardingCompletedAt.toISOString(),
+      emailVerifiedAt:
+        this.emailVerifiedAt === undefined
+          ? undefined
+          : this.emailVerifiedAt === null
+            ? null
+            : this.emailVerifiedAt.toISOString(),
     };
   }
 

@@ -13,6 +13,7 @@ interface InterceptorConfig {
     getToken: () => string | null;
     getRefreshToken?: () => string | null;
     setToken?: (token: string) => void;
+    setRefreshToken?: (token: string) => void;
     removeToken: () => void;
     clear?: () => void;
   };
@@ -143,6 +144,12 @@ export const setupInterceptors = (
 
             // Guardar nuevo token
             tokenStorage.setToken(newToken);
+            if (
+              response.data?.data?.refresh_token &&
+              tokenStorage.setRefreshToken
+            ) {
+              tokenStorage.setRefreshToken(response.data.data.refresh_token);
+            }
 
             // Notificar a los subscribers
             onTokenRefreshed(newToken);

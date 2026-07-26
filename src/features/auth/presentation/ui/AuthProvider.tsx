@@ -44,6 +44,10 @@ import {
   setTenantTokenRefreshedHandler,
 } from "../../infrastructure";
 import { consumeFreshLoginSession } from "../../infrastructure/storage/tokenStorage";
+import {
+  persistsAuthTokens,
+  usesAuthCookies,
+} from "../../infrastructure/sessionMode";
 import { clearSentryUser, setSentryUser } from "@/shared/observability/sentry";
 
 // ============================================
@@ -126,12 +130,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     }
 
+    const cookieSession =
+      usesAuthCookies() && !persistsAuthTokens() && (!!user || freshLogin);
+    const bearerSession = !!token && !!user;
+
     return {
       token,
       user,
-      isAuthenticated: !!token && !!user,
-      // Tras login/register la sesión ya viene del API; evitar bloqueo extra.
-      isLoading: !!token && !freshLogin,
+      isAuthenticated: bearerSession || cookieSession,
+      isLoading: (bearerSession || cookieSession) && !freshLogin,
     };
   });
 
@@ -210,6 +217,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const token = tokenStorage.getToken();
       const userJson = tokenStorage.getUser();
+      const cookieOnly = usesAuthCookies() && !persistsAuthTokens();
+
+      if (cookieOnly) {
+        if (!userJson) {
+          setState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          return;
+        }
+        try {
+          const user = User.fromJSON(userJson);
+          setState({
+            user,
+            token: null,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch {
+          tokenStorage.clear();
+          setState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        }
+        return;
+      }
 
       if (!token || !userJson) {
         setState({
@@ -284,7 +322,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const { user, accessToken } = await loginUseCase.execute(credentials);
 
         setState({
-          token: accessToken.toString(),
+          token: accessToken?.toString() ?? null,
           user,
           isAuthenticated: true,
           isLoading: false,
@@ -301,8 +339,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Refrescar perfil (autoservicio lectura / post-login)
   // ==========================================
   const refreshProfile = useCallback(async () => {
-    const token = tokenStorage.getToken();
-    if (!token) {
+    if (persistsAuthTokens() && !tokenStorage.getToken()) {
+      return;
+    }
+    if (!persistsAuthTokens() && !tokenStorage.getUser() && !usesAuthCookies()) {
       return;
     }
 
@@ -323,12 +363,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     (json: UserJSON, accessToken?: string) => {
       const user = User.fromJSON(json);
       tokenStorage.setUser(user.toJSON());
-      if (accessToken) {
+      if (accessToken && persistsAuthTokens()) {
         tokenStorage.setToken(accessToken);
       }
       setState((prev) => ({
         ...prev,
-        token: accessToken ?? prev.token,
+        token:
+          accessToken && persistsAuthTokens()
+            ? accessToken
+            : persistsAuthTokens()
+              ? prev.token
+              : null,
         user,
         isAuthenticated: true,
       }));
@@ -338,6 +383,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const applySessionTokens = useCallback(
     (accessToken: string, refreshToken: string) => {
+      if (!persistsAuthTokens()) {
+        setState((prev) => ({
+          ...prev,
+          token: null,
+          isAuthenticated: true,
+        }));
+        return;
+      }
       tokenStorage.setToken(accessToken);
       tokenStorage.setRefreshToken(refreshToken);
       setState((prev) => ({
