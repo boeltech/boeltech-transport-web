@@ -19,10 +19,13 @@ import {
 const BASE = "/billing";
 
 export const billingApi = {
-  getSubscription: async (): Promise<BillingSubscription> => {
-    const response = await apiClient.get<ApiSingleResponse<ApiBillingSubscription>>(
+  getSubscription: async (): Promise<BillingSubscription | null> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiBillingSubscription | null>>(
       `${BASE}/subscription`,
     );
+    if (response.data == null) {
+      return null;
+    }
     return mapBillingSubscription(response.data);
   },
 

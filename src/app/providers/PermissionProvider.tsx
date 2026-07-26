@@ -12,10 +12,11 @@
  * AppLayout (shell autenticado):
  * 1. AuthProvider
  * 2. ProductOnboardingGate
- * 3. PermissionProvider ← ESTE
- * 4. TooltipProvider
- * 5. SidebarProvider
- * 6. LayoutShell
+ * 3. SubscriptionRequiredGate
+ * 4. PermissionProvider ← ESTE
+ * 5. TooltipProvider
+ * 6. SidebarProvider
+ * 7. LayoutShell
  */
 
 import { useMemo, type ReactNode } from "react";

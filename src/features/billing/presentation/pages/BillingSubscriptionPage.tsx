@@ -84,6 +84,8 @@ export function BillingSubscriptionPage() {
   const usageAlertLevel = resolveStampUsageAlertLevel(usagePercent);
   const planName = sub?.planName ?? copy.hero.planFallback;
   const isTrialing = sub?.status === "trialing";
+  const isBlockedStatus =
+    sub?.status === "paused" || sub?.status === "canceled";
   const trialDateExpired =
     isTrialing &&
     !!sub?.trialEndsAt &&
@@ -94,6 +96,32 @@ export function BillingSubscriptionPage() {
   return (
     <SettingsPageShell sectionTitle={copy.page.sectionTitle}>
       <div className="space-y-6">
+        {!subscription.isLoading && (!sub || isBlockedStatus) ? (
+          <AlertWithIcon
+            variant="destructive"
+            title={
+              isBlockedStatus
+                ? copy.plan.blocked.title
+                : copy.plan.empty.title
+            }
+          >
+            <p>
+              {isBlockedStatus
+                ? copy.plan.blocked.description
+                : copy.plan.empty.description}
+            </p>
+            <p className="mt-2 text-sm">
+              {copy.plan.empty.contactHint}{" "}
+              <a
+                className="font-medium underline underline-offset-4"
+                href="mailto:soporte@boeltech.com"
+              >
+                {copy.plan.empty.contactCta}
+              </a>
+            </p>
+          </AlertWithIcon>
+        ) : null}
+
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="space-y-4 p-6">
             <div className="flex flex-wrap items-center gap-2">
@@ -294,6 +322,14 @@ export function BillingSubscriptionPage() {
                   title={copy.plan.empty.title}
                   description={copy.plan.empty.description}
                   size="sm"
+                  cta={{
+                    label: copy.plan.empty.contactCta,
+                    icon: <Mail className="h-4 w-4" />,
+                    variant: "outline",
+                    onClick: () => {
+                      window.location.href = "mailto:soporte@boeltech.com";
+                    },
+                  }}
                 />
               )}
             </CardContent>

@@ -31,7 +31,15 @@ export const billingCopy = {
     empty: {
       title: "Sin suscripción activa",
       description:
-        "No encontramos un plan comercial asociado a tu empresa. Contacta a soporte si crees que es un error.",
+        "Tu empresa no tiene un plan operativo. No puedes crear viajes, facturar ni usar el resto del ERP hasta que Boeltech active o reactive tu suscripción.",
+      contactCta: "Contactar a Boeltech",
+      contactHint:
+        "Escribe a soporte o a tu ejecutivo comercial para asignar un plan. Mientras tanto puedes consultar esta página e iniciar sesión.",
+    },
+    blocked: {
+      title: "Operación pausada por suscripción",
+      description:
+        "El plan de tu empresa está pausado o cancelado. Contacta a Boeltech para reactivar el acceso operativo.",
     },
     fields: {
       plan: "Plan comercial",

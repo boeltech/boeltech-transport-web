@@ -22,7 +22,10 @@ export function ProductOnboardingGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  if (location.pathname === "/onboarding") {
+  if (
+    location.pathname === "/onboarding" ||
+    location.pathname === "/settings/subscription"
+  ) {
     return <>{children}</>;
   }
 

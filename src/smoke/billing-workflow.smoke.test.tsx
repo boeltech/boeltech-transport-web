@@ -47,6 +47,32 @@ vi.mock("@features/billing/infrastructure/billingApi", () => ({
   },
 }));
 
+vi.mock("@features/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/auth")>();
+  return {
+    ...actual,
+    useAuth: () => ({
+      isAuthenticated: true,
+      isLoading: false,
+      user: {
+        id: "user-1",
+        email: "admin@test.com",
+        firstName: "Ada",
+        lastName: "Lovelace",
+        role: "admin",
+        tenant: { id: "tenant-1", name: "Test", subdomain: "test" },
+        onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+      },
+      token: "test-token",
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshProfile: vi.fn(),
+      replaceSessionUser: vi.fn(),
+      setUser: vi.fn(),
+    }),
+  };
+});
+
 vi.mock("@features/vehicles/application", () => ({
   useVehicle: () => ({ data: undefined }),
 }));
@@ -224,7 +250,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     expect(screen.getAllByText(/45 de 120 timbres/).length).toBeGreaterThan(0);
     expect(screen.getByText("Equipo de apoyo en viajes")).toBeInTheDocument();
     expect(screen.getByText(billingCopy.metrics.estimatedTotal)).toBeInTheDocument();
-    expect(screen.getAllByText("$937").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/\$937/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(billingCopy.commercial.title)).toBeInTheDocument();
     expect(screen.getByText("Early Access")).toBeInTheDocument();
     expect(

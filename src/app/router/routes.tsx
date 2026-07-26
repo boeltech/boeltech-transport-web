@@ -10,6 +10,7 @@
 
 import {
   createBrowserRouter,
+  Navigate,
 } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
 
@@ -70,15 +71,24 @@ function withSuspense(
 // Root & Landing
 const RootRedirect = lazy(() => import("@/pages/root"));
 const LandingPage = lazy(() => import("@/pages/landing"));
+const TermsPage = lazy(() => import("@/pages/legal/TermsPage"));
+const PrivacyPage = lazy(() => import("@/pages/legal/PrivacyPage"));
 
 // Auth
 const LoginPage = lazy(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
+const VerifyEmailPage = lazy(() => import("@/pages/auth/verify-email"));
 const RegisterPage = lazy(() => import("@/pages/auth/register"));
 const AcceptInvitationPage = lazy(() =>
   import("@features/invitations").then((m) => ({
     default: m.AcceptInvitationPage,
+  })),
+);
+
+const BillingSubscriptionPage = lazy(() =>
+  import("@features/billing").then((m) => ({
+    default: m.BillingSubscriptionPage,
   })),
 );
 
@@ -263,8 +273,16 @@ const UserEditPage = lazy(() =>
 // Settings (Admin)
 // const SettingsPage = lazy(() => import("@/pages/settings"));
 
-// Profile (autoservicio — todos los autenticados)
-const ProfilePage = lazy(() => import("@/pages/profile"));
+// Mi cuenta (autoservicio — todos los autenticados)
+const AccountShell = lazy(() =>
+  import("@/pages/account").then((m) => ({ default: m.AccountShell })),
+);
+const AccountProfilePage = lazy(() =>
+  import("@/pages/account").then((m) => ({ default: m.AccountProfilePage })),
+);
+const AccountSecurityPage = lazy(() =>
+  import("@/pages/account").then((m) => ({ default: m.AccountSecurityPage })),
+);
 
 const NotificationsInboxPage = lazy(() =>
   import("@features/notifications").then((m) => ({
@@ -357,6 +375,16 @@ export const router = createBrowserRouter([
     element: withSuspense(LandingPage),
     errorElement: <RouteErrorBoundary />,
   },
+  {
+    path: "/terms",
+    element: withSuspense(TermsPage),
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/privacy",
+    element: withSuspense(PrivacyPage),
+    errorElement: <RouteErrorBoundary />,
+  },
 
   // ==========================================
   // Rutas Públicas (Auth)
@@ -376,6 +404,10 @@ export const router = createBrowserRouter([
       {
         path: "/reset-password",
         element: withSuspense(ResetPasswordPage),
+      },
+      {
+        path: "/verify-email",
+        element: withSuspense(VerifyEmailPage),
       },
       {
         path: "/register",
@@ -409,11 +441,25 @@ export const router = createBrowserRouter([
           ...devOnlyAppChildRoutes,
 
           // ========================================
-          // Profile (todos los autenticados)
+          // Mi cuenta (todos los autenticados)
           // ========================================
           {
+            path: "/account",
+            element: withSuspense(AccountShell),
+            children: [
+              {
+                index: true,
+                element: withSuspense(AccountProfilePage),
+              },
+              {
+                path: "security",
+                element: withSuspense(AccountSecurityPage),
+              },
+            ],
+          },
+          {
             path: "/profile",
-            element: withSuspense(ProfilePage),
+            element: <Navigate to="/account" replace />,
           },
           {
             path: "/notifications",
@@ -422,6 +468,12 @@ export const router = createBrowserRouter([
           {
             path: "/onboarding",
             element: withSuspense(OnboardingPage),
+          },
+
+          // SaaS subscription paywall (reachable without settings/billing RBAC)
+          {
+            path: "/settings/subscription",
+            element: withSuspense(BillingSubscriptionPage),
           },
 
           // ========================================

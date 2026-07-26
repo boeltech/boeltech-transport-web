@@ -10,3 +10,4 @@ export { RoleRoute } from "./RoleRoute";
 export { AdminRoute } from "./AdminRoute";
 export { ModuleRoute } from "./ModuleRoute";
 export { PlatformRoute } from "./PlatformRoute";
+export { SubscriptionRequiredGate } from "./SubscriptionRequiredGate";
