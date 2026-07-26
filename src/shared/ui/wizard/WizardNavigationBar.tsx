@@ -6,7 +6,9 @@ export interface WizardNavigationBarProps {
   canGoBack: boolean;
   isLastStep: boolean;
   onPrevious: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  /** Si false, oculta Cancelar (asistentes obligatorios). Default true. */
+  showCancel?: boolean;
   onNext: () => void;
   onSubmit: () => void;
   isSubmitting?: boolean;
@@ -23,6 +25,7 @@ export function WizardNavigationBar({
   isLastStep,
   onPrevious,
   onCancel,
+  showCancel = true,
   onNext,
   onSubmit,
   isSubmitting = false,
@@ -47,9 +50,11 @@ export function WizardNavigationBar({
       </Button>
 
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} aria-label="Cancelar">
-          Cancelar
-        </Button>
+        {showCancel && onCancel ? (
+          <Button type="button" variant="outline" onClick={onCancel} aria-label="Cancelar">
+            Cancelar
+          </Button>
+        ) : null}
 
         {isLastStep ? (
           <Button

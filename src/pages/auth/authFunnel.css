@@ -1,0 +1,71 @@
+/**
+ * Animaciones del embudo auth (CSS-only; sin framer-motion).
+ * Namespace de clases: auth-funnel-*
+ */
+
+@keyframes auth-funnel-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-funnel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes auth-funnel-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes auth-funnel-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.auth-funnel-panel-enter {
+  animation: auth-funnel-fade-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-funnel-brand-enter {
+  animation: auth-funnel-fade-in 560ms ease-out both;
+}
+
+.auth-funnel-step-forward {
+  animation: auth-funnel-step-forward 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-funnel-step-back {
+  animation: auth-funnel-step-back 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-funnel-panel-enter,
+  .auth-funnel-brand-enter,
+  .auth-funnel-step-forward,
+  .auth-funnel-step-back {
+    animation: none;
+  }
+}

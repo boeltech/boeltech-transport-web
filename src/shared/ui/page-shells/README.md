@@ -131,7 +131,7 @@ npm run test -- src/shared/ui/page-shells/WizardPageShell.test.tsx
 ## Accesibilidad y copy
 
 - Paneles de pasos no visibles: `aria-hidden={wizardStepIndex !== currentStep}` (o equivalente por paso activo).
-- Barra de navegación: etiquetas **Anterior** / **Siguiente** / **Cancelar** con `aria-label` en `WizardNavigationBar`.
+- Barra de navegación: etiquetas **Anterior** / **Siguiente** / **Cancelar** con `aria-label` en `WizardNavigationBar`. Con `allowExit={false}` (asistentes obligatorios) se oculta **Cancelar** y el back del header no sale en el primer paso.
 - Progreso en wizards modales: `aria-live="polite"` donde aplique (`CatalogImportWizard`).
 - `stepsAriaLabel` en `WizardPageShell` cuando el contexto no sea obvio.
 

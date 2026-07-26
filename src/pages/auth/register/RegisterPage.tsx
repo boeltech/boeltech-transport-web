@@ -1,13 +1,9 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Truck,
-  Eye,
-  EyeOff,
   Building2,
-  // User,
   Mail,
   CheckCircle,
   ArrowRight,
@@ -19,30 +15,64 @@ import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Checkbox } from "@shared/ui/checkbox";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
+import { Badge } from "@shared/ui/badge";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
+  FormValidationSummary,
   getFieldErrorAriaProps,
   getRegisterFieldErrorProps,
+  PasswordRequirementsList,
 } from "@shared/ui/form";
+import {
+  isTurnstileConfigured,
+  TurnstileWidget,
+} from "@shared/ui/turnstile";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import { apiClient } from "@shared/api";
+import { mapBackendError } from "@shared/utils/errorMapper";
 import {
   markFreshLoginSession,
   tokenStorage,
 } from "@features/auth/infrastructure";
-import { registerSchema, type RegisterFormData, type TenantData } from "@features/auth";
+import {
+  registerSchema,
+  type RegisterFormData,
+  type TenantData,
+} from "@features/auth";
 import type { UserRole } from "@shared/constants/roles";
+import {
+  DECLARED_FLEET_BANDS,
+  DEFAULT_OPERATIONAL_PLAN_CODE,
+  recommendOperationalPlanCode,
+  type DeclaredFleetBand,
+} from "@shared/commercial/recommendOperationalPlan";
+import { FLEET_BAND_LABELS } from "@shared/commercial/operationalPlanCatalog";
+import { useCheckSubdomainAvailability } from "@shared/commercial/useCheckSubdomainAvailability";
+import { usePublicOperationalPlans } from "@shared/commercial/usePublicOperationalPlans";
+import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
+import { AuthFunnelFormHeader } from "../AuthFunnelFormHeader";
+import { PasswordVisibilityToggle } from "../PasswordVisibilityToggle";
+import { useAuthFunnelBrandSlot } from "../AuthFunnelShellContext";
+import {
+  REGISTER_FUNNEL_STEPS,
+  RegisterBrandStepper,
+  type RegisterFunnelStep,
+} from "./RegisterBrandStepper";
+import { registerFunnelCopy as copy } from "./registerFunnelCopy";
+import { saveRegisterFunnelPreference } from "./registerFunnelPreference";
+import { authFunnelCopy } from "../authFunnelCopy";
 
-// Schema de validación
+type Step = RegisterFunnelStep;
 
-type Step = "company" | "admin" | "confirm";
+const STEPS = REGISTER_FUNNEL_STEPS;
+const FLEET_BAND_NONE = "__none__";
 
 interface RegisterUserApi {
   id: string;
@@ -51,23 +81,42 @@ interface RegisterUserApi {
   last_name: string;
   role: UserRole;
   tenant: TenantData;
+  email_verified_at?: string | null;
 }
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { open: registrationOpen, resolved: registrationResolved } =
+    usePublicSelfServeRegister();
 
   const [step, setStep] = useState<Step>("company");
+  const [stepDirection, setStepDirection] = useState<"forward" | "back">(
+    "forward",
+  );
+  const previousStepIndexRef = useRef(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
-  const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(
-    null,
-  );
-  const [subdomainSuggestion, setSubdomainSuggestion] = useState<string | null>(
-    null,
-  );
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [stepSummaryMessages, setStepSummaryMessages] = useState<string[]>([]);
+  const [subdomainOverrideSuggestion, setSubdomainOverrideSuggestion] =
+    useState<string | null>(null);
+
+  const [declaredFleetBand, setDeclaredFleetBand] =
+    useState<DeclaredFleetBand | null>(null);
+  const [preferredPlanCode, setPreferredPlanCode] = useState(
+    DEFAULT_OPERATIONAL_PLAN_CODE,
+  );
+
+  const { plans, getByCode } = usePublicOperationalPlans();
+
+  const recommendedPlanCode = useMemo(
+    () => recommendOperationalPlanCode({ band: declaredFleetBand }),
+    [declaredFleetBand],
+  );
+
+  const preferredPlan = getByCode(preferredPlanCode);
 
   const {
     register,
@@ -75,6 +124,7 @@ const RegisterPage = () => {
     watch,
     setValue,
     trigger,
+    getFieldState,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -85,72 +135,104 @@ const RegisterPage = () => {
 
   const watchSubdomain = watch("subdomain");
   const watchAcceptTerms = watch("acceptTerms");
+  const watchPassword = watch("password") ?? "";
 
-  // Verificar disponibilidad del subdomain
-  const checkSubdomain = async (subdomain: string) => {
-    if (!subdomain || subdomain.length < 3) {
-      setSubdomainAvailable(null);
-      return;
-    }
+  const {
+    available: subdomainAvailable,
+    suggestion: subdomainCheckSuggestion,
+    isChecking: isCheckingSubdomain,
+  } = useCheckSubdomainAvailability(watchSubdomain);
 
-    setIsCheckingSubdomain(true);
-    try {
-      const response = await apiClient.get<{
-        message: string;
-        data: {
-          available: boolean;
-          subdomain: string;
-          suggestion?: string;
-        };
-      }>(`/onboarding/check-subdomain?subdomain=${subdomain}`);
+  const subdomainSuggestion =
+    subdomainOverrideSuggestion ?? subdomainCheckSuggestion;
 
-      setSubdomainAvailable(response.data.available);
-      setSubdomainSuggestion(response.data.suggestion || null);
-    } catch {
-      setSubdomainAvailable(null);
-    } finally {
-      setIsCheckingSubdomain(false);
-    }
+  useAuthFunnelBrandSlot(
+    () =>
+      registrationOpen ? (
+        <RegisterBrandStepper currentStep={step} variant="panel" />
+      ) : null,
+    [step, registrationOpen],
+  );
+
+  const moveToStep = (newStep: Step) => {
+    const nextIndex = STEPS.indexOf(newStep);
+    const prevIndex = previousStepIndexRef.current;
+    setStepDirection(nextIndex >= prevIndex ? "forward" : "back");
+    previousStepIndexRef.current = nextIndex;
+    setStep(newStep);
   };
 
-  // Debounce para verificar subdomain
   const handleSubdomainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
-    setValue("subdomain", value);
-
-    // Debounce
-    const timeoutId = setTimeout(() => {
-      checkSubdomain(value);
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
+    setSubdomainOverrideSuggestion(null);
+    setValue("subdomain", value, { shouldDirty: true, shouldValidate: false });
   };
 
-  // Navegar entre pasos
+  const handleFleetBandChange = (value: string) => {
+    const band =
+      value === FLEET_BAND_NONE ? null : (value as DeclaredFleetBand);
+    setDeclaredFleetBand(band);
+    setPreferredPlanCode(recommendOperationalPlanCode({ band }));
+  };
+
+  const collectFieldMessages = (fields: (keyof RegisterFormData)[]) => {
+    const messages: string[] = [];
+    for (const name of fields) {
+      const { error } = getFieldState(name);
+      if (error?.message) messages.push(String(error.message));
+    }
+    return messages;
+  };
+
   const goToStep = async (newStep: Step) => {
-    if (newStep === "admin" && step === "company") {
+    setStepSummaryMessages([]);
+    if (newStep === "plan" && step === "company") {
       const isValid = await trigger(["companyName", "subdomain"]);
-      if (!isValid || subdomainAvailable === false) return;
+      const messages = collectFieldMessages(["companyName", "subdomain"]);
+      if (isCheckingSubdomain || subdomainAvailable !== true) {
+        messages.push(copy.validation.subdomainTaken);
+      }
+      if (!isValid || isCheckingSubdomain || subdomainAvailable !== true) {
+        setStepSummaryMessages(messages);
+        return;
+      }
+    }
+    if (newStep === "admin" && step === "plan") {
+      if (!preferredPlanCode) return;
     }
     if (newStep === "confirm" && step === "admin") {
-      const isValid = await trigger([
+      const fields: (keyof RegisterFormData)[] = [
         "firstName",
         "lastName",
         "email",
         "password",
         "confirmPassword",
-      ]);
-      if (!isValid) return;
+      ];
+      const isValid = await trigger(fields);
+      if (!isValid) {
+        setStepSummaryMessages(collectFieldMessages(fields));
+        return;
+      }
     }
-    setStep(newStep);
+    moveToStep(newStep);
   };
 
-  // Submit
   const onSubmit = async (data: RegisterFormData) => {
     setError(null);
+
+    if (isTurnstileConfigured() && !captchaToken) {
+      setError(authFunnelCopy.captchaRequired);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      saveRegisterFunnelPreference({
+        declaredFleetBand,
+        preferredPlanCode,
+      });
+
       const response = await apiClient.post<{
         message: string;
         data: {
@@ -170,11 +252,18 @@ const RegisterPage = () => {
           lastName: data.lastName,
         },
         acceptTerms: data.acceptTerms,
+        planCode: preferredPlanCode,
+        ...(declaredFleetBand ? { declaredFleetBand } : {}),
+        ...(captchaToken ? { captchaToken } : {}),
       });
 
-      // Guardar tokens
-      tokenStorage.setToken(response.data.access_token);
-      tokenStorage.setRefreshToken(response.data.refresh_token);
+      if (response.data.access_token && response.data.refresh_token) {
+        tokenStorage.setToken(response.data.access_token);
+        tokenStorage.setRefreshToken(response.data.refresh_token);
+      } else {
+        tokenStorage.removeToken();
+        tokenStorage.removeRefreshToken();
+      }
       tokenStorage.setUser({
         id: response.data.user.id,
         email: response.data.user.email,
@@ -182,32 +271,35 @@ const RegisterPage = () => {
         lastName: response.data.user.last_name,
         role: response.data.user.role,
         tenant: response.data.user.tenant,
+        onboardingCompletedAt: null,
+        emailVerifiedAt: response.data.user.email_verified_at ?? null,
       });
       tokenStorage.setSubdomain(data.subdomain);
       markFreshLoginSession();
 
-      // Ir al dashboard
-      navigate("/dashboard", { replace: true });
+      navigate("/onboarding", { replace: true });
     } catch (err: unknown) {
+      const mapped = mapBackendError(err);
+      const errorMsg = mapped.message || "Error al registrar la empresa";
+      setError(errorMsg);
+
       const apiError = err as
         | {
             response?: {
-              data?: { error?: string; details?: { suggestion?: string } };
+              data?: { details?: { suggestion?: string } };
             };
           }
         | undefined;
-      const errorMsg =
-        apiError?.response?.data?.error || "Error al registrar la empresa";
-      setError(errorMsg);
 
-      // Si es error de subdomain, volver al paso 1
       if (
         errorMsg.includes("identificador") ||
         errorMsg.includes("subdomain")
       ) {
-        setStep("company");
+        moveToStep("company");
         if (apiError?.response?.data?.details?.suggestion) {
-          setSubdomainSuggestion(apiError.response.data.details.suggestion);
+          setSubdomainOverrideSuggestion(
+            apiError.response.data.details.suggestion,
+          );
         }
       }
     } finally {
@@ -215,82 +307,99 @@ const RegisterPage = () => {
     }
   };
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 py-8">
-      {/* Logo */}
-      <div className="mb-8 flex flex-col items-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-          <Truck className="h-8 w-8 text-primary-foreground" />
+  if (!registrationResolved) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!registrationOpen) {
+    return (
+      <div className="w-full space-y-6">
+        <AuthFunnelFormHeader
+          title={copy.closed.title}
+          description={copy.closed.description}
+        />
+        <div className="flex flex-col gap-3">
+          <Button asChild size="lg" className="w-full">
+            <a href={copy.closed.contactHref}>{copy.closed.contact}</a>
+          </Button>
+          <Button variant="outline" asChild size="lg" className="w-full">
+            <Link to="/login">{copy.closed.login}</Link>
+          </Button>
+          <Button variant="ghost" asChild className="w-full">
+            <Link to="/welcome">{copy.closed.home}</Link>
+          </Button>
         </div>
-        <h1 className="mt-4 text-2xl font-bold">Boeltech ERP</h1>
-        <p className="text-sm text-muted-foreground">Crear cuenta de empresa</p>
       </div>
+    );
+  }
 
-      {/* Progress */}
-      <div className="mb-6 flex items-center gap-2">
-        {(["company", "admin", "confirm"] as Step[]).map((s, i) => (
-          <div key={s} className="flex items-center">
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                step === s
-                  ? "bg-primary text-primary-foreground"
-                  : i < ["company", "admin", "confirm"].indexOf(step)
-                    ? "bg-success text-success-foreground"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {i < ["company", "admin", "confirm"].indexOf(step) ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                i + 1
-              )}
-            </div>
-            {i < 2 && (
-              <div
-                className={`mx-2 h-0.5 w-8 ${
-                  i < ["company", "admin", "confirm"].indexOf(step)
-                    ? "bg-success"
-                    : "bg-muted"
-                }`}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+  return (
+    <div className="w-full space-y-5">
+      <RegisterBrandStepper
+        currentStep={step}
+        variant="compact"
+        className="lg:hidden"
+      />
 
-      {/* Card */}
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">
-            {step === "company" && "Datos de la Empresa"}
-            {step === "admin" && "Administrador"}
-            {step === "confirm" && "Confirmar Registro"}
-          </CardTitle>
-          <CardDescription>
-            {step === "company" && "Información de tu empresa"}
-            {step === "admin" && "Datos del usuario administrador"}
-            {step === "confirm" && "Revisa y confirma los datos"}
-          </CardDescription>
-        </CardHeader>
+      <div
+        key={step}
+        className={
+          stepDirection === "forward"
+            ? "auth-funnel-step-forward"
+            : "auth-funnel-step-back"
+        }
+      >
+        <AuthFunnelFormHeader
+          title={copy.steps[step].title}
+          description={copy.headerTrust}
+        />
+        <p className="text-muted-foreground -mt-5 mb-6 text-center text-sm">
+          {copy.steps[step].description}
+        </p>
 
-        <CardContent>
-          {error && (
-            <AlertWithIcon variant="destructive" className="mb-6">
-              {error}
-            </AlertWithIcon>
-          )}
+        {error && (
+          <AlertWithIcon variant="destructive" className="mb-6">
+            {error}
+          </AlertWithIcon>
+        )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Step 1: Company */}
+        {stepSummaryMessages.length > 0 ? (
+          <FormValidationSummary
+            title={copy.validation.summaryTitle}
+            messages={stepSummaryMessages}
+            className="mb-6"
+          />
+        ) : null}
+
+        <form
+          onSubmit={handleSubmit(onSubmit, () => {
+            const messages = collectFieldMessages([
+              "companyName",
+              "subdomain",
+              "firstName",
+              "lastName",
+              "email",
+              "password",
+              "confirmPassword",
+              "acceptTerms",
+            ]);
+            setStepSummaryMessages(messages);
+          })}
+          className="space-y-4"
+        >
             {step === "company" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">Nombre de la empresa</Label>
+                  <Label htmlFor="companyName">{copy.company.nameLabel}</Label>
                   <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Building2 className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                     <Input
                       id="companyName"
-                      placeholder="Mi Empresa de Transporte"
+                      placeholder={copy.company.namePlaceholder}
                       className="pl-10"
                       {...register("companyName")}
                       {...getRegisterFieldErrorProps(
@@ -303,14 +412,19 @@ const RegisterPage = () => {
                     fieldId="companyName"
                     message={errors.companyName?.message}
                   />
+                  {!errors.companyName && (
+                    <p className="text-muted-foreground text-xs">
+                      {copy.company.nameHint}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="subdomain">Identificador único</Label>
+                  <Label htmlFor="subdomain">{copy.company.subdomainLabel}</Label>
                   <div className="relative">
                     <Input
                       id="subdomain"
-                      placeholder="mi-empresa"
+                      placeholder={copy.company.subdomainPlaceholder}
                       {...register("subdomain")}
                       onChange={handleSubdomainChange}
                       error={
@@ -330,65 +444,178 @@ const RegisterPage = () => {
                           : { "aria-invalid": false as const })}
                     />
                     {isCheckingSubdomain && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      <Loader2 className="text-muted-foreground absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin" />
                     )}
                     {!isCheckingSubdomain && subdomainAvailable === true && (
-                      <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
+                      <CheckCircle className="text-success absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" />
                     )}
                   </div>
                   <FieldInlineError
                     fieldId="subdomain"
-                    message={errors.subdomain?.message}
+                    message={
+                      errors.subdomain?.message ??
+                      (subdomainAvailable === false
+                        ? copy.company.subdomainUnavailable
+                        : undefined)
+                    }
                   />
-                  {subdomainAvailable === false && !errors.subdomain && (
-                    <p
-                      id="subdomain-availability-error"
-                      className="text-destructive text-xs"
+                  {subdomainAvailable === false &&
+                  !errors.subdomain &&
+                  subdomainSuggestion ? (
+                    <button
+                      type="button"
+                      className="text-primary text-xs underline"
+                      onClick={() => {
+                        setValue("subdomain", subdomainSuggestion, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
                     >
-                      Este identificador no está disponible.
-                      {subdomainSuggestion && (
-                        <button
-                          type="button"
-                          className="ml-1 text-primary underline"
-                          onClick={() => {
-                            setValue("subdomain", subdomainSuggestion);
-                            checkSubdomain(subdomainSuggestion);
-                          }}
-                        >
-                          Usar {subdomainSuggestion}
-                        </button>
-                      )}
+                      {copy.company.subdomainUseSuggestion(subdomainSuggestion)}
+                    </button>
+                  ) : null}
+                  {subdomainAvailable === true && (
+                    <p className="text-success text-sm">
+                      {copy.company.subdomainAvailable}
                     </p>
                   )}
-                  {subdomainAvailable === true && (
-                    <p className="text-sm text-success">✓ Disponible</p>
+                  {!errors.subdomain && subdomainAvailable !== false && (
+                    <p className="text-muted-foreground text-xs">
+                      {copy.company.subdomainHint}
+                    </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Este será tu identificador para iniciar sesión
-                  </p>
                 </div>
 
                 <Button
                   type="button"
                   className="w-full"
-                  onClick={() => goToStep("admin")}
-                  disabled={!watchSubdomain || subdomainAvailable === false}
+                  size="lg"
+                  onClick={() => goToStep("plan")}
+                  disabled={
+                    !watchSubdomain ||
+                    isCheckingSubdomain ||
+                    subdomainAvailable !== true
+                  }
                 >
-                  Continuar
+                  {copy.actions.continue}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </>
             )}
 
-            {/* Step 2: Admin */}
+            {step === "plan" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="declaredFleetBand">{copy.plan.fleetLabel}</Label>
+                  <Select
+                    value={declaredFleetBand ?? FLEET_BAND_NONE}
+                    onValueChange={handleFleetBandChange}
+                  >
+                    <SelectTrigger id="declaredFleetBand">
+                      <SelectValue placeholder={copy.plan.fleetPlaceholder} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FLEET_BAND_NONE}>
+                        {copy.plan.fleetNone}
+                      </SelectItem>
+                      {DECLARED_FLEET_BANDS.map((band) => (
+                        <SelectItem key={band} value={band}>
+                          {FLEET_BAND_LABELS[band]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    {copy.plan.fleetHint}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preferredPlanCode">{copy.plan.planLabel}</Label>
+                  <Select
+                    value={preferredPlanCode}
+                    onValueChange={setPreferredPlanCode}
+                  >
+                    <SelectTrigger id="preferredPlanCode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.code} value={plan.code}>
+                          <span className="flex items-center gap-2">
+                            {plan.name}
+                            {plan.code === recommendedPlanCode ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px]"
+                              >
+                                {copy.plan.recommendedBadge}
+                              </Badge>
+                            ) : null}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    {copy.plan.planHint}
+                  </p>
+                </div>
+
+                <div className="bg-muted/40 space-y-2 rounded-lg border p-4">
+                  <p className="text-sm font-medium">{copy.plan.previewTitle}</p>
+                  <p className="text-foreground text-sm">{preferredPlan.name}</p>
+                  <ul className="text-muted-foreground space-y-1 text-xs">
+                    <li>{preferredPlan.unitsLabel}</li>
+                    <li>{preferredPlan.priceLabel}</li>
+                    <li>{preferredPlan.usersLabel}</li>
+                    <li>{preferredPlan.branchesLabel}</li>
+                    <li>{preferredPlan.stampsLabel}</li>
+                  </ul>
+                  <p className="text-muted-foreground text-xs">
+                    {copy.plan.trialNote}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {copy.plan.priceNote}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setStepSummaryMessages([]);
+                      moveToStep("company");
+                    }}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    {copy.actions.back}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    size="lg"
+                    onClick={() => goToStep("admin")}
+                  >
+                    {copy.actions.continue}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+
             {step === "admin" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">Nombre</Label>
+                    <Label htmlFor="firstName">{copy.admin.firstNameLabel}</Label>
                     <Input
                       id="firstName"
-                      placeholder="Juan"
+                      placeholder={copy.admin.firstNamePlaceholder}
+                      autoComplete="given-name"
                       {...register("firstName")}
                       {...getRegisterFieldErrorProps(
                         "firstName",
@@ -401,10 +628,11 @@ const RegisterPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Apellido</Label>
+                    <Label htmlFor="lastName">{copy.admin.lastNameLabel}</Label>
                     <Input
                       id="lastName"
-                      placeholder="Pérez"
+                      placeholder={copy.admin.lastNamePlaceholder}
+                      autoComplete="family-name"
                       {...register("lastName")}
                       {...getRegisterFieldErrorProps(
                         "lastName",
@@ -419,28 +647,36 @@ const RegisterPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Correo electrónico</Label>
+                  <Label htmlFor="email">{copy.admin.emailLabel}</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                     <Input
                       id="email"
                       type="email"
-                      placeholder="tu@email.com"
+                      placeholder={copy.admin.emailPlaceholder}
+                      autoComplete="email"
                       className="pl-10"
                       {...register("email")}
-                      {...getRegisterFieldErrorProps("email", errors.email?.message)}
+                      {...getRegisterFieldErrorProps(
+                        "email",
+                        errors.email?.message,
+                      )}
                     />
                   </div>
-                  <FieldInlineError fieldId="email" message={errors.email?.message} />
+                  <FieldInlineError
+                    fieldId="email"
+                    message={errors.email?.message}
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña</Label>
+                  <Label htmlFor="password">{copy.admin.passwordLabel}</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      placeholder={copy.admin.passwordPlaceholder}
                       className="pr-10"
                       {...register("password")}
                       {...getRegisterFieldErrorProps(
@@ -448,32 +684,30 @@ const RegisterPage = () => {
                         errors.password?.message,
                       )}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
+                    <PasswordVisibilityToggle
+                      visible={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      showLabel={authFunnelCopy.showPassword}
+                      hideLabel={authFunnelCopy.hidePassword}
+                    />
                   </div>
                   <FieldInlineError
                     fieldId="password"
                     message={errors.password?.message}
                   />
+                  <PasswordRequirementsList password={watchPassword} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                  <Label htmlFor="confirmPassword">
+                    {copy.admin.confirmPasswordLabel}
+                  </Label>
                   <div className="relative">
                     <Input
                       id="confirmPassword"
                       type={showConfirm ? "text" : "password"}
-                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      placeholder={copy.admin.confirmPasswordPlaceholder}
                       className="pr-10"
                       {...register("confirmPassword")}
                       {...getRegisterFieldErrorProps(
@@ -481,18 +715,12 @@ const RegisterPage = () => {
                         errors.confirmPassword?.message,
                       )}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirm(!showConfirm)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      tabIndex={-1}
-                    >
-                      {showConfirm ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
+                    <PasswordVisibilityToggle
+                      visible={showConfirm}
+                      onToggle={() => setShowConfirm((v) => !v)}
+                      showLabel={authFunnelCopy.showPassword}
+                      hideLabel={authFunnelCopy.hidePassword}
+                    />
                   </div>
                   <FieldInlineError
                     fieldId="confirmPassword"
@@ -505,43 +733,63 @@ const RegisterPage = () => {
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => setStep("company")}
+                    onClick={() => {
+                      setStepSummaryMessages([]);
+                      moveToStep("plan");
+                    }}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Atrás
+                    {copy.actions.back}
                   </Button>
                   <Button
                     type="button"
                     className="flex-1"
+                    size="lg"
                     onClick={() => goToStep("confirm")}
                   >
-                    Continuar
+                    {copy.actions.continue}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </>
             )}
 
-            {/* Step 3: Confirm */}
             {step === "confirm" && (
               <>
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Empresa</p>
+                    <p className="text-muted-foreground text-sm">
+                      {copy.confirm.company}
+                    </p>
                     <p className="font-medium">{watch("companyName")}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       {watch("subdomain")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">
-                      Administrador
+                    <p className="text-muted-foreground text-sm">
+                      {copy.confirm.admin}
                     </p>
                     <p className="font-medium">
                       {watch("firstName")} {watch("lastName")}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       {watch("email")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      {copy.confirm.plan}
+                    </p>
+                    <p className="font-medium">{preferredPlan.name}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {copy.confirm.fleet}:{" "}
+                      {declaredFleetBand
+                        ? FLEET_BAND_LABELS[declaredFleetBand]
+                        : copy.confirm.fleetNone}
+                    </p>
+                    <p className="text-muted-foreground mt-2 text-xs">
+                      {copy.confirm.serverNote}
                     </p>
                   </div>
                 </div>
@@ -557,27 +805,29 @@ const RegisterPage = () => {
                   <div className="grid gap-1.5 leading-none">
                     <label
                       htmlFor="acceptTerms"
-                      className="text-sm font-medium leading-none cursor-pointer"
+                      className="cursor-pointer text-sm leading-none font-medium"
                     >
-                      Acepto los términos y condiciones
+                      {copy.confirm.acceptTerms}
                     </label>
-                    <p className="text-xs text-muted-foreground">
-                      Al registrarte aceptas nuestros{" "}
-                      <a
-                        href="/terms"
+                    <p className="text-muted-foreground text-xs">
+                      {copy.confirm.termsPrefix}{" "}
+                      <Link
+                        to="/terms"
                         className="text-primary underline"
                         target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        términos de servicio
-                      </a>{" "}
-                      y{" "}
-                      <a
-                        href="/privacy"
+                        {copy.confirm.terms}
+                      </Link>{" "}
+                      {copy.confirm.and}{" "}
+                      <Link
+                        to="/privacy"
                         className="text-primary underline"
                         target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        política de privacidad
-                      </a>
+                        {copy.confirm.privacy}
+                      </Link>
                     </p>
                   </div>
                 </div>
@@ -586,41 +836,48 @@ const RegisterPage = () => {
                   message={errors.acceptTerms?.message}
                 />
 
+                <TurnstileWidget
+                  onToken={setCaptchaToken}
+                  className="flex justify-center"
+                />
+
                 <div className="flex gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => setStep("admin")}
+                    onClick={() => {
+                      setStepSummaryMessages([]);
+                      moveToStep("admin");
+                    }}
                     disabled={isSubmitting}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Atrás
+                    {copy.actions.back}
                   </Button>
                   <Button
                     type="submit"
                     className="flex-1"
+                    size="lg"
                     disabled={isSubmitting || !watchAcceptTerms}
                     isLoading={isSubmitting}
                   >
-                    {isSubmitting ? "Creando..." : "Crear cuenta"}
+                    {isSubmitting ? copy.actions.creating : copy.actions.create}
                   </Button>
                 </div>
               </>
             )}
           </form>
 
-          {/* Link to login */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              ¿Ya tienes cuenta?{" "}
+          <div className="mt-8 text-center">
+            <p className="text-muted-foreground text-sm">
+              {copy.loginPrompt}{" "}
               <Link to="/login" className="text-primary hover:underline">
-                Iniciar sesión
+                {copy.loginLink}
               </Link>
             </p>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 };

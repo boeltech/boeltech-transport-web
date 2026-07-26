@@ -98,11 +98,17 @@ export interface WizardPageShellProps {
   submittingLabel?: string;
   /** Llamado cuando se cancela. Por defecto navega a backHref. */
   onCancel?: () => void;
+  /**
+   * Si false, oculta Cancelar y no permite salir por el header en el primer paso
+   * (asistentes obligatorios, p. ej. onboarding de producto). Default true.
+   */
+  allowExit?: boolean;
 
   /**
    * Comportamiento del botón atrás del header.
    * - `exit` (defecto): siempre `navigate(header.backHref)`.
-   * - `wizard`: si hay paso anterior, retrocede un paso; si no, sale a `backHref`.
+   * - `wizard`: si hay paso anterior, retrocede un paso; si no, sale a `backHref`
+   *   (salvo `allowExit={false}`, donde el primer paso no sale).
    */
   headerBackMode?: "exit" | "wizard";
   /** Callback opcional para sobreescribir el back del header. */
@@ -145,6 +151,7 @@ export const WizardPageShell = memo(function WizardPageShell({
   submitLabel,
   submittingLabel = "Guardando...",
   onCancel,
+  allowExit = true,
   headerBackMode = "exit",
   onHeaderBack,
   stepsAriaLabel = "Pasos del asistente",
@@ -157,6 +164,9 @@ export const WizardPageShell = memo(function WizardPageShell({
 
   const lastStepIndex = steps.length - 1;
   const isReview = currentStep === lastStepIndex;
+  const headerBackDisabled =
+    isSubmitting ||
+    (!allowExit && currentStep === 0 && !onHeaderBack);
 
   useEffect(() => {
     if (isFirstStepRenderRef.current) {
@@ -176,13 +186,22 @@ export const WizardPageShell = memo(function WizardPageShell({
       setCurrentStep((s) => s - 1);
       return;
     }
+    if (!allowExit) return;
     navigate(header.backHref);
-  }, [onHeaderBack, headerBackMode, currentStep, navigate, header.backHref]);
+  }, [
+    onHeaderBack,
+    headerBackMode,
+    currentStep,
+    allowExit,
+    navigate,
+    header.backHref,
+  ]);
 
   const handleCancel = useCallback(() => {
+    if (!allowExit) return;
     if (onCancel) onCancel();
     else navigate(header.backHref);
-  }, [onCancel, navigate, header.backHref]);
+  }, [allowExit, onCancel, navigate, header.backHref]);
 
   const validateCurrentStep = useCallback(async () => {
     if (currentStep >= lastStepIndex) return true;
@@ -261,7 +280,7 @@ export const WizardPageShell = memo(function WizardPageShell({
           variant="ghost"
           size="icon"
           onClick={handleHeaderBack}
-          disabled={isSubmitting}
+          disabled={headerBackDisabled}
           aria-label={header.backLabel ?? "Volver"}
         >
           <ArrowLeft className="h-4 w-4" />
@@ -318,7 +337,8 @@ export const WizardPageShell = memo(function WizardPageShell({
         canGoBack={currentStep > 0 && !isSubmitting}
         isLastStep={isReview}
         onPrevious={handlePrevious}
-        onCancel={handleCancel}
+        onCancel={allowExit ? handleCancel : undefined}
+        showCancel={allowExit}
         onNext={handleNext}
         onSubmit={handleConfirm}
         isSubmitting={isSubmitting}

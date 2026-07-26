@@ -2,65 +2,68 @@ import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, Truck, LogIn, Building2 } from "lucide-react";
+import { LogIn, Building2, ShieldCheck } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
+  FormValidationSummary,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
+import {
+  isTurnstileConfigured,
+  TurnstileWidget,
+} from "@shared/ui/turnstile";
 
 import {
   authApi,
   tokenStorage,
   markFreshLoginSession,
-} from "@features/auth/infrastructure";
+  isMfaChallenge,
+} from "@features/auth";
 import { loginSchema, type LoginFormData } from "@features/auth";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
+import { AuthFunnelFormHeader } from "../AuthFunnelFormHeader";
+import { PasswordVisibilityToggle } from "../PasswordVisibilityToggle";
+import { authFunnelCopy } from "../authFunnelCopy";
+import { loginCopy as copy } from "./loginCopy";
 
 /**
- * LoginPage
- *
- * Página de inicio de sesión para sistema multi-tenant.
- * NO usa useAuth() porque está fuera del AuthProvider.
- * Llama directamente a authApi y guarda tokens.
+ * LoginPage — auth multi-tenant fuera de AuthProvider.
  */
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { open: registrationOpen } = usePublicSelfServeRegister();
 
-  // Estado local
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFieldSummary, setShowFieldSummary] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(
+    null,
+  );
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaFieldError, setMfaFieldError] = useState<string | null>(null);
+  const [pendingSubdomain, setPendingSubdomain] = useState("");
 
-  // Obtener la ruta a la que redirigir después del login
   const locationState =
     location.state as { from?: { pathname: string }; sessionExpired?: boolean } | null;
 
   const from = locationState?.from?.pathname || "/dashboard";
-
   const sessionExpired = locationState?.sessionExpired === true;
-
   const inviteEmail =
     (location.state as { inviteEmail?: string } | null)?.inviteEmail ?? "";
 
-  // Recuperar subdomain guardado o desde query (p. ej. post /accept-invitation)
   const savedSubdomain = tokenStorage.getSubdomain() || "";
   const subdomainFromQuery = searchParams.get("subdomain")?.trim() || "";
 
-  // Configurar React Hook Form con Zod
   const {
     register,
     handleSubmit,
@@ -83,37 +86,71 @@ const LoginPage = () => {
     });
   }, [inviteEmail, subdomainFromQuery, savedSubdomain, reset]);
 
-  // Handler del submit
+  const fieldSummaryMessages = [
+    errors.subdomain?.message,
+    errors.email?.message,
+    errors.password?.message,
+  ].filter((m): m is string => Boolean(m));
+
+  const finishLogin = (response: {
+    accessToken?: string;
+    refreshToken?: string;
+    user: {
+      onboardingCompletedAt?: string | null;
+    };
+  }, subdomain: string) => {
+    if (response.accessToken && response.refreshToken) {
+      tokenStorage.setToken(response.accessToken);
+      tokenStorage.setRefreshToken(response.refreshToken);
+    } else {
+      tokenStorage.removeToken();
+      tokenStorage.removeRefreshToken();
+    }
+    tokenStorage.setUser(response.user as Parameters<typeof tokenStorage.setUser>[0]);
+    tokenStorage.setSubdomain(subdomain);
+    markFreshLoginSession();
+
+    if (response.user.onboardingCompletedAt == null) {
+      navigate("/onboarding", { replace: true });
+      return;
+    }
+
+    navigate(from, { replace: true });
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
+    setShowFieldSummary(false);
+
+    if (isTurnstileConfigured() && !captchaToken) {
+      setError(authFunnelCopy.captchaRequired);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Llamar a la API de login
+      const subdomain = data.subdomain.toLowerCase();
       const response = await authApi.login({
         email: data.email,
         password: data.password,
-        subdomain: data.subdomain.toLowerCase(),
+        subdomain,
+        ...(captchaToken ? { captchaToken } : {}),
       });
 
-      // Guardar tokens y datos
-      tokenStorage.setToken(response.accessToken);
-      tokenStorage.setRefreshToken(response.refreshToken);
-      tokenStorage.setUser(response.user);
-      tokenStorage.setSubdomain(data.subdomain.toLowerCase());
-      markFreshLoginSession();
-
-      if (response.user.onboardingCompletedAt == null) {
-        navigate("/onboarding", { replace: true });
+      if (isMfaChallenge(response)) {
+        setMfaChallengeToken(response.mfaChallengeToken);
+        setPendingSubdomain(subdomain);
+        setMfaCode("");
         return;
       }
 
-      navigate(from, { replace: true });
+      finishLogin(response, subdomain);
     } catch (err: unknown) {
       const mapped = mapBackendError(err);
       let message = mapped.message;
       if (!navigator.onLine) {
-        message = "Error de conexión. Verifica tu internet.";
+        message = copy.offline;
       }
       setError(message);
     } finally {
@@ -121,180 +158,224 @@ const LoginPage = () => {
     }
   };
 
+  const onMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaChallengeToken) return;
+    if (mfaCode.trim().length < 6) {
+      setMfaFieldError(copy.mfa.codeRequired);
+      return;
+    }
+    setMfaFieldError(null);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const response = await authApi.verifyMfaLogin({
+        mfaChallengeToken,
+        code: mfaCode.trim(),
+      });
+      finishLogin(response, pendingSubdomain);
+    } catch (err: unknown) {
+      const mapped = mapBackendError(err);
+      setError(!navigator.onLine ? copy.offline : mapped.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      {/* Logo */}
-      <div className="mb-8 flex flex-col items-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-          <Truck className="h-8 w-8 text-primary-foreground" />
-        </div>
-        <h1 className="mt-4 text-2xl font-bold">Boeltech ERP</h1>
-        <p className="text-sm text-muted-foreground">
-          Sistema de Gestión de Transporte
-        </p>
-      </div>
+    <div className="w-full">
+      <AuthFunnelFormHeader
+        title={mfaChallengeToken ? copy.mfa.title : copy.title}
+        description={
+          mfaChallengeToken ? copy.mfa.description : copy.description
+        }
+      />
 
-      {/* Card de login */}
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Iniciar Sesión</CardTitle>
-          <CardDescription>
-            Ingresa tus credenciales para acceder
-          </CardDescription>
-        </CardHeader>
+      {sessionExpired && !mfaChallengeToken && (
+        <AlertWithIcon variant="default" className="mb-6">
+          {copy.sessionExpired}
+        </AlertWithIcon>
+      )}
 
-        <CardContent>
-          {sessionExpired && (
-            <AlertWithIcon variant="default" className="mb-6">
-              Tu sesión expiró o dejó de ser válida (por ejemplo: token de acceso
-              caducado o sesión cerrada en el servidor). Vuelve a iniciar sesión
-              para continuar.
-            </AlertWithIcon>
-          )}
+      {error && (
+        <AlertWithIcon variant="destructive" className="mb-6">
+          {error}
+        </AlertWithIcon>
+      )}
 
-          {/* Mensaje de error */}
-          {error && (
-            <AlertWithIcon variant="destructive" className="mb-6">
-              {error}
-            </AlertWithIcon>
-          )}
-
-          {/* Formulario */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Campo Subdomain */}
-            <div className="space-y-2">
-              <Label htmlFor="subdomain">Empresa</Label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="subdomain"
-                  type="text"
-                  placeholder="mi-empresa"
-                  autoComplete="organization"
-                  className="pl-10"
-                  {...register("subdomain")}
-                  {...getRegisterFieldErrorProps(
-                    "subdomain",
-                    errors.subdomain?.message,
-                  )}
-                />
-              </div>
-              <FieldInlineError
-                fieldId="subdomain"
-                message={errors.subdomain?.message}
-              />
-              {!errors.subdomain && (
-                <p className="text-xs text-muted-foreground">
-                  Identificador de tu empresa
-                </p>
-              )}
-            </div>
-
-            {/* Campo Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
+      {mfaChallengeToken ? (
+        <form onSubmit={onMfaSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="mfa-code">{copy.mfa.codeLabel}</Label>
+            <Input
+              id="mfa-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder={copy.mfa.codePlaceholder}
+              value={mfaCode}
+              onChange={(ev) => {
+                setMfaCode(ev.target.value);
+                if (mfaFieldError) setMfaFieldError(null);
+              }}
+              autoFocus
+              error={Boolean(mfaFieldError)}
+              aria-invalid={Boolean(mfaFieldError)}
+              aria-describedby={mfaFieldError ? "mfa-code-error" : undefined}
+            />
+            <FieldInlineError
+              fieldId="mfa-code"
+              message={mfaFieldError ?? undefined}
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
+            {!isSubmitting && <ShieldCheck className="mr-2 h-4 w-4" />}
+            {isSubmitting ? copy.mfa.submitting : copy.mfa.submit}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            disabled={isSubmitting}
+            onClick={() => {
+              setMfaChallengeToken(null);
+              setMfaCode("");
+              setError(null);
+              setMfaFieldError(null);
+            }}
+          >
+            {copy.mfa.back}
+          </Button>
+        </form>
+      ) : (
+        <form
+          onSubmit={handleSubmit(onSubmit, () => setShowFieldSummary(true))}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="subdomain">{copy.fields.subdomain}</Label>
+            <div className="relative">
+              <Building2 className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
-                id="email"
-                type="email"
-                placeholder="tu@email.com"
-                autoComplete="email"
-                {...register("email")}
-                {...getRegisterFieldErrorProps("email", errors.email?.message)}
-              />
-              <FieldInlineError fieldId="email" message={errors.email?.message} />
-            </div>
-
-            {/* Campo Password */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs text-primary hover:underline"
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="pr-10"
-                  {...register("password")}
-                  {...getRegisterFieldErrorProps(
-                    "password",
-                    errors.password?.message,
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={
-                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                  }
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <FieldInlineError
-                fieldId="password"
-                message={errors.password?.message}
+                id="subdomain"
+                type="text"
+                placeholder={copy.fields.subdomainPlaceholder}
+                autoComplete="organization"
+                className="pl-10"
+                {...register("subdomain")}
+                {...getRegisterFieldErrorProps(
+                  "subdomain",
+                  errors.subdomain?.message,
+                )}
               />
             </div>
+            <FieldInlineError
+              fieldId="subdomain"
+              message={errors.subdomain?.message}
+            />
+            {!errors.subdomain && (
+              <p className="text-muted-foreground text-xs">
+                {copy.fields.subdomainHint}
+              </p>
+            )}
+          </div>
 
-            {/* Botón Submit */}
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={isSubmitting}
-              isLoading={isSubmitting}
-            >
-              {!isSubmitting && <LogIn className="mr-2 h-4 w-4" />}
-              {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
-            </Button>
-          </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">{copy.fields.email}</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder={copy.fields.emailPlaceholder}
+              autoComplete="email"
+              {...register("email")}
+              {...getRegisterFieldErrorProps("email", errors.email?.message)}
+            />
+            <FieldInlineError fieldId="email" message={errors.email?.message} />
+          </div>
 
-          {/* Link a registro */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              ¿No tienes cuenta?{" "}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">{copy.fields.password}</Label>
+              <Link
+                to="/forgot-password"
+                className="text-primary text-xs hover:underline"
+              >
+                {copy.fields.forgotPassword}
+              </Link>
+            </div>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder={copy.fields.passwordPlaceholder}
+                autoComplete="current-password"
+                className="pr-10"
+                {...register("password")}
+                {...getRegisterFieldErrorProps(
+                  "password",
+                  errors.password?.message,
+                )}
+              />
+              <PasswordVisibilityToggle
+                visible={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
+                showLabel={authFunnelCopy.showPassword}
+                hideLabel={authFunnelCopy.hidePassword}
+              />
+            </div>
+            <FieldInlineError
+              fieldId="password"
+              message={errors.password?.message}
+            />
+          </div>
+
+          {showFieldSummary && fieldSummaryMessages.length > 0 ? (
+            <FormValidationSummary
+              title={copy.validationSummaryTitle}
+              messages={fieldSummaryMessages}
+            />
+          ) : null}
+
+          <TurnstileWidget onToken={setCaptchaToken} className="flex justify-center" />
+
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
+            {!isSubmitting && <LogIn className="mr-2 h-4 w-4" />}
+            {isSubmitting ? copy.submitting : copy.submit}
+          </Button>
+        </form>
+      )}
+
+      {!mfaChallengeToken && (
+        <div className="mt-8 text-center">
+          {registrationOpen ? (
+            <p className="text-muted-foreground text-sm">
+              {copy.registerPrompt}{" "}
               <Link
                 to="/register"
-                className="text-primary hover:underline font-medium"
+                className="text-primary font-medium hover:underline"
               >
-                Registra tu empresa
+                {copy.registerLink}
               </Link>
             </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Footer */}
-      <p className="mt-8 text-center text-sm text-muted-foreground">
-        ¿Necesitas ayuda?{" "}
-        <a
-          href="mailto:soporte@boeltech.com"
-          className="text-primary hover:underline"
-        >
-          Contactar soporte
-        </a>
-      </p>
-
-      <Link
-        to="/welcome"
-        className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        ← Volver al inicio
-      </Link>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {copy.registerClosedHint}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
