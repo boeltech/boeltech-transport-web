@@ -19,6 +19,7 @@ import {
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import { isVehicleStartableStatus } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
+import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { vehiclesApi } from "../../infrastructure";
 import {
   vehicleQueryKeys,
@@ -255,6 +256,7 @@ export const useUpdateVehicle = (callbacks?: MutationCallbacks) => {
       queryClient.invalidateQueries({
         queryKey: vehicleQueryKeys.assignable(),
       });
+      invalidateNotificationsQueries(queryClient);
       callbacks?.onSuccess?.(vehicle);
     },
     onError: (error: Error) => {

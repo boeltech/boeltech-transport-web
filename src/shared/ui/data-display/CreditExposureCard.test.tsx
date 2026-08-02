@@ -62,15 +62,34 @@ describe("CreditExposureCard", () => {
     expect(screen.getByText("85%")).toBeInTheDocument();
   });
 
-  it("renders exceeded state", () => {
-    renderCard(buildSummary("exceeded"));
+  it("renders exceeded state with the amount over the limit", () => {
+    renderCard(
+      buildSummary("exceeded", { totalExposure: 120_000, availableCredit: 0 }),
+    );
     expect(screen.getByText(creditExposureCopy.statusLabel.exceeded)).toBeInTheDocument();
+    expect(screen.getByText(creditExposureCopy.overLimit)).toBeInTheDocument();
+    expect(screen.getByText(/^\$20,000\.00$/)).toBeInTheDocument();
   });
 
-  it("renders breakdown rows when showBreakdown is true", () => {
+  it("muestra el disponible con centavos exactos, sin redondear", () => {
+    renderCard(
+      buildSummary("ok", {
+        availableCredit: 40_320.55,
+        totalExposure: 59_679.45,
+        creditLimit: 100_000.5,
+      }),
+    );
+    expect(screen.getByText(/40,320\.55/)).toBeInTheDocument();
+    expect(screen.getByText(/59,679\.45/)).toBeInTheDocument();
+    expect(screen.getByText(/100,000\.50/)).toBeInTheDocument();
+  });
+
+  it("renders breakdown rows when showBreakdown is true, sin porcentajes por fila", () => {
     renderCard(buildSummary("ok"), true);
+    expect(screen.getByText(creditExposureCopy.breakdownTitle)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.invoiced)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.unbilled)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.pendingDraft)).toBeInTheDocument();
+    expect(screen.queryByText(/\(\d+%\)/)).not.toBeInTheDocument();
   });
 });

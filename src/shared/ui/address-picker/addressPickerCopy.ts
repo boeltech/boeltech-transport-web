@@ -1,8 +1,9 @@
 export const ADDRESS_PICKER_COPY = {
-  placeholder: "Buscar dirección guardada…",
-  searchHint: "Escribe al menos 2 caracteres para buscar",
+  placeholder: "Buscar por nombre, calle o código postal…",
+  emptyBrowse: "No hay direcciones guardadas en este catálogo",
   emptyResults: "No se encontraron direcciones",
-  loading: "Buscando direcciones…",
+  loading: "Cargando direcciones…",
+  filtering: "Filtrando…",
   loadMore: "Cargar más resultados",
   domicilioCpReady: "Domicilio CP",
   remitenteRfcReady: "RFC",

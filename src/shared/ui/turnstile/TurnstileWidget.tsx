@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import config from "@shared/config/env";
 
 declare global {
@@ -24,22 +24,36 @@ const SCRIPT_ID = "cf-turnstile-script";
 const SCRIPT_SRC =
   "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
+export type TurnstileWidgetHandle = {
+  /** Invalida el token actual y pide uno nuevo (tokens Turnstile = un solo uso). */
+  reset: () => void;
+};
+
 /**
  * Cloudflare Turnstile widget. Si no hay `VITE_TURNSTILE_SITE_KEY`, no renderiza
  * (API fail-open en development).
  */
-export function TurnstileWidget({
-  onToken,
-  className,
-}: {
-  onToken: (token: string | null) => void;
-  className?: string;
-}) {
+export const TurnstileWidget = forwardRef<
+  TurnstileWidgetHandle,
+  {
+    onToken: (token: string | null) => void;
+    className?: string;
+  }
+>(function TurnstileWidget({ onToken, className }, ref) {
   const siteKey = config.turnstile.siteKey;
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
   onTokenRef.current = onToken;
+
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      onTokenRef.current(null);
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.reset(widgetIdRef.current);
+      }
+    },
+  }));
 
   useEffect(() => {
     if (!siteKey) {
@@ -90,7 +104,7 @@ export function TurnstileWidget({
   if (!siteKey) return null;
 
   return <div ref={containerRef} className={className} />;
-}
+});
 
 export function isTurnstileConfigured(): boolean {
   return Boolean(config.turnstile.siteKey);

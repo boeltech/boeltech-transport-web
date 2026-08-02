@@ -44,6 +44,28 @@ describe("dashboard layout", () => {
     expect(
       filtered.widgets.some((w) => w.id === "financial_trend"),
     ).toBe(false);
+    expect(
+      filtered.widgets.some((w) => w.id === "financial_comparison"),
+    ).toBe(false);
+    expect(
+      filtered.widgets.some((w) => w.id === "vehicle_expense_ranking"),
+    ).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "metric_trends")).toBe(
+      false,
+    );
+    expect(filtered.widgets[0]?.id).toBe("operations_snapshot");
+  });
+
+  it("system default puts month scorecard first for finance-capable layouts", () => {
+    const layout = buildSystemDefaultLayout();
+    expect(layout.widgets[0]?.id).toBe("metric_trends");
+    const withFinance = applyRbac(layout, {
+      canReadTrips: true,
+      showFinance: true,
+      canReadBranches: true,
+    });
+    expect(withFinance.widgets[0]?.id).toBe("metric_trends");
+    expect(withFinance.widgets[1]?.id).toBe("operations_snapshot");
   });
 
   it("setWidgetVisibility and reorderWidgets update prefs", () => {

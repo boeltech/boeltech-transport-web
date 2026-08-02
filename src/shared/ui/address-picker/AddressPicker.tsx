@@ -36,7 +36,11 @@ import {
   type AddressSearchListItem,
   type SearchableOwnerType,
 } from "./types";
-import { useAddressSearch } from "./useAddressSearch";
+import {
+  isAddressSearchFilterActive,
+  normalizeAddressSearchParams,
+  useAddressSearch,
+} from "./useAddressSearch";
 
 // ============================================================================
 // Types
@@ -54,6 +58,7 @@ export interface AddressPickerProps {
   defaultOwnerTypes?: SearchableOwnerType[];
   addressType?: AddressSearchAddressType;
   onlyGeolocated?: boolean;
+  /** Tamaño de página (máx. API 50). Default 50 para browse al abrir. */
   limit?: number;
   debounceMs?: number;
   className?: string;
@@ -120,19 +125,26 @@ export function AddressPicker({
   defaultOwnerTypes,
   addressType,
   onlyGeolocated,
-  limit = 20,
+  limit = 50,
   debounceMs = 300,
   className,
 }: AddressPickerProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedQuery = useDebounce(searchQuery, debounceMs);
-  const [allItems, setAllItems] = useState<AddressSearchListItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  /** Páginas extra traídas con "Cargar más"; la primera vive en la caché de React Query. */
+  const [extraItems, setExtraItems] = useState<AddressSearchListItem[]>([]);
+  const [pagination, setPagination] = useState<{
+    nextCursor: string | null;
+    hasMore: boolean;
+  } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const ownerTypes = defaultOwnerTypes ?? [...SEARCHABLE_OWNER_TYPES];
+  const ownerTypesKey = (defaultOwnerTypes ?? SEARCHABLE_OWNER_TYPES).join(",");
+  const ownerTypes = useMemo(
+    () => ownerTypesKey.split(",") as SearchableOwnerType[],
+    [ownerTypesKey],
+  );
 
   const searchParams = useMemo(
     () => ({
@@ -150,20 +162,40 @@ export function AddressPicker({
     enabled: open,
   });
 
-  useEffect(() => {
-    if (!data) return;
-    setAllItems(data.data);
-    setNextCursor(data.pagination.nextCursor);
-    setHasMore(data.pagination.hasMore);
-  }, [data]);
+  const paramsKey = useMemo(
+    () => JSON.stringify(normalizeAddressSearchParams(searchParams)),
+    [searchParams],
+  );
 
   useEffect(() => {
-    if (!open) {
-      setSearchQuery("");
-    }
+    setExtraItems([]);
+    setPagination(null);
+  }, [paramsKey]);
+
+  useEffect(() => {
+    if (open) return;
+    setSearchQuery("");
+    setExtraItems([]);
+    setPagination(null);
   }, [open]);
 
+  const allItems = useMemo(() => {
+    const firstPage = data?.data ?? [];
+    if (extraItems.length === 0) return firstPage;
+    const seen = new Set(firstPage.map((item) => item.id));
+    return [...firstPage, ...extraItems.filter((item) => !seen.has(item.id))];
+  }, [data, extraItems]);
+
+  const nextCursor = pagination
+    ? pagination.nextCursor
+    : (data?.pagination.nextCursor ?? null);
+  const hasMore = pagination
+    ? pagination.hasMore
+    : (data?.pagination.hasMore ?? false);
+
   const grouped = useMemo(() => groupItemsByOwner(allItems), [allItems]);
+  const isFiltering = isAddressSearchFilterActive(debouncedQuery);
+  const showInitialLoading = isFetching && allItems.length === 0;
 
   const handleSelect = useCallback(
     (item: AddressSearchListItem) => {
@@ -178,18 +210,19 @@ export function AddressPicker({
     setLoadingMore(true);
     try {
       const nextPage = await searchAddresses({
-        ...searchParams,
+        ...normalizeAddressSearchParams(searchParams),
         cursor: nextCursor,
       });
-      setAllItems((prev) => [...prev, ...nextPage.data]);
-      setNextCursor(nextPage.pagination.nextCursor);
-      setHasMore(nextPage.pagination.hasMore);
+      setExtraItems((prev) => [...prev, ...nextPage.data]);
+      setPagination({
+        nextCursor: nextPage.pagination.nextCursor,
+        hasMore: nextPage.pagination.hasMore,
+      });
     } finally {
       setLoadingMore(false);
     }
   }, [loadingMore, nextCursor, searchParams]);
 
-  const queryReady = debouncedQuery.trim().length >= 2;
   const triggerLabel = value ? formatItemLabel(value) : placeholder;
 
   return (
@@ -225,21 +258,29 @@ export function AddressPicker({
                 onValueChange={setSearchQuery}
               />
               <CommandList>
-                {!queryReady ? (
-                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                    {ADDRESS_PICKER_COPY.searchHint}
-                  </div>
-                ) : isFetching && allItems.length === 0 ? (
+                {showInitialLoading ? (
                   <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    {ADDRESS_PICKER_COPY.loading}
+                    {isFiltering
+                      ? ADDRESS_PICKER_COPY.filtering
+                      : ADDRESS_PICKER_COPY.loading}
                   </div>
                 ) : isError ? (
                   <CommandEmpty>Error al buscar direcciones</CommandEmpty>
                 ) : allItems.length === 0 ? (
-                  <CommandEmpty>{ADDRESS_PICKER_COPY.emptyResults}</CommandEmpty>
+                  <CommandEmpty>
+                    {isFiltering
+                      ? ADDRESS_PICKER_COPY.emptyResults
+                      : ADDRESS_PICKER_COPY.emptyBrowse}
+                  </CommandEmpty>
                 ) : (
                   <>
+                    {isFetching ? (
+                      <div className="flex items-center gap-2 border-b px-3 py-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        {ADDRESS_PICKER_COPY.filtering}
+                      </div>
+                    ) : null}
                     {SEARCHABLE_OWNER_TYPES.map((ownerType) => {
                       const items = grouped[ownerType];
                       if (items.length === 0) return null;

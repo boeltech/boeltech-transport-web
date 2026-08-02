@@ -11,11 +11,11 @@ export function handleAlertClick(
       break;
     case "license_expiring":
     case "medical_certificate_expiring":
-      navigate(`/drivers/${alert.entity_id}`);
+      navigate(`/drivers/${alert.entity_id}?tab=documents`);
       break;
     case "insurance_expiring":
     case "sct_permit_expiring":
-      navigate(`/vehicles/${alert.entity_id}`);
+      navigate(`/vehicles/${alert.entity_id}?tab=documents`);
       break;
     default:
       if (

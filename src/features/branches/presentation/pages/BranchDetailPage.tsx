@@ -10,8 +10,10 @@ import {
   Mail,
   MapPin,
   Phone,
-  Star,
+  Route,
+  Truck,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -22,15 +24,22 @@ import {
   InfoRow,
   type StatCardProps,
 } from "@shared/ui/data-display";
-import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
-import { cn } from "@shared/lib/utils/cn";
+import { useTabParam, useToast } from "@shared/hooks";
+import { usePermissions, canAccessFinanceSummaryRoute } from "@shared/permissions";
+import { useAuth } from "@/features/auth";
+import { useBranchKpis } from "@features/dashboard/application/hooks/useBranchKpis";
+import { DEFAULT_BRANCH_KPIS_PERIOD } from "@features/dashboard/domain/types";
+import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
 import { BranchStatus } from "../../domain";
 import { useBranch, useDeleteBranch } from "../../application";
-import { BranchActions, BranchActivitySection, BranchDetailLocationMap } from "../components";
-import { BranchAssignedEmployeesCard } from "../components/BranchAssignedEmployeesCard";
-import { BranchAssignedVehiclesCard } from "../components/BranchAssignedVehiclesCard";
-import { BranchOperationalKpiCard } from "../components/BranchOperationalKpiCard";
+import {
+  BranchActions,
+  BranchActivitySection,
+  BranchAssignedEmployeesCard,
+  BranchAssignedVehiclesCard,
+  BranchDetailLocationMap,
+  BranchOperationalKpiCard,
+} from "../components";
 import { BranchDetailHeaderSubtitle } from "../components/BranchDetailHeaderSubtitle";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
 import { branchesCopy } from "../copy/branchesCopy";
@@ -38,6 +47,14 @@ import { formatBranchFullAddress } from "../utils/branchAddressFormatters";
 import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
 
 const copy = branchesCopy.detail;
+
+/** Tabs enlazables por `?tab=`. */
+const BRANCH_DETAIL_TABS = [
+  "summary",
+  "team",
+  "performance",
+  "history",
+] as const;
 
 function ContactValue({
   value,
@@ -120,11 +137,23 @@ function BranchAddressBlock({
 export function BranchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeTab, setActiveTab } = useTabParam(
+    BRANCH_DETAIL_TABS,
+    "summary",
+  );
   const { toast } = useToast();
+  const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canUpdateBranch = hasPermission("branches", "update");
+  const showFinance = canAccessFinanceSummaryRoute(user?.role);
 
   const { data: branch, isLoading, isError } = useBranch(id ?? "");
+
+  const { data: kpisData, isLoading: kpisLoading } = useBranchKpis({
+    branchIds: branch ? [branch.id] : [],
+    period: DEFAULT_BRANCH_KPIS_PERIOD,
+    enabled: Boolean(branch?.id),
+  });
 
   const deleteMutation = useDeleteBranch({
     onSuccess: () => {
@@ -182,18 +211,6 @@ export function BranchDetailPage() {
       );
     }
 
-    if (branch.address.geolocationPending) {
-      cards.push(
-        <DetailAlertCard
-          key="geolocation-pending"
-          severity="info"
-          icon={<MapPin className="h-5 w-5" />}
-          title={copy.alerts.geolocationPending.title}
-          items={[{ text: copy.alerts.geolocationPending.text }]}
-        />,
-      );
-    }
-
     return cards.length > 0 ? cards : undefined;
   }, [branch]);
 
@@ -202,28 +219,60 @@ export function BranchDetailPage() {
     [branch],
   );
 
+  const kpiRow = useMemo(() => {
+    if (!branch || !kpisData) return undefined;
+    return kpisData.rows.find((row) => row.branchId === branch.id);
+  }, [branch, kpisData]);
+
   const branchStats = useMemo((): StatCardProps[] => {
     if (!branch) return [];
 
-    return [
+    const loading = kpisLoading && !kpiRow;
+    const periodLabel = kpisData?.period.label;
+
+    // Prioridad: Margen → operativo. Máx. 4 cards para fila completa (shell: 4 → lg:grid-cols-4).
+    // Flota/conductores viven en tab Equipo y flota.
+    const operational: StatCardProps[] = [
       {
-        title: copy.stats.isMain,
-        value: branch.isMain ? copy.stats.isMainYes : copy.stats.isMainNo,
-        tone: branch.isMain ? "primary" : "neutral",
-        icon: <Star className="h-5 w-5" />,
+        title: copy.stats.trips,
+        value: kpiRow ? kpiRow.trips.total : "—",
+        tone: "primary",
+        icon: <Route className="h-5 w-5" />,
+        isLoading: loading,
+        description: showFinance ? undefined : periodLabel,
       },
       {
-        title: copy.stats.operationalStatus,
-        value: branch.isActive ? copy.stats.active : copy.stats.inactive,
-        tone: branch.isActive ? "success" : "neutral",
-        icon: branch.isActive ? (
-          <CheckCircle2 className="h-5 w-5" />
-        ) : (
-          <Building2 className="h-5 w-5" />
-        ),
+        title: copy.stats.inProgress,
+        value: kpiRow ? kpiRow.trips.inProgress : "—",
+        tone: "info",
+        icon: <Truck className="h-5 w-5" />,
+        isLoading: loading,
+      },
+      {
+        title: copy.stats.completed,
+        value: kpiRow ? kpiRow.trips.completed : "—",
+        tone: "success",
+        icon: <CheckCircle2 className="h-5 w-5" />,
+        isLoading: loading,
       },
     ];
-  }, [branch]);
+
+    if (!showFinance) return operational;
+
+    return [
+      {
+        title: copy.stats.margin,
+        value: kpiRow
+          ? formatMxCurrencyWhole(kpiRow.financialMonth?.actualMargin ?? 0)
+          : "—",
+        tone: "success",
+        icon: <Wallet className="h-5 w-5" />,
+        isLoading: loading,
+        description: periodLabel,
+      },
+      ...operational,
+    ];
+  }, [branch, kpiRow, kpisLoading, kpisData?.period.label, showFinance]);
 
   const handleDelete = (branchId: string) => {
     deleteMutation.mutate(branchId);
@@ -241,9 +290,10 @@ export function BranchDetailPage() {
       </div>
     ) : undefined;
 
+  const notesText = branch?.notes?.trim() ?? "";
+
   return (
     <DetailPageShell
-      className="mx-auto w-full max-w-6xl p-4 sm:p-6"
       isLoading={isLoading}
       notFound={!branch && isError}
       notFoundConfig={{
@@ -294,108 +344,130 @@ export function BranchDetailPage() {
           : undefined
       }
       alerts={alerts}
-    >
-      {branch ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <UserRound className="h-4 w-4 text-muted-foreground" />
-                {copy.cards.contact}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <InfoRow
-                icon={<UserRound className="h-4 w-4" />}
-                label={copy.fields.manager}
-                value={
-                  <ContactValue
-                    value={branch.contact.managerName}
-                    emptyLabel={copy.fields.notDefined}
-                  />
-                }
-              />
-              <InfoRow
-                icon={<Phone className="h-4 w-4" />}
-                label={copy.fields.phone}
-                value={
-                  <ContactValue
-                    value={branch.contact.phone}
-                    hrefPrefix="tel"
-                    emptyLabel={copy.fields.notDefined}
-                  />
-                }
-                copyable={Boolean(branch.contact.phone?.trim())}
-                copyValue={branch.contact.phone?.trim()}
-              />
-              <InfoRow
-                icon={<Mail className="h-4 w-4" />}
-                label={copy.fields.email}
-                value={
-                  <ContactValue
-                    value={branch.contact.email}
-                    hrefPrefix="mailto"
-                    emptyLabel={copy.fields.notDefined}
-                  />
-                }
-                copyable={Boolean(branch.contact.email?.trim())}
-                copyValue={branch.contact.email?.trim()}
-              />
-            </CardContent>
-          </Card>
+      tabs={
+        branch
+          ? {
+              defaultValue: "summary",
+              value: activeTab,
+              onValueChange: setActiveTab,
+              items: [
+                {
+                  value: "summary",
+                  label: copy.tabs.summary,
+                  forceMount: true,
+                  content: (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <UserRound className="h-4 w-4 text-muted-foreground" />
+                            {copy.cards.contact}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <InfoRow
+                            icon={<UserRound className="h-4 w-4" />}
+                            label={copy.fields.manager}
+                            value={
+                              <ContactValue
+                                value={branch.contact.managerName}
+                                emptyLabel={copy.fields.notDefined}
+                              />
+                            }
+                          />
+                          <InfoRow
+                            icon={<Phone className="h-4 w-4" />}
+                            label={copy.fields.phone}
+                            value={
+                              <ContactValue
+                                value={branch.contact.phone}
+                                hrefPrefix="tel"
+                                emptyLabel={copy.fields.notDefined}
+                              />
+                            }
+                            copyable={Boolean(branch.contact.phone?.trim())}
+                            copyValue={branch.contact.phone?.trim()}
+                          />
+                          <InfoRow
+                            icon={<Mail className="h-4 w-4" />}
+                            label={copy.fields.email}
+                            value={
+                              <ContactValue
+                                value={branch.contact.email}
+                                hrefPrefix="mailto"
+                                emptyLabel={copy.fields.notDefined}
+                              />
+                            }
+                            copyable={Boolean(branch.contact.email?.trim())}
+                            copyValue={branch.contact.email?.trim()}
+                          />
+                        </CardContent>
+                      </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                {copy.cards.address}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-0">
-              <BranchAddressBlock
-                addressLines={addressLines}
-                emptyLabel={copy.fields.addressEmpty}
-              />
-              <BranchDetailLocationMap
-                latitude={branch.address.latitude}
-                longitude={branch.address.longitude}
-                geolocationPending={branch.address.geolocationPending}
-                editHref={`/branches/${branch.id}/edit`}
-                canEdit={canUpdateBranch}
-              />
-            </CardContent>
-          </Card>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            {copy.cards.address}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-0">
+                          <BranchAddressBlock
+                            addressLines={addressLines}
+                            emptyLabel={copy.fields.addressEmpty}
+                          />
+                          <BranchDetailLocationMap
+                            latitude={branch.address.latitude}
+                            longitude={branch.address.longitude}
+                            geolocationPending={branch.address.geolocationPending}
+                            editHref={`/branches/${branch.id}/edit`}
+                            canEdit={canUpdateBranch}
+                          />
+                        </CardContent>
+                      </Card>
 
-          <Card className="md:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                {copy.cards.notes}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={cn(
-                  "whitespace-pre-wrap text-sm",
-                  branch.notes?.trim()
-                    ? "text-foreground"
-                    : "italic text-muted-foreground",
-                )}
-              >
-                {branch.notes?.trim() || copy.fields.notesEmpty}
-              </p>
-            </CardContent>
-          </Card>
-
-          <BranchAssignedEmployeesCard branchId={branch.id} />
-
-          <BranchAssignedVehiclesCard branchId={branch.id} />
-
-          <BranchOperationalKpiCard branchId={branch.id} />
-
-          <BranchActivitySection branchId={branch.id} />
-        </div>
-      ) : null}
-    </DetailPageShell>
+                      {notesText ? (
+                        <Card className="md:col-span-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              {copy.cards.notes}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="whitespace-pre-wrap text-sm text-foreground">
+                              {notesText}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ) : null}
+                    </div>
+                  ),
+                },
+                {
+                  value: "team",
+                  label: copy.tabs.team,
+                  content: (
+                    <div className="space-y-4">
+                      <BranchAssignedEmployeesCard branchId={branch.id} />
+                      <BranchAssignedVehiclesCard branchId={branch.id} />
+                    </div>
+                  ),
+                },
+                {
+                  value: "performance",
+                  label: copy.tabs.performance,
+                  content: <BranchOperationalKpiCard branchId={branch.id} />,
+                },
+                {
+                  value: "history",
+                  label: copy.tabs.history,
+                  content: <BranchActivitySection branchId={branch.id} />,
+                },
+              ],
+            }
+          : undefined
+      }
+    />
   );
 }

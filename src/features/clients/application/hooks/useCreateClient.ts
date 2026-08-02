@@ -24,6 +24,7 @@ import { useToast } from "@shared/hooks";
 import {
   createClientUseCase,
   CreateClientAddressFailedError,
+  CreateClientPrimaryContactFailedError,
 } from "../useCases/CreateClientUseCase";
 import {
   clientQueryKeys,
@@ -78,6 +79,29 @@ export function useCreateClient() {
             },
           },
         });
+        return;
+      }
+
+      if (error instanceof CreateClientPrimaryContactFailedError) {
+        queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
+        queryClient.invalidateQueries({
+          queryKey: clientQueryKeys.detail(error.clientId),
+        });
+
+        toast({
+          title: "Cliente creado; contacto pendiente",
+          description: `El cliente ${error.clientCode} y su dirección se guardaron, pero no se pudo registrar el contacto principal. Puedes agregarlo en el detalle del cliente.`,
+          variant: "destructive",
+          duration: 12_000,
+          action: {
+            label: "Abrir cliente",
+            onClick: () => {
+              navigate(`/clients/${error.clientId}`);
+            },
+          },
+        });
+        navigate(`/clients/${error.clientId}`);
         return;
       }
 

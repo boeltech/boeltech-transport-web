@@ -1,5 +1,8 @@
 /**
  * Dashboard layout preferences — widget visibility and order.
+ *
+ * Defaults (PD2 / D7–D9): finance-first scorecard for roles with showFinance;
+ * ops-first when finance widgets are RBAC-gated out.
  */
 
 import type { UserRole } from "@shared/constants/roles";
@@ -9,13 +12,14 @@ import type { UserRole } from "@shared/constants/roles";
 // ============================================================================
 
 export const DASHBOARD_WIDGET_IDS = [
-  "operations_snapshot",
   "metric_trends",
+  "operations_snapshot",
   "alerts",
   "recent_trips",
   "fleet_drivers",
   "trips_by_day",
   "financial_comparison",
+  "vehicle_expense_ranking",
   "financial_trend",
   "branch_kpis",
 ] as const;
@@ -60,23 +64,23 @@ export interface DashboardWidgetDefinition {
 }
 
 // ============================================================================
-// System default (matches legacy DashboardPage layout)
+// System default — finance-first (PD1–PD5)
 // ============================================================================
 
 export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
   [
     {
-      id: "operations_snapshot",
-      title: "Actualización operativa",
+      id: "metric_trends",
+      title: "Scorecard del mes",
       span: "full",
       defaultVisible: true,
       defaultOrder: 0,
-      gate: ({ canReadTrips }) => canReadTrips,
+      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
-      id: "metric_trends",
-      title: "Métricas del mes",
-      span: "half",
+      id: "operations_snapshot",
+      title: "Operación del mes",
+      span: "full",
       defaultVisible: true,
       defaultOrder: 1,
       gate: ({ canReadTrips }) => canReadTrips,
@@ -119,14 +123,22 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       span: "full",
       defaultVisible: true,
       defaultOrder: 6,
-      gate: ({ canReadTrips }) => canReadTrips,
+      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
+    },
+    {
+      id: "vehicle_expense_ranking",
+      title: "Unidades con más gasto",
+      span: "half",
+      defaultVisible: true,
+      defaultOrder: 7,
+      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
       id: "financial_trend",
       title: "Tendencia plan vs real",
       span: "full",
       defaultVisible: true,
-      defaultOrder: 7,
+      defaultOrder: 8,
       gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
@@ -134,7 +146,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "KPIs por sucursal",
       span: "full",
       defaultVisible: true,
-      defaultOrder: 8,
+      defaultOrder: 9,
       gate: ({ canReadTrips, canReadBranches }) =>
         canReadTrips && canReadBranches,
     },

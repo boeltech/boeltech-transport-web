@@ -1,6 +1,6 @@
 # AddressInput
 
-Componente compartido para captura de direcciones SAT-first en el ERP Transporte.
+Componente compartido para captura de direcciones SAT-first en Tlama.
 
 ## Objetivo
 
@@ -71,7 +71,7 @@ SoT obligatoriedad XSD: `src/shared/validation/cp31DomicilioUx.ts` + `@boeltech/
 Integrado en formularios productivos:
 
 - `ClientAddressForm` (`variant="carta-porte"`)
-- `CompanySettingsForm` (`variant="carta-porte"`)
+- `CompanyFiscalAddressSheet` (`variant="carta-porte"`, `showLatLng={false}`)
 - `EmployeeFormInner` (`variant="personal"`)
 - `StopFormDialog` (`variant="carta-porte"`)
 

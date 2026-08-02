@@ -173,23 +173,30 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
       </TestProviders>,
     );
 
-    expect(screen.getByText(tripFiscalCopy.invoicesSection.title)).toBeInTheDocument();
-    expect(screen.getByText(tripFiscalCopy.invoicesSection.primaryLabel)).toBeInTheDocument();
-    expect(screen.getByText(tripFiscalCopy.invoicesSection.accessoryLabel)).toBeInTheDocument();
-    expect(screen.getAllByText(/A-100/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(tripFiscalCopy.invoicesSection.folio("A-101"))).toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.invoicesSection.compactTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.invoicesSection.folio("A-100")),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/2 facturas/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: tripFiscalCopy.invoicesSection.openInvoice,
+      }),
+    ).toHaveAttribute("href", `/invoices/${PRIMARY_INVOICE_ID}`);
   });
 
-  it("editor accesorio vacío: sin flete y CTA agregar servicio", () => {
+  it("editor accesorio vacío: sin flete y CTA agregar concepto", () => {
     render(
       <TestProviders>
         <AccessoryEditorHarness />
       </TestProviders>,
     );
 
-    expect(screen.getByText("Sin servicios")).toBeInTheDocument();
+    expect(screen.getByText(invoicingCopy.concepts.emptyTitle)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Agregar servicio/i }),
+      screen.getByRole("button", { name: invoicingCopy.concepts.addConcept }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Flete")).not.toBeInTheDocument();
   });

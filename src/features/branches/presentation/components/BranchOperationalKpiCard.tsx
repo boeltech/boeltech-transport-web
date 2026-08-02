@@ -10,12 +10,8 @@ import {
   type BranchKpisPeriodValue,
   type BranchKpisTrendMonths,
 } from "@features/dashboard/domain/types";
-import { canAccessFinanceSummaryRoute } from "@shared/permissions";
-import { useAuth } from "@/features/auth";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { InfoRow } from "@shared/ui/data-display";
-import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
 import { branchesCopy } from "../copy/branchesCopy";
 
 const copy = branchesCopy.detail.kpis;
@@ -24,9 +20,11 @@ interface BranchOperationalKpiCardProps {
   branchId: string;
 }
 
+/**
+ * Tab Desempeño: período, CTAs y tendencia.
+ * Los conteos above-the-fold viven en BranchDetailPage (stats del shell).
+ */
 export function BranchOperationalKpiCard({ branchId }: BranchOperationalKpiCardProps) {
-  const { user } = useAuth();
-  const showFinance = canAccessFinanceSummaryRoute(user?.role);
   const [period, setPeriod] = useState<BranchKpisPeriodValue>(
     DEFAULT_BRANCH_KPIS_PERIOD,
   );
@@ -51,7 +49,7 @@ export function BranchOperationalKpiCard({ branchId }: BranchOperationalKpiCardP
   const row = data?.rows.find((item) => item.branchId === branchId);
 
   return (
-    <div className="md:col-span-2 space-y-4">
+    <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -69,7 +67,7 @@ export function BranchOperationalKpiCard({ branchId }: BranchOperationalKpiCardP
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -82,36 +80,7 @@ export function BranchOperationalKpiCard({ branchId }: BranchOperationalKpiCardP
               <p className="text-xs text-muted-foreground">
                 {copy.periodLabel(data?.period.label ?? "Mes actual")}
               </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <InfoRow
-                  label={copy.metrics.tripsMonth}
-                  value={String(row.trips.total)}
-                />
-                <InfoRow
-                  label={copy.metrics.inProgress}
-                  value={String(row.trips.inProgress)}
-                />
-                <InfoRow
-                  label={copy.metrics.completed}
-                  value={String(row.trips.completed)}
-                />
-                <InfoRow
-                  label={copy.metrics.vehicles}
-                  value={String(row.fleet.vehiclesTotal)}
-                />
-                <InfoRow
-                  label={copy.metrics.drivers}
-                  value={String(row.drivers.total)}
-                />
-                {showFinance ? (
-                  <InfoRow
-                    label={copy.metrics.margin}
-                    value={formatMxCurrencyWhole(
-                      row.financialMonth?.actualMargin ?? 0,
-                    )}
-                  />
-                ) : null}
-              </div>
+              <p className="text-sm text-muted-foreground">{copy.periodHint}</p>
               <Button variant="link" size="sm" className="h-auto p-0" asChild>
                 <Link
                   to={`/trips?originBranchId=${encodeURIComponent(branchId)}`}

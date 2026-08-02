@@ -354,7 +354,7 @@ describe("AddressInput", () => {
 
     render(<TestHarness />);
 
-    const postalCodeInput = screen.getByLabelText(/codigo postal/i);
+    const postalCodeInput = screen.getByLabelText(/código postal/i);
     await user.type(postalCodeInput, "44A10B9");
 
     expect(postalCodeInput).toHaveValue("44109");

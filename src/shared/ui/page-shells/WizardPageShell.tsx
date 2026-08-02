@@ -124,11 +124,26 @@ export interface WizardPageShellProps {
    * Útil para ensanchar solo el paso de revisión sin cambiar el resto del wizard.
    */
   resolveContainerClassName?: (currentStep: number) => string | undefined;
+
+  /**
+   * Paso inicial 0-indexed (p. ej. deep-link `?step=2` → índice 1).
+   * Se clampea a `[0, steps.length - 1]`. Default 0.
+   */
+  initialStep?: number;
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+export function clampWizardInitialStep(
+  initialStep: number | undefined,
+  stepCount: number,
+): number {
+  if (stepCount <= 0) return 0;
+  if (initialStep == null || Number.isNaN(initialStep)) return 0;
+  return Math.min(Math.max(Math.trunc(initialStep), 0), stepCount - 1);
+}
 
 const iconBgVariants: Record<
   NonNullable<WizardPageShellHeader["iconVariant"]>,
@@ -157,9 +172,12 @@ export const WizardPageShell = memo(function WizardPageShell({
   stepsAriaLabel = "Pasos del asistente",
   className,
   resolveContainerClassName,
+  initialStep,
 }: WizardPageShellProps) {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(() =>
+    clampWizardInitialStep(initialStep, steps.length),
+  );
   const isFirstStepRenderRef = useRef(true);
 
   const lastStepIndex = steps.length - 1;

@@ -1,17 +1,14 @@
 import { History } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
-import { DetailTimeline } from "@shared/ui/data-display";
 import { mapBackendError } from "@shared/utils/errorMapper";
-import { formatDateTime } from "@shared/utils/dateUtils";
 import { userQueryKeys } from "../../domain";
 import { usersApi } from "../../infrastructure";
-import {
-  formatUserActivityAction,
-  summarizeUserActivityPayload,
-} from "../helpers/userActivityCopy";
+import { userActivityPageCopy } from "../copy/userActivityPageCopy";
+import { UserActivityFeed } from "./UserActivityFeed";
 
 const PAGE_SIZE = 20;
 
@@ -20,6 +17,7 @@ interface UserActivitySectionProps {
 }
 
 export function UserActivitySection({ userId }: UserActivitySectionProps) {
+  const copy = userActivityPageCopy.card;
   const {
     data,
     isLoading,
@@ -47,89 +45,82 @@ export function UserActivitySection({ userId }: UserActivitySectionProps) {
   const total = data?.pages[0]?.pagination.total ?? 0;
   const errorMessage = isError ? mapBackendError(error).message : "";
 
+  const header = (
+    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+      <CardTitle className="flex items-center gap-2 text-base">
+        <History className="h-4 w-4" />
+        {copy.title}
+      </CardTitle>
+      <Button asChild variant="link" size="sm" className="h-auto p-0">
+        {/* `period=all` evita heredar el filtro de fecha por defecto de la página. */}
+        <Link to={`/users/activity?subjectUserId=${userId}&period=all`}>
+          {copy.fullHistory}
+        </Link>
+      </Button>
+    </CardHeader>
+  );
+
   if (isLoading) {
     return (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <History className="h-4 w-4" />
-            Historial de gestión
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-muted-foreground text-sm">Cargando…</CardContent>
+        {header}
+        <CardContent className="text-muted-foreground text-sm">
+          {copy.loading}
+        </CardContent>
       </Card>
     );
   }
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <History className="h-4 w-4" />
-          Historial de gestión
-        </CardTitle>
-      </CardHeader>
+      {header}
       <CardContent className="space-y-4">
         {isError ? (
           <AlertWithIcon variant="destructive">
-            {errorMessage || "No se pudo cargar el historial de actividad."}
+            {errorMessage || copy.error}
           </AlertWithIcon>
         ) : null}
+
         {events.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Aún no hay eventos registrados. Los cambios (alta, edición, estatus, contraseña,
-            onboarding) aparecerán aquí.
-          </p>
+          <p className="text-muted-foreground text-sm">{copy.empty}</p>
         ) : (
-          <DetailTimeline
-            items={events.map((ev) => {
-              const actorName =
-                [ev.actorFirstName, ev.actorLastName].filter(Boolean).join(" ").trim() ||
-                ev.actorEmail ||
-                "Sistema";
-              const summary = summarizeUserActivityPayload(ev.action, ev.payload);
-              return {
-                id: ev.id,
-                dotSize: "sm" as const,
-                icon: <History className="h-4 w-4" />,
-                content: (
-                  <div className="bg-card/50 space-y-1 rounded-md border p-3 text-sm">
-                    <div className="font-medium">{formatUserActivityAction(ev.action)}</div>
-                    {summary ? (
-                      <div className="text-muted-foreground">{summary}</div>
-                    ) : null}
-                    <div className="text-muted-foreground text-xs">
-                      {formatDateTime(ev.createdAt)} · {actorName}
-                    </div>
-                  </div>
-                ),
-              };
-            })}
+          <UserActivityFeed
+            events={events}
+            includeSubject={false}
+            linkPeople={false}
           />
         )}
+
         {total > 0 ? (
           <p className="text-muted-foreground text-xs">
-            {events.length === total
-              ? `${total} evento${total === 1 ? "" : "s"}.`
-              : `Mostrando ${events.length} de ${total} eventos.`}
+            {copy.showing(events.length, total)}
           </p>
         ) : null}
-        {hasNextPage ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isFetchingNextPage}
-            onClick={() => void fetchNextPage()}
-          >
-            {isFetchingNextPage ? "Cargando…" : "Cargar más"}
-          </Button>
-        ) : null}
-        {isError || events.length > 0 ? (
-          <Button type="button" variant="ghost" size="sm" disabled={isFetching} onClick={() => void refetch()}>
-            {isFetching ? "Actualizando…" : "Actualizar historial"}
-          </Button>
-        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          {hasNextPage ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isFetchingNextPage}
+              onClick={() => void fetchNextPage()}
+            >
+              {isFetchingNextPage ? copy.loadingMore : copy.loadMore}
+            </Button>
+          ) : null}
+          {isError || events.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              {isFetching ? copy.refreshing : copy.refresh}
+            </Button>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );

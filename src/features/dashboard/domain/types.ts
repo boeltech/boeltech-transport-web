@@ -32,8 +32,9 @@ export interface DashboardStats {
   billing: {
     total_cost_this_month: number;
     total_base_rate_this_month: number;
-  };
-  financial_month: FinancialMonth;
+  } | null;
+  /** Null cuando el rol no tiene finance.read (API D9 / branch-kpis). */
+  financial_month: FinancialMonth | null;
 }
 
 export interface FinancialMonth {

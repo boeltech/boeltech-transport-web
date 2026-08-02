@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { resolveGeolocationPanelMode } from "./geolocationPanelMode";
 
 describe("resolveGeolocationPanelMode", () => {
-  it("origen: búsqueda y mapa; sin distancia por tramo", () => {
+  it("oculta distancia del tramo en origen (vive en el timeline)", () => {
     expect(
       resolveGeolocationPanelMode({
         isOriginStop: true,
-        hasClientPrefill: true,
-        catalogHasStoredCoordinates: true,
       }),
     ).toEqual({
       showSearchControls: true,
@@ -16,17 +14,15 @@ describe("resolveGeolocationPanelMode", () => {
     });
   });
 
-  it("parada intermedia/destino: panel completo aunque haya prefill de cliente", () => {
+  it("oculta distancia del tramo en escalas y destino (vive en el timeline)", () => {
     expect(
       resolveGeolocationPanelMode({
         isOriginStop: false,
-        hasClientPrefill: true,
-        catalogHasStoredCoordinates: true,
       }),
     ).toEqual({
       showSearchControls: true,
-      showDistanceSection: true,
-      distanceEditable: true,
+      showDistanceSection: false,
+      distanceEditable: false,
     });
   });
 });

@@ -16,8 +16,7 @@ export { VehicleCardSkeleton } from "./VehicleCardSkeleton";
 
 // Shared Components
 export { VehicleActions } from "./VehicleActions";
-
-// Filters (si existe)
-// export { VehicleFilters } from "./VehicleFilters";
+export { VehicleDetailDocumentsTab } from "./VehicleDetailDocumentsTab";
+export { VehicleDetailUnitTab } from "./VehicleDetailUnitTab";
 export { VehicleFilters } from "./VehicleFilters";
 export { VehicleForm, type VehicleFormRef } from "./VehicleForm";

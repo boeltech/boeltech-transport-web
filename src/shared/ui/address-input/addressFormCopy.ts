@@ -25,7 +25,7 @@ export const ADDRESS_FORM_COPY: Record<AddressFormUiContext, AddressFormCopy> = 
   companyFiscal: {
     locationNamePlaceholder: "Ej: Matriz fiscal, Oficinas centrales",
     globalInfoMessage:
-      "Domicilio fiscal de la empresa para facturación y operación del tenant.",
+      "Domicilio de tu empresa. Se usa en facturación y en la operación diaria.",
   },
   employeePersonal: {
     locationNamePlaceholder: "",
@@ -35,7 +35,7 @@ export const ADDRESS_FORM_COPY: Record<AddressFormUiContext, AddressFormCopy> = 
   tripStop: {
     locationNamePlaceholder: "Ej: Bodega Central, CEDIS Norte, Planta Monterrey",
     globalInfoMessage:
-      "Ubicación de la parada para Carta Porte. País, estado y código postal son obligatorios; confirma coordenadas en el mapa antes de guardar.",
+      "Ubicación de la parada. País, estado y código postal son obligatorios; ubica el punto en el mapa antes de guardar.",
   },
   branchOperational: {
     locationNamePlaceholder: "Ej: Sucursal Monterrey Centro",

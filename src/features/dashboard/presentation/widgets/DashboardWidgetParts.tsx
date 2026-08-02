@@ -13,4 +13,5 @@ export {
   renderRecentTrips,
   renderTripsByDay,
   renderBranchKpis,
+  renderVehicleExpenseRanking,
 } from "./DashboardWidgetRenderers";

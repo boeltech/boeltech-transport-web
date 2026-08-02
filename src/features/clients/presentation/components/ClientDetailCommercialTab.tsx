@@ -1,5 +1,6 @@
 /**
- * Bloque de términos comerciales en el tab Información del detalle de cliente.
+ * Bloque de términos comerciales en el tab Cliente del detalle.
+ * Crédito solo aquí (CreditExposureCard) — no en stats del shell.
  */
 
 import type { ComponentType } from "react";
@@ -12,12 +13,15 @@ import { CreditCard } from "lucide-react";
 import { useClientCreditSummary } from "../../application";
 import type { Client } from "../../domain";
 import type { PaymentTermsConfig } from "../config/clientConfig";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 
 export interface ClientDetailCommercialTabProps {
   client: Client;
   paymentConfig: PaymentTermsConfig;
   PaymentIcon: ComponentType<{ className?: string }>;
 }
+
+const copy = clientDetailCopy.commercial;
 
 export function ClientDetailCommercialTab({
   client,
@@ -32,14 +36,14 @@ export function ClientDetailCommercialTab({
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <CreditCard className="h-4 w-4 shrink-0 text-primary" />
-            Términos comerciales
+            {copy.title}
           </CardTitle>
-          <CardDescription>Forma de pago y condiciones de crédito.</CardDescription>
+          <CardDescription>{copy.description}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 pt-0">
           <InfoRow
             variant="inline"
-            label="Forma de pago"
+            label={copy.paymentTerms}
             value={
               <Badge variant={paymentConfig.variant}>
                 <PaymentIcon className="mr-1 h-3 w-3" />
@@ -52,8 +56,8 @@ export function ClientDetailCommercialTab({
               <Separator className="my-2" />
               <InfoRow
                 variant="inline"
-                label="Días de crédito"
-                value={`${client.creditDays} días`}
+                label={copy.creditDays}
+                value={copy.creditDaysValue(client.creditDays)}
               />
             </>
           ) : null}

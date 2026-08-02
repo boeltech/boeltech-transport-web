@@ -67,8 +67,6 @@ export function ReportsPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: reportsCopy.page.backHref,
-        backLabel: reportsCopy.page.backLabel,
         icon: <BarChart3 className="h-5 w-5" />,
         title: reportsCopy.page.title,
         subtitle: reportsCopy.page.description,

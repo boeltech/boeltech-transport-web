@@ -1,5 +1,8 @@
 /**
  * CreditExposureCard — semáforo de exposición de crédito (ADR-0049 Capa 3 Arranque).
+ *
+ * Importes siempre exactos (2 decimales): el disponible es un saldo que el
+ * usuario compara contra facturas, por lo que no se redondea a pesos.
  */
 
 import { Link } from "react-router-dom";
@@ -10,11 +13,12 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Progress } from "@shared/ui/progress";
+import { Skeleton } from "@shared/ui/skeleton";
 import { InfoRow } from "@shared/ui/data-display/InfoRow";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
-import { formatMxCurrency, formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { creditExposureCopy } from "./creditExposureCopy";
 
@@ -35,14 +39,20 @@ function getStatusBadgeVariant(status: ClientCreditSummary["status"]): CreditBad
   }
 }
 
+function getProgressIndicatorClass(status: ClientCreditSummary["status"]): string | undefined {
+  switch (status) {
+    case "warn":
+      return "bg-warning";
+    case "exceeded":
+      return "bg-destructive";
+    default:
+      return undefined;
+  }
+}
+
 function formatUtilizationPct(utilizationPct: number | null): string {
   if (utilizationPct == null) return "—";
   return `${Math.round(utilizationPct * 100)}%`;
-}
-
-function formatBreakdownShare(amount: number, totalExposure: number): string {
-  if (totalExposure <= 0) return "0%";
-  return `${Math.round((amount / totalExposure) * 100)}%`;
 }
 
 export interface CreditExposureCardProps {
@@ -64,6 +74,12 @@ export function CreditExposureCard({
 }: CreditExposureCardProps) {
   const copy = creditExposureCopy;
   const isCompact = variant === "compact";
+  const amountClass = cn(
+    "font-semibold tabular-nums tracking-tight",
+    isCompact ? "text-xl" : "text-3xl",
+  );
+  const microLabelClass =
+    "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -77,9 +93,7 @@ export function CreditExposureCard({
           <Wallet className={cn("shrink-0 text-primary", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} />
           {copy.title}
         </CardTitle>
-        {!isCompact ? (
-          <CardDescription>Utilización del límite y desglose de exposición.</CardDescription>
-        ) : null}
+        {!isCompact ? <CardDescription>{copy.description}</CardDescription> : null}
       </div>
       {summary ? (
         <Badge variant={getStatusBadgeVariant(summary.status)} tone="soft">
@@ -91,7 +105,14 @@ export function CreditExposureCard({
 
   const body = (() => {
     if (isLoading) {
-      return <p className="text-sm text-muted-foreground">{copy.loading}</p>;
+      return (
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className={isCompact ? "h-6 w-28" : "h-8 w-44"} />
+          <Skeleton className="h-2 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+          <span className="sr-only">{copy.loading}</span>
+        </div>
+      );
     }
     if (isError || !summary) {
       return (
@@ -112,12 +133,10 @@ export function CreditExposureCard({
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{copy.noLimit}</p>
           {summary.totalExposure > 0 ? (
-            <p className="text-sm">
-              Exposición estimada:{" "}
-              <span className="font-medium tabular-nums">
-                {formatMxCurrency(summary.totalExposure)}
-              </span>
-            </p>
+            <div className="space-y-0.5">
+              <p className={microLabelClass}>{copy.used}</p>
+              <p className={amountClass}>{formatMxCurrency(summary.totalExposure)}</p>
+            </div>
           ) : null}
           <Button type="button" variant="outline" size="sm" asChild>
             <Link to={`/clients/${summary.clientId}/edit`}>{copy.configureLimit}</Link>
@@ -130,6 +149,22 @@ export function CreditExposureCard({
       100,
       Math.round((summary.utilizationPct ?? 0) * 100),
     );
+    const overLimitAmount =
+      summary.creditLimit != null
+        ? Math.max(0, summary.totalExposure - summary.creditLimit)
+        : 0;
+    const showsOverLimit = summary.status === "exceeded" && overLimitAmount > 0;
+    const heroAmount = showsOverLimit ? overLimitAmount : summary.availableCredit;
+
+    const breakdownRows = [
+      { key: "invoiced", label: copy.breakdown.invoiced, amount: summary.breakdown.invoiced },
+      { key: "unbilled", label: copy.breakdown.unbilled, amount: summary.breakdown.unbilled },
+      {
+        key: "pendingDraft",
+        label: copy.breakdown.pendingDraft,
+        amount: summary.breakdown.pendingDraft,
+      },
+    ];
 
     return (
       <div className="space-y-4">
@@ -139,77 +174,47 @@ export function CreditExposureCard({
             isCompact ? "p-3" : "p-4",
           )}
         >
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p
-                className={cn(
-                  "font-semibold tabular-nums",
-                  isCompact ? "text-lg" : "text-2xl",
-                )}
-              >
-                {summary.availableCredit != null
-                  ? formatMxCurrencyWhole(summary.availableCredit)
-                  : "—"}
-              </p>
-              <p className="text-sm text-muted-foreground">{copy.available}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium tabular-nums">
-                {formatUtilizationPct(summary.utilizationPct)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {summary.creditLimit != null
-                  ? `de ${formatMxCurrencyWhole(summary.creditLimit)}`
-                  : copy.utilization}
-              </p>
-            </div>
+          <div className="space-y-0.5">
+            {showsOverLimit ? <p className={microLabelClass}>{copy.overLimit}</p> : null}
+            <p className={cn(amountClass, showsOverLimit && "text-destructive")}>
+              {heroAmount != null ? formatMxCurrency(heroAmount) : "—"}
+            </p>
           </div>
-          <Progress value={utilizationPercent} />
+
+          <Progress
+            value={utilizationPercent}
+            aria-label={copy.utilization}
+            indicatorClassName={getProgressIndicatorClass(summary.status)}
+          />
+
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {summary.creditLimit != null
+                ? copy.usedOfLimit(
+                    formatMxCurrency(summary.totalExposure),
+                    formatMxCurrency(summary.creditLimit),
+                  )
+                : `${copy.used} ${formatMxCurrency(summary.totalExposure)}`}
+            </span>
+            <span className="font-medium tabular-nums text-foreground">
+              {formatUtilizationPct(summary.utilizationPct)}
+            </span>
+          </div>
         </div>
 
         {showBreakdown ? (
           <div className="space-y-1">
-            <InfoRow
-              variant="inline"
-              label={copy.breakdown.invoiced}
-              value={
-                <span className="tabular-nums">
-                  {formatMxCurrency(summary.breakdown.invoiced)}{" "}
-                  <span className="text-muted-foreground">
-                    ({formatBreakdownShare(summary.breakdown.invoiced, summary.totalExposure)})
-                  </span>
-                </span>
-              }
-            />
-            <InfoRow
-              variant="inline"
-              label={copy.breakdown.unbilled}
-              value={
-                <span className="tabular-nums">
-                  {formatMxCurrency(summary.breakdown.unbilled)}{" "}
-                  <span className="text-muted-foreground">
-                    ({formatBreakdownShare(summary.breakdown.unbilled, summary.totalExposure)})
-                  </span>
-                </span>
-              }
-            />
-            <InfoRow
-              variant="inline"
-              label={copy.breakdown.pendingDraft}
-              value={
-                <span className="tabular-nums">
-                  {formatMxCurrency(summary.breakdown.pendingDraft)}{" "}
-                  <span className="text-muted-foreground">
-                    (
-                    {formatBreakdownShare(
-                      summary.breakdown.pendingDraft,
-                      summary.totalExposure,
-                    )}
-                    )
-                  </span>
-                </span>
-              }
-            />
+            <p className={microLabelClass}>{copy.breakdownTitle}</p>
+            {breakdownRows.map((row) => (
+              <InfoRow
+                key={row.key}
+                variant="inline"
+                label={row.label}
+                value={
+                  <span className="tabular-nums">{formatMxCurrency(row.amount)}</span>
+                }
+              />
+            ))}
           </div>
         ) : null}
 

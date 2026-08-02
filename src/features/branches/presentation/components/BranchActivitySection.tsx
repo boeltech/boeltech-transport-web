@@ -54,7 +54,7 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
 
   if (isLoading) {
     return (
-      <Card className="md:col-span-2">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
@@ -67,7 +67,7 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
   }
 
   return (
-    <Card className="md:col-span-2">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <History className="h-4 w-4" />

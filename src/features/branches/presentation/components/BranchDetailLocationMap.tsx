@@ -114,7 +114,7 @@ export function BranchDetailLocationMap({
         </Suspense>
       ) : (
         <Alert variant="info">
-          <AlertDescription>{mapCopy.noMapboxToken}</AlertDescription>
+          <AlertDescription>{mapCopy.mapUnavailable}</AlertDescription>
         </Alert>
       )}
 

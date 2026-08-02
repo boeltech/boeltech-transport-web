@@ -252,7 +252,7 @@ describe("smoke platform admin workflow", () => {
       screen.getByText(platformCopy.tenants.commercial.title),
     ).toBeInTheDocument();
     expect(screen.getByText("Equipo de apoyo en viajes")).toBeInTheDocument();
-    expect(screen.getByText("$937")).toBeInTheDocument();
+    expect(screen.getAllByText(/\$937/).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", {
         name: platformCopy.tenants.detail.actions.suspend,

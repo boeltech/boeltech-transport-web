@@ -2,19 +2,24 @@ import type { CreditExposureStatus } from "@features/clients/domain/entities";
 
 export const creditExposureCopy = {
   title: "Crédito disponible",
+  description: "Cuánto puede usar el cliente antes de llegar a su límite.",
   noCreditTerms: "Cliente de contado — sin crédito asignado",
   noLimit: "Sin límite definido",
   configureLimit: "Configurar límite",
-  available: "Monto disponible",
-  utilization: "Utilización",
+  overLimit: "Sobre el límite",
+  used: "Usado",
+  usedOfLimit: (usedLabel: string, limitLabel: string) =>
+    `Usado ${usedLabel} de ${limitLabel}`,
+  utilization: "Utilización del límite",
+  breakdownTitle: "En qué está usado",
   breakdown: {
-    invoiced: "Facturado",
-    unbilled: "Sin facturar",
-    pendingDraft: "Borrador",
+    invoiced: "Facturas por cobrar",
+    unbilled: "Viajes por facturar",
+    pendingDraft: "Facturas en borrador",
   },
-  nextDue: (dateLabel: string) => `Próx. vencimiento: ${dateLabel}`,
-  loading: "Calculando exposición de crédito…",
-  unavailable: "No se pudo cargar la exposición de crédito",
+  nextDue: (dateLabel: string) => `Próximo vencimiento: ${dateLabel}`,
+  loading: "Calculando crédito disponible…",
+  unavailable: "No se pudo cargar el crédito disponible",
   statusLabel: {
     no_credit_terms: "Contado",
     no_limit: "Sin límite",
@@ -34,9 +39,9 @@ export const creditExposureCopy = {
   alerts: {
     warnTitle: "Utilización alta de crédito",
     warnBody:
-      "El cliente ha consumido al menos el 80% de su límite. Revisa el desglose en Términos comerciales.",
+      "El cliente ha usado al menos el 80% de su límite. Revisa el detalle en Crédito disponible.",
     exceededTitle: "Cliente excede su límite de crédito",
     exceededBody:
-      "La exposición actual supera el límite autorizado. Revisa facturado, viajes sin facturar y borradores.",
+      "Lo usado supera el límite autorizado. Revisa facturas por cobrar, viajes por facturar y borradores.",
   },
 } as const;

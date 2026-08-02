@@ -16,6 +16,7 @@ import {
 } from "@features/trips/presentation/pages/create/components/validation";
 import { BillingSubscriptionPage } from "@features/billing/presentation/pages/BillingSubscriptionPage";
 import { billingCopy } from "@features/billing/presentation/copy/billingCopy";
+import { PROFITABILITY_LEVEL_COPY } from "@features/billing/presentation/copy/profitabilityLevelCopy";
 import { basicInfoCopy } from "@features/trips/presentation/copy/wizard/basicInfoCopy";
 import type {
   BillingEntitlements,
@@ -24,6 +25,7 @@ import type {
 } from "@features/billing/domain/entities";
 import { INTERNAL_STAFF_MODULE_CODE } from "@features/billing/domain/entities";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { PermissionProvider } from "@app/providers/PermissionProvider";
 
 const mockUseInternalStaffEntitlement = vi.fn();
 
@@ -184,9 +186,11 @@ function TestProviders({ children }: { children: ReactNode }) {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={0}>
-        <MemoryRouter>{children}</MemoryRouter>
-      </TooltipProvider>
+      <PermissionProvider>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>{children}</MemoryRouter>
+        </TooltipProvider>
+      </PermissionProvider>
     </QueryClientProvider>
   );
 }
@@ -245,17 +249,55 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       expect(screen.getAllByText("Operación Esencial").length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByText("Nivel de rentabilidad")).toBeInTheDocument();
-    expect(screen.getByText("L0")).toBeInTheDocument();
-    expect(screen.getAllByText(/45 de 120 timbres/).length).toBeGreaterThan(0);
+    // Nivel de rentabilidad: etiqueta comercial + código como identificador (D11).
+    expect(screen.getByText(billingCopy.modules.level.label)).toBeInTheDocument();
+    expect(screen.getByText("Margen operativo")).toBeInTheDocument();
+    expect(screen.getByText("Nivel L0")).toBeInTheDocument();
+    expect(
+      screen.getByText(PROFITABILITY_LEVEL_COPY.L0.includes),
+    ).toBeInTheDocument();
+
+    expect(screen.getAllByText(/45 de 120 timbres usados/).length).toBeGreaterThan(0);
     expect(screen.getByText("Equipo de apoyo en viajes")).toBeInTheDocument();
-    expect(screen.getByText(billingCopy.metrics.estimatedTotal)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.costs.totalLabel)).toBeInTheDocument();
     expect(screen.getAllByText(/\$937/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(billingCopy.commercial.title)).toBeInTheDocument();
-    expect(screen.getByText("Early Access")).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.modules.eaBadge)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: billingCopy.modules.level.profitabilityLink }),
+    ).toHaveAttribute("href", "/finance?tab=analysis&view=margin");
     expect(
       screen.getByRole("link", { name: billingCopy.contact.cta }),
     ).toHaveAttribute("href", "mailto:billing@boeltech.com");
+
+    // El precio del plan aparece una sola vez: ya no se duplica en KPIs (D3).
+    expect(screen.getAllByText("$749.00")).toHaveLength(1);
+  });
+
+  it("shows a single notice when stamps run out (D5)", async () => {
+    mockGetUsage.mockResolvedValue({
+      ...MOCK_USAGE,
+      stampsUsed: 120,
+      overageStamps: 4,
+      overageTotalCents: 2400,
+    });
+
+    render(
+      <TestProviders>
+        <BillingSubscriptionPage />
+      </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(billingCopy.notices.stampsExhausted.title),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByText(billingCopy.notices.stampsLow.title),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(billingCopy.stamps.overageTitle)).toBeInTheDocument();
   });
 
   it("shows paywall on support staff when entitlement is missing", async () => {

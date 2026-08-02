@@ -1,1 +1,5 @@
-export { TurnstileWidget, isTurnstileConfigured } from "./TurnstileWidget";
+export {
+  TurnstileWidget,
+  isTurnstileConfigured,
+  type TurnstileWidgetHandle,
+} from "./TurnstileWidget";

@@ -99,7 +99,7 @@ describe("BranchDetailLocationMap", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows mapbox token alert and coordinates text when token is missing", () => {
+  it("shows map unavailable message and coordinates text when token is missing", () => {
     mockMapboxToken.value = "";
 
     renderMap({
@@ -109,7 +109,7 @@ describe("BranchDetailLocationMap", () => {
     });
 
     expect(
-      screen.getByText(branchesCopy.detail.map.noMapboxToken),
+      screen.getByText(branchesCopy.detail.map.mapUnavailable),
     ).toBeInTheDocument();
     expect(
       screen.getByText(

@@ -3,12 +3,13 @@
  * Clean Architecture - Presentation Layer
  *
  * Detalle canónico: DetailPageShell con stats, alerts, tabs y metadata.
- * Layout alineado a VehicleDetailPage / DriverDetailPage / TripDetailPage.
+ * Tabs: Cliente · Contactos · Direcciones · Viajes.
+ * Crédito solo en bloque comercial + alerts de riesgo (sin StatCard).
  *
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
 
-import { useMemo, useState, type ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
 import {
   Building2,
@@ -17,20 +18,26 @@ import {
   Route,
   Receipt,
   Timer,
-  Wallet,
   CalendarDays,
 } from "lucide-react";
+import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
+import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
 
-import { useClient, useClientAddresses, useClientSummary, useClientCreditSummary } from "../../application";
-import type { Client, ClientSummary, ClientCreditSummary } from "../../domain";
+import {
+  useClient,
+  useClientAddresses,
+  useClientSummary,
+  useClientCreditSummary,
+} from "../../application";
+import type { ClientSummary } from "../../domain";
 import { getClientDisplayName } from "../../domain";
 import {
   ClientActions,
@@ -44,7 +51,6 @@ import { clientDetailCopy } from "../copy/clientDetailCopy";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
-  formatCreditLimit,
 } from "../config/clientConfig";
 import {
   ClientStatusBadge,
@@ -55,46 +61,31 @@ import {
   isCreditExposureUndefinable,
 } from "../helpers/clientDetailGuards";
 
+const TAB = {
+  client: "client",
+  contacts: "contacts",
+  addresses: "addresses",
+  trips: "trips",
+} as const;
+
+const CLIENT_DETAIL_TABS = [
+  TAB.client,
+  TAB.contacts,
+  TAB.addresses,
+  TAB.trips,
+] as const;
+
+const copy = clientDetailCopy;
+
 // ============================================================================
 // HELPERS
 // ============================================================================
 
 function buildClientStats(
-  client: Client,
   summary: ClientSummary | undefined,
   summaryLoading: boolean,
-  creditSummary: ClientCreditSummary | undefined,
-  creditSummaryLoading: boolean,
 ): StatCardProps[] {
-  let creditValue: string;
-  let creditDescription: string | undefined;
-  if (client.paymentTerms === "cash") {
-    creditValue = "N/A";
-    creditDescription = "Pago de contado";
-  } else if (creditSummaryLoading) {
-    creditValue = "…";
-    creditDescription = "Calculando exposición";
-  } else if (creditSummary?.status === "no_credit_terms") {
-    creditValue = "N/A";
-    creditDescription = "Pago de contado";
-  } else if (creditSummary?.status === "no_limit") {
-    creditValue = "Sin definir";
-    creditDescription = "Registra límite en edición";
-  } else if (creditSummary?.availableCredit != null) {
-    creditValue = formatMxCurrency(creditSummary.availableCredit);
-    creditDescription =
-      creditSummary.utilizationPct != null
-        ? `${Math.round(creditSummary.utilizationPct * 100)}% utilizado`
-        : "Disponible según límite";
-  } else if (client.creditLimit != null && client.creditLimit > 0) {
-    creditValue = formatCreditLimit(client.creditLimit);
-    creditDescription = "Límite autorizado";
-  } else {
-    creditValue = "Sin definir";
-    creditDescription = "Registra límite en edición";
-  }
-
-  const statsCopy = clientDetailCopy.stats;
+  const statsCopy = copy.stats;
 
   const lastTripValue = summaryLoading
     ? "…"
@@ -115,6 +106,10 @@ function buildClientStats(
       value: lastTripValue,
       tone: "neutral",
       icon: <CalendarDays className="h-5 w-5" />,
+      description:
+        !summaryLoading && !summary?.lastTripAt
+          ? statsCopy.lastTripEmpty
+          : undefined,
     },
     {
       title: statsCopy.revenue,
@@ -141,13 +136,6 @@ function buildClientStats(
           ? statsCopy.avgPaymentHint
           : statsCopy.noPayments,
     },
-    {
-      title: "Crédito disponible",
-      value: creditValue,
-      tone: "warning",
-      icon: <Wallet className="h-5 w-5" />,
-      description: creditDescription,
-    },
   ];
 }
 
@@ -167,7 +155,9 @@ export function ClientDetailPage() {
 
   const clientUnavailable = !client;
 
-  const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime);
+  const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime, {
+    format: "name",
+  });
 
   const addressQuery = useClientAddresses(clientId || undefined, {
     enabled: !!clientId && !clientUnavailable,
@@ -181,24 +171,15 @@ export function ClientDetailPage() {
     enabled: !!clientId && !clientUnavailable,
   });
 
-  const [activeTab, setActiveTab] = useState("informacion");
+  const { activeTab, setActiveTab } = useTabParam(
+    CLIENT_DETAIL_TABS,
+    TAB.client,
+  );
 
   const clientStats = useMemo((): StatCardProps[] => {
     if (!client) return [];
-    return buildClientStats(
-      client,
-      summaryQuery.data,
-      summaryQuery.isLoading,
-      creditSummaryQuery.data,
-      creditSummaryQuery.isLoading,
-    );
-  }, [
-    client,
-    summaryQuery.data,
-    summaryQuery.isLoading,
-    creditSummaryQuery.data,
-    creditSummaryQuery.isLoading,
-  ]);
+    return buildClientStats(summaryQuery.data, summaryQuery.isLoading);
+  }, [client, summaryQuery.data, summaryQuery.isLoading]);
 
   const clientAlerts = useMemo(() => {
     if (!client) return undefined;
@@ -217,13 +198,20 @@ export function ClientDetailPage() {
           key="no-addresses"
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
-          title="Sin direcciones registradas"
-          items={[
-            {
-              text: "Agrega al menos una dirección fiscal o de entrega en la pestaña Direcciones o desde Editar cliente.",
-            },
-          ]}
-        />,
+          title={copy.alerts.noAddresses.title}
+        >
+          <p>{copy.alerts.noAddresses.text}</p>
+          <div className="mt-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab(TAB.addresses)}
+            >
+              {copy.alerts.noAddresses.goToAddresses}
+            </Button>
+          </div>
+        </DetailAlertCard>,
       );
     }
 
@@ -233,12 +221,8 @@ export function ClientDetailPage() {
           key="rfc-suspicious"
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
-          title="RFC con formato inconsistente"
-          items={[
-            {
-              text: "Verifica longitud y caracteres del RFC según el tipo de persona (moral 12 · física 13).",
-            },
-          ]}
+          title={copy.alerts.rfcSuspicious.title}
+          items={[{ text: copy.alerts.rfcSuspicious.text }]}
         />,
       );
     }
@@ -249,12 +233,8 @@ export function ClientDetailPage() {
           key="credit-no-limit"
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
-          title="Crédito sin límite definido"
-          items={[
-            {
-              text: "El cliente está en crédito sin límite registrado. Define un monto para control de exposición.",
-            },
-          ]}
+          title={copy.alerts.creditNoLimit.title}
+          items={[{ text: copy.alerts.creditNoLimit.text }]}
         />,
       );
     } else if (creditSummary?.status === "warn") {
@@ -286,6 +266,7 @@ export function ClientDetailPage() {
     addressQuery.isSuccess,
     addressQuery.data,
     creditSummaryQuery.data,
+    setActiveTab,
   ]);
 
   if (isLoading) {
@@ -295,7 +276,7 @@ export function ClientDetailPage() {
         header={{
           backHref: "/clients",
           icon: <Building2 className="h-6 w-6" />,
-          title: "Cliente",
+          title: copy.title.fallback,
         }}
       />
     );
@@ -308,15 +289,15 @@ export function ClientDetailPage() {
         notFound
         notFoundConfig={{
           icon: <AlertCircle />,
-          title: "Cliente no encontrado",
-          description: "El cliente que buscas no existe o fue eliminado.",
+          title: copy.state.notFoundTitle,
+          description: copy.state.notFoundDescription,
           backHref: "/clients",
-          backLabel: "Volver a clientes",
+          backLabel: copy.state.backToList,
         }}
         header={{
           backHref: "/clients",
           icon: <Building2 className="h-6 w-6" />,
-          title: "Cliente",
+          title: copy.title.fallback,
         }}
       />
     );
@@ -355,18 +336,18 @@ export function ClientDetailPage() {
       alerts={clientAlerts}
       stats={clientStats}
       tabs={{
-        defaultValue: "informacion",
+        defaultValue: TAB.client,
         value: activeTab,
         onValueChange: setActiveTab,
         items: [
           {
-            value: "informacion",
-            label: "Información",
+            value: TAB.client,
+            label: copy.tabs.client,
             content: (
               <ClientDetailDataTab
                 client={client}
                 taxRegimeLabel={taxRegimeLabel}
-                onGoToContacts={() => setActiveTab("contacts")}
+                onGoToContacts={() => setActiveTab(TAB.contacts)}
                 commercialSection={
                   <ClientDetailCommercialTab
                     client={client}
@@ -378,13 +359,13 @@ export function ClientDetailPage() {
             ),
           },
           {
-            value: "contacts",
-            label: "Contactos",
+            value: TAB.contacts,
+            label: copy.tabs.contacts,
             content: <ClientContactsMasterDetail clientId={client.id} />,
           },
           {
-            value: "addresses",
-            label: "Direcciones",
+            value: TAB.addresses,
+            label: copy.tabs.addresses,
             content: (
               <ClientAddressMasterDetail
                 clientId={client.id}
@@ -394,8 +375,8 @@ export function ClientDetailPage() {
             ),
           },
           {
-            value: "history",
-            label: clientDetailCopy.history.tab,
+            value: TAB.trips,
+            label: copy.tabs.trips,
             content: <ClientTripHistoryTab clientId={client.id} />,
           },
         ],

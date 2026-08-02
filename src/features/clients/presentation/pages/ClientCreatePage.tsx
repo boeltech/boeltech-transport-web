@@ -11,6 +11,7 @@ import {
   WizardPageShell,
   type WizardFormRef,
 } from "@shared/ui/page-shells/WizardPageShell";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { cn } from "@shared/lib/utils/cn";
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { useCreateClient } from "../../application";
@@ -131,7 +132,7 @@ export function ClientCreatePage() {
         hasInlineSatErrors
           ? null
           : (satResult.errors[0]?.message ??
-              "No se pudo validar la direcciùn fiscal."),
+              "No se pudo validar la direcci\u00f3n fiscal."),
       );
       return false;
     }
@@ -264,9 +265,14 @@ export function ClientCreatePage() {
                 </p>
               ) : null}
               {currentStep === 1 && satValidationError ? (
-                <p className="mb-4 max-w-md text-sm text-destructive">
-                  {satValidationError}
-                </p>
+                <div className="mb-4 max-w-md">
+                  <AlertWithIcon
+                    variant="destructive"
+                    title={"Direcci\u00f3n incompleta"}
+                  >
+                    {satValidationError}
+                  </AlertWithIcon>
+                </div>
               ) : null}
 
               {currentStep === 1 && clientData ? (

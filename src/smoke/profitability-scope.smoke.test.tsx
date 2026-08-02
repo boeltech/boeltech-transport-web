@@ -1,5 +1,5 @@
 /**
- * Smoke — ADR-0050 Fase 3: scope en Rentabilidad (mock API).
+ * Smoke — ADR-0050 Fase 3: scope en Rentabilidad / Análisis › Margen (mock API).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -23,21 +23,6 @@ vi.mock("@features/finance/infrastructure/financeApi", () => ({
 vi.mock("@features/finance/presentation/components/ProfitabilityCharts", () => ({
   ProfitabilityCharts: () => <div data-testid="profitability-charts-stub" />,
 }));
-
-vi.mock("@features/finance/presentation/components/ProfitabilityBucketBar", () => ({
-  ProfitabilityBucketBar: () => (
-    <div data-testid="profitability-bucket-bar-stub">Composición financiera</div>
-  ),
-}));
-
-vi.mock(
-  "@features/finance/presentation/components/ProfitabilityDimensionBarList",
-  () => ({
-    ProfitabilityDimensionBarList: () => (
-      <div data-testid="profitability-barlist-stub" />
-    ),
-  }),
-);
 
 vi.mock(
   "@features/finance/presentation/components/ProfitabilityMasterDetailTable",
@@ -76,7 +61,7 @@ function renderTab() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <MemoryRouter initialEntries={["/finance?tab=profitability"]}>
+    <MemoryRouter initialEntries={["/finance?tab=analysis&view=margin"]}>
       <QueryClientProvider client={queryClient}>
         <ProfitabilityTab queriesEnabled />
       </QueryClientProvider>
@@ -92,27 +77,26 @@ describe("profitability scope smoke", () => {
     mockGetProfitabilityTrips.mockResolvedValue(operationalResponse());
   });
 
-  it("renders scope toolbar, operational KPIs, bucket bar and invariant context cards", async () => {
+  it("renders scope toolbar, operational KPIs and export without redundant context blocks", async () => {
     renderTab();
 
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: "Alcance" })).toBeInTheDocument();
-      expect(screen.getByText("Ingreso reconocido")).toBeInTheDocument();
-      expect(screen.getByText("Margen blended")).toBeInTheDocument();
+      expect(screen.getByText("Ingreso")).toBeInTheDocument();
+      expect(screen.getByText("Margen")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Composición financiera")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Exportar margen/i })).toBeInTheDocument();
+    expect(screen.queryByText("Composición financiera")).not.toBeInTheDocument();
     expect(
-      screen.getByText("Fuera de operación · no incluido en el margen"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("Pipeline proyectado").length).toBeGreaterThan(0);
-    expect(screen.getByText("Pérdida por cancelaciones")).toBeInTheDocument();
+      screen.queryByText("Fuera de operación · no incluido en el margen"),
+    ).not.toBeInTheDocument();
 
     const scopeCalls = mockGetProfitabilityTrips.mock.calls.map(
       (call) => (call[0] as { scope?: string }).scope,
     );
     expect(scopeCalls).toContain("operational");
-    expect(scopeCalls).toContain("all");
-    expect(scopeCalls).toContain("with_in_progress");
+    expect(scopeCalls).not.toContain("all");
+    expect(scopeCalls).not.toContain("with_in_progress");
   });
 });

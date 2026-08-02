@@ -6,7 +6,7 @@
  * Mantiene la nomenclatura simétrica con los demás page-shells y
  * permite que las páginas de Settings se importen desde un solo lugar.
  *
- * Chrome: header + breadcrumb + tabs horizontales de secciones tenant
+ * Chrome: header + breadcrumb + tabs horizontales canónicas (`RouteTabsNav`)
  * (+ slot main). `hideSidebar` / `hideNav` ocultan las tabs (p. ej. detalle).
  */
 
@@ -20,6 +20,12 @@ import { SettingsLayout } from "@features/settings/presentation/components/Setti
 export interface SettingsPageShellProps {
   /** Título de la sección actual (ej. "General", "Notificaciones"). */
   sectionTitle?: string;
+  /** Título de la página. Por defecto, "Configuración". */
+  title?: ReactNode;
+  /** Bajada de la página. Por defecto, la descripción genérica del módulo. */
+  description?: ReactNode;
+  /** Elemento a la izquierda del título (p. ej. logo de la empresa). */
+  headerSlot?: ReactNode;
   /** Oculta el sidebar / tabs (útil para detail pages dentro de Settings). */
   hideSidebar?: boolean;
   /** Contenido principal. */
@@ -33,6 +39,9 @@ export interface SettingsPageShellProps {
 
 export const SettingsPageShell = memo(function SettingsPageShell({
   sectionTitle,
+  title,
+  description,
+  headerSlot,
   hideSidebar,
   children,
   className,
@@ -40,6 +49,9 @@ export const SettingsPageShell = memo(function SettingsPageShell({
   return (
     <SettingsLayout
       sectionTitle={sectionTitle}
+      title={title}
+      description={description}
+      headerSlot={headerSlot}
       hideSidebar={hideSidebar}
       className={className}
     >

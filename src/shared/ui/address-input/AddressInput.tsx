@@ -211,14 +211,14 @@ function AddressSavedAddressesBlock<T extends FieldValues>({
 
   return (
     <div className="space-y-2">
-      <Label>Direccion guardada</Label>
+      <Label>Dirección guardada</Label>
       <Select
         value={selectedSavedAddress?.id ?? ""}
         onValueChange={handleSavedAddressSelection}
         disabled={disabled}
       >
         <SelectTrigger>
-          <SelectValue placeholder="Selecciona una direccion guardada" />
+          <SelectValue placeholder="Selecciona una dirección guardada" />
         </SelectTrigger>
         <SelectContent>
           {savedAddresses.map((item) => (
@@ -310,7 +310,7 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
 
       <div className="space-y-2">
         <Label htmlFor={`${namePrefix}-ext-number`}>
-          Numero exterior {requireStreetFields ? "*" : ""}
+          Número exterior {requireStreetFields ? "*" : ""}
         </Label>
         <Input
           id={`${namePrefix}-ext-number`}
@@ -330,7 +330,7 @@ function AddressInputStreetFieldsInner<T extends FieldValues>({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`${namePrefix}-int-number`}>Numero interior</Label>
+        <Label htmlFor={`${namePrefix}-int-number`}>Número interior</Label>
         <Input
           id={`${namePrefix}-int-number`}
           value={String(interiorField.field.value ?? "")}
@@ -713,7 +713,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         <div className="contents">
         <div className="space-y-2">
           <Label htmlFor={`${props.namePrefix}-postal-code`}>
-            Codigo postal{requiredMark(profileUx.requirePostalCode)}
+            Código postal{requiredMark(profileUx.requirePostalCode)}
           </Label>
           <Input
             id={`${props.namePrefix}-postal-code`}
@@ -760,7 +760,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
 
         <div className="space-y-2">
           <Label htmlFor={`${props.namePrefix}-country`}>
-            Pais{requiredMark(profileUx.requireCountry)}
+            País{requiredMark(profileUx.requireCountry)}
           </Label>
           <Select
             value={String(countryField.field.value ?? "MEX")}
@@ -768,7 +768,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             disabled={disabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecciona pais" />
+              <SelectValue placeholder="Selecciona país" />
             </SelectTrigger>
             <SelectContent>
               {countries.map((country) => (
@@ -890,7 +890,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
                   localityField.fieldState.error?.message,
                 )}
               >
-                <SelectValue placeholder="Selecciona localidad (catalogo SAT)" />
+                <SelectValue placeholder="Selecciona localidad (catálogo SAT)" />
               </SelectTrigger>
               <SelectContent>
                 {(postalLookup.data?.localities ?? []).map((locality) => (
@@ -956,7 +956,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
                   neighborhoodField.fieldState.error?.message,
                 )}
               >
-                <SelectValue placeholder="Selecciona colonia (catalogo SAT)" />
+                <SelectValue placeholder="Selecciona colonia (catálogo SAT)" />
               </SelectTrigger>
               <SelectContent>
                 {catalogNeighborhoodOptions.map((neighborhood) => (
@@ -1010,7 +1010,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         <Alert variant="warning">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            No se pudo consultar el catalogo SAT para el CP capturado.
+            No se pudo consultar el catálogo SAT para el CP capturado.
           </AlertDescription>
         </Alert>
       )}
@@ -1018,7 +1018,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       {postalLookup.isLoading && !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
-            Consultando catalogo SAT para el codigo postal...
+            Consultando catálogo SAT para el código postal...
           </AlertDescription>
         </Alert>
       )}
@@ -1029,7 +1029,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
-            Se encontraron multiples colonias para el CP. Selecciona la correcta.
+            Se encontraron múltiples colonias para el CP. Selecciona la correcta.
           </AlertDescription>
         </Alert>
       )}
@@ -1040,7 +1040,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         !hideInformativeAlerts && (
         <Alert variant="info">
           <AlertDescription>
-            Se encontraron multiples localidades para el CP. Selecciona la que
+            Se encontraron múltiples localidades para el CP. Selecciona la que
             corresponda.
           </AlertDescription>
         </Alert>
@@ -1055,7 +1055,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
             id={`${props.namePrefix}-is-primary`}
           />
           <Label htmlFor={`${props.namePrefix}-is-primary`}>
-            Marcar como direccion principal
+            Marcar como dirección principal
           </Label>
         </div>
       )}
@@ -1074,7 +1074,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left font-medium"
         disabled={disabled}
       >
-        <span>Direccion</span>
+        <span>Dirección</span>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         ) : (

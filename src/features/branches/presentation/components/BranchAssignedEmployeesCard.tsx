@@ -16,7 +16,7 @@ export function BranchAssignedEmployeesCard({
   const copy = branchesCopy.detail.employees;
 
   return (
-    <Card className="md:col-span-2">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between gap-2 text-base">
           <span className="flex items-center gap-2">

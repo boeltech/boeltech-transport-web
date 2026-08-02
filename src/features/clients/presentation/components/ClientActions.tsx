@@ -45,6 +45,7 @@ import {
   useDeactivateClient,
   useDeleteClient,
 } from "../../application";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 
 // ============================================================================
 // TYPES
@@ -353,12 +354,11 @@ function DeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {clientDetailCopy.actions.deleteTitle}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Se dará de baja a <strong>{clientName}</strong> (
-            <strong>borrado lógico</strong>). A diferencia de desactivar, deja
-            de mostrarse como cliente disponible en el listado y no podrás
-            seguir operando su ficha como hasta ahora.
+            {clientDetailCopy.actions.deleteDescription(clientName)}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

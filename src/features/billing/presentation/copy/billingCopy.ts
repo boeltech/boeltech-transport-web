@@ -1,204 +1,178 @@
 export const billingCopy = {
   page: {
     sectionTitle: "Plan y consumo",
-  },
-  hero: {
-    badge: "Tu suscripción",
-    title: "Consulta tu plan, módulos y timbres",
+    title: "Plan y consumo",
     description:
-      "Consulta el plan comercial activo de tu empresa, el consumo de timbres del periodo y los add-ons contratados.",
-    planFallback: "Plan comercial",
-    steps: [
-      {
-        title: "Plan y límites",
-        description: "Precio de lista, periodo de facturación y capacidad incluida.",
-      },
-      {
-        title: "Consumo de timbres",
-        description: "Uso del paquete fiscal del periodo y excedentes estimados.",
-      },
-      {
-        title: "Módulos contratados",
-        description: "Add-ons o packs adicionales activos en tu empresa.",
-      },
-    ],
-    stepPrefix: (step: number) => `${step}`,
+      "Qué incluye tu plan, cuántas facturas puedes emitir este mes y cuánto se estima que pagarás.",
   },
-  plan: {
-    title: "Detalle del plan",
-    description: "Condiciones comerciales y límites operativos de tu suscripción.",
-    loading: "Cargando plan…",
-    empty: {
-      title: "Sin suscripción activa",
+  /** Aviso único de la parte superior: se muestra solo el primero que aplique. */
+  notices: {
+    noPlan: {
+      title: "Tu empresa no tiene un plan activo",
       description:
-        "Tu empresa no tiene un plan operativo. No puedes crear viajes, facturar ni usar el resto del ERP hasta que Boeltech active o reactive tu suscripción.",
-      contactCta: "Contactar a Boeltech",
-      contactHint:
-        "Escribe a soporte o a tu ejecutivo comercial para asignar un plan. Mientras tanto puedes consultar esta página e iniciar sesión.",
+        "Sin un plan activo no puedes crear viajes ni facturar. Escríbenos para activarlo; entretanto puedes entrar y consultar esta página.",
     },
     blocked: {
-      title: "Operación pausada por suscripción",
+      title: "Tu plan está pausado",
       description:
-        "El plan de tu empresa está pausado o cancelado. Contacta a Boeltech para reactivar el acceso operativo.",
+        "Mientras esté pausado no puedes crear viajes ni facturar. Escríbenos para reactivarlo.",
     },
+    trialExhausted: {
+      title: "Se acabaron los timbres de tu prueba",
+      description: (included: number) =>
+        included === 1
+          ? "Usaste el único timbre de la prueba. Para seguir facturando hay que activar tu plan."
+          : `Usaste los ${included} timbres de la prueba. Para seguir facturando hay que activar tu plan.`,
+    },
+    trialEnded: {
+      title: "Tu prueba llegó a su fecha de fin",
+      description: (date: string) =>
+        `La fecha de fin registrada es ${date}. Si ya no puedes facturar, escríbenos para activar tu plan.`,
+    },
+    stampsExhausted: {
+      title: "Se acabaron los timbres del mes",
+      description: (runOutSentence: string) =>
+        runOutSentence ||
+        "Escríbenos para saber cómo seguir facturando este mes.",
+    },
+    stampsLow: {
+      title: "Te quedan pocos timbres este mes",
+      description: (remaining: number) =>
+        remaining === 1
+          ? "Te queda 1 timbre del paquete de tu plan."
+          : `Te quedan ${remaining} timbres del paquete de tu plan.`,
+    },
+    contactCta: "Escribir a Boeltech",
+  },
+  stamps: {
+    title: "Timbres para facturar",
+    description: "Cada factura o complemento de pago que emites usa un timbre.",
+    loading: "Cargando consumo…",
+    unavailable: "No pudimos mostrar tu consumo de timbres.",
+    summary: (used: number, included: number) =>
+      `${used} de ${included} timbres usados`,
+    remaining: (count: number) =>
+      count === 1
+        ? "Te queda 1 timbre este mes"
+        : `Te quedan ${count} timbres este mes`,
+    prepaidRemaining: (count: number) =>
+      count === 1
+        ? "Además tienes 1 timbre comprado aparte, sin fecha de vencimiento."
+        : `Además tienes ${count} timbres comprados aparte, sin fecha de vencimiento.`,
+    usedPercent: (percent: number) => `${percent}% usado`,
+    /** Qué pasa al agotar el paquete del plan, en una sola frase. */
+    runOut: {
+      soft_cap:
+        "Si se acaban, puedes seguir facturando y se cobra cada timbre extra.",
+      hard_cap:
+        "Si se acaban, la facturación se detiene hasta el siguiente periodo.",
+    } as Record<string, string>,
+    overageTitle: "Timbres extra usados",
+    overage: (stamps: number, amount: string) =>
+      stamps === 1
+        ? `1 timbre extra este mes · ${amount} estimado`
+        : `${stamps} timbres extra este mes · ${amount} estimado`,
+    history: {
+      showLabel: "Ver meses anteriores",
+      hideLabel: "Ocultar meses anteriores",
+      columns: {
+        period: "Mes",
+        used: "Timbres usados",
+        overage: "Extra",
+      },
+      none: "Sin extra",
+      mobileUsed: (used: number) =>
+        used === 1 ? "1 timbre usado" : `${used} timbres usados`,
+      mobileOverage: (count: number) =>
+        count === 1 ? "1 extra" : `${count} extra`,
+    },
+  },
+  plan: {
+    title: "Qué incluye tu plan",
+    description: "Capacidad y vigencia de tu plan actual.",
+    loading: "Cargando plan…",
+    empty: {
+      title: "Tu empresa no tiene un plan activo",
+      description:
+        "Cuando Boeltech active tu plan verás aquí su capacidad y su vigencia.",
+      contactCta: "Escribir a Boeltech",
+    },
+    planFallback: "Plan comercial",
     fields: {
-      plan: "Plan comercial",
-      status: "Estado",
-      cycle: "Ciclo de facturación",
-      price: "Precio de lista",
-      period: "Periodo actual",
-      profitabilityLevel: "Nivel de rentabilidad",
       users: "Usuarios incluidos",
       branches: "Sucursales incluidas",
-      historyRetention: "Retención de historial",
-      trial: "Fin de periodo de prueba",
-      notes: "Notas comerciales",
+      historyRetention: "Historial disponible",
+      period: "Periodo en curso",
+      trial: "Fin de la prueba",
+      notes: "Notas de tu acuerdo",
     },
     statusLabels: {
       trialing: "En prueba",
       active: "Activa",
-      past_due: "Vencida",
+      past_due: "Pago pendiente",
       paused: "Pausada",
       canceled: "Cancelada",
     } as Record<string, string>,
     cycleLabels: {
-      monthly: "Mensual",
-      annual: "Anual",
+      monthly: "cada mes",
+      annual: "cada año",
     } as Record<string, string>,
-    profitabilityHint:
-      "Indica el nivel de analítica de rentabilidad habilitado para tu tenant.",
-    trialQuotaHint:
-      "En periodo de prueba el cupo de timbres es 15, no el paquete completo del plan. Al activar la suscripción se restaura el cupo del plan.",
-    trialExhaustedTitle: "Cupo de prueba agotado",
-    trialExhaustedDescription:
-      "Usaste los 15 timbres de la prueba. El timbrado está bloqueado hasta que se active tu plan comercial.",
-    trialExpiredTitle: "Periodo de prueba vencido",
-    trialExpiredDescription:
-      "La fecha de fin de prueba ya pasó. El timbrado está bloqueado hasta que se active tu plan comercial.",
-    unlimited: "Ilimitado",
+    trialQuotaHint: (included: number) =>
+      included === 1
+        ? "Durante la prueba tienes 1 timbre; al activar tu plan se restaura el paquete completo."
+        : `Durante la prueba tienes ${included} timbres; al activar tu plan se restaura el paquete completo.`,
+    trialEndedHint: "La fecha de fin de prueba ya pasó.",
+    unlimited: "Sin límite",
     historyMonths: (months: number) =>
       months === 1 ? "1 mes" : `${months} meses`,
+    periodRange: (start: string, end: string) => `${start} — ${end}`,
   },
-  metrics: {
-    monthlyPrice: "Precio de lista del plan",
-    monthlyPriceHint: "Sin IVA · Solo el plan base",
-    monthlyPriceTooltip:
-      "Precio de lista mensual del plan comercial, sin add-ons, sin excedente de timbres y sin IVA.",
-    estimatedTotal: "Total estimado del periodo",
-    estimatedTotalHint: "Con IVA · Plan + módulos + excedente",
-    estimatedTotalTooltip:
-      "Estimación de lista del periodo actual (plan + add-ons + excedente de timbres + IVA). No sustituye tu CFDI; el cobro lo gestiona Boeltech.",
-    estimatedTotalLink: "Ver desglose en el resumen comercial",
-    users: "Usuarios incluidos",
-    branches: "Sucursales incluidas",
-    includedInPlan: "Incluidos en el plan",
-  },
-  stamps: {
-    title: "Consumo de timbres",
-    description:
-      "Los timbres se consumen al timbrar CFDI (facturas, complementos Carta Porte, REP, etc.) durante el periodo de facturación.",
-    loading: "Cargando consumo…",
-    unavailable: "Consumo de timbres no disponible.",
-    summary: (used: number, included: number) => `${used} de ${included} timbres`,
-    remaining: (count: number) =>
-      count === 1 ? "1 timbre disponible" : `${count} timbres disponibles`,
-    prepaidRemaining: (count: number) =>
-      count === 1
-        ? "1 timbre prepago disponible (sin caducidad)"
-        : `${count} timbres prepago disponibles (sin caducidad)`,
-    usedPercent: (percent: number) => `${percent}% del paquete usado`,
-    quotaPolicy: "Política de excedente",
-    quotaPolicyLabels: {
-      soft_cap: "Tope flexible",
-      hard_cap: "Tope estricto",
-    } as Record<string, string>,
-    quotaPolicyDescriptions: {
-      soft_cap:
-        "Puedes superar el paquete incluido; el excedente se factura por timbre adicional.",
-      hard_cap:
-        "Al agotar el paquete incluido, el timbrado se detiene hasta el siguiente periodo.",
-    } as Record<string, string>,
-    overageTitle: "Excedente del periodo",
-    overage: (stamps: number, amount: string) =>
-      `${stamps} timbre${stamps === 1 ? "" : "s"} fuera del paquete (${amount} estimado)`,
-    historyTitle: "Periodos recientes",
-    historyDescription: "Consumo de timbres en los últimos ciclos de facturación.",
-    historyColumns: {
-      period: "Periodo",
-      used: "Usados",
-      overage: "Excedente",
+  costs: {
+    title: "Cuánto pagarás este mes",
+    description: "Estimación del periodo en curso.",
+    loading: "Cargando el desglose…",
+    unavailable: "No pudimos mostrar el desglose de tu mes.",
+    totalLabel: "Estimado a pagar este mes",
+    totalHint: "IVA incluido",
+    cycleHint: (cycle: string) => `Se cobra ${cycle}`,
+    rows: {
+      plan: "Precio del plan",
+      modules: "Módulos adicionales",
+      overage: "Timbres extra",
+      subtotal: "Subtotal",
+      iva: "IVA (16%)",
     },
-    historyNone: "Sin excedente",
-    usageAlerts: {
-      watch: {
-        title: "Consumo en seguimiento (70%)",
-        description: (remaining: number) =>
-          remaining <= 0
-            ? "Ya alcanzaste el umbral de seguimiento del paquete incluido."
-            : `Llevas ≥70% del paquete. Te quedan ${remaining} timbre${remaining === 1 ? "" : "s"} en el periodo.`,
-      },
-      warning: {
-        title: "Paquete casi agotado (80%)",
-        description: (remaining: number) =>
-          remaining <= 0
-            ? "Agotaste el paquete incluido. Revisa la política de excedente o contacta a facturación."
-            : `Te quedan ${remaining} timbre${remaining === 1 ? "" : "s"} del paquete incluido.`,
-      },
-      exhausted: {
-        title: "Paquete agotado (100%)",
-        description:
-          "Consumiste el 100% de los timbres incluidos. Con tope flexible puedes seguir timbrando; el excedente se factura por timbre adicional.",
-      },
-    },
+    disclaimer:
+      "Es una estimación. Boeltech te enviará la factura del periodo.",
   },
   modules: {
-    title: "Módulos contratados",
+    title: "Módulos adicionales",
     description:
-      "Add-ons y packs adicionales activos. Los módulos base de operación vienen incluidos en tu plan comercial.",
+      "Los módulos de operación vienen en tu plan. Aquí ves lo que contrataste además.",
     loading: "Cargando módulos…",
     empty: {
-      title: "Sin add-ons adicionales",
+      title: "Sin módulos adicionales",
       description: (planName: string) =>
         planName
-          ? `Tu plan ${planName} incluye los módulos operativos base. Aquí aparecerán los add-ons que contrates.`
-          : "Tu plan incluye los módulos operativos base. Aquí aparecerán los add-ons que contrates.",
+          ? `Tu plan ${planName} incluye los módulos de operación. Aquí aparecerán los que contrates después.`
+          : "Tu plan incluye los módulos de operación. Aquí aparecerán los que contrates después.",
     },
-    kindLabels: {
-      addon: "Add-on",
-      pack: "Paquete",
-      minipack: "Mini-pack",
-      module: "Módulo",
-    } as Record<string, string>,
+    eaBadge: "Versión anticipada",
     pricePerMonth: (amount: string) => `${amount}/mes`,
-    eaBadge: "Early Access",
     includesMembers: (count: number) =>
       count === 1 ? "Incluye 1 módulo" : `Incluye ${count} módulos`,
     activatedAt: (date: string) => `Activo desde ${date}`,
-    statusLabels: {
-      active: "Activo",
-      inactive: "Inactivo",
-    } as Record<string, string>,
-  },
-  commercial: {
-    title: "Resumen comercial estimado",
-    description:
-      "Desglose del precio de lista: plan, módulos contratados, excedente de timbres e IVA del periodo actual.",
-    disclaimer:
-      "Montos de lista estimados. La facturación y el cobro los gestiona Boeltech; este resumen no sustituye tu CFDI.",
-    totals: {
-      plan: "Plan Operación",
-      modules: "Add-ons y packs",
-      overage: "Excedente de timbres",
-      subtotal: "Subtotal estimado",
-      iva: "IVA (16%)",
-      estimatedTotal: "Total estimado (con IVA)",
+    level: {
+      label: "Análisis de rentabilidad",
+      badge: (code: string) => `Nivel ${code}`,
+      profitabilityLink: "Ver rentabilidad de tus viajes",
     },
   },
   contact: {
     title: "¿Necesitas cambiar de plan?",
     description:
-      "Para contratar módulos, ampliar tu paquete de timbres o resolver dudas de facturación, escribe a nuestro equipo comercial.",
-    cta: "Contactar facturación",
+      "Escríbenos para contratar módulos, ampliar tu paquete de timbres o resolver dudas de cobro.",
+    cta: "Contactar a Boeltech",
     email: "billing@boeltech.com",
   },
 } as const;

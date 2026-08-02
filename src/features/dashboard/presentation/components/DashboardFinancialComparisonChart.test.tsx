@@ -53,7 +53,7 @@ describe("DashboardFinancialComparisonChart", () => {
     });
     expect(link).toHaveAttribute(
       "href",
-      "/finance/approvals?status=pending&type=trip_expense",
+      "/finance?tab=approvals&status=pending&type=trip_expense",
     );
   });
 

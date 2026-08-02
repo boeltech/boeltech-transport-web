@@ -383,19 +383,34 @@ describe("branches workflow smoke", () => {
       expect(screen.getByRole("heading", { name: "Sucursal Secundaria" })).toBeInTheDocument();
     });
 
+    // Tab Resumen (por defecto, sin ?tab= en la URL)
     expect(screen.getByText(branchesCopy.detail.cards.address)).toBeInTheDocument();
-    expect(screen.getByText(branchesCopy.detail.cards.employees)).toBeInTheDocument();
-    expect(screen.getByText(branchesCopy.detail.cards.vehicles)).toBeInTheDocument();
     expect(screen.getByText(branchesCopy.detail.map.confirmedLabel)).toBeInTheDocument();
     expect(await screen.findByTestId("branch-location-map")).toBeInTheDocument();
-    expect(screen.getByText(branchesCopy.detail.activity.title)).toBeInTheDocument();
-    expect(screen.getByText("Sucursal actualizada")).toBeInTheDocument();
+
+    // Tab Equipo y flota: asignaciones
+    await user.click(
+      screen.getByRole("tab", { name: branchesCopy.detail.tabs.team }),
+    );
+    expect(
+      await screen.findByText(branchesCopy.detail.cards.employees),
+    ).toBeInTheDocument();
+    expect(screen.getByText(branchesCopy.detail.cards.vehicles)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: branchesCopy.detail.employees.viewEmployee }),
     ).toHaveAttribute("href", `/employees/${BRANCH_TEST_IDS.employee}`);
     expect(
       screen.getByRole("link", { name: branchesCopy.detail.vehicles.viewVehicle }),
     ).toHaveAttribute("href", `/vehicles/${BRANCH_TEST_IDS.vehicle}`);
+
+    // Tab Historial: bitácora de cambios
+    await user.click(
+      screen.getByRole("tab", { name: branchesCopy.detail.tabs.history }),
+    );
+    expect(
+      await screen.findByText(branchesCopy.detail.activity.title),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Sucursal actualizada")).toBeInTheDocument();
   });
 
   it("shows geolocation placeholder on detail when coordinates are pending", async () => {

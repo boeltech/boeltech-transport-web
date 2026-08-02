@@ -1,7 +1,7 @@
 export { AddressPicker } from "./AddressPicker";
 export type { AddressPickerProps } from "./AddressPicker";
 
-export { useAddressSearch, isAddressSearchQueryReady } from "./useAddressSearch";
+export { useAddressSearch, isAddressSearchQueryReady, isAddressSearchFilterActive } from "./useAddressSearch";
 export type { UseAddressSearchOptions } from "./useAddressSearch";
 
 export { searchAddresses } from "./addressSearchApi";

@@ -8,12 +8,15 @@ interface BranchOverQuotaBannerProps {
   meta?: BranchListMeta;
   canReconcile?: boolean;
   onReconcile?: () => void;
+  /** Oculta el enlace a Plan y consumo cuando el banner ya se muestra ahí. */
+  hideBillingLink?: boolean;
 }
 
 export function BranchOverQuotaBanner({
   meta,
   canReconcile = false,
   onReconcile,
+  hideBillingLink = false,
 }: BranchOverQuotaBannerProps) {
   if (!meta?.overQuota || meta.maxBranches === null) {
     return null;
@@ -36,9 +39,11 @@ export function BranchOverQuotaBanner({
               {copy.adjustAction}
             </Button>
           ) : null}
-          <Button type="button" size="sm" variant="outline" asChild>
-            <Link to="/settings/subscription">{copy.billingHint}</Link>
-          </Button>
+          {hideBillingLink ? null : (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to="/settings/subscription">{copy.billingHint}</Link>
+            </Button>
+          )}
         </div>
       </div>
     </AlertWithIcon>

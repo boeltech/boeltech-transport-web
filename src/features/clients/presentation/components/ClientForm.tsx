@@ -45,7 +45,8 @@ import {
   type Client,
 } from "../../domain";
 import {
-  clientFormSchema,
+  createClientFormSchema,
+  updateClientFormSchema,
   clientToFormValues,
   defaultClientFormValues,
   type ClientFormData,
@@ -141,6 +142,8 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   ) {
   const { toast } = useToast();
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  /** Wizard (onChange sin footer): validación solo inline/summary, sin toast. */
+  const isWizardMode = Boolean(onChange) && !onSubmit;
 
   /**
    * En edición el contenedor monta el formulario solo cuando `client` existe.
@@ -154,9 +157,12 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     return { ...defaultClientFormValues, ...defaultValues };
   }, [mode, client, defaultValues]);
 
+  const activeSchema =
+    mode === "edit" ? updateClientFormSchema : createClientFormSchema;
+
   const form = useForm<ClientFormData, unknown, ClientFormData>({
     // Schema del paquete (Zod 4); @hookform/resolvers tipa Zod 3 — cast acotado al formulario.
-    resolver: zodResolver(clientFormSchema as never) as Resolver<ClientFormData>,
+    resolver: zodResolver(activeSchema as never) as Resolver<ClientFormData>,
     defaultValues: initialFormValues,
     mode: "onChange",
   });
@@ -202,13 +208,14 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     (fieldErrors: FieldErrors<ClientFormData>) => {
       setShowValidationSummary(true);
       void trigger(undefined, { shouldFocus: true });
+      if (isWizardMode) return;
       toast({
         title: "Revisa el formulario",
         description: formatFormValidationToastDescription(fieldErrors),
         variant: "destructive",
       });
     },
-    [toast, trigger],
+    [isWizardMode, toast, trigger],
   );
 
   const handleValidSubmit = useCallback(
@@ -292,7 +299,14 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="tradeName">Nombre Comercial</Label>
-          <Input id="tradeName" disabled={disabled} {...register("tradeName")} />
+          <Input
+            id="tradeName"
+            disabled={disabled}
+            error={Boolean(errors.tradeName)}
+            {...register("tradeName")}
+            {...getFieldErrorAriaProps("tradeName", errors.tradeName?.message)}
+          />
+          <FieldInlineError fieldId="tradeName" message={errors.tradeName?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="taxId">
@@ -374,27 +388,55 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <Input
             id="contactName"
             disabled={disabled}
+            error={Boolean(errors.contactName)}
             {...register("contactName")}
+            {...getFieldErrorAriaProps("contactName", errors.contactName?.message)}
           />
+          <FieldInlineError fieldId="contactName" message={errors.contactName?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="contactPosition">Puesto</Label>
           <Input
             id="contactPosition"
             disabled={disabled}
+            error={Boolean(errors.contactPosition)}
             {...register("contactPosition")}
+            {...getFieldErrorAriaProps(
+              "contactPosition",
+              errors.contactPosition?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="contactPosition"
+            message={errors.contactPosition?.message}
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Teléfono</Label>
-          <Input id="phone" disabled={disabled} {...register("phone")} />
+          <Input
+            id="phone"
+            disabled={disabled}
+            error={Boolean(errors.phone)}
+            {...register("phone")}
+            {...getFieldErrorAriaProps("phone", errors.phone?.message)}
+          />
+          <FieldInlineError fieldId="phone" message={errors.phone?.message} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="secondaryPhone">Teléfono Secundario</Label>
           <Input
             id="secondaryPhone"
             disabled={disabled}
+            error={Boolean(errors.secondaryPhone)}
             {...register("secondaryPhone")}
+            {...getFieldErrorAriaProps(
+              "secondaryPhone",
+              errors.secondaryPhone?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="secondaryPhone"
+            message={errors.secondaryPhone?.message}
           />
         </div>
         <div className="space-y-2">

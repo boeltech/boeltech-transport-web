@@ -20,12 +20,6 @@ vi.mock("@features/dashboard/application/hooks/useBranchKpisTrend", () => ({
   useBranchKpisTrend: (...args: unknown[]) => mockUseBranchKpisTrend(...args),
 }));
 
-vi.mock("@/features/auth", () => ({
-  useAuth: () => ({
-    user: { role: "admin" },
-  }),
-}));
-
 function renderCard(branchId = "11111111-1111-4111-8111-111111111111") {
   const client = new QueryClient();
   return render(
@@ -56,7 +50,7 @@ const trendFixture = {
 };
 
 describe("BranchOperationalKpiCard", () => {
-  it("muestra métricas de la sucursal y CTA comparar", () => {
+  it("muestra período, CTAs y tendencia sin repetir totales", () => {
     mockUseBranchKpis.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -89,7 +83,12 @@ describe("BranchOperationalKpiCard", () => {
     renderCard();
 
     expect(screen.getByText(branchesCopy.detail.kpis.title)).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(
+      screen.getByText(branchesCopy.detail.kpis.periodLabel("Mes actual")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(branchesCopy.detail.kpis.periodHint),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: branchesCopy.detail.kpis.compareCta }),
     ).toHaveAttribute(
@@ -97,8 +96,15 @@ describe("BranchOperationalKpiCard", () => {
       "/dashboard?compareBranches=11111111-1111-4111-8111-111111111111",
     );
     expect(
+      screen.getByRole("link", { name: branchesCopy.detail.kpis.viewTrips }),
+    ).toHaveAttribute(
+      "href",
+      "/trips?originBranchId=11111111-1111-4111-8111-111111111111",
+    );
+    expect(
       screen.getByText(branchesCopy.detail.kpis.trend.title),
     ).toBeInTheDocument();
+    expect(screen.queryByText("4")).not.toBeInTheDocument();
   });
 
   it("pasa period last_90 al hook al cambiar selector", async () => {

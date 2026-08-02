@@ -23,9 +23,12 @@ export const notificationsApi = {
     return mapListNotificationsResponse(response);
   },
 
-  getUnreadCount: async (): Promise<number> => {
+  getUnreadCount: async (options?: { force?: boolean }): Promise<number> => {
     const response = await apiClient.get<{ data: { count: number } }>(
       `${NOTIFICATIONS_ENDPOINT}/unread-count`,
+      {
+        params: options?.force ? { force: "true" } : undefined,
+      },
     );
     return response.data.count;
   },

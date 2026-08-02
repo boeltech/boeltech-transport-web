@@ -1,6 +1,6 @@
 export const dashboardCopy = {
   page: {
-    subtitle: "Resumen de operación y finanzas",
+    subtitle: "Scorecard del mes: margen, cobranza y operación",
     refresh: "Actualizar",
     error: {
       title: "No se pudieron cargar los datos del dashboard.",
@@ -22,6 +22,28 @@ export const dashboardCopy = {
     selectRole: "Rol",
     saveRoleLayout: "Guardar layout del rol",
   },
+  scorecard: {
+    title: "Scorecard del mes",
+    description: "Margen y cobranza del mes en curso",
+    ariaLabel: "Scorecard financiero del mes",
+    margin: {
+      title: "Margen actual",
+      subtitle: "Viajes completados del mes",
+    },
+    collected: {
+      title: "Cobrado este mes",
+      subtitle: "Pagos registrados en el periodo",
+    },
+    receivable: {
+      title: "Por cobrar",
+      subtitle: "Facturas con saldo pendiente",
+    },
+    overdue: {
+      title: "Vencido",
+      subtitle: "Saldo con pago atrasado",
+    },
+  },
+  /** @deprecated Prefer scorecard.*; kept for any residual references */
   metrics: {
     baseRate: {
       title: "Tarifa base (mes)",
@@ -38,8 +60,8 @@ export const dashboardCopy = {
     },
   },
   operationsSnapshot: {
-    title: "Actualización operativa",
-    description: "Resumen del mes en curso",
+    title: "Operación del mes",
+    description: "Actividad operativa del mes en curso",
     metrics: {
       inProgress: "Viajes en curso",
       completedThisMonth: "Completados (mes)",
@@ -170,6 +192,15 @@ export const dashboardCopy = {
     description: "Ingresos y costos presupuestados vs reales por mes (viajes completados)",
     ariaLabel: "Gráfico de barras: tendencia mensual plan vs real",
     monthsOption: (months: number) => `${months}m`,
+  },
+  vehicleExpenses: {
+    title: "Unidades con más gasto",
+    description: "Top 5 por gastos de viaje aprobados del mes en curso",
+    ariaLabel: "Ranking de unidades con mayor gasto operativo aprobado",
+    viewAnalysis: "Ver análisis",
+    emptyTitle: "Sin gastos aprobados este mes",
+    emptyDescription:
+      "El ranking aparecerá cuando existan gastos de viaje aprobados y asociados a una unidad.",
   },
   branchKpis: {
     title: "KPIs por sucursal",

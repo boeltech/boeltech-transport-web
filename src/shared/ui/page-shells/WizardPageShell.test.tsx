@@ -20,9 +20,11 @@ vi.mock("@shared/hooks", async () => {
 function renderWizard({
   validateStep,
   onSubmit,
+  initialStep,
 }: {
   validateStep: (stepIndex: number) => Promise<boolean>;
   onSubmit?: () => void;
+  initialStep?: number;
 }) {
   const formRef = createRef<WizardFormRef>();
   formRef.current = {
@@ -45,6 +47,7 @@ function renderWizard({
         )}
         isSubmitting={false}
         submitLabel="Guardar"
+        initialStep={initialStep}
       />
     </MemoryRouter>,
   );
@@ -59,6 +62,14 @@ describe("WizardPageShell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  });
+
+  it("abre en initialStep cuando se pasa (deep-link)", () => {
+    renderWizard({
+      validateStep: vi.fn().mockResolvedValue(true),
+      initialStep: 1,
+    });
+    expect(screen.getByText("Contenido paso 2")).toBeInTheDocument();
   });
 
   it("no dispara toast al fallar la validación al avanzar", async () => {

@@ -14,7 +14,7 @@ export const branchesCopy = {
     description: (active: number, max: number) =>
       `Tienes ${active} sucursal(es) activa(s) y tu plan incluye ${max}. Debes consolidar sucursales o mejorar tu plan para seguir asignando empleados a todas.`,
     adjustAction: "Ajustar sucursales al plan",
-    billingHint: "Revisa tu plan comercial en Suscripción.",
+    billingHint: "Revisa tu plan en Plan y consumo.",
     reconcileSuccess: "Sucursales ajustadas al plan",
     reconcileError: "No se pudo ajustar las sucursales al plan",
     sheet: {
@@ -144,13 +144,17 @@ export const branchesCopy = {
       description: "No se encontró la sucursal solicitada.",
       backLabel: "Volver a sucursales",
     },
+    tabs: {
+      summary: "Resumen",
+      team: "Equipo y flota",
+      performance: "Desempeño",
+      history: "Historial",
+    },
     stats: {
-      isMain: "Tipo",
-      isMainYes: "Principal",
-      isMainNo: "Secundaria",
-      operationalStatus: "Estado",
-      active: "Activa",
-      inactive: "Inactiva",
+      margin: "Margen",
+      trips: "Viajes",
+      inProgress: "En curso",
+      completed: "Completados",
     },
     cards: {
       contact: "Contacto",
@@ -182,11 +186,11 @@ export const branchesCopy = {
     map: {
       title: "Ubicación en mapa",
       confirmedLabel: "Ubicación confirmada",
-      noCoordinates: "Sin coordenadas registradas",
+      noCoordinates: "Sin ubicación en mapa",
       noCoordinatesHint:
-        "Completa la geolocalización en la edición de la sucursal.",
-      noMapboxToken:
-        "Configura VITE_MAPBOX_PUBLIC_TOKEN para habilitar el mapa interactivo.",
+        "Indica el punto en el mapa al editar la sucursal.",
+      mapUnavailable:
+        "El mapa interactivo no está disponible. Puedes abrir la ubicación en un mapa externo.",
       completeLocationCta: "Completar ubicación",
       openExternal: "Abrir en mapa",
     },
@@ -194,7 +198,7 @@ export const branchesCopy = {
       title: "Historial de cambios",
       empty:
         "Aún no hay eventos registrados. Los cambios (alta, edición, baja y restauración) aparecerán aquí.",
-      syntheticHint: "Registro inferido de datos de auditoría",
+      syntheticHint: "Registro estimado a partir de la fecha de alta o edición",
       loadMore: "Cargar más",
       refresh: "Actualizar historial",
       error: "No se pudo cargar el historial de la sucursal.",
@@ -208,17 +212,15 @@ export const branchesCopy = {
         title: "Sin contacto",
         text: "No hay teléfono ni correo registrados.",
       },
-      geolocationPending: {
-        title: "Geolocalización pendiente",
-        text: "Faltan coordenadas en el mapa.",
-      },
     },
     kpis: {
       title: "Desempeño operativo",
-      compareCta: "Comparar en dashboard",
+      compareCta: "Comparar en panel",
       periodLabel: (label: string) => `Período: ${label}`,
+      periodHint:
+        "Cambia el período, revisa la tendencia o abre los viajes de esta sucursal.",
       loading: "Cargando indicadores…",
-      error: "No se pudieron cargar los KPIs de la sucursal.",
+      error: "No se pudieron cargar los indicadores de la sucursal.",
       viewTrips: "Ver viajes",
       metrics: {
         tripsMonth: "Viajes",
@@ -229,8 +231,8 @@ export const branchesCopy = {
         margin: "Margen",
       },
       trend: {
-        title: "Tendencia multi-mes",
-        description: "Viajes completados por mes calendario",
+        title: "Tendencia por mes",
+        description: "Viajes completados por mes",
         empty: "Sin viajes completados en el rango seleccionado.",
       },
     },

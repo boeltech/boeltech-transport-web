@@ -16,6 +16,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import type { ClientAddressListItem as ClientAddressListItemEntity } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 
 // ============================================================================
 // TYPES
@@ -90,17 +91,17 @@ export function ClientAddressListRow({
             </Badge>
             {address.isPrimary ? (
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                Principal
+                {clientDetailCopy.address.primary}
               </Badge>
             ) : null}
             {!address.isActive ? (
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                Inactiva
+                {clientDetailCopy.address.inactive}
               </Badge>
             ) : null}
             {address.geolocationPending ? (
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                Geo pendiente
+                {clientDetailCopy.address.geoPending}
               </Badge>
             ) : null}
           </div>

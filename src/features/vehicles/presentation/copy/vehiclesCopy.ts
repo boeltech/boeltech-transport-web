@@ -1,6 +1,6 @@
 /**
  * Namespace: vehicles.copy.detail.*
- * Copy del detalle de vehículo (header, KPIs, tabs, alertas).
+ * Copy del detalle de vehículo (header, capacidades, tabs, alertas).
  */
 export const vehiclesCopy = {
   detail: {
@@ -10,14 +10,14 @@ export const vehiclesCopy = {
     state: {
       notFoundTitle: "Vehículo no encontrado",
       notFoundDescription:
-        "La unidad que buscas no existe o fue eliminada del catálogo.",
+        "La unidad que buscas no existe o fue eliminada de flota.",
       backToList: "Volver a vehículos",
-      inactiveRegistration: "Registro inactivo en el ERP",
+      inactiveRegistration: "Unidad inactiva",
     },
     stat: {
       mileage: {
         title: "Odómetro",
-        description: "Kilometraje registrado en sistema",
+        description: "Kilometraje actual de la unidad",
       },
       load: {
         title: "Carga útil",
@@ -36,9 +36,8 @@ export const vehiclesCopy = {
       },
     },
     tab: {
-      summary: "Resumen",
+      unit: "Unidad",
       documents: "Documentos",
-      maintenance: "Mantenimiento",
     },
     alert: {
       documentsExpiredTitle: "Documentos vencidos",
@@ -52,70 +51,59 @@ export const vehiclesCopy = {
       unitData: {
         title: "Datos de la unidad",
         description:
-          "Identificación operativa y especificaciones registradas en el catálogo.",
-        groupIdentification: "Identificación",
-        groupSpecs: "Especificaciones",
+          "Información complementaria a la identificación del encabezado.",
       },
-      registry: {
-        title: "Registro en el ERP",
-        description: "Estado operativo y fechas de alta y última modificación.",
-      },
-      cartaPorte: {
-        title: "Carta Porte 3.1 — Autotransporte",
+      operationalExpenses: {
+        title: "Gasto operativo del mes",
         description:
-          "Valores base del complemento SAT; la operación puede ajustarlos por viaje.",
-        groupSat: "Permisos e identificación SAT",
+          "Gastos de viaje aprobados asociados a esta unidad en el mes en curso.",
+        trips: (count: number) =>
+          `${count} viaje${count === 1 ? "" : "s"} con gasto aprobado`,
+        empty: "Sin gastos aprobados en el periodo.",
+        viewAnalysis: "Ver análisis de gastos",
+      },
+      permitConfig: {
+        title: "Permiso y configuración",
+        description:
+          "Datos base de la unidad para operación en ruta; pueden ajustarse por viaje.",
+        groupPermit: "Permiso y configuración",
         groupTrailers: "Remolques",
-        groupInsurance: "Seguros del autotransporte",
-        optionalInsuranceTitle: "Seguros opcionales",
+        groupOptionalInsurance: "Seguros adicionales",
         optionalInsuranceHint:
-          "Predeterminados del vehículo; pueden variar por viaje o carga.",
+          "Valores predeterminados de la unidad; pueden variar por viaje.",
         cargoInsuranceFootnote:
           "El seguro de mercancía se captura por carga en el viaje, no en el vehículo.",
       },
       documents: {
         title: "Documentación vigente",
         description:
-          "Póliza de responsabilidad civil y permiso SCT. Los vencimientos se resaltan arriba.",
-      },
-      attachments: {
-        title: "Expediente digital",
-        description:
-          "La carga centralizada de archivos estará disponible en una versión posterior.",
-        badge: "Próximamente",
-      },
-      maintenance: {
-        title: "Mantenimiento y servicio",
-        description:
-          "Registra órdenes de trabajo, kilometraje al servicio y documentos del taller.",
-        badge: "Próximamente",
+          "Seguro de responsabilidad civil y permiso SCT. Los vencimientos se resaltan arriba.",
+        groupRc: "Responsabilidad civil",
+        groupSct: "Permiso SCT",
       },
     },
     label: {
-      unitNumber: "Número de unidad",
-      licensePlate: "Placa",
       vin: "VIN",
-      vehicleType: "Tipo de vehículo",
       color: "Color",
-      brand: "Marca",
-      model: "Modelo",
-      year: "Año modelo",
       volumeCapacity: "Volumen útil",
       baseBranch: "Sucursal base",
-      operationalStatus: "Estado operativo",
-      registryStatus: "Registro",
-      createdAt: "Alta en sistema",
-      updatedAt: "Última actualización",
+      tipoPermiso: "Tipo de permiso SCT",
+      configVehicular: "Configuración vehicular",
+      pesoBruto: "Peso bruto vehicular",
+      trailerSubtype: "Tipo de remolque",
+      trailerPlate: "Placa",
       trailerPosition: (position: number) => `Remolque ${position}`,
-      efficiencyUnit: "km/L",
-      loadUnit: "t",
-      fuelUnit: "L",
-      mileageUnit: "km",
+      insuranceCompany: "Aseguradora RC",
+      insurancePolicy: "Póliza RC",
+      sctPermitNumber: "Número de permiso SCT",
+      aseguraMedioAmbiente: "Aseguradora medio ambiente",
+      polizaMedioAmbiente: "Póliza medio ambiente",
     },
     hint: {
       empty: "Sin registrar",
       emptyOptional: "No especificado",
       noTrailers: "Sin remolques registrados.",
+      catalogLoading: "Cargando descripción…",
     },
     format: {
       headerSubtitle: (typeLabel: string, licensePlate: string) =>
@@ -133,8 +121,6 @@ export const vehiclesCopy = {
           maximumFractionDigits: 3,
         }).format(ton)} t`,
       volume: (m3: number) => `${m3} m³`,
-      active: "Activo",
-      inactive: "Inactivo",
     },
   },
   list: {
@@ -200,7 +186,8 @@ export const vehiclesCopy = {
           "Datos SAT base del autotransporte; la operación puede ajustarlos por viaje.",
         groupVehicleId: "Identificación vehicular",
         groupTrailers: "Remolques (máx. 2)",
-        groupOptionalInsurance: "Seguros adicionales predeterminados (opcionales)",
+        groupOptionalInsurance:
+          "Seguros adicionales predeterminados (opcionales)",
         optionalInsuranceHint:
           "Valores base del vehículo; un viaje o carga puede usar otro seguro.",
         cargoInsuranceFootnote:
@@ -208,7 +195,8 @@ export const vehiclesCopy = {
       },
       review: {
         title: "Revisión",
-        description: "Confirma los datos antes de registrar el vehículo en flota.",
+        description:
+          "Confirma los datos antes de registrar el vehículo en flota.",
       },
     },
     label: {

@@ -1,6 +1,6 @@
 /**
  * Namespace: drivers.copy.detail.*
- * Copy del detalle de conductor (header, KPIs, tabs, alertas).
+ * Copy del detalle de conductor (header, capacidades, tabs, alertas).
  */
 export const driversCopy = {
   detail: {
@@ -10,22 +10,18 @@ export const driversCopy = {
     state: {
       notFoundTitle: "Conductor no encontrado",
       notFoundDescription:
-        "El conductor que buscas no existe o fue eliminado del catálogo.",
+        "El conductor que buscas no existe o fue eliminado de flota.",
       backToList: "Volver a conductores",
       noEmployeeNumber: "Sin número de empleado",
     },
     stat: {
       totalTrips: {
-        title: "Viajes totales",
-        description: "Asignaciones registradas en el ERP",
+        title: "Viajes",
+        description: "Asignaciones registradas",
       },
       completedTrips: {
         title: "Completados",
         successRate: (pct: number) => `${pct}% de tasa de cierre`,
-      },
-      cancelledTrips: {
-        title: "Cancelados",
-        description: "Viajes cancelados en historial",
       },
       experience: {
         title: "Experiencia",
@@ -35,11 +31,9 @@ export const driversCopy = {
       },
     },
     tab: {
-      summary: "Resumen",
-      license: "Licencia",
-      health: "Salud y exámenes",
+      driver: "Conductor",
+      documents: "Documentación",
       trips: "Viajes",
-      emergency: "Emergencia",
     },
     vigency: {
       noDate: "Sin fecha",
@@ -80,22 +74,24 @@ export const driversCopy = {
       },
     },
     section: {
-      employee: {
-        title: "Datos del empleado",
-        description:
-          "Contacto e identificación fiscal vinculados al perfil de nómina.",
-        groupContact: "Contacto",
-        groupFiscal: "Identificación fiscal",
+      contact: {
+        title: "Contacto y base",
+        description: "Datos operativos del conductor y su vínculo laboral.",
       },
       operation: {
         title: "Operación y notas",
         description:
-          "Dispositivo de rastreo asignado y observaciones internas del conductor.",
+          "Dispositivo de rastreo asignado y observaciones internas.",
+      },
+      emergency: {
+        title: "Contacto de emergencia",
+        description:
+          "Persona a contactar en incidentes; proviene del perfil del empleado.",
       },
       license: {
         title: "Licencia de conducir",
         description:
-          "Datos de la licencia federal o estatal requeridos para asignación de viajes.",
+          "Vigencia y emisor. El tipo y número aparecen en el encabezado.",
       },
       medical: {
         title: "Certificado médico",
@@ -112,25 +108,18 @@ export const driversCopy = {
       },
       trips: {
         title: "Historial de viajes",
-        description: "Últimas asignaciones del conductor en el ERP.",
-      },
-      emergency: {
-        title: "Contacto de emergencia",
-        description:
-          "Persona a contactar en incidentes; proviene del perfil del empleado.",
+        description: "Asignaciones recientes del conductor.",
       },
     },
     label: {
+      employee: "Empleado",
       employeeNumber: "Número de empleado",
       email: "Correo electrónico",
       phone: "Teléfono",
       branch: "Sucursal base",
-      curp: "CURP",
-      rfc: "RFC",
+      viewEmployee: "Ver perfil del empleado",
       gpsDevice: "Dispositivo GPS",
       notes: "Notas",
-      licenseNumber: "Número de licencia",
-      licenseType: "Tipo de licencia",
       licenseExpiry: "Fecha de vencimiento",
       licenseState: "Estado emisor",
       medicalNumber: "Número de certificado",
@@ -145,6 +134,8 @@ export const driversCopy = {
       emergencyName: "Nombre",
       emergencyPhone: "Teléfono",
       emergencyRelationship: "Parentesco",
+      tripVehicle: "Unidad",
+      tripClient: "Cliente",
     },
     hint: {
       empty: "Sin registrar",
@@ -156,13 +147,18 @@ export const driversCopy = {
         "Captura o actualiza este dato en el perfil del empleado.",
     },
     action: {
-      viewAllTrips: (total: number) => `Ver todos los viajes (${total})`,
+      loadMoreTrips: "Cargar más",
+      loadingMoreTrips: "Cargando…",
     },
     format: {
       employeeLine: (employeeNumber: string) => `No. empleado ${employeeNumber}`,
       licenseLine: (typeLabel: string, licenseNumber: string) =>
         `${typeLabel} · ${licenseNumber}`,
       tripsTab: (total: number) => `Viajes (${total})`,
+      tripMeta: (vehicleLabel: string, clientLabel: string | null) =>
+        clientLabel
+          ? `${vehicleLabel} · ${clientLabel}`
+          : vehicleLabel,
     },
     trips: {
       loadError: "No se pudo cargar el historial de viajes. Intenta de nuevo.",

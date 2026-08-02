@@ -159,7 +159,7 @@ describe("catalogs tenant workflow smoke", () => {
     seedCatalogMocks();
   });
 
-  it("lista sin botón importar, tab internos por defecto y banners de solo lectura", async () => {
+  it("lista sin botón importar, todos los catálogos visibles y un solo aviso de solo lectura", async () => {
     renderCatalogs();
 
     await waitFor(() => {
@@ -167,51 +167,91 @@ describe("catalogs tenant workflow smoke", () => {
     });
 
     expect(screen.queryByRole("button", { name: /importar/i })).toBeNull();
-    expect(
-      screen.getByText(catalogsCopy.internalBanner.title),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(GLOBAL_TYPE.name)).not.toBeInTheDocument();
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /regulatorios/i }));
+    // Sin pestañas: oficiales e internos conviven en la misma vista.
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByText(GLOBAL_TYPE.name)).toBeInTheDocument();
+
+    expect(
+      screen.getAllByText(catalogsCopy.readOnlyNotice.listTitle),
+    ).toHaveLength(1);
+  });
+
+  it("la búsqueda del listado enruta por ejemplos de contenido", async () => {
+    renderCatalogs();
 
     await waitFor(() => {
       expect(screen.getByText(GLOBAL_TYPE.name)).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText(catalogsCopy.globalBanner.title),
-    ).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByPlaceholderText(catalogsCopy.page.searchPlaceholder),
+      "tractocamion",
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(GLOBAL_TYPE.name)).not.toBeInTheDocument();
+    });
+    expect(screen.getByText(INTERNAL_TYPE.name)).toBeInTheDocument();
   });
 
   it("detalle SAT es solo lectura sin acciones de fila", async () => {
     renderCatalogs("/settings/catalogs/sat_estado");
 
     await waitFor(() => {
-      expect(screen.getByText(catalogsCopy.readOnly.bannerTitle)).toBeInTheDocument();
+      expect(
+        screen.getByText(catalogsCopy.readOnlyNotice.detailTitle),
+      ).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: /importar/i })).toBeNull();
     expect(
       screen.queryByRole("button", { name: catalogsCopy.detail.addRecord }),
     ).toBeNull();
-    expect(screen.queryByText("Acciones")).toBeNull();
+    expect(screen.queryByText(catalogsCopy.table.actions)).toBeNull();
+
+    // La versión vigente se lee en la línea de ficha, sin abrir nada más.
+    expect(screen.getByText(/versión 2026\.1/)).toBeInTheDocument();
   });
 
   it("detalle interno es solo lectura sin acciones de fila", async () => {
     renderCatalogs("/settings/catalogs/vehicle_type");
 
     await waitFor(() => {
-      expect(screen.getByText(catalogsCopy.readOnly.bannerTitle)).toBeInTheDocument();
+      expect(
+        screen.getByText(catalogsCopy.readOnlyNotice.detailTitle),
+      ).toBeInTheDocument();
     });
 
     expect(
       screen.queryByRole("button", { name: catalogsCopy.detail.addRecord }),
     ).toBeNull();
-    expect(screen.queryByText("Acciones")).toBeNull();
+    expect(screen.queryByText(catalogsCopy.table.actions)).toBeNull();
 
     await waitFor(() => {
       expect(screen.getByText(INTERNAL_ITEM.name)).toBeInTheDocument();
     });
+  });
+
+  it("no expone identificadores técnicos de catálogo en el listado ni en el detalle", async () => {
+    const { unmount } = renderCatalogs();
+
+    await waitFor(() => {
+      expect(screen.getByText(GLOBAL_TYPE.name)).toBeInTheDocument();
+    });
+    expect(screen.queryByText("sat_estado")).toBeNull();
+    expect(screen.queryByText("vehicle_type")).toBeNull();
+
+    unmount();
+
+    renderCatalogs("/settings/catalogs/sat_estado");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(catalogsCopy.readOnlyNotice.detailTitle),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("sat_estado")).toBeNull();
   });
 });

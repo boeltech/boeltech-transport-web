@@ -24,11 +24,14 @@ export function NotificationInboxSheet({
   onOpenChange,
   onItemClick,
 }: NotificationInboxSheetProps) {
-  const { data, isLoading, isError } = useNotificationsList({
-    status: "unread",
-    page: 1,
-    pageSize: 10,
-  });
+  const { data, isLoading, isError } = useNotificationsList(
+    {
+      status: "unread",
+      page: 1,
+      pageSize: 10,
+    },
+    { enabled: open },
+  );
 
   const items = data?.items ?? [];
 

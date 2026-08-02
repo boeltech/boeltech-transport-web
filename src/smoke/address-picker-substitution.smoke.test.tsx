@@ -108,6 +108,7 @@ function renderDeferAddressSheet(onDeferSave: ReturnType<typeof vi.fn>) {
         open
         canExecute
         submitLabel="Incluir en sustitución"
+        addressSubmitLabel="Incluir en sustitución"
         onOpenChange={vi.fn()}
         onDeferSave={onDeferSave as OnDeferSave}
       />

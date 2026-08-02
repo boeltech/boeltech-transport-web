@@ -78,10 +78,10 @@ function renderInbox() {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter
         initialEntries={[
-          "/finance/approvals?type=trip_expense&status=pending",
+          "/finance?tab=approvals&type=trip_expense&status=pending",
         ]}
       >
-        <ApprovalInboxPage />
+        <ApprovalInboxPage embedded />
       </MemoryRouter>
     </QueryClientProvider>,
   );

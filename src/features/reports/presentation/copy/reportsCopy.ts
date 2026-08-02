@@ -7,8 +7,6 @@ export const reportsCopy = {
     title: "Reportes",
     description:
       "Hub de reportes operativos. Exporta datos de tu operación en formato CSV.",
-    backHref: "/dashboard",
-    backLabel: "Volver al dashboard",
   },
   trips: {
     card: {

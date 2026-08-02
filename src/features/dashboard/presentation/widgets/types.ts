@@ -1,6 +1,9 @@
 import type { useNavigate } from "react-router-dom";
 import type { useDashboard } from "../../application/hooks/useDashboard";
-import type { useFinanceSummary } from "@features/finance";
+import type {
+  ExpensesByDimensionItem,
+  useFinanceSummary,
+} from "@features/finance";
 import type {
   FinancialTrendData,
   TripsByDayData,
@@ -22,6 +25,8 @@ export interface DashboardWidgetContext {
   financeLoading: boolean;
   collectedTrendData: { value: number }[];
   financeSummary?: ReturnType<typeof useFinanceSummary>["data"];
+  vehicleExpenseRanking?: ExpensesByDimensionItem[];
+  vehicleExpenseRankingLoading: boolean;
   financialTrend?: FinancialTrendData;
   financialTrendLoading: boolean;
   financialTrendMonths: FinancialTrendMonths;

@@ -32,7 +32,7 @@ import {
 } from "../utils/financialComparisonHelpers";
 
 interface DashboardFinancialComparisonChartProps {
-  financialMonth?: FinancialMonth;
+  financialMonth?: FinancialMonth | null;
   isLoading: boolean;
 }
 
@@ -97,7 +97,7 @@ export function DashboardFinancialComparisonChart({
       aria-label={dashboardCopy.financialComparison.ariaLabel}
       tools={
         <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
-          <Link to="/finance?tab=profitability">
+          <Link to="/finance?tab=analysis&view=margin">
             {dashboardCopy.financialComparison.viewProfitability}
           </Link>
         </Button>
@@ -126,7 +126,7 @@ export function DashboardFinancialComparisonChart({
             >
               <AlertDescription>
                 <Link
-                  to="/finance/approvals?status=pending&type=trip_expense"
+                  to="/finance?tab=approvals&status=pending&type=trip_expense"
                   className="cursor-pointer hover:underline"
                   aria-label={dashboardCopy.financialComparison.pendingExpensesLinkAriaLabel}
                 >

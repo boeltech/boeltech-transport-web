@@ -11,6 +11,9 @@ export const GEOCODING_SECTION_ID = "geographic-confirmation";
 export const GEOCODING_OPTIONAL_HINT =
   "Opcional. Confirma en el mapa o con latitud y longitud para ubicar el punto con precisión en rutas y seguimiento.";
 
+export const GEOCODING_REQUIRED_HINT =
+  "Ubica el punto en el mapa. Es necesario para calcular kilómetros entre paradas y el seguimiento del viaje.";
+
 export type AddressGeocodingPanelAddress = AddressGeolocationPanelProps["address"];
 
 const DEFAULT_CATALOG_PANEL_MODE: GeolocationPanelMode = {
@@ -18,6 +21,11 @@ const DEFAULT_CATALOG_PANEL_MODE: GeolocationPanelMode = {
   showDistanceSection: false,
   distanceEditable: false,
 };
+
+export interface AddressGeocodingSectionTitleProps {
+  /** En paradas de viaje la ubicación es obligatoria; en catálogos sigue opcional. */
+  required?: boolean;
+}
 
 export interface AddressGeocodingSectionContentProps {
   address: AddressGeocodingPanelAddress;
@@ -33,13 +41,22 @@ export interface AddressGeocodingSectionContentProps {
   distanceFromPreviousKm?: number | null;
   onDistanceChange?: AddressGeolocationPanelProps["onDistanceChange"];
   onDistanceMetaChange?: AddressGeolocationPanelProps["onDistanceMetaChange"];
+  /** Override del hint; por defecto opcional u obligatorio según `required`. */
+  required?: boolean;
+  hint?: string;
 }
 
-export function AddressGeocodingSectionTitle(): ReactNode {
+export function AddressGeocodingSectionTitle({
+  required = false,
+}: AddressGeocodingSectionTitleProps = {}): ReactNode {
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      Ubicación en mapa
-      <span className="font-normal text-muted-foreground text-xs">(opcional)</span>
+      {required ? "Ubicar en el mapa" : "Ubicación en mapa"}
+      {!required ? (
+        <span className="font-normal text-muted-foreground text-xs">(opcional)</span>
+      ) : (
+        <span className="font-normal text-muted-foreground text-xs">(requerido)</span>
+      )}
     </span>
   );
 }
@@ -58,10 +75,15 @@ export function AddressGeocodingSectionContent({
   distanceFromPreviousKm,
   onDistanceChange,
   onDistanceMetaChange,
+  required = false,
+  hint,
 }: AddressGeocodingSectionContentProps) {
+  const resolvedHint =
+    hint ?? (required ? GEOCODING_REQUIRED_HINT : GEOCODING_OPTIONAL_HINT);
+
   return (
     <>
-      <p className="text-sm text-muted-foreground">{GEOCODING_OPTIONAL_HINT}</p>
+      <p className="text-sm text-muted-foreground">{resolvedHint}</p>
       {latitudeError ? (
         <FieldInlineError fieldId="geolocation-coordinates" message={latitudeError} />
       ) : null}

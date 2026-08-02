@@ -19,7 +19,12 @@ import { useDashboard } from "../application/hooks/useDashboard";
 import { useTripsByDay } from "../application/hooks/useTripsByDay";
 import { useFinancialTrend } from "../application/hooks/useFinancialTrend";
 import { useDashboardLayout } from "../application/hooks/useDashboardLayout";
-import { useFinanceSummary, useIncomeByMonth } from "@features/finance";
+import {
+  getCurrentMonthExpenseRange,
+  useExpensesByDimension,
+  useFinanceSummary,
+  useIncomeByMonth,
+} from "@features/finance";
 import type { FinancialTrendMonths } from "./components";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
 import { getWidgetRegistryEntry } from "./widgets/registry";
@@ -56,6 +61,10 @@ function DashboardPage() {
   const [tripsDays, setTripsDays] = useState<TripsDayRange>(30);
   const [financialTrendMonths, setFinancialTrendMonths] =
     useState<FinancialTrendMonths>(12);
+  const currentMonthExpenseRange = useMemo(
+    () => getCurrentMonthExpenseRange(),
+    [],
+  );
 
   const { data: tripsByDay, isLoading: tripsByDayLoading } = useTripsByDay(
     tripsDays,
@@ -70,6 +79,18 @@ function DashboardPage() {
     });
   const { data: incomeByMonth, isLoading: incomeLoading } = useIncomeByMonth(
     { months: 12 },
+    { enabled: showFinance },
+  );
+  const {
+    data: vehicleExpenseRanking,
+    isLoading: vehicleExpenseRankingLoading,
+  } = useExpensesByDimension(
+    {
+      dimension: "vehicle",
+      ...currentMonthExpenseRange,
+      sortBy: "total",
+      sortOrder: "desc",
+    },
     { enabled: showFinance },
   );
 
@@ -93,6 +114,8 @@ function DashboardPage() {
       financeLoading,
       collectedTrendData,
       financeSummary,
+      vehicleExpenseRanking,
+      vehicleExpenseRankingLoading,
       financialTrend,
       financialTrendLoading,
       financialTrendMonths,
@@ -110,6 +133,8 @@ function DashboardPage() {
       financeLoading,
       collectedTrendData,
       financeSummary,
+      vehicleExpenseRanking,
+      vehicleExpenseRankingLoading,
       financialTrend,
       financialTrendLoading,
       financialTrendMonths,

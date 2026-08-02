@@ -5,6 +5,7 @@ export {
   AddressGeocodingSectionContent,
   AddressGeocodingSectionTitle,
   GEOCODING_OPTIONAL_HINT,
+  GEOCODING_REQUIRED_HINT,
   GEOCODING_SECTION_ID,
 } from "./AddressGeocodingFormSection";
 export { buildGeocodingEntityFormSection } from "./buildGeocodingEntityFormSection";

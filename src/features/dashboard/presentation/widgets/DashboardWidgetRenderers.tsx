@@ -9,6 +9,7 @@ import {
   DashboardRecentTrips,
   DashboardTripsByDayChart,
   DashboardBranchKpisWidget,
+  DashboardVehicleExpenseRanking,
 } from "../components";
 
 export function renderOperationsSnapshot(ctx: DashboardWidgetContext) {
@@ -23,11 +24,7 @@ export function renderMetricTrends(ctx: DashboardWidgetContext) {
       data={ctx.data}
       isLoading={ctx.isLoading}
       navigate={ctx.navigate}
-      tripsByDay={ctx.tripsByDay}
-      tripsByDayLoading={ctx.tripsByDayLoading}
-      showFinance={ctx.showFinance}
       financeLoading={ctx.financeLoading}
-      collectedTrendData={ctx.collectedTrendData}
       financeSummary={ctx.financeSummary}
     />
   );
@@ -86,6 +83,19 @@ export function renderFinancialTrend(ctx: DashboardWidgetContext) {
       isLoading={ctx.financialTrendLoading}
       months={ctx.financialTrendMonths}
       onMonthsChange={ctx.setFinancialTrendMonths}
+    />
+  );
+}
+
+export function renderVehicleExpenseRanking(ctx: DashboardWidgetContext) {
+  return (
+    <DashboardVehicleExpenseRanking
+      rows={ctx.vehicleExpenseRanking}
+      isLoading={ctx.vehicleExpenseRankingLoading}
+      onViewAnalysis={() =>
+        ctx.navigate("/finance?tab=analysis&view=expenses")
+      }
+      onViewVehicle={(vehicleId) => ctx.navigate(`/vehicles/${vehicleId}`)}
     />
   );
 }

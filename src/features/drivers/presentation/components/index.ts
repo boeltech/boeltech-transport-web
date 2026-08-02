@@ -16,6 +16,7 @@ export { DriverCardSkeleton } from "./DriverCardSkeleton";
 
 // Action Components
 export { DriverActions } from "./DriverActions";
-
-// Form Components
+export { DriverDetailDocumentsTab } from "./DriverDetailDocumentsTab";
+export { DriverDetailDriverTab } from "./DriverDetailDriverTab";
+export { DriverDetailTripsTab } from "./DriverDetailTripsTab";
 export { DriverForm, type DriverFormRef } from "./DriverForm";

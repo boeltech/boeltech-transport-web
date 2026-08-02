@@ -13,22 +13,15 @@ export interface GeolocationPanelMode {
 }
 
 /**
- * Reglas UI del card Geolocalización para el diálogo de paradas (Paso 2 Ruta).
+ * Reglas UI del panel de mapa en el sheet de parada (Paso 2 Ruta).
+ * La distancia del tramo vive en el conector del timeline (D3), no en el sheet.
  */
 export function resolveGeolocationPanelMode(
-  input: ResolveGeolocationPanelModeInput,
+  _input: ResolveGeolocationPanelModeInput,
 ): GeolocationPanelMode {
-  if (input.isOriginStop) {
-    return {
-      showSearchControls: true,
-      showDistanceSection: false,
-      distanceEditable: false,
-    };
-  }
-
   return {
     showSearchControls: true,
-    showDistanceSection: true,
-    distanceEditable: true,
+    showDistanceSection: false,
+    distanceEditable: false,
   };
 }

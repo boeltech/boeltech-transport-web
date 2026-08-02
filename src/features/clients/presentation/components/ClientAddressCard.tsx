@@ -32,12 +32,9 @@ import {
 import { cn } from "@shared/lib/utils/cn";
 
 import type { ClientAddressListItem, ClientAddress } from "../../domain";
-import {
-  formatClientAddress,
-  getCartaPorteMissingFields,
-  isCartaPorteReady,
-} from "../../domain";
+import { formatClientAddress, isCartaPorteReady } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 
 // ============================================================================
 // TYPES
@@ -66,14 +63,12 @@ export function ClientAddressCard({
 }: ClientAddressCardProps) {
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
-  const cartaPorteReady =
+  const tripReady =
     ("isCartaPorteReady" in address &&
       typeof address.isCartaPorteReady === "boolean"
       ? address.isCartaPorteReady
       : undefined) ?? isCartaPorteReady(address as ClientAddress);
-  const satMinHint = cartaPorteReady
-    ? undefined
-    : getCartaPorteMissingFields(address as ClientAddress).join(", ");
+  const addressCopy = clientDetailCopy.address;
 
   return (
     <Card
@@ -207,24 +202,16 @@ export function ClientAddressCard({
           )}
         </div>
 
-        {/* Indicador Carta Porte */}
         <div className="flex items-center gap-1 mt-3 pt-2 border-t">
-          {cartaPorteReady ? (
+          {tripReady ? (
             <span className="flex items-center gap-1 text-xs text-success">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Carta Porte 3.1
+              {addressCopy.readyForTrip}
             </span>
           ) : (
-            <span
-              className="flex items-center gap-1 text-xs text-warning"
-              title={
-                satMinHint
-                  ? `Falta mínimo SAT: ${satMinHint}`
-                  : "Falta estado o código postal (5 dígitos)"
-              }
-            >
+            <span className="flex items-center gap-1 text-xs text-warning">
               <AlertCircle className="h-3.5 w-3.5" />
-              Mínimo SAT incompleto
+              {addressCopy.missingTripData}
             </span>
           )}
         </div>

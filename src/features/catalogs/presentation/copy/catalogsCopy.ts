@@ -1,60 +1,76 @@
+function formatCount(count: number): string {
+  return count.toLocaleString("es-MX");
+}
+
 export const catalogsCopy = {
   page: {
     sectionTitle: "Catálogos",
-    searchPlaceholder: "Buscar catálogo…",
-    emptySearch: "No se encontraron catálogos con ese criterio",
-    emptyAll: "No hay catálogos disponibles",
-  },
-  tabs: {
-    internal: "Internos",
-    global: "Regulatorios",
-    all: "Todos",
-  },
-  metrics: {
-    totalCatalogs: "Total catálogos",
-    totalRecords: "Total registros",
-    regulatory: "Regulatorios",
-    internal: "Catálogos internos",
-  },
-  globalBanner: {
-    title: "Catálogos regulatorios gestionados por Boeltech",
+    title: "Valores de referencia",
     description:
-      "Los catálogos SAT y de referencia oficial los actualiza el equipo Boeltech. Aquí solo puedes consultarlos para validar versiones y registros vigentes en tu operación.",
+      "Consulta los valores que el sistema ofrece al capturar viajes, facturas y domicilios.",
+    searchPlaceholder:
+      "Busca un catálogo o un valor: tonelada, tractocamión, efectivo…",
+    emptySearchTitle: "Sin coincidencias",
+    emptySearchDescription: (term: string) =>
+      `Ningún catálogo coincide con «${term}». Prueba con el nombre del valor que buscas.`,
+    emptyAllTitle: "Sin valores de referencia",
+    emptyAllDescription: "Todavía no hay catálogos disponibles para consultar.",
   },
-  internalBanner: {
-    title: "Catálogos internos gestionados por Boeltech",
-    description:
-      "Los valores base del ERP (tipos de vehículo, estados de viaje, etc.) los define el equipo Boeltech. Aquí solo puedes consultarlos.",
+  readOnlyNotice: {
+    listTitle: "Estos valores son de solo consulta",
+    listDescription:
+      "Los publica y mantiene el equipo de Boeltech, y se actualizan cuando cambian las disposiciones oficiales. Puedes consultarlos, pero no modificarlos desde aquí.",
+    detailTitle: "Este catálogo es de solo consulta",
+    detailOfficialDescription: (source: string) =>
+      `Lo publica ${source} y el equipo de Boeltech lo mantiene actualizado. Puedes consultarlo, pero no modificarlo desde aquí.`,
+    detailInternalDescription:
+      "Estos valores los define Boeltech para que el sistema se comporte igual en todas las empresas. Puedes consultarlos, pero no modificarlos desde aquí.",
   },
-  badges: {
-    regulatory: "Regulatorio",
-    internal: "Interno",
-    readOnly: "Solo lectura",
+  publisher: {
+    sat: "Publicado por el SAT",
+    banxico: "Publicado por Banxico",
+    system: "Del sistema",
   },
+  /** Quién publica el catálogo, para usarse dentro de una frase. */
+  source: {
+    sat: "el SAT",
+    banxico: "Banxico",
+    system: "Boeltech",
+  },
+  /** Cantidad de valores de un catálogo (tarjeta del listado y ficha del detalle). */
+  valuesCount: (count: number) =>
+    count === 1 ? "1 valor" : `${formatCount(count)} valores`,
   card: {
-    view: "Ver",
-    records: (count: string) => `${count} registros`,
+    examplesPrefix: "Por ejemplo:",
   },
   detail: {
-    back: "Volver a Catálogos",
+    back: "Volver a catálogos",
+    defaultDescription: "Valores disponibles en este catálogo.",
+    loadingSectionTitle: "Cargando…",
+    notFoundSectionTitle: "No encontrado",
     notFoundTitle: "Catálogo no encontrado",
-    notFoundDescription: (code: string) =>
-      `El catálogo "${code}" no existe o no está disponible.`,
-    recordsSection: "Registros",
-    recordsDescription: (count: string) =>
-      `${count} registros en este catálogo`,
-    largeCatalogHint: (threshold: string) =>
-      `Este catálogo tiene más de ${threshold} registros. La búsqueda se realiza en el servidor. Escribe para filtrar los resultados.`,
+    notFoundDescription:
+      "Este catálogo no existe o ya no está disponible para tu empresa.",
+    summaryVersion: (version: string) => `versión ${version}`,
+    recordsSection: "Valores",
+    searchPlaceholder: "Buscar por nombre o código",
+    resultsLabel: "valores",
     addRecord: "Agregar registro",
-    import: "Importar",
   },
-  readOnly: {
-    bannerTitle: "Catálogo de solo lectura",
-    bannerDescription: (source: string, version: string) =>
-      `Fuente ${source}. Versión vigente: ${version}. Para actualizar el contenido regulatorio contacta a soporte Boeltech.`,
-    internalBannerDescription: (version: string) =>
-      `Catálogo interno del ERP. Versión vigente: ${version}. Para solicitar cambios contacta a soporte Boeltech.`,
-    versionFallback: "sin versión publicada",
+  table: {
+    code: "Código",
+    name: "Nombre",
+    description: "Descripción",
+    parent: "Pertenece a",
+    status: "Estado",
+    actions: "Acciones",
+    active: "Activo",
+    inactive: "Inactivo",
+    copyCode: (code: string) => `Copiar código ${code}`,
+    copySuccess: "Código copiado",
+    copyError: "No se pudo copiar el código",
+    emptySearch: "Ningún valor coincide con tu búsqueda",
+    emptyAll: "Este catálogo todavía no tiene valores",
   },
   itemForm: {
     createTitle: "Nuevo registro",
@@ -64,7 +80,7 @@ export const catalogsCopy = {
       codeHint: "Letras, números, guiones y guiones bajos",
       name: "Nombre",
       description: "Descripción",
-      parentCode: "Código padre",
+      parentCode: "Pertenece a",
       sortOrder: "Orden",
       isActive: "Activo",
     },

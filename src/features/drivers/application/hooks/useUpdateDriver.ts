@@ -10,6 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import {
   type Driver,
   type UpdateDriverDTO,
@@ -87,6 +88,8 @@ export function useUpdateDriver(
       queryClient.invalidateQueries({
         queryKey: driverQueryKeys.available(),
       });
+
+      invalidateNotificationsQueries(queryClient);
 
       // Llamar callback personalizado inmediatamente
       options?.onSuccess?.(data, variables, onMutateResult, context);

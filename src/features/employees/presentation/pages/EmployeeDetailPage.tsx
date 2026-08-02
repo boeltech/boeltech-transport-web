@@ -16,6 +16,7 @@ import {
   Shield,
   Truck,
 } from "lucide-react";
+import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 
@@ -43,9 +44,21 @@ import { employeesCopy } from "../copy";
 
 const copy = employeesCopy.detail;
 
+/** Tabs enlazables por `?tab=`. */
+const EMPLOYEE_DETAIL_TABS = [
+  "personal",
+  "contact",
+  "employment",
+  "compensation",
+] as const;
+
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const employeeId = id ?? "";
+  const { activeTab, setActiveTab } = useTabParam(
+    EMPLOYEE_DETAIL_TABS,
+    "personal",
+  );
   const {
     data: result,
     isLoading,
@@ -279,6 +292,8 @@ export function EmployeeDetailPage() {
       stats={employeeStats}
       tabs={{
         defaultValue: "personal",
+        value: activeTab,
+        onValueChange: setActiveTab,
         items: [
           {
             value: "personal",

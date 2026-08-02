@@ -67,42 +67,86 @@ function renderPicker(onSelect = vi.fn()) {
 
 describe("AddressPicker", () => {
   beforeEach(() => {
+    // cmdk desplaza el item activo; jsdom no implementa scrollIntoView.
+    Element.prototype.scrollIntoView = vi.fn();
     vi.clearAllMocks();
     vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
       data: [clientItem, branchItem, tenantItem],
-      pagination: { limit: 20, nextCursor: null, hasMore: false },
+      pagination: { limit: 50, nextCursor: null, hasMore: false },
     });
   });
 
-  it("shows hint when query is shorter than 2 characters", async () => {
+  it("browses all addresses when opened without typing", async () => {
     const user = userEvent.setup();
     renderPicker();
 
     await user.click(screen.getByRole("combobox"));
-    await user.type(screen.getByPlaceholderText(/buscar dirección/i), "a");
 
-    expect(screen.getByText(/al menos 2 caracteres/i)).toBeInTheDocument();
-    expect(addressSearchApi.searchAddresses).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(addressSearchApi.searchAddresses).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: undefined,
+          limit: 50,
+        }),
+      );
+      expect(screen.getByText("Cliente")).toBeInTheDocument();
+      expect(screen.getByText("Sucursal")).toBeInTheDocument();
+      expect(screen.getByText("Directorio")).toBeInTheDocument();
+      expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
+    });
   });
 
-  it("groups results and calls onSelect", async () => {
+  it("filters when the user types 2+ characters", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     renderPicker(onSelect);
 
     await user.click(screen.getByRole("combobox"));
-    await user.type(screen.getByPlaceholderText(/buscar dirección/i), "bodega");
+    await waitFor(() => {
+      expect(screen.getByText("Bodega Alpha")).toBeInTheDocument();
+    });
+
+    await user.type(
+      screen.getByPlaceholderText(/buscar por nombre/i),
+      "bodega",
+    );
 
     await waitFor(() => {
-      expect(screen.getByText("Cliente")).toBeInTheDocument();
-      expect(screen.getByText("Sucursal")).toBeInTheDocument();
-      expect(screen.getByText("Directorio")).toBeInTheDocument();
+      expect(addressSearchApi.searchAddresses).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: "bodega",
+        }),
+      );
     });
 
     expect(screen.getAllByText("Domicilio CP").length).toBeGreaterThan(0);
     await user.click(screen.getByText("Bodega Alpha"));
 
     expect(onSelect).toHaveBeenCalledWith(clientItem);
+  });
+
+  it("keeps listing addresses when reopened with a warm cache", async () => {
+    const user = userEvent.setup();
+    renderPicker();
+
+    await user.click(screen.getByRole("combobox"));
+    await waitFor(() => {
+      expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
+    });
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByText("CEDIS Norte")).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("combobox"));
+
+    await waitFor(() => {
+      expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(/no hay direcciones guardadas/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows RFC and Sin RFC badges based on remitente metadata", async () => {
@@ -119,13 +163,12 @@ describe("AddressPicker", () => {
           isCartaPorteReady: true,
         },
       ],
-      pagination: { limit: 20, nextCursor: null, hasMore: false },
+      pagination: { limit: 50, nextCursor: null, hasMore: false },
     });
 
     renderPicker();
 
     await user.click(screen.getByRole("combobox"));
-    await user.type(screen.getByPlaceholderText(/buscar dirección/i), "bodega");
 
     await waitFor(() => {
       expect(screen.getByText("RFC")).toBeInTheDocument();

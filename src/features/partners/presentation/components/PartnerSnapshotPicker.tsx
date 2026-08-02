@@ -71,16 +71,20 @@ export function PartnerSnapshotPicker({
           className={cn("gap-1.5", className)}
         >
           <Search className="h-3.5 w-3.5" />
-          Partner ({variant === "remitente" ? "remitente" : "destinatario"})
+          Buscar empresa o persona
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[min(100vw-2rem,22rem)] space-y-3 p-3" align="start">
         <div className="space-y-1.5">
-          <Label className="text-xs">Buscar por RFC o razón social</Label>
+          <Label className="text-xs">
+            {variant === "remitente"
+              ? "Buscar quien entrega"
+              : "Buscar quien recibe"}
+          </Label>
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Mínimo 2 caracteres…"
+            placeholder="Nombre, RFC…"
             autoComplete="off"
           />
         </div>
@@ -124,12 +128,12 @@ export function PartnerSnapshotPicker({
             onClick={() => setShowCreate((v) => !v)}
           >
             <Plus className="h-3.5 w-3.5" />
-            Alta rápida de partner
+            Alta rápida
           </button>
           {showCreate && (
             <div className="space-y-2 rounded-md bg-muted/40 p-2">
               <Input
-                placeholder="Razón social"
+                placeholder="Nombre o razón social"
                 value={draftLegalName}
                 onChange={(e) => setDraftLegalName(e.target.value)}
               />

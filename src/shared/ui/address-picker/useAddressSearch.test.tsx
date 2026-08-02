@@ -3,7 +3,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-import { useAddressSearch, isAddressSearchQueryReady } from "./useAddressSearch";
+import {
+  useAddressSearch,
+  isAddressSearchFilterActive,
+  isAddressSearchQueryReady,
+  normalizeAddressSearchParams,
+} from "./useAddressSearch";
 import * as addressSearchApi from "./addressSearchApi";
 
 vi.mock("./addressSearchApi", () => ({
@@ -26,17 +31,50 @@ describe("useAddressSearch", () => {
     vi.clearAllMocks();
   });
 
-  it("isAddressSearchQueryReady requires 2+ chars", () => {
-    expect(isAddressSearchQueryReady("a")).toBe(false);
+  it("isAddressSearchFilterActive requires 2+ chars", () => {
+    expect(isAddressSearchFilterActive("")).toBe(false);
+    expect(isAddressSearchFilterActive("a")).toBe(false);
+    expect(isAddressSearchFilterActive("ab")).toBe(true);
     expect(isAddressSearchQueryReady("ab")).toBe(true);
   });
 
-  it("does not fetch when query is too short", () => {
+  it("normalizeAddressSearchParams drops short q for browse", () => {
+    expect(normalizeAddressSearchParams({ q: "a", limit: 20 }).q).toBeUndefined();
+    expect(normalizeAddressSearchParams({ q: "  ", limit: 20 }).q).toBeUndefined();
+    expect(normalizeAddressSearchParams({ q: "bodega", limit: 20 }).q).toBe(
+      "bodega",
+    );
+  });
+
+  it("fetches browse list when query is empty and enabled", async () => {
+    vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
+      data: [],
+      pagination: { limit: 50, nextCursor: null, hasMore: false },
+    });
+
     renderHook(
       () =>
         useAddressSearch({
-          params: { q: "a", limit: 20 },
+          params: { q: "", limit: 50 },
           enabled: true,
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(addressSearchApi.searchAddresses).toHaveBeenCalledWith({
+        q: undefined,
+        limit: 50,
+      });
+    });
+  });
+
+  it("does not fetch when disabled", () => {
+    renderHook(
+      () =>
+        useAddressSearch({
+          params: { q: "", limit: 20 },
+          enabled: false,
         }),
       { wrapper: createWrapper() },
     );
@@ -44,7 +82,7 @@ describe("useAddressSearch", () => {
     expect(addressSearchApi.searchAddresses).not.toHaveBeenCalled();
   });
 
-  it("fetches when query is ready and enabled", async () => {
+  it("fetches with filter when query is 2+ chars", async () => {
     vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
       data: [],
       pagination: { limit: 20, nextCursor: null, hasMore: false },

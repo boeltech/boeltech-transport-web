@@ -14,24 +14,26 @@
  */
 
 import { z } from "zod";
-import type {
-  CreateDriverDTO,
-  DriverStatusType,
-  UpdateDriverDTO,
+import {
+  LicenseType,
+  LICENSE_TYPE_LABELS,
+  type CreateDriverDTO,
+  type DriverStatusType,
+  type LicenseTypeValue,
+  type UpdateDriverDTO,
 } from "../../domain";
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-export const LICENSE_TYPES = [
-  { value: "A", label: "Tipo A - Motocicletas" },
-  { value: "B", label: "Tipo B - Automóviles particulares" },
-  { value: "C", label: "Tipo C - Taxis y transporte público" },
-  { value: "D", label: "Tipo D - Autobuses" },
-  { value: "E", label: "Tipo E - Carga (Federal)" },
-  { value: "F", label: "Tipo F - Transporte escolar" },
-] as const;
+/** Misma fuente que el detalle (`LICENSE_TYPE_LABELS` del domain). */
+export const LICENSE_TYPES = (
+  Object.values(LicenseType) as LicenseTypeValue[]
+).map((value) => ({
+  value,
+  label: LICENSE_TYPE_LABELS[value],
+}));
 
 export const MEXICAN_STATES = [
   "Aguascalientes",

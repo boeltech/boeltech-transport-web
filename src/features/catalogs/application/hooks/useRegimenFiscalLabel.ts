@@ -9,7 +9,11 @@ import { CatalogTypeCode, type CatalogTypeCodeValue } from "../../domain";
 import { useCatalogOptions } from "./useCatalogSearch";
 
 export interface UseRegimenFiscalLabelResult {
-  /** Texto "código - nombre" si existe en catálogo; si no, el código; sin código → null */
+  /**
+   * - `code-name` (default): "código - nombre" (facturación)
+   * - `name`: solo nombre humano (detalle operativo de cliente)
+   * Si no hay match: el código; sin código → null
+   */
   label: string | null;
   isLoading: boolean;
   isError: boolean;
@@ -17,10 +21,14 @@ export interface UseRegimenFiscalLabelResult {
 
 export function useRegimenFiscalLabel(
   code: string | null | undefined,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    format?: "name" | "code-name";
+  },
 ): UseRegimenFiscalLabelResult {
   const trimmed = code?.trim() ?? "";
   const enabled = options?.enabled ?? true;
+  const format = options?.format ?? "code-name";
 
   const { data: catalogOptions, isLoading, isError } = useCatalogOptions(
     CatalogTypeCode.SAT_REGIMEN_FISCAL as CatalogTypeCodeValue,
@@ -30,9 +38,10 @@ export function useRegimenFiscalLabel(
   const label = useMemo(() => {
     if (!trimmed) return null;
     const item = catalogOptions?.find((o) => o.code === trimmed);
-    if (item) return `${item.code} - ${item.name}`;
-    return trimmed;
-  }, [trimmed, catalogOptions]);
+    if (!item) return trimmed;
+    if (format === "name") return item.name?.trim() || trimmed;
+    return `${item.code} - ${item.name}`;
+  }, [trimmed, catalogOptions, format]);
 
   return { label, isLoading, isError };
 }

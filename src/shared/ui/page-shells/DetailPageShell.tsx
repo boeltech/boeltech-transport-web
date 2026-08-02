@@ -40,8 +40,11 @@ import { cn } from "@shared/lib/utils/cn";
 // ============================================================================
 
 export interface DetailPageShellHeader {
-  /** Ruta a la que regresa el botón back. */
-  backHref: string;
+  /**
+   * Ruta a la que regresa el botón back. Se omite en raíces de módulo
+   * (p. ej. /finance), donde no hay pantalla padre a la que volver.
+   */
+  backHref?: string;
   /** Aria-label del botón back. */
   backLabel?: string;
   /** Icono de la entidad (envuelto en un círculo de fondo). */
@@ -145,6 +148,7 @@ export const DetailPageShell = memo(function DetailPageShell({
   className,
 }: DetailPageShellProps) {
   const navigate = useNavigate();
+  const backHref = header.backHref;
 
   if (isLoading) {
     return <LoadingPageState variant="detail" className={className} />;
@@ -170,14 +174,16 @@ export const DetailPageShell = memo(function DetailPageShell({
        * ================================================================== */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(header.backHref)}
-            aria-label={header.backLabel ?? "Volver"}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          {backHref ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(backHref)}
+              aria-label={header.backLabel ?? "Volver"}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          ) : null}
           <div
             className={cn(
               "flex h-12 w-12 shrink-0 items-center justify-center",

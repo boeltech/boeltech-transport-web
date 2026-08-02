@@ -170,7 +170,7 @@ export function AddressGeolocationPanel({
       setCandidates(outcome.data.candidates);
       if (outcome.data.candidates.length === 0) {
         setGeocodeError(
-          "No se encontraron coincidencias. Ajusta la direccion y vuelve a intentar.",
+          "No se encontraron coincidencias. Ajusta la dirección y vuelve a intentar.",
         );
       }
     } finally {
@@ -289,13 +289,13 @@ export function AddressGeolocationPanel({
 
       {showSearchControls ? (
         <div className="space-y-2">
-          <Label htmlFor="geo-manual-search">Busqueda en mapa</Label>
+          <Label htmlFor="geo-manual-search">Búsqueda en mapa</Label>
           <div className="flex gap-2">
             <Input
               id="geo-manual-search"
               value={manualSearchText}
               onChange={(event) => setManualSearchText(event.target.value)}
-              placeholder="Refinar texto de busqueda (opcional)"
+              placeholder="Refinar texto de búsqueda (opcional)"
               disabled={mapAndCoordsDisabled}
             />
             <Button
@@ -362,7 +362,7 @@ export function AddressGeolocationPanel({
       <div className="min-w-0 space-y-2">
         <p className="text-xs text-muted-foreground">
           {hasCoordinates
-            ? `Ubicacion confirmada: ${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`
+            ? `Ubicación confirmada: ${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`
             : "Haz clic en el mapa para colocar el pin o selecciona un candidato."}
         </p>
         {mapboxToken ? (
