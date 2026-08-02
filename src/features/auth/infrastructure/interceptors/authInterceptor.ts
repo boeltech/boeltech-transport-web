@@ -4,6 +4,7 @@
  *
  * Interceptores de Axios para autenticación.
  * Fase 4: tenant puede usar cookies httpOnly (sin Bearer en storage).
+ * Refresh single-flight is scoped (tenant vs platform) so queues never mix Bearer tokens.
  */
 
 import {
@@ -29,7 +30,7 @@ export interface AuthInterceptorConfig {
   onTokenRefreshed?: (newToken: string) => void;
 }
 
-let isRefreshing = false;
+type AuthScope = "platform" | "tenant";
 
 type PendingRetry = {
   resolve: (value: AxiosResponse) => void;
@@ -37,7 +38,15 @@ type PendingRetry = {
   config: InternalAxiosRequestConfig & { _retry?: boolean };
 };
 
-const pendingRetries: PendingRetry[] = [];
+type ScopeRefreshState = {
+  isRefreshing: boolean;
+  pendingRetries: PendingRetry[];
+};
+
+const refreshStateByScope: Record<AuthScope, ScopeRefreshState> = {
+  tenant: { isRefreshing: false, pendingRetries: [] },
+  platform: { isRefreshing: false, pendingRetries: [] },
+};
 
 function setBearerToken(
   config: InternalAxiosRequestConfig,
@@ -48,24 +57,30 @@ function setBearerToken(
   config.headers = headers;
 }
 
-function rejectPending(error: unknown): void {
-  pendingRetries.forEach(({ reject }) => reject(error));
-  pendingRetries.length = 0;
+function rejectPending(scope: AuthScope, error: unknown): void {
+  const state = refreshStateByScope[scope];
+  state.pendingRetries.forEach(({ reject }) => reject(error));
+  state.pendingRetries.length = 0;
 }
 
-function replayPending(instance: AxiosInstance, accessToken: string): void {
-  pendingRetries.forEach(({ resolve, reject, config }) => {
+function replayPending(
+  scope: AuthScope,
+  instance: AxiosInstance,
+  accessToken: string,
+): void {
+  const state = refreshStateByScope[scope];
+  const pending = state.pendingRetries.splice(0, state.pendingRetries.length);
+  pending.forEach(({ resolve, reject, config }) => {
     if (accessToken) {
       setBearerToken(config, accessToken);
     }
     instance(config).then(resolve).catch(reject);
   });
-  pendingRetries.length = 0;
 }
 
 function resolveAuthScope(
   requestConfig: InternalAxiosRequestConfig,
-): "platform" | "tenant" {
+): AuthScope {
   if (requestConfig.authScope === "platform") return "platform";
   if (requestConfig.authScope === "tenant") return "tenant";
   const url = requestConfig.url ?? "";
@@ -73,13 +88,13 @@ function resolveAuthScope(
   return "tenant";
 }
 
-function getTokenStorage(scope: "platform" | "tenant") {
+function getTokenStorage(scope: AuthScope) {
   return scope === "platform" ? platformTokenStorage : tokenStorage;
 }
 
 function isRefreshRequest(
   requestConfig: InternalAxiosRequestConfig,
-  scope: "platform" | "tenant",
+  scope: AuthScope,
 ): boolean {
   const url = requestConfig.url ?? "";
   if (scope === "platform") {
@@ -124,7 +139,7 @@ function canAttemptTenantCookieRefresh(): boolean {
 
 async function refreshAccessToken(
   instance: AxiosInstance,
-  scope: "platform" | "tenant",
+  scope: AuthScope,
 ): Promise<string> {
   const endpoint =
     scope === "platform" ? "/platform/auth/refresh" : "/auth/refresh";
@@ -228,6 +243,7 @@ export function setupAuthInterceptor(
       }
 
       const scope = resolveAuthScope(originalRequest);
+      const scopeState = refreshStateByScope[scope];
 
       if (isRefreshRequest(originalRequest, scope)) {
         console.error(
@@ -275,9 +291,9 @@ export function setupAuthInterceptor(
 
       originalRequest._retry = true;
 
-      if (isRefreshing) {
+      if (scopeState.isRefreshing) {
         return new Promise((resolve, reject) => {
-          pendingRetries.push({
+          scopeState.pendingRetries.push({
             resolve,
             reject,
             config: originalRequest,
@@ -285,25 +301,30 @@ export function setupAuthInterceptor(
         });
       }
 
-      isRefreshing = true;
+      scopeState.isRefreshing = true;
 
       try {
-        console.log("[AuthInterceptor] 401 received, attempting token refresh...");
+        console.log(
+          `[AuthInterceptor] 401 (${scope}), attempting token refresh...`,
+        );
         const newToken = await refreshAccessToken(axiosInstance, scope);
-        console.log("[AuthInterceptor] Token refreshed successfully");
+        console.log(`[AuthInterceptor] Token refreshed successfully (${scope})`);
         if (scope === "tenant" && newToken) {
           config.onTokenRefreshed?.(newToken);
         }
 
-        replayPending(axiosInstance, newToken);
+        replayPending(scope, axiosInstance, newToken);
 
         if (newToken) {
           setBearerToken(originalRequest, newToken);
         }
         return await axiosInstance(originalRequest);
       } catch (refreshError) {
-        console.error("[AuthInterceptor] Token refresh failed:", refreshError);
-        rejectPending(refreshError);
+        console.error(
+          `[AuthInterceptor] Token refresh failed (${scope}):`,
+          refreshError,
+        );
+        rejectPending(scope, refreshError);
         if (scope === "platform") {
           platformTokenStorage.clear();
           notifyPlatformUnauthorized();
@@ -312,7 +333,7 @@ export function setupAuthInterceptor(
         }
         return Promise.reject(error);
       } finally {
-        isRefreshing = false;
+        scopeState.isRefreshing = false;
       }
     },
   );

@@ -12,7 +12,6 @@
  */
 
 import {
-  createContext,
   useCallback,
   useEffect,
   useMemo,
@@ -36,42 +35,25 @@ import {
   VerifyAuthUseCase,
 } from "../../application";
 
-// Infrastructure
+// Infrastructure — leaf imports (no barrel) para no ciclar con hooks/AuthContext
+import { AuthRepository } from "../../infrastructure/repositories/AuthRepository";
 import {
-  AuthRepository,
   tokenStorage,
+  consumeFreshLoginSession,
+} from "../../infrastructure/storage/tokenStorage";
+import {
   setTenantUnauthorizedHandler,
   setTenantTokenRefreshedHandler,
-} from "../../infrastructure";
-import { consumeFreshLoginSession } from "../../infrastructure/storage/tokenStorage";
+} from "../../infrastructure/sessionHandlers";
 import {
   persistsAuthTokens,
   usesAuthCookies,
 } from "../../infrastructure/sessionMode";
 import { clearSentryUser, setSentryUser } from "@/shared/observability/sentry";
+import { AuthContext, type AuthContextType } from "./authContext";
 
-// ============================================
-// CONTEXT TYPE
-// ============================================
-
-export interface AuthContextType extends AuthState {
-  /** Iniciar sesión */
-  login: (credentials: LoginCredentials) => Promise<void>;
-  /** Cerrar sesión */
-  logout: () => Promise<void>;
-  /** Refrescar usuario desde GET /auth/profile (sesión autenticada) */
-  refreshProfile: () => Promise<void>;
-  /** Sincroniza sesión tras PATCH de perfil; opcionalmente guarda nuevo access token. */
-  replaceSessionUser: (json: UserJSON, accessToken?: string) => void;
-  /** Persiste access + refresh (p. ej. tras POST /auth/change-password con nuevos tokens). */
-  applySessionTokens: (accessToken: string, refreshToken: string) => void;
-}
-
-// ============================================
-// CONTEXT
-// ============================================
-
-export const AuthContext = createContext<AuthContextType | null>(null);
+export type { AuthContextType };
+export { AuthContext };
 
 // ============================================
 // PROVIDER

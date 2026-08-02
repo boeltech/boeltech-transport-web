@@ -20,7 +20,7 @@ export function AuthFunnelFormHeader({
         {title}
       </h1>
       {description ? (
-        <p className="text-muted-foreground text-sm leading-relaxed text-balance">
+        <p className="text-muted-foreground text-base leading-relaxed text-balance">
           {description}
         </p>
       ) : null}

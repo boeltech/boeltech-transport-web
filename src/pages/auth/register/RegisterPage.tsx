@@ -27,6 +27,7 @@ import {
 import {
   isTurnstileConfigured,
   TurnstileWidget,
+  type TurnstileWidgetHandle,
 } from "@shared/ui/turnstile";
 import {
   Select,
@@ -60,11 +61,11 @@ import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServ
 import { AuthFunnelFormHeader } from "../AuthFunnelFormHeader";
 import { PasswordVisibilityToggle } from "../PasswordVisibilityToggle";
 import { useAuthFunnelBrandSlot } from "../AuthFunnelShellContext";
+import { RegisterBrandStepper } from "./RegisterBrandStepper";
 import {
   REGISTER_FUNNEL_STEPS,
-  RegisterBrandStepper,
   type RegisterFunnelStep,
-} from "./RegisterBrandStepper";
+} from "./registerFunnelSteps";
 import { registerFunnelCopy as copy } from "./registerFunnelCopy";
 import { saveRegisterFunnelPreference } from "./registerFunnelPreference";
 import { authFunnelCopy } from "../authFunnelCopy";
@@ -96,6 +97,7 @@ const RegisterPage = () => {
   const previousStepIndexRef = useRef(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -159,6 +161,8 @@ const RegisterPage = () => {
     const prevIndex = previousStepIndexRef.current;
     setStepDirection(nextIndex >= prevIndex ? "forward" : "back");
     previousStepIndexRef.current = nextIndex;
+    // Evita banners API stale (p. ej. HIBP) al volver a editar y re-entrar a Confirmar.
+    setError(null);
     setStep(newStep);
   };
 
@@ -302,6 +306,7 @@ const RegisterPage = () => {
           );
         }
       }
+      turnstileRef.current?.reset();
     } finally {
       setIsSubmitting(false);
     }
@@ -355,11 +360,8 @@ const RegisterPage = () => {
       >
         <AuthFunnelFormHeader
           title={copy.steps[step].title}
-          description={copy.headerTrust}
+          description={copy.steps[step].description}
         />
-        <p className="text-muted-foreground -mt-5 mb-6 text-center text-sm">
-          {copy.steps[step].description}
-        </p>
 
         {error && (
           <AlertWithIcon variant="destructive" className="mb-6">
@@ -563,17 +565,34 @@ const RegisterPage = () => {
                   </p>
                 </div>
 
-                <div className="bg-muted/40 space-y-2 rounded-lg border p-4">
+                <div className="bg-muted/40 space-y-3 rounded-lg border p-4">
                   <p className="text-sm font-medium">{copy.plan.previewTitle}</p>
-                  <p className="text-foreground text-sm">{preferredPlan.name}</p>
-                  <ul className="text-muted-foreground space-y-1 text-xs">
-                    <li>{preferredPlan.unitsLabel}</li>
-                    <li>{preferredPlan.priceLabel}</li>
-                    <li>{preferredPlan.usersLabel}</li>
-                    <li>{preferredPlan.branchesLabel}</li>
-                    <li>{preferredPlan.stampsLabel}</li>
-                  </ul>
-                  <p className="text-muted-foreground text-xs">
+                  <div>
+                    <p className="text-foreground text-sm font-semibold">
+                      {preferredPlan.name}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {copy.plan.priceListLabel}
+                    </p>
+                    <p className="text-primary text-xl font-bold tracking-tight tabular-nums">
+                      {preferredPlan.priceAmount}
+                      <span className="text-muted-foreground ml-1 text-sm font-medium">
+                        {preferredPlan.pricePeriod}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      {copy.plan.capacityLabel}
+                    </p>
+                    <ul className="text-muted-foreground space-y-1 text-xs">
+                      <li>{preferredPlan.unitsLabel}</li>
+                      <li>{preferredPlan.usersLabel}</li>
+                      <li>{preferredPlan.branchesLabel}</li>
+                      <li>{preferredPlan.stampsLabel}</li>
+                    </ul>
+                  </div>
+                  <p className="text-foreground text-xs font-medium">
                     {copy.plan.trialNote}
                   </p>
                   <p className="text-muted-foreground text-xs">
@@ -837,6 +856,7 @@ const RegisterPage = () => {
                 />
 
                 <TurnstileWidget
+                  ref={turnstileRef}
                   onToken={setCaptchaToken}
                   className="flex justify-center"
                 />

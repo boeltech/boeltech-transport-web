@@ -53,7 +53,9 @@ describe("ForgotPasswordPage", () => {
   it("muestra helper de código de empresa", () => {
     renderPage();
     expect(
-      screen.getByText(/Debe coincidir con el código de empresa del login/i),
+      screen.getByText(
+        /El mismo identificador «Empresa» que usas al iniciar sesión/i,
+      ),
     ).toBeInTheDocument();
   });
 });

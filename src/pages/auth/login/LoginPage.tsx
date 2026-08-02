@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -16,6 +16,7 @@ import {
 import {
   isTurnstileConfigured,
   TurnstileWidget,
+  type TurnstileWidgetHandle,
 } from "@shared/ui/turnstile";
 
 import {
@@ -46,6 +47,7 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [showFieldSummary, setShowFieldSummary] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(
     null,
   );
@@ -153,6 +155,8 @@ const LoginPage = () => {
         message = copy.offline;
       }
       setError(message);
+      // Token Turnstile = un solo uso (también si el login falló por credenciales).
+      turnstileRef.current?.reset();
     } finally {
       setIsSubmitting(false);
     }
@@ -280,7 +284,7 @@ const LoginPage = () => {
               message={errors.subdomain?.message}
             />
             {!errors.subdomain && (
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground text-sm">
                 {copy.fields.subdomainHint}
               </p>
             )}
@@ -342,7 +346,11 @@ const LoginPage = () => {
             />
           ) : null}
 
-          <TurnstileWidget onToken={setCaptchaToken} className="flex justify-center" />
+          <TurnstileWidget
+            ref={turnstileRef}
+            onToken={setCaptchaToken}
+            className="flex justify-center"
+          />
 
           <Button
             type="submit"

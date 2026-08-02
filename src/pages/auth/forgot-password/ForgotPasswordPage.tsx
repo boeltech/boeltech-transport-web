@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
@@ -16,6 +16,7 @@ import {
 import {
   isTurnstileConfigured,
   TurnstileWidget,
+  type TurnstileWidgetHandle,
 } from "@shared/ui/turnstile";
 import { apiClient } from "@shared/api";
 import { tokenStorage } from "@features/auth/infrastructure";
@@ -34,6 +35,7 @@ const ForgotPasswordPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const [showFieldSummary, setShowFieldSummary] = useState(false);
 
   const savedSubdomain = tokenStorage.getSubdomain()?.trim() || "";
@@ -77,6 +79,7 @@ const ForgotPasswordPage = () => {
       setSuccess(true);
     } catch (err: unknown) {
       setError(mapBackendError(err).message);
+      turnstileRef.current?.reset();
     } finally {
       setIsSubmitting(false);
     }
@@ -134,7 +137,7 @@ const ForgotPasswordPage = () => {
               errors.subdomain?.message,
             )}
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-sm">
             {copy.fields.subdomainHint}
           </p>
           {savedSubdomain ? (
@@ -175,6 +178,7 @@ const ForgotPasswordPage = () => {
         </div>
 
         <TurnstileWidget
+          ref={turnstileRef}
           onToken={setCaptchaToken}
           className="flex justify-center"
         />

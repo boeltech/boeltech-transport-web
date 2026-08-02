@@ -6,15 +6,10 @@
 import { Check } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { registerFunnelCopy as copy } from "./registerFunnelCopy";
-
-export type RegisterFunnelStep = "company" | "plan" | "admin" | "confirm";
-
-export const REGISTER_FUNNEL_STEPS: RegisterFunnelStep[] = [
-  "company",
-  "plan",
-  "admin",
-  "confirm",
-];
+import {
+  REGISTER_FUNNEL_STEPS,
+  type RegisterFunnelStep,
+} from "./registerFunnelSteps";
 
 type RegisterBrandStepperProps = {
   currentStep: RegisterFunnelStep;
@@ -62,6 +57,10 @@ export function RegisterBrandStepper({
             );
           })}
         </ol>
+        {/* D5: única mención de trial en móvil (aside oculto) */}
+        <p className="text-muted-foreground text-center text-xs">
+          {copy.trialHint}
+        </p>
       </div>
     );
   }
@@ -78,6 +77,8 @@ export function RegisterBrandStepper({
         <p className="text-muted-foreground text-sm leading-relaxed">
           {copy.panel.progressHint}
         </p>
+        {/* D5: única mención de trial en desktop (panel marca) */}
+        <p className="text-primary pt-1 text-sm font-medium">{copy.trialHint}</p>
       </div>
 
       <ol className="space-y-0" aria-label={copy.progressAria}>

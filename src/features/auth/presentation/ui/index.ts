@@ -2,12 +2,8 @@
  * Auth UI - Public API
  */
 
-export {
-  AuthProvider,
-  AuthContext,
-  type AuthContextType,
-} from "./AuthProvider";
-
+export { AuthProvider } from "./AuthProvider";
+export { AuthContext, type AuthContextType } from "./authContext";
 export { EmailVerificationBanner } from "./EmailVerificationBanner";
 
 export {

@@ -206,7 +206,7 @@ export function AcceptInvitationPage() {
             <Input
               id="firstName"
               autoComplete="given-name"
-              placeholder="Eliane"
+              placeholder="Tu nombre"
               {...register("firstName")}
               {...getRegisterFieldErrorProps(
                 "firstName",
@@ -223,7 +223,7 @@ export function AcceptInvitationPage() {
             <Input
               id="lastName"
               autoComplete="family-name"
-              placeholder="Méndez"
+              placeholder="Tus apellidos"
               {...register("lastName")}
               {...getRegisterFieldErrorProps(
                 "lastName",

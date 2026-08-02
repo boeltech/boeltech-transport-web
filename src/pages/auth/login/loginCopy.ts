@@ -8,7 +8,7 @@ export const loginCopy = {
   fields: {
     subdomain: "Empresa",
     subdomainHint:
-      "Identificador único de tu empresa (el mismo que elegiste al registrarte), sin espacios.",
+      "El mismo identificador «Empresa» que usas al registrarte (no el nombre comercial).",
     subdomainPlaceholder: "mi-empresa",
     email: "Correo electrónico",
     emailPlaceholder: "admin@tuempresa.com",

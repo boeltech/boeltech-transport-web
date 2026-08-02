@@ -2,36 +2,43 @@
  * Copy de la landing pública (`/welcome`).
  * Namespace: landing.copy.*
  * Alineado a SoT comercial v3.2 (§3.2 núcleo L0, §4 add-ons, §6.6 trial).
+ * Handoff Capa 1 (D1–D7): embudo outcome → prueba → precio.
  */
+import { BRAND } from "@shared/ui/brand";
+
 export const landingCopy = {
-  brand: "Boeltech ERP",
+  brand: BRAND.productName,
+  brandByline: BRAND.productByline,
   brandTagline: "Operación y facturación para transporte en México",
 
   nav: {
-    features: "Características",
-    included: "Incluido",
+    product: "Qué incluye",
     pricing: "Precios",
-    addons: "Add-ons",
+    optionals: "Opcionales",
     login: "Iniciar sesión",
     register: "Probar gratis",
     contactSales: "Contactar ventas",
   },
 
   hero: {
-    badge: "Prueba 14 días · sin tarjeta",
-    title: "Opera y factura tu flota con CFDI y Carta Porte desde el día uno",
+    /** Solo cuando self-serve está abierto. */
+    badgeOpen: "Prueba 14 días · sin tarjeta",
+    /** Cuando el registro público está cerrado. */
+    badgeClosed: "Alta con acompañamiento comercial",
+    title: "Opera y factura tu flota desde el día uno",
     subtitle:
-      "Viajes, flota, clientes y timbrado fiscal (CFDI 4.0, Carta Porte 3.1 y REP) en un solo ERP para transporte en México.",
-    ctaPrimary: "Comenzar prueba gratis",
-    ctaSecondary: "Ya tengo cuenta",
+      "Viajes, flota y clientes en un solo lugar — con timbrado fiscal listo para México.",
+    ctaPrimaryOpen: "Comenzar prueba gratis",
+    ctaPrimaryClosed: "Contactar ventas",
+    ctaLogin: "Ya tengo cuenta",
     trialHint:
       "14 días · 15 timbres de prueba · sin tarjeta · cualquier plan Operación",
   },
 
   preview: {
-    windowTitle: "Boeltech ERP · Operaciones",
-    listTitle: "Viajes recientes",
-    listHint: "Hoy",
+    windowTitle: `${BRAND.productName} · Viaje y facturación`,
+    panelTitle: "Viajes recientes",
+    panelHint: "Hoy",
     navItems: [
       "Dashboard",
       "Viajes",
@@ -40,64 +47,55 @@ export const landingCopy = {
       "Facturación",
       "Reportes",
     ],
-    kpis: [
-      { label: "En ruta", value: "12", delta: "+8%" },
-      { label: "Timbrados", value: "48", delta: "+12%" },
-      { label: "Flota", value: "26", delta: "+2" },
-      { label: "Sucursales", value: "3", delta: "OK" },
+    /** Franja compacta: operación + fiscal (no KPIs genéricos). */
+    statusStrip: [
+      { label: "En ruta", value: "VJ-1042" },
+      { label: "Timbrado", value: "CFDI listo" },
     ],
     trips: [
-      { code: "VJ-1042", route: "GDL → MTY", status: "En ruta" },
-      { code: "VJ-1038", route: "CDMX → QRO", status: "Entregado" },
-      { code: "VJ-1031", route: "TIJ → Hermosillo", status: "Programado" },
-      { code: "VJ-1024", route: "MTY → Saltillo", status: "En ruta" },
+      {
+        code: "VJ-1042",
+        route: "GDL → MTY",
+        status: "En ruta",
+        fiscal: "Carta Porte",
+      },
+      {
+        code: "VJ-1038",
+        route: "CDMX → QRO",
+        status: "Entregado",
+        fiscal: "Timbrado",
+      },
+      {
+        code: "VJ-1031",
+        route: "TIJ → Hermosillo",
+        status: "Programado",
+        fiscal: "Pendiente",
+      },
+      {
+        code: "VJ-1024",
+        route: "MTY → Saltillo",
+        status: "En ruta",
+        fiscal: "CFDI + REP",
+      },
     ],
   },
 
   trust: {
-    ariaLabel: "Capacidades del núcleo operativo",
+    ariaLabel: "Cumplimiento fiscal mexicano",
     items: [
       { label: "CFDI 4.0", hint: "Timbrado fiscal" },
       { label: "Carta Porte 3.1", hint: "Complemento SAT" },
       { label: "REP", hint: "Complementos de pago" },
-      { label: "7 roles RBAC", hint: "Acceso por permiso" },
     ],
   },
 
-  features: {
-    id: "features",
-    title: "Todo lo que incluye el núcleo operativo",
+  /** Sección única: núcleo L0 (fusiona features + included). */
+  product: {
+    id: "producto",
+    title: "Qué incluye el núcleo operativo",
     subtitle:
       "El mismo alcance en los cuatro planes Operación. La diferencia entre tiers es capacidad (usuarios, sucursales, timbres), no funciones básicas.",
-    items: [
-      {
-        title: "Seguimiento operativo",
-        description:
-          "Paradas, eventos de viaje y estado de la operación sin depender de un add-on de GPS.",
-      },
-      {
-        title: "Control de acceso",
-        description:
-          "Roles y permisos granulares para despacho, finanzas, operación y administración.",
-      },
-      {
-        title: "Reportes operativos",
-        description:
-          "Dashboard y reportes básicos para decidir con datos de tu operación diaria.",
-      },
-      {
-        title: "Facturación fiscal MX",
-        description:
-          "CFDI 4.0, Carta Porte 3.1, REP, sustitución y cobranza multi-factura.",
-      },
-    ],
-  },
-
-  included: {
-    id: "included",
-    title: "Módulos incluidos en tu plan",
-    subtitle:
-      "Digitaliza la operación y factura en regla. Los módulos de rentabilidad se contratan aparte.",
+    includedBadge: "Incluido",
     items: [
       {
         title: "Flota",
@@ -110,7 +108,8 @@ export const landingCopy = {
       },
       {
         title: "Viajes",
-        description: "Programación, paradas, carga y seguimiento operativo.",
+        description:
+          "Programación, paradas, carga y seguimiento operativo sin depender de un add-on de GPS.",
         bullets: [
           "Wizard de alta",
           "Seguimiento de paradas",
@@ -119,18 +118,20 @@ export const landingCopy = {
       },
       {
         title: "Clientes y personal",
-        description: "Directorio comercial y base operativa de personas.",
+        description:
+          "Directorio comercial, conductores y base operativa con roles y permisos.",
         bullets: [
           "Clientes y contactos",
           "Conductores y licencias",
-          "Empleados (directorio HR base)",
+          "7 roles con acceso por permiso",
         ],
       },
       {
         title: "Facturación y finanzas",
-        description: "Ciclo fiscal y control de gastos ligadas a la operación.",
+        description:
+          "Ciclo fiscal mexicano ligado a la operación: timbrar, cobrar y aprobar.",
         bullets: [
-          "CFDI + Carta Porte + REP",
+          "CFDI 4.0, Carta Porte 3.1 y REP",
           "Hub de aprobaciones",
           "Exposición de crédito (sin bloqueo)",
         ],
@@ -138,11 +139,11 @@ export const landingCopy = {
     ],
   },
 
-  addons: {
-    id: "addons",
-    title: "Add-ons opcionales",
+  optionals: {
+    id: "opcionales",
+    title: "Opcionales",
     subtitle:
-      "Módulos de negocio à la carte o en packs. Se activan sobre cualquier plan Operación; no forman parte del núcleo incluido.",
+      "Módulos de rentabilidad à la carte. Se activan sobre cualquier plan Operación; no forman parte del núcleo incluido.",
     badge: "Opcional",
     items: [
       {
@@ -165,7 +166,7 @@ export const landingCopy = {
       },
     ],
     footnote:
-      "Los precios y disponibilidad de add-ons viven en el catálogo comercial. En la app puedes consultar tu plan en Configuración → Plan y consumo.",
+      "Los precios y disponibilidad de opcionales viven en el catálogo comercial. En la app puedes consultar tu plan en Configuración → Plan y consumo.",
   },
 
   pricing: {
@@ -174,9 +175,10 @@ export const landingCopy = {
     subtitle:
       "Elige capacidad según el tamaño de tu flota. El mismo núcleo en todos los tiers: viajes, flota, clientes y facturación fiscal MX.",
     annualNote: "Pago anual: −15% sobre el precio de lista del plan Operación.",
-    addonsNote:
-      "Add-ons y packs se contratan aparte y no incluyen capacidad extra del plan.",
+    optionalsNote:
+      "Opcionales y packs se contratan aparte y no incluyen capacidad extra del plan.",
     priceHint: "Precios de lista MXN · sin IVA · prueba 14 días sin tarjeta",
+    priceHintClosed: "Precios de lista MXN · sin IVA · alta con ventas",
     familyLabel: "Operación",
     cta: "Empezar prueba gratis",
     ctaSecondary: "Hablar con ventas",
@@ -202,13 +204,13 @@ export const landingCopy = {
   },
 
   cta: {
-    title: "Prueba Boeltech en tu operación",
+    title: `Prueba ${BRAND.productName} en tu operación`,
     subtitle:
       "Crea tu empresa, opera con el núcleo incluido y factura con reglas fiscales mexicanas. Sin tarjeta para iniciar la prueba.",
     primary: "Crear cuenta y empezar",
     secondary: "Hablar con ventas",
     trialHint: "14 días · 15 timbres · sin tarjeta",
-    closedTitle: "¿Listo para operar con Boeltech?",
+    closedTitle: `¿Listo para operar con ${BRAND.productName}?`,
     closedSubtitle:
       "El registro público está cerrado por ahora. Contáctanos para alta de empresa o inicia sesión si ya tienes cuenta.",
     closedPrimary: "Hablar con ventas",
@@ -222,7 +224,9 @@ export const landingCopy = {
     privacy: "Política de privacidad",
     support: "Soporte",
     tagline: "Operación y facturación para transporte en México",
+    nameOrigin:
+      "El nombre Tlama evoca la raíz de cargar y llevar a distancia en la historia del transporte en México.",
     copyright: (year: number) =>
-      `© ${year} Boeltech. Todos los derechos reservados.`,
+      `© ${year} ${BRAND.companyName}. Todos los derechos reservados.`,
   },
 } as const;

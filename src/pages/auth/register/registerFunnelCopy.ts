@@ -3,7 +3,8 @@
  * Namespace: register.funnel.copy.*
  */
 export const registerFunnelCopy = {
-  headerTrust: "Prueba gratis 14 días · 15 timbres · sin tarjeta",
+  /** Única mención de trial en viewport (panel / mobile stepper). D5 */
+  trialHint: "Prueba gratis 14 días · 15 timbres · sin tarjeta",
 
   panel: {
     progressLabel: "Registro",
@@ -63,18 +64,20 @@ export const registerFunnelCopy = {
       "Rangos orientativos del catálogo comercial. No bloquean un plan distinto.",
     planLabel: "Plan preferido",
     planHint:
-      "Puedes elegir otro plan distinto al sugerido. Al crear la cuenta se guarda el plan y la flota declarada; la suscripción arranca en periodo de prueba (14 días · 15 timbres).",
+      "Puedes elegir otro plan distinto al sugerido. Al crear la cuenta se guarda el plan y la flota declarada; la suscripción arranca en periodo de prueba.",
     recommendedBadge: "Recomendado",
     previewTitle: "Resumen del plan",
-    trialNote: "Prueba: 14 días · 15 timbres · sin tarjeta",
-    priceNote: "Precio de lista sin IVA · capacidades del plan Operación",
+    priceListLabel: "Precio de lista",
+    capacityLabel: "Capacidad",
+    trialNote: "Incluye prueba: 14 días · 15 timbres · sin tarjeta",
+    priceNote: "Sin IVA · cobro al terminar la prueba según el plan elegido",
   },
 
   admin: {
     firstNameLabel: "Nombre",
-    firstNamePlaceholder: "Eliane",
+    firstNamePlaceholder: "Tu nombre",
     lastNameLabel: "Apellido",
-    lastNamePlaceholder: "Méndez",
+    lastNamePlaceholder: "Tus apellidos",
     emailLabel: "Correo electrónico",
     emailPlaceholder: "admin@tuempresa.com",
     passwordLabel: "Contraseña",
@@ -91,7 +94,7 @@ export const registerFunnelCopy = {
     fleetNone: "Sin declarar",
     preferredPlan: "Plan preferido",
     serverNote:
-      "Al crear la cuenta guardamos el plan elegido y la flota que declaraste. La suscripción arranca en periodo de prueba (14 días · 15 timbres). Si no eliges plan, usamos Operación Esencial.",
+      "Al crear la cuenta guardamos el plan elegido y la flota que declaraste. La suscripción arranca en periodo de prueba. Si no eliges plan, usamos Operación Esencial.",
     acceptTerms: "Acepto los términos y condiciones",
     termsPrefix: "Al registrarte aceptas nuestros",
     terms: "términos de servicio",

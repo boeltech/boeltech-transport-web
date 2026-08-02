@@ -1,14 +1,46 @@
 /**
- * Preview ancho del producto para hero de landing (tokens OKLCH).
+ * Preview de marketing: narración operación + facturación.
+ * Si `product-preview-dashboard` está enabled en el catálogo → imagen;
+ * si no → mock CSS (D4/D5: un solo preview por superficie).
  */
 import { cn } from "@shared/lib/utils/cn";
+import { isCommercialAssetEnabled } from "@shared/commercial/assets/commercialAssets";
+import { CommercialImage } from "@shared/ui/commercial";
 import { landingCopy } from "./landingCopy";
 
 type LandingProductPreviewProps = {
   className?: string;
 };
 
+const PRODUCT_PREVIEW_ID = "product-preview-dashboard" as const;
+
 export function LandingProductPreview({ className }: LandingProductPreviewProps) {
+  if (isCommercialAssetEnabled(PRODUCT_PREVIEW_ID)) {
+    return (
+      <div
+        className={cn(
+          "pointer-events-none relative mx-auto w-full max-w-5xl select-none",
+          className,
+        )}
+        aria-hidden
+      >
+        <CommercialImage
+          id={PRODUCT_PREVIEW_ID}
+          decorative
+          loading="eager"
+          className={cn(
+            "bg-card border-border w-full rounded-2xl border object-cover object-top shadow-xl",
+            "translate-y-2 sm:translate-y-4",
+          )}
+        />
+      </div>
+    );
+  }
+
+  return <LandingProductPreviewMock className={className} />;
+}
+
+function LandingProductPreviewMock({ className }: LandingProductPreviewProps) {
   const { preview } = landingCopy;
 
   return (
@@ -42,7 +74,7 @@ export function LandingProductPreview({ className }: LandingProductPreviewProps)
                 key={item}
                 className={cn(
                   "h-2.5 rounded",
-                  i === 0
+                  i === 1
                     ? "bg-sidebar-primary/40 w-full"
                     : "bg-sidebar-foreground/15 w-[85%]",
                 )}
@@ -52,20 +84,17 @@ export function LandingProductPreview({ className }: LandingProductPreviewProps)
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {preview.kpis.map((kpi) => (
+            <div className="grid grid-cols-2 gap-2">
+              {preview.statusStrip.map((item) => (
                 <div
-                  key={kpi.label}
-                  className="bg-muted/50 rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5"
+                  key={item.label}
+                  className="bg-muted/50 rounded-xl border px-3 py-2.5"
                 >
-                  <p className="text-muted-foreground truncate text-[10px] leading-none sm:text-xs">
-                    {kpi.label}
+                  <p className="text-muted-foreground text-[10px] leading-none sm:text-xs">
+                    {item.label}
                   </p>
-                  <p className="text-foreground mt-1.5 text-sm font-semibold tabular-nums sm:text-base">
-                    {kpi.value}
-                  </p>
-                  <p className="text-success mt-1 text-[10px] font-medium">
-                    {kpi.delta}
+                  <p className="text-foreground mt-1.5 truncate text-sm font-semibold sm:text-base">
+                    {item.value}
                   </p>
                 </div>
               ))}
@@ -74,10 +103,10 @@ export function LandingProductPreview({ className }: LandingProductPreviewProps)
             <div className="bg-muted/30 min-h-0 flex-1 rounded-xl border p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-foreground text-xs font-semibold sm:text-sm">
-                  {preview.listTitle}
+                  {preview.panelTitle}
                 </p>
                 <span className="text-muted-foreground text-[10px]">
-                  {preview.listHint}
+                  {preview.panelHint}
                 </span>
               </div>
               <ul className="space-y-2">
@@ -89,9 +118,13 @@ export function LandingProductPreview({ className }: LandingProductPreviewProps)
                     <div className="min-w-0">
                       <p className="text-foreground truncate text-xs font-medium sm:text-sm">
                         {trip.code}
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          · {trip.route}
+                        </span>
                       </p>
-                      <p className="text-muted-foreground truncate text-[10px] sm:text-xs">
-                        {trip.route}
+                      <p className="text-muted-foreground mt-0.5 truncate text-[10px] sm:text-xs">
+                        {trip.fiscal}
                       </p>
                     </div>
                     <span className="bg-primary/15 text-primary shrink-0 rounded-md px-2 py-0.5 text-[10px] font-medium sm:text-xs">

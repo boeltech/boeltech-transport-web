@@ -7,7 +7,7 @@ import { useCallback, useContext, useMemo } from "react";
 import {
   AuthContext,
   type AuthContextType,
-} from "../../presentation/ui/AuthProvider";
+} from "../../presentation/ui/authContext";
 import { AuthRepository } from "../../infrastructure/repositories/AuthRepository";
 import type { UpdateMyProfilePayload } from "../../domain";
 

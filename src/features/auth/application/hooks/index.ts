@@ -12,7 +12,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   AuthContext,
   type AuthContextType,
-} from "../../presentation/ui/AuthProvider";
+} from "../../presentation/ui/authContext";
 
 // ============================================
 // useAuth
