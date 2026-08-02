@@ -40,17 +40,35 @@ export { BUSY_ON_ACTIVE_TRIP };
 export function applyBusyResourcesToVehicles(
   vehicles: readonly AssignableVehicleItem[],
   busyVehicleIds: ReadonlySet<string>,
+  options?: { keepAssignableVehicleId?: string },
 ): AssignableVehicleItem[] {
-  if (busyVehicleIds.size === 0) return [...vehicles];
+  const keepId = options?.keepAssignableVehicleId?.trim() || undefined;
 
   return vehicles.map((vehicle) => {
-    if (!busyVehicleIds.has(vehicle.id) || !vehicle.canBeAssigned) {
-      return vehicle;
+    let next = vehicle;
+
+    if (busyVehicleIds.has(vehicle.id) && vehicle.canBeAssigned) {
+      next = {
+        ...vehicle,
+        canBeAssigned: false as const,
+        blockReason: BUSY_ON_ACTIVE_TRIP,
+      };
     }
-    return {
-      ...vehicle,
-      canBeAssigned: false as const,
-      blockReason: BUSY_ON_ACTIVE_TRIP,
-    };
+
+    // Paridad con conductores: unidad reserved del viaje en edición permanece asignable.
+    if (
+      !next.canBeAssigned &&
+      keepId &&
+      next.id === keepId &&
+      next.status === "reserved"
+    ) {
+      return {
+        ...next,
+        canBeAssigned: true as const,
+        blockReason: undefined,
+      };
+    }
+
+    return next;
   });
 }

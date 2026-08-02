@@ -76,16 +76,16 @@ export function getTripStopFiscalMissingLabels(stop: TripStopFiscalInput): strin
   const fieldErrors = validateTripStopFiscalFieldErrors(stop);
   const labels: string[] = [];
   if (fieldErrors.rfcRemitenteDestinatario) {
-    labels.push("RFC remitente/destinatario");
+    labels.push("RFC de quien entrega o recibe");
   }
   if (fieldErrors.nombreRemitenteDestinatario) {
-    labels.push("Nombre remitente/destinatario");
+    labels.push("Nombre de quien entrega o recibe");
   }
   if (fieldErrors.deliveryRfcRemitenteDestinatario) {
-    labels.push("RFC destinatario (descarga)");
+    labels.push("RFC de quien recibe (entrega)");
   }
   if (fieldErrors.deliveryNombreRemitenteDestinatario) {
-    labels.push("Nombre destinatario (descarga)");
+    labels.push("Nombre de quien recibe (entrega)");
   }
   return labels;
 }

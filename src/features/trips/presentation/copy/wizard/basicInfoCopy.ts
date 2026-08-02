@@ -9,10 +9,11 @@ export const basicInfoCopy = {
     scheduling: "Programación",
   },
   label: {
+    originBranch: "Base operativa del viaje",
     vehicle: "Vehículo",
     driver: "Conductor",
     client: "Cliente que contrata",
-    cfdiDocumentIntent: "Tipo de comprobante del viaje",
+    cfdiDocumentIntent: "Tipo de viaje",
     scheduledDeparture: "Salida programada",
     scheduledArrival: "Llegada estimada",
     startMileage: "Kilometraje inicial",
@@ -28,34 +29,38 @@ export const basicInfoCopy = {
   },
   hint: {
     assignmentsScope:
-      "Asigna vehículo, conductor y cliente. Las paradas se capturan en el paso Ruta.",
+      "Asigna la base, vehículo, conductor y cliente. Las paradas se capturan en el paso Ruta.",
+    originBranch:
+      "Filtra la flota sugerida y queda registrada para reportes. No es, por defecto, el punto donde se carga la mercancía.",
     client:
       "Quién contrata el servicio. Entrega y recepción por parada se definen en Ruta.",
     cfdiDocumentIntent:
-      "Define si el viaje se documenta como ingreso o traslado. Ajusta etiquetas en Ruta.",
+      "Define si el viaje lleva factura de servicio o es solo traslado. Orienta etiquetas en Ruta.",
     supportStaff:
       "Personal que acompaña la operación y puede marcarse como responsable de pago de honorarios o viáticos. No sustituye al conductor principal del viaje.",
     scheduledArrival:
       "Sincronizado con la parada de destino del paso Ruta. Si se modifica en cualquiera de los dos puntos, se actualiza el otro.",
     fleetBranchFilter:
-      "Listado filtrado por sucursal de origen. Activa la opción para ver todo el catálogo.",
+      "Listado filtrado por la base operativa. Activa la opción para ver todo el catálogo.",
     allowExpiredDocs:
       "Muestra activos con seguro, permiso SCT o licencia vencidos para asignarlos.",
   },
   hintLabel: {
+    originBranch: "Base operativa del viaje",
     client: "Cliente que contrata",
-    cfdiDocumentIntent: "Tipo de comprobante del viaje",
+    cfdiDocumentIntent: "Tipo de viaje",
     scheduledArrival: "Llegada estimada",
     supportStaff: "Equipo de apoyo interno",
     allowExpiredDocs: "Permitir documentación vencida",
     cfdiDocumentIntentDetail:
-      "Ingreso: factura de servicio. Traslado: movimiento entre ubicaciones. El timbrado validará los datos finales.",
+      "Servicio con factura: viaje facturable al cliente. Solo traslado: movimiento entre ubicaciones sin factura de servicio.",
   },
   placeholder: {
+    selectOriginBranch: "Seleccionar base operativa",
     selectVehicle: "Seleccionar vehículo",
     selectDriver: "Seleccionar conductor",
     selectClient: "Seleccionar cliente",
-    cfdiDocumentIntent: "Tipo de comprobante",
+    cfdiDocumentIntent: "Tipo de viaje",
     position: "Puesto",
     selectEmployee: "Seleccionar empleado",
     paymentNotes: "Ej. pago por apoyo en turno nocturno",
@@ -65,6 +70,7 @@ export const basicInfoCopy = {
     available: "Disponibles",
     withExpiredDocs: "Con documentación vencida",
     notAssignable: "No asignables",
+    noBranches: "No hay sucursales activas",
     noVehicles: "No hay vehículos disponibles",
     noDrivers: "No hay conductores disponibles",
     noDriversOutsideSupportStaff:
@@ -79,19 +85,23 @@ export const basicInfoCopy = {
     expiredAssignmentTitle: "Documentación vencida en la asignación",
     expiredVehicleItem: (reason: string) => reason,
     expiredDriverItem: (reason: string) => reason,
-  },
-  cfdiIntent: {
-    ingreso: "Ingreso — factura de servicio",
-    traslado: "Traslado — movimiento entre ubicaciones",
-  },
-  positionFilter: {
-    conductor: "Conductores",
-    helper: "Ayudantes generales",
+    assignmentClearedTitle: "Asignación actualizada",
+    assignmentClearedBody:
+      "El vehículo o conductor ya no corresponden a la base operativa. Vuelve a seleccionarlos.",
   },
   action: {
     add: "Agregar",
     removeCollaborator: "Quitar colaborador",
     tableRemoveSrOnly: "Quitar",
+    createBranch: "Crear sucursal",
+  },
+  cfdiIntent: {
+    ingreso: "Servicio con factura",
+    traslado: "Solo traslado (sin factura de servicio)",
+  },
+  positionFilter: {
+    conductor: "Conductores",
+    helper: "Ayudantes generales",
   },
   error: {
     selectEmployee: "Selecciona un empleado.",

@@ -1,52 +1,54 @@
 /**
  * SummaryStep - Paso 5 del wizard de viajes
- * Revisión tipo checkout: secciones por paso + rail financiero sticky.
+ * Checkout operativo: franja de confirmación + digests por paso + rail de totales.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { Controller, useWatch } from "react-hook-form";
 import {
   Truck,
   User,
-  Building2,
   Calendar,
   MapPin,
   Package,
-  FileText,
   Navigation,
   Flag,
   AlertTriangle,
   FileCheck,
   Scale,
-  Milestone,
   Users,
   Gauge,
-  AlertCircle,
   CircleDollarSign,
   Receipt,
-  Box,
+  ShieldCheck,
+  ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 
 import type { DriverListItem } from "@features/drivers";
 import { formatDateTimeFromLocalInput } from "@shared/utils/dateUtils";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
-import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
-import { FormSectionCard } from "@shared/ui/form-section-card";
+import { Card, CardContent } from "@shared/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { Textarea } from "@shared/ui/text-area";
 import { cn } from "@shared/lib/utils/cn";
 
 import type { TripWizardFormValues } from "./validation";
-import { wizardHasContractingClient } from "./validation";
 import {
   buildTripWizardFinancialSnapshot,
   formatMxCurrency,
   TripWizardFinancialSummary,
 } from "../../../components/trip-financial";
 import { SummaryReviewSection } from "./SummaryReviewSection";
+import { TripConfirmStrip } from "./TripConfirmStrip";
 import { wizardCopy } from "../../../copy";
 import {
   buildSummaryPickupStops,
@@ -60,11 +62,6 @@ import {
 } from "./wizardStopFormat";
 
 const summary = wizardCopy.summary;
-
-const CFDI_INTENT_LABELS: Record<"ingreso" | "traslado", string> = {
-  ingreso: "Ingreso",
-  traslado: "Traslado",
-};
 
 const WIZARD_STEP = {
   info: 0,
@@ -109,10 +106,17 @@ export function SummaryStep({
   const cargos = useWatch({ control: form.control, name: "cargos" }) ?? [];
   const expenses = useWatch({ control: form.control, name: "expenses" }) ?? [];
   const baseRate = useWatch({ control: form.control, name: "baseRate" });
-  const internalStaff = useWatch({ control: form.control, name: "internalStaff" }) ?? [];
+  const notes = useWatch({ control: form.control, name: "notes" });
+  const internalStaff =
+    useWatch({ control: form.control, name: "internalStaff" }) ?? [];
+
+  const [notesOpen, setNotesOpen] = useState(() => Boolean(notes?.trim()));
 
   const intent = cfdiDocumentIntent === "traslado" ? "traslado" : "ingreso";
-  const hasContractingClient = wizardHasContractingClient(clientId);
+  const tripTypeLabel =
+    intent === "traslado"
+      ? summary.format.trasladoDocument
+      : summary.format.ingresoDocument;
 
   const getVehicleName = (id: string) => {
     const vehicle = vehicles.find((v) => v.id === id);
@@ -163,87 +167,59 @@ export function SummaryStep({
   const totalWeightKg = cargos.reduce((sum, c) => sum + (c.weightInKg || 0), 0);
   const hasHazmat = cargos.some((c) => c.hazardousMaterial);
   const insuredCargos = cargos.filter(
-    (c) => (c.declaredValue ?? 0) > 0 || !!c.aseguraCarga || !!c.polizaCarga,
+    (c) => c.isInsured || (c.declaredValue ?? 0) > 0 || !!c.aseguraCarga || !!c.polizaCarga,
   ).length;
 
-  const missingBaseRateForIngreso =
-    intent === "ingreso" &&
-    hasContractingClient &&
-    (baseRate == null || baseRate < 0.01);
-
-  const marginChipClass =
-    financial.health === "healthy"
-      ? "border-success/40 bg-success-soft text-success-soft-foreground"
-      : financial.health === "warning"
-        ? "border-warning/40 bg-warning-soft text-warning-soft-foreground"
-        : financial.health === "critical"
-          ? "border-destructive/40 bg-destructive-soft text-destructive-soft-foreground"
-          : "border-border bg-muted text-muted-foreground";
+  const hasNotes = Boolean(notes?.trim());
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Confirmar viaje</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {summary.page.title}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Revisa cada sección antes de crear o guardar. Usa Editar para corregir un paso.
+          {summary.page.subtitle}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">{CFDI_INTENT_LABELS[intent]}</Badge>
-        <Badge variant="outline" className="max-w-[200px] truncate">
-          {getClientName(clientId)}
-        </Badge>
-        <Badge variant="outline">
-          {stops.length} parada{stops.length !== 1 ? "s" : ""}
-          {totalDistanceKm > 0
-            ? ` · ${totalDistanceKm.toLocaleString("es-MX")} km`
-            : ""}
-        </Badge>
-        <Badge variant="outline">
-          {cargos.length} carga{cargos.length !== 1 ? "s" : ""}
-          {totalWeightKg > 0
-            ? ` · ${totalWeightKg.toLocaleString("es-MX")} kg`
-            : ""}
-        </Badge>
-        {financial.marginPct != null ? (
-          <Badge variant="outline" className={marginChipClass}>
-            Margen {financial.marginPct.toFixed(1)}%
-          </Badge>
-        ) : null}
-        {hasHazmat ? (
-          <Badge variant="outline" className="border-warning/40 text-warning">
-            Material peligroso
-          </Badge>
-        ) : null}
-      </div>
+      <TripConfirmStrip
+        clientLabel={getClientName(clientId)}
+        tripTypeLabel={tripTypeLabel}
+        unitLabel={getVehicleName(vehicleId)}
+        driverLabel={getDriverName(driverId)}
+        departureLabel={formatDateTimeFromLocalInput(scheduledDeparture)}
+        stopsLabel={summary.confirm.stops(
+          stops.length,
+          totalDistanceKm > 0
+            ? summary.format.distanceKm(totalDistanceKm)
+            : undefined,
+        )}
+        merchandiseLabel={summary.confirm.merchandise(
+          cargos.length,
+          totalWeightKg > 0
+            ? summary.format.weightKg(totalWeightKg)
+            : undefined,
+        )}
+        utilityLabel={
+          financial.marginPct != null
+            ? summary.confirm.utility(
+                formatMxCurrency(financial.margin),
+                summary.confirm.marginPct(financial.marginPct),
+              )
+            : financial.baseRate > 0
+              ? summary.confirm.utility(formatMxCurrency(financial.margin))
+              : null
+        }
+        health={financial.health}
+        hasHazmat={hasHazmat}
+      />
 
-      {(missingBaseRateForIngreso || financial.health === "critical") && (
-        <div className="space-y-3">
-          {missingBaseRateForIngreso ? (
-            <DetailAlertCard
-              severity="warning"
-              icon={<AlertCircle className="h-4 w-4" />}
-              title={summary.alert.baseRatePendingTitle}
-              items={[{ text: summary.alert.baseRatePendingBody }]}
-            />
-          ) : null}
-          {financial.health === "critical" ? (
-            <DetailAlertCard
-              severity="critical"
-              icon={<AlertCircle className="h-4 w-4" />}
-              title={summary.alert.marginCriticalTitle}
-              items={[{ text: summary.alert.marginCriticalBody }]}
-            />
-          ) : null}
-        </div>
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-6">
           <SummaryReviewSection
             title={summary.section.info}
-            icon={<FileText className="h-4 w-4" />}
+            icon={<Truck className="h-4 w-4" />}
             stepIndex={WIZARD_STEP.info}
             onGoToStep={onGoToStep}
           >
@@ -251,34 +227,15 @@ export function SummaryStep({
               <InfoRow
                 variant="stacked"
                 icon={<Truck className="h-4 w-4" />}
-                label="Unidad"
+                label={summary.label.unit}
                 value={getVehicleName(vehicleId)}
               />
               <InfoRow
                 variant="stacked"
                 icon={<User className="h-4 w-4" />}
-                label="Conductor"
+                label={summary.label.driver}
                 value={getDriverName(driverId)}
               />
-              <InfoRow
-                variant="stacked"
-                icon={<Building2 className="h-4 w-4" />}
-                label={summary.label.mainClient}
-                value={getClientName(clientId)}
-              />
-              <InfoRow
-                variant="stacked"
-                icon={<FileText className="h-4 w-4" />}
-                label={summary.label.cfdiDocument}
-                value={
-                  intent === "traslado"
-                    ? summary.format.trasladoDocument
-                    : summary.format.ingresoDocument
-                }
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
               <InfoRow
                 variant="stacked"
                 icon={<Calendar className="h-4 w-4" />}
@@ -310,24 +267,35 @@ export function SummaryStep({
               <div className="rounded-lg border bg-muted/20 px-3 py-3">
                 <div className="mb-2 flex items-center gap-2 text-sm font-medium">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  Equipo de apoyo ({internalStaff.length})
+                  {summary.label.supportTeam(internalStaff.length)}
                 </div>
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   {internalStaff.map((row, index) => (
                     <li key={row.employeeId ?? index}>
                       {getSupportEmployeeLabel(row.employeeId)}
                       {row.internalRole === "secondary_driver" ? (
-                        <Badge variant="secondary" className="ml-2 text-xs">
+                        <Badge
+                          variant="neutral"
+                          tone="soft"
+                          className="ml-2 font-normal"
+                        >
                           {summary.label.supportStaffSecondaryDriver}
                         </Badge>
                       ) : row.internalRole === "helper" ? (
-                        <Badge variant="secondary" className="ml-2 text-xs">
+                        <Badge
+                          variant="neutral"
+                          tone="soft"
+                          className="ml-2 font-normal"
+                        >
                           {summary.label.supportStaffHelper}
                         </Badge>
                       ) : null}
                       {row.isPaymentResponsible ? (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          Responsable de pago
+                        <Badge
+                          variant="outline"
+                          className="ml-2 font-normal"
+                        >
+                          {summary.label.paymentResponsible}
                         </Badge>
                       ) : null}
                     </li>
@@ -345,11 +313,17 @@ export function SummaryStep({
             onGoToStep={onGoToStep}
           >
             {stops.length === 0 ? (
-              <EmptyState icon={<MapPin />} size="sm" title={summary.state.noStops} />
+              <EmptyState
+                icon={<MapPin />}
+                size="sm"
+                title={summary.state.noStops}
+              />
             ) : (
               <div className="space-y-0">
                 {stops.map((stop, index) => {
-                  const { primary, operation } = getWizardStopRoleLabel(stop.stopType);
+                  const { primary, operation } = getWizardStopRoleLabel(
+                    stop.stopType,
+                  );
                   const isOrigin = stop.stopType.includes("origin");
                   const isDestination = stop.stopType.includes("destination");
                   const isLast = index === stops.length - 1;
@@ -376,26 +350,38 @@ export function SummaryStep({
                           )}
                         </div>
                         {!isLast ? (
-                          <div className="my-1 w-px min-h-6 flex-1 bg-border" aria-hidden />
+                          <div
+                            className="my-1 min-h-6 w-px flex-1 bg-border"
+                            aria-hidden
+                          />
                         ) : null}
                       </div>
                       <div className={cn("min-w-0 flex-1", !isLast && "pb-4")}>
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium">
-                            {stop.locationName || formatWizardStopAddressLine(stop)}
+                            {stop.locationName ||
+                              formatWizardStopAddressLine(stop)}
                           </p>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            variant="neutral"
+                            tone="soft"
+                            className="font-normal"
+                          >
                             {primary}
                           </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {operation}
-                          </Badge>
+                          {operation ? (
+                            <Badge
+                              variant="secondary"
+                              className="font-normal"
+                            >
+                              {operation}
+                            </Badge>
+                          ) : null}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {formatWizardStopCityLine(stop)}
-                          {stop.postalCode ? ` · CP ${stop.postalCode}` : ""}
                           {index > 0 && stop.distanceFromPreviousKm != null
-                            ? ` · ${stop.distanceFromPreviousKm} km desde anterior`
+                            ? ` · ${summary.format.kmFromPrevious(stop.distanceFromPreviousKm)}`
                             : ""}
                         </p>
                       </div>
@@ -414,120 +400,87 @@ export function SummaryStep({
             onGoToStep={onGoToStep}
           >
             {cargos.length === 0 ? (
-              <EmptyState icon={<Package />} size="sm" title={summary.state.noCargo} />
+              <EmptyState
+                icon={<Package />}
+                size="sm"
+                title={summary.state.noCargo}
+              />
             ) : pickupStops.length === 0 ? (
               <div className="space-y-2">
                 {cargos.map((cargo, index) => (
-                  <p key={cargo.id ?? index} className="text-sm">
-                    {cargo.description}
-                  </p>
+                  <MerchandiseDigestRow
+                    key={cargo.id ?? index}
+                    description={cargo.description}
+                    units={cargo.units}
+                    unitName={cargo.satUnitName}
+                    weightInKg={cargo.weightInKg}
+                    hazardousMaterial={cargo.hazardousMaterial}
+                    isInsured={
+                      Boolean(cargo.isInsured) ||
+                      (cargo.declaredValue ?? 0) > 0 ||
+                      Boolean(cargo.aseguraCarga)
+                    }
+                  />
                 ))}
               </div>
             ) : (
               <div className="space-y-4">
                 {pickupStops.map((pickupStop) => {
-                  const stopCargos = getCargosForPickupStop(cargos, pickupStop.index);
-                  const StopIcon =
-                    pickupStop.category === "origin"
-                      ? Navigation
-                      : pickupStop.category === "destination"
-                        ? Flag
-                        : MapPin;
+                  const stopCargos = getCargosForPickupStop(
+                    cargos,
+                    pickupStop.index,
+                  );
 
                   return (
-                    <div
-                      key={pickupStop.index}
-                      className={cn(
-                        "rounded-lg border p-3",
-                        pickupStop.category === "origin" && "border-success/30",
-                        pickupStop.category === "destination" && "border-destructive/30",
-                      )}
-                    >
-                      <div className="mb-2 flex items-start gap-2">
-                        <StopIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">
-                            Parada #{pickupStop.index + 1}
-                            {pickupStop.locationName
-                              ? ` · ${pickupStop.locationName}`
-                              : ""}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {pickupStop.address} · {pickupStop.city}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="ml-auto shrink-0 text-xs">
-                          {stopCargos.length}
-                        </Badge>
+                    <div key={pickupStop.index} className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">
+                          {summary.format.stopGroup(
+                            pickupStop.index,
+                            pickupStop.locationName,
+                            stopCargos.length,
+                          )}
+                        </p>
+                        {stopCargos.length === 0 ? (
+                          <Badge
+                            variant="warning"
+                            tone="soft"
+                            className="font-normal"
+                          >
+                            {summary.badge.emptyStop}
+                          </Badge>
+                        ) : null}
                       </div>
 
-                      {stopCargos.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          Sin mercancías en esta parada de carga.
-                        </p>
-                      ) : (
+                      {stopCargos.length === 0 ? null : (
                         <div className="space-y-2">
                           {stopCargos.map((cargo, cargoIndex) => {
                             const deliveries = (cargo.movements ?? []).filter(
                               (m) => m.movementType === "delivery",
                             );
                             return (
-                              <div
+                              <MerchandiseDigestRow
                                 key={cargo.id ?? cargoIndex}
-                                className={cn(
-                                  "rounded-md bg-muted/50 p-2",
-                                  cargo.hazardousMaterial &&
-                                    "border border-warning/30 bg-warning-soft/20",
+                                description={cargo.description}
+                                units={cargo.units}
+                                unitName={cargo.satUnitName}
+                                weightInKg={cargo.weightInKg}
+                                hazardousMaterial={cargo.hazardousMaterial}
+                                isInsured={
+                                  Boolean(cargo.isInsured) ||
+                                  (cargo.declaredValue ?? 0) > 0 ||
+                                  Boolean(cargo.aseguraCarga)
+                                }
+                                deliveries={deliveries.map((delivery) =>
+                                  summary.format.deliveryBadge(
+                                    formatSummaryStopHeaderLabel(
+                                      delivery.stopIndex,
+                                      stops,
+                                    ),
+                                    delivery.weight,
+                                  ),
                                 )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <p className="flex-1 truncate text-sm font-medium">
-                                    {cargo.description}
-                                  </p>
-                                  {cargo.hazardousMaterial ? (
-                                    <Badge variant="destructive" className="text-xs">
-                                      Peligroso
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                  {cargo.satProductCode ? (
-                                    <span className="font-mono">{cargo.satProductCode}</span>
-                                  ) : null}
-                                  {cargo.weightInKg != null && cargo.weightInKg > 0 ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      <Scale className="h-3 w-3" />
-                                      {cargo.weightInKg} kg
-                                    </span>
-                                  ) : null}
-                                  {cargo.units != null && cargo.units > 0 ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      <Box className="h-3 w-3" />
-                                      {cargo.units} {cargo.satUnitName || "uds"}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {deliveries.length > 0 ? (
-                                  <div className="mt-1.5 flex flex-wrap gap-1">
-                                    {deliveries.map((delivery, delIdx) => (
-                                      <Badge
-                                        key={delIdx}
-                                        variant="outline"
-                                        className="text-xs font-normal"
-                                      >
-                                        Entrega:{" "}
-                                        {formatSummaryStopHeaderLabel(
-                                          delivery.stopIndex,
-                                          stops,
-                                        )}
-                                        {delivery.weight != null
-                                          ? ` · ${delivery.weight} kg`
-                                          : ""}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                ) : null}
-                              </div>
+                              />
                             );
                           })}
                         </div>
@@ -542,20 +495,20 @@ export function SummaryStep({
               <InfoRow
                 variant="inline"
                 icon={<Scale className="h-4 w-4" />}
-                label={summary.label.totalGrossWeight}
-                value={`${totalWeightKg.toLocaleString("es-MX")} kg`}
+                label={summary.label.totalWeight}
+                value={summary.format.weightKg(totalWeightKg)}
               />
             ) : null}
             {hasHazmat ? (
               <p className="flex items-center gap-2 text-xs text-warning">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                Incluye material peligroso — verifique documentación.
+                {summary.hint.hazmat}
               </p>
             ) : null}
             {insuredCargos > 0 ? (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                {insuredCargos} carga{insuredCargos !== 1 ? "s" : ""} con seguro de carga.
+                {summary.hint.insured(insuredCargos)}
               </p>
             ) : null}
           </SummaryReviewSection>
@@ -571,36 +524,44 @@ export function SummaryStep({
               <div className="rounded-lg border border-info/30 bg-info-soft/30 px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <CircleDollarSign className="h-4 w-4" />
-                  Costos operativos
+                  {summary.label.operational}
                 </div>
                 <p className="mt-1 text-lg font-semibold">
                   {financialSnapshot.operationalCosts.length === 0
                     ? "—"
-                    : formatMxCurrency(financialSnapshot.totalOperationalCosts)}
+                    : formatMxCurrency(
+                        financialSnapshot.totalOperationalCosts,
+                      )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {financialSnapshot.operationalCosts.length} concepto
-                  {financialSnapshot.operationalCosts.length !== 1 ? "s" : ""}
+                  {summary.label.concepts(
+                    financialSnapshot.operationalCosts.length,
+                  )}
                 </p>
               </div>
               <div className="rounded-lg border border-warning/30 bg-warning-soft/30 px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Receipt className="h-4 w-4" />
-                  Gastos indirectos
+                  {summary.label.indirect}
                 </div>
                 <p className="mt-1 text-lg font-semibold">
                   {financialSnapshot.indirectExpenses.length === 0
                     ? "—"
-                    : formatMxCurrency(financialSnapshot.totalIndirectExpenses)}
+                    : formatMxCurrency(
+                        financialSnapshot.totalIndirectExpenses,
+                      )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {financialSnapshot.indirectExpenses.length} concepto
-                  {financialSnapshot.indirectExpenses.length !== 1 ? "s" : ""}
+                  {summary.label.concepts(
+                    financialSnapshot.indirectExpenses.length,
+                  )}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">Tarifa base</span>
+              <span className="text-muted-foreground">
+                {summary.label.baseRate}
+              </span>
               <span className="font-medium">
                 {financial.baseRate > 0
                   ? formatMxCurrency(financial.baseRate)
@@ -609,72 +570,143 @@ export function SummaryStep({
                     : summary.state.notCaptured}
               </span>
             </div>
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0 text-sm"
-              onClick={() => onGoToStep(WIZARD_STEP.costs)}
-            >
-              Ver detalle de conceptos en Costos
-            </Button>
           </SummaryReviewSection>
 
-          <FormSectionCard title={summary.section.notes} contentClassName="space-y-4">
-            <Controller
-              control={form.control}
-              name="notes"
-              render={({ field, fieldState }) => (
-                <FormFieldShell
-                  fieldId="notes"
-                  label={summary.label.tripNotes}
-                  errorMessage={fieldState.error?.message}
-                >
-                  <Textarea
-                    id="notes"
-                    placeholder={summary.placeholder.notes}
-                    className="min-h-[100px]"
-                    {...field}
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps("notes", fieldState.error?.message)}
+          <Card>
+            <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left">
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
+                    <span className="text-muted-foreground">
+                      <MessageSquare className="h-4 w-4" />
+                    </span>
+                    {summary.section.notes}
+                  </span>
+                  <span className="mt-1 block truncate text-sm font-normal text-muted-foreground">
+                    {hasNotes
+                      ? summary.sectionSummary.notesFilled
+                      : summary.sectionSummary.notesEmpty}
+                  </span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                    notesOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <Controller
+                    control={form.control}
+                    name="notes"
+                    render={({ field, fieldState }) => (
+                      <FormFieldShell
+                        fieldId="notes"
+                        label={summary.label.tripNotes}
+                        errorMessage={fieldState.error?.message}
+                      >
+                        <Textarea
+                          id="notes"
+                          placeholder={summary.placeholder.notes}
+                          className="min-h-[100px]"
+                          {...field}
+                          error={Boolean(fieldState.error)}
+                          {...getFieldErrorAriaProps(
+                            "notes",
+                            fieldState.error?.message,
+                          )}
+                        />
+                      </FormFieldShell>
+                    )}
                   />
-                </FormFieldShell>
-              )}
-            />
-          </FormSectionCard>
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
-          <TripWizardFinancialSummary snapshot={financialSnapshot} />
-          <div className="rounded-lg border bg-muted/20 px-3 py-3 text-sm">
-            <p className="font-medium">Totales de carga</p>
-            <div className="mt-2 space-y-1 text-muted-foreground">
-              <div className="flex justify-between gap-2">
-                <span>Mercancías</span>
-                <span className="font-medium text-foreground">{cargos.length}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span>Peso bruto</span>
-                <span className="font-medium text-foreground">
-                  {totalWeightKg > 0
-                    ? `${totalWeightKg.toLocaleString("es-MX")} kg`
-                    : "—"}
-                </span>
-              </div>
-              {totalDistanceKm > 0 ? (
-                <div className="flex justify-between gap-2">
-                  <span className="inline-flex items-center gap-1">
-                    <Milestone className="h-3.5 w-3.5" />
-                    Distancia
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {totalDistanceKm.toLocaleString("es-MX")} km
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
+        <aside className="xl:sticky xl:top-36 xl:self-start">
+          <TripWizardFinancialSummary
+            snapshot={financialSnapshot}
+            variant="totals"
+          />
         </aside>
       </div>
+    </div>
+  );
+}
+
+function MerchandiseDigestRow({
+  description,
+  units,
+  unitName,
+  weightInKg,
+  hazardousMaterial,
+  isInsured,
+  deliveries = [],
+}: {
+  description: string;
+  units?: number | null;
+  unitName?: string | null;
+  weightInKg?: number | null;
+  hazardousMaterial?: boolean;
+  isInsured?: boolean;
+  deliveries?: string[];
+}) {
+  const qtyWeight = [
+    units != null && units > 0
+      ? summary.format.units(units, unitName || "unidades")
+      : null,
+    weightInKg != null && weightInKg > 0
+      ? summary.format.weightKg(weightInKg)
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-muted/30 p-2.5",
+        hazardousMaterial && "border-warning/30 bg-warning-soft/20",
+      )}
+    >
+      <p className="truncate text-sm font-medium">{description}</p>
+      {qtyWeight ? (
+        <p className="mt-0.5 text-sm text-muted-foreground">{qtyWeight}</p>
+      ) : null}
+      {(hazardousMaterial || isInsured || deliveries.length > 0) && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {hazardousMaterial ? (
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="gap-1 font-normal"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {summary.badge.hazmatShort}
+            </Badge>
+          ) : null}
+          {isInsured ? (
+            <Badge variant="info" tone="soft" className="gap-1 font-normal">
+              <ShieldCheck className="h-3 w-3" />
+              {summary.badge.insured}
+            </Badge>
+          ) : null}
+          {deliveries.map((label) => (
+            <Badge
+              key={label}
+              variant="neutral"
+              tone="soft"
+              className="font-normal"
+            >
+              {label}
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

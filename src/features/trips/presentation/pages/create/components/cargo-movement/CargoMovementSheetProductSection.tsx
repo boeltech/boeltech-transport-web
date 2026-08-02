@@ -1,7 +1,6 @@
 import { Controller, type Control, type UseFormGetValues, type UseFormSetValue } from "react-hook-form";
-import { FileText } from "lucide-react";
+import { Package } from "lucide-react";
 
-import { Input } from "@shared/ui/input";
 import { FormFieldShell, RHFTextField } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
@@ -9,26 +8,27 @@ import {
   UnidadMedidaSearch,
 } from "@features/catalogs";
 import { extractCargoRegulatoryFlags } from "../cargoRegulatory";
+import { wizardCopy } from "../../../../copy";
 
 import type { TripCargoFormValues } from "../validation";
+
+const sheet = wizardCopy.cargo.sheet;
 
 export interface CargoMovementSheetProductSectionProps {
   control: Control<TripCargoFormValues>;
   setValue: UseFormSetValue<TripCargoFormValues>;
   getValues: UseFormGetValues<TripCargoFormValues>;
-  onHazmatSectionOpen: () => void;
 }
 
 export function CargoMovementSheetProductSection({
   control,
   setValue,
   getValues,
-  onHazmatSectionOpen,
 }: CargoMovementSheetProductSectionProps) {
   return (
     <FormSectionCard
-      title="Producto y unidad de medida"
-      icon={<FileText className="h-4 w-4" />}
+      title={sheet.section.product}
+      icon={<Package className="h-4 w-4" />}
       contentClassName="space-y-4"
     >
       <Controller
@@ -39,9 +39,9 @@ export function CargoMovementSheetProductSection({
           return (
             <FormFieldShell
               fieldId="cargo-sat-product"
-              label="Producto o servicio transportado"
+              label={sheet.label.product}
               required
-              description="Elija del catálogo de mercancías y servicios; puede buscar por nombre o por clave. El sistema enlaza la clave al timbrado."
+              description={sheet.hint.product}
               errorMessage={errorMessage}
             >
               <ProductoServicioCPSearch
@@ -60,7 +60,6 @@ export function CargoMovementSheetProductSection({
                   });
                   if (flags.requiresHazmat) {
                     setValue("hazardousMaterial", true, { shouldDirty: true });
-                    onHazmatSectionOpen();
                   }
                   setValue(
                     "sectorRequirements",
@@ -84,10 +83,10 @@ export function CargoMovementSheetProductSection({
         control={control}
         name="description"
         fieldId="cargo-description"
-        label="Descripción de la mercancía"
+        label={sheet.label.description}
         required
-        placeholder="Se completa al elegir del catálogo; puede editarla..."
-        description="Se completa al elegir el producto del catálogo; puede ajustarla para mayor detalle operativo."
+        placeholder={sheet.placeholder.description}
+        description={sheet.hint.description}
       />
 
       <Controller
@@ -98,9 +97,9 @@ export function CargoMovementSheetProductSection({
           return (
             <FormFieldShell
               fieldId="cargo-sat-unit"
-              label="Unidad de medida"
+              label={sheet.label.unit}
               required
-              description="El sistema conserva la unidad elegida del catálogo para la documentación fiscal."
+              description={sheet.hint.unit}
               errorMessage={errorMessage}
             >
               <UnidadMedidaSearch
@@ -117,25 +116,6 @@ export function CargoMovementSheetProductSection({
             </FormFieldShell>
           );
         }}
-      />
-
-      <Controller
-        control={control}
-        name="currency"
-        render={({ field }) => (
-          <FormFieldShell
-            fieldId="cargo-currency"
-            label="Moneda SAT"
-            description="En v1 nacional se usa MXN por defecto para la mercancía."
-          >
-            <Input
-              id="cargo-currency"
-              value={field.value || "MXN"}
-              disabled
-              className="bg-muted"
-            />
-          </FormFieldShell>
-        )}
       />
     </FormSectionCard>
   );

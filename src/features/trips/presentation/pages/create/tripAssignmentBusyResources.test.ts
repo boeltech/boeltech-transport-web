@@ -29,12 +29,17 @@ function trip(
   } as TripListItem;
 }
 
-function vehicle(id: string): AssignableVehicleItem {
+function vehicle(
+  id: string,
+  over: Partial<AssignableVehicleItem> = {},
+): AssignableVehicleItem {
   return {
     id,
     unitNumber: id,
     licensePlate: "PLATE",
+    status: "available",
     canBeAssigned: true,
+    ...over,
   } as AssignableVehicleItem;
 }
 
@@ -106,5 +111,43 @@ describe("applyBusyResourcesToVehicles", () => {
       blockReason: "Asignado a un viaje activo",
     });
     expect(result.find((v) => v.id === "veh-free")?.canBeAssigned).toBe(true);
+  });
+
+  it("keeps reserved vehicle assignable when it is the trip current assignment", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-current", {
+          status: "reserved",
+          canBeAssigned: false,
+          blockReason: "Reservado",
+        }),
+      ],
+      new Set(),
+      { keepAssignableVehicleId: "veh-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      blockReason: undefined,
+    });
+  });
+
+  it("does not waive reserved for a different vehicle", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-other", {
+          status: "reserved",
+          canBeAssigned: false,
+          blockReason: "Reservado",
+        }),
+      ],
+      new Set(),
+      { keepAssignableVehicleId: "veh-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Reservado",
+    });
   });
 });

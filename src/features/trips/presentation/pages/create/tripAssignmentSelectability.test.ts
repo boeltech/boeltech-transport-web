@@ -69,4 +69,13 @@ describe("tripAssignmentSelectability", () => {
       ),
     ).toBe(true);
   });
+
+  it("does not clear driver when post-keep canBeAssigned is true", () => {
+    expect(
+      shouldClearDriverSelection(
+        { canBeAssigned: true },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(false);
+  });
 });

@@ -1,11 +1,15 @@
 import { Controller, type Control } from "react-hook-form";
-import { AlertTriangle, Gauge, Scale } from "lucide-react";
+import { Scale } from "lucide-react";
 
 import { Input } from "@shared/ui/input";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import { wizardCopy } from "../../../../copy";
 
 import type { TripCargoFormValues } from "../validation";
+
+const sheet = wizardCopy.cargo.sheet;
 
 export interface CargoMovementSheetQuantityWeightSectionProps {
   control: Control<TripCargoFormValues>;
@@ -14,6 +18,8 @@ export interface CargoMovementSheetQuantityWeightSectionProps {
   isNearCapacityProjection: boolean;
   vehicleCapacityKg?: number;
   projectedWeight: number;
+  /** Peso libre en la unidad antes de esta mercancía; `null` si no hay capacidad. */
+  availableKg: number | null;
   formatWeight: (value: number) => string;
 }
 
@@ -24,11 +30,19 @@ export function CargoMovementSheetQuantityWeightSection({
   isNearCapacityProjection,
   vehicleCapacityKg,
   projectedWeight,
+  availableKg,
   formatWeight,
 }: CargoMovementSheetQuantityWeightSectionProps) {
+  const availabilityHint =
+    availableKg == null
+      ? undefined
+      : availableKg < 0
+        ? sheet.format.overCapacityWeight(formatWeight(Math.abs(availableKg)))
+        : sheet.format.availableWeight(formatWeight(availableKg));
+
   return (
     <FormSectionCard
-      title="Cantidad y peso"
+      title={sheet.section.quantity}
       icon={<Scale className="h-4 w-4" />}
       contentClassName="space-y-4"
     >
@@ -41,7 +55,7 @@ export function CargoMovementSheetQuantityWeightSection({
             return (
               <FormFieldShell
                 fieldId="cargo-units"
-                label="Cantidad"
+                label={sheet.label.units}
                 required
                 errorMessage={errorMessage}
               >
@@ -50,7 +64,7 @@ export function CargoMovementSheetQuantityWeightSection({
                     id="cargo-units"
                     type="number"
                     min="1"
-                    placeholder="0"
+                    placeholder={sheet.placeholder.units}
                     value={field.value ?? ""}
                     onChange={(e) =>
                       field.onChange(
@@ -79,8 +93,9 @@ export function CargoMovementSheetQuantityWeightSection({
             return (
               <FormFieldShell
                 fieldId="cargo-weight-kg"
-                label="Peso total (kg)"
+                label={sheet.label.weight}
                 required
+                description={availabilityHint}
                 errorMessage={errorMessage}
               >
                 <div className="flex gap-2">
@@ -89,7 +104,7 @@ export function CargoMovementSheetQuantityWeightSection({
                     type="number"
                     min="0.01"
                     step="0.01"
-                    placeholder="0.00"
+                    placeholder={sheet.placeholder.weight}
                     value={field.value ?? ""}
                     onChange={(e) =>
                       field.onChange(
@@ -115,32 +130,25 @@ export function CargoMovementSheetQuantityWeightSection({
       </div>
 
       {wouldExceedCapacity && vehicleCapacityKg ? (
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive-soft p-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
-          <div className="text-xs text-destructive-soft-foreground">
-            <p className="font-medium">
-              ¡Esta carga excederá la capacidad del vehículo!
-            </p>
-            <p className="mt-1">
-              Peso proyectado: {formatWeight(projectedWeight)} /{" "}
-              {formatWeight(vehicleCapacityKg)} (
-              {((projectedWeight / vehicleCapacityKg) * 100).toFixed(1)}%)
-            </p>
-          </div>
-        </div>
+        <AlertWithIcon
+          variant="destructive"
+          title={sheet.capacityAlert.exceededTitle}
+        >
+          {sheet.format.capacityProjection(
+            formatWeight(projectedWeight),
+            formatWeight(vehicleCapacityKg),
+            (projectedWeight / vehicleCapacityKg) * 100,
+          )}
+        </AlertWithIcon>
       ) : null}
       {!wouldExceedCapacity && isNearCapacityProjection && vehicleCapacityKg ? (
-        <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3">
-          <Gauge className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" />
-          <div className="text-xs text-warning-soft-foreground">
-            <p className="font-medium">Capacidad casi al límite</p>
-            <p className="mt-1">
-              Peso proyectado: {formatWeight(projectedWeight)} /{" "}
-              {formatWeight(vehicleCapacityKg)} (
-              {((projectedWeight / vehicleCapacityKg) * 100).toFixed(1)}%)
-            </p>
-          </div>
-        </div>
+        <AlertWithIcon variant="warning" title={sheet.capacityAlert.nearTitle}>
+          {sheet.format.capacityProjection(
+            formatWeight(projectedWeight),
+            formatWeight(vehicleCapacityKg),
+            (projectedWeight / vehicleCapacityKg) * 100,
+          )}
+        </AlertWithIcon>
       ) : null}
     </FormSectionCard>
   );

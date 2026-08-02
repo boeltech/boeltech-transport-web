@@ -180,6 +180,7 @@ export type {
 
   // Result Types
   CreateTripResult,
+  CreateTripWarning,
   PaginatedResult,
 } from "./inputs";
 

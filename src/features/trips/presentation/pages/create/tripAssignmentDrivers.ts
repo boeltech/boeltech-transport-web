@@ -70,17 +70,39 @@ export function classifyDriverAssignability(
 export function buildAssignableDriversForTripWizard(
   drivers: readonly DriverListItem[],
   busyDriverIds: ReadonlySet<string>,
+  options?: { keepAssignableDriverId?: string },
 ): AssignableDriverItem[] {
+  const keepId = options?.keepAssignableDriverId?.trim() || undefined;
+
   return drivers.map((driver) => {
     const { canBeAssigned, blockReason, expiredDocsOverridable } =
       classifyDriverAssignability(driver);
+
+    const displayName = getDriverDisplayName(driver);
 
     if (canBeAssigned && busyDriverIds.has(driver.id)) {
       return {
         ...driver,
         canBeAssigned: false,
         blockReason: BUSY_ON_ACTIVE_TRIP,
-        displayName: getDriverDisplayName(driver),
+        displayName,
+      };
+    }
+
+    // Edición de viaje scheduled: el conductor reservado de ESTE viaje debe
+    // seguir seleccionable (no limpiar el Select ni marcarlo disabled).
+    if (
+      !canBeAssigned &&
+      keepId &&
+      driver.id === keepId &&
+      driver.status === "reserved"
+    ) {
+      return {
+        ...driver,
+        canBeAssigned: true,
+        blockReason: undefined,
+        expiredDocsOverridable,
+        displayName,
       };
     }
 
@@ -89,7 +111,7 @@ export function buildAssignableDriversForTripWizard(
       canBeAssigned,
       blockReason,
       expiredDocsOverridable,
-      displayName: getDriverDisplayName(driver),
+      displayName,
     };
   });
 }

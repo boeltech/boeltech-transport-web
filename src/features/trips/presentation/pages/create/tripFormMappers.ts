@@ -15,8 +15,9 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
       | "destination"
     )[],
     clientId: stop.clientId ?? "",
-    clientAddressId: stop.clientAddressId ?? stop.addressId ?? "",
-    addressId: stop.addressId ?? "",
+    clientAddressId: stop.clientAddressId ?? "",
+    sourceAddressId: stop.sourceAddressId ?? "",
+    addressId: "",
     locationName: stop.locationName || "",
     satCountryCode: stop.satCountryCode ?? "MEX",
     satStateCode: stop.satEstadoCode || "",

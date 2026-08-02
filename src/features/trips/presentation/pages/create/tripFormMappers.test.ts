@@ -134,4 +134,37 @@ describe("mapTripToWizardFormValues", () => {
     expect(result.expenses).toEqual([]);
     expect(result.internalStaff).toEqual([]);
   });
+
+  it("does not promote stop snapshot addressId to client/source catalog ids", () => {
+    const result = mapTripToWizardFormValues(baseTrip);
+    const stop = result.stops[0];
+
+    expect(stop?.addressId).toBe("");
+    expect(stop?.clientAddressId).toBe("");
+    expect(stop?.sourceAddressId).toBe("");
+    expect(stop?.street).toBe("Av. Demo");
+    expect(stop?.satStateCode).toBe("JAL");
+  });
+
+  it("maps catalog sourceAddressId and still clears snapshot addressId", () => {
+    const catalogId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const trip = {
+      ...baseTrip,
+      stops: [
+        {
+          ...baseTrip.stops[0],
+          addressId: "11111111-2222-4333-8444-555555555555",
+          clientAddressId: null,
+          sourceAddressId: catalogId,
+        },
+      ],
+    } as unknown as Trip;
+
+    const result = mapTripToWizardFormValues(trip);
+    const stop = result.stops[0];
+
+    expect(stop?.sourceAddressId).toBe(catalogId);
+    expect(stop?.clientAddressId).toBe("");
+    expect(stop?.addressId).toBe("");
+  });
 });

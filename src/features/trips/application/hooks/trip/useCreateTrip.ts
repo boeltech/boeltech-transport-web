@@ -89,7 +89,15 @@ export function useCreateTrip(
   const queryClient = useQueryClient();
   const useCase = new CreateTripUseCase(tripRepository);
 
+  const {
+    onSuccess: userOnSuccess,
+    onError: userOnError,
+    onSettled: userOnSettled,
+    ...rest
+  } = options ?? {};
+
   return useMutation({
+    ...rest,
     mutationFn: async (input: CreateTripInput) => {
       const result = await useCase.execute(input);
 
@@ -104,19 +112,26 @@ export function useCreateTrip(
       return result.data;
     },
 
-    onSuccess: async (result) => {
-      // Invalidar lista de viajes
+    onSuccess: async (result, variables, onMutateResult, context) => {
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       await invalidateTripAssignmentResources(queryClient);
 
-      // Pre-popular cache del detalle
       queryClient.setQueryData(
         tripQueryKeys.detail(result.trip.id),
         result.trip,
       );
+      // Prefijo detail(id) cubre cargos anidados; evita lista stale tras seed.
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(result.trip.id),
+      });
+      await userOnSuccess?.(result, variables, onMutateResult, context);
     },
-
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 

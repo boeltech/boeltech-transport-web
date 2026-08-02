@@ -1,34 +1,26 @@
 /**
  * CargoStep - Paso 3 del Wizard
- * Cargas: Mercancías a transportar con soporte para Carta Porte 3.1
+ * Mercancías a transportar, agrupadas por parada con operación de carga.
  *
- * Modelo Carga → Movimientos (pickup/delivery):
+ * Modelo Mercancía → Movimientos (pickup/delivery):
  * - Cada parada con operación de carga (pickup) es un contenedor visual.
- * - Al agregar una carga se crea automáticamente un movimiento "pickup".
+ * - Al registrar una mercancía se crea automáticamente un movimiento "pickup".
  * - El usuario puede asignar opcionalmente puntos de entrega (delivery)
  *   con soporte de entregas parciales (dividir peso/unidades).
- * - Validación: todas las paradas pickup deben tener al menos una carga.
+ * - Validación: todas las paradas pickup deben tener al menos una mercancía.
  *
- * Campos Carta Porte 3.1:
- * - satProductCode: Clave del producto SAT (c_ClaveProdServCP)
- * - satUnitCode: Clave de unidad SAT (c_ClaveUnidad)
- * - weightInKg: Peso en kg (obligatorio para CP)
- * - hazardousMaterial: Bandera de material peligroso
- * - hazardousMaterialCode: Clave del material peligroso
- * - packagingType: Tipo de embalaje
+ * Capacidad: la franja superior (`CargoCapacityStrip`) es la única superficie
+ * que reporta peso cargado, disponible y sobrepeso; no se duplica en alertas.
  *
- * Validación de capacidad:
- * - Se valida que el peso total de las cargas no exceda la capacidad del vehículo
- * - Se muestra un indicador visual de capacidad utilizada
- * - Se alerta si se excede la capacidad para sugerir cambiar de vehículo
- *
- * Ubicación: src/pages/trips/create/components/CargoStep.tsx
+ * Ubicación: src/features/trips/presentation/pages/create/components/CargoStep.tsx
  */
 
 import { useMemo, useState } from "react";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
+import { AlertWithIcon } from "@shared/ui/alert";
 import {
   Package,
   Plus,
@@ -39,10 +31,7 @@ import {
   Flag,
   AlertTriangle,
   Truck,
-  AlertCircle,
-  Scale,
-  Box,
-  FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
@@ -50,6 +39,7 @@ import type { TripWizardFormValues, TripCargoFormValues } from "./validation";
 import { StopType } from "@features/trips";
 import { useVehicle } from "@features/vehicles/application";
 import { CargoMovementSheet } from "./CargoMovementSheet";
+import { CargoCapacityStrip } from "./CargoCapacityStrip";
 import {
   formatWizardStopAddressLine,
   formatWizardStopCityLine,
@@ -248,6 +238,7 @@ export function CargoStep({
   const handleSubmitFromSheet = (
     values: TripCargoFormValues,
     submittedIndex: number | null,
+    options?: { keepOpen?: boolean },
   ) => {
     if (submittedIndex !== null) {
       update(submittedIndex, values);
@@ -256,7 +247,10 @@ export function CargoStep({
     }
     setInitialCargoValues(null);
     setEditingIndex(null);
-    setActivePickupStop(null);
+    // «Guardar y agregar otra» conserva la parada activa para seguir capturando.
+    if (!options?.keepOpen) {
+      setActivePickupStop(null);
+    }
   };
 
   // ============================================
@@ -273,49 +267,26 @@ export function CargoStep({
     );
   };
 
+  const getCargoWeight = (cargo: {
+    weightInKg?: number;
+    weight?: number;
+  }): number => cargo.weightInKg || cargo.weight || 0;
+
   const totalWeight = fields.reduce(
-    (sum, cargo) => sum + (cargo.weightInKg || cargo.weight || 0),
+    (sum, cargo) => sum + getCargoWeight(cargo),
     0,
   );
-
-  // ============================================
-  // Cálculos de capacidad del vehículo
-  // ============================================
-
-  const capacityPercentage = useMemo(() => {
-    if (!vehicleCapacityKg || vehicleCapacityKg === 0) return 0;
-    return Math.min((totalWeight / vehicleCapacityKg) * 100, 100);
-  }, [totalWeight, vehicleCapacityKg]);
-
-  const isOverCapacity = vehicleCapacityKg
-    ? totalWeight > vehicleCapacityKg
-    : false;
-  const isNearCapacity = vehicleCapacityKg
-    ? capacityPercentage >= 90 && !isOverCapacity
-    : false;
-  const isModerateCapacity = vehicleCapacityKg
-    ? capacityPercentage >= 70 && capacityPercentage < 90
-    : false;
-
-  const getCapacityColor = (): string => {
-    if (isOverCapacity) return "text-destructive";
-    if (isNearCapacity) return "text-warning";
-    if (isModerateCapacity) return "text-warning";
-    return "text-success";
-  };
-
-  const getProgressColor = (): string => {
-    if (isOverCapacity) return "bg-destructive";
-    if (isNearCapacity) return "bg-warning";
-    if (isModerateCapacity) return "bg-warning";
-    return "bg-success";
-  };
 
   const formatWeight = copy.format.weight;
 
   const totalCargos = fields.length;
   const hasNoPickupStops = pickupStops.length === 0;
   const hasHazmatCargo = fields.some((c) => c.hazardousMaterial);
+  const isCapacityUnknown =
+    Boolean(vehicleId) &&
+    !isLoadingVehicle &&
+    (vehicleCapacityKg == null || vehicleCapacityKg === 0);
+  const showCapacityStrip = Boolean(vehicleId) || totalCargos > 0;
 
   // ============================================
   // Render
@@ -323,266 +294,79 @@ export function CargoStep({
 
   return (
     <div className="space-y-6">
-      {/* Alerta: no hay paradas con carga */}
-      {hasNoPickupStops && (
-        <Card className="border-warning/30 bg-warning-soft/50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-warning-soft-foreground">
-                  {copy.alert.noPickupStops.title}
-                </p>
-                <p className="text-xs text-warning-soft-foreground mt-1">
-                  {copy.alert.noPickupStops.body}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {showCapacityStrip && (
+        <CargoCapacityStrip
+          capacityKg={vehicleCapacityKg}
+          loadedKg={totalWeight}
+          vehicleLabel={
+            vehicle
+              ? copy.capacity.vehicleSubtitle(
+                  vehicle.unitNumber,
+                  vehicle.brand,
+                  vehicle.model,
+                )
+              : null
+          }
+          isCapacityUnknown={isCapacityUnknown}
+        />
       )}
 
-      {/* Alerta: paradas sin cargas */}
-      {stopsWithoutCargos.length > 0 && !hasNoPickupStops && (
-        <Card className="border-warning/30 bg-warning-soft/50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-warning-soft-foreground">
-                  {stopsWithoutCargos.length === 1
-                    ? copy.alert.stopsWithoutCargo.titleSingle
-                    : copy.alert.stopsWithoutCargo.titleMultiple(stopsWithoutCargos.length)}
-                </p>
-                <ul className="text-xs text-warning-soft-foreground mt-1 space-y-0.5">
-                  {stopsWithoutCargos.map((stop) => (
-                    <li key={stop.index}>
-                      •{" "}
-                      {copy.format.stopWithoutCargoItem(
-                        stop.index,
-                        stop.locationName || stop.address,
-                        stop.city,
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-warning-soft-foreground mt-2">
-                  {copy.alert.stopsWithoutCargo.footer}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ============ INDICADOR DE CAPACIDAD DEL VEHÍCULO ============ */}
-      {vehicleCapacityKg && vehicleCapacityKg > 0 && (
-        <Card
-          className={cn(
-            "transition-colors",
-            isOverCapacity && "border-destructive/30 bg-destructive-soft/50",
-            isNearCapacity && "border-warning/30 bg-warning-soft/50",
-          )}
+      {/* Una sola alerta a la vez, por prioridad operativa. */}
+      {hasNoPickupStops ? (
+        <AlertWithIcon variant="warning" title={copy.alert.noPickupStops.title}>
+          {copy.alert.noPickupStops.body}
+        </AlertWithIcon>
+      ) : stopsWithoutCargos.length > 0 ? (
+        <AlertWithIcon
+          variant="warning"
+          title={
+            stopsWithoutCargos.length === 1
+              ? copy.alert.stopsWithoutCargo.titleSingle
+              : copy.alert.stopsWithoutCargo.titleMultiple(
+                  stopsWithoutCargos.length,
+                )
+          }
         >
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {/* Header con icono de camión */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "flex items-center justify-center h-10 w-10 rounded-lg",
-                      isOverCapacity && "bg-destructive-soft text-destructive",
-                      isNearCapacity && "bg-warning-soft text-warning",
-                      isModerateCapacity && "bg-warning-soft text-warning-soft-foreground",
-                      !isOverCapacity &&
-                        !isNearCapacity &&
-                        !isModerateCapacity &&
-                        "bg-success-soft text-success",
-                    )}
-                  >
-                    <Truck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      {copy.capacity.title}
-                      {vehicle && (
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {copy.format.vehicleSubtitle(
-                            vehicle.unitNumber,
-                            vehicle.brand,
-                            vehicle.model,
-                          )}
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.format.maxCapacity(formatWeight(vehicleCapacityKg))}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={cn("text-2xl font-bold", getCapacityColor())}>
-                    {capacityPercentage.toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">{copy.capacity.utilized}</p>
-                </div>
-              </div>
-
-              {/* Barra de progreso */}
-              <div className="space-y-2">
-                <div className="relative h-4 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full transition-all duration-300",
-                      getProgressColor(),
-                    )}
-                    style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
-                  />
-                  {/* Indicador de exceso */}
-                  {isOverCapacity && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-medium text-white drop-shadow-sm">
-                        {copy.capacity.exceeded}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {copy.capacity.loadedLabel}{" "}
-                    <span className={cn("font-medium", getCapacityColor())}>
-                      {formatWeight(totalWeight)}
-                    </span>
-                  </span>
-                  <span>
-                    {copy.capacity.availableLabel}{" "}
-                    <span className="font-medium">
-                      {isOverCapacity
-                        ? copy.format.excessAvailable(
-                            formatWeight(totalWeight - vehicleCapacityKg),
-                          )
-                        : formatWeight(vehicleCapacityKg - totalWeight)}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Desglose por carga (solo si hay cargas) */}
-              {fields.length > 0 && (
-                <div className="pt-2 border-t">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    {copy.capacity.breakdown}
-                  </p>
-                  <div className="space-y-1">
-                    {fields.map((cargo, idx) => {
-                      const cargoWeight = cargo.weightInKg || cargo.weight || 0;
-                      const cargoPercentage =
-                        vehicleCapacityKg > 0
-                          ? (cargoWeight / vehicleCapacityKg) * 100
-                          : 0;
-                      return (
-                        <div
-                          key={cargo.id || idx}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span className="truncate max-w-[60%] text-muted-foreground">
-                            {cargo.description || copy.format.cargoFallback(idx)}
-                          </span>
-                          <span className="font-medium">
-                            {copy.format.cargoBreakdownPercentage(
-                              formatWeight(cargoWeight),
-                              cargoPercentage,
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Alerta: Sobrepeso del vehículo */}
-      {isOverCapacity && (
-        <Card className="border-destructive/30 bg-destructive-soft/50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-destructive-soft-foreground">
-                  {copy.alert.overCapacity.title}
-                </p>
-                <p className="text-xs text-destructive-soft-foreground mt-1">
-                  {copy.format.overCapacityBody(
-                    formatWeight(totalWeight),
-                    formatWeight(vehicleCapacityKg!),
-                    formatWeight(totalWeight - vehicleCapacityKg!),
-                  )}
-                </p>
-                <p className="text-xs text-destructive-soft-foreground mt-2">
-                  {copy.alert.overCapacity.options}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Alerta: Vehículo sin capacidad definida */}
-      {vehicleId &&
-        !isLoadingVehicle &&
-        (!vehicleCapacityKg || vehicleCapacityKg === 0) && (
-          <Card className="border-info/30 bg-info-soft/50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-info mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-info-soft-foreground">
-                    {copy.alert.noVehicleCapacity.title}
-                  </p>
-                  <p className="text-xs text-info-soft-foreground mt-1">
-                    {copy.alert.noVehicleCapacity.body}
-                  </p>
-                  <p className="text-xs text-info-soft-foreground mt-1">
-                    {copy.alert.noVehicleCapacity.footer}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          <ul className="space-y-0.5">
+            {stopsWithoutCargos.map((stop) => (
+              <li key={stop.index}>
+                {copy.format.stopWithoutCargoItem(
+                  stop.index,
+                  stop.locationName || stop.address,
+                  stop.city,
+                )}
+              </li>
+            ))}
+          </ul>
+        </AlertWithIcon>
+      ) : null}
 
       {/* Encabezado con resumen */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-            <SectionHeadingWithHint
-              title={
-                <>
-                  <Package className="h-5 w-5 shrink-0" />
-                  {copy.section.merchandiseTrip}
-                </>
-              }
-              titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
-              hintLabel={copy.hintLabel.merchandiseTrip}
-              hint={<>{copy.hint.merchandiseTrip}</>}
-            />
+          <SectionHeadingWithHint
+            title={
+              <>
+                <Package className="h-5 w-5 shrink-0" />
+                {copy.section.merchandiseTrip}
+              </>
+            }
+            titleClassName="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"
+            hintLabel={copy.hintLabel.merchandiseTrip}
+            hint={<>{copy.hint.merchandiseTrip}</>}
+          />
           <p className="text-sm text-muted-foreground">
             {copy.format.summaryCargos(totalCargos, pickupStops.length)}
-            {totalWeight > 0 && copy.format.summaryWeightTotal(formatWeight(totalWeight))}
+            {totalWeight > 0 &&
+              copy.format.summaryWeightTotal(formatWeight(totalWeight))}
           </p>
         </div>
-        <div className="text-right space-y-1">
-          {hasHazmatCargo && (
-            <div className="flex items-center gap-1 text-xs text-warning">
-              <AlertCircle className="h-3.5 w-3.5" />
-              <span>{copy.badge.hazmatTrip}</span>
-            </div>
-          )}
-        </div>
+        {hasHazmatCargo && (
+          <Badge variant="warning" tone="soft" className="gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {copy.badge.hazmatTrip}
+          </Badge>
+        )}
       </div>
 
       {/* ============ PARADAS COMO CONTENEDORES ============ */}
@@ -595,64 +379,58 @@ export function CargoStep({
               ? Flag
               : MapPin;
         const hasMissing = stopCargos.length === 0;
+        const stopWeight = stopCargos.reduce(
+          (sum, { cargo }) => sum + getCargoWeight(cargo),
+          0,
+        );
 
         return (
           <Card
             key={pickupStop.index}
-            className={cn(
-              pickupStop.category === "origin" && "border-success/30",
-              pickupStop.category === "destination" && "border-destructive/30",
-              hasMissing && "border-warning/30",
-            )}
+            className={cn(hasMissing && "border-warning/40")}
           >
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
                   <div
                     className={cn(
-                      "flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0",
+                      "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full",
                       pickupStop.category === "origin" &&
                         "bg-success-soft text-success-soft-foreground",
                       pickupStop.category === "destination" &&
                         "bg-destructive-soft text-destructive-soft-foreground",
                       pickupStop.category === "waypoint" &&
-                        "bg-gray-100 text-gray-700",
+                        "bg-neutral-soft text-neutral-soft-foreground",
                     )}
                   >
                     <StopIcon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-wrap items-center gap-2">
                       <CardTitle className="text-base">
                         {copy.stopCard.stopNumber(pickupStop.index)}
                       </CardTitle>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 text-xs font-medium rounded",
-                          pickupStop.category === "origin" &&
-                            "bg-success-soft text-success-soft-foreground",
-                          pickupStop.category === "destination" &&
-                            "bg-destructive-soft text-destructive-soft-foreground",
-                          pickupStop.category === "waypoint" &&
-                            "bg-gray-100 text-gray-700",
-                        )}
-                      >
+                      <Badge variant="neutral" tone="soft">
                         {pickupStop.category === "origin"
                           ? copy.stopCard.origin
                           : pickupStop.category === "destination"
                             ? copy.stopCard.destination
                             : copy.stopCard.waypoint}
-                      </span>
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-info-soft text-info-soft-foreground">
-                        {copy.stopCard.pickup}
-                      </span>
-                      {hasMissing && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-warning-soft text-warning-soft-foreground">
+                      </Badge>
+                      {hasMissing ? (
+                        <Badge variant="warning" tone="soft">
                           {copy.stopCard.noMerchandise}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {copy.stopCard.summary(
+                            stopCargos.length,
+                            formatWeight(stopWeight),
+                          )}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground truncate mt-0.5">
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
                       {pickupStop.locationName || pickupStop.address}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -669,15 +447,26 @@ export function CargoStep({
                     </p>
                   </div>
                 </div>
+
+                <Button
+                  type="button"
+                  variant={hasMissing ? "default" : "outline"}
+                  size="sm"
+                  className="flex-shrink-0"
+                  onClick={() => handleOpenAddDialog(pickupStop)}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {copy.action.addMerchandise}
+                </Button>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-3">
               {stopCargos.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground border border-dashed border-warning/30 rounded-lg bg-warning-soft/30">
-                  <Package className="h-8 w-8 mx-auto mb-1 opacity-40" />
+                <div className="rounded-lg border border-dashed border-warning/40 bg-warning-soft/30 py-4 text-center text-muted-foreground">
+                  <Package className="mx-auto mb-1 h-8 w-8 opacity-40" />
                   <p className="text-sm">{copy.stopCard.emptyTitle}</p>
-                  <p className="text-xs mt-0.5">{copy.stopCard.emptyHint}</p>
+                  <p className="mt-0.5 text-xs">{copy.stopCard.emptyHint}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -685,85 +474,70 @@ export function CargoStep({
                     const deliveries = (cargo.movements || []).filter(
                       (m) => m.movementType === "delivery",
                     );
+                    const cargoWeight = getCargoWeight(cargo);
 
                     return (
                       <div
                         key={cargo.id || fieldIndex}
-                        className={cn(
-                          "flex items-start gap-3 p-3 border rounded-lg bg-muted/30",
-                          cargo.hazardousMaterial &&
-                            "border-warning/30 bg-warning-soft/30",
-                        )}
+                        className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3"
                       >
                         <Package
                           className={cn(
-                            "h-4 w-4 mt-0.5 flex-shrink-0",
+                            "mt-0.5 h-4 w-4 flex-shrink-0",
                             cargo.hazardousMaterial
                               ? "text-warning"
                               : "text-muted-foreground",
                           )}
                         />
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-sm font-medium truncate">
-                              {cargo.description}
-                            </h4>
-                          </div>
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <h4 className="truncate text-sm font-medium">
+                            {cargo.description ||
+                              copy.format.cargoFallback(fieldIndex)}
+                          </h4>
 
-                          {/* Badges de info */}
-                          <div className="flex flex-wrap gap-1.5">
-                            {cargo.satProductCode && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-info-soft text-info-soft-foreground border border-info/30">
-                                <FileText className="h-3 w-3" />
-                              {copy.format.satCode(cargo.satProductCode)}
-                              </span>
-                            )}
-                            {cargo.hazardousMaterial && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30">
-                                <AlertTriangle className="h-3 w-3" />
-                                {copy.badge.hazmatShort}
-                              </span>
-                            )}
-                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {cargo.units
+                              ? copy.format.units(
+                                  cargo.units,
+                                  cargo.satUnitName || "unidades",
+                                )
+                              : null}
+                            {cargo.units && cargoWeight > 0 ? " · " : null}
+                            {cargoWeight > 0
+                              ? copy.format.weightKg(cargoWeight)
+                              : null}
+                          </p>
 
-                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {cargo.weightInKg && (
-                              <span className="flex items-center gap-1">
-                                <Scale className="h-3 w-3" />
-                                {copy.format.weightKg(cargo.weightInKg)}
-                              </span>
-                            )}
-                            {!cargo.weightInKg && cargo.weight && (
-                              <span>{copy.format.weightLegacy(cargo.weight)}</span>
-                            )}
-                            {cargo.units && (
-                              <span className="flex items-center gap-1">
-                                <Box className="h-3 w-3" />
-                                {copy.format.units(cargo.units, cargo.satUnitName || "uds")}
-                              </span>
-                            )}
-                          </div>
-
-                          {(cargo.aseguraCarga || cargo.polizaCarga) && (
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              {cargo.aseguraCarga ? (
-                                <span>{copy.format.insurance(cargo.aseguraCarga)}</span>
-                              ) : null}
-                              {cargo.polizaCarga ? (
-                                <span className="font-mono">
-                                  {copy.format.policy(cargo.polizaCarga)}
-                                </span>
-                              ) : null}
-                            </div>
-                          )}
-
-                          {/* Entregas asignadas */}
-                          {deliveries.length > 0 && (
-                            <div className="mt-1.5 space-y-1">
+                          {(cargo.hazardousMaterial ||
+                            cargo.isInsured ||
+                            deliveries.length > 0) && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {cargo.hazardousMaterial && (
+                                <Badge
+                                  variant="warning"
+                                  tone="soft"
+                                  className="gap-1 font-normal"
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {copy.badge.hazmatShort}
+                                </Badge>
+                              )}
+                              {cargo.isInsured && (
+                                <Badge
+                                  variant="info"
+                                  tone="soft"
+                                  className="gap-1 font-normal"
+                                >
+                                  <ShieldCheck className="h-3 w-3" />
+                                  {copy.badge.insured}
+                                </Badge>
+                              )}
                               {deliveries.map((del, idx) => (
-                                <span
+                                <Badge
                                   key={idx}
-                                  className="inline-flex items-center gap-1 mr-2 px-1.5 py-0.5 text-xs rounded bg-warning-soft text-warning-soft-foreground border border-warning/30"
+                                  variant="neutral"
+                                  tone="soft"
+                                  className="gap-1 font-normal"
                                 >
                                   <Truck className="h-3 w-3" />
                                   {copy.format.deliveryBadge(
@@ -771,24 +545,25 @@ export function CargoStep({
                                     del.weight,
                                     del.units,
                                   )}
-                                </span>
+                                </Badge>
                               ))}
                             </div>
                           )}
 
                           {cargo.notes && (
-                            <p className="text-xs text-muted-foreground italic">
+                            <p className="text-xs italic text-muted-foreground">
                               {cargo.notes}
                             </p>
                           )}
                         </div>
 
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex flex-shrink-0 gap-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={copy.action.editMerchandise}
                             onClick={() => handleOpenEditDialog(fieldIndex)}
                           >
                             <Edit2 className="h-3.5 w-3.5" />
@@ -798,6 +573,7 @@ export function CargoStep({
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive hover:text-destructive"
+                            aria-label={copy.action.removeMerchandise}
                             onClick={() => remove(fieldIndex)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -809,23 +585,24 @@ export function CargoStep({
                 </div>
               )}
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-dashed"
-                onClick={() => handleOpenAddDialog(pickupStop)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {copy.action.addMerchandise}
-              </Button>
+              {stopCargos.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed"
+                  onClick={() => handleOpenAddDialog(pickupStop)}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {copy.action.addAnotherMerchandise}
+                </Button>
+              )}
             </CardContent>
           </Card>
         );
       })}
 
-
-      {/* ============ SHEET AGREGAR/EDITAR CARGA ============ */}
+      {/* ============ SHEET AGREGAR/EDITAR MERCANCÍA ============ */}
       <CargoMovementSheet
         open={isCargoDialogOpen}
         onOpenChange={(open) => {
@@ -845,11 +622,13 @@ export function CargoStep({
         vehicleCapacityKg={vehicleCapacityKg}
         baselineWeightKg={
           editingIndex !== null
-            ? totalWeight -
-              (fields[editingIndex]?.weightInKg ||
-                fields[editingIndex]?.weight ||
-                0)
+            ? totalWeight - getCargoWeight(fields[editingIndex] ?? {})
             : totalWeight
+        }
+        stopCargoCount={
+          activePickupStop
+            ? getCargosForStop(activePickupStop.index).length
+            : 0
         }
         onSubmit={handleSubmitFromSheet}
       />

@@ -23,13 +23,16 @@ function stopHasCatalogSnapshot(stop: WizardStopRow): boolean {
 /**
  * Deriva resumen operativo de extremo y texto de parada para el contrato actual:
  * `originCity` / `destinationCity` en el viaje y `address` / `city` / `state` en cada stop.
+ *
+ * Solo `sourceAddressId` / `clientAddressId` cuentan como vínculo a catálogo.
+ * Un `addressId` de snapshot propio de parada no debe forzar la rama de catálogo.
  */
 export function buildTripEndpointSummary(stop: WizardStopRow): {
   address: string;
   city: string;
   state: string;
 } {
-  if (stopHasCatalogSnapshot(stop) || isUnifiedAddressId(stop.addressId)) {
+  if (stopHasCatalogSnapshot(stop)) {
     const label = stop.locationName?.trim() || "Domicilio en catálogo";
     return {
       address: label,

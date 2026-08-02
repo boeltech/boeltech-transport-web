@@ -534,6 +534,8 @@ export interface CreateTripInput {
 
   // Opciones de comportamiento
   options?: {
+    /** `reserve` = hold draft comercial (ADR-0071); `full` = alta completa (default). */
+    createIntent?: "reserve" | "full";
     scheduleAfterCreate?: boolean;
     startImmediately?: boolean;
     startMileage?: number;
@@ -625,6 +627,18 @@ export interface CancelTripInput {
 // ============================================================================
 
 /**
+ * Advertencia soft al crear (p. ej. overlap en create_intent=reserve).
+ */
+export interface CreateTripWarning {
+  code: string;
+  message: string;
+  vehicleId?: string;
+  driverId?: string;
+  conflictingTripId?: string;
+  conflictingTripCode?: string;
+}
+
+/**
  * Resultado de crear un viaje con detalles
  */
 export interface CreateTripResult {
@@ -634,6 +648,7 @@ export interface CreateTripResult {
   cargosCreated: number;
   expensesCreated: number;
   finalStatus: TripStatusType;
+  warnings?: CreateTripWarning[];
 }
 
 /**

@@ -7,11 +7,14 @@ export type { WizardStep } from "@shared/ui/wizard";
 
 export {
   tripWizardSchema,
+  tripReserveWizardSchema,
   tripStopSchema,
   tripCargoSchema,
   tripExpenseSchema,
   WIZARD_STEPS,
+  WIZARD_STEPS_RESERVE,
   WIZARD_STEP_FIELDS,
+  WIZARD_STEP_FIELDS_RESERVE,
   defaultWizardFormValues,
   validateRouteStep,
   validateCostsStep,
@@ -33,6 +36,9 @@ export type {
 } from "./validation";
 
 export { BasicInfoStep } from "./BasicInfoStep";
+export { ReservePedidoStep } from "./ReservePedidoStep";
+export { ReserveAsignarStep } from "./ReserveAsignarStep";
+export { TripAssignmentResourceFields } from "./TripAssignmentResourceFields";
 export { RouteStep } from "./RouteStep";
 export { CargoStep } from "./CargoStep";
 export { CostsStep } from "./CostsStep";

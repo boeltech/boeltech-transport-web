@@ -63,4 +63,46 @@ describe("buildAssignableDriversForTripWizard", () => {
       expiredDocsOverridable: true,
     });
   });
+
+  it("keeps reserved driver assignable when it is the trip current assignment", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-current", status: "reserved" })],
+      new Set(),
+      { keepAssignableDriverId: "drv-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      blockReason: undefined,
+    });
+  });
+
+  it("keeps other reserved drivers blocked", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [
+        driver({ id: "drv-current", status: "reserved" }),
+        driver({ id: "drv-other", status: "reserved" }),
+      ],
+      new Set(),
+      { keepAssignableDriverId: "drv-current" },
+    );
+
+    expect(result.find((d) => d.id === "drv-other")).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Reservado",
+    });
+  });
+
+  it("does not waive on_trip even when keep id matches", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-current", status: "on_trip" })],
+      new Set(),
+      { keepAssignableDriverId: "drv-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "En viaje",
+    });
+  });
 });

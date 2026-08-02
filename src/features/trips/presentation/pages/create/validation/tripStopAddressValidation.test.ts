@@ -27,7 +27,7 @@ describe("validateTripStopFiscalFieldErrors", () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
-  it("requires delivery fiscal for mixed waypoint", () => {
+  it("mixed waypoint: primary fiscal is enough for package validateTripStopFiscalFields", () => {
     const errors = validateTripStopFiscalFieldErrors({
       stopCategory: "waypoint",
       stopType: ["waypoint", "pickup", "delivery"],
@@ -36,8 +36,9 @@ describe("validateTripStopFiscalFieldErrors", () => {
       deliveryRfcRemitenteDestinatario: "",
       deliveryNombreRemitenteDestinatario: "",
     });
-    expect(errors.deliveryRfcRemitenteDestinatario).toBeTruthy();
-    expect(errors.deliveryNombreRemitenteDestinatario).toBeTruthy();
+    // Contraparte secundaria (descarga) es warning en validateRouteStep, no hard-error del paquete.
+    expect(errors.rfcRemitenteDestinatario).toBeUndefined();
+    expect(errors.nombreRemitenteDestinatario).toBeUndefined();
   });
 
   it("maps missing fiscal fields to footer labels", () => {
@@ -47,6 +48,6 @@ describe("validateTripStopFiscalFieldErrors", () => {
       rfcRemitenteDestinatario: "",
       nombreRemitenteDestinatario: "Nombre",
     });
-    expect(labels).toContain("RFC remitente/destinatario");
+    expect(labels).toContain("RFC de quien entrega o recibe");
   });
 });

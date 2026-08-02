@@ -13,13 +13,44 @@ import {
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 import { deriveAllowExpiredDocs } from "./tripAssignmentExpiredDocs";
 
+export type BuildCreateTripInputOptions = {
+  /** ADR-0071: hold comercial sin stops/cargos. */
+  createIntent?: "reserve" | "full";
+};
+
 export function buildCreateTripInputFromWizardValues(
   data: TripWizardFormValues,
   assignmentContext?: {
     vehicle?: { insuranceExpiry: string | null; sctPermitExpiry: string | null };
     driver?: { isLicenseExpired: boolean };
   },
+  buildOptions?: BuildCreateTripInputOptions,
 ): CreateTripInput {
+  const createIntent = buildOptions?.createIntent ?? "full";
+  const allowExpiredDocs = assignmentContext
+    ? deriveAllowExpiredDocs(assignmentContext.vehicle, assignmentContext.driver)
+    : undefined;
+
+  if (createIntent === "reserve") {
+    return {
+      vehicleId: data.vehicleId,
+      driverId: data.driverId,
+      clientId: data.clientId,
+      originBranchId: data.originBranchId?.trim() || undefined,
+      cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
+      scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
+      scheduledArrival: data.scheduledArrival
+        ? localInputToUtcIso(data.scheduledArrival)
+        : undefined,
+      originCity: data.originCity?.trim() || "",
+      destinationCity: data.destinationCity?.trim() || "",
+      baseRate: data.baseRate,
+      notes: data.notes || undefined,
+      options: { createIntent: "reserve" },
+      allowExpiredDocs,
+    };
+  }
+
   const mercanciasHeader = buildMercanciasHeaderSummary(data.cargos);
   const originStop = data.stops?.find((stop) => stop.stopType.includes("origin"));
   const destinationStop = data.stops?.find((stop) =>
@@ -39,9 +70,9 @@ export function buildCreateTripInputFromWizardValues(
       ? localInputToUtcIso(data.scheduledArrival)
       : undefined,
     startMileage: data.startMileage,
-    originCity: originSummary?.city || "",
+    originCity: originSummary?.city || data.originCity?.trim() || "",
     originState: originSummary?.state || undefined,
-    destinationCity: destSummary?.city || "",
+    destinationCity: destSummary?.city || data.destinationCity?.trim() || "",
     destinationState: destSummary?.state || undefined,
     cargoDescription: data.cargos?.[0]?.description,
     cargoWeight: data.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0),
@@ -68,8 +99,6 @@ export function buildCreateTripInputFromWizardValues(
       notes: expense.notes || undefined,
       isEstimated: true,
     })),
-    allowExpiredDocs: assignmentContext
-      ? deriveAllowExpiredDocs(assignmentContext.vehicle, assignmentContext.driver)
-      : undefined,
+    allowExpiredDocs,
   };
 }

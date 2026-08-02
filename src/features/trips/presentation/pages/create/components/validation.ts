@@ -49,16 +49,11 @@ export function stopHasUnifiedAddressId(stop: { addressId?: string }): boolean {
  *
  * Campos geográficos SAT obligatorios **solo si no hay `addressId`** (dirección nueva):
  * - satStateCode (c_Estado)
- * - satMunicipalityCode (c_Municipio)
  * - postalCode (c_CodigoPostal)
+ * - satCountryCode (c_Pais)
  *
- * En el complemento Carta Porte 3.1, municipio/localidad/colonia en domicilio son
- * opcionales si no se envían; el wizard sigue pidiendo estado/municipio/CP para
- * coherencia operativa y catálogos.
- *
- * Opcionales en esquema SAT (recomendables para precisión):
- * - satLocalityCode (c_Localidad)
- * - satNeighborhoodCode (c_Colonia)
+ * Municipio / localidad / colonia son **opcionales** en el XSD Domicilio CP31
+ * (`@boeltech/cfdi-domain` address-readiness). Se recomiendan en UX, no bloquean.
  */
 export const tripStopSchema = z
   .object({
@@ -93,7 +88,7 @@ export const tripStopSchema = z
 
   /**
    * Código de Municipio SAT (c_Municipio)
-   * Obligatorio si no hay `addressId`.
+   * Opcional en XSD CP31 (recomendado en UX).
    */
   satMunicipalityCode: z
     .string()
@@ -456,7 +451,7 @@ export const tripCargoSchema = z.object({
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "Este producto requiere capturar material peligroso según catálogo SAT",
+          "Este producto requiere capturar material peligroso según el catálogo oficial",
         path: ["hazardousMaterial"],
       });
     }
@@ -726,6 +721,10 @@ export const tripWizardSchema = z.object({
   startMileage: z.coerce.number().min(0).optional(),
   vehicleCurrentMileage: z.coerce.number().min(0).optional(),
 
+  /** Resumen operativo (reserva ADR-0071; en alta completa suele derivarse de paradas). */
+  originCity: z.string().max(100).optional().or(z.literal("")),
+  destinationCity: z.string().max(100).optional().or(z.literal("")),
+
   // Paso 2: Ruta
   stops: z.array(tripStopSchema).min(2, "Se requieren al menos 2 paradas"),
 
@@ -793,6 +792,7 @@ export const WIZARD_STEPS = [
     title: shell.step.basic.title,
     description: shell.step.basic.description,
     fields: [
+      "originBranchId",
       "vehicleId",
       "driverId",
       "clientId",
@@ -806,7 +806,7 @@ export const WIZARD_STEPS = [
     id: "route",
     title: shell.step.route.title,
     description: shell.step.route.description,
-    fields: ["stops", "originBranchId"],
+    fields: ["stops"],
   },
   {
     id: "cargo",
@@ -828,7 +828,83 @@ export const WIZARD_STEPS = [
   },
 ];
 
+/** Wizard corto ADR-0071 (`?intent=reserve`): pedido + asignar. */
+export const WIZARD_STEPS_RESERVE = [
+  {
+    id: "pedido",
+    title: shell.step.pedido.title,
+    description: shell.step.pedido.description,
+    fields: [
+      "clientId",
+      "originCity",
+      "destinationCity",
+      "scheduledDeparture",
+      "scheduledArrival",
+      "notes",
+    ],
+  },
+  {
+    id: "asignar",
+    title: shell.step.asignar.title,
+    description: shell.step.asignar.description,
+    fields: ["vehicleId", "driverId", "baseRate"],
+  },
+];
+
 export const WIZARD_STEP_FIELDS = WIZARD_STEPS.map((step) => step.fields);
+export const WIZARD_STEP_FIELDS_RESERVE = WIZARD_STEPS_RESERVE.map(
+  (step) => step.fields,
+);
+
+/**
+ * Schema del flujo de reserva: sin stops/cargos/CP; cliente y ciudades requeridos.
+ */
+export const tripReserveWizardSchema = z
+  .object({
+    vehicleId: z.string().min(1, "Vehículo requerido"),
+    driverId: z.string().min(1, "Conductor requerido"),
+    clientId: z
+      .string()
+      .min(1, shell.validation.selectClient)
+      .refine((value) => value !== "no-client", {
+        message: shell.validation.selectClient,
+      }),
+    originBranchId: z.string().uuid().optional().or(z.literal("")),
+    cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
+    scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
+    scheduledArrival: z.string().optional(),
+    startMileage: z.coerce.number().min(0).optional(),
+    vehicleCurrentMileage: z.coerce.number().min(0).optional(),
+    originCity: z
+      .string()
+      .trim()
+      .min(2, shell.validation.originCityRequired)
+      .max(100),
+    destinationCity: z
+      .string()
+      .trim()
+      .min(2, shell.validation.destinationCityRequired)
+      .max(100),
+    stops: z.array(z.any()).default([]),
+    cargos: z.array(z.any()).default([]),
+    expenses: z.array(z.any()).default([]),
+    baseRate: z.coerce.number().min(0).optional(),
+    internalStaff: z.array(internalStaffSchema).default([]),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.scheduledArrival &&
+      data.scheduledDeparture &&
+      new Date(data.scheduledArrival) < new Date(data.scheduledDeparture)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scheduledArrival"],
+        message: "La llegada debe ser posterior a la salida",
+      });
+    }
+  });
 
 // ============================================================================
 // DEFAULT VALUES
@@ -844,6 +920,8 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   scheduledArrival: "",
   startMileage: undefined,
   vehicleCurrentMileage: undefined,
+  originCity: "",
+  destinationCity: "",
   stops: [],
   cargos: [],
   expenses: [],
@@ -979,11 +1057,6 @@ export function validateRouteStep(
       if (!stop.satStateCode?.trim()) {
           errors.push(`Completa "${label}" con ${LOCATION_CAPTURE_LABELS.state}`);
       }
-      if (!stop.satMunicipalityCode?.trim()) {
-          errors.push(
-            `Completa "${label}" con ${LOCATION_CAPTURE_LABELS.municipality}`,
-          );
-      }
       if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
           errors.push(
             `Completa "${label}" con ${LOCATION_CAPTURE_LABELS.postalCode} válido`,
@@ -992,7 +1065,17 @@ export function validateRouteStep(
     }
 
     if (stop.latitude == null || stop.longitude == null) {
-      errors.push(`Confirma geolocalización en mapa para "${label}"`);
+      errors.push(`Ubica en el mapa la parada "${label}"`);
+    }
+
+    if (
+      i > 0 &&
+      stop.distanceFromPreviousKm === undefined &&
+      stop.distanceFromPreviousKm !== 0
+    ) {
+      errors.push(
+        `Completa los kilómetros desde la parada anterior en "${label}"`,
+      );
     }
 
     // estimatedArrival obligatorio en destino, recomendado en waypoints
@@ -1006,7 +1089,7 @@ export function validateRouteStep(
       errors.push(`Completa "${label}" con hora estimada de llegada`);
     } else if (isWaypoint && !stop.estimatedArrival) {
       warnings.push(
-        `"${label}" no tiene hora estimada. Se interpolará automáticamente en la documentación fiscal.`,
+        `"${label}" no tiene hora estimada. Se interpolará automáticamente al documentar el viaje.`,
       );
     }
   }

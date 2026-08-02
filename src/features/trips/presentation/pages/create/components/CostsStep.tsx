@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 import type { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
-import { AlertCircle, CircleDollarSign, DollarSign, Plus, Receipt } from "lucide-react";
+import { CircleDollarSign, DollarSign, Plus, Receipt } from "lucide-react";
 
 import { useClientCreditSummary } from "@features/clients/application";
 import { useVehicle } from "@features/vehicles/application";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { CreditExposureCard, DetailAlertCard } from "@shared/ui/data-display";
-import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
+import { CreditExposureCard } from "@shared/ui/data-display";
 import { RHFMoneyField } from "@shared/ui/form";
 import { TripExpenseEditableList } from "../../../components/trip-costs";
 
@@ -16,6 +15,7 @@ import {
   isIndirectExpenseCategory,
   isOperationalExpenseCategory,
   TripExpenseSheet,
+  TripResultStrip,
   TripWizardFinancialSummary,
   buildTripWizardFinancialSnapshot,
   type TripExpenseSheetKind,
@@ -56,11 +56,6 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
     baseRate > 0 ? baseRate : undefined,
     { enabled: hasContractingClient },
   );
-  const creditSummary = creditSummaryQuery.data;
-  const creditWarningMessage =
-    creditSummary && creditSummary.status !== "ok"
-      ? creditExposureCopy.wizardWarning[creditSummary.status]
-      : null;
 
   const { data: vehicle } = useVehicle(vehicleId);
   const expectedFuelEfficiency =
@@ -115,6 +110,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const handleSubmitFromSheet = (
     values: TripExpenseFormValues,
     submittedIndex: number | null,
+    options?: { keepOpen?: boolean },
   ) => {
     if (submittedIndex !== null) {
       update(submittedIndex, values);
@@ -123,11 +119,22 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
     }
     setInitialExpense(null);
     setEditingIndex(null);
+    if (!options?.keepOpen) {
+      setSheetOpen(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <TripResultStrip
+        income={financial.baseRate}
+        conceptsTotal={financial.totalExpenses}
+        utility={financial.margin}
+        marginPct={financial.marginPct}
+        health={financial.health}
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -177,7 +184,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                 onClick={() => handleOpenAdd("cost")}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                {copy.action.addCost}
+                {copy.action.addOperational}
               </Button>
             </CardHeader>
             <CardContent>
@@ -210,7 +217,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
                 onClick={() => handleOpenAdd("expense")}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                {copy.action.addExpense}
+                {copy.action.addIndirect}
               </Button>
             </CardHeader>
             <CardContent>
@@ -232,36 +239,21 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
         </div>
 
         <TripWizardFinancialSummary
-          className="xl:sticky xl:top-4"
+          className="xl:sticky xl:top-36"
           snapshot={financialSnapshot}
+          variant="totals"
         />
       </div>
 
-      {creditWarningMessage ? (
-        <DetailAlertCard
-          severity={creditSummary?.status === "exceeded" ? "critical" : "warning"}
-          icon={<AlertCircle className="h-4 w-4" />}
-          title={creditExposureCopy.title}
-          items={[{ text: creditWarningMessage }]}
-        />
-      ) : null}
-
-      {financial.health === "critical" ? (
-        <DetailAlertCard
-          severity="critical"
-          icon={<AlertCircle className="h-4 w-4" />}
-          title={copy.alert.marginCriticalTitle}
-          items={[
-            {
-              text: copy.alert.marginCriticalBody,
-            },
-          ]}
-        />
-      ) : null}
-
       <TripExpenseSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) {
+            setEditingIndex(null);
+            setInitialExpense(null);
+          }
+        }}
         expenseKind={sheetKind}
         initialValues={initialExpense}
         editingIndex={editingIndex}

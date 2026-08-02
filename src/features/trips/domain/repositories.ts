@@ -66,6 +66,14 @@ export interface ITripRepository {
       expensesCreated: number;
       finalStatus: string;
     };
+    warnings?: Array<{
+      code: string;
+      message: string;
+      vehicleId?: string;
+      driverId?: string;
+      conflictingTripId?: string;
+      conflictingTripCode?: string;
+    }>;
   }>;
 
   /**

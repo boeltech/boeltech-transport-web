@@ -470,6 +470,15 @@ export interface ApiTripListItemResponse {
 // CREATE TRIP RESPONSE (transaccional)
 // ============================================================================
 
+export interface ApiCreateTripWarning {
+  code: string;
+  message: string;
+  vehicle_id?: string;
+  driver_id?: string;
+  conflicting_trip_id?: string;
+  conflicting_trip_code?: string;
+}
+
 export interface ApiCreateTripResponse {
   message: string;
   data: {
@@ -483,6 +492,8 @@ export interface ApiCreateTripResponse {
       final_status: string;
     };
   };
+  /** Soft overlap (ADR-0071 reserve); top-level, snake_case from API. */
+  warnings?: ApiCreateTripWarning[];
 }
 
 // ============================================================================

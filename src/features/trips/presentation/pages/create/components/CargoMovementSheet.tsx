@@ -2,8 +2,10 @@
  * CargoMovementSheet - Sheet lateral para agregar/editar mercancías
  * Clean Architecture - Presentation Layer (paso 3 del wizard de viajes)
  *
- * Patrón UI: Sheet lateral derecho con secciones en `FormSectionCard`, alineado con
- * `StopFormSheet` (paradas) y los formularios de clientes/empleados.
+ * Patrón UI: Sheet lateral derecho en dos niveles. Arriba, lo obligatorio para
+ * mover la mercancía (qué se transporta y cuánto). Debajo, lo que solo aplica a
+ * veces: requisitos que exige el catálogo del producto, seguro, entregas y notas.
+ * Las secciones opcionales se abren solas cuando la mercancía ya trae datos.
  *
  * Validación: `useForm(tripCargoSchema)` con `zodResolver`. La SoT de obligatoriedad
  * CP3.1 vive en `tripCargoSchema.superRefine` (`validation.ts`) y refleja la matriz
@@ -33,11 +35,6 @@ import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Checkbox } from "@shared/ui/checkbox";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -51,29 +48,26 @@ import {
   RHFTextareaField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
-import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   AlertTriangle,
-  ChevronDown,
-  FileText,
   MessageSquare,
   Plus,
   ShieldCheck,
   Trash2,
   Truck,
 } from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
-import { CargoMovementSheetPickupContext, CargoMovementSheetProductSection, CargoMovementSheetQuantityWeightSection } from "./cargo-movement";
+import {
+  CargoMovementSheetPickupContext,
+  CargoMovementSheetProductSection,
+  CargoMovementSheetQuantityWeightSection,
+  CargoOptionalSection,
+  CargoProductRequirementsSection,
+} from "./cargo-movement";
 import { useToast } from "@shared/hooks";
 
 import {
-  MaterialPeligrosoSearch,
-  TipoEmbalajeSelect,
-} from "@features/catalogs";
-import {
   getMissingSectorRequiredFields,
   hasAnySectorFieldValue,
-  sectorFieldLabels,
 } from "./cargoRegulatory";
 import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
@@ -126,8 +120,14 @@ export interface CargoMovementSheetProps {
   vehicleCapacityKg: number | null;
   /** Peso de las demás cargas (excluyendo la actual si está editando). */
   baselineWeightKg: number;
+  /** Mercancías ya registradas en la parada activa. */
+  stopCargoCount: number;
   /** Se llama con los valores validados Zod. */
-  onSubmit: (values: TripCargoFormValues, editingIndex: number | null) => void;
+  onSubmit: (
+    values: TripCargoFormValues,
+    editingIndex: number | null,
+    options?: { keepOpen?: boolean },
+  ) => void;
 }
 
 // ============================================================================
@@ -246,9 +246,10 @@ function CargoMovementSheetSession({
   editingIndex,
   vehicleCapacityKg,
   baselineWeightKg,
+  stopCargoCount,
   onSubmit,
 }: Omit<CargoMovementSheetProps, "open">) {
-  const { error: showErrorToast } = useToast();
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
   const catalogHydrateKeyRef = useRef<string | null>(null);
 
   const defaultValues = useMemo<TripCargoFormValues>(() => {
@@ -266,14 +267,11 @@ function CargoMovementSheetSession({
     mode: "onSubmit",
     shouldUnregister: false,
   });
-  const { control, handleSubmit, setValue, getValues, formState } = form;
+  const { control, handleSubmit, setValue, getValues, reset, formState } = form;
 
   // Estado fuera del schema: entregas posteriores
   const [deliveryAssignments, setDeliveryAssignments] = useState(
     () => initialDeliveryAssignments(initialValues),
-  );
-  const [hazmatSectionOpen, setHazmatSectionOpen] = useState(
-    () => !!initialValues?.hazardousMaterial,
   );
   const [showSummary, setShowSummary] = useState(false);
 
@@ -284,6 +282,12 @@ function CargoMovementSheetSession({
   const satProductCode = useWatch({ control, name: "satProductCode" });
   const satUnitName = useWatch({ control, name: "satUnitName" }) || "unidades";
   const isInsured = useWatch({ control, name: "isInsured" });
+  const insurerName = useWatch({ control, name: "aseguraCarga" });
+  const notesValue = useWatch({ control, name: "notes" });
+  const specialInstructionsValue = useWatch({
+    control,
+    name: "specialInstructions",
+  });
   const hazardousMaterial = useWatch({ control, name: "hazardousMaterial" });
   const requiresHazmatFromCatalog = useWatch({ control, name: "requiresHazmat" });
   const sectorRequirements = useWatch({ control, name: "sectorRequirements" });
@@ -317,7 +321,7 @@ function CargoMovementSheetSession({
   /** Solo el catálogo SAT puede bloquear desmarcar; la elección manual del usuario es reversible. */
   const hazmatRequiredByCatalog = !!requiresHazmatFromCatalog;
 
-  const shouldShowSectorSection = useMemo(() => {
+  const hasSectorData = useMemo(() => {
     const hasAnyFlag = Object.values(sectorRequirements ?? {}).some(Boolean);
     const [
       sectorCofepris,
@@ -365,6 +369,10 @@ function CargoMovementSheetSession({
     });
     return hasAnyFlag || hasAnyValue;
   }, [sectorRequirements, sectorValues]);
+
+  /** Solo se muestra el bloque si el catálogo exige algo o la mercancía ya trae datos. */
+  const showRequirementsSection =
+    hasSectorData || hazmatRequiredByCatalog || !!hazardousMaterial;
 
   const missingSectorFields = useMemo(() => {
     const [
@@ -449,7 +457,6 @@ function CargoMovementSheetSession({
         if (flags.requiresHazmat) {
           setValue("requiresHazmat", true, { shouldDirty: true });
           setValue("hazardousMaterial", true, { shouldDirty: true });
-          setHazmatSectionOpen(true);
         }
       } catch {
         catalogHydrateKeyRef.current = null;
@@ -465,17 +472,17 @@ function CargoMovementSheetSession({
   // Capacity projection
   // ============================================================================
 
+  const hasCapacity = vehicleCapacityKg != null && vehicleCapacityKg > 0;
+  const availableKg = hasCapacity ? vehicleCapacityKg - baselineWeightKg : null;
   const projectedWeight =
     baselineWeightKg + (typeof weightInKgWatch === "number" ? weightInKgWatch : 0);
   const wouldExceedCapacity =
-    vehicleCapacityKg != null &&
-    vehicleCapacityKg > 0 &&
+    hasCapacity &&
     typeof weightInKgWatch === "number" &&
     weightInKgWatch > 0 &&
     projectedWeight > vehicleCapacityKg;
   const isNearCapacityProjection =
-    vehicleCapacityKg != null &&
-    vehicleCapacityKg > 0 &&
+    hasCapacity &&
     typeof weightInKgWatch === "number" &&
     weightInKgWatch > 0 &&
     !wouldExceedCapacity &&
@@ -521,7 +528,6 @@ function CargoMovementSheetSession({
         setValue("packagingType", "", { shouldDirty: true });
         setValue("packagingDescription", "", { shouldDirty: true });
       }
-      setHazmatSectionOpen(checked);
     },
     [hazmatRequiredByCatalog, setValue, showErrorToast],
   );
@@ -532,8 +538,8 @@ function CargoMovementSheetSession({
 
   const pickupStopIndex = pickupStop?.index ?? 0;
 
-  const submitSheet = handleSubmit(
-    (values) => {
+  const buildResult = useCallback(
+    (values: TripCargoFormValues): TripCargoFormValues => {
       const pickupMovement: CargoMovementFormValues = {
         stopIndex: pickupStopIndex,
         movementType: "pickup",
@@ -547,7 +553,7 @@ function CargoMovementSheetSession({
           units: d.units,
           notes: d.notes,
         }));
-      const result: TripCargoFormValues = {
+      return {
         ...values,
         clientId: V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL,
         movements: [pickupMovement, ...validDeliveries],
@@ -566,7 +572,13 @@ function CargoMovementSheetSession({
           ? values.packagingDescription
           : undefined,
       };
-      onSubmit(result, editingIndex);
+    },
+    [deliveryAssignments, pickupStopIndex],
+  );
+
+  const submitSheet = handleSubmit(
+    (values) => {
+      onSubmit(buildResult(values), editingIndex);
       onOpenChange(false);
     },
     () => {
@@ -574,11 +586,35 @@ function CargoMovementSheetSession({
     },
   );
 
+  /** Guarda la mercancía y deja el sheet listo para la siguiente de la misma parada. */
+  const handleAddAnother = () => {
+    void handleSubmit(
+      (values) => {
+        const result = buildResult(values);
+        onSubmit(result, null, { keepOpen: true });
+        reset(buildEmptyCargo(pickupStopIndex));
+        setDeliveryAssignments([]);
+        setShowSummary(false);
+        catalogHydrateKeyRef.current = null;
+        showSuccessToast(
+          sheet.toast.addedTitle,
+          sheet.toast.addedBody(result.description),
+        );
+      },
+      () => {
+        setShowSummary(true);
+      },
+    )();
+  };
+
   const summaryMessages = useMemo(
     () => collectFormErrorMessages(formState.errors as Record<string, { message?: string }>),
     [formState.errors],
   );
   const isSummaryVisible = showSummary && summaryMessages.length > 0;
+
+  const hasNotes =
+    Boolean(notesValue?.trim()) || Boolean(specialInstructionsValue?.trim());
 
   // ============================================================================
   // Render
@@ -596,7 +632,11 @@ function CargoMovementSheetSession({
           <SheetDescription className="sr-only">
             {sheet.description}
           </SheetDescription>
-          <CargoMovementSheetPickupContext pickupStop={pickupStop} />
+          <CargoMovementSheetPickupContext
+            pickupStop={pickupStop}
+            stopCargoCount={stopCargoCount}
+            availableKg={availableKg}
+          />
         </SheetHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
@@ -604,7 +644,6 @@ function CargoMovementSheetSession({
             control={control}
             setValue={setValue}
             getValues={getValues}
-            onHazmatSectionOpen={() => setHazmatSectionOpen(true)}
           />
 
           <CargoMovementSheetQuantityWeightSection
@@ -614,14 +653,51 @@ function CargoMovementSheetSession({
             isNearCapacityProjection={isNearCapacityProjection}
             vehicleCapacityKg={vehicleCapacityKg ?? undefined}
             projectedWeight={projectedWeight}
+            availableKg={availableKg}
             formatWeight={formatWeight}
           />
 
-          {/* ========== SECCIÓN: SEGURO ========== */}
-          <FormSectionCard
+          {/* Marca manual de material peligroso; el catálogo puede volverla obligatoria. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3">
+            <Checkbox
+              id="cargo-hazmat-checkbox"
+              checked={!!hazardousMaterial}
+              disabled={hazmatRequiredByCatalog}
+              onCheckedChange={(checked) => handleHazmatChange(!!checked)}
+            />
+            <Label
+              htmlFor="cargo-hazmat-checkbox"
+              className="flex cursor-pointer items-center gap-2"
+            >
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              {sheet.label.isHazmat}
+            </Label>
+            {hazmatRequiredByCatalog && (
+              <span className="text-xs text-muted-foreground">
+                {sheet.hint.hazmatRequired}
+              </span>
+            )}
+          </div>
+
+          {showRequirementsSection && (
+            <CargoProductRequirementsSection
+              control={control}
+              sectorRequirements={sectorRequirements}
+              missingSectorFields={missingSectorFields}
+              showHazmatFields={!!hazardousMaterial}
+            />
+          )}
+
+          {/* ========== SECCIÓN OPCIONAL: SEGURO ========== */}
+          <CargoOptionalSection
             title={sheet.section.insurance}
             icon={<ShieldCheck className="h-4 w-4" />}
-            contentClassName="space-y-4"
+            summary={
+              isInsured
+                ? sheet.sectionSummary.insuranceOn(insurerName || undefined)
+                : sheet.sectionSummary.insuranceOff
+            }
+            defaultOpen={!!initialValues?.isInsured}
           >
             <Controller
               control={control}
@@ -708,211 +784,25 @@ function CargoMovementSheetSession({
                 </p>
               </div>
             )}
-          </FormSectionCard>
+          </CargoOptionalSection>
 
-          {/* ========== SECCIÓN: MATERIAL PELIGROSO ========== */}
-          <FormSectionCard
-            title={sheet.section.hazmat}
-            icon={<AlertTriangle className="h-4 w-4" />}
-            contentClassName="space-y-4"
-          >
-            <Collapsible
-              open={hazmatSectionOpen}
-              onOpenChange={setHazmatSectionOpen}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="cargo-hazmat-checkbox"
-                    checked={!!hazardousMaterial}
-                    disabled={hazmatRequiredByCatalog}
-                    onCheckedChange={(checked) => handleHazmatChange(!!checked)}
-                  />
-                  <Label
-                    htmlFor="cargo-hazmat-checkbox"
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    {sheet.label.isHazmat}
-                  </Label>
-                </div>
-                {hazmatRequiredByCatalog && (
-                  <p className="text-xs text-warning-soft-foreground">
-                    {sheet.hint.hazmatRequired}
-                  </p>
-                )}
-                {hazardousMaterial && (
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 transition-transform",
-                          hazmatSectionOpen && "rotate-180",
-                        )}
-                      />
-                    </Button>
-                  </CollapsibleTrigger>
-                )}
-              </div>
-
-              <CollapsibleContent className="space-y-4 mt-4">
-                <div className="p-4 border border-warning/30 rounded-lg bg-warning-soft/50 space-y-4">
-                  <p className="text-sm text-warning-soft-foreground">
-                    {sheet.hint.hazmatComplete}
-                  </p>
-
-                  <Controller
-                    control={control}
-                    name="hazardousMaterialCode"
-                    render={({ field, fieldState }) => {
-                      const errorMessage = fieldState.error?.message;
-                      return (
-                        <FormFieldShell
-                          fieldId="cargo-hazmat-code"
-                          label={sheet.label.hazmatCode}
-                          required
-                          errorMessage={errorMessage}
-                        >
-                          <MaterialPeligrosoSearch
-                            value={field.value || null}
-                            onSelect={(item) => field.onChange(item.code)}
-                            onClear={() => field.onChange("")}
-                          />
-                        </FormFieldShell>
-                      );
-                    }}
-                  />
-
-                  <Controller
-                    control={control}
-                    name="packagingType"
-                    render={({ field, fieldState }) => {
-                      const errorMessage = fieldState.error?.message;
-                      return (
-                        <FormFieldShell
-                          fieldId="cargo-packaging-type"
-                          label={sheet.label.packagingType}
-                          required
-                          errorMessage={errorMessage}
-                        >
-                          <TipoEmbalajeSelect
-                            value={field.value || ""}
-                            onValueChange={(value) => field.onChange(value)}
-                            placeholder={sheet.placeholder.packagingType}
-                          />
-                        </FormFieldShell>
-                      );
-                    }}
-                  />
-
-                  <RHFTextField
-                    control={control}
-                    name="packagingDescription"
-                    fieldId="cargo-packaging-description"
-                    label={sheet.label.packagingDescription}
-                    required
-                    placeholder={sheet.placeholder.packagingDescription}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </FormSectionCard>
-
-          {/* ========== SECCIÓN: SECTORES REGULADOS ========== */}
-          {shouldShowSectorSection && (
-            <FormSectionCard
-              title={sheet.section.sectors}
-              icon={<FileText className="h-4 w-4" />}
-              contentClassName="space-y-4"
-            >
-              <p className="text-xs text-muted-foreground">
-                {sheet.hint.sectors}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    "sectorCofepris",
-                    "nombreIngredienteActivo",
-                    "nomQuimico",
-                    "denominacionGenericaProd",
-                    "denominacionDistintivaProd",
-                    "fabricante",
-                    "loteMedicamento",
-                    "formaFarmaceutica",
-                    "condicionesEspTransp",
-                    "registroSanitarioFolioAutorizacion",
-                    "permisoImportacion",
-                    "folioImpoVucem",
-                    "numCas",
-                    "razonSocialEmpImp",
-                    "numRegSanPlagCofepris",
-                    "datosFabricante",
-                    "datosFormulador",
-                    "datosMaquilador",
-                    "usoAutorizado",
-                  ] as const
-                ).map((fieldName) => (
-                  <RHFTextField
-                    key={fieldName}
-                    control={control}
-                    name={fieldName}
-                    fieldId={`cargo-${fieldName}`}
-                    label={sheet.sectorLabel[fieldName]}
-                    required={Boolean(sectorRequirements?.[fieldName])}
-                  />
-                ))}
-
-                <Controller
-                  control={control}
-                  name="fechaCaducidad"
-                  render={({ field, fieldState }) => {
-                    const errorMessage = fieldState.error?.message;
-                    return (
-                      <FormFieldShell
-                        fieldId="cargo-fecha-caducidad"
-                        label={sheet.label.expiryDate}
-                        required={Boolean(sectorRequirements?.fechaCaducidad)}
-                        errorMessage={errorMessage}
-                      >
-                        <Input
-                          id="cargo-fecha-caducidad"
-                          type="date"
-                          value={field.value ?? ""}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps(
-                            "cargo-fecha-caducidad",
-                            errorMessage,
-                          )}
-                        />
-                      </FormFieldShell>
-                    );
-                  }}
-                />
-              </div>
-
-              {missingSectorFields.length > 0 && (
-                <p className="text-xs text-warning">
-                  {sheet.hint.pendingSectorFields}{" "}
-                  {missingSectorFields
-                    .map((field) => sectorFieldLabels[field])
-                    .join(", ")}
-                </p>
-              )}
-            </FormSectionCard>
-          )}
-
-          {/* ========== SECCIÓN: ENTREGAS ========== */}
+          {/* ========== SECCIÓN OPCIONAL: ENTREGAS ========== */}
           {availableDeliveryStops.length > 0 && (
-            <FormSectionCard
+            <CargoOptionalSection
               title={sheet.section.deliveries}
               icon={<Truck className="h-4 w-4" />}
-              contentClassName="space-y-4"
+              summary={
+                deliveryAssignments.length > 0
+                  ? sheet.sectionSummary.deliveriesAssigned(
+                      deliveryAssignments.length,
+                    )
+                  : sheet.sectionSummary.deliveriesNone
+              }
+              defaultOpen={initialDeliveryAssignments(initialValues).length > 0}
             >
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {sheet.hint.deliveriesScope}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="text-xs text-muted-foreground sm:max-w-md">
+                  {sheet.hint.deliveries}
                 </p>
                 <Button
                   type="button"
@@ -920,16 +810,13 @@ function CargoMovementSheetSession({
                   size="sm"
                   onClick={handleAddDelivery}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  <Plus className="mr-1 h-3.5 w-3.5" />
                   {sheet.action.addDelivery}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {sheet.hint.deliveriesOptional}
-              </p>
 
               {deliveryAssignments.length === 0 ? (
-                <div className="text-center py-3 border border-dashed rounded-lg text-xs text-muted-foreground">
+                <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">
                   {sheet.state.noDeliveries}
                 </div>
               ) : (
@@ -937,67 +824,86 @@ function CargoMovementSheetSession({
                   {deliveryAssignments.map((delivery, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-2 p-3 border rounded-lg bg-warning-soft/30"
+                      className="flex items-start gap-2 rounded-lg border p-3"
                     >
-                      <div className="flex-1 space-y-2">
-                        <Select
-                          value={
-                            delivery.stopIndex >= 0 ? String(delivery.stopIndex) : ""
-                          }
-                          onValueChange={(val) =>
-                            handleUpdateDelivery(idx, "stopIndex", Number(val))
-                          }
+                      <div className="flex-1 space-y-3">
+                        <FormFieldShell
+                          fieldId={`cargo-delivery-stop-${idx}`}
+                          label={sheet.label.deliveryStop}
                         >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder={sheet.placeholder.deliveryStop} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableDeliveryStops.map((s) => (
-                              <SelectItem key={s.index} value={String(s.index)}>
-                                {sheet.format.deliveryStopOption(
-                                  s.index,
-                                  s.locationName || "",
-                                  s.address,
-                                  s.city,
-                                )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            type="number"
-                            placeholder={sheet.placeholder.deliveryWeight}
-                            className="h-8 text-xs"
-                            value={delivery.weight ?? ""}
-                            onChange={(e) =>
-                              handleUpdateDelivery(
-                                idx,
-                                "weight",
-                                e.target.value ? Number(e.target.value) : undefined,
-                              )
+                          <Select
+                            value={
+                              delivery.stopIndex >= 0 ? String(delivery.stopIndex) : ""
                             }
-                          />
-                          <Input
-                            type="number"
-                            placeholder={sheet.placeholder.deliveryUnits}
-                            className="h-8 text-xs"
-                            value={delivery.units ?? ""}
-                            onChange={(e) =>
-                              handleUpdateDelivery(
-                                idx,
-                                "units",
-                                e.target.value ? Number(e.target.value) : undefined,
-                              )
+                            onValueChange={(val) =>
+                              handleUpdateDelivery(idx, "stopIndex", Number(val))
                             }
-                          />
+                          >
+                            <SelectTrigger
+                              id={`cargo-delivery-stop-${idx}`}
+                              className="h-9"
+                            >
+                              <SelectValue placeholder={sheet.placeholder.deliveryStop} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableDeliveryStops.map((s) => (
+                                <SelectItem key={s.index} value={String(s.index)}>
+                                  {sheet.format.deliveryStopOption(
+                                    s.index,
+                                    s.locationName || "",
+                                    s.address,
+                                    s.city,
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormFieldShell>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <FormFieldShell
+                            fieldId={`cargo-delivery-weight-${idx}`}
+                            label={sheet.label.deliveryWeight}
+                          >
+                            <Input
+                              id={`cargo-delivery-weight-${idx}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={delivery.weight ?? ""}
+                              onChange={(e) =>
+                                handleUpdateDelivery(
+                                  idx,
+                                  "weight",
+                                  e.target.value ? Number(e.target.value) : undefined,
+                                )
+                              }
+                            />
+                          </FormFieldShell>
+                          <FormFieldShell
+                            fieldId={`cargo-delivery-units-${idx}`}
+                            label={sheet.label.deliveryUnits}
+                          >
+                            <Input
+                              id={`cargo-delivery-units-${idx}`}
+                              type="number"
+                              min="0"
+                              value={delivery.units ?? ""}
+                              onChange={(e) =>
+                                handleUpdateDelivery(
+                                  idx,
+                                  "units",
+                                  e.target.value ? Number(e.target.value) : undefined,
+                                )
+                              }
+                            />
+                          </FormFieldShell>
                         </div>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
+                        className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
                         onClick={() => handleRemoveDelivery(idx)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1006,14 +912,22 @@ function CargoMovementSheetSession({
                   ))}
                 </div>
               )}
-            </FormSectionCard>
+            </CargoOptionalSection>
           )}
 
-          {/* ========== SECCIÓN: NOTAS ========== */}
-          <FormSectionCard
+          {/* ========== SECCIÓN OPCIONAL: NOTAS ========== */}
+          <CargoOptionalSection
             title={sheet.section.notes}
             icon={<MessageSquare className="h-4 w-4" />}
-            contentClassName="space-y-4"
+            summary={
+              hasNotes
+                ? sheet.sectionSummary.notesFilled
+                : sheet.sectionSummary.notesEmpty
+            }
+            defaultOpen={
+              Boolean(initialValues?.notes?.trim()) ||
+              Boolean(initialValues?.specialInstructions?.trim())
+            }
           >
             <RHFTextareaField
               control={control}
@@ -1029,7 +943,7 @@ function CargoMovementSheetSession({
               label={sheet.label.specialInstructions}
               placeholder={sheet.placeholder.specialInstructions}
             />
-          </FormSectionCard>
+          </CargoOptionalSection>
 
           {/* ========== VALIDATION SUMMARY ========== */}
           {isSummaryVisible && (
@@ -1048,6 +962,15 @@ function CargoMovementSheetSession({
           >
             {sheet.action.cancel}
           </Button>
+          {editingIndex === null && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleAddAnother}
+            >
+              {sheet.action.addAnother}
+            </Button>
+          )}
           <Button type="button" onClick={() => void submitSheet()}>
             {editingIndex !== null ? sheet.action.save : sheet.action.add}
           </Button>

@@ -1,6 +1,6 @@
 /**
  * Namespace: trips.copy.wizard.fiscal.*
- * Copy contextual RFC / razón social Carta Porte 3.1 (nodo Ubicacion).
+ * Copy contextual de quién entrega / recibe por parada.
  */
 import type { StopTypeValue } from "@features/trips/domain";
 
@@ -10,7 +10,7 @@ export type CfdiDocumentIntent = "ingreso" | "traslado";
 
 export type StopCategory = "origin" | "waypoint" | "destination";
 
-/** Contexto de UI para la sección fiscal de una parada. */
+/** Contexto de UI para la sección de contraparte de una parada. */
 export type StopFiscalUiContext =
   | "origin"
   | "destination"
@@ -21,78 +21,82 @@ export type StopFiscalUiContext =
 const fiscalStrings = {
   origin: {
     ingreso: {
-      sectionTitle: "Datos del remitente en este punto",
+      sectionTitle: "Quién entrega aquí",
       sectionHint:
-        "RFC de quien entrega la mercancía al transportista en el origen (no es necesariamente el cliente que paga el flete).",
-      rfcLabel: "RFC del remitente",
+        "Quién entrega la mercancía al transportista en el origen (no es necesariamente el cliente que paga el flete).",
+      rfcLabel: "RFC",
       rfcPlaceholder: "Ej. ABC123456789",
-      nombrePlaceholder: "Razón social o nombre del remitente",
+      nombrePlaceholder: "Nombre o razón social de quien entrega",
     },
     traslado: {
-      sectionTitle: "Datos del remitente en este punto",
+      sectionTitle: "Quién entrega aquí",
       sectionHint:
-        "RFC de quien despacha la mercancía en el origen (traspaso / traslado propio).",
-      rfcLabel: "RFC del remitente",
+        "Quién despacha la mercancía en el origen (traslado propio o entre ubicaciones).",
+      rfcLabel: "RFC",
       rfcPlaceholder: "Ej. ABC123456789",
-      nombrePlaceholder: "Razón social o nombre del remitente",
+      nombrePlaceholder: "Nombre o razón social de quien entrega",
     },
   },
   destination: {
     ingreso: {
-      sectionTitle: "Datos del destinatario en este punto",
-      sectionHint: "RFC de quien recibe la mercancía en el destino final.",
-      rfcLabel: "RFC del destinatario",
+      sectionTitle: "Quién recibe aquí",
+      sectionHint: "Quién recibe la mercancía en el destino final.",
+      rfcLabel: "RFC",
       rfcPlaceholder: "Ej. XYZ987654321",
-      nombrePlaceholder: "Razón social o nombre del destinatario",
+      nombrePlaceholder: "Nombre o razón social de quien recibe",
     },
     traslado: {
-      sectionTitle: "Datos del destinatario en este punto",
+      sectionTitle: "Quién recibe aquí",
       sectionHint:
-        "RFC de quien recibe en destino (puede coincidir con el del origen en traslados entre sucursales).",
-      rfcLabel: "RFC del destinatario",
+        "Quién recibe en destino (puede coincidir con el del origen en traslados entre sucursales).",
+      rfcLabel: "RFC",
       rfcPlaceholder: "Ej. XYZ987654321",
-      nombrePlaceholder: "Razón social o nombre del destinatario",
+      nombrePlaceholder: "Nombre o razón social de quien recibe",
     },
   },
   waypointPickup: {
-    sectionTitle: "Datos del remitente en esta escala",
-    sectionHint:
-      "RFC de la contraparte fiscal en la carga en este punto (Carta Porte: ubicación con operación de recogida).",
-    rfcLabel: "RFC del remitente",
+    sectionTitle: "Quién entrega aquí",
+    sectionHint: "Quién entrega la mercancía en esta escala (operación de carga).",
+    rfcLabel: "RFC",
     rfcPlaceholder: "Ej. ABC123456789",
-    nombrePlaceholder: "Razón social o nombre del remitente",
+    nombrePlaceholder: "Nombre o razón social de quien entrega",
   },
   waypointDelivery: {
-    sectionTitle: "Datos del destinatario en esta escala",
-    sectionHint:
-      "RFC de la contraparte fiscal en la descarga en este punto (Carta Porte: ubicación con entrega).",
-    rfcLabel: "RFC del destinatario",
+    sectionTitle: "Quién recibe aquí",
+    sectionHint: "Quién recibe la mercancía en esta escala (operación de entrega).",
+    rfcLabel: "RFC",
     rfcPlaceholder: "Ej. XYZ987654321",
-    nombrePlaceholder: "Razón social o nombre del destinatario",
+    nombrePlaceholder: "Nombre o razón social de quien recibe",
   },
   waypointBoth: {
-    sectionTitle: "Contrapartes fiscales en esta escala",
+    sectionTitle: "Quién entrega y quién recibe",
     sectionHint:
-      "Captura remitente (carga) y destinatario (descarga) cuando ambas operaciones aplican en la misma ubicación.",
-    rfcLabel: "RFC del remitente (carga)",
+      "Captura quién entrega (carga) y quién recibe (entrega) cuando ambas operaciones aplican en la misma ubicación.",
+    rfcLabel: "RFC de quien entrega",
     rfcPlaceholder: "Ej. ABC123456789",
-    nombrePlaceholder: "Razón social remitente",
+    nombrePlaceholder: "Nombre de quien entrega",
   },
   default: {
-    sectionTitle: "Datos fiscales de la ubicación",
+    sectionTitle: "Quién entrega o recibe",
     sectionHint: "",
     rfcLabel: "RFC",
     rfcPlaceholder: "RFC de 12 o 13 caracteres",
     nombrePlaceholder: "Nombre o razón social",
   },
   deliveryBlock: {
-    blockTitle: "Destinatario en esta escala (descarga)",
-    rfcLabel: "RFC del destinatario (descarga)",
+    blockTitle: "Quién recibe en esta escala (entrega)",
+    rfcLabel: "RFC de quien recibe",
     rfcPlaceholder: "Ej. XYZ987654321",
-    nombrePlaceholder: "Razón social del destinatario",
+    nombrePlaceholder: "Nombre de quien recibe",
   },
   publicGeneralNotice:
-    "Usas el RFC genérico de público en general. El SAT puede ser restrictivo en Carta Porte por trazabilidad; valida con tu PAC antes de timbrar. El PAC (Profact) validará RFC contra el padrón.",
+    "Usas el RFC genérico de público en general. Verifica con tu área contable antes de facturar.",
+  missingLabels: {
+    primaryRfc: "RFC de quien entrega o recibe",
+    primaryName: "Nombre de quien entrega o recibe",
+    deliveryRfc: "RFC de quien recibe (entrega)",
+    deliveryName: "Nombre de quien recibe (entrega)",
+  },
 } as const;
 
 export function resolveStopFiscalUiContext(

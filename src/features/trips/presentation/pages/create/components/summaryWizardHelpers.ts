@@ -63,6 +63,7 @@ export function formatSummaryStopHeaderLabel(
   stops: TripStopFormValues[],
 ): string {
   const stop = stops[stopIndex];
-  if (!stop) return `Parada #${stopIndex + 1}`;
-  return `#${stopIndex + 1} ${stop.locationName || formatWizardStopAddressLine(stop)}`;
+  if (!stop) return `Parada ${stopIndex + 1}`;
+  const place = stop.locationName || formatWizardStopAddressLine(stop);
+  return `Parada ${stopIndex + 1} · ${place}`;
 }

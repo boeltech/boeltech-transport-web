@@ -62,7 +62,7 @@ describe("StopFormSheetAddressOriginSection", () => {
   it("renderiza AddressPicker con copy de origen", () => {
     renderSection();
 
-    expect(screen.getByText("Origen de la dirección")).toBeInTheDocument();
+    expect(screen.getByText("Dirección guardada")).toBeInTheDocument();
     expect(screen.getByText("Buscar dirección existente")).toBeInTheDocument();
   });
 
@@ -72,10 +72,6 @@ describe("StopFormSheetAddressOriginSection", () => {
     renderSection(onPrefillSelect);
 
     await user.click(screen.getByRole("combobox"));
-    await user.type(
-      screen.getByPlaceholderText(/nombre, calle o código postal/i),
-      "apodaca",
-    );
 
     await waitFor(() => {
       expect(screen.getByText("Bodega Apodaca")).toBeInTheDocument();

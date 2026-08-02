@@ -47,6 +47,7 @@ import {
   Building2,
   Phone,
   ScrollText,
+  ChevronDown,
 } from "lucide-react";
 import {
   FormFieldShell,
@@ -59,6 +60,12 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import { DetailAlertCard } from "@shared/ui/data-display/DetailAlertCard";
 import { StopFormSheetCategorySection, StopFormSheetAddressOriginSection } from "./stop-form";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
+import { cn } from "@shared/lib/utils/cn";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,7 +128,7 @@ import {
   type CfdiDocumentIntent,
 } from "./stopDialogFiscalCopy";
 import { PartnerSnapshotPicker } from "@features/partners";
-import { Separator } from "@shared/ui/separator";
+// Separator removed — escala mixta usa bloques separados en el desplegable
 
 export type {
   StopCategory,
@@ -820,6 +827,62 @@ export function StopFormSheet({
     [displayStop.stopCategory, displayStop.stopType],
   );
 
+  const sheetTitle = useMemo(() => {
+    const cat = displayStop.stopCategory;
+    if (cat === "origin") {
+      return mode === "edit" ? stopForm.title.originEdit : stopForm.title.originCreate;
+    }
+    if (cat === "destination") {
+      return mode === "edit"
+        ? stopForm.title.destinationEdit
+        : stopForm.title.destinationCreate;
+    }
+    if (cat === "waypoint") {
+      return mode === "edit"
+        ? stopForm.title.waypointEdit
+        : stopForm.title.waypointCreate;
+    }
+    return mode === "edit" ? stopForm.title.edit : stopForm.title.create;
+  }, [displayStop.stopCategory, mode]);
+
+  const sheetDescription = useMemo(() => {
+    const cat = displayStop.stopCategory;
+    if (cat === "origin") return stopForm.description.origin;
+    if (cat === "destination") return stopForm.description.destination;
+    if (cat === "waypoint") return stopForm.description.waypoint;
+    return stopForm.description.fallback;
+  }, [displayStop.stopCategory]);
+
+  const counterpartySectionTitle = useMemo(() => {
+    switch (fiscalUiContext) {
+      case "origin":
+        return stopForm.section.counterparty.origin;
+      case "destination":
+        return stopForm.section.counterparty.destination;
+      case "waypoint_pickup_only":
+        return stopForm.section.counterparty.waypointPickup;
+      case "waypoint_delivery_only":
+        return stopForm.section.counterparty.waypointDelivery;
+      case "waypoint_pickup_and_delivery":
+        return stopForm.section.counterparty.waypointBoth;
+      default:
+        return stopForm.section.counterparty.fallback;
+    }
+  }, [fiscalUiContext]);
+
+  const fiscalMissingLabels = useMemo(
+    () => getTripStopFiscalMissingLabels(displayStop),
+    [displayStop],
+  );
+
+  const [billingOpen, setBillingOpen] = useState(false);
+
+  useEffect(() => {
+    if (fiscalMissingLabels.length > 0 || validationActive) {
+      setBillingOpen(true);
+    }
+  }, [fiscalMissingLabels.length, validationActive]);
+
   const primaryFiscalCopy = useMemo(
     () => getPrimaryFiscalSectionCopy(fiscalUiContext, cfdiDocumentIntent),
     [cfdiDocumentIntent, fiscalUiContext],
@@ -903,11 +966,12 @@ export function StopFormSheet({
   const postAddressSections: EntityAddressFormSection[] = [
     {
       id: GEOCODING_SECTION_ID,
-      title: <AddressGeocodingSectionTitle />,
+      title: <AddressGeocodingSectionTitle required />,
       icon: <MapPin className="h-4 w-4" />,
       contentClassName: "space-y-4",
       content: (
         <AddressGeocodingSectionContent
+          required
           address={{
             locationName: displayStop.locationName,
             street: displayStop.street,
@@ -930,32 +994,7 @@ export function StopFormSheet({
               shouldValidate: true,
             });
           }}
-          previousPoint={{
-            latitude: displayStop.previousStopLatitude,
-            longitude: displayStop.previousStopLongitude,
-            label: displayStop.previousStopLabel,
-          }}
-          distanceFromPreviousKm={displayStop.distanceFromPreviousKm}
-          onDistanceChange={(distanceKm) => {
-            setValue("distanceFromPreviousKm", distanceKm, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            if (distanceKm === undefined) {
-              setValue("distanceSource", undefined, { shouldDirty: true });
-              setValue("distanceProvider", undefined, { shouldDirty: true });
-              setValue("distanceConfidence", undefined, { shouldDirty: true });
-              setValue("distanceComputedAt", undefined, { shouldDirty: true });
-            }
-          }}
-          onDistanceMetaChange={(meta) => {
-            setValue("distanceSource", meta.source, { shouldDirty: true });
-            setValue("distanceProvider", meta.provider, { shouldDirty: true });
-            setValue("distanceConfidence", meta.confidence, { shouldDirty: true });
-            setValue("distanceComputedAt", meta.computedAt, { shouldDirty: true });
-          }}
           panelMode={geolocationPanelMode}
-          distanceDisabled={!geolocationPanelMode.distanceEditable}
         />
       ),
     },
@@ -997,12 +1036,8 @@ export function StopFormSheet({
         className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
       >
         <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4">
-          <SheetTitle className="pr-8">
-            {mode === "edit" ? stopForm.title.edit : stopForm.title.create}
-          </SheetTitle>
-          <SheetDescription>
-            {stopForm.description}
-          </SheetDescription>
+          <SheetTitle className="pr-8">{sheetTitle}</SheetTitle>
+          <SheetDescription>{sheetDescription}</SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
@@ -1011,6 +1046,10 @@ export function StopFormSheet({
             getAvailableOperations={getAvailableOperations}
             onOperationToggle={handleOperationToggle}
           />
+
+          <p className="text-sm font-semibold text-foreground">
+            {stopForm.section.location}
+          </p>
 
           <StopFormSheetAddressOriginSection
             selectedPrefill={selectedPrefillItem}
@@ -1049,12 +1088,12 @@ export function StopFormSheet({
           {entityAddressForm}
 
           <FormSectionCard
-            title={stopForm.section.fiscalData}
+            title={counterpartySectionTitle}
             icon={<ScrollText className="h-4 w-4" />}
             contentClassName="space-y-4"
           >
             <p className="text-xs text-muted-foreground">
-              {primaryFiscalCopy.sectionHint ?? primaryFiscalCopy.sectionTitle}
+              {primaryFiscalCopy.sectionHint || primaryFiscalCopy.sectionTitle}
             </p>
 
             {(showPublicGeneralWarningPrimary || showPublicGeneralWarningDelivery) && (
@@ -1078,77 +1117,137 @@ export function StopFormSheet({
             )}
 
             {displayStop.stopCategory !== "waypoint" ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <PartnerSnapshotPicker
-                    disabled={isFiscalDataLocked}
-                    variant="remitente"
-                    onPartnerApplied={(p) => {
-                      setValue("remitentePartnerId", p.id, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      setValue("rfcRemitenteDestinatario", p.taxId, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      setValue("nombreRemitenteDestinatario", p.legalName, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }}
-                  />
-                </div>
-                <Controller
-                  name="rfcRemitenteDestinatario"
-                  control={control}
-                  render={({ field, fieldState }) => {
-                    const fieldId = "stop-rfcRemitenteDestinatario";
-                    const errorMessage = fieldState.error?.message;
-                    return (
-                      <FormFieldShell
-                        fieldId={fieldId}
-                        label={primaryFiscalCopy.rfcLabel}
-                        required
-                        errorMessage={errorMessage}
-                      >
-                        <Input
-                          id={fieldId}
-                          placeholder={primaryFiscalCopy.rfcPlaceholder}
-                          className="uppercase"
-                          maxLength={13}
-                          disabled={isFiscalDataLocked}
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.value.toUpperCase())
-                          }
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps(fieldId, errorMessage)}
-                        />
-                      </FormFieldShell>
-                    );
+              <div className="space-y-4">
+                <PartnerSnapshotPicker
+                  disabled={isFiscalDataLocked}
+                  variant="remitente"
+                  onPartnerApplied={(p) => {
+                    setValue("remitentePartnerId", p.id, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("rfcRemitenteDestinatario", p.taxId, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("nombreRemitenteDestinatario", p.legalName, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }}
                 />
-                <RHFTextField
-                  control={control}
-                  name="nombreRemitenteDestinatario"
-                  fieldId="stop-nombreRemitenteDestinatario"
-                  label={stopForm.label.legalName}
-                  required
-                  placeholder={primaryFiscalCopy.nombrePlaceholder}
-                  disabled={isFiscalDataLocked}
-                />
+                <Collapsible open={billingOpen} onOpenChange={setBillingOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto w-full justify-between px-0 text-sm font-medium"
+                    >
+                      {stopForm.section.billingDetails}
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform",
+                          billingOpen && "rotate-180",
+                        )}
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Controller
+                        name="rfcRemitenteDestinatario"
+                        control={control}
+                        render={({ field, fieldState }) => {
+                          const fieldId = "stop-rfcRemitenteDestinatario";
+                          const errorMessage = fieldState.error?.message;
+                          return (
+                            <FormFieldShell
+                              fieldId={fieldId}
+                              label={primaryFiscalCopy.rfcLabel}
+                              required
+                              errorMessage={errorMessage}
+                            >
+                              <Input
+                                id={fieldId}
+                                placeholder={primaryFiscalCopy.rfcPlaceholder}
+                                className="uppercase"
+                                maxLength={13}
+                                disabled={isFiscalDataLocked}
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) =>
+                                  field.onChange(e.target.value.toUpperCase())
+                                }
+                                error={Boolean(fieldState.error)}
+                                {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                              />
+                            </FormFieldShell>
+                          );
+                        }}
+                      />
+                      <RHFTextField
+                        control={control}
+                        name="nombreRemitenteDestinatario"
+                        fieldId="stop-nombreRemitenteDestinatario"
+                        label={stopForm.label.legalName}
+                        required
+                        placeholder={primaryFiscalCopy.nombrePlaceholder}
+                        disabled={isFiscalDataLocked}
+                      />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             ) : (
               <div className="space-y-4">
                 {waypointHasPickup ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <PartnerSnapshotPicker
-                        disabled={isFiscalDataLocked}
-                        variant="remitente"
-                        onPartnerApplied={(p) => {
+                  <div className="space-y-4">
+                    <PartnerSnapshotPicker
+                      disabled={isFiscalDataLocked}
+                      variant="remitente"
+                      onPartnerApplied={(p) => {
+                        setValue("remitentePartnerId", p.id, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        setValue("rfcRemitenteDestinatario", p.taxId, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        setValue("nombreRemitenteDestinatario", p.legalName, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                {waypointHasDelivery ? (
+                  <div className="space-y-4">
+                    <PartnerSnapshotPicker
+                      disabled={waypointHasPickup ? false : isFiscalDataLocked}
+                      variant="destinatario"
+                      onPartnerApplied={(p) => {
+                        if (waypointHasPickup) {
+                          setValue("destinatarioPartnerId", p.id, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                          setValue("deliveryRfcRemitenteDestinatario", p.taxId, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                          setValue(
+                            "deliveryNombreRemitenteDestinatario",
+                            p.legalName,
+                            {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            },
+                          );
+                        } else {
                           setValue("remitentePartnerId", p.id, {
                             shouldDirty: true,
                             shouldValidate: true,
@@ -1161,163 +1260,155 @@ export function StopFormSheet({
                             shouldDirty: true,
                             shouldValidate: true,
                           });
-                        }}
-                      />
-                    </div>
-                    <Controller
-                      name="rfcRemitenteDestinatario"
-                      control={control}
-                      render={({ field, fieldState }) => {
-                        const fieldId = "stop-rfcRemitenteDestinatario";
-                        const errorMessage = fieldState.error?.message;
-                        return (
-                          <FormFieldShell
-                            fieldId={fieldId}
-                            label={primaryFiscalCopy.rfcLabel}
-                            required
-                            errorMessage={errorMessage}
-                          >
-                            <Input
-                              id={fieldId}
-                              placeholder={primaryFiscalCopy.rfcPlaceholder}
-                              className="uppercase"
-                              maxLength={13}
-                              disabled={isFiscalDataLocked}
-                              {...field}
-                              value={field.value ?? ""}
-                              onChange={(e) =>
-                                field.onChange(e.target.value.toUpperCase())
-                              }
-                              error={Boolean(fieldState.error)}
-                              {...getFieldErrorAriaProps(fieldId, errorMessage)}
-                            />
-                          </FormFieldShell>
-                        );
+                        }
                       }}
                     />
-                    <RHFTextField
-                      control={control}
-                      name="nombreRemitenteDestinatario"
-                      fieldId="stop-nombreRemitenteDestinatario"
-                      label={stopForm.label.legalName}
-                      required
-                      placeholder={primaryFiscalCopy.nombrePlaceholder}
-                      disabled={isFiscalDataLocked}
-                    />
                   </div>
                 ) : null}
 
-                {waypointHasPickup && waypointHasDelivery ? <Separator /> : null}
-
-                {waypointHasDelivery ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <PartnerSnapshotPicker
-                        disabled={waypointHasPickup ? false : isFiscalDataLocked}
-                        variant="destinatario"
-                        onPartnerApplied={(p) => {
-                          if (waypointHasPickup) {
-                            setValue("destinatarioPartnerId", p.id, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                            setValue("deliveryRfcRemitenteDestinatario", p.taxId, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                            setValue("deliveryNombreRemitenteDestinatario", p.legalName, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                          } else {
-                            setValue("remitentePartnerId", p.id, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                            setValue("rfcRemitenteDestinatario", p.taxId, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                            setValue("nombreRemitenteDestinatario", p.legalName, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
-                          }
-                        }}
+                <Collapsible open={billingOpen} onOpenChange={setBillingOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto w-full justify-between px-0 text-sm font-medium"
+                    >
+                      {stopForm.section.billingDetails}
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform",
+                          billingOpen && "rotate-180",
+                        )}
                       />
-                    </div>
-                    {(() => {
-                      const isDualField = waypointHasPickup;
-                      const rfcName = isDualField
-                        ? ("deliveryRfcRemitenteDestinatario" as const)
-                        : ("rfcRemitenteDestinatario" as const);
-                      const nombreName = isDualField
-                        ? ("deliveryNombreRemitenteDestinatario" as const)
-                        : ("nombreRemitenteDestinatario" as const);
-                      const rfcLabel = isDualField
-                        ? deliveryFiscalCopy.rfcLabel
-                        : primaryFiscalCopy.rfcLabel;
-                      const rfcPlaceholder = isDualField
-                        ? deliveryFiscalCopy.rfcPlaceholder
-                        : primaryFiscalCopy.rfcPlaceholder;
-                      const nombreLabel = isDualField
-                        ? stopForm.label.legalNameDelivery
-                        : stopForm.label.legalName;
-                      const nombrePlaceholder = isDualField
-                        ? deliveryFiscalCopy.nombrePlaceholder
-                        : primaryFiscalCopy.nombrePlaceholder;
-                      const fieldsDisabled = isDualField ? false : isFiscalDataLocked;
-                      const rfcFieldId = `stop-${rfcName}`;
-                      const nombreFieldId = `stop-${nombreName}`;
-                      return (
-                        <>
-                          <Controller
-                            name={rfcName}
-                            control={control}
-                            render={({ field, fieldState }) => {
-                              const errorMessage = fieldState.error?.message;
-                              return (
-                                <FormFieldShell
-                                  fieldId={rfcFieldId}
-                                  label={rfcLabel}
-                                  required
-                                  errorMessage={errorMessage}
-                                >
-                                  <Input
-                                    id={rfcFieldId}
-                                    placeholder={rfcPlaceholder}
-                                    className="uppercase"
-                                    maxLength={13}
-                                    disabled={fieldsDisabled}
-                                    {...field}
-                                    value={field.value ?? ""}
-                                    onChange={(e) =>
-                                      field.onChange(e.target.value.toUpperCase())
-                                    }
-                                    error={Boolean(fieldState.error)}
-                                    {...getFieldErrorAriaProps(
-                                      rfcFieldId,
-                                      errorMessage,
-                                    )}
-                                  />
-                                </FormFieldShell>
-                              );
-                            }}
-                          />
-                          <RHFTextField
-                            control={control}
-                            name={nombreName}
-                            fieldId={nombreFieldId}
-                            label={nombreLabel}
-                            required
-                            placeholder={nombrePlaceholder}
-                            disabled={fieldsDisabled}
-                          />
-                        </>
-                      );
-                    })()}
-                  </div>
-                ) : null}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-2">
+                    {waypointHasPickup ? (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Controller
+                          name="rfcRemitenteDestinatario"
+                          control={control}
+                          render={({ field, fieldState }) => {
+                            const fieldId = "stop-rfcRemitenteDestinatario";
+                            const errorMessage = fieldState.error?.message;
+                            return (
+                              <FormFieldShell
+                                fieldId={fieldId}
+                                label={primaryFiscalCopy.rfcLabel}
+                                required
+                                errorMessage={errorMessage}
+                              >
+                                <Input
+                                  id={fieldId}
+                                  placeholder={primaryFiscalCopy.rfcPlaceholder}
+                                  className="uppercase"
+                                  maxLength={13}
+                                  disabled={isFiscalDataLocked}
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  onChange={(e) =>
+                                    field.onChange(e.target.value.toUpperCase())
+                                  }
+                                  error={Boolean(fieldState.error)}
+                                  {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                                />
+                              </FormFieldShell>
+                            );
+                          }}
+                        />
+                        <RHFTextField
+                          control={control}
+                          name="nombreRemitenteDestinatario"
+                          fieldId="stop-nombreRemitenteDestinatario"
+                          label={stopForm.label.legalName}
+                          required
+                          placeholder={primaryFiscalCopy.nombrePlaceholder}
+                          disabled={isFiscalDataLocked}
+                        />
+                      </div>
+                    ) : null}
+
+                    {waypointHasDelivery ? (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {(() => {
+                          const isDualField = waypointHasPickup;
+                          const rfcName = isDualField
+                            ? ("deliveryRfcRemitenteDestinatario" as const)
+                            : ("rfcRemitenteDestinatario" as const);
+                          const nombreName = isDualField
+                            ? ("deliveryNombreRemitenteDestinatario" as const)
+                            : ("nombreRemitenteDestinatario" as const);
+                          const rfcLabel = isDualField
+                            ? deliveryFiscalCopy.rfcLabel
+                            : primaryFiscalCopy.rfcLabel;
+                          const rfcPlaceholder = isDualField
+                            ? deliveryFiscalCopy.rfcPlaceholder
+                            : primaryFiscalCopy.rfcPlaceholder;
+                          const nombreLabel = isDualField
+                            ? stopForm.label.legalNameDelivery
+                            : stopForm.label.legalName;
+                          const nombrePlaceholder = isDualField
+                            ? deliveryFiscalCopy.nombrePlaceholder
+                            : primaryFiscalCopy.nombrePlaceholder;
+                          const fieldsDisabled = isDualField
+                            ? false
+                            : isFiscalDataLocked;
+                          const rfcFieldId = `stop-${rfcName}`;
+                          const nombreFieldId = `stop-${nombreName}`;
+                          return (
+                            <>
+                              <Controller
+                                name={rfcName}
+                                control={control}
+                                render={({ field, fieldState }) => {
+                                  const errorMessage = fieldState.error?.message;
+                                  return (
+                                    <FormFieldShell
+                                      fieldId={rfcFieldId}
+                                      label={rfcLabel}
+                                      required
+                                      errorMessage={errorMessage}
+                                    >
+                                      <Input
+                                        id={rfcFieldId}
+                                        placeholder={rfcPlaceholder}
+                                        className="uppercase"
+                                        maxLength={13}
+                                        disabled={fieldsDisabled}
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value.toUpperCase(),
+                                          )
+                                        }
+                                        error={Boolean(fieldState.error)}
+                                        {...getFieldErrorAriaProps(
+                                          rfcFieldId,
+                                          errorMessage,
+                                        )}
+                                      />
+                                    </FormFieldShell>
+                                  );
+                                }}
+                              />
+                              <RHFTextField
+                                control={control}
+                                name={nombreName}
+                                fieldId={nombreFieldId}
+                                label={nombreLabel}
+                                required
+                                placeholder={nombrePlaceholder}
+                                disabled={fieldsDisabled}
+                              />
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             )}
           </FormSectionCard>
@@ -1420,13 +1511,20 @@ export function StopFormSheet({
           ) : null}
         </div>
 
-        <SheetFooter className="shrink-0 gap-2 border-t bg-background px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => closeDialog()}>
-            {stopForm.action.cancel}
-          </Button>
-          <Button type="button" onClick={() => handlePrimaryFooterAction()}>
-            {mode === "edit" ? stopForm.action.save : stopForm.action.add}
-          </Button>
+        <SheetFooter className="shrink-0 flex-col gap-3 border-t bg-background px-6 py-4 sm:flex-col">
+          <p className="w-full text-xs text-muted-foreground">
+            {missingRequiredFields.length === 0
+              ? wizardCopy.route.format.allReady
+              : wizardCopy.route.format.missingCount(missingRequiredFields.length)}
+          </p>
+          <div className="flex w-full flex-row justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => closeDialog()}>
+              {stopForm.action.cancel}
+            </Button>
+            <Button type="button" onClick={() => handlePrimaryFooterAction()}>
+              {stopForm.action.save}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

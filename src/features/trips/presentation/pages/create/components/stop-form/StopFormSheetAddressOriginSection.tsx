@@ -31,7 +31,7 @@ export function StopFormSheetAddressOriginSection({
       title={copy.title}
       icon={<Building2 className="h-4 w-4" />}
       description={copy.description}
-      contentClassName="space-y-4"
+      contentClassName="space-y-3"
     >
       <AddressPicker
         value={selectedPrefill}

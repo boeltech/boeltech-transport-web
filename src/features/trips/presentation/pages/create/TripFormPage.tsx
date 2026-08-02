@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   FormProvider,
   useForm,
@@ -36,6 +36,7 @@ import {
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { Skeleton } from "@shared/ui/skeleton";
 import { FormValidationSummary } from "@shared/ui/form";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 // Feature hooks
@@ -73,10 +74,15 @@ import { Route } from "lucide-react";
 import {
   tripWizardSchemaWithCreateApiAlignment,
   tripWizardSchemaWithUpdateApiAlignment,
+  tripReserveWizardSchema,
   WIZARD_STEPS,
+  WIZARD_STEPS_RESERVE,
   WIZARD_STEP_FIELDS,
+  WIZARD_STEP_FIELDS_RESERVE,
   defaultWizardFormValues,
   BasicInfoStep,
+  ReservePedidoStep,
+  ReserveAsignarStep,
   RouteStep,
   CargoStep,
   CostsStep,
@@ -96,6 +102,8 @@ import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput"
 import { buildUpdateTripInputFromWizardValues } from "./wizardToUpdateTripInput";
 import { buildTripAssignmentContext } from "./tripAssignmentExpiredDocs";
 import { mapTripToWizardFormValues } from "./tripFormMappers";
+import { shouldHydrateTripWizard } from "./tripWizardHydration";
+import { parseTripWizardStepParam } from "./wizardStepFromSearchParams";
 import {
   summarizeTripApiPayloadErrors,
   validateCreateTripApiPayload,
@@ -115,9 +123,6 @@ function getRouteValidationMessages(formValues: TripWizardFormValues): string[] 
     if (!stopHasUnifiedAddressId(stop)) {
       if (!stop.satCountryCode?.trim()) missing.push(route.label.country);
       if (!stop.satStateCode?.trim()) missing.push(route.label.state);
-      if (!stop.satMunicipalityCode?.trim()) {
-        missing.push(route.label.municipality);
-      }
       if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) {
         missing.push(route.label.postalCode);
       }
@@ -159,11 +164,14 @@ function validateStopsCpReady(stops: TripWizardFormValues["stops"]): string[] {
   return issues;
 }
 
-function getStepValidationSummaryTitle(stepIndex: number): string {
-  return (
-    shell.validation.stepSummaryTitles[stepIndex] ??
-    shell.validation.stepSummaryFallback
-  );
+function getStepValidationSummaryTitle(
+  stepIndex: number,
+  isReserveIntent: boolean,
+): string {
+  const titles = isReserveIntent
+    ? shell.validation.reserveStepSummaryTitles
+    : shell.validation.stepSummaryTitles;
+  return titles[stepIndex] ?? shell.validation.stepSummaryFallback;
 }
 
 // ============================================================================
@@ -173,8 +181,15 @@ function getStepValidationSummaryTitle(stepIndex: number): string {
 export function TripFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEditMode = !!id;
+  const isReserveIntent =
+    !isEditMode && searchParams.get("intent") === "reserve";
+  const wizardInitialStep =
+    isEditMode && !isReserveIntent
+      ? parseTripWizardStepParam(searchParams.get("step"))
+      : 0;
   const formRef = useRef<WizardFormRef | null>(null);
 
   const [showValidationSummary, setShowValidationSummary] = useState(false);
@@ -205,6 +220,11 @@ export function TripFormPage() {
     { enabled: true, refetchOnMount: "always" },
   );
 
+  // Viaje existente antes de armar listas (keep reserved assignment en edición).
+  const { data: existingTrip, isLoading: isLoadingTrip } = useTrip(id || "", {
+    enabled: isEditMode,
+  });
+
   const busyResources = useMemo(
     () =>
       buildBusyAssignmentResourceIds(
@@ -215,8 +235,18 @@ export function TripFormPage() {
   );
 
   const vehicles = useMemo(
-    () => applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds),
-    [vehiclesRaw, busyResources.vehicleIds],
+    () =>
+      applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds, {
+        keepAssignableVehicleId: isEditMode
+          ? existingTrip?.vehicleId
+          : undefined,
+      }),
+    [
+      vehiclesRaw,
+      busyResources.vehicleIds,
+      isEditMode,
+      existingTrip?.vehicleId,
+    ],
   );
 
   const assignableDrivers = useMemo(
@@ -224,8 +254,18 @@ export function TripFormPage() {
       buildAssignableDriversForTripWizard(
         driversPage?.data ?? [],
         busyResources.driverIds,
+        {
+          keepAssignableDriverId: isEditMode
+            ? existingTrip?.driverId
+            : undefined,
+        },
       ),
-    [driversPage?.data, busyResources.driverIds],
+    [
+      driversPage?.data,
+      busyResources.driverIds,
+      isEditMode,
+      existingTrip?.driverId,
+    ],
   );
 
   const fleetDrivers = useMemo(
@@ -258,20 +298,19 @@ export function TripFormPage() {
     useActiveClients();
 
   // ============================================
-  // Query para viaje existente (modo edición)
-  // ============================================
-
-  const { data: existingTrip, isLoading: isLoadingTrip } = useTrip(id || "", {
-    enabled: isEditMode,
-  });
-
-  // ============================================
   // Form setup
   // ============================================
 
   const wizardResolverSchema = isEditMode
     ? tripWizardSchemaWithUpdateApiAlignment
-    : tripWizardSchemaWithCreateApiAlignment;
+    : isReserveIntent
+      ? tripReserveWizardSchema
+      : tripWizardSchemaWithCreateApiAlignment;
+
+  const activeWizardSteps = isReserveIntent ? WIZARD_STEPS_RESERVE : WIZARD_STEPS;
+  const activeWizardStepFields = isReserveIntent
+    ? WIZARD_STEP_FIELDS_RESERVE
+    : WIZARD_STEP_FIELDS;
 
   const form = useForm<TripWizardFormValues>({
     resolver: zodResolver(wizardResolverSchema) as never,
@@ -322,12 +361,20 @@ export function TripFormPage() {
   });
 
   // ============================================
-  // Actualizar form cuando se carga un viaje existente
+  // Hidratar el form con el viaje existente una sola vez por viaje.
+  // El detalle se refetchea (staleTime vencido + foco de ventana) y su objeto
+  // cambia de identidad; volver a hacer `reset` descartaría lo que el usuario
+  // lleva capturado en el wizard.
   // ============================================
+  const hydratedTripIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (existingTrip && isEditMode) {
-      form.reset(mapTripToWizardFormValues(existingTrip));
+    if (!isEditMode || !existingTrip) return;
+    if (!shouldHydrateTripWizard(hydratedTripIdRef.current, existingTrip.id)) {
+      return;
     }
+    hydratedTripIdRef.current = existingTrip.id;
+    form.reset(mapTripToWizardFormValues(existingTrip));
   }, [existingTrip, isEditMode, form]);
 
   // ============================================
@@ -569,13 +616,65 @@ export function TripFormPage() {
   // ============================================
 
   const validateCurrentStep = useCallback(async (stepIndex: number): Promise<boolean> => {
-    const fieldsToValidate = WIZARD_STEP_FIELDS[stepIndex] ?? [];
+    const fieldsToValidate = activeWizardStepFields[stepIndex] ?? [];
     const extraMessages: string[] = [];
 
     const result = await form.trigger(
       fieldsToValidate as (keyof TripWizardFormValues)[],
       { shouldFocus: true },
     );
+
+    if (isReserveIntent) {
+      if (stepIndex === 0) {
+        const selectedClientId = form.getValues("clientId");
+        if (!selectedClientId || selectedClientId === "no-client") {
+          form.setError("clientId", {
+            type: "manual",
+            message: shell.validation.selectClient,
+          });
+        }
+        const originCity = form.getValues("originCity")?.trim() ?? "";
+        if (originCity.length < 2) {
+          form.setError("originCity", {
+            type: "manual",
+            message: shell.validation.originCityRequired,
+          });
+        }
+        const destinationCity = form.getValues("destinationCity")?.trim() ?? "";
+        if (destinationCity.length < 2) {
+          form.setError("destinationCity", {
+            type: "manual",
+            message: shell.validation.destinationCityRequired,
+          });
+        }
+      }
+
+      const clientId = form.getValues("clientId");
+      const clientMissing =
+        stepIndex === 0 && (!clientId || clientId === "no-client");
+      const originMissing =
+        stepIndex === 0 &&
+        (form.getValues("originCity")?.trim() ?? "").length < 2;
+      const destinationMissing =
+        stepIndex === 0 &&
+        (form.getValues("destinationCity")?.trim() ?? "").length < 2;
+      const isValid =
+        result &&
+        extraMessages.length === 0 &&
+        !clientMissing &&
+        !originMissing &&
+        !destinationMissing;
+
+      if (!isValid) {
+        setExtraValidationMessages(extraMessages);
+        setShowValidationSummary(true);
+        return false;
+      }
+
+      setExtraValidationMessages([]);
+      setShowValidationSummary(false);
+      return true;
+    }
 
     if (stepIndex === 0) {
       const selectedClientId = form.getValues("clientId");
@@ -704,6 +803,8 @@ export function TripFormPage() {
     return true;
   }, [
     form,
+    isReserveIntent,
+    activeWizardStepFields,
     validateRouteStepHandler,
     validateCargoStep,
     toast,
@@ -722,14 +823,16 @@ export function TripFormPage() {
       return;
     }
 
-    const cpReadinessIssues = validateStopsCpReady(data.stops || []);
-    if (cpReadinessIssues.length > 0) {
-      toast({
-        title: shell.toast.routeCpIncompleteTitle,
-        description: cpReadinessIssues.slice(0, 2).join(". "),
-        variant: "error",
-      });
-      return;
+    if (!isReserveIntent) {
+      const cpReadinessIssues = validateStopsCpReady(data.stops || []);
+      if (cpReadinessIssues.length > 0) {
+        toast({
+          title: shell.toast.routeCpIncompleteTitle,
+          description: cpReadinessIssues.slice(0, 2).join(". "),
+          variant: "error",
+        });
+        return;
+      }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -772,6 +875,7 @@ export function TripFormPage() {
     const wizardPayload = buildCreateTripInputFromWizardValues(
       data,
       assignmentContext,
+      isReserveIntent ? { createIntent: "reserve" } : undefined,
     );
 
     const createApiCheck = validateCreateTripApiPayload(wizardPayload);
@@ -788,9 +892,21 @@ export function TripFormPage() {
       const result = await createMutation.mutateAsync(wizardPayload);
 
       toast({
-        title: shell.toast.tripCreated,
+        title: isReserveIntent
+          ? shell.toast.tripReserved
+          : shell.toast.tripCreated,
         variant: "success",
       });
+
+      if (result.warnings?.length) {
+        for (const warning of result.warnings) {
+          toast({
+            title: shell.toast.overlapWarningTitle,
+            description: warning.message,
+            variant: "warning",
+          });
+        }
+      }
 
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
@@ -813,6 +929,7 @@ export function TripFormPage() {
     createMutation,
     updateMutation,
     isEditMode,
+    isReserveIntent,
     id,
     toast,
     navigate,
@@ -835,12 +952,12 @@ export function TripFormPage() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const shellSteps = useMemo(
     () =>
-      WIZARD_STEPS.map((step) => ({
+      activeWizardSteps.map((step) => ({
         id: step.id,
         title: step.title,
         description: step.description,
       })),
-    [],
+    [activeWizardSteps],
   );
 
   const shellHeader = useMemo(
@@ -848,12 +965,18 @@ export function TripFormPage() {
       backHref: "/trips",
       backLabel: shell.page.backLabel,
       icon: <Route className="h-5 w-5" />,
-      title: isEditMode ? shell.page.editTitle : shell.page.createTitle,
+      title: isEditMode
+        ? shell.page.editTitle
+        : isReserveIntent
+          ? shell.page.reserveTitle
+          : shell.page.createTitle,
       subtitle: isEditMode
         ? shell.page.editSubtitle(existingTrip?.tripCode ?? "")
-        : shell.page.createSubtitle,
+        : isReserveIntent
+          ? shell.page.reserveSubtitle
+          : shell.page.createSubtitle,
     }),
-    [isEditMode, existingTrip?.tripCode],
+    [isEditMode, isReserveIntent, existingTrip?.tripCode],
   );
 
   const requestWizardSubmit = useCallback(() => {
@@ -872,6 +995,31 @@ export function TripFormPage() {
 
   const renderStepContent = useCallback(
     (currentStep: number, helpers?: WizardStepRenderHelpers) => {
+      if (isReserveIntent) {
+        switch (currentStep) {
+          case 0:
+            return (
+              <ReservePedidoStep
+                form={form}
+                clients={clients}
+                isLoadingClients={isLoadingClients}
+              />
+            );
+          case 1:
+            return (
+              <ReserveAsignarStep
+                form={form}
+                vehicles={vehicles}
+                drivers={assignableDrivers}
+                isLoadingVehicles={isLoadingVehicles}
+                isLoadingDrivers={isLoadingDrivers}
+              />
+            );
+          default:
+            return null;
+        }
+      }
+
       switch (currentStep) {
         case 0:
           return (
@@ -932,6 +1080,7 @@ export function TripFormPage() {
       isLoadingClients,
       isLoadingDrivers,
       isLoadingVehicles,
+      isReserveIntent,
       stopsFieldArray,
       assignableDrivers,
       fleetDrivers,
@@ -950,7 +1099,15 @@ export function TripFormPage() {
     (currentStep: number, helpers?: WizardStepRenderHelpers) => (
       <FormProvider key={id ?? "create"} {...form}>
         <form onSubmit={(e) => e.preventDefault()}>
-          {currentStep < WIZARD_STEPS.length - 1 ? (
+          {isReserveIntent ? (
+            <Alert variant="info" className="mb-4">
+              <AlertTitle>{shell.reserveBanner.title}</AlertTitle>
+              <AlertDescription>
+                {shell.reserveBanner.description}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {currentStep < activeWizardSteps.length - 1 ? (
             <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
               Completa los campos obligatorios del paso para continuar.
             </p>
@@ -967,7 +1124,10 @@ export function TripFormPage() {
             >
               <FormValidationSummary
                 className="mb-0"
-                title={getStepValidationSummaryTitle(currentStep)}
+                title={getStepValidationSummaryTitle(
+                  currentStep,
+                  isReserveIntent,
+                )}
                 messages={validationSummaryMessages}
               />
             </div>
@@ -975,7 +1135,15 @@ export function TripFormPage() {
         </form>
       </FormProvider>
     ),
-    [form, renderStepContent, id, showValidationSummary, validationSummaryMessages],
+    [
+      form,
+      renderStepContent,
+      id,
+      showValidationSummary,
+      validationSummaryMessages,
+      isReserveIntent,
+      activeWizardSteps.length,
+    ],
   );
 
   if (isEditMode && isLoadingTrip) {
@@ -989,16 +1157,31 @@ export function TripFormPage() {
       header={shellHeader}
       renderStep={renderStep}
       isSubmitting={isSubmitting}
-      submitLabel={isEditMode ? shell.submit.save : shell.submit.create}
-      submittingLabel={isEditMode ? shell.submit.saving : shell.submit.creating}
+      submitLabel={
+        isEditMode
+          ? shell.submit.save
+          : isReserveIntent
+            ? shell.submit.reserve
+            : shell.submit.create
+      }
+      submittingLabel={
+        isEditMode
+          ? shell.submit.saving
+          : isReserveIntent
+            ? shell.submit.reserving
+            : shell.submit.creating
+      }
       stepsAriaLabel={shell.submit.stepsAriaLabel}
       onCancel={() => navigate(-1)}
       onHeaderBack={() => navigate(-1)}
       headerBackMode="exit"
       className="pb-8"
       resolveContainerClassName={(step) =>
-        step === WIZARD_STEPS.length - 1 ? "max-w-6xl" : undefined
+        !isReserveIntent && step === WIZARD_STEPS.length - 1
+          ? "max-w-6xl"
+          : undefined
       }
+      initialStep={wizardInitialStep}
     />
   );
 }

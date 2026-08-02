@@ -19,12 +19,11 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/RouteStep.tsx
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { UseFormReturn, UseFieldArrayReturn } from "react-hook-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
+import { Input } from "@shared/ui/input";
 import {
   MapPin,
   Trash2,
@@ -34,17 +33,16 @@ import {
   ChevronUp,
   ChevronDown,
   Plus,
-  FileText,
   CircleDashed,
   CircleCheck,
   Loader2,
+  Ruler,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import type { TripWizardFormValues, TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
-import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
+import { LOCATION_CAPTURE_LABELS, ROUTE_CAPTURE_LABELS } from "./wizardCopy";
 import { routeCopy as tripRouteCopy, wizardCopy } from "../../../copy";
-import { formatDistanceSourceLabel } from "../../../components/trip-route/tripRouteDetailHelpers";
 
 const copy = wizardCopy.route;
 import {
@@ -54,21 +52,12 @@ import {
   hasManualSegmentDistances,
   hasMissingStopDistances,
 } from "./stopDistanceHelpers";
+import { decideSegmentDistanceApply } from "./routeDistanceSync";
 import {
   CalculateSegmentsDistanceUseCase,
   createGeoProviderBundle,
 } from "@shared/geolocation";
 import { useToast } from "@shared/hooks";
-import { RHFSelect } from "@shared/ui/form/RHFSelect";
-import {
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { BranchStatus, useBranches } from "@features/branches";
-import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
-import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +76,7 @@ import {
   type StopCategory,
 } from "./StopFormSheet";
 import { formatWizardStopAddressDisplay } from "./wizardStopFormat";
+import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 
 // ============================================================================
 // TYPES
@@ -99,15 +89,80 @@ interface RouteStepProps {
 }
 
 // ============================================================================
-// HELPERS
+// SEGMENT DISTANCE CONNECTOR
 // ============================================================================
 
-function hasManualSatPostalComplete(stop: TripStopFormValues): boolean {
-  return !!(
-    stop.satCountryCode?.trim() &&
-    stop.satStateCode?.trim() &&
-    stop.satMunicipalityCode?.trim() &&
-    /^\d{5}$/.test(stop.postalCode?.trim() ?? "")
+interface SegmentDistanceConnectorProps {
+  currentKm: number | undefined;
+  onKmChange: (value: number | undefined) => void;
+  onCalculate: () => void;
+  calculating?: boolean;
+}
+
+function SegmentDistanceConnector({
+  currentKm,
+  onKmChange,
+  onCalculate,
+  calculating,
+}: SegmentDistanceConnectorProps) {
+  const externalValue = currentKm != null ? String(currentKm) : "";
+  const [localValue, setLocalValue] = useState(externalValue);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const displayValue = isFocused ? localValue : externalValue;
+
+  const handleFocus = () => {
+    setLocalValue(externalValue);
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const parsed = parseFloat(localValue);
+    if (!isNaN(parsed) && parsed >= 0) {
+      onKmChange(parsed);
+    } else if (localValue.trim() === "") {
+      onKmChange(undefined);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 py-1 pl-10 pr-4">
+      <div className="flex-1 flex items-center gap-2">
+        <div className="h-px flex-1 border-t border-dashed border-border" />
+        <Ruler className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <Input
+          type="number"
+          min={0}
+          step="0.1"
+          placeholder={copy.segment.placeholder}
+          value={displayValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className="h-7 w-20 text-xs text-center"
+          aria-label={copy.segment.label}
+        />
+        <span className="text-xs text-muted-foreground">
+          {copy.label.segmentKm}
+        </span>
+        <div className="h-px flex-1 border-t border-dashed border-border" />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs px-2"
+        disabled={calculating}
+        onClick={onCalculate}
+      >
+        {calculating ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          copy.action.calculateSegment
+        )}
+      </Button>
+    </div>
   );
 }
 
@@ -141,27 +196,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const [routeRecalcLoading, setRouteRecalcLoading] = useState(false);
   const [overwriteManualDialogOpen, setOverwriteManualDialogOpen] =
     useState(false);
+  const [segmentCalculating, setSegmentCalculating] = useState<number | null>(
+    null,
+  );
+  const routeDistanceSyncGenRef = useRef(0);
 
   const { toast } = useToast();
-
-  const { data: branchesResult } = useBranches({
-    page: 1,
-    limit: 100,
-    filters: {
-      isActive: true,
-      status: BranchStatus.ACTIVE,
-    },
-    sort: {
-      field: "name",
-      direction: "asc",
-    },
-  });
-
-  const branchOptions = useMemo(
-    () => buildBranchSelectOptions(branchesResult?.data ?? []),
-    [branchesResult?.data],
-  );
-  const hasBranchOptions = branchOptions.length > 0;
 
   const segmentsDistanceUseCase = useMemo(() => {
     const bundle = createGeoProviderBundle();
@@ -172,17 +212,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   // REORDENAR ARRAY DE STOPS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Reordena físicamente el array de stops para que:
-   * - Origen siempre sea el primero (índice 0)
-   * - Escalas estén en medio (índices 1..N-1), ordenadas por su sequenceOrder actual
-   * - Destino siempre sea el último (índice N)
-   */
   const reorderStopsArray = useCallback(() => {
     const currentStops = form.getValues("stops");
     if (currentStops.length === 0) return;
 
-    // 1. Extraer paradas por tipo
     const origin = currentStops.find((stop) =>
       stop.stopType?.includes(StopType.ORIGIN),
     );
@@ -200,7 +233,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       )
       .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
 
-    // 2. Reconstruir el array en el orden correcto
     const reorderedStops: TripStopFormValues[] = [];
 
     if (origin) {
@@ -213,12 +245,19 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       reorderedStops.push(destination);
     }
 
-    // 3. Actualizar sequenceOrder = índice para cada stop
+    // Una parada sin origen/escala/destino en `stopType` no entra en el reordenamiento;
+    // escribir el resultado la borraría sin aviso, así que se conserva el orden actual.
+    if (reorderedStops.length !== currentStops.length) {
+      console.warn(
+        "[RouteStep] Reordenamiento omitido: hay paradas sin categoría reconocible",
+      );
+      return;
+    }
+
     reorderedStops.forEach((stop, index) => {
       stop.sequenceOrder = index;
     });
 
-    // 4. Reemplazar todo el array en el form
     form.setValue("stops", reorderedStops, {
       shouldValidate: false,
       shouldDirty: true,
@@ -228,6 +267,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   /**
    * Recalcula todos los tramos consecutivos vía API batch (Mapbox + fallback en servidor);
    * si falla la petición, el use case aplica Haversine local.
+   * Generation token: solo la sync más reciente escribe / apaga loading.
    */
   const syncRouteDistancesFromApi = useCallback(
     async (confirmedOverwrite: boolean) => {
@@ -235,6 +275,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       if (stops.length < 2) return;
 
       if (!confirmedOverwrite && hasManualSegmentDistances(stops)) {
+        setRouteRecalcLoading(false);
         setOverwriteManualDialogOpen(true);
         return;
       }
@@ -260,11 +301,43 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         });
       }
 
+      const requestGeneration = ++routeDistanceSyncGenRef.current;
       setRouteRecalcLoading(true);
       try {
         const results = await segmentsDistanceUseCase.execute(segments);
+        const latestStops = form.getValues("stops") ?? [];
+        const decision = decideSegmentDistanceApply({
+          requestGeneration,
+          activeGeneration: routeDistanceSyncGenRef.current,
+          snapshotStops: stops,
+          latestStops,
+          confirmedOverwrite,
+        });
+
+        if (decision.action === "discard_stale") {
+          return;
+        }
+
+        if (decision.action === "requeue_geo_changed") {
+          // Invalida este request para que `finally` no apague loading/diálogo
+          // del sync (o del diálogo manual) que sigue a continuación.
+          routeDistanceSyncGenRef.current += 1;
+          setRouteRecalcLoading(false);
+          void syncRouteDistancesFromApi(confirmedOverwrite);
+          return;
+        }
+
+        if (decision.action === "discard_manual_changed") {
+          toast({
+            title: copy.toast.distanceAbortedManualTitle,
+            description: copy.toast.distanceAbortedManualBody,
+            variant: "warning",
+          });
+          return;
+        }
+
         const updated = applySegmentDistanceResultsToStops(
-          stops,
+          latestStops,
           stopIndices,
           results,
         );
@@ -273,14 +346,18 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           shouldValidate: true,
         });
       } catch {
-        toast({
-          title: copy.toast.distanceErrorTitle,
-          description: copy.toast.distanceErrorBody,
-          variant: "error",
-        });
+        if (requestGeneration === routeDistanceSyncGenRef.current) {
+          toast({
+            title: copy.toast.distanceErrorTitle,
+            description: copy.toast.distanceErrorBody,
+            variant: "error",
+          });
+        }
       } finally {
-        setRouteRecalcLoading(false);
-        setOverwriteManualDialogOpen(false);
+        if (requestGeneration === routeDistanceSyncGenRef.current) {
+          setRouteRecalcLoading(false);
+          setOverwriteManualDialogOpen(false);
+        }
       }
     },
     [form, segmentsDistanceUseCase, toast],
@@ -325,7 +402,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   const hasDestination = destinationIndex !== -1;
   const hasWaypoints = waypointIndices.length > 0;
 
-  // Mantener sincronizada la llegada estimada del destino con el valor del Paso 1.
   useEffect(() => {
     if (destinationIndex === -1) return;
 
@@ -392,7 +468,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
           ? ["delivery"]
           : [];
 
-    // Pre-cargar scheduledArrival del form como estimatedArrival del destino
     const initialEstimatedArrival =
       category === "destination"
         ? (form.getValues("scheduledArrival") ?? undefined)
@@ -418,7 +493,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     const previousStop =
       index > 0 ? form.getValues(`stops.${index - 1}`) : undefined;
 
-    // Extraer operaciones (sin la categoría)
     const operations = stop.stopType.filter(
       (t) =>
         t !== StopType.ORIGIN &&
@@ -433,7 +507,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       clientAddressId: stop.clientAddressId,
       addressId: stop.addressId,
       locationName: stop.locationName,
-      // Campos Carta Porte
       satCountryCode: stop.satCountryCode,
       satStateCode: stop.satStateCode,
       satMunicipalityCode: stop.satMunicipalityCode,
@@ -475,7 +548,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
   /**
    * Solo rellena tramos vacíos (Haversine local). No pisa manuales ni valores existentes.
-   * Útil para el botón "Recalcular distancias faltantes".
    */
   const fillMissingDistancesOnly = useCallback(() => {
     const stops = form.getValues("stops");
@@ -494,13 +566,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
     const wasNewStop = editingStopIndex === null;
 
-    /** Parada ya en el wizard (solo existe en modo edición). */
     const existingStop =
       editingStopIndex !== null
         ? form.getValues(`stops.${editingStopIndex}`)
         : undefined;
 
-    // Construir stopTypes incluyendo la categoría
     const stopTypes: TripStopFormValues["stopType"] = [
       data.stopCategory as StopTypeValue,
       ...data.stopType.filter((t) => t !== data.stopCategory),
@@ -508,14 +578,12 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
 
     const stopData: TripStopFormValues = {
       ...(existingStop?.id ? { id: existingStop.id } : {}),
-      // En edición conservar `sequenceOrder` persistido; en alta temporal 999 hasta `reorderStopsArray`.
       sequenceOrder: existingStop?.sequenceOrder ?? editingStopIndex ?? 999,
       stopType: stopTypes,
       clientId: data.clientId || undefined,
       clientAddressId: data.clientAddressId || undefined,
       addressId: data.addressId?.trim() || undefined,
       locationName: data.locationName ?? "",
-      // Campos Carta Porte (unificados - sin campos legacy)
       satCountryCode: data.satCountryCode || "MEX",
       satStateCode: data.satStateCode || "",
       satMunicipalityCode: data.satMunicipalityCode || "",
@@ -548,18 +616,15 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     };
 
     if (editingStopIndex !== null) {
-      // Modo edición: actualizar parada existente
       form.setValue(`stops.${editingStopIndex}`, stopData, {
         shouldValidate: false,
         shouldDirty: true,
       });
     } else {
-      // Modo creación: agregar nueva parada
       const currentStops = form.getValues("stops") || [];
       form.setValue("stops", [...currentStops, stopData]);
     }
 
-    // Si es la parada de destino, sincronizar estimatedArrival → scheduledArrival
     if (data.stopCategory === "destination") {
       form.setValue("scheduledArrival", stopData.estimatedArrival ?? "", {
         shouldDirty: true,
@@ -628,13 +693,11 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         return;
       }
 
-      // Intercambiar posiciones
       const updatedStops = [...currentStops];
       const temp = updatedStops[currentIndex];
       updatedStops[currentIndex] = updatedStops[targetIndex];
       updatedStops[targetIndex] = temp;
 
-      // Actualizar sequenceOrder
       updatedStops.forEach((stop, idx) => {
         stop.sequenceOrder = idx;
       });
@@ -705,6 +768,60 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
   }, []);
 
   // ══════════════════════════════════════════════════════════════════════════
+  // SEGMENT DISTANCE HANDLER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const handleSegmentKmChange = useCallback(
+    (index: number, value: number | undefined) => {
+      form.setValue(`stops.${index}.distanceFromPreviousKm`, value, {
+        shouldDirty: true,
+      });
+      if (value != null) {
+        form.setValue(`stops.${index}.distanceSource`, "manual", {
+          shouldDirty: true,
+        });
+      }
+    },
+    [form],
+  );
+
+  const handleCalculateSegment = useCallback(
+    (index: number) => {
+      const stops = form.getValues("stops") ?? [];
+      if (index <= 0 || index >= stops.length) return;
+
+      const prev = stops[index - 1];
+      const current = stops[index];
+
+      const km = estimateRoadDistanceKm(
+        prev.latitude,
+        prev.longitude,
+        current.latitude,
+        current.longitude,
+      );
+
+      if (km == null) {
+        toast({
+          title: copy.toast.insufficientCoordinatesTitle,
+          description: copy.toast.insufficientCoordinatesBody,
+          variant: "warning",
+        });
+        return;
+      }
+
+      setSegmentCalculating(index);
+      form.setValue(`stops.${index}.distanceFromPreviousKm`, km, {
+        shouldDirty: true,
+      });
+      form.setValue(`stops.${index}.distanceSource`, "haversine_fallback", {
+        shouldDirty: true,
+      });
+      setTimeout(() => setSegmentCalculating(null), 300);
+    },
+    [form, toast],
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
   // UI HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -734,6 +851,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     (
       stop: TripStopFormValues,
       type: "origin" | "waypoint" | "destination",
+      stopIndex: number,
     ): string[] => {
       const missing: string[] = [];
 
@@ -750,14 +868,19 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       if (!stopHasUnifiedAddressId(stop)) {
         if (!stop.satCountryCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.country);
         if (!stop.satStateCode?.trim()) missing.push(LOCATION_CAPTURE_LABELS.state);
-        if (!stop.satMunicipalityCode?.trim()) {
-          missing.push(LOCATION_CAPTURE_LABELS.municipality);
-        }
         if (!/^\d{5}$/.test(stop.postalCode?.trim() ?? "")) missing.push("CP");
       }
 
       if (stop.latitude == null || stop.longitude == null) {
-        missing.push("geolocalización");
+        missing.push(ROUTE_CAPTURE_LABELS.geolocation);
+      }
+
+      if (
+        stopIndex > 0 &&
+        stop.distanceFromPreviousKm === undefined &&
+        stop.distanceFromPreviousKm !== 0
+      ) {
+        missing.push(ROUTE_CAPTURE_LABELS.distanceFromPrevious);
       }
 
       if (type === "destination" && !stop.estimatedArrival) {
@@ -769,13 +892,28 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     [],
   );
 
-  const guidanceSummary = useMemo(() => {
-    const stops = form.getValues("stops") || [];
-    const pendingActions: string[] = [];
+  // ══════════════════════════════════════════════════════════════════════════
+  // STATUS SUMMARY (D4 compact status line)
+  // ══════════════════════════════════════════════════════════════════════════
 
-    if (!hasOrigin) pendingActions.push(copy.action.addOrigin);
-    if (!hasDestination) pendingActions.push(copy.action.addDestination);
-    if (!hasWaypoints) pendingActions.push(copy.action.evaluateWaypoints);
+  const statusSummary = useMemo(() => {
+    // Se lee del valor observado: con `getValues` la línea quedaba congelada
+    // hasta que cambiaba el número de paradas (p. ej. tras calcular distancias).
+    const stops = watchedStops ?? [];
+
+    const getStopStatus = (
+      index: number,
+      type: "origin" | "waypoint" | "destination",
+    ): "listo" | "pendiente" | "vacío" => {
+      if (index === -1) return "vacío";
+      const stop = stops[index];
+      if (!stop) return "vacío";
+      const missing = getStopMissingFields(stop, type, index);
+      return missing.length === 0 ? "listo" : "pendiente";
+    };
+
+    const originStatus = getStopStatus(originIndex, "origin");
+    const destinationStatus = getStopStatus(destinationIndex, "destination");
 
     const incompleteCount = stops.reduce((count, stop, index) => {
       const stopType = stop.stopType ?? [];
@@ -784,24 +922,40 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         : stopType.includes(StopType.DESTINATION)
           ? "destination"
           : "waypoint";
-      const missing = getStopMissingFields(stop, type);
-      if (missing.length > 0) {
-        const label = stop.locationName || copy.format.stopHash(index + 1);
-        pendingActions.push(copy.format.completeStop(label, missing.join(", ")));
-        return count + 1;
-      }
-      return count;
+      const missing = getStopMissingFields(stop, type, index);
+      return missing.length > 0 ? count + 1 : count;
     }, 0);
 
-    const nextAction =
-      pendingActions[0] ?? copy.action.routeReady;
-
     return {
-      totalStops: stops.length,
+      line: copy.format.statusSummary({
+        origin: originStatus,
+        waypoints: waypointIndices.length,
+        destination: destinationStatus,
+      }),
       incompleteCount,
-      nextAction,
+      totalStops: stops.length,
     };
-  }, [form, getStopMissingFields, hasDestination, hasOrigin, hasWaypoints]);
+  }, [
+    watchedStops,
+    getStopMissingFields,
+    originIndex,
+    destinationIndex,
+    waypointIndices.length,
+  ]);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ORDERED STOPS (for timeline rendering with connectors)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const orderedStopIndices = useMemo(() => {
+    const indices: { index: number; type: "origin" | "waypoint" | "destination" }[] = [];
+    if (hasOrigin) indices.push({ index: originIndex, type: "origin" });
+    for (const wi of waypointIndices) {
+      indices.push({ index: wi, type: "waypoint" });
+    }
+    if (hasDestination) indices.push({ index: destinationIndex, type: "destination" });
+    return indices;
+  }, [hasOrigin, originIndex, waypointIndices, hasDestination, destinationIndex]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER STOP CARD
@@ -821,17 +975,24 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       isWaypoint && index === waypointIndices[waypointIndices.length - 1];
     const displayOrder = index + 1;
 
-    // Formatear dirección usando campos SAT (sin repetir locationName)
     const {
       streetLine: addressStreetLine,
       localityLine: addressLocalityLine,
       showNoAddress,
     } = formatWizardStopAddressDisplay(stop);
     const linkedCatalog = stopHasUnifiedAddressId(stop);
-    const hasManualCp = hasManualSatPostalComplete(stop);
-    const missingFields = getStopMissingFields(stop, type);
+    const missingFields = getStopMissingFields(stop, type, index);
     const isComplete = missingFields.length === 0;
-    const primaryCtaLabel = isComplete ? "Editar" : "Completar";
+    const primaryCtaLabel = isComplete ? copy.action.edit : copy.action.complete;
+
+    const operationChips = isWaypoint
+      ? stop.stopType.filter(
+          (t) =>
+            t !== StopType.ORIGIN &&
+            t !== StopType.DESTINATION &&
+            t !== StopType.WAYPOINT,
+        )
+      : [];
 
     return (
       <div
@@ -888,10 +1049,10 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
             <div className="flex-1 min-w-0">
-              {/* Stop Types Badges */}
+              {/* Badges: operation chips for waypoints only + status + saved address */}
               <div className="flex flex-wrap items-center gap-1">
-                {Array.isArray(stop.stopType) &&
-                  stop.stopType.map((stopType) => {
+                {isWaypoint &&
+                  operationChips.map((stopType) => {
                     const info = getStopTypeInfo(stopType);
                     return (
                       <span
@@ -919,39 +1080,18 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   ) : (
                     <CircleDashed className="mr-1 h-3 w-3" />
                   )}
-                  {isComplete ? "Completa" : "Pendiente"}
+                  {isComplete ? copy.state.ready : copy.state.pending}
                 </Badge>
 
-                {/* Domicilio en catálogo vs captura manual */}
                 {linkedCatalog && (
                   <Badge
                     variant="outline"
                     className="text-xs border-success/30 text-success-soft-foreground"
-                    title={copy.hint.savedAddress}
+                    title={tripRouteCopy.label.savedAddress}
                   >
-                    <FileText className="h-3 w-3 mr-1" />
-                    Domicilio guardado
+                    {tripRouteCopy.label.savedAddress}
                   </Badge>
                 )}
-                {!linkedCatalog && hasManualCp && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-info/30 text-info"
-                  >
-                    <FileText className="h-3 w-3 mr-1" />
-                    Datos fiscales listos
-                  </Badge>
-                )}
-                {index > 0 && stop.distanceFromPreviousKm != null ? (
-                  <Badge variant="outline" className="text-xs font-normal">
-                    {tripRouteCopy.format.distanceSegment(
-                      formatDistanceSourceLabel(stop.distanceSource ?? null) ??
-                        tripRouteCopy.label.distanceFallback,
-                      stop.distanceFromPreviousKm.toLocaleString("es-MX"),
-                    )}
-                  </Badge>
-                ) : null}
-
               </div>
 
               {/* Location Name */}
@@ -959,7 +1099,7 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                 <p className="font-medium truncate mt-1">{stop.locationName}</p>
               )}
 
-              {/* Address Display - basado en campos SAT */}
+              {/* Address Display */}
               {addressStreetLine ? (
                 <p className="text-sm text-muted-foreground truncate">
                   {addressStreetLine}
@@ -975,14 +1115,6 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
                   {copy.label.noAddress}
                 </p>
               ) : null}
-
-              {/* Identificadores fiscales (manual o precargados desde domicilio guardado) */}
-              {(linkedCatalog || hasManualCp) && (
-                <p className="text-xs text-info mt-1">
-                  Claves: {stop.satStateCode}-{stop.satMunicipalityCode}
-                  {stop.postalCode && ` · CP ${stop.postalCode}`}
-                </p>
-              )}
 
               {!isComplete && (
                 <p className="mt-1 text-xs text-warning-soft-foreground">
@@ -1118,229 +1250,138 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
     </div>
   );
 
+  /** Conector de kilómetros: solo cuando la parada tiene otra antes en el timeline. */
+  const renderSegmentConnector = (index: number) => {
+    const position = orderedStopIndices.findIndex(
+      (entry) => entry.index === index,
+    );
+    if (position <= 0) return null;
+    const stop = watchedStops?.[index];
+    if (!stop) return null;
+
+    return (
+      <SegmentDistanceConnector
+        currentKm={stop.distanceFromPreviousKm}
+        onKmChange={(val) => handleSegmentKmChange(index, val)}
+        onCalculate={() => handleCalculateSegment(index)}
+        calculating={segmentCalculating === index}
+      />
+    );
+  };
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
     <div className="space-y-4">
-      <Card className="border-dashed">
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1">
-              <SectionHeadingWithHint
-                noTitleWrap
-                title={<p className="text-sm font-medium">{copy.section.quickGuide}</p>}
-                hintLabel={copy.section.quickGuide}
-                hint={
-                  <>
-                    Resume qué falta para completar la ruta y sugiere la siguiente acción. Usa los botones de la derecha
-                    para recalcular distancias o revisar paradas pendientes.
-                  </>
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                Siguiente acción: {guidanceSummary.nextAction}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {showRecalculateMissingDistances ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={routeRecalcLoading}
-                  onClick={() => fillMissingDistancesOnly()}
-                >
-                  Recalcular distancias faltantes
-                </Button>
-              ) : null}
-              {routeRecalcLoading ? (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Actualizando distancias…
-                </span>
-              ) : null}
-              <Badge variant="outline">{guidanceSummary.totalStops} paradas</Badge>
-              <Badge
-                variant="outline"
-                className={cn(
-                  guidanceSummary.incompleteCount > 0
-                    ? "border-warning/30 text-warning-soft-foreground"
-                    : "border-success/30 text-success-soft-foreground",
-                )}
-              >
-                {guidanceSummary.incompleteCount > 0
-                  ? copy.state.pendingCount(guidanceSummary.incompleteCount)
-                  : copy.state.allComplete}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            <SectionHeadingWithHint
-              noTitleWrap
-              title={copy.label.originBranch}
-              hintLabel={copy.label.originBranch}
-              hint={copy.hint.originBranch}
-            />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-md space-y-3">
-            {hasBranchOptions ? (
-              <RHFSelect
-                control={form.control}
-                name="originBranchId"
-                options={branchOptions}
-                placeholder={copy.placeholder.selectOriginBranch}
-              />
-            ) : (
-              <>
-                <Select disabled>
-                  <SelectTrigger disabled>
-                    <SelectValue
-                      placeholder={copy.placeholder.selectOriginBranch}
-                    />
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {copy.state.noBranches}
-                </p>
-                <Button variant="link" className="h-auto p-0" asChild>
-                  <Link to="/branches/new">{copy.action.createBranch}</Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bloque ORIGEN */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Navigation className="h-5 w-5 text-success" />
-            {copy.section.origin}
-            <span className="text-xs font-normal text-muted-foreground">
-              (1 parada)
+      {/* D4: Compact status line */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <p className="text-sm text-muted-foreground">{statusSummary.line}</p>
+        <div className="flex items-center gap-2">
+          {showRecalculateMissingDistances && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={routeRecalcLoading}
+              onClick={() => fillMissingDistancesOnly()}
+            >
+              Calcular tramos faltantes
+            </Button>
+          )}
+          {routeRecalcLoading && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Actualizando distancias…
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hasOrigin
-            ? renderStopCard(originIndex, "origin")
-            : renderEmptyBlock(
-                "origin",
-                copy.state.noOriginTitle,
-                copy.state.noOriginHint,
-                <Navigation className="h-6 w-6 text-success" />,
-              )}
-        </CardContent>
-      </Card>
+          )}
+          {statusSummary.incompleteCount > 0 && (
+            <Badge
+              variant="outline"
+              className="border-warning/30 text-warning-soft-foreground"
+            >
+              {copy.state.pendingCount(statusSummary.incompleteCount)}
+            </Badge>
+          )}
+        </div>
+      </div>
 
-      {/* Bloque ESCALAS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MapPin className="h-5 w-5 text-muted-foreground" />
-              Escalas
+      {/* D4: Timeline layout — Origen */}
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-medium mb-2 px-1">
+          <Navigation className="h-4 w-4 text-success" />
+          {copy.section.origin}
+        </h3>
+        {hasOrigin
+          ? renderStopCard(originIndex, "origin")
+          : renderEmptyBlock(
+              "origin",
+              copy.state.noOriginTitle,
+              copy.state.noOriginHint,
+              <Navigation className="h-6 w-6 text-success" />,
+            )}
+      </div>
+
+      {/* D4: Timeline layout — Escalas */}
+      <div>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h3 className="flex items-center gap-2 text-sm font-medium">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            {copy.section.waypoints}
+            {hasWaypoints && (
               <span className="text-xs font-normal text-muted-foreground">
                 ({waypointIndices.length}{" "}
                 {waypointIndices.length === 1 ? "parada" : "paradas"})
               </span>
-            </CardTitle>
-            {hasWaypoints && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void openAddDialog("waypoint")}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar Escala
-              </Button>
             )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {hasWaypoints ? (
-            <div className="space-y-2">
-              {waypointIndices.map((index) =>
-                renderStopCard(index, "waypoint"),
-              )}
-            </div>
-          ) : (
-            renderEmptyBlock(
-              "waypoint",
-                copy.state.noWaypointsTitle,
-                copy.state.noWaypointsHint,
-              <MapPin className="h-6 w-6 text-muted-foreground" />,
-            )
+          </h3>
+          {hasWaypoints && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void openAddDialog("waypoint")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar Escala
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+        {hasWaypoints
+          ? waypointIndices.map((index) => (
+              <div key={`waypoint-${fields[index]?.id ?? index}`}>
+                {renderSegmentConnector(index)}
+                {renderStopCard(index, "waypoint")}
+              </div>
+            ))
+          : renderEmptyBlock(
+              "waypoint",
+              copy.state.noWaypointsTitle,
+              copy.state.noWaypointsHint,
+              <MapPin className="h-6 w-6 text-muted-foreground" />,
+            )}
+      </div>
 
-      {/* Bloque DESTINO */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Flag className="h-5 w-5 text-destructive" />
-            Destino
-            <span className="text-xs font-normal text-muted-foreground">
-              (1 parada)
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hasDestination
-            ? renderStopCard(destinationIndex, "destination")
-            : renderEmptyBlock(
-                "destination",
-                copy.state.noDestinationTitle,
-                copy.state.noDestinationHint,
-                <Flag className="h-6 w-6 text-destructive" />,
-              )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs dark:bg-muted/15">
-        <SectionHeadingWithHint
-          noTitleWrap
-          title={
-            <span className="font-medium text-muted-foreground">
-              {copy.section.routeRules}
-            </span>
-          }
-          hintLabel={copy.section.routeRules}
-          hintContentClassName="max-w-sm text-left [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-4"
-          hint={
-            <>
-              <span className="font-medium text-foreground">Resumen</span>
-              <ul>
-                <li>El viaje debe tener exactamente 1 origen y 1 destino</li>
-                <li>Las escalas son opcionales y pueden ser múltiples</li>
-                <li>Puede reordenar las escalas arrastrándolas o con los botones</li>
-                <li>En el origen solo se permite carga; en el destino solo descarga</li>
-                <li>En las escalas puede realizar carga, descarga o ambas</li>
-                <li>
-                  Los datos de país, estado, municipio y CP son obligatorios en captura manual
-                </li>
-                <li>
-                  {cfdiDocumentIntent === "traslado"
-                    ? copy.hint.trasladoFiscal
-                    : copy.hint.ingresoFiscal}
-                </li>
-              </ul>
-            </>
-          }
-        />
+      {/* D4: Timeline layout — Destino */}
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-medium mb-2 px-1">
+          <Flag className="h-4 w-4 text-destructive" />
+          {copy.section.destination}
+        </h3>
+        {hasDestination ? (
+          <>
+            {renderSegmentConnector(destinationIndex)}
+            {renderStopCard(destinationIndex, "destination")}
+          </>
+        ) : (
+          renderEmptyBlock(
+            "destination",
+            copy.state.noDestinationTitle,
+            copy.state.noDestinationHint,
+            <Flag className="h-6 w-6 text-destructive" />,
+          )
+        )}
       </div>
 
       {/* Sheet lateral para agregar/editar parada */}
@@ -1370,21 +1411,18 @@ export function RouteStep({ form, stopsFieldArray }: RouteStepProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Sobrescribir distancias manuales</AlertDialogTitle>
+            <AlertDialogTitle>{copy.segment.overwriteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Al cambiar la ruta, se recalcularán los kilómetros de todos los
-              tramos (servidor con Mapbox cuando aplique; si falla, estimación
-              local). Las distancias que capturaste manualmente se
-              reemplazarán.
+              {copy.segment.overwriteBody}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{copy.segment.overwriteCancel}</AlertDialogCancel>
             <AlertDialogAction
               type="button"
               onClick={() => void syncRouteDistancesFromApi(true)}
             >
-              Continuar
+              {copy.segment.overwriteConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

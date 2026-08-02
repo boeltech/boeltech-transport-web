@@ -32,6 +32,15 @@ import { mapBackendError, type UseCaseResult } from "@shared/utils/errorMapper";
 /**
  * Resultado de crear un viaje
  */
+export interface CreateTripWarning {
+  code: string;
+  message: string;
+  vehicleId?: string;
+  driverId?: string;
+  conflictingTripId?: string;
+  conflictingTripCode?: string;
+}
+
 export interface CreateTripResult {
   trip: Trip;
   summary: {
@@ -42,6 +51,7 @@ export interface CreateTripResult {
     expensesCreated: number;
     finalStatus: string;
   };
+  warnings?: CreateTripWarning[];
 }
 
 // ============================================================================

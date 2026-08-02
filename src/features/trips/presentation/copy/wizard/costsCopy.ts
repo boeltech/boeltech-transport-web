@@ -1,40 +1,75 @@
 /**
  * Namespace: trips.copy.wizard.costs.*
- * Reutiliza taxonomía del detalle donde aplica; hints específicos del wizard.
+ *
+ * Léxico operativo del paso Costos: tarifa, conceptos del viaje y resultado.
+ * No reutiliza títulos ALL CAPS ni «rentabilidad» del detalle.
  */
-import { costsCopy as detailCostsCopy } from "../tripDetail/costsCopy";
-
 export const costsCopy = {
   section: {
-    income: detailCostsCopy.section.baseRate,
-    operational: detailCostsCopy.section.operational,
-    indirect: detailCostsCopy.section.indirect,
+    income: "Lo que cobra el viaje",
+    operational: "En la ruta y la unidad",
+    indirect: "Del operador y extras",
   },
   label: {
-    baseRate: detailCostsCopy.label.baseRateInput,
+    baseRate: "Tarifa base (MXN)",
   },
   hint: {
-    baseRateTraslado: detailCostsCopy.hint.baseRateTraslado,
-    baseRateRequired: detailCostsCopy.hint.baseRateIngresoRequired,
+    baseRateTraslado: "Opcional en viajes solo de traslado.",
+    baseRateRequired:
+      "Obligatoria cuando el viaje tiene cliente y se cobrará el flete.",
     baseRateNoClient:
-      "Opcional si aún no hay cliente en el paso de información.",
+      "Opcional si aún no hay cliente en el paso Información.",
   },
   action: {
-    addCost: detailCostsCopy.action.addCost,
-    addExpense: detailCostsCopy.action.addExpense,
+    addOperational: "Agregar concepto de ruta",
+    addIndirect: "Agregar concepto del operador",
   },
   state: {
-    emptyOperationalTitle: detailCostsCopy.state.emptyOperationalTitle,
+    emptyOperationalTitle: "Todavía no hay conceptos de ruta",
     emptyOperationalDescription:
-      'Use "Agregar costo" para registrar combustible, casetas y otros costos directos del servicio.',
-    emptyIndirectTitle: detailCostsCopy.state.emptyIndirectTitle,
+      "Combustible, casetas, maniobras, mantenimiento, seguros y permisos.",
+    emptyIndirectTitle: "Todavía no hay conceptos del operador",
     emptyIndirectDescription:
-      'Use "Agregar gasto" para viáticos, hospedaje, estacionamiento y otros conceptos indirectos.',
+      "Viáticos, hospedaje, estacionamiento y otros extras del viaje.",
   },
-  alert: {
-    marginCriticalTitle: detailCostsCopy.alert.marginCriticalTitle,
-    marginCriticalBody:
-      "El margen está por debajo del 10%. Revisa tarifa o conceptos antes de continuar.",
+  result: {
+    title: "Lo que deja el viaje",
+    income: "Ingreso",
+    concepts: "Conceptos",
+    utility: "Utilidad",
+    margin: "Margen",
+    healthyHint: "El margen estimado se ve sano.",
+    warningHint: "El margen estimado es moderado; conviene revisarlo.",
+    criticalHint:
+      "El margen estimado queda bajo. Ajuste la tarifa o los conceptos antes de continuar.",
+    neutralHint: "Capture la tarifa para ver el margen estimado.",
+    formatMarginPct: (pct: number) => `${pct.toFixed(0)} %`,
   },
-  financialSummary: detailCostsCopy.financialSummary,
+  financialSummary: {
+    section: {
+      title: "Resumen del viaje",
+      income: "Ingreso",
+      operational: (count: number) =>
+        count === 1
+          ? "Ruta y unidad (1)"
+          : `Ruta y unidad (${count})`,
+      indirect: (count: number) =>
+        count === 1
+          ? "Operador y extras (1)"
+          : `Operador y extras (${count})`,
+    },
+    label: {
+      freight: "Flete",
+      baseRate: "Tarifa base",
+      income: "Ingreso",
+      concepts: "Conceptos",
+      costs: "Ruta y unidad",
+      expenses: "Operador y extras",
+      margin: "Utilidad",
+      marginPct: "Margen",
+    },
+    state: {
+      emptyLines: "Sin conceptos",
+    },
+  },
 } as const;

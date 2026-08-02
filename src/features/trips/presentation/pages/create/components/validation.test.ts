@@ -5,6 +5,9 @@ import {
   tripCargoSchema,
   tripExpenseSchema,
   tripWizardSchema,
+  tripReserveWizardSchema,
+  WIZARD_STEPS_RESERVE,
+  WIZARD_STEP_FIELDS_RESERVE,
   validateCostsStep,
   validateRouteStep,
   type TripStopFormValues,
@@ -129,6 +132,36 @@ describe("tripCargoSchema — seguro de carga", () => {
 });
 
 describe("validateRouteStep with unified addresses", () => {
+  it("requires segment distance when advancing route (index > 0)", () => {
+    const origin = buildBaseStop({
+      sequenceOrder: 0,
+      stopType: ["origin", "pickup"],
+      locationName: "Origen",
+      addressId: "6cc9d220-c5a4-4671-9f52-68f0af3b32a8",
+      clientAddressId: "6cc9d220-c5a4-4671-9f52-68f0af3b32a8",
+    });
+
+    const destination = buildBaseStop({
+      sequenceOrder: 1,
+      stopType: ["destination", "delivery"],
+      locationName: "Destino",
+      addressId: "9e85dca1-8b0f-4d3a-a0ff-7f803a5210e4",
+      clientAddressId: "9e85dca1-8b0f-4d3a-a0ff-7f803a5210e4",
+      estimatedArrival: "2026-04-25T10:00",
+      distanceFromPreviousKm: undefined,
+    });
+
+    const validation = validateRouteStep([origin, destination]);
+
+    expect(validation.isValid).toBe(false);
+    expect(
+      validation.errors.some((err) =>
+        err.toLowerCase().includes("kilómetros") ||
+        err.toLowerCase().includes("distancia"),
+      ),
+    ).toBe(true);
+  });
+
   it("does not require SAT fields when stop has addressId", () => {
     const origin = buildBaseStop({
       sequenceOrder: 0,
@@ -175,6 +208,53 @@ describe("validateRouteStep with unified addresses", () => {
     expect(validation.errors.some((err) => err.includes("estado"))).toBe(
       true,
     );
+  });
+
+  it("allows manual stops without municipality (XSD CP31 optional)", () => {
+    const origin = buildBaseStop({
+      sequenceOrder: 0,
+      stopType: ["origin", "pickup"],
+      locationName: "Domicilio fiscal",
+      satCountryCode: "MEX",
+      satStateCode: "MOR",
+      satMunicipalityCode: "",
+      postalCode: "62661",
+      latitude: 18.92,
+      longitude: -99.23,
+    });
+
+    const destination = buildBaseStop({
+      sequenceOrder: 1,
+      stopType: ["destination", "delivery"],
+      locationName: "Destino",
+      satCountryCode: "MEX",
+      satStateCode: "CMX",
+      satMunicipalityCode: "",
+      postalCode: "06600",
+      estimatedArrival: "2026-04-25T10:00",
+      distanceFromPreviousKm: 120,
+      latitude: 19.43,
+      longitude: -99.13,
+    });
+
+    const validation = validateRouteStep([origin, destination]);
+
+    expect(validation.isValid).toBe(true);
+    expect(
+      validation.errors.some((err) => err.toLowerCase().includes("municipio")),
+    ).toBe(false);
+  });
+
+  it("tripStopSchema accepts manual stop without municipality", () => {
+    const result = tripStopSchema.safeParse(
+      buildBaseStop({
+        satCountryCode: "MEX",
+        satStateCode: "MOR",
+        satMunicipalityCode: "",
+        postalCode: "62661",
+      }),
+    );
+    expect(result.success).toBe(true);
   });
 });
 
@@ -434,5 +514,61 @@ describe("tripWizardSchema — paso costos", () => {
       i.path.includes("baseRate"),
     );
     expect(baseRateIssue?.message).toMatch(/tarifa base/i);
+  });
+});
+
+describe("WIZARD_STEPS_RESERVE / tripReserveWizardSchema", () => {
+  it("defines exactly two reserve steps with pedido and asignar fields", () => {
+    expect(WIZARD_STEPS_RESERVE).toHaveLength(2);
+    expect(WIZARD_STEPS_RESERVE.map((s) => s.id)).toEqual([
+      "pedido",
+      "asignar",
+    ]);
+    expect(WIZARD_STEP_FIELDS_RESERVE[0]).toEqual(
+      expect.arrayContaining([
+        "clientId",
+        "originCity",
+        "destinationCity",
+        "scheduledDeparture",
+        "notes",
+      ]),
+    );
+    expect(WIZARD_STEP_FIELDS_RESERVE[1]).toEqual(
+      expect.arrayContaining(["vehicleId", "driverId", "baseRate"]),
+    );
+  });
+
+  it("accepts minimal reserve payload without stops or cargos", () => {
+    const result = tripReserveWizardSchema.safeParse({
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      notes: "Canal: WhatsApp",
+      baseRate: 35000,
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects reserve without client", () => {
+    const result = tripReserveWizardSchema.safeParse({
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "",
+      scheduledDeparture: "2030-01-15T14:00",
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    });
+    expect(result.success).toBe(false);
   });
 });

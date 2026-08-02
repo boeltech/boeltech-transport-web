@@ -776,7 +776,24 @@ export function mapCreateTripResponse(response: ApiCreateTripResponse): {
     expensesCreated: number;
     finalStatus: string;
   };
+  warnings?: Array<{
+    code: string;
+    message: string;
+    vehicleId?: string;
+    driverId?: string;
+    conflictingTripId?: string;
+    conflictingTripCode?: string;
+  }>;
 } {
+  const warnings = response.warnings?.map((warning) => ({
+    code: warning.code,
+    message: warning.message,
+    vehicleId: warning.vehicle_id,
+    driverId: warning.driver_id,
+    conflictingTripId: warning.conflicting_trip_id,
+    conflictingTripCode: warning.conflicting_trip_code,
+  }));
+
   return {
     trip: mapApiTrip(response.data.trip),
     summary: {
@@ -787,6 +804,7 @@ export function mapCreateTripResponse(response: ApiCreateTripResponse): {
       expensesCreated: response.data.summary.expenses_created,
       finalStatus: response.data.summary.final_status,
     },
+    ...(warnings && warnings.length > 0 ? { warnings } : {}),
   };
 }
 

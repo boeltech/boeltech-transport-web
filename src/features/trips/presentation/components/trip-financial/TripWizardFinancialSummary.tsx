@@ -16,15 +16,63 @@ export interface TripWizardFinancialSummaryProps {
   className?: string;
   /** Envuelve en Card con encabezado (panel sticky del paso Costos). */
   showCard?: boolean;
+  /**
+   * `lines` (default): lista cada concepto — detalle y resumen del wizard.
+   * `totals`: solo totales y margen — paso Costos (sin eco de líneas).
+   */
+  variant?: "lines" | "totals";
 }
 
 function TripWizardFinancialSummaryBody({
   snapshot,
+  variant,
 }: {
   snapshot: TripWizardFinancialSnapshot;
+  variant: "lines" | "totals";
 }) {
   const { operationalCosts, indirectExpenses, financial, marginToneClass } =
     snapshot;
+
+  if (variant === "totals") {
+    return (
+      <div className="space-y-3">
+        <InfoRow
+          variant="inline"
+          label={copy.label.income}
+          value={formatMxCurrency(financial.baseRate)}
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.costs}
+          value={`−${formatMxCurrency(financial.totalOperationalCosts)}`}
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.expenses}
+          value={`−${formatMxCurrency(financial.totalIndirectExpenses)}`}
+        />
+        <Separator />
+        <InfoRow
+          variant="inline"
+          label={copy.label.margin}
+          value={
+            <span className={cn("font-semibold", marginToneClass)}>
+              {formatMxCurrency(financial.margin)}
+            </span>
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.marginPct}
+          value={
+            financial.marginPct === null
+              ? "—"
+              : `${financial.marginPct.toFixed(1)} %`
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -132,11 +180,12 @@ export function TripWizardFinancialSummary({
   snapshot,
   className,
   showCard = true,
+  variant = "lines",
 }: TripWizardFinancialSummaryProps) {
   if (!showCard) {
     return (
       <div className={className}>
-        <TripWizardFinancialSummaryBody snapshot={snapshot} />
+        <TripWizardFinancialSummaryBody snapshot={snapshot} variant={variant} />
       </div>
     );
   }
@@ -150,7 +199,7 @@ export function TripWizardFinancialSummary({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <TripWizardFinancialSummaryBody snapshot={snapshot} />
+        <TripWizardFinancialSummaryBody snapshot={snapshot} variant={variant} />
       </CardContent>
     </Card>
   );
