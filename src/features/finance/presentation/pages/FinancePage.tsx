@@ -1,64 +1,123 @@
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Landmark } from "lucide-react";
+import { ApprovalInboxPage } from "@features/approvals";
 import { useAuth } from "@features/auth";
-import { buildFinanceTabSearchParams } from "@features/finance/application";
-import { canAccessFinanceSummaryRoute } from "@shared/permissions";
+import {
+  buildFinanceTabSearchParams,
+  isFinanceAnalysisView,
+  resolveFinanceLegacyTab,
+  type FinanceAnalysisView,
+  type FinanceHubTab,
+} from "@features/finance/application";
+import { canAccessFinanceSummaryRoute, usePermissions } from "@shared/permissions";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { FinanceCobranzaTab } from "./FinanceCobranzaTab";
-import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
+import { FinanceAnalysisTab } from "./FinanceAnalysisTab";
+import { FinanceInvoiceableTripsTab } from "./FinanceInvoiceableTripsTab";
 import { FinanceInvoicesTab } from "./FinanceInvoicesTab";
 import { FinanceSummaryTab } from "./FinanceSummaryTab";
-import { ProfitabilityTab } from "./ProfitabilityTab";
-import { ReportsTab } from "./ReportsTab";
 import { financeCopy } from "../copy";
+import { canShowInvoiceFromTripCta } from "../utils/financeInvoiceFromTripCta";
 
-const FULL_TABS = [
+const ANALYTICS_TABS: FinanceHubTab[] = [
   "summary",
+  "invoiceable",
   "invoices",
-  "cobranza",
-  "profitability",
-  "expenses",
-  "reports",
-] as const;
+  "cobros",
+  "analysis",
+  "approvals",
+];
 
-type FinanceTab = (typeof FULL_TABS)[number];
+const LIMITED_TABS: FinanceHubTab[] = ["invoices", "cobros"];
+
+const APPROVALS_TAB_VALUE = "approvals";
 
 export function FinancePage() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const canAnalytics = useMemo(
     () => canAccessFinanceSummaryRoute(user?.role),
     [user?.role],
   );
+  const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
+  const canApprove = hasPermission("finance_approvals", "read");
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const enabledTabs = useMemo<FinanceTab[]>(
-    () => (canAnalytics ? [...FULL_TABS] : ["invoices", "cobranza"]),
-    [canAnalytics],
-  );
+  const enabledTabs = useMemo<FinanceHubTab[]>(() => {
+    const base = canAnalytics ? ANALYTICS_TABS : LIMITED_TABS;
+    return base.filter(
+      (tab) =>
+        (tab !== "invoiceable" || canInvoiceFromTrip) &&
+        (tab !== APPROVALS_TAB_VALUE || canApprove),
+    );
+  }, [canAnalytics, canApprove, canInvoiceFromTrip]);
 
   useEffect(() => {
     const requested = searchParams.get("tab");
-    if (
-      !requested ||
-      enabledTabs.includes(requested as FinanceTab)
-    ) {
+    const resolved = resolveFinanceLegacyTab(requested);
+
+    if (resolved.redirected && resolved.tab && enabledTabs.includes(resolved.tab)) {
+      setSearchParams(
+        buildFinanceTabSearchParams(resolved.tab, {
+          view: resolved.view,
+          preserveFrom: searchParams,
+        }),
+        { replace: true },
+      );
       return;
     }
-    setSearchParams(buildFinanceTabSearchParams("invoices"), { replace: true });
+
+    if (requested && !enabledTabs.includes(requested as FinanceHubTab)) {
+      setSearchParams(
+        buildFinanceTabSearchParams("invoices", {
+          preserveFrom: searchParams,
+        }),
+        { replace: true },
+      );
+    }
   }, [enabledTabs, searchParams, setSearchParams]);
 
-  const activeTab = useMemo<FinanceTab>(() => {
-    const requested = searchParams.get("tab");
-    if (requested && enabledTabs.includes(requested as FinanceTab)) {
-      return requested as FinanceTab;
+  const activeTab = useMemo<FinanceHubTab>(() => {
+    const resolved = resolveFinanceLegacyTab(searchParams.get("tab"));
+    if (resolved.tab && enabledTabs.includes(resolved.tab)) {
+      return resolved.tab;
     }
     return canAnalytics ? "summary" : "invoices";
   }, [searchParams, enabledTabs, canAnalytics]);
 
-  const handleTabChange = (value: string) => {
-    setSearchParams(buildFinanceTabSearchParams(value));
-  };
+  const analysisView = useMemo<FinanceAnalysisView>(() => {
+    const fromUrl = searchParams.get("view");
+    if (isFinanceAnalysisView(fromUrl)) return fromUrl;
+    const legacy = resolveFinanceLegacyTab(searchParams.get("tab"));
+    return legacy.view ?? "margin";
+  }, [searchParams]);
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setSearchParams(
+        buildFinanceTabSearchParams(value, {
+          view: value === "analysis" ? analysisView : undefined,
+          preserveFrom: searchParams,
+        }),
+        { replace: true },
+      );
+    },
+    [analysisView, searchParams, setSearchParams],
+  );
+
+  const handleAnalysisViewChange = useCallback(
+    (view: FinanceAnalysisView) => {
+      setSearchParams(
+        buildFinanceTabSearchParams("analysis", {
+          view,
+          preserveFrom: searchParams,
+        }),
+        { replace: true },
+      );
+    },
+    [searchParams, setSearchParams],
+  );
 
   const tabs = useMemo(() => {
     const items = [
@@ -66,51 +125,70 @@ export function FinancePage() {
         ? {
             value: "summary",
             label: financeCopy.page.tabs.summary,
-            content: <FinanceSummaryTab queriesEnabled={activeTab === "summary"} />,
+            content: (
+              <FinanceSummaryTab queriesEnabled={activeTab === "summary"} />
+            ),
+          }
+        : null,
+      canInvoiceFromTrip
+        ? {
+            value: "invoiceable",
+            label: financeCopy.page.tabs.invoiceable,
+            content: (
+              <FinanceInvoiceableTripsTab
+                queriesEnabled={activeTab === "invoiceable"}
+              />
+            ),
           }
         : null,
       {
         value: "invoices",
         label: financeCopy.page.tabs.invoices,
-        content: <FinanceInvoicesTab showFinanceSummaryMetrics={canAnalytics} />,
+        content: (
+          <FinanceInvoicesTab showFinanceSummaryMetrics={canAnalytics} />
+        ),
       },
       {
-        value: "cobranza",
-        label: financeCopy.page.tabs.cobranza,
+        value: "cobros",
+        label: financeCopy.page.tabs.cobros,
         content: <FinanceCobranzaTab />,
       },
       canAnalytics
         ? {
-            value: "profitability",
-            label: financeCopy.page.tabs.profitability,
-            content: <ProfitabilityTab queriesEnabled={activeTab === "profitability"} />,
+            value: "analysis",
+            label: financeCopy.page.tabs.analysis,
+            content: (
+              <FinanceAnalysisTab
+                queriesEnabled={activeTab === "analysis"}
+                view={analysisView}
+                onViewChange={handleAnalysisViewChange}
+              />
+            ),
           }
         : null,
-      canAnalytics
+      canApprove
         ? {
-            value: "expenses",
-            label: financeCopy.page.tabs.expenses,
-            content: <ExpenseAnalysisTab queriesEnabled={activeTab === "expenses"} />,
-          }
-        : null,
-      canAnalytics
-        ? {
-            value: "reports",
-            label: financeCopy.page.tabs.reports,
-            content: <ReportsTab queriesEnabled={activeTab === "reports"} />,
+            value: APPROVALS_TAB_VALUE,
+            label: financeCopy.page.tabs.approvals,
+            content: <ApprovalInboxPage embedded />,
           }
         : null,
     ].filter(Boolean);
 
     return items as Array<{ value: string; label: string; content: ReactNode }>;
-  }, [activeTab, canAnalytics]);
+  }, [
+    activeTab,
+    analysisView,
+    canAnalytics,
+    canApprove,
+    canInvoiceFromTrip,
+    handleAnalysisViewChange,
+  ]);
 
   return (
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: financeCopy.page.backHref,
-        backLabel: financeCopy.page.backLabel,
         icon: <Landmark className="h-5 w-5" />,
         iconVariant: "primary",
         title: financeCopy.page.title,

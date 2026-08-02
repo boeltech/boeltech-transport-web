@@ -1,138 +1,139 @@
+const exportCopy = {
+  exportCsv: "Exportar CSV",
+  toasts: {
+    exportedTitle: "Archivo exportado",
+    profitability: "Margen por viaje (CSV).",
+    aging: "Antigüedad de saldos por cliente (CSV).",
+    expenses: "Gastos por cliente (CSV).",
+  },
+  files: {
+    profitability: "finance-margen",
+    aging: "finance-antiguedad",
+    expensesByClient: "finance-gastos-cliente",
+  },
+} as const;
+
+const cobrosCopy = {
+  searchCard: {
+    title: "Buscar facturas abiertas",
+    description:
+      "Captura el RFC del cliente para ver facturas a crédito con saldo pendiente.",
+  },
+  receiverRfcLabel: "RFC del cliente",
+  search: "Buscar",
+  loadingTitle: "Consultando facturas",
+  loading: "Cargando facturas abiertas…",
+  loadErrorTitle: "No se pudo consultar",
+  loadError: "No se pudieron cargar las facturas.",
+  emptyTitle: "Sin facturas abiertas",
+  empty: "No hay facturas a crédito con saldo pendiente para este RFC.",
+  initialState: {
+    title: "Empieza con el RFC del cliente",
+    description:
+      "Busca, selecciona las facturas que cubre el mismo cobro y regístralo. El complemento de pago se genera en segundo plano.",
+  },
+  metrics: {
+    openInvoices: "Facturas abiertas",
+    openBalance: "Saldo abierto",
+    selectedInvoices: "Seleccionadas",
+    selectedTotal: "Total a cobrar",
+    forRfc: (rfc: string) => `RFC ${rfc}`,
+    pendingCredit: "A crédito con saldo pendiente",
+    readyToApply: "Listas para aplicar pago",
+    paymentBaseHint: "Base del complemento de pago",
+  },
+  tableTitle: "Facturas abiertas a crédito",
+  tableDescription:
+    "Selecciona las facturas que cubre el mismo pago. Se aplicará el saldo completo de cada una.",
+  tableBadge: (count: number) => `${count} factura${count === 1 ? "" : "s"}`,
+  register: "Registrar cobro",
+  sheetTitle: "Confirmar cobro",
+  sheetDescription:
+    "Se registrará un pago por el total seleccionado y se asignará a las facturas listadas.",
+  sheetTotal: "Total a cobrar",
+  sheetInvoicesTitle: "Facturas incluidas",
+  sheetNoticeTitle: "Complemento de pago",
+  sheetNoticeDescription:
+    "El complemento de pago (REP) se timbra en segundo plano. Si hace falta reparar parcialidades ya timbradas, el sistema te pedirá confirmarlo.",
+  chainRepair: {
+    title: "Reparar cadena de parcialidades",
+    description:
+      "Este pago altera el orden de parcialidades del complemento de pago ya timbradas. Se cancelarán y volverán a timbrar los complementos afectados.",
+    confirm: "Confirmar y registrar",
+    cancel: "Volver",
+  },
+  confirm: "Confirmar y registrar",
+  cancel: "Cancelar",
+  submitting: "Guardando…",
+  toastSuccess:
+    "Cobro registrado; el complemento de pago se timbrará en segundo plano.",
+  toastError: "No se pudo registrar el cobro",
+  selectedSummary: (count: number, total: string) =>
+    `${count} factura${count === 1 ? "" : "s"} seleccionada${count === 1 ? "" : "s"} · Total ${total}`,
+  selectedHint:
+    "El cobro aplicará el saldo completo de cada factura seleccionada.",
+  selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
+  columns: {
+    invoice: "Factura",
+    client: "Cliente",
+    issuedAt: "Emisión",
+    total: "Total",
+    balance: "Saldo",
+  },
+} as const;
+
 export const financeCopy = {
   page: {
     title: "Finanzas",
-    subtitle: "Cobranza, rentabilidad real, analisis de gastos y reporteria.",
-    backHref: "/dashboard",
-    backLabel: "Volver al dashboard",
+    subtitle: "Cobros, facturas, margen y gastos del negocio.",
     tabs: {
       summary: "Resumen",
+      invoiceable: "Por facturar",
       invoices: "Facturas",
-      cobranza: "Cobranza",
-      profitability: "Rentabilidad",
+      cobros: "Cobros",
+      analysis: "Análisis",
+      approvals: "Aprobaciones",
+    },
+    analysisViews: {
+      margin: "Margen",
       expenses: "Gastos",
-      reports: "Reportes",
+      ariaLabel: "Tipo de análisis",
     },
     clearFilters: "Limpiar filtros",
   },
-  cobranza: {
-    hero: {
-      badge: "Cobranza PPD",
-      secondaryBadge: "REP en segundo plano",
-      title: "Registra cobros multi-factura sin perder la cadena REP",
-      description:
-        "Busca las facturas PPD abiertas de un receptor, selecciona las que cubre el pago y registra el cobro en una sola operación. Si el pago altera parcialidades ya timbradas, el sistema te pedirá confirmar la reparación.",
-      stepPrefix: (step: number) => `Paso ${step}`,
-      steps: [
-        {
-          title: "Busca por RFC",
-          description: "Ubica solo la cartera PPD abierta de ese receptor.",
-        },
-        {
-          title: "Selecciona saldos",
-          description: "Agrupa una o varias facturas que cubre el mismo cobro.",
-        },
-        {
-          title: "Registra y timbra",
-          description: "El pago queda aplicado y el REP se timbra en segundo plano.",
-        },
-      ],
-    },
-    searchCard: {
-      title: "Buscar cartera del receptor",
-      description:
-        "Captura el RFC para consultar facturas PPD timbradas con saldo pendiente.",
-    },
-    receiverRfcLabel: "RFC receptor",
-    search: "Buscar facturas PPD",
-    loadingTitle: "Consultando cartera",
-    loading: "Cargando facturas abiertas…",
-    loadErrorTitle: "No se pudo consultar la cartera",
-    loadError: "No se pudieron cargar las facturas.",
-    emptyTitle: "Sin facturas abiertas",
-    empty: "No hay facturas PPD abiertas para este RFC.",
-    initialState: {
-      title: "Empieza con el RFC del receptor",
-      description:
-        "Cobranza trabaja sobre facturas PPD abiertas. Después de buscar, podrás seleccionar saldos y registrar el cobro multi-factura.",
-    },
-    metrics: {
-      openInvoices: "Facturas abiertas",
-      openBalance: "Saldo abierto",
-      selectedInvoices: "Seleccionadas",
-      selectedTotal: "Total a cobrar",
-      forRfc: (rfc: string) => `RFC ${rfc}`,
-      pendingPpd: "PPD con saldo pendiente",
-      readyToApply: "Listas para aplicar pago",
-      repHint: "Base para el REP",
-    },
-    tableTitle: "Facturas PPD abiertas",
-    tableDescription:
-      "Selecciona las facturas que cubre el mismo pago. El sistema aplicará el saldo total de cada documento seleccionado.",
-    tableBadge: (count: number) => `${count} factura${count === 1 ? "" : "s"}`,
-    register: "Registrar cobro",
-    sheetTitle: "Confirmar cobro multi-factura",
-    sheetDescription:
-      "Se registrará un pago por el total seleccionado y se asignará a las facturas listadas.",
-    sheetTotal: "Total a cobrar",
-    sheetInvoicesTitle: "Facturas incluidas",
-    sheetNoticeTitle: "Timbrado REP",
-    sheetNoticeDescription:
-      "El complemento de pago se timbra en segundo plano. Si la cadena de parcialidades requiere reparación, confirma el ajuste cuando el sistema lo solicite.",
-    chainRepair: {
-      title: "Reparar cadena de parcialidades",
-      description:
-        "Este pago altera el orden de parcialidades REP ya timbradas. Se cancelarán y volverán a timbrar los complementos afectados.",
-      confirm: "Confirmar y registrar",
-      cancel: "Volver",
-    },
-    confirm: "Confirmar y registrar",
-    cancel: "Cancelar",
-    submitting: "Guardando…",
-    toastSuccess: "Cobro registrado; el REP se timbrará en segundo plano.",
-    toastError: "No se pudo registrar el cobro",
-    selectedSummary: (count: number, total: string) =>
-      `${count} factura${count === 1 ? "" : "s"} seleccionada${count === 1 ? "" : "s"} · Total ${total}`,
-    selectedHint:
-      "El cobro aplicará el saldo completo de cada factura seleccionada.",
-    selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
-    columns: {
-      invoice: "Factura",
-      client: "Cliente",
-      issuedAt: "Emisión",
-      total: "Total",
-      balance: "Saldo",
-    },
-  },
+  cobros: cobrosCopy,
+  /** Alias de compatibilidad para imports existentes. */
+  cobranza: cobrosCopy,
   summary: {
     sections: {
-      indicators: "Indicadores financieros",
-      visualizations: "Visualizaciones",
+      indicators: "Indicadores",
       accountStatement: "Estado de cuenta por cliente",
     },
     accountStatement: {
       description:
-        "Saldos consolidados por cliente con facturación timbrada y pagos registrados.",
+        "Saldos consolidados por cliente con facturas timbradas y pagos registrados.",
     },
-    dsoTitle: "DSO (30 dias)",
-    daysSuffix: "dias",
+    dsoTitle: "Días promedio de cobro (30 días)",
+    daysSuffix: "días",
     agingBuckets: {
-      "0-30": "0-30 dias",
-      "31-60": "31-60 dias",
-      "61-90": "61-90 dias",
-      "90+": "90+ dias",
+      "0-30": "0–30 días",
+      "31-60": "31–60 días",
+      "61-90": "61–90 días",
+      "90+": "Más de 90 días",
     },
+    exportAging: "Exportar antigüedad (CSV)",
     invoicesCountLabel: (count: number) => `${count} facturas`,
     errors: {
       summary: "Error al cargar resumen financiero",
       statement: "Error al cargar estado de cuenta",
-      aging: "Error al cargar aging",
+      aging: "Error al cargar antigüedad de saldos",
       incomeByMonth: "Error al cargar ingresos por mes",
       invoicesByStatusMonth: "Error al cargar facturas por estado y mes",
     },
     empty: {
-      title: "Sin datos de cobranza",
+      title: "Sin datos de cobro",
       description:
-        "Aun no hay facturas timbradas con saldo para mostrar por cliente.",
+        "Aún no hay facturas timbradas con saldo para mostrar por cliente.",
     },
     table: {
       client: "Cliente",
@@ -147,6 +148,14 @@ export const financeCopy = {
       empty: {
         title: "Sin datos para graficar",
       },
+      agingBuckets: {
+        title: "Antigüedad de saldos",
+        description: "Saldo pendiente por rango de días vencidos",
+        balanceLabel: "Saldo",
+        footer: (totalReceivable: string) =>
+          `Cartera total por antigüedad: ${totalReceivable}`,
+      },
+      /** Conservado para charts legacy no montados en Resumen. */
       amounts: {
         title: "Cartera por cobrar",
         description: "Distribución de montos: por cobrar, cobrado y vencido",
@@ -164,18 +173,11 @@ export const financeCopy = {
         centerLabel: "Total facturas",
         emptyDescription: "No hay facturas registradas con los filtros actuales.",
       },
-      agingBuckets: {
-        title: "Aging de cobranza",
-        description: "Saldo pendiente por bucket de vencimiento",
-        balanceLabel: "Saldo",
-        footer: (totalReceivable: string) =>
-          `Cartera total en aging: ${totalReceivable}`,
-      },
       incomeByMonth: {
         title: "Ingresos cobrados por mes",
-        description: "Pagos registrados en los ultimos meses",
+        description: "Pagos registrados en los últimos meses",
         footer: (latestCollected: string) =>
-          `Ultimo mes registrado: ${latestCollected}`,
+          `Último mes registrado: ${latestCollected}`,
       },
       invoicesByStatusMonth: {
         title: "Facturas por estado y mes",
@@ -198,7 +200,8 @@ export const financeCopy = {
     },
     empty: {
       title: "No hay facturas",
-      withFilters: "No hay resultados con los filtros actuales. Prueba otro criterio o limpia los filtros.",
+      withFilters:
+        "No hay resultados con los filtros actuales. Prueba otro criterio o limpia los filtros.",
       clearFilters: "Limpiar filtros",
     },
     entityLabelPlural: "facturas",
@@ -206,7 +209,10 @@ export const financeCopy = {
       stamped: { label: "Timbradas", description: "facturas" },
       draft: { label: "Borradores", description: "facturas" },
       receivable: { label: "Por cobrar", description: "Saldo pendiente" },
-      cancellationPending: { label: "Cancelación pendiente", description: "facturas" },
+      cancellationPending: {
+        label: "Cancelación pendiente",
+        description: "facturas",
+      },
       cancelled: { label: "Canceladas", description: "facturas" },
     },
     statusLabels: {
@@ -230,65 +236,92 @@ export const financeCopy = {
     fromTripCta: {
       label: "Facturar desde viaje",
       tooltip:
-        "Abre el listado de viajes para generar CFDI desde un viaje con facturación disponible",
+        "Abre el listado de viajes para generar una factura desde un viaje con facturación disponible",
       emptyDescription:
-        "Genera CFDI desde un viaje elegible en el módulo Viajes.",
-      tripsPath: "/trips",
+        "Genera una factura desde un viaje elegible en el módulo Viajes.",
     },
     newInvoiceCta: {
       label: "Nueva factura",
-      tooltip:
-        "Selecciona un viaje facturable para generar un nuevo CFDI",
+      tooltip: "Selecciona un viaje facturable para generar una nueva factura",
       emptyDescription:
         "Crea tu primera factura seleccionando un viaje facturable.",
     },
+  },
+  invoiceable: {
+    title: "Viajes por facturar",
+    description:
+      "Viajes con facturación disponible que aún no tienen factura emitida.",
+    searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
+    entityLabelPlural: "viajes por facturar",
+    invoiceAction: "Facturar",
+    noClient: "Sin cliente",
+    table: {
+      trip: "Viaje",
+      client: "Cliente",
+      route: "Ruta",
+      departure: "Salida programada",
+      baseRate: "Importe del viaje",
+      empty: "No hay viajes por facturar.",
+    },
+    empty: {
+      title: "Nada por facturar",
+      description:
+        "Todos los viajes con facturación disponible ya tienen factura.",
+      withFilters:
+        "No hay resultados con la búsqueda actual. Prueba otro folio o cliente.",
+      clearFilters: "Limpiar búsqueda",
+    },
+    loadError: "Error al cargar viajes por facturar",
   },
   profitability: {
     scope: {
       label: "Alcance",
       operational: "Operativo",
       with_in_progress: "Con viajes en curso",
-      pipeline: "Pipeline (proyectado)",
+      pipeline: "Estimado (viajes por iniciar)",
       cancelled: "Cancelados",
       all: "Todos",
     },
     context: {
       heading: "Fuera de operación · no incluido en el margen",
-      projected: "Pipeline proyectado",
+      projected: "Ingreso estimado",
       projectedHint: "Ingreso estimado de viajes en borrador y programados.",
       cancellationLoss: "Pérdida por cancelaciones",
       cancellationLossHint:
-        "Gastos aprobados de viajes cancelados (no incluye CFDI cancelados).",
-      cancelledInvoiceRevenue: "Ingreso no reconocido (CFDI cancelado)",
+        "Gastos aprobados de viajes cancelados (no incluye facturas canceladas).",
+      cancelledInvoiceRevenue: "Ingreso no reconocido (factura cancelada)",
       cancelledInvoiceRevenueHint:
         "Subtotales acumulados de facturas canceladas vinculadas a viajes.",
     },
     buckets: {
       realized: "Realizado",
       in_progress: "En curso",
-      pipeline: "Pipeline",
+      pipeline: "Estimado",
       cancellation_loss: "Cancelación",
     },
     bucketBar: {
       title: "Composición financiera",
       description:
-        "Distribución global de ingresos reconocidos, pipeline, gasto en curso y pérdidas por cancelación.",
+        "Distribución global de ingresos reconocidos, estimado, gasto en curso y pérdidas por cancelación.",
       footer: "Los segmentos fuera de realizado no entran en el margen operativo.",
       emptyDescription: "No hay datos de composición financiera.",
     },
     barList: {
-      title: "Top dimensiones",
-      description: "Ranking de los cinco grupos con mayor métrica según el alcance activo.",
+      title: "Top grupos",
+      description:
+        "Ranking de los cinco grupos con mayor métrica según el alcance activo.",
       emptyDescription: "No hay agregados para mostrar ranking.",
     },
     metrics: {
-      totalRevenue: "Ingreso reconocido",
-      totalRevenueHint: "Subtotal de factura timbrada o tarifa base del viaje (sin IVA).",
-      projectedRevenue: "Ingreso proyectado",
+      totalRevenue: "Ingreso",
+      totalRevenueHint:
+        "Subtotal de factura timbrada o tarifa base del viaje (sin IVA).",
+      projectedRevenue: "Ingreso estimado",
       cancellationLoss: "Pérdida por cancelación",
       tripCount: "Viajes",
-      totalActual: "Gasto real total",
-      blendedMargin: "Margen blended",
+      totalActual: "Gasto real",
+      blendedMargin: "Margen",
+      blendedMarginHint: "Ingreso menos gasto real",
       blendedMarginPct: "Margen %",
       tripSample: {
         title: "Viajes en muestra",
@@ -298,11 +331,11 @@ export const financeCopy = {
     filters: {
       statusPlaceholder: "Filtrar por rentabilidad",
       allStatuses: "Todas",
-      dimensionPlaceholder: "Dimension de agregado",
+      dimensionPlaceholder: "Agrupar por",
       chipScope: (value: string) =>
         `Alcance: ${financeCopy.profitability.scope[value as keyof typeof financeCopy.profitability.scope] ?? value}`,
       chipDimension: (value: string) =>
-        `Dimension: ${financeCopy.profitability.filters.dimensions[value as keyof typeof financeCopy.profitability.filters.dimensions] ?? value}`,
+        `Agrupar por: ${financeCopy.profitability.filters.dimensions[value as keyof typeof financeCopy.profitability.filters.dimensions] ?? value}`,
       chipStatus: (value: string) =>
         `Rentabilidad: ${financeCopy.profitability.statuses[value as keyof typeof financeCopy.profitability.statuses] ?? value}`,
       dimensions: {
@@ -320,18 +353,19 @@ export const financeCopy = {
       actualTotal: "Gasto real",
       margin: "Margen",
       marginPct: "Margen %",
-      projected: "Proyectado",
-      bucket: "Bucket",
+      projected: "Estimado",
+      bucket: "Etapa",
       status: "Estado",
       noClient: "Sin cliente",
       revenueSourceInvoice: "Facturado (subtotal)",
       revenueSourceBaseRate: "Tarifa base",
-      cancelledInvoiceRevenue: (amount: string) => `CFDI cancelado: ${amount}`,
+      cancelledInvoiceRevenue: (amount: string) =>
+        `Factura cancelada: ${amount}`,
     },
     aggregateTable: {
-      title: "Rentabilidad por dimension",
+      title: "Margen por grupo",
       description:
-        "Agregados por cliente, unidad, operador, ruta o mes. Expanda una fila para ver viajes del grupo; el codigo de viaje abre su detalle.",
+        "Agregados por cliente, unidad, operador, ruta o mes. Expande una fila para ver viajes del grupo; el código de viaje abre su detalle.",
       trips: "Viajes",
       revenue: "Ingreso",
       actualTotal: "Gasto real",
@@ -345,7 +379,7 @@ export const financeCopy = {
       viewTrip: (tripCode: string) => `Ver detalle del viaje ${tripCode}`,
     },
     empty: {
-      title: "Sin viajes para rentabilidad",
+      title: "Sin viajes para margen",
       description: "No hay viajes que cumplan los filtros actuales.",
     },
     statuses: {
@@ -353,7 +387,7 @@ export const financeCopy = {
       medium: "Media",
       low: "Baja",
       breakeven: "Equilibrio",
-      loss: "Perdida",
+      loss: "Pérdida",
     },
     charts: {
       empty: {
@@ -361,13 +395,13 @@ export const financeCopy = {
       },
       monthlyTrend: {
         title: "Ingreso vs gasto real por mes",
-        description: "Tendencia mensual de rentabilidad agregada",
+        description: "Tendencia mensual de margen agregado",
         comboDescription:
           "Barras: ingreso y gasto. Línea: margen % (solo viajes realizados).",
         footer: (monthCount: number) =>
           monthCount > 0
             ? `${monthCount} mes(es) en la serie`
-            : "Sin meses con datos de rentabilidad",
+            : "Sin meses con datos de margen",
         emptyDescription: "No hay agregados mensuales para mostrar.",
       },
       statusDistribution: {
@@ -378,41 +412,46 @@ export const financeCopy = {
         emptyDescription: "No hay viajes en la muestra para los filtros actuales.",
       },
     },
+    exportCsv: "Exportar margen (CSV)",
   },
   expenses: {
     alert: {
       title: "Solo gastos aprobados",
-      body:
-        "Este reporte agrupa conceptos de costos y gastos del viaje (tab Costos) con estado Aprobado. Los pendientes no se incluyen hasta que un gerente o administrador los apruebe en el detalle del viaje.",
-      bodyRoutePrefix: "Registre conceptos en",
-      bodyRouteLink: "Viajes -> detalle -> Costos",
+      body: "Se incluyen conceptos de costo del viaje ya aprobados. Los pendientes aparecen cuando un gerente o administrador los aprueba en el detalle del viaje.",
+      bodyRoutePrefix: "Registra conceptos en",
+      bodyRouteLink: "Viajes → detalle → Costos",
       bodyRouteSuffix:
-        ". La tarifa base y los costos presupuestados del viaje no alimentan este tab.",
+        ". La tarifa base y los costos presupuestados no alimentan este análisis.",
     },
     metrics: {
       currentPeriodExpense: "Gasto total del periodo actual",
       referencePeriod: "Periodo de referencia",
       activeCategories: {
-        title: "Categorias con gasto",
+        title: "Categorías con gasto",
         subtitle: "Conceptos aprobados en el periodo",
       },
       dimensionRows: {
-        title: "Registros por dimension",
+        title: "Registros por grupo",
         subtitle: (dimensionLabel: string) => `Agrupado por ${dimensionLabel}`,
       },
     },
     filters: {
-      granularity: "Granularidad",
+      granularity: "Periodo",
       granularityValues: {
         day: "Diaria",
         week: "Semanal",
         month: "Mensual",
       },
       chipGranularity: (value: string) =>
-        `Granularidad: ${financeCopy.expenses.filters.granularityValues[value as keyof typeof financeCopy.expenses.filters.granularityValues] ?? value}`,
+        `Periodo: ${financeCopy.expenses.filters.granularityValues[value as keyof typeof financeCopy.expenses.filters.granularityValues] ?? value}`,
       chipDimension: (value: string) =>
-        `Dimension: ${financeCopy.expenses.filters.dimensionValues[value as keyof typeof financeCopy.expenses.filters.dimensionValues] ?? value}`,
-      dimension: "Dimension",
+        `Agrupar por: ${financeCopy.expenses.filters.dimensionValues[value as keyof typeof financeCopy.expenses.filters.dimensionValues] ?? value}`,
+      chipFrom: (value: string) => `Desde: ${value}`,
+      chipTo: (value: string) => `Hasta: ${value}`,
+      chipVehicle: "Unidad seleccionada",
+      dateRangeHeading: "Periodo de gastos",
+      dateRangePlaceholder: "Seleccionar periodo",
+      dimension: "Agrupar por",
       dimensionValues: {
         vehicle: "Unidad",
         driver: "Operador",
@@ -421,14 +460,15 @@ export const financeCopy = {
       },
     },
     table: {
-      title: "Gasto por dimension",
+      title: "Gasto por grupo",
       description:
-        "Totales y promedios por viaje segun la dimension seleccionada (solo gastos aprobados).",
-      category: "Categoria",
+        "Totales y promedios por viaje según el agrupamiento seleccionado (solo gastos aprobados).",
+      category: "Categoría",
       amount: "Monto",
       dimensionTripCount: "Viajes",
       totalExpense: "Gasto total",
       avgExpensePerTrip: "Promedio por viaje",
+      viewVehicle: (label: string) => `Ver detalle de la unidad ${label}`,
       dimensionColumn: {
         vehicle: "Unidad",
         driver: "Operador",
@@ -439,68 +479,34 @@ export const financeCopy = {
     empty: {
       title: "Sin datos de gastos",
       description:
-        "No hay gastos aprobados para los filtros actuales. Revise que existan conceptos en Viajes -> Costos y que esten en estado Aprobado.",
+        "No hay gastos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Costos y que estén aprobados.",
     },
     charts: {
       empty: {
         title: "Sin datos para graficar",
       },
       timeSeries: {
-        title: "Gastos por categoria en el tiempo",
-        description: "Evolucion de gastos aprobados por periodo",
+        title: "Gastos por categoría en el tiempo",
+        description: "Evolución de gastos aprobados por periodo",
         footer: (periodCount: number, categoryCount: number) =>
-          `${periodCount} periodo(s) · ${categoryCount} categoria(s)`,
+          `${periodCount} periodo(s) · ${categoryCount} categoría(s)`,
       },
       latestPeriod: {
-        title: "Composicion del periodo actual",
-        description: "Distribucion por categoria en el ultimo periodo",
+        title: "Composición del periodo actual",
+        description: "Distribución por categoría en el último periodo",
         centerLabel: "Total periodo",
         footer: (referencePeriod: string) => `Periodo: ${referencePeriod}`,
         emptyDescription:
-          "No hay gastos aprobados en el ultimo periodo para este rango.",
+          "No hay gastos aprobados en el último periodo para este rango.",
       },
     },
+    exportCsv: "Exportar gastos (CSV)",
   },
-  reports: {
-    cards: {
-      profitability: {
-        title: "Rentabilidad por viaje",
-        description:
-          "Exporta un snapshot de margen, ingreso y gasto real por viaje.",
-      },
-      aging: {
-        title: "Aging de cobranza",
-        description: "Exporta bucket de vencimiento por cliente para cobranza.",
-      },
-      expenses: {
-        title: "Gastos por cliente",
-        description:
-          "Exporta gasto total y promedio por viaje agrupado por cliente.",
-      },
-      coverage: {
-        title: "Cobertura de datos",
-        descriptionPrefix: "Registros listos para exportacion en esta sesion:",
-      },
-    },
-    actions: {
-      exportCsv: "Exportar CSV",
-    },
-    toasts: {
-      exportedTitle: "Reporte exportado",
-      profitability: "Rentabilidad por viaje (CSV).",
-      aging: "Aging por cliente (CSV).",
-      expenses: "Gastos por dimension cliente (CSV).",
-    },
-    files: {
-      profitability: "finance-profitability",
-      aging: "finance-aging",
-      expensesByClient: "finance-expenses-by-client",
-    },
-  },
+  exports: exportCopy,
   kpis: {
     totalReceivable: {
       title: "Por cobrar",
-      description: "Facturas PPD con saldo pendiente",
+      description: "Facturas a crédito con saldo pendiente",
     },
     collectedThisMonth: {
       title: "Cobrado este mes",
@@ -508,7 +514,7 @@ export const financeCopy = {
     },
     totalOverdue: {
       title: "Vencido",
-      description: "Facturas PPD con pago pendiente",
+      description: "Facturas a crédito con pago pendiente",
     },
     expensesThisMonth: {
       title: "Gastos del mes",
@@ -516,4 +522,3 @@ export const financeCopy = {
     },
   },
 } as const;
-

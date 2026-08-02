@@ -206,6 +206,7 @@ export const financeApi = {
     addOptionalParam(params, "from", filters.from);
     addOptionalParam(params, "to", filters.to);
     addOptionalParam(params, "category", filters.category);
+    addOptionalParam(params, "vehicle_id", filters.vehicleId);
     const expenseSortBy = filters.sortBy ?? "total";
     addOptionalParam(
       params,

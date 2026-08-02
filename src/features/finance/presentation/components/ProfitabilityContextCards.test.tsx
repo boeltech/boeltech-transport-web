@@ -28,10 +28,10 @@ describe("ProfitabilityContextCards", () => {
     expect(
       screen.getByText("Fuera de operación · no incluido en el margen"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Pipeline proyectado")).toBeInTheDocument();
+    expect(screen.getByText("Ingreso estimado")).toBeInTheDocument();
     expect(screen.getByText("Pérdida por cancelaciones")).toBeInTheDocument();
     expect(
-      screen.getByText("Ingreso no reconocido (CFDI cancelado)"),
+      screen.getByText("Ingreso no reconocido (factura cancelada)"),
     ).toBeInTheDocument();
   });
 });

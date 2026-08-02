@@ -19,7 +19,19 @@ export {
 } from "./hooks/useFinancePayments";
 export { useFinanceListingFilters } from "./hooks/useFinanceListingFilters";
 export {
+  getCurrentMonthExpenseRange,
+  type FinanceDateRange,
+} from "./expensePeriod";
+export {
   FINANCE_TAB_PARAM,
+  FINANCE_ANALYSIS_VIEW_PARAM,
+  FINANCE_TABS,
+  FINANCE_ANALYSIS_VIEWS,
   FINANCE_PRESERVED_URL_PARAMS,
   buildFinanceTabSearchParams,
+  isFinanceHubTab,
+  isFinanceAnalysisView,
+  resolveFinanceLegacyTab,
+  type FinanceHubTab,
+  type FinanceAnalysisView,
 } from "./financeListingFilters";

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import {
   useFinanceListingFilters,
   useProfitabilityAggregate,
@@ -9,17 +10,17 @@ import type {
   ProfitabilityScope,
   ProfitabilityStatus,
 } from "@features/finance/domain";
+import { Button } from "@shared/ui/button";
+import { useToast } from "@shared/hooks";
 import {
   FinanceTabFiltersBar,
-  ProfitabilityBucketBar,
   ProfitabilityCharts,
-  ProfitabilityContextCards,
-  ProfitabilityDimensionBarList,
   ProfitabilityKpiCards,
   ProfitabilityMasterDetailTable,
   ProfitabilityScopeToolbar,
 } from "../components";
 import { financeCopy } from "../copy";
+import { exportProfitabilityTripsCsv } from "../utils/financeExportHelpers";
 
 interface ProfitabilityTabProps {
   queriesEnabled: boolean;
@@ -29,6 +30,7 @@ const DEFAULT_SCOPE: ProfitabilityScope = "operational";
 const DEFAULT_DIMENSION: ProfitabilityDimension = "client";
 
 export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
+  const { toast } = useToast();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const filters = useFinanceListingFilters<"scope" | "dimension" | "status">({
@@ -86,7 +88,7 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
 
   const tripFilters = useMemo(
     () => ({
-      limit: 20,
+      limit: 100,
       page: 1,
       scope,
       profitabilityStatus:
@@ -97,23 +99,8 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
     [scope, status],
   );
 
-  const { data: trips, isLoading: tripsLoading } = useProfitabilityTrips(tripFilters, {
-    enabled: queriesEnabled,
-  });
-
-  const { data: contextTrips, isLoading: contextLoading } = useProfitabilityTrips(
-    { scope: "all", page: 1, limit: 1 },
-    { enabled: queriesEnabled },
-  );
-
-  const { data: inProgressTrips, isLoading: inProgressLoading } =
-    useProfitabilityTrips(
-      { scope: "with_in_progress", page: 1, limit: 1 },
-      { enabled: queriesEnabled },
-    );
-
-  const { data: operationalTrips } = useProfitabilityTrips(
-    { scope: "operational", page: 1, limit: 1 },
+  const { data: trips, isLoading: tripsLoading } = useProfitabilityTrips(
+    tripFilters,
     { enabled: queriesEnabled },
   );
 
@@ -127,10 +114,8 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
     [dimension, scope],
   );
 
-  const { data: aggregate, isLoading: aggregateLoading } = useProfitabilityAggregate(
-    aggregateFilters,
-    { enabled: queriesEnabled },
-  );
+  const { data: aggregate, isLoading: aggregateLoading } =
+    useProfitabilityAggregate(aggregateFilters, { enabled: queriesEnabled });
 
   const { data: monthAggregate, isLoading: monthAggregateLoading } =
     useProfitabilityAggregate(
@@ -149,15 +134,27 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
     [status],
   );
 
-  const inProgressActual = useMemo(() => {
-    const withProgress = inProgressTrips?.aggregates.totalActual ?? 0;
-    const completed = operationalTrips?.aggregates.totalActual ?? 0;
-    return Math.max(0, withProgress - completed);
-  }, [inProgressTrips, operationalTrips]);
-
   return (
     <div className="space-y-6">
-      <ProfitabilityScopeToolbar scope={scope} onScopeChange={handleScopeChange} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <ProfitabilityScopeToolbar scope={scope} onScopeChange={handleScopeChange} />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!trips?.data.length}
+          onClick={() => {
+            exportProfitabilityTripsCsv(trips?.data ?? []);
+            toast({
+              title: financeCopy.exports.toasts.exportedTitle,
+              description: financeCopy.exports.toasts.profitability,
+            });
+          }}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {financeCopy.profitability.exportCsv}
+        </Button>
+      </div>
 
       <FinanceTabFiltersBar
         chips={filters.activeChips}
@@ -172,31 +169,13 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
         isLoading={tripsLoading || monthAggregateLoading}
       />
 
-      <ProfitabilityBucketBar
-        contextTrips={contextTrips}
-        inProgressActual={inProgressActual}
-        isLoading={contextLoading || inProgressLoading}
-      />
-
-      <ProfitabilityContextCards
-        aggregates={contextTrips?.aggregates}
-        isLoading={contextLoading}
-      />
-
       <ProfitabilityCharts
         scope={scope}
         trips={trips}
         monthAggregate={monthAggregate}
         tripsLoading={tripsLoading}
         monthLoading={monthAggregateLoading}
-      />
-
-      <ProfitabilityDimensionBarList
-        scope={scope}
-        dimension={dimension}
-        aggregate={aggregate}
-        isLoading={aggregateLoading}
-        onSelectKey={setExpandedKey}
+        showStatusDistribution={false}
       />
 
       <ProfitabilityMasterDetailTable

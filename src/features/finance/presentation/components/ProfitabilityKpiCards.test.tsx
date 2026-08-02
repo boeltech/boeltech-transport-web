@@ -28,19 +28,19 @@ describe("ProfitabilityKpiCards", () => {
     render(
       <ProfitabilityKpiCards scope="operational" trips={baseTrips} />,
     );
-    expect(screen.getByText("Ingreso reconocido")).toBeInTheDocument();
-    expect(screen.getByText("Margen blended")).toBeInTheDocument();
+    expect(screen.getByText("Ingreso")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Margen$/).length).toBeGreaterThan(0);
   });
 
   it("shows projected revenue without margin for pipeline scope", () => {
     render(<ProfitabilityKpiCards scope="pipeline" trips={baseTrips} />);
-    expect(screen.getByText("Ingreso proyectado")).toBeInTheDocument();
-    expect(screen.queryByText("Margen blended")).not.toBeInTheDocument();
+    expect(screen.getByText("Ingreso estimado")).toBeInTheDocument();
+    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
   });
 
   it("shows cancellation loss for cancelled scope", () => {
     render(<ProfitabilityKpiCards scope="cancelled" trips={baseTrips} />);
     expect(screen.getByText("Pérdida por cancelación")).toBeInTheDocument();
-    expect(screen.queryByText("Margen blended")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
   });
 });

@@ -87,7 +87,7 @@ function FinanceChainRepairConfirmDialog({
   onConfirm: () => void;
   isPending?: boolean;
 }) {
-  const copy = financeCopy.cobranza.chainRepair;
+  const copy = financeCopy.cobros.chainRepair;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,7 +105,7 @@ function FinanceChainRepairConfirmDialog({
             {copy.cancel}
           </Button>
           <Button type="button" disabled={isPending} onClick={onConfirm}>
-            {isPending ? financeCopy.cobranza.submitting : copy.confirm}
+            {isPending ? financeCopy.cobros.submitting : copy.confirm}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -114,7 +114,7 @@ function FinanceChainRepairConfirmDialog({
 }
 
 export function FinanceCobranzaTab() {
-  const copy = financeCopy.cobranza;
+  const copy = financeCopy.cobros;
   const { toast } = useToast();
   const [receiverRfc, setReceiverRfc] = useState("");
   const [searchRfc, setSearchRfc] = useState<string | null>(null);
@@ -211,67 +211,49 @@ export function FinanceCobranzaTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden">
-        <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{copy.hero.badge}</Badge>
-              <Badge variant="outline">{copy.hero.secondaryBadge}</Badge>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Search className="h-4 w-4" aria-hidden />
+            {copy.searchCard.title}
+          </CardTitle>
+          <CardDescription>{copy.searchCard.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1 space-y-1">
+              <label className="text-sm font-medium" htmlFor="receiver-rfc">
+                {copy.receiverRfcLabel}
+              </label>
+              <Input
+                id="receiver-rfc"
+                value={receiverRfc}
+                onChange={(e) => setReceiverRfc(e.target.value.toUpperCase())}
+                placeholder="XAXX010101000"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && receiverRfc.trim()) {
+                    handleSearch();
+                  }
+                }}
+              />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold">{copy.hero.title}</h2>
-              <p className="max-w-3xl text-sm text-muted-foreground">
-                {copy.hero.description}
-              </p>
-            </div>
-            <div className="grid gap-3 text-sm sm:grid-cols-3">
-              {copy.hero.steps.map((step, index) => (
-                <div key={step.title} className="rounded-md border bg-muted/30 p-3">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {copy.hero.stepPrefix(index + 1)}
-                  </p>
-                  <p className="font-medium">{step.title}</p>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
-                </div>
-              ))}
-            </div>
+            <Button
+              type="button"
+              onClick={handleSearch}
+              disabled={!receiverRfc.trim()}
+              className="sm:w-auto"
+            >
+              {copy.search}
+            </Button>
           </div>
-
-          <Card className="border-primary/20 bg-primary/5 shadow-none">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Search className="h-4 w-4" aria-hidden />
-                {copy.searchCard.title}
-              </CardTitle>
-              <CardDescription>{copy.searchCard.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <label className="text-sm font-medium" htmlFor="receiver-rfc">
-                    {copy.receiverRfcLabel}
-                  </label>
-                  <Input
-                    id="receiver-rfc"
-                    value={receiverRfc}
-                    onChange={(e) => setReceiverRfc(e.target.value.toUpperCase())}
-                    placeholder="XAXX010101000"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleSearch}
-                  disabled={!receiverRfc.trim()}
-                  className="sm:w-auto"
-                >
-                  {copy.search}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </CardContent>
       </Card>
+
+      {!searchRfc ? (
+        <AlertWithIcon variant="info" title={copy.initialState.title}>
+          {copy.initialState.description}
+        </AlertWithIcon>
+      ) : null}
 
       {searchRfc ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -285,7 +267,7 @@ export function FinanceCobranzaTab() {
             icon={<CircleDollarSign className="h-4 w-4" aria-hidden />}
             label={copy.metrics.openBalance}
             value={formatMxCurrency(openBalance)}
-            hint={copy.metrics.pendingPpd}
+            hint={copy.metrics.pendingCredit}
           />
           <MetricCard
             icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
@@ -297,7 +279,7 @@ export function FinanceCobranzaTab() {
             icon={<ReceiptText className="h-4 w-4" aria-hidden />}
             label={copy.metrics.selectedTotal}
             value={formatMxCurrency(selectedTotal)}
-            hint={copy.metrics.repHint}
+            hint={copy.metrics.paymentBaseHint}
           />
         </div>
       ) : null}
@@ -320,12 +302,6 @@ export function FinanceCobranzaTab() {
           description={copy.empty}
           size="md"
         />
-      ) : null}
-
-      {!searchRfc ? (
-        <AlertWithIcon variant="info" title={copy.initialState.title}>
-          {copy.initialState.description}
-        </AlertWithIcon>
       ) : null}
 
       {invoices.length > 0 ? (

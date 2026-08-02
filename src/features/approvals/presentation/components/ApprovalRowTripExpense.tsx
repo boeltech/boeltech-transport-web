@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -38,6 +38,10 @@ export function ApprovalRowTripExpense({
   onApprove,
   onReject,
 }: ApprovalRowTripExpenseProps) {
+  const location = useLocation();
+  /** Devuelve a la bandeja con los filtros con los que se abrió el viaje. */
+  const inboxHref = `${location.pathname}${location.search}`;
+
   if (item.context.approvableType !== "trip_expense") {
     return null;
   }
@@ -74,7 +78,8 @@ export function ApprovalRowTripExpense({
       </TableCell>
       <TableCell>
         <Link
-          to={`/trips/${ctx.tripId}`}
+          to={`/trips/${ctx.tripId}?tab=costs`}
+          state={{ from: inboxHref }}
           className="font-medium text-primary hover:underline"
         >
           {ctx.tripCode}

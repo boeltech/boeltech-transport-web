@@ -51,9 +51,10 @@ describe("ApprovalRow", () => {
       </MemoryRouter>,
     );
 
+    // El gasto aprobado vive en el tab de costos del viaje.
     expect(screen.getByRole("link", { name: "V-2026-001" })).toHaveAttribute(
       "href",
-      "/trips/trip-1",
+      "/trips/trip-1?tab=costs",
     );
     expect(screen.getByText("Combustible")).toBeInTheDocument();
   });

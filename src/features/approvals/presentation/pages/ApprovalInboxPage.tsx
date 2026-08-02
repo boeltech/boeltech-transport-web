@@ -61,7 +61,15 @@ function resolveListStatus(status: string): ApprovalStatus | undefined {
   return status as ApprovalStatus;
 }
 
-export function ApprovalInboxPage() {
+export interface ApprovalInboxPageProps {
+  /**
+   * Renderizada como tab del hub de Finanzas: el encabezado lo pone el shell
+   * del hub y la descripción baja al bloque previo al toolbar.
+   */
+  embedded?: boolean;
+}
+
+export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps = {}) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("finance_approvals", "update");
@@ -270,8 +278,11 @@ export function ApprovalInboxPage() {
 
   const handleClearFilters = useCallback(() => {
     filters.setSearchInput("");
-    setSearchParams(() => {
+    setSearchParams((prev) => {
       const params = new URLSearchParams();
+      /** Limpiar filtros no debe sacar al usuario del tab del hub. */
+      const tab = prev.get("tab");
+      if (tab) params.set("tab", tab);
       params.set("type", DEFAULT_APPROVAL_TYPE);
       params.set("status", "pending");
       return params;
@@ -294,18 +305,24 @@ export function ApprovalInboxPage() {
   );
 
   const beforeToolbar = useMemo(() => {
-    if (!canUpdate) {
-      return (
-        <DetailAlertCard
-          severity="info"
-          icon={<Info className="h-4 w-4" />}
-          title={copy.readOnly.title}
-          items={[{ text: copy.readOnly.description }]}
-        />
-      );
-    }
-    return undefined;
-  }, [canUpdate]);
+    const readOnlyNotice = canUpdate ? null : (
+      <DetailAlertCard
+        severity="info"
+        icon={<Info className="h-4 w-4" />}
+        title={copy.readOnly.title}
+        items={[{ text: copy.readOnly.description }]}
+      />
+    );
+
+    if (!embedded) return readOnlyNotice ?? undefined;
+
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">{copy.description}</p>
+        {readOnlyNotice}
+      </div>
+    );
+  }, [canUpdate, embedded]);
 
   const listEmptyState = useMemo(() => {
     if (showLoadError) {
@@ -490,6 +507,7 @@ export function ApprovalInboxPage() {
       <ListPageShell
         title={copy.title}
         description={copy.description}
+        showHeader={!embedded}
         beforeToolbar={beforeToolbar}
         toolbar={{
           search: {

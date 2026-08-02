@@ -32,6 +32,8 @@ interface ProfitabilityChartsProps {
   monthAggregate?: ProfitabilityAggregateItem[];
   tripsLoading?: boolean;
   monthLoading?: boolean;
+  /** Dona de bandas de margen; off por defecto (D6: un solo chart de tendencia). */
+  showStatusDistribution?: boolean;
 }
 
 function ChartEmptyState({ description }: { description: string }) {
@@ -51,6 +53,7 @@ export function ProfitabilityCharts({
   monthAggregate,
   tripsLoading = false,
   monthLoading = false,
+  showStatusDistribution = false,
 }: ProfitabilityChartsProps) {
   const monthlyData = useMemo(
     () =>
@@ -133,6 +136,7 @@ export function ProfitabilityCharts({
         )}
       </ChartCard>
 
+      {showStatusDistribution ? (
       <ChartCard
         title={financeCopy.profitability.charts.statusDistribution.title}
         description={financeCopy.profitability.charts.statusDistribution.description}
@@ -166,6 +170,7 @@ export function ProfitabilityCharts({
           />
         )}
       </ChartCard>
+      ) : null}
     </div>
   );
 }

@@ -3,10 +3,14 @@ import { financeInvoicesListApi } from "@features/finance/infrastructure/invoice
 import type { FinanceInvoiceListFilters } from "@features/finance/domain";
 import { financeQueryKeys } from "./useFinance";
 
-export const useFinanceInvoicesList = (filters?: FinanceInvoiceListFilters) =>
+export const useFinanceInvoicesList = (
+  filters?: FinanceInvoiceListFilters,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: financeQueryKeys.invoicesList(filters),
     queryFn: () => financeInvoicesListApi.getAll(filters),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+    enabled: options?.enabled ?? true,
   });

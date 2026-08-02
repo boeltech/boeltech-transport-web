@@ -119,7 +119,7 @@ export function ProfitabilityKpiCards({
       {
         key: "blendedMargin",
         title: financeCopy.profitability.metrics.blendedMargin,
-        subtitle: financeCopy.profitability.aggregateTable.margin,
+        subtitle: financeCopy.profitability.metrics.blendedMarginHint,
         value: formatMxCurrency(agg?.blendedMargin ?? 0),
         tone: "success" as const,
         trend: undefined,

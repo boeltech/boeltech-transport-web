@@ -1,21 +1,21 @@
 import { useEffect, useMemo } from "react";
+import { Download } from "lucide-react";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { Button } from "@shared/ui/button";
 import {
   useAccountStatement,
+  useAgingByClient,
   useAgingSummary,
   useFinanceSummary,
-  useIncomeByMonth,
-  useInvoicesByStatusMonth,
 } from "@features/finance/application";
 import {
   FinanceAccountStatementSection,
   FinanceAgingChart,
   FinanceSummaryCards,
-  FinanceSummaryCharts,
-  FinanceSummaryTimeSeriesCharts,
 } from "../components";
 import { financeCopy } from "../copy";
+import { exportAgingByClientCsv } from "../utils/financeExportHelpers";
 
 interface FinanceSummaryTabProps {
   queriesEnabled: boolean;
@@ -41,23 +41,9 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
     isError: agingError,
     error: agingErr,
   } = useAgingSummary({ enabled: queriesEnabled });
-  const {
-    data: incomeByMonth,
-    isLoading: incomeLoading,
-    isError: incomeError,
-    error: incomeErr,
-  } = useIncomeByMonth({ months: 12 }, { enabled: queriesEnabled });
-  const {
-    data: invoicesByStatusMonth,
-    isLoading: invoicesByStatusLoading,
-    isError: invoicesByStatusError,
-    error: invoicesByStatusErr,
-  } = useInvoicesByStatusMonth({ months: 12 }, { enabled: queriesEnabled });
-
-  const collectedTrendData = useMemo(
-    () => incomeByMonth?.collected.map((value) => ({ value })) ?? [],
-    [incomeByMonth],
-  );
+  const { data: agingByClient } = useAgingByClient({
+    enabled: queriesEnabled,
+  });
 
   useEffect(() => {
     if (!summaryError || !summaryErr) return;
@@ -86,44 +72,38 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
     });
   }, [agingError, agingErr, toast]);
 
-  useEffect(() => {
-    if (!incomeError || !incomeErr) return;
-    toast({
-      variant: "destructive",
-      title: financeCopy.summary.errors.incomeByMonth,
-      description: getErrorMessage(incomeErr),
-    });
-  }, [incomeError, incomeErr, toast]);
-
-  useEffect(() => {
-    if (!invoicesByStatusError || !invoicesByStatusErr) return;
-    toast({
-      variant: "destructive",
-      title: financeCopy.summary.errors.invoicesByStatusMonth,
-      description: getErrorMessage(invoicesByStatusErr),
-    });
-  }, [invoicesByStatusError, invoicesByStatusErr, toast]);
-
   const rows = statement ?? [];
+
+  const agingExportAction = useMemo(() => {
+    if (!agingByClient?.length) return undefined;
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          exportAgingByClientCsv(agingByClient);
+          toast({
+            title: financeCopy.exports.toasts.exportedTitle,
+            description: financeCopy.exports.toasts.aging,
+          });
+        }}
+      >
+        <Download className="mr-2 h-4 w-4" />
+        {financeCopy.summary.exportAging}
+      </Button>
+    );
+  }, [agingByClient, toast]);
 
   return (
     <div className="space-y-6">
-      <FinanceSummaryCards
-        summary={summary}
-        isLoading={isLoading}
-        collectedTrendData={collectedTrendData}
-        collectedTrendLoading={incomeLoading}
+      <FinanceSummaryCards summary={summary} isLoading={isLoading} />
+
+      <FinanceAgingChart
+        agingSummary={agingSummary}
+        isLoading={agingLoading}
+        exportAction={agingExportAction}
       />
-
-      <FinanceSummaryCharts summary={summary} isLoading={isLoading} />
-
-      <FinanceSummaryTimeSeriesCharts
-        incomeByMonth={incomeByMonth}
-        invoicesByStatusMonth={invoicesByStatusMonth}
-        isLoading={incomeLoading || invoicesByStatusLoading}
-      />
-
-      <FinanceAgingChart agingSummary={agingSummary} isLoading={agingLoading} />
 
       <FinanceAccountStatementSection rows={rows} isLoading={stmtLoading} />
     </div>

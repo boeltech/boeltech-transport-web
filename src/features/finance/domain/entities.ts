@@ -184,6 +184,7 @@ export interface ExpensesByDimensionFilters {
   from?: string;
   to?: string;
   category?: string;
+  vehicleId?: string;
   sortBy?: "total" | "tripCount" | "avgExpensePerTrip";
   sortOrder?: "asc" | "desc";
 }

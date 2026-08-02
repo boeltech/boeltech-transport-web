@@ -31,6 +31,7 @@ export {
   useExpensesByDimension,
   useIncomeByMonth,
   useInvoicesByStatusMonth,
+  getCurrentMonthExpenseRange,
 } from "./application";
 
 export { financeApi } from "./infrastructure";
@@ -41,5 +42,5 @@ export {
   FinanceInvoicesTab,
   ProfitabilityTab,
   ExpenseAnalysisTab,
-  ReportsTab,
+  FinanceInvoiceableTripsTab,
 } from "./presentation/pages";

@@ -11,6 +11,7 @@
 import {
   createBrowserRouter,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
 
@@ -49,6 +50,18 @@ function PageLoader() {
       </div>
     </div>
   );
+}
+
+/**
+ * La bandeja de aprobaciones vive como tab del hub de Finanzas. La ruta propia
+ * sigue montada porque la usan los deep-links del dashboard, el detalle de viaje
+ * y el `action_href` que genera el backend en las notificaciones.
+ */
+function ApprovalsHubRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("tab", "approvals");
+  return <Navigate to={`/finance?${params.toString()}`} replace />;
 }
 
 // ============================================
@@ -240,10 +253,6 @@ const InvoiceDetailPage = lazy(() =>
 );
 const CreateInvoicePage = lazy(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
-);
-
-const ApprovalInboxPage = lazy(() =>
-  import("@features/approvals").then((m) => ({ default: m.ApprovalInboxPage })),
 );
 
 // Reports
@@ -632,10 +641,6 @@ export const router = createBrowserRouter([
                 path: "/clients/:id",
                 element: withSuspense(ClientDetailPage),
               },
-              {
-                path: "/clients/:id/edit",
-                element: withSuspense(ClientEditPage),
-              },
             ],
           },
           {
@@ -644,6 +649,15 @@ export const router = createBrowserRouter([
               {
                 path: "/clients/new",
                 element: withSuspense(ClientCreatePage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="clients" action="update" />,
+            children: [
+              {
+                path: "/clients/:id/edit",
+                element: withSuspense(ClientEditPage),
               },
             ],
           },
@@ -770,7 +784,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/finance/approvals",
-                element: withSuspense(ApprovalInboxPage),
+                element: <ApprovalsHubRedirect />,
               },
             ],
           },

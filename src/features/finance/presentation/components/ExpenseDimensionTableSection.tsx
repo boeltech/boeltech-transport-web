@@ -1,4 +1,5 @@
 import { Receipt } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Card,
@@ -112,7 +113,21 @@ export function ExpenseDimensionTableSection({
               <TableBody>
                 {rows.map((item) => (
                   <TableRow key={`${dimension}-${item.key}`}>
-                    <TableCell className="font-medium">{item.label}</TableCell>
+                    <TableCell className="font-medium">
+                      {dimension === "vehicle" ? (
+                        <Link
+                          to={`/vehicles/${item.key}`}
+                          className="text-primary underline-offset-4 hover:underline"
+                          aria-label={financeCopy.expenses.table.viewVehicle(
+                            item.label,
+                          )}
+                        >
+                          {item.label}
+                        </Link>
+                      ) : (
+                        item.label
+                      )}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {item.tripCount}
                     </TableCell>

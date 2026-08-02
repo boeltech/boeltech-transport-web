@@ -109,7 +109,9 @@ export function FinanceInvoicesTab({
 
   const handleTripSelected = useCallback(
     (tripId: string) => {
-      navigate(`/invoices/new?trip_id=${tripId}&from=finance`);
+      navigate(`/invoices/new?trip_id=${tripId}`, {
+        state: { from: "/finance?tab=invoices" },
+      });
     },
     [navigate],
   );
