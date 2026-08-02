@@ -14,7 +14,8 @@ import { X } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
-import { Wordmark } from "@/shared/ui/brand";
+import { BrandLockup } from "@/shared/ui/brand";
+import { ScrollArea } from "@/shared/ui/scroll-area";
 
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
@@ -80,9 +81,14 @@ export const MobileSidebar = memo(function MobileSidebar() {
             to="/dashboard"
             className="flex items-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             onClick={handleNavClick}
-            aria-label="Ir al dashboard de Boeltech"
+            aria-label="Ir al dashboard de Tlama"
           >
-            <Wordmark variant="brand" decorative className="text-xl" />
+            <BrandLockup
+              variant="brand"
+              decorative
+              markSize={28}
+              wordmarkClassName="text-xl"
+            />
           </Link>
           <Button variant="ghost" size="icon" onClick={closeMobile}>
             <X className="h-5 w-5" />
@@ -90,27 +96,29 @@ export const MobileSidebar = memo(function MobileSidebar() {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3">
-          {navigation.map((group) => (
-            <div key={group.id} className="mb-5">
-              {group.title && (
-                <h3 className="mb-2.5 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-                  {group.title}
-                </h3>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map((item) => (
-                  <MobileNavItem
-                    key={item.id}
-                    item={item}
-                    isActive={isItemActive(item)}
-                    onClick={handleNavClick}
-                  />
-                ))}
+        <ScrollArea className="min-h-0 flex-1">
+          <nav className="p-3">
+            {navigation.map((group) => (
+              <div key={group.id} className="mb-5">
+                {group.title && (
+                  <h3 className="mb-2.5 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
+                    {group.title}
+                  </h3>
+                )}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <MobileNavItem
+                      key={item.id}
+                      item={item}
+                      isActive={isItemActive(item)}
+                      onClick={handleNavClick}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </nav>
+            ))}
+          </nav>
+        </ScrollArea>
       </aside>
     </>
   );

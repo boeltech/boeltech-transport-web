@@ -4,12 +4,10 @@
  */
 export const navigationCopy = {
   group: {
-    operations: "Operaciones",
-    fleet: "Flota",
-    clients: "Clientes",
-    hr: "Recursos Humanos",
+    operations: "Operación",
+    fleet: "Flota y personal",
+    commercial: "Comercial",
     finance: "Finanzas",
-    reports: "Reportes",
     admin: "Administración",
   },
   item: {
@@ -18,19 +16,18 @@ export const navigationCopy = {
     branches: "Sucursales",
     vehicles: "Vehículos",
     drivers: "Conductores",
-    maintenance: "Mantenimiento",
-    fuel: "Combustible",
-    clientsList: "Clientes",
     employees: "Empleados",
+    clientsList: "Clientes",
     financeHub: "Finanzas",
+    /** Viajes entregados sin factura: cola de trabajo del contador. */
+    financeInvoiceable: "Por facturar",
     financeApprovals: "Aprobaciones",
+    /** Deep-link al tab Facturas del hub (no es un módulo aparte). */
     financeInvoices: "Facturas",
     reportsList: "Reportes",
     users: "Usuarios",
-    usersActivity: "Auditoría",
+    /** Movimientos de las cuentas del equipo, no auditoría de todo el sistema. */
+    usersActivity: "Historial de usuarios",
     settings: "Configuración",
-  },
-  badge: {
-    comingSoon: "Próximamente",
   },
 } as const;

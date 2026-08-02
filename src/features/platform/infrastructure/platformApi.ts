@@ -83,12 +83,18 @@ export const platformApi = {
 
   refresh: async (
     refreshToken: string,
-  ): Promise<{ accessToken: string }> => {
+  ): Promise<{ accessToken: string; refreshToken: string }> => {
     const response = await apiClient.post<
-      ApiSingleResponse<{ access_token: string }>
+      ApiSingleResponse<{
+        access_token: string;
+        refresh_token: string;
+      }>
     >(`${BASE}/auth/refresh`, { refreshToken }, { authScope: "platform" });
 
-    return { accessToken: response.data.access_token };
+    return {
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+    };
   },
 
   getProfile: async (): Promise<PlatformUserJSON> => {

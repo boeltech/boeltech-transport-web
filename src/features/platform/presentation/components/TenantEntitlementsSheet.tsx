@@ -20,6 +20,7 @@ import {
   usePlatformTenantEntitlements,
 } from "../../application/hooks/usePlatformBilling";
 import { platformCopy } from "../copy/platformCopy";
+import { getProfitabilityLevelLabel } from "../utils/platformBillingFormatters";
 import { formatPlanPriceCents } from "../utils/formatPlanLabel";
 
 interface TenantEntitlementsSheetProps {
@@ -88,10 +89,13 @@ export function TenantEntitlementsSheet({
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <Badge variant="secondary">
             {copy.levelBadge(entitlements?.profitabilityLevel ?? "L0")}
           </Badge>
+          <span className="text-xs text-muted-foreground">
+            {getProfitabilityLevelLabel(entitlements?.profitabilityLevel ?? "L0")}
+          </span>
           {entitlements ? (
             <span className="text-xs text-muted-foreground">
               {copy.effectiveCount(entitlements.effectiveModuleCodes.length)}

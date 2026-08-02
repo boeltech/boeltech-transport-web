@@ -21,11 +21,10 @@ import {
   Users,
   Route,
   FileText,
+  FileClock,
   UserCog,
   BarChart3,
   Settings,
-  Wrench,
-  Fuel,
   Building2,
   GitBranch,
   ScrollText,
@@ -43,9 +42,8 @@ const copy = navigationCopy;
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * Módulos disponibles:
- * - dashboard, trips, vehicles, drivers, clients
- * - maintenance, fuel, invoices, reports, users, settings
+ * Cinco grupos + Inicio suelto. Solo se listan pantallas montadas:
+ * un ítem del menú nunca anuncia funcionalidad inexistente.
  */
 export const navigationConfig: NavGroup[] = [
   {
@@ -100,28 +98,17 @@ export const navigationConfig: NavGroup[] = [
         module: "drivers",
       },
       {
-        id: "maintenance",
-        label: copy.item.maintenance,
-        path: "/maintenance",
-        icon: Wrench,
-        module: "maintenance",
-        disabled: true,
-        badge: copy.badge.comingSoon,
-      },
-      {
-        id: "fuel",
-        label: copy.item.fuel,
-        path: "/fuel",
-        icon: Fuel,
-        module: "fuel",
-        disabled: true,
-        badge: copy.badge.comingSoon,
+        id: "employees",
+        label: copy.item.employees,
+        path: "/employees",
+        icon: UsersRound,
+        module: "employees",
       },
     ],
   },
   {
-    id: "clients",
-    title: copy.group.clients,
+    id: "commercial",
+    title: copy.group.commercial,
     items: [
       {
         id: "clients-list",
@@ -129,19 +116,6 @@ export const navigationConfig: NavGroup[] = [
         path: "/clients",
         icon: Building2,
         module: "clients",
-      },
-    ],
-  },
-  {
-    id: "hr",
-    title: copy.group.hr,
-    items: [
-      {
-        id: "employees",
-        label: copy.item.employees,
-        path: "/employees",
-        icon: UsersRound,
-        module: "employees",
       },
     ],
   },
@@ -157,9 +131,17 @@ export const navigationConfig: NavGroup[] = [
         roles: [...FINANCE_SUMMARY_ROUTE_ROLES],
       },
       {
+        id: "finance-invoiceable",
+        label: copy.item.financeInvoiceable,
+        path: "/finance?tab=invoiceable",
+        icon: FileClock,
+        module: "invoices",
+        action: "create",
+      },
+      {
         id: "finance-approvals",
         label: copy.item.financeApprovals,
-        path: "/finance/approvals?status=pending&type=trip_expense",
+        path: "/finance?tab=approvals",
         icon: ClipboardCheck,
         module: "finance_approvals",
       },
@@ -170,20 +152,12 @@ export const navigationConfig: NavGroup[] = [
         icon: FileText,
         roles: [ROLES.DISPATCHER, ROLES.CLIENT],
       },
-    ],
-  },
-  {
-    id: "reports",
-    title: copy.group.reports,
-    items: [
       {
         id: "reports-list",
         label: copy.item.reportsList,
         path: "/reports",
         icon: BarChart3,
         module: "reports",
-        disabled: true,
-        badge: copy.badge.comingSoon,
       },
     ],
   },

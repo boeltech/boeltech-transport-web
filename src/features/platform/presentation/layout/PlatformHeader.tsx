@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { LogOut, Menu, Shield, User } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import {
@@ -16,6 +16,7 @@ import { getUserFullName, getUserInitials } from "@shared/lib/userHelpers";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { usePlatformSidebar } from "../providers/PlatformSidebarProvider";
 import { platformCopy } from "../copy/platformCopy";
+import { PlatformBrandMark } from "./PlatformBrandMark";
 import { isPlatformOwner } from "../../domain/entities";
 
 interface PlatformHeaderProps {
@@ -50,9 +51,8 @@ export const PlatformHeader = memo(function PlatformHeader({
           <Menu className="h-5 w-5" />
         </Button>
 
-        <div className="flex items-center gap-2 lg:hidden">
-          <Shield className="h-5 w-5 text-primary" />
-          <span className="text-sm font-semibold">{platformCopy.brand.name}</span>
+        <div className="lg:hidden">
+          <PlatformBrandMark className="gap-2" />
         </div>
 
         <p className="hidden text-sm text-muted-foreground md:block">

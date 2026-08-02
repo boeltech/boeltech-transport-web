@@ -1,11 +1,13 @@
 import { memo, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Shield, X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
+import { ScrollArea } from "@shared/ui/scroll-area";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { usePlatformSidebar } from "../providers/PlatformSidebarProvider";
 import { platformCopy } from "../copy/platformCopy";
+import { PlatformBrandMark } from "./PlatformBrandMark";
 import {
   isPlatformNavItemActive,
   PLATFORM_NAV_ITEMS,
@@ -74,18 +76,9 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
             to="/platform"
             className="flex items-center gap-2"
             onClick={handleNavClick}
+            aria-label={platformCopy.brand.name}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {platformCopy.brand.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {platformCopy.brand.subtitle}
-              </p>
-            </div>
+            <PlatformBrandMark />
           </Link>
           <Button
             variant="ghost"
@@ -121,29 +114,31 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
           </div>
         ) : null}
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {PLATFORM_NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isPlatformNavItemActive(location.pathname, item.href);
+        <ScrollArea className="min-h-0 flex-1">
+          <nav className="space-y-1 p-3">
+            {PLATFORM_NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = isPlatformNavItemActive(location.pathname, item.href);
 
-            return (
-              <Link
-                key={item.id}
-                to={item.href}
-                onClick={handleNavClick}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+              return (
+                <Link
+                  key={item.id}
+                  to={item.href}
+                  onClick={handleNavClick}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </ScrollArea>
 
         <div className="space-y-1 border-t border-sidebar-border p-3">
           <Link

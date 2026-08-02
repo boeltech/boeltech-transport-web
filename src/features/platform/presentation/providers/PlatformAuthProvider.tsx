@@ -33,24 +33,38 @@ interface PlatformAuthContextValue extends PlatformAuthState {
 
 const PlatformAuthContext = createContext<PlatformAuthContextValue | null>(null);
 
+/** Evita doble POST /refresh en React Strict Mode (reuse detection). */
+let platformBootstrapRefresh: Promise<{
+  accessToken: string;
+  refreshToken: string;
+}> | null = null;
+
+function readInitialPlatformAuthState(): PlatformAuthState {
+  const token = platformTokenStorage.getToken();
+  const user = platformTokenStorage.getUser();
+  const refreshToken = platformTokenStorage.getRefreshToken();
+  const freshLogin = consumePlatformFreshLoginSession();
+  const canRecover = !token && !!refreshToken && !!user;
+
+  return {
+    token,
+    user,
+    isAuthenticated: platformTokenStorage.hasSession(),
+    isLoading: (!!token && !freshLogin) || canRecover,
+  };
+}
+
 export function PlatformAuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [state, setState] = useState<PlatformAuthState>(() => {
-    const token = platformTokenStorage.getToken();
-    const user = platformTokenStorage.getUser();
-    const freshLogin = consumePlatformFreshLoginSession();
-    return {
-      token,
-      user,
-      isAuthenticated: !!token && !!user,
-      isLoading: !!token && !freshLogin,
-    };
-  });
+  const [state, setState] = useState<PlatformAuthState>(
+    readInitialPlatformAuthState,
+  );
 
   const handleLogout = useCallback(
     (options?: { sessionExpired?: boolean }) => {
+      platformBootstrapRefresh = null;
       platformTokenStorage.clear();
       queryClient.removeQueries({ queryKey: platformQueryKeys.all });
       setState({
@@ -78,11 +92,67 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
     };
   }, [handleLogout]);
 
+  // Access ausente pero refresh+user vivos → renovar sesión.
+  useEffect(() => {
+    if (state.token) {
+      return;
+    }
+
+    const refreshToken = platformTokenStorage.getRefreshToken();
+    const user = platformTokenStorage.getUser();
+    if (!refreshToken || !user) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isAuthenticated: false,
+      }));
+      return;
+    }
+
+    let cancelled = false;
+    if (!platformBootstrapRefresh) {
+      platformBootstrapRefresh = platformApi
+        .refresh(refreshToken)
+        .then((tokens) => {
+          platformBootstrapRefresh = null;
+          return tokens;
+        })
+        .catch((err: unknown) => {
+          platformBootstrapRefresh = null;
+          throw err;
+        });
+    }
+
+    void platformBootstrapRefresh
+      .then((tokens) => {
+        if (cancelled) return;
+        platformTokenStorage.setToken(tokens.accessToken);
+        platformTokenStorage.setRefreshToken(tokens.refreshToken);
+        setState({
+          token: tokens.accessToken,
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        handleLogout({ sessionExpired: true });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.token, handleLogout]);
+
   useEffect(() => {
     if (!state.token || state.user) {
       if (!state.token) {
-        setState((prev) => ({ ...prev, isLoading: false }));
+        return;
       }
+      setState((prev) =>
+        prev.isLoading ? { ...prev, isLoading: false } : prev,
+      );
       return;
     }
 

@@ -5,6 +5,7 @@ import { AlertWithIcon } from "@shared/ui/alert";
 import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import { isTrialDateReached } from "@features/billing/presentation/utils/billingNotice";
 import {
   usePlatformTenantStampUsage,
   usePlatformTenantSubscription,
@@ -16,6 +17,7 @@ import {
   formatPlatformLimitValue,
   getPlatformBillingCycleLabel,
   getPlatformSubscriptionStatusLabel,
+  getProfitabilityLevelDetail,
 } from "../utils/platformBillingFormatters";
 
 interface TenantSubscriptionCardProps {
@@ -30,9 +32,7 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
 
   const isTrialing = subscription?.status === "trialing";
   const trialDateExpired =
-    isTrialing &&
-    !!subscription?.trialEndsAt &&
-    new Date(subscription.trialEndsAt).getTime() <= Date.now();
+    isTrialing && isTrialDateReached(subscription?.trialEndsAt);
   const trialStampsExhausted =
     isTrialing &&
     !!usage &&
@@ -93,9 +93,15 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
             <InfoRow
               variant="inline"
               label={copy.fields.profitabilityLevel}
-              value={subscription.profitabilityLevel}
+              value={
+                getProfitabilityLevelDetail(subscription.profitabilityLevel)
+                  .label
+              }
             />
-            <p className="text-xs text-muted-foreground">{copy.profitabilityHint}</p>
+            <p className="text-xs text-muted-foreground">
+              {getProfitabilityLevelDetail(subscription.profitabilityLevel)
+                .includes}
+            </p>
             <InfoRow
               variant="inline"
               label={copy.fields.users}

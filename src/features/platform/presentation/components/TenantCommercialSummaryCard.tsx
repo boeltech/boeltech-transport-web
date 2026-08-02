@@ -6,7 +6,10 @@ import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { usePlatformTenantEntitlements } from "../../application/hooks/usePlatformBilling";
 import { platformCopy } from "../copy/platformCopy";
-import { formatBillingPriceCents } from "../utils/platformBillingFormatters";
+import {
+  formatBillingPriceCents,
+  getProfitabilityLevelLabel,
+} from "../utils/platformBillingFormatters";
 
 interface TenantCommercialSummaryCardProps {
   tenantId: string;
@@ -61,6 +64,9 @@ export function TenantCommercialSummaryCard({
                   entitlements.profitabilityLevel,
                 )}
               </Badge>
+              <span className="text-xs text-muted-foreground">
+                {getProfitabilityLevelLabel(entitlements.profitabilityLevel)}
+              </span>
               <span className="text-xs text-muted-foreground">
                 {platformCopy.tenants.entitlements.effectiveCount(
                   entitlements.effectiveModuleCodes.length,

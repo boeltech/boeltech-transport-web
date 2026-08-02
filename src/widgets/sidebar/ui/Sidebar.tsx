@@ -16,7 +16,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
-import { Wordmark } from "@/shared/ui/brand";
+import { BrandLockup } from "@/shared/ui/brand";
+import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -44,58 +45,49 @@ export const Sidebar = memo(function Sidebar() {
           isCollapsed ? "w-[70px]" : "w-[260px]",
         )}
       >
-        {/* Brand row: wordmark + collapse */}
-        <div
-          className={cn(
-            "flex h-16 items-center border-b border-sidebar-border px-3",
-            isCollapsed ? "justify-center" : "justify-between gap-2",
-          )}
-        >
-          <Link
-            to="/dashboard"
-            className="flex items-center justify-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-            aria-label="Ir al dashboard de Boeltech"
+        {/* Brand row + collapse/expand — always at top (never footer) */}
+        <div className="flex h-16 items-center border-b border-sidebar-border px-3">
+          <div
+            className={cn(
+              "flex w-full items-center",
+              isCollapsed ? "justify-center" : "justify-between gap-2",
+            )}
           >
-            <Wordmark
-              compact={isCollapsed}
-              variant="brand"
-              decorative
-              className={isCollapsed ? "text-2xl" : "text-xl"}
-            />
-          </Link>
-          {!isCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground"
-              onClick={toggle}
-              aria-label="Colapsar menú"
+            <Link
+              to="/dashboard"
+              className="flex items-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+              aria-label="Ir al dashboard de Tlama"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          )}
+              <BrandLockup
+                compact={isCollapsed}
+                variant="brand"
+                decorative
+                markSize={isCollapsed ? 32 : 28}
+                wordmarkClassName="text-xl"
+              />
+            </Link>
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-muted-foreground"
+                onClick={toggle}
+                aria-label="Colapsar menú"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2">
-          {navigation.map((group) => (
-            <NavGroupComponent
-              key={group.id}
-              group={group}
-              isCollapsed={isCollapsed}
-              isItemActive={isItemActive}
-            />
-          ))}
-        </nav>
-
-        {/* Collapse only when icon rail */}
         {isCollapsed && (
-          <div className="border-t border-sidebar-border p-2">
+          <div className="flex justify-center border-b border-sidebar-border p-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-full text-muted-foreground"
+                  className="size-8 shrink-0 text-muted-foreground"
                   onClick={toggle}
                   aria-label="Expandir menú"
                 >
@@ -106,6 +98,19 @@ export const Sidebar = memo(function Sidebar() {
             </Tooltip>
           </div>
         )}
+
+        <ScrollArea className="min-h-0 flex-1">
+          <nav className="p-2">
+            {navigation.map((group) => (
+              <NavGroupComponent
+                key={group.id}
+                group={group}
+                isCollapsed={isCollapsed}
+                isItemActive={isItemActive}
+              />
+            ))}
+          </nav>
+        </ScrollArea>
       </aside>
     </TooltipProvider>
   );

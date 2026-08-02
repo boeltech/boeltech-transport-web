@@ -78,10 +78,18 @@ export function PlatformLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted p-6">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            aria-hidden
+          >
             <Shield className="h-6 w-6" />
           </div>
-          <CardTitle>{platformCopy.login.title}</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>{platformCopy.login.title}</CardTitle>
+            <p className="text-muted-foreground text-xs">
+              {platformCopy.brand.subtitle}
+            </p>
+          </div>
           <CardDescription>{platformCopy.login.description}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,7 +125,10 @@ export function PlatformLoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   {...register("password")}
-                  {...getRegisterFieldErrorProps("password", errors.password?.message)}
+                  {...getRegisterFieldErrorProps(
+                    "password",
+                    errors.password?.message,
+                  )}
                 />
                 <Button
                   type="button"
@@ -125,7 +136,9 @@ export function PlatformLoginPage() {
                   size="icon"
                   className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
                   onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -134,11 +147,16 @@ export function PlatformLoginPage() {
                   )}
                 </Button>
               </div>
-              <FieldInlineError fieldId="password" message={errors.password?.message} />
+              <FieldInlineError
+                fieldId="password"
+                message={errors.password?.message}
+              />
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? platformCopy.login.submitting : platformCopy.login.submit}
+              {isSubmitting
+                ? platformCopy.login.submitting
+                : platformCopy.login.submit}
             </Button>
           </form>
 

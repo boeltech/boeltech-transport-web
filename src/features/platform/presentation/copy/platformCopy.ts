@@ -1,7 +1,12 @@
+import { BRAND } from "@shared/ui/brand";
+
 export const platformCopy = {
   brand: {
-    name: "Boeltech Platform",
-    subtitle: "Administración SaaS del ERP-T",
+    name: BRAND.platformName,
+    subtitle: BRAND.platformSubtitle,
+    company: BRAND.companyName,
+    /** Producto tenant (Tlama); no usar como nombre de esta consola. */
+    tenantProduct: BRAND.productName,
   },
   shell: {
     headerContext: "Consola tenant 0",
@@ -12,15 +17,14 @@ export const platformCopy = {
     guestRole: "Operador",
   },
   login: {
-    title: "Acceso de plataforma",
-    description:
-      "Inicia sesión con tu cuenta de operador Boeltech. Este acceso es distinto al login de empresas cliente.",
+    title: BRAND.platformName,
+    description: `Inicia sesión con tu cuenta de operador ${BRAND.companyName}. Este acceso es distinto al login de empresas en ${BRAND.productName}.`,
     emailLabel: "Correo",
     passwordLabel: "Contraseña",
     submit: "Entrar a plataforma",
     submitting: "Iniciando sesión…",
-    tenantLink: "¿Eres usuario de una empresa?",
-    tenantLinkAction: "Ir al login operativo",
+    tenantLink: `¿Usas ${BRAND.productName} en tu empresa?`,
+    tenantLinkAction: `Ir al login de ${BRAND.productName}`,
     errors: {
       invalidCredentials: "Credenciales inválidas. Verifica tu correo y contraseña.",
       sessionExpired: "Tu sesión de plataforma expiró. Inicia sesión de nuevo.",
@@ -32,17 +36,17 @@ export const platformCopy = {
     catalogs: "Catálogos globales",
     audit: "Auditoría",
     logout: "Cerrar sesión",
-    erpLink: "Ir al ERP tenant",
+    erpLink: `Ir a ${BRAND.productName}`,
   },
   dashboard: {
     title: "Panel de plataforma",
-    description: "Vista agregada del parque de clientes ERP-T.",
+    description: `Vista agregada del parque de clientes ${BRAND.productName}.`,
     hero: {
       badge: "Consola SaaS",
       secondaryBadge: "Tenant 0",
       title: "Supervisa empresas, planes y crecimiento",
       description:
-        "Punto de entrada para operadores Boeltech: revisa cuántas empresas están activas, cómo se distribuyen por plan y qué tan saludable es la base instalada antes de entrar al detalle de cada tenant.",
+        `Punto de entrada para operadores ${BRAND.companyName}: revisa cuántas empresas están activas, cómo se distribuyen por plan y qué tan saludable es la base instalada antes de entrar al detalle de cada tenant.`,
       stepPrefix: (step: number) => `Paso ${step}`,
       steps: [
         {
@@ -236,8 +240,6 @@ export const platformCopy = {
         description:
           "Condiciones comerciales y límites operativos asignados al tenant.",
         levelBadge: (level: string) => `Nivel ${level}`,
-        profitabilityHint:
-          "Nivel de analítica de rentabilidad habilitado para este tenant.",
         trialQuotaHint:
           "En prueba: cupo efectivo 15 timbres. Al pasar a Activa se restaura el paquete del plan.",
         trialExhaustedTitle: "Cupo de prueba agotado",
@@ -265,7 +267,7 @@ export const platformCopy = {
         statusLabels: {
           trialing: "En prueba",
           active: "Activa",
-          past_due: "Vencida",
+          past_due: "Pago pendiente",
           paused: "Pausada",
           canceled: "Cancelada",
         },
@@ -585,7 +587,7 @@ export const platformCopy = {
   catalogs: {
     title: "Catálogos globales",
     description:
-      "Importación centralizada de catálogos regulatorios SAT para todo el ecosistema ERP-T.",
+      "Importación centralizada de catálogos regulatorios SAT para todo el ecosistema Tlama.",
     entityLabelPlural: "catálogos",
     hero: {
       badge: "Catálogos regulatorios",

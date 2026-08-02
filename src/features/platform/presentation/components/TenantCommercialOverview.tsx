@@ -12,6 +12,7 @@ import {
   formatBillingPeriodKey,
   formatBillingPriceCents,
   getPlatformSubscriptionStatusLabel,
+  getProfitabilityLevelLabel,
   getStampUsageTone,
 } from "../utils/platformBillingFormatters";
 import { computeStampUsagePercent } from "@features/billing/presentation/utils/stampUsageThresholds";
@@ -55,9 +56,14 @@ export function TenantCommercialOverview({
               </Badge>
             ) : null}
             {sub ? (
-              <Badge variant="outline">
-                {copy.subscription.levelBadge(sub.profitabilityLevel)}
-              </Badge>
+              <>
+                <Badge variant="outline">
+                  {copy.subscription.levelBadge(sub.profitabilityLevel)}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {getProfitabilityLevelLabel(sub.profitabilityLevel)}
+                </span>
+              </>
             ) : null}
           </div>
           <div className="space-y-2">

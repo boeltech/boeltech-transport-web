@@ -69,7 +69,16 @@ export const platformTokenStorage = {
     localStorage.removeItem(STORAGE_KEYS.USER);
   },
 
+  /**
+   * Sesión recoverable: access presente, o refresh+user (access se renueva vía /platform/auth/refresh).
+   */
   hasSession(): boolean {
-    return !!localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) {
+      return true;
+    }
+    return (
+      !!localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) &&
+      !!localStorage.getItem(STORAGE_KEYS.USER)
+    );
   },
 };

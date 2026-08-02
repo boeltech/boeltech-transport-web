@@ -60,6 +60,30 @@ function navPathKey(item: NavItem): string {
 }
 
 /**
+ * Especificidad del ítem frente al query actual, para desempatar entre ítems que
+ * comparten pathname (p. ej. `/finance` y `/finance?tab=invoiceable`):
+ * - sin query declarado: 0, es el fallback del pathname
+ * - query declarado que coincide: gana al fallback y crece con cada parámetro
+ * - query declarado que no coincide: pierde contra el fallback, pero sigue siendo
+ *   candidato para no dejar el grupo sin ítem activo cuando es el único visible
+ */
+function navQueryScore(item: NavItem, currentSearch: string): number {
+  const q = item.path.indexOf("?");
+  if (q < 0) return 0;
+
+  const declared = new URLSearchParams(item.path.slice(q + 1));
+  const current = new URLSearchParams(currentSearch);
+  let matched = 0;
+
+  for (const [key, value] of declared) {
+    if (current.get(key) !== value) return -1;
+    matched += 1;
+  }
+
+  return matched > 0 ? matched + 1 : 0;
+}
+
+/**
  * Verifica si un path coincide con el path actual
  */
 function checkPathActive(currentPath: string, targetPath: string): boolean {
@@ -77,20 +101,29 @@ function checkPathActive(currentPath: string, targetPath: string): boolean {
 
 /**
  * Entre todos los ítems que coinciden con la ruta actual, gana el prefijo más largo
- * (evita marcar /users y /users/activity activos a la vez).
+ * (evita marcar /users y /users/activity activos a la vez) y, a igual pathname, el
+ * que coincide con el query actual (`/finance?tab=invoiceable` sobre `/finance`).
  */
-function findActiveNavItem(
+export function findActiveNavItem(
   currentPath: string,
   items: NavItem[],
+  currentSearch = "",
 ): NavItem | undefined {
   let best: NavItem | undefined;
   let bestKeyLen = -1;
+  let bestQueryScore = -Infinity;
 
   for (const item of items) {
     const key = navPathKey(item);
     if (!checkPathActive(currentPath, key)) continue;
-    if (key.length > bestKeyLen) {
+
+    const queryScore = navQueryScore(item, currentSearch);
+    if (
+      key.length > bestKeyLen ||
+      (key.length === bestKeyLen && queryScore > bestQueryScore)
+    ) {
       bestKeyLen = key.length;
+      bestQueryScore = queryScore;
       best = item;
     }
   }
@@ -163,9 +196,10 @@ function filterNavigation(
 function findCurrentBreadcrumb(
   navigation: NavGroup[],
   currentPath: string,
+  currentSearch: string,
 ): Breadcrumb {
   const flat = navigation.flatMap((g) => g.items);
-  const item = findActiveNavItem(currentPath, flat);
+  const item = findActiveNavItem(currentPath, flat, currentSearch);
   if (!item) return {};
   const group = navigation.find((g) => g.items.includes(item));
   return group ? { group, item } : {};
@@ -179,7 +213,10 @@ function findNavItemByPath(
   path: string,
 ): NavItem | undefined {
   const flat = navigation.flatMap((g) => g.items);
-  return findActiveNavItem(path, flat);
+  const q = path.indexOf("?");
+  const pathname = q >= 0 ? path.slice(0, q) : path;
+  const search = q >= 0 ? path.slice(q) : "";
+  return findActiveNavItem(pathname, flat, search);
 }
 
 // ============================================================================
@@ -191,6 +228,7 @@ export function useNavigation(): UseNavigationReturn {
   const { hasPermission, role, isLoading } = usePermissions();
 
   const currentPath = location.pathname;
+  const currentSearch = location.search;
 
   /**
    * Navegación filtrada según permisos del usuario
@@ -209,8 +247,8 @@ export function useNavigation(): UseNavigationReturn {
   }, [navigation]);
 
   const activeNavItem = useMemo(
-    () => findActiveNavItem(currentPath, allItems),
-    [currentPath, allItems],
+    () => findActiveNavItem(currentPath, allItems, currentSearch),
+    [currentPath, currentSearch, allItems],
   );
 
   /**
@@ -220,20 +258,22 @@ export function useNavigation(): UseNavigationReturn {
   const isPathActive = useCallback(
     (path: string): boolean => {
       const pathKey = path.split("?")[0];
-      const itemForPath = allItems.find(
-        (i) => i.path === path || navPathKey(i) === pathKey,
-      );
-      return itemForPath !== undefined && itemForPath === activeNavItem;
+      const itemForPath =
+        allItems.find((i) => i.path === path) ??
+        allItems.find((i) => navPathKey(i) === pathKey);
+      return itemForPath !== undefined && itemForPath.id === activeNavItem?.id;
     },
     [allItems, activeNavItem],
   );
 
   /**
-   * Verifica si un item de navegación está activo
+   * Verifica si un item de navegación está activo.
+   * Compara por `id` porque el consumidor puede recibir copias del ítem
+   * (p. ej. `useNavigationWithBadges` clona el ítem para añadirle el badge).
    */
   const isItemActive = useCallback(
     (item: NavItem): boolean => {
-      return activeNavItem === item;
+      return activeNavItem?.id === item.id;
     },
     [activeNavItem],
   );
@@ -253,8 +293,8 @@ export function useNavigation(): UseNavigationReturn {
    * Se recalcula solo cuando cambia la navegación o el path
    */
   const currentBreadcrumb = useMemo<Breadcrumb>(() => {
-    return findCurrentBreadcrumb(navigation, currentPath);
-  }, [navigation, currentPath]);
+    return findCurrentBreadcrumb(navigation, currentPath, currentSearch);
+  }, [navigation, currentPath, currentSearch]);
 
   return {
     navigation,

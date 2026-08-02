@@ -2,6 +2,8 @@ import { platformCopy } from "../copy/platformCopy";
 import {
   formatBillingPeriodKey,
   formatBillingPriceCents,
+  getProfitabilityLevelDetail,
+  getProfitabilityLevelLabel,
   getStampUsageTone,
   getSubscriptionStatusLabel,
 } from "@features/billing/presentation/utils/billingFormatters";
@@ -9,6 +11,8 @@ import {
 export {
   formatBillingPeriodKey,
   formatBillingPriceCents,
+  getProfitabilityLevelDetail,
+  getProfitabilityLevelLabel,
   getStampUsageTone,
   getSubscriptionStatusLabel,
 };
