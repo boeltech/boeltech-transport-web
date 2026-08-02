@@ -20,6 +20,7 @@ import {
   MoneyInput,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import { HintIcon } from "@shared/ui/hint-icon";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   RETAINED_TAX_RATE,
@@ -165,9 +166,18 @@ export function SubstitutionAmountCorrectionsSection({
         <ChevronDown className={SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS} />
       </CollapsibleTrigger>
       <CollapsibleContent className={SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS}>
-        <p className="text-xs text-muted-foreground">
-          {hasTripCorrections ? copy.sectionHintWithTripCorrections : copy.sectionHint}
-        </p>
+        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+          <p className="min-w-0 flex-1">
+            {hasTripCorrections
+              ? copy.sectionHintWithTripCorrections
+              : copy.sectionHint}
+          </p>
+          <HintIcon label={sheetCopy.sectionHintMoreLabel}>
+            {hasTripCorrections
+              ? copy.sectionHintWithTripCorrectionsDetail
+              : copy.sectionHintDetail}
+          </HintIcon>
+        </div>
 
         <div className="space-y-4">
           <SubstitutionAmountMoneyField

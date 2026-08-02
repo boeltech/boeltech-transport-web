@@ -7,6 +7,8 @@ interface InvoiceFormPageShellProps {
   backHref: string;
   title: string;
   subtitle?: string;
+  /** Badge o acción a la derecha del título (p. ej. alcance de la factura). */
+  trailing?: ReactNode;
   children?: ReactNode;
 }
 
@@ -15,6 +17,7 @@ export function InvoiceFormPageShell({
   backHref,
   title,
   subtitle,
+  trailing,
   children,
 }: InvoiceFormPageShellProps) {
   return (
@@ -27,6 +30,7 @@ export function InvoiceFormPageShell({
         icon: <Receipt className="h-5 w-5" />,
         title,
         subtitle,
+        trailing,
       }}
     >
       {!isLoading ? <div className="w-full">{children}</div> : null}

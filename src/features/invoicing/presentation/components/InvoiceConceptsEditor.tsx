@@ -12,7 +12,8 @@ import { useBillingServiceConcepts } from "@features/settings/application/hooks/
 import type { InvoiceBillingScope } from "@features/invoicing/domain";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { RHFMoneyField } from "@shared/ui/form";
+import { Separator } from "@shared/ui/separator";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { InvoiceConceptLineSheet } from "./InvoiceConceptLineSheet";
 import { InvoiceConceptLinesTable } from "./InvoiceConceptLinesTable";
@@ -34,11 +35,9 @@ type InvoiceConceptsEditorProps = {
   tripBaseRate?: number;
   retentionRequired?: boolean;
   billingScope?: InvoiceBillingScope;
+  /** Descuento global: vive junto a los conceptos porque altera el cálculo. */
+  showDiscount?: boolean;
 };
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 export function InvoiceConceptsEditor({
   control,
@@ -47,6 +46,7 @@ export function InvoiceConceptsEditor({
   tripBaseRate,
   retentionRequired = false,
   billingScope = "primary_transport",
+  showDiscount = false,
 }: InvoiceConceptsEditorProps) {
   const isAccessory = billingScope === "accessory";
   const conceptsControl = control as unknown as Control<ConceptsFormSlice>;
@@ -71,11 +71,6 @@ export function InvoiceConceptsEditor({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [sheetMode, setSheetMode] = useState<"create-service" | "edit">("edit");
   const [initialLine, setInitialLine] = useState<InvoiceConceptFormLine | null>(null);
-
-  const conceptsSubtotal = useMemo(
-    () => roundMoney(concepts.reduce((sum, line) => sum + (line.amount ?? 0), 0)),
-    [concepts],
-  );
 
   const errorIndices = useMemo(() => {
     if (!Array.isArray(conceptErrors)) return new Set<number>();
@@ -153,10 +148,6 @@ export function InvoiceConceptsEditor({
 
   return (
     <div className="space-y-4">
-      <AlertWithIcon variant="info" title={copy.introTitle}>
-        {isAccessory ? copy.introDescriptionAccessory : copy.introDescription}
-      </AlertWithIcon>
-
       {fleteMismatch ? (
         <AlertWithIcon variant="warning">
           {copy.fleteBaseRateWarning(tripBaseRate!, fleteAmount)}
@@ -172,14 +163,32 @@ export function InvoiceConceptsEditor({
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {copy.partidasSummary(concepts.length, formatMxCurrency(conceptsSubtotal))}
-        </p>
+        {concepts.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {copy.conceptsCount(concepts.length)}
+          </p>
+        ) : (
+          <span />
+        )}
         <Button type="button" variant="outline" size="sm" onClick={handleOpenCreate}>
           <Plus className="mr-2 h-4 w-4" />
-          {isAccessory ? copy.addServiceAccessory : copy.addService}
+          {copy.addConcept}
         </Button>
       </div>
+
+      {showDiscount ? (
+        <>
+          <Separator />
+          <div className="max-w-xs">
+            <RHFMoneyField
+              control={control}
+              name="discount"
+              label={invoicingCopy.label.discount}
+              description={copy.discountHint}
+            />
+          </div>
+        </>
+      ) : null}
 
       <InvoiceConceptLineSheet
         open={sheetOpen}
@@ -187,7 +196,6 @@ export function InvoiceConceptsEditor({
         mode={sheetMode}
         initialValues={initialLine}
         editingIndex={editingIndex}
-        allConcepts={concepts}
         catalogServices={catalogServices}
         taxRate={taxRate}
         retentionRequired={retentionRequired}

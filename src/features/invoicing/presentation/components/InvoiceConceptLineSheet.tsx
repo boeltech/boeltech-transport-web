@@ -65,14 +65,6 @@ function syncLineAmount(quantity: number, unitPrice: number): number {
   return roundMoney(quantity * unitPrice);
 }
 
-function countServiceLinesBefore(
-  concepts: InvoiceConceptFormLine[],
-  index: number,
-): number {
-  return concepts.slice(0, index).filter((line) => line.concept_type === "service")
-    .length;
-}
-
 function buildEmptyServiceLine(taxRate: number): InvoiceConceptFormLine {
   return {
     concept_type: "service",
@@ -93,7 +85,6 @@ export interface InvoiceConceptLineSheetProps {
   mode: InvoiceConceptSheetMode;
   initialValues: InvoiceConceptFormLine | null;
   editingIndex: number | null;
-  allConcepts: InvoiceConceptFormLine[];
   catalogServices: BillingServiceConcept[];
   taxRate: number;
   retentionRequired?: boolean;
@@ -106,7 +97,6 @@ export function InvoiceConceptLineSheet({
   mode,
   initialValues,
   editingIndex,
-  allConcepts,
   catalogServices,
   taxRate,
   retentionRequired = false,
@@ -206,12 +196,8 @@ export function InvoiceConceptLineSheet({
   const sheetTitle = useMemo(() => {
     if (mode === "create-service") return sheetCopy.createTitle;
     if (isFlete) return sheetCopy.editFleteTitle;
-    const serviceNumber =
-      editingIndex != null
-        ? countServiceLinesBefore(allConcepts, editingIndex) + 1
-        : 1;
-    return sheetCopy.editServiceTitle(serviceNumber);
-  }, [mode, isFlete, editingIndex, allConcepts]);
+    return sheetCopy.editConceptTitle;
+  }, [mode, isFlete]);
 
   const sheetDescription = isFlete ? copy.fleteHint : copy.serviceHint;
 

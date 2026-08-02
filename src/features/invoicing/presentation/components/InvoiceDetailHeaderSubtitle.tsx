@@ -1,25 +1,32 @@
 import { invoicingCopy } from "../copy/invoicingCopy";
-import { CopyableUuidSubtitle } from "./CopyableUuidSubtitle";
 
 const copy = invoicingCopy.detail;
 
 interface Props {
   receiverName: string;
   receiverRfc: string;
-  cfdiUuid?: string | null;
+  /** Nombre corto del emisor (Situación — D2). */
+  issuerName?: string | null;
 }
 
+/** Cliente facturado above-the-fold; folio fiscal vive en el expediente. */
 export function InvoiceDetailHeaderSubtitle({
   receiverName,
   receiverRfc,
-  cfdiUuid,
+  issuerName,
 }: Props) {
+  const issuer = issuerName?.trim();
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       <p className="truncate text-sm text-muted-foreground">
         {copy.header.receiverSubtitle(receiverName, receiverRfc)}
       </p>
-      {cfdiUuid ? <CopyableUuidSubtitle uuid={cfdiUuid} /> : null}
+      {issuer ? (
+        <p className="truncate text-xs text-muted-foreground">
+          {copy.header.issuerLine(issuer)}
+        </p>
+      ) : null}
     </div>
   );
 }

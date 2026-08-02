@@ -5,6 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
+import { HintIcon } from "@shared/ui/hint-icon";
 import type { InvoiceFormValues } from "../validation/invoiceFormSchema";
 import type { SubstituteInvoiceSheetValues } from "../validation/substitutionCorrectionsSchema";
 import { invoicingCopy } from "../copy/invoicingCopy";
@@ -49,7 +50,12 @@ export function SubstitutionConceptsSection({
         <ChevronDown className={SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS} />
       </CollapsibleTrigger>
       <CollapsibleContent className={SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS}>
-        <p className="text-xs text-muted-foreground">{copy.sectionHint}</p>
+        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+          <p className="min-w-0 flex-1">{copy.sectionHint}</p>
+          <HintIcon label={sheetCopy.sectionHintMoreLabel}>
+            {copy.sectionHintDetail}
+          </HintIcon>
+        </div>
         <InvoiceConceptsEditor
           control={control as unknown as Control<InvoiceFormValues>}
           setValue={setValue as unknown as UseFormSetValue<InvoiceFormValues>}

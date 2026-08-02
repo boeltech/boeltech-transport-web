@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useDrivers } from "@features/drivers/application";
 import { useAssignableVehicles } from "@features/vehicles/application";
 import type { Invoice, InvoiceTripRef } from "@features/invoicing/domain";
@@ -18,6 +18,7 @@ import {
 } from "@shared/ui/collapsible";
 import { Button } from "@shared/ui/button";
 import { FieldInlineError } from "@shared/ui/form/FieldInlineError";
+import { HintIcon } from "@shared/ui/hint-icon";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import { invoicingCopy } from "../copy/invoicingCopy";
@@ -243,10 +244,16 @@ export function SubstitutionTripAssignmentSection({
         <ChevronDown className={SUBSTITUTION_COLLAPSIBLE_CHEVRON_CLASS} />
       </CollapsibleTrigger>
       <CollapsibleContent className={SUBSTITUTION_COLLAPSIBLE_CONTENT_CLASS}>
-        <p className="flex items-start gap-2 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {canExecute ? copy.sectionHint : copy.noPermission}
-        </p>
+        {canExecute ? (
+          <div className="flex items-start gap-1 text-xs text-muted-foreground">
+            <p className="min-w-0 flex-1">{copy.sectionHint}</p>
+            <HintIcon label={sheetCopy.sectionHintMoreLabel}>
+              {copy.sectionHintDetail}
+            </HintIcon>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">{copy.noPermission}</p>
+        )}
         <div className="space-y-3">
         {invoice.trips.map((tripRef) => (
           <TripAssignmentEditor

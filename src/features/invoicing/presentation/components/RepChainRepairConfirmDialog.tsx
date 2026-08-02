@@ -40,7 +40,7 @@ export function RepChainRepairConfirmDialog({
             {copy.cancel}
           </Button>
           <Button type="button" disabled={isPending} onClick={onConfirm}>
-            {isPending ? "Guardando..." : copy.confirm}
+            {isPending ? copy.submitting : copy.confirm}
           </Button>
         </DialogFooter>
       </DialogContent>

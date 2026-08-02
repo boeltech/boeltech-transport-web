@@ -5,7 +5,10 @@ export const invoicingCopy = {
   create: {
     title: "Nueva factura",
     titleAccessory: "Factura de servicios adicionales",
-    submit: "Crear borrador",
+    submit: "Guardar borrador",
+    /** Consecuencia del CTA: el borrador no es una factura válida todavía. */
+    submitConsequence:
+      "Se guarda como borrador. En el siguiente paso lo revisas y lo timbras.",
     successToast: "Factura creada exitosamente",
     errorToast: "Error al crear factura",
     tripRequiredToast: "Viaje requerido",
@@ -15,9 +18,6 @@ export const invoicingCopy = {
     blockedSubtitle: "No se puede crear otra factura para este viaje",
     blockedSubtitleAccessory:
       "No se pueden facturar servicios adicionales para este viaje",
-    subtitleFromTrip: (tripCode: string) => `Desde viaje ${tripCode}`,
-    subtitleAccessoryFromTrip: (tripCode: string) =>
-      `Servicios adicionales · viaje ${tripCode}`,
   },
   edit: {
     title: "Editar factura",
@@ -35,20 +35,23 @@ export const invoicingCopy = {
   empty: {
     title: "Facturar desde un viaje",
     body:
-      "El CFDI se genera desde un viaje con facturación disponible. Abre el viaje y usa «Generar factura», o el listado de viajes.",
-    backToFinance: "Volver a finanzas",
+      "La factura se genera desde un viaje con facturación disponible. Abre el viaje y usa «Generar factura», o elige uno en la cola «Por facturar» de Finanzas.",
+    backToFinance: "Ir a Facturas",
   },
   blocked: {
     title: "Este viaje ya está facturado",
+    titleNotReady: "Faltan datos del viaje para poder facturar",
     titleAccessory: "Servicios adicionales no disponibles",
     backToTrip: "Volver al viaje",
+    goToRouteTab: "Ir a Ruta",
+    goToCargoTab: "Ir a Carga",
     viewInvoice: (folio?: string | null) =>
       folio ? `Ver factura (${folio})` : "Ver factura",
     goFinance: "Ir a finanzas",
   },
   billingScope: {
-    primary: "Flete",
-    accessory: "Accesoria",
+    primary: "Cobro del viaje",
+    accessory: "Cobro adicional",
   },
   section: {
     issuer: "Emisor",
@@ -61,44 +64,59 @@ export const invoicingCopy = {
     notes: "Notas internas",
   },
   createContext: {
+    // Línea de contexto del alta: a quién · qué viaje · cuánto.
+    receiverHeading: "Se factura a",
+    tripLabel: "Viaje",
+    totalHeading: "Total a facturar",
+    currencyCode: "MXN",
+    issuerLine: (name: string, rfc: string) =>
+      `Emites como ${name}${rfc ? ` · RFC ${rfc}` : ""}`,
+    // Banda de viajes vinculados (edición de borrador).
     issuerHeading: "Emisor",
     tripHeading: "Viaje vinculado",
     tripHeadingPlural: (count: number) => `Viajes vinculados (${count})`,
     tripBaseRate: "Tarifa base",
     receiverPrefilledHint: "Receptor precargado desde el cliente del viaje.",
-    contextFooterCreate:
-      "Revisa el comprobante fiscal y las partidas antes de guardar el borrador.",
     contextFooterEdit: "Viajes asociados a este borrador (no editables aquí).",
   },
   comprobante: {
+    title: "Datos fiscales",
     description:
-      "Revisa los datos que irán en el CFDI antes de armar las partidas.",
+      "Así se emitirá la factura. Se toman del cliente del viaje.",
+    edit: "Corregir datos fiscales",
     subsectionReceiver: "Receptor",
     subsectionPayment: "Condiciones de cobro",
+    paymentSummary: (paymentMethod: string, paymentForm: string) =>
+      `${paymentMethod} · ${paymentForm}`,
+    sheet: {
+      title: "Corregir datos fiscales",
+      description:
+        "Solo cambia lo que esté mal. Se aplica a esta factura, no al cliente.",
+      apply: "Aplicar cambios",
+      close: "Cancelar",
+      validationSummary: "Revisa los datos fiscales",
+    },
+    rfcPlaceholder: "RFC del receptor (12 o 13 caracteres)",
+    receiverNamePlaceholder: "Razón social o nombre completo",
+    postalCodePlaceholder: "5 dígitos",
+    selectPlaceholder: "Selecciona una opción",
   },
   hint: {
     issuer:
       "Datos del emisor tomados de Configuración → Empresa al crear el borrador.",
-    tripCreate:
-      "La factura se vinculará a este viaje. Revisa receptor, partidas de cobro e importes antes de guardar.",
     tripEdit: "Viajes asociados a este borrador (no editables aquí).",
+    // Sheet de sustitución (detalle fiscal).
     amountsAuto:
-      "El subtotal se calcula desde las partidas de cobro. IVA, retención y total se actualizan al cambiar partidas o descuento.",
-    amountsFromConcepts:
-      "Los importes se calculan automáticamente desde las partidas de cobro y el descuento global.",
+      "El subtotal se calcula desde los conceptos. IVA, retención y total se actualizan al cambiar conceptos o descuento.",
     retainedTax:
       "Art. 1-A LIVA — autotransporte terrestre de carga. Obligatoria para persona moral.",
-    retainedTaxRequired:
-      "Retención IVA 4% obligatoria para receptores persona moral con conceptos gravados.",
   },
   label: {
     issuerRfc: "RFC emisor",
     issuerName: "Razón social",
     issuerRegime: "Régimen fiscal",
     issueLocation: "Lugar de expedición",
-    tripCode: "Código de viaje",
     tripClient: "Cliente del viaje",
-    tripSubtotal: "Importe base del viaje",
     viewTrip: "Ver detalle del viaje",
     rfc: "RFC",
     postalCode: "Código postal (domicilio fiscal)",
@@ -114,7 +132,8 @@ export const invoicingCopy = {
     iva: "IVA",
     retainedTax: "IVA retenido",
     retainedTaxApply: "Aplica retención IVA 4% (persona moral)",
-    retainedTaxRequired: "Retención IVA 4% obligatoria (persona moral)",
+    notesField: "Referencia u observaciones",
+    notesDescription: "Solo para tu equipo. No aparecen en la factura.",
     notesPlaceholder: "Referencias internas u observaciones…",
     cancel: "Cancelar",
     saving: "Guardando…",
@@ -128,54 +147,61 @@ export const invoicingCopy = {
   },
   detail: {
     section: {
-      issuer: "Emisor",
-      receiver: "Receptor",
-      cfdi: "Datos CFDI",
-      comprobante: "Comprobante fiscal",
+      issuer: "Tu empresa",
+      receiver: "Cliente facturado",
+      cfdi: "Datos fiscales",
+      comprobante: "Datos de la factura",
       paymentTerms: "Condiciones de cobro",
-      stamping: "Timbrado / SAT",
-      amounts: "Importes y saldo",
-      linkedTrips: (count: number) => `Viajes vinculados (${count})`,
-      payments: (count: number) => `Pagos y complementos REP (${count})`,
+      stamping: "Factura sellada",
+      amounts: "Desglose de montos",
+      billed: "Qué se cobró",
+      fiscalDossier: "Expediente fiscal",
+      fiscalDossierHint:
+        "Folio fiscal, sellado, régimen y datos SAT (útil para contabilidad)",
+      linkedTrips: (count: number) =>
+        count === 1 ? "Viaje vinculado" : `Viajes vinculados (${count})`,
+      payments: (count: number) =>
+        count === 1 ? "Pagos recibidos" : `Pagos recibidos (${count})`,
       notes: "Notas internas",
       cancellation: "Cancelación",
       cancellationPending: "Cancelación en proceso",
     },
     label: {
-      issueDate: "Fecha emisión",
+      issueDate: "Fecha de emisión",
       paymentForm: "Forma de pago",
-      paymentMethod: "Método de pago",
+      paymentMethod: "Cómo se cobra",
       currency: "Moneda",
       subtotal: "Subtotal",
       discount: "Descuento",
-      ivaTrasladado: "IVA Trasladado",
-      ivaRetenido: "IVA Retenido",
+      ivaTrasladado: "IVA",
+      ivaRetenido: "IVA retenido",
       total: "Total",
-      paid: "Pagado",
-      balance: "Saldo",
+      paid: "Cobrado",
+      balance: "Por cobrar",
       tripBaseRate: "Tarifa base",
       viewTrip: "Ver detalle del viaje",
-      satStatus: "Estatus SAT",
+      satStatus: "Estado ante el SAT",
       date: "Fecha",
-      satReason: "Motivo SAT",
+      satReason: "Motivo de cancelación",
       description: "Descripción",
-      substitutionUuid: "UUID sustitución",
-      statTotal: "Total factura",
-      statPaid: "Pagado",
-      statBalance: "Saldo pendiente",
-      repUuid: "REP UUID",
+      substitutionUuid: "Folio fiscal del sustituto",
+      statTotal: "Total",
+      statPaid: "Cobrado",
+      statBalance: "Por cobrar",
+      repUuid: "Folio del comprobante de pago",
       repParcialidad: "Parcialidad",
       repParcialidadEstimated: (n: number) => `Parcialidad ${n} (estimada)`,
       repSaldoAnt: "Saldo anterior",
       repSaldoInsoluto: "Saldo insoluto",
       repPagado: "Importe pagado",
-      repRetry: "Reintentar REP",
+      repRetry: "Reintentar sello del comprobante",
       ref: "Ref",
-      repFiscalDeadline: "Plazo REP",
-      cfdiUuid: "UUID CFDI",
-      stampedAt: "Fecha timbrado",
-      pacProvider: "PAC",
+      repFiscalDeadline: "Plazo para sellar el comprobante de pago",
+      cfdiUuid: "Folio fiscal (UUID)",
+      stampedAt: "Fecha de sellado",
+      pacProvider: "Proveedor de timbrado",
       exchangeRate: "Tipo de cambio",
+      issuerShort: "Factura de",
     },
     overlayErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     paymentErrorTitle: "Error al registrar pago",
@@ -183,98 +209,151 @@ export const invoicingCopy = {
     toast: {
       loadError: "Error al cargar factura",
       pdfError: "Error al generar PDF",
-      repXmlError: "Error al descargar XML del REP",
-      repPdfError: "Error al generar PDF del REP",
+      repXmlError: "Error al descargar el XML del comprobante de pago",
+      repPdfError: "Error al generar el PDF del comprobante de pago",
       copied: "Copiado al portapapeles",
       copyFailed: "No se pudo copiar",
       paymentRegistered:
-        "Pago registrado. El complemento REP se timbrará en segundo plano.",
-      repRetrySuccess: "Timbrado REP reencolado para reintento",
-      repRetryError: "No se pudo reencolar el timbrado REP",
+        "Pago registrado. El comprobante de pago se sellará en segundo plano.",
+      repRetrySuccess: "Sello del comprobante de pago reencolado",
+      repRetryError: "No se pudo reencolar el sello del comprobante de pago",
     },
     repStatus: {
-      notRequired: "Sin REP",
-      pending: "REP pendiente",
-      pendingHint: "El complemento de pagos se está timbrando",
-      stamped: "REP timbrado",
-      failed: "REP falló",
-      failedHint: "El timbrado del complemento de pagos no se completó",
-      restampPending: "Re-timbrado REP",
-      restampPendingHint: "La cadena de parcialidades se está reparando",
-      cancelling: "Cancelando REP",
-      cancellingHint: "Cancelando complemento anterior ante el SAT",
-      cancelled: "REP cancelado",
+      notRequired: "Sin comprobante de pago",
+      pending: "Comprobante de pago pendiente",
+      pendingHint: "El comprobante de este pago se está sellando",
+      stamped: "Comprobante de pago listo",
+      failed: "No se pudo sellar el comprobante",
+      failedHint: "El sello del comprobante de pago no se completó",
+      failedErrorFallback:
+        "Error al timbrar el complemento de pago. Reintente o contacte a soporte.",
+      restampPending: "Reparando comprobantes de pago",
+      restampPendingHint: "Se están regenerando los comprobantes de parcialidades",
+      cancelling: "Cancelando comprobante de pago",
+      cancellingHint: "Cancelando el comprobante anterior ante el SAT",
+      cancelled: "Comprobante de pago cancelado",
     },
     chainRepair: {
-      title: "Reparar cadena de parcialidades",
+      title: "Actualizar comprobantes de pago anteriores",
       description:
-        "Este pago altera el orden de parcialidades REP ya timbradas. Se cancelarán y volverán a timbrar los complementos afectados.",
+        "Este cobro cambia el orden de pagos ya sellados. Se cancelarán y volverán a sellar los comprobantes de pago afectados.",
       confirm: "Confirmar y registrar",
       cancel: "Volver",
-      previewInstallment: (n: number) => `Parcialidad estimada: ${n}`,
+      submitting: "Guardando...",
+      previewInstallment: (n: number) => `Será el cobro parcial nº ${n}`,
+    },
+    paymentForm: {
+      title: "Registrar pago",
+      ppdHint:
+        "Factura a crédito. Al registrar el cobro se generará un comprobante de pago (REP).",
+      ppdHintLabel: "Más sobre factura a crédito",
+      contextLine: (serie: string, folio: number, clientName: string) =>
+        `${serie}-${folio} · ${clientName}`,
+      balanceDue: "Por cobrar",
+      total: "Total",
+      paid: "Cobrado",
+      settledMessage:
+        "Esta factura ya está liquidada; no se pueden registrar más pagos.",
+      amount: "Monto",
+      paymentDate: "Fecha del cobro",
+      paymentTime: "Hora (opcional)",
+      paymentForm: "Forma de pago",
+      paymentFormPlaceholder: "Selecciona forma de pago",
+      additionalData: "Datos adicionales",
+      reference: "Referencia (opcional)",
+      referencePlaceholder: "Número de transferencia, cheque…",
+      notes: "Notas (opcional)",
+      notesPlaceholder: "Notas adicionales",
+      validationSummaryTitle: "Revisa los datos del pago",
+      cancel: "Cancelar",
+      submit: "Registrar pago",
+      submitting: "Guardando...",
+      noBalanceTitle: "Sin saldo por cobrar",
+      noBalanceDescription: "Esta factura ya no tiene saldo por cobrar.",
+      amountExceedsTitle: "Monto inválido",
+      amountExceedsDescription:
+        "El pago no puede exceder el importe por cobrar.",
+      validation: {
+        amountRequired: "Monto requerido",
+        amountPositive: "El monto debe ser mayor a 0",
+        paymentDateFormat: "Formato requerido: YYYY-MM-DD",
+        paymentTimeFormat: "Formato HH:mm o HH:mm:ss",
+        paymentFormRequired: "Forma de pago requerida",
+      },
     },
     hint: {
       noLinkedTrips: "Esta factura no tiene viajes vinculados.",
       conceptsSummary: (count: number, subtotal: string) =>
         `${count} partida${count === 1 ? "" : "s"} · Subtotal: ${subtotal}`,
-      filesAlertTitle: "XML y PDF",
+      filesAlertTitle: "Archivos listos para descargar",
       filesAlertDescription:
-        "El XML es el comprobante fiscal completo timbrado. El PDF es la representación impresa; si el viaje incluye Carta Porte, muestra un resumen de transporte.",
-      xmlMissingTitle: "XML no disponible",
+        "Puedes descargar el PDF (representación impresa) y el XML (archivo fiscal). Si el viaje incluye Carta Porte, el PDF muestra un resumen de transporte.",
+      xmlMissingTitle: "Archivo fiscal no disponible",
       xmlMissingDescription:
-        "Actualiza la página para volver a cargar el comprobante desde el servidor.",
+        "Actualiza la página para volver a cargar el archivo desde el servidor.",
       substitutionPrefix: "Esta factura sustituye a",
       substitutionLink: "la factura original",
       substitutionSuffix: ".",
       cancellationPendingSat:
-        "Pendiente de aceptación del receptor",
+        "Pendiente de aceptación del cliente",
       pueSettled:
-        "Liquidada al timbrar (PUE — pago en una sola exhibición)",
+        "Se liquidó al emitir (pago de contado)",
+      pueSettledTitle: "PUE — pago en una sola exhibición",
       repFiscalDeadlineApproaching: (deadline: string) =>
-        `Uno o más pagos deben timbrar su complemento REP antes del ${deadline} (5.º día del mes siguiente, RMF).`,
+        `Uno o más pagos deben sellar su comprobante de pago antes del ${deadline} (5.º día del mes siguiente).`,
       repFiscalDeadlineOverdue: (deadline: string) =>
-        `Hay pagos con REP pendiente o fallido cuyo plazo fiscal (${deadline}) ya venció. Timbrar cuanto antes; el sistema no bloquea el reintento.`,
+        `Hay pagos con comprobante pendiente o fallido cuyo plazo (${deadline}) ya venció. Sella cuanto antes; el sistema no bloquea el reintento.`,
       repFiscalDeadlineRowApproaching: (deadline: string) =>
-        `Plazo REP: ${deadline}`,
+        `Plazo para sellar: ${deadline}`,
       repFiscalDeadlineRowOverdue: (deadline: string) =>
-        `Plazo REP vencido (${deadline})`,
+        `Plazo vencido (${deadline})`,
       paymentTimeHint:
-        "Si no indicas hora, el SAT usa mediodía (12:00) en FechaPago.",
+        "Si no indicas hora, se usa mediodía (12:00).",
       paymentLateRegistrationHint:
-        "La fecha del cobro ya superó el 5.º día del mes siguiente (RMF). Puedes registrar el pago; timbra el REP cuanto antes.",
+        "La fecha del cobro ya superó el 5.º día del mes siguiente. Puedes registrar el pago; sella el comprobante de pago cuanto antes.",
     },
     substitute: {
       title: "Sustituir factura",
-      subtitle: "Motivo SAT 01 — errores con relación",
+      contextLine: (serie: string, folio: number, clientName: string) =>
+        `${serie}-${folio} · ${clientName}`,
+      satCodesHintLabel: "Detalle fiscal de la sustitución",
+      satCodesHint:
+        "Cancelación por errores con factura de reemplazo (motivo SAT 01). La nueva factura queda relacionada con la original (relación SAT 04).",
       introTitle: "Qué va a pasar",
       introStepEmit:
-        "Se timbra una nueva factura con los mismos viajes vinculados.",
+        "Se emite una factura nueva con los mismos viajes vinculados.",
       introStepCancel: (serie: string, folio: number) =>
-        `Se solicita cancelar la factura ${serie}-${folio} (motivo 01: errores con relación al sustituto).`,
-      introStepRequirement:
-        "Solo disponible si esta factura no tiene pagos registrados.",
+        `Se cancela la factura ${serie}-${folio}.`,
       introFootnote:
-        "La nueva factura quedará vinculada a la cancelada (relación SAT 04).",
-      optionalSectionHeading: "Correcciones antes de timbrar",
+        "Si no cambias nada abajo, se repite el contenido actual.",
+      optionalSectionHeading: "¿Qué quieres corregir? (opcional)",
       optionalSectionHint:
-        "Opcional. Los campos muestran los datos actuales; solo se envían los que modifiques.",
+        "Los campos muestran los datos actuales; solo se envían los que modifiques.",
       optionalBadge: "Opcional",
+      sectionHintMoreLabel: "Más detalle",
       amounts: {
-        sectionTitle: "Importes del sustituto",
-        sectionHint:
-          "Parten de los importes de esta factura. Si cambias el subtotal con un solo viaje vinculado, también se actualiza la tarifa base del viaje.",
+        sectionTitle: "Importes",
+        sectionHint: "Parten de los importes de esta factura.",
+        sectionHintDetail:
+          "Si cambias el subtotal con un solo viaje vinculado, también se actualiza la tarifa base del viaje.",
         sectionHintWithTripCorrections:
-          "Con corrección en paradas, los importes se heredan de la factura sustituida. Los cambios aquí aplican sobre el sustituto.",
+          "Con corrección en paradas, los importes se heredan de esta factura.",
+        sectionHintWithTripCorrectionsDetail:
+          "Los cambios de importe aplican sobre la nueva factura.",
       },
       concepts: {
-        sectionTitle: "Conceptos de cobro del sustituto",
+        sectionTitle: "Partidas de cobro",
         sectionHint:
-          "Edita las partidas (flete y servicios) del sustituto. El nuevo CFDI se emite con estas partidas y relación 04; los importes totales y la tarifa base del viaje se recalculan a partir de la línea de flete.",
+          "Edita las partidas de flete y servicios de la nueva factura.",
+        sectionHintDetail:
+          "Los importes totales y la tarifa base del viaje se recalculan a partir de la línea de flete.",
       },
       trips: {
-        sectionTitle: "Paradas y Carta Porte",
+        sectionTitle: "Paradas del viaje",
         sectionHint:
-          "Corrige RFC o domicilio de paradas del viaje. Los cambios se reflejan en la Carta Porte del sustituto. Al corregir domicilio, el sistema recalcula distancias de los tramos afectados cuando las paradas tienen coordenadas; no modifica fechas de seguimiento.",
+          "Corrige RFC o domicilio de las paradas. Los cambios se reflejan en el complemento de transporte de la nueva factura.",
+        sectionHintDetail:
+          "Al corregir domicilio se recalculan distancias de los tramos afectados cuando hay coordenadas; no se modifican fechas de seguimiento.",
         noPermission:
           "Tu rol no permite corregir paradas del viaje. Solicita acceso a un administrador.",
         loadingTrip: (tripCode: string) => `Cargando paradas del viaje ${tripCode}…`,
@@ -291,7 +370,9 @@ export const invoicingCopy = {
       assignment: {
         sectionTitle: "Operador y unidad",
         sectionHint:
-          "Cambia conductor o vehículo del viaje vinculado si no coinciden con lo que debe ir en Carta Porte. Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere al odómetro de la nueva unidad.",
+          "Cambia conductor o vehículo del viaje si no coinciden con lo que debe ir en el complemento de transporte.",
+        sectionHintDetail:
+          "Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere a la nueva unidad.",
         noPermission:
           "Tu rol no permite cambiar operador o unidad. Solicita acceso a un administrador.",
         loadingTrip: (tripCode: string) => `Cargando viaje ${tripCode}…`,
@@ -351,36 +432,37 @@ export const invoicingCopy = {
         reasonInvalid: "RFC con formato inválido",
       },
       corrections: {
-        sectionTitle: "Datos del receptor",
+        sectionTitle: "Cliente / receptor",
         sectionHint:
-          "RFC, nombre, régimen y forma de pago del sustituto. Precargados desde esta factura.",
+          "RFC, nombre, régimen y forma de pago. Precargados desde esta factura.",
         rfc: "RFC del receptor",
         receiverName: "Nombre del receptor",
         postalCode: "Código postal",
         taxRegime: "Régimen fiscal",
         cfdiUsage: "Uso CFDI",
         paymentForm: "Forma de pago",
-        paymentMethod: "Método de pago",
+        paymentMethod: "Cómo se cobra",
         propagateLabel: "Actualizar también el cliente del viaje",
         propagateHint:
           "Guarda RFC, nombre y régimen en el catálogo del cliente para no repetir el error en futuras facturas.",
       },
-      cancellationReasonLabel: "Motivo de cancelación",
+      cancellationReasonLabel: "Motivo de la corrección",
       cancellationReasonDescription:
-        "Texto que el SAT exige al cancelar la factura original con motivo 01. Debe relacionarse con la corrección que estás haciendo.",
+        "El SAT lo usa al cancelar la factura original. Debe relacionarse con la corrección que estás haciendo.",
       cancellationReasonPlaceholder:
-        "Ej. Corrección del RFC del receptor en la factura sustituta",
+        "Ej. Corrección del RFC del receptor",
       notesLabel: "Notas internas",
-      notesDescription: "Opcional. Solo para tu equipo; no aparecen en el CFDI.",
+      notesDescription:
+        "Opcional. Solo para tu equipo; no aparecen en la factura.",
       notesPlaceholder: "Contexto para auditoría o seguimiento interno",
       validationSummary: "Revisa los datos antes de confirmar",
       close: "Cerrar",
-      confirm: "Emitir sustituto y cancelar original",
+      confirm: "Sustituir factura",
       processing: "Procesando…",
       confirmLoadingTrips: "Cargando viajes…",
       successTitle: "Sustitución completada",
       successDescription: (serie: string, folio: number) =>
-        `Factura ${serie}-${folio} timbrada. La factura original se canceló con motivo 01.`,
+        `Factura ${serie}-${folio} emitida. La factura original quedó cancelada.`,
       errorTitle: "Error en sustitución",
       errorSeeInline: "Revisa el mensaje detallado en el formulario.",
       tripsStopLoadErrorTitle: "No se pudieron cargar las paradas",
@@ -417,41 +499,36 @@ export const invoicingCopy = {
     header: {
       title: "Factura",
       backLabel: "Volver",
-      pdf: "PDF",
+      pdf: "Descargar PDF",
       pdfGenerating: "Generando...",
-      xml: "XML",
-      pdfTitle: "Abrir representación impresa del CFDI",
-      xmlTitle: "Descargar XML del comprobante timbrado",
-      repXml: "XML REP",
-      repXmlTitle: "Descargar XML del complemento REP timbrado",
-      repPdf: "PDF REP",
-      repPdfTitle: "Abrir representación impresa del complemento REP",
-      repUuidCopyLabel: "Copiar UUID del REP",
-      uuidLabel: "UUID",
-      uuidCopyLabel: "Copiar UUID",
+      xml: "Descargar XML",
+      pdfTitle: "Abrir representación impresa",
+      xmlTitle: "Descargar archivo fiscal (XML)",
+      repXml: "XML del comprobante",
+      repXmlTitle: "Descargar XML del comprobante de pago",
+      repPdf: "PDF del comprobante",
+      repPdfTitle: "Abrir PDF del comprobante de pago",
+      repUuidCopyLabel: "Copiar folio del comprobante de pago",
+      uuidLabel: "Folio fiscal",
+      uuidCopyLabel: "Copiar folio fiscal",
       receiverSubtitle: (name: string, rfc: string) => `${name} · ${rfc}`,
+      issuerLine: (issuerName: string) => `Factura de ${issuerName}`,
     },
   },
   concepts: {
     sectionDescription:
-      "Arma el CFDI con una partida de flete (tarifa del viaje) y las partidas de servicio que apliquen. Puedes agregar varias.",
+      "El flete toma la tarifa del viaje. Agrega los servicios que apliquen: maniobras, estadías, resguardo.",
     sectionDescriptionAccessory:
-      "Arma el CFDI solo con partidas de servicio (maniobras, estadías, etc.). Esta factura no incluye flete.",
-    introTitle: "Partidas de cobro",
-    introDescription:
-      "El flete refleja la tarifa del viaje. Agrega servicios adicionales (maniobras, resguardo, etc.) desde tu catálogo o captura manual.",
-    introDescriptionAccessory:
-      "Agrega los servicios adicionales a facturar. No se incluye partida de flete en esta factura.",
-    fleteHint: "Partida principal vinculada a la tarifa base del viaje.",
-    serviceHint: "Partida adicional de servicio. Puedes reutilizar un concepto del catálogo.",
+      "Esta factura incluye solo servicios (maniobras, estadías, resguardo). No lleva flete.",
+    fleteHint: "Concepto principal, ligado a la tarifa del viaje.",
+    serviceHint: "Concepto de servicio. Puedes tomarlo de tu catálogo o capturarlo.",
     fleteRowTitle: "Flete",
-    serviceRowTitle: (number: number) => `Servicio ${number}`,
-    emptyAccessoryTitle: "Sin servicios",
-    partidasSummary: (count: number, subtotal: string) =>
-      `${count} partida${count === 1 ? "" : "s"} · Subtotal partidas: ${subtotal}`,
-    addService: "Agregar partida de servicio",
-    addServiceAccessory: "Agregar servicio",
-    removeService: "Quitar partida",
+    emptyTitle: "Sin conceptos",
+    conceptsCount: (count: number) =>
+      `${count} concepto${count === 1 ? "" : "s"}`,
+    addConcept: "Agregar concepto",
+    removeConcept: "Quitar concepto",
+    discountHint: "Se resta del subtotal de los conceptos.",
     catalogLabel: "Catálogo de servicios",
     catalogPlaceholder: "Selecciona un servicio guardado",
     catalogManual: "Captura manual",
@@ -483,19 +560,19 @@ export const invoicingCopy = {
         `${quantity} × ${unitPrice}`,
     },
     table: {
-      emptyDescription: "Agrega partidas de servicio además del flete del viaje.",
+      emptyDescription: "Agrega el flete del viaje y los servicios que apliquen.",
       emptyDescriptionAccessory:
-        "Agrega al menos un servicio (maniobras, estadías, etc.) para esta factura.",
+        "Agrega al menos un servicio (maniobras, estadías) para esta factura.",
     },
     sheet: {
-      createTitle: "Nueva partida de servicio",
+      createTitle: "Nuevo concepto",
       editFleteTitle: "Editar flete",
-      editServiceTitle: (number: number) => `Editar servicio ${number}`,
-      apply: "Aplicar partida",
-      close: "Cerrar",
-      validationSummary: "Revisa los datos de la partida",
-      taxesHeading: "Impuestos de la partida",
-      taxesHint: "Define si esta partida lleva IVA y/o retención.",
+      editConceptTitle: "Editar concepto",
+      apply: "Guardar concepto",
+      close: "Cancelar",
+      validationSummary: "Revisa los datos del concepto",
+      taxesHeading: "Impuestos del concepto",
+      taxesHint: "Define si este concepto lleva IVA y/o retención.",
       ivaAplica: "Aplica IVA",
       retencionAplica: "Aplica retención",
       retencionRequiredHint:
@@ -507,25 +584,28 @@ export const invoicingCopy = {
         descriptionRequired: "Indica la descripción que aparecerá en el CFDI.",
         quantityPositive: "La cantidad debe ser mayor a cero.",
         unitPriceMin: "El precio unitario no puede ser negativo.",
-        unitPriceRequired: "Indica el precio unitario de la partida.",
+        unitPriceRequired: "Indica el precio unitario del concepto.",
       },
     },
   },
   amountsPanel: {
     title: "Importes",
-    totalLabel: "Total CFDI",
-    hint: "IVA y retención se calculan por partida según la configuración de cada concepto.",
-    ivaPerConceptHint: "según partidas",
-    retentionPerConceptHint: "por partida",
+    totalLabel: "Total a facturar",
+    hint: "El IVA y la retención se calculan concepto por concepto.",
+    ivaPerConceptHint: "según conceptos",
+    retentionPerConceptHint: "por concepto",
+    /** Retención 4% en lenguaje llano (Art. 1-A LIVA, autotransporte de carga). */
+    retentionExplainer:
+      "Se retiene el 4% de IVA porque el receptor es persona moral y el servicio es de transporte de carga.",
   },
 } as const;
 
 /** CTA compartido con Finanzas y empty states */
 export const invoiceFromTripCta = {
-  label: "Facturar desde viaje",
+  label: "Ver viajes por facturar",
   tooltip:
-    "Abre el listado de viajes para generar CFDI desde un viaje con facturación disponible",
+    "Abre la cola de viajes con facturación disponible en Finanzas",
   emptyDescription:
-    "Genera CFDI desde un viaje elegible en el módulo Viajes.",
-  tripsPath: "/trips",
+    "Elige un viaje de la cola «Por facturar» para generar su factura.",
+  invoiceablePath: "/finance?tab=invoiceable",
 } as const;

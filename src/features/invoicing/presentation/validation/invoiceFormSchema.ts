@@ -128,6 +128,33 @@ export const invoiceFormSchema = invoiceFormBase.superRefine((values, ctx) => {
   refinePersonaMoralRetention(values, ctx);
 });
 
+/**
+ * Campos que se editan en el sheet «Corregir datos fiscales».
+ * Derivado del mismo schema base: no duplica reglas del paquete (RFC, CP, etc.).
+ */
+export const invoiceReceiverFormSchema = invoiceFormBase.pick({
+  receiver_rfc: true,
+  receiver_name: true,
+  receiver_tax_regime: true,
+  receiver_postal_code: true,
+  cfdi_usage: true,
+  payment_form: true,
+  payment_method: true,
+});
+
+export type InvoiceReceiverFormValues = z.infer<typeof invoiceReceiverFormSchema>;
+
+/** Orden de lectura del sheet fiscal; se usa para decidir si un error vive ahí. */
+export const INVOICE_RECEIVER_FIELD_NAMES = [
+  "receiver_name",
+  "receiver_rfc",
+  "receiver_tax_regime",
+  "receiver_postal_code",
+  "cfdi_usage",
+  "payment_form",
+  "payment_method",
+] as const satisfies ReadonlyArray<keyof InvoiceReceiverFormValues>;
+
 /** Alta — validación estricta con viaje (tests y parse de envío). */
 export const invoiceCreateFormSchema = createInvoiceSchema
   .omit({ concepts: true })

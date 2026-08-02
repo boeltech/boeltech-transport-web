@@ -20,8 +20,10 @@ describe("canShowInvoiceFromTripCta", () => {
     expect(canShowInvoiceFromTripCta(has)).toBe(true);
   });
 
-  it("expone copy estable para toolbar y empty state", () => {
-    expect(FINANCE_INVOICE_FROM_TRIP_CTA.label).toBe("Facturar desde viaje");
-    expect(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath).toBe("/trips");
+  it("manda el empty state a la cola de viajes por facturar", () => {
+    expect(FINANCE_INVOICE_FROM_TRIP_CTA.label).toBe("Ver viajes por facturar");
+    expect(FINANCE_INVOICE_FROM_TRIP_CTA.invoiceablePath).toBe(
+      "/finance?tab=invoiceable",
+    );
   });
 });

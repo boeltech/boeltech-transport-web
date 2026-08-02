@@ -29,15 +29,6 @@ export interface InvoiceConceptLinesTableProps {
   billingScope?: InvoiceBillingScope;
 }
 
-function countServiceLinesBefore(lines: InvoiceConceptFormLine[], index: number): number {
-  return lines.slice(0, index).filter((line) => line.concept_type === "service").length;
-}
-
-function getRowLabel(line: InvoiceConceptFormLine, index: number, lines: InvoiceConceptFormLine[]): string {
-  if (line.concept_type === "flete") return copy.fleteRowTitle;
-  return copy.serviceRowTitle(countServiceLinesBefore(lines, index) + 1);
-}
-
 export function InvoiceConceptLinesTable({
   lines,
   onEdit,
@@ -46,13 +37,12 @@ export function InvoiceConceptLinesTable({
   billingScope = "primary_transport",
 }: InvoiceConceptLinesTableProps) {
   const isAccessory = billingScope === "accessory";
-  const serviceOnlyCount = lines.filter((l) => l.concept_type === "service").length;
 
   if (lines.length === 0) {
     return (
       <EmptyState
         icon={<Receipt className="h-8 w-8 text-muted-foreground" />}
-        title={isAccessory ? copy.emptyAccessoryTitle : copy.fleteRowTitle}
+        title={copy.emptyTitle}
         description={
           isAccessory ? copy.table.emptyDescriptionAccessory : copy.table.emptyDescription
         }
@@ -121,7 +111,7 @@ export function InvoiceConceptLinesTable({
                           variant="ghost"
                           size="sm"
                           onClick={() => onRemove(index)}
-                          aria-label={copy.removeService}
+                          aria-label={copy.removeConcept}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -140,7 +130,6 @@ export function InvoiceConceptLinesTable({
         {lines.map((line, index) => {
           const isFlete = line.concept_type === "flete";
           const hasError = errorIndices?.has(index);
-          const rowLabel = getRowLabel(line, index, lines);
           return (
             <div
               key={line.id ?? `concept-mobile-${index}`}
@@ -150,13 +139,10 @@ export function InvoiceConceptLinesTable({
               )}
             >
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{rowLabel}</p>
-                  <Badge variant={isFlete ? "default" : "secondary"} className="text-xs">
-                    {isFlete ? tableCopy.flete : tableCopy.service}
-                  </Badge>
-                </div>
-                <p className="truncate text-sm">{line.description || "—"}</p>
+                <Badge variant={isFlete ? "default" : "secondary"} className="text-xs">
+                  {isFlete ? tableCopy.flete : tableCopy.service}
+                </Badge>
+                <p className="truncate text-sm font-medium">{line.description || "—"}</p>
                 <p className="text-xs text-muted-foreground">
                   {tableCopy.qtyUnitSummary(
                     line.quantity,
@@ -184,7 +170,7 @@ export function InvoiceConceptLinesTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => onRemove(index)}
-                      aria-label={copy.removeService}
+                      aria-label={copy.removeConcept}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -195,12 +181,6 @@ export function InvoiceConceptLinesTable({
           );
         })}
       </div>
-
-      {serviceOnlyCount === 0 &&
-      !isAccessory &&
-      lines.some((l) => l.concept_type === "flete") ? (
-        <p className="mt-2 text-xs text-muted-foreground">{copy.table.emptyDescription}</p>
-      ) : null}
     </>
   );
 }

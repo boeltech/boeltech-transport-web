@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Invoice } from "@features/invoicing/domain";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 
 const mutateMock = vi.fn();
@@ -45,7 +46,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     issuerTaxRegime: "601",
     issueLocation: "26015",
     receiverRfc: "XAXX010101000",
-    receiverName: "Cliente",
+    receiverName: "Cliente Demo SA",
     cfdiUsage: "G03",
     receiverTaxRegime: "616",
     receiverPostalCode: "26015",
@@ -90,22 +91,39 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
   };
 }
 
+function renderDialog(invoice: Invoice = buildInvoice()) {
+  return render(
+    <TooltipProvider>
+      <PaymentFormDialog invoice={invoice} open onOpenChange={vi.fn()} />
+    </TooltipProvider>,
+  );
+}
+
 describe("PaymentFormDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  it("shows operative title, folio, client and balance without PPD/REP in the title", () => {
+    renderDialog();
+
+    expect(
+      screen.getByRole("heading", { name: "Registrar pago" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/PPD\s*\/\s*REP/i)).not.toBeInTheDocument();
+    expect(screen.getByText("A-10 · Cliente Demo SA")).toBeInTheDocument();
+    expect(screen.getByText("Por cobrar")).toBeInTheDocument();
+    expect(screen.getByText("Datos adicionales")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Más sobre factura a crédito/i }),
+    ).toBeInTheDocument();
+  });
+
   it("submits invoice exchange rate and effective balance", async () => {
     const user = userEvent.setup();
-    render(
-      <PaymentFormDialog
-        invoice={buildInvoice()}
-        open
-        onOpenChange={vi.fn()}
-      />,
-    );
+    renderDialog();
 
-    await user.click(screen.getByRole("button", { name: /Registrar pago/i }));
+    await user.click(screen.getByRole("button", { name: /^Registrar pago$/i }));
 
     expect(mutateMock).toHaveBeenCalledWith(
       expect.objectContaining({

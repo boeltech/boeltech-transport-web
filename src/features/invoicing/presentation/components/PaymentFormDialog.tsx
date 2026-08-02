@@ -12,6 +12,7 @@ import { RepChainRepairConfirmDialog } from "./RepChainRepairConfirmDialog";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -25,6 +26,7 @@ import {
   RHFTextField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import { HintIcon } from "@shared/ui/hint-icon";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { FormaPagoSelect } from "@features/catalogs/presentation/components";
 import { useRegisterPayment } from "@features/invoicing/application";
@@ -39,21 +41,24 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
 const copy = invoicingCopy.detail;
+const formCopy = copy.paymentForm;
 
 const schema = z.object({
   amount: z.coerce
     .number()
-    .refine((n) => !Number.isNaN(n), { message: "Monto requerido" })
-    .positive("El monto debe ser mayor a 0"),
+    .refine((n) => !Number.isNaN(n), {
+      message: formCopy.validation.amountRequired,
+    })
+    .positive(formCopy.validation.amountPositive),
   payment_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato requerido: YYYY-MM-DD"),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, formCopy.validation.paymentDateFormat),
   payment_time: z
     .string()
-    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato HH:mm o HH:mm:ss")
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/, formCopy.validation.paymentTimeFormat)
     .optional()
     .default("12:00"),
-  payment_form: z.string().min(1, "Forma de pago requerida"),
+  payment_form: z.string().min(1, formCopy.validation.paymentFormRequired),
   reference: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
 });
@@ -113,10 +118,12 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
   const [pendingPayload, setPendingPayload] = useState<CreatePaymentPayload | null>(
     null,
   );
-  const { balanceDue } = getInvoiceDisplayAmounts(invoice);
+  const { balanceDue, totalPaid } = getInvoiceDisplayAmounts(invoice);
   const remainingBalance = Number(balanceDue.toFixed(2));
   const hasPendingBalance = remainingBalance > 0;
   const exchangeRate = invoice.exchangeRate ?? 1;
+  const isPpd = invoice.paymentMethod === "PPD";
+  const clientName = invoice.receiverName?.trim() || "—";
 
   const form = useForm<FormValues, unknown, FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -147,7 +154,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
   const watchedPaymentDate = form.watch("payment_date");
 
   const installmentPreview = useMemo(() => {
-    if (invoice.paymentMethod !== "PPD" || !watchedPaymentDate) return null;
+    if (!isPpd || !watchedPaymentDate) return null;
     const sorted = sortPaymentsForInstallment(
       invoice.payments.map((p) => ({
         id: p.id,
@@ -175,9 +182,9 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
   }, [
     exchangeRate,
     invoice.currency,
-    invoice.paymentMethod,
     invoice.payments,
     invoice.total,
+    isPpd,
     watchedAmount,
     watchedPaymentDate,
   ]);
@@ -191,8 +198,8 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
     if (!hasPendingBalance) {
       toast({
         variant: "destructive",
-        title: "Sin saldo pendiente",
-        description: "Esta factura ya no tiene saldo por cobrar.",
+        title: formCopy.noBalanceTitle,
+        description: formCopy.noBalanceDescription,
       });
       return;
     }
@@ -200,8 +207,8 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
     if (values.amount > remainingBalance) {
       toast({
         variant: "destructive",
-        title: "Monto inválido",
-        description: "El pago no puede exceder el saldo pendiente.",
+        title: formCopy.amountExceedsTitle,
+        description: formCopy.amountExceedsDescription,
       });
       return;
     }
@@ -223,7 +230,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
   const validationMessages = collectFieldErrorMessages(form.formState.errors);
 
   const lateRegistrationHint = useMemo(() => {
-    if (!watchedPaymentDate || invoice.paymentMethod !== "PPD") return null;
+    if (!watchedPaymentDate || !isPpd) return null;
     const { status } = computeRepFiscalDeadline({
       paymentDate: watchedPaymentDate,
       repStatus: "pending",
@@ -231,29 +238,48 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
     });
     if (status !== "overdue") return null;
     return copy.hint.paymentLateRegistrationHint;
-  }, [watchedPaymentDate, invoice.paymentMethod]);
+  }, [watchedPaymentDate, isPpd]);
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {invoice.paymentMethod === "PPD"
-            ? "Registrar pago (PPD / REP)"
-            : "Registrar pago"}
-        </DialogTitle>
+        <div className="flex items-center gap-1">
+          <DialogTitle>{formCopy.title}</DialogTitle>
+          {isPpd ? (
+            <HintIcon label={formCopy.ppdHintLabel}>{formCopy.ppdHint}</HintIcon>
+          ) : null}
+        </div>
+        <DialogDescription>
+          {formCopy.contextLine(invoice.serie, invoice.folio, clientName)}
+        </DialogDescription>
       </DialogHeader>
 
-      <div className="text-sm text-muted-foreground mb-2">
-        Saldo pendiente:{" "}
-        <span className="font-semibold text-foreground">
+      <div className="mb-1 rounded-lg border bg-muted/40 px-3 py-2.5">
+        <p className="text-xs text-muted-foreground">{formCopy.balanceDue}</p>
+        <p className="text-lg font-semibold tabular-nums text-foreground">
           {formatMxCurrency(balanceDue)}
-        </span>
-      </div>
-      {!hasPendingBalance && (
-        <p className="text-xs text-muted-foreground mb-2">
-          Esta factura ya está liquidada; no se pueden registrar más pagos.
         </p>
-      )}
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          <span>
+            {formCopy.total}:{" "}
+            <span className="tabular-nums text-foreground/80">
+              {formatMxCurrency(invoice.total)}
+            </span>
+          </span>
+          <span>
+            {formCopy.paid}:{" "}
+            <span className="tabular-nums text-foreground/80">
+              {formatMxCurrency(totalPaid)}
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {!hasPendingBalance ? (
+        <p className="mb-2 text-xs text-muted-foreground">
+          {formCopy.settledMessage}
+        </p>
+      ) : null}
 
       <form onSubmit={handleFormSubmit} className="space-y-4">
         {submissionError ? (
@@ -270,47 +296,32 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
             control={form.control}
             name="amount"
             fieldId="amount"
-            label="Monto"
+            label={formCopy.amount}
             required
             disabled={!hasPendingBalance}
           />
           <RHFTextField
             control={form.control}
             name="payment_date"
-            label="Fecha de pago"
+            label={formCopy.paymentDate}
             required
             type="date"
             disabled={!hasPendingBalance}
           />
-          <RHFTextField
-            control={form.control}
-            name="payment_time"
-            label="Hora de pago (opcional)"
-            type="time"
-            disabled={!hasPendingBalance}
-            description={copy.hint.paymentTimeHint}
-          />
         </div>
 
-        {installmentPreview != null ? (
-          <p className="text-xs text-muted-foreground">
-            {copy.chainRepair.previewInstallment(installmentPreview)}
-          </p>
-        ) : null}
-
-        {lateRegistrationHint ? (
-          <p className="text-xs text-warning">
-            {lateRegistrationHint}
-          </p>
-        ) : null}
-
-        <RHFCatalogField control={form.control} name="payment_form" label="Forma de pago" required>
+        <RHFCatalogField
+          control={form.control}
+          name="payment_form"
+          label={formCopy.paymentForm}
+          required
+        >
           {({ field, fieldState, resolvedId, errorMessage }) => (
             <FormaPagoSelect
               triggerId={resolvedId}
               value={field.value}
               onValueChange={field.onChange}
-              placeholder="Selecciona forma de pago"
+              placeholder={formCopy.paymentFormPlaceholder}
               disabled={!hasPendingBalance}
               error={Boolean(fieldState.error)}
               {...getFieldErrorAriaProps(resolvedId, errorMessage)}
@@ -320,23 +331,46 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
 
         <RHFTextField
           control={form.control}
-          name="reference"
-          label="Referencia (opcional)"
-          placeholder="Número de transferencia, cheque..."
+          name="payment_time"
+          label={formCopy.paymentTime}
+          type="time"
           disabled={!hasPendingBalance}
+          description={copy.hint.paymentTimeHint}
         />
 
-        <RHFTextField
-          control={form.control}
-          name="notes"
-          label="Notas (opcional)"
-          placeholder="Notas adicionales"
-          disabled={!hasPendingBalance}
-        />
+        {installmentPreview != null ? (
+          <p className="text-xs text-muted-foreground">
+            {copy.chainRepair.previewInstallment(installmentPreview)}
+          </p>
+        ) : null}
+
+        {lateRegistrationHint ? (
+          <p className="text-xs text-warning">{lateRegistrationHint}</p>
+        ) : null}
+
+        <div className="space-y-3 border-t border-border pt-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {formCopy.additionalData}
+          </p>
+          <RHFTextField
+            control={form.control}
+            name="reference"
+            label={formCopy.reference}
+            placeholder={formCopy.referencePlaceholder}
+            disabled={!hasPendingBalance}
+          />
+          <RHFTextField
+            control={form.control}
+            name="notes"
+            label={formCopy.notes}
+            placeholder={formCopy.notesPlaceholder}
+            disabled={!hasPendingBalance}
+          />
+        </div>
 
         {showValidationSummary && validationMessages.length > 0 ? (
           <FormValidationSummary
-            title="Revisa los datos del pago"
+            title={formCopy.validationSummaryTitle}
             messages={validationMessages}
           />
         ) : null}
@@ -347,10 +381,10 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Cancelar
+            {formCopy.cancel}
           </Button>
           <Button type="submit" disabled={isPending || !hasPendingBalance}>
-            {isPending ? "Guardando..." : "Registrar pago"}
+            {isPending ? formCopy.submitting : formCopy.submit}
           </Button>
         </DialogFooter>
       </form>
@@ -372,7 +406,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
 export function PaymentFormDialog({ invoice, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         {open ? (
           <PaymentFormDialogInner
             key={invoice.id}

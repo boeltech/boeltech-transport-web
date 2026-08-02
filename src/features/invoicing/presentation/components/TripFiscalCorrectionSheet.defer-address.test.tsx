@@ -275,7 +275,7 @@ describe("TripFiscalCorrectionSheet defer address", () => {
     await user.click(screen.getByRole("button", { name: /Capturar domicilio corregido/i }));
 
     expect(screen.getByLabelText(/Nombre del lugar/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Codigo postal/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Código postal/i)).toBeInTheDocument();
   });
 
   it("inline mode includes edited locationName in parse payload", async () => {

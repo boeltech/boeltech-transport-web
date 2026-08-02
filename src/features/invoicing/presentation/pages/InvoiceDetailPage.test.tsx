@@ -27,14 +27,26 @@ vi.mock("../components/InvoiceDetailFiscalLabels", () => ({
   InvoiceDetailComprobanteCard: () => (
     <div data-testid="comprobante-card" />
   ),
+  InvoiceDetailPaymentTermsCard: () => (
+    <div data-testid="payment-terms-card" />
+  ),
   InvoiceDetailAmountsPanel: () => (
     <div data-testid="amounts-panel" />
+  ),
+  InvoiceDetailFiscalDossierBody: () => (
+    <div data-testid="fiscal-dossier-body" />
   ),
   InvoiceDetailIssuerReceiverCards: () => (
     <div data-testid="issuer-receiver-cards" />
   ),
   InvoiceDetailCfdiAmountsCard: () => (
     <div data-testid="cfdi-amounts-card" />
+  ),
+}));
+
+vi.mock("../components/InvoiceDetailFiscalDossier", () => ({
+  InvoiceDetailFiscalDossier: () => (
+    <div data-testid="fiscal-dossier" />
   ),
 }));
 
@@ -144,9 +156,47 @@ describe("InvoiceDetailPage", () => {
     renderPage();
 
     expect(
-      screen.getByText(/Liquidada al timbrar \(PUE/i),
+      screen.getByText(/Se liquidó al emitir \(pago de contado\)/i),
     ).toBeInTheDocument();
     expect(screen.getByText("$0.00")).toBeInTheDocument();
+  });
+
+  it("shows situation subtitle with client and issuer without UUID above the fold", () => {
+    renderPage();
+
+    expect(screen.getByText(/Cliente · XAXX010101000/i)).toBeInTheDocument();
+    expect(screen.getByText(/Factura de Emisor/i)).toBeInTheDocument();
+    expect(screen.queryByText(/c9b54a4b-c44f-4fd6-afeb-a6889f4ad073/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("fiscal-dossier")).toBeInTheDocument();
+  });
+
+  it("shows Cobro del viaje badge for primary billing scope", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getAllByText("Cobro del viaje").length).toBeGreaterThan(0);
   });
 
   it("shows substitution alert for active substitute with parentInvoiceId", () => {

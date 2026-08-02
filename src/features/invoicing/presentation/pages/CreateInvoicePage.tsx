@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useForm, useWatch, type Resolver } from "react-hook-form";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { ClipboardList, StickyNote } from "lucide-react";
+import {
+  useForm,
+  useWatch,
+  type FieldErrors,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePermissions } from "@shared/permissions";
 import { InvoiceFormPageShell } from "../components/InvoiceFormPageShell";
 import { InvoiceCreateContextCards } from "../components/InvoiceCreateContextCards";
 import { InvoiceFiscalComprobanteCard } from "../components/InvoiceFiscalComprobanteCard";
+import { InvoiceReceiverEditSheet } from "../components/InvoiceReceiverEditSheet";
+import { InvoiceBillingScopeBadge } from "../components/InvoiceBillingScopeBadge";
 import {
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
@@ -20,16 +33,19 @@ import {
   parseCreateInvoicePayload,
   parseDraftInvoicePayload,
   inferRetentionRequired,
+  INVOICE_RECEIVER_FIELD_NAMES,
   type InvoiceFormValues,
+  type InvoiceReceiverFormValues,
 } from "../validation/invoiceFormSchema";
 import { InvoiceConceptsEditor } from "../components/InvoiceConceptsEditor";
 import { InvoiceAmountsSummaryPanel } from "../components/InvoiceAmountsSummaryPanel";
 import { formatInvoiceApiErrorMessages } from "../validation/formatInvoiceApiErrors";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { Separator } from "@shared/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { FormSectionCard } from "@shared/ui/form-section-card";
 import { FormValidationSummary, RHFTextField } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import {
@@ -43,13 +59,30 @@ import { useTrip } from "@features/trips";
 
 const copy = invoicingCopy;
 
+/** Ancla para llevar la vista a los conceptos cuando el error no es de un campo. */
+const CONCEPTS_SECTION_ID = "invoice-concepts-section";
+
+function pickReceiverValues(values: InvoiceFormValues): InvoiceReceiverFormValues {
+  return {
+    receiver_rfc: values.receiver_rfc ?? "",
+    receiver_name: values.receiver_name ?? "",
+    receiver_tax_regime: values.receiver_tax_regime ?? "",
+    receiver_postal_code: values.receiver_postal_code ?? "",
+    cfdi_usage: values.cfdi_usage ?? "",
+    payment_form: values.payment_form ?? "",
+    payment_method: values.payment_method,
+  };
+}
+
 export function CreateInvoicePage() {
   const { id: invoiceId } = useParams<{ id: string }>();
   const isEditMode = Boolean(invoiceId);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const tripId = searchParams.get("trip_id") ?? "";
-  const fromFinance = searchParams.get("from") === "finance";
+  /** Pantalla de origen; la envía quien navega aquí (hub, detalle de viaje). */
+  const fromState = location.state?.from as string | undefined;
   const billingScope =
     searchParams.get("scope") === "accessory" ? "accessory" : "primary_transport";
   const isAccessoryScope = billingScope === "accessory";
@@ -61,11 +94,8 @@ export function CreateInvoicePage() {
   const shellBackHref =
     isEditMode && invoiceId
       ? `/invoices/${invoiceId}`
-      : fromFinance
-        ? "/finance?tab=invoices"
-        : tripId
-          ? `/trips/${tripId}`
-          : "/finance?tab=invoices";
+      : (fromState ??
+        (tripId ? `/trips/${tripId}` : "/finance?tab=invoices"));
 
   const shellTitle = isEditMode
     ? copy.edit.title
@@ -146,8 +176,64 @@ export function CreateInvoicePage() {
   const { control } = form;
 
   const receiverName = useWatch({ control: form.control, name: "receiver_name" });
+  const receiverRfc = useWatch({ control: form.control, name: "receiver_rfc" });
+  const total = useWatch({ control: form.control, name: "total" }) ?? 0;
   const retentionRequired = useWatch({ control: form.control, name: "retention_required" }) ?? false;
   const taxRate = prefill?.taxRate ?? 0.16;
+
+  const [receiverSheetOpen, setReceiverSheetOpen] = useState(false);
+  const [receiverSheetFocus, setReceiverSheetFocus] =
+    useState<keyof InvoiceReceiverFormValues | undefined>(undefined);
+  const [receiverSheetValidate, setReceiverSheetValidate] = useState(false);
+  const [receiverSheetValues, setReceiverSheetValues] =
+    useState<InvoiceReceiverFormValues>(() => pickReceiverValues(defaultInvoiceFormValues()));
+
+  const openReceiverSheet = (options?: {
+    focusField?: keyof InvoiceReceiverFormValues;
+    validateOnOpen?: boolean;
+  }) => {
+    setReceiverSheetValues(pickReceiverValues(form.getValues()));
+    setReceiverSheetFocus(options?.focusField);
+    setReceiverSheetValidate(options?.validateOnOpen ?? false);
+    setReceiverSheetOpen(true);
+  };
+
+  const applyReceiverValues = (values: InvoiceReceiverFormValues) => {
+    const options = { shouldDirty: true, shouldValidate: true } as const;
+    form.setValue("receiver_name", values.receiver_name, options);
+    form.setValue("receiver_rfc", values.receiver_rfc, options);
+    form.setValue("receiver_tax_regime", values.receiver_tax_regime, options);
+    form.setValue("receiver_postal_code", values.receiver_postal_code, options);
+    form.setValue("cfdi_usage", values.cfdi_usage, options);
+    form.setValue("payment_form", values.payment_form, options);
+    form.setValue("payment_method", values.payment_method, options);
+  };
+
+  /** Lleva al usuario al primer campo inválido, incluso si vive en el sheet fiscal. */
+  const handleInvalidSubmit = (errors: FieldErrors<InvoiceFormValues>) => {
+    setShowValidationSummary(true);
+
+    const receiverField = INVOICE_RECEIVER_FIELD_NAMES.find((name) => errors[name]);
+    if (receiverField) {
+      openReceiverSheet({ focusField: receiverField, validateOnOpen: true });
+      return;
+    }
+
+    const focusableField = (["discount", "notes"] as const).find(
+      (name) => errors[name],
+    );
+    if (focusableField) {
+      form.setFocus(focusableField);
+      return;
+    }
+
+    if (errors.concepts) {
+      document.getElementById(CONCEPTS_SECTION_ID)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  };
 
   useEffect(() => {
     if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError && !isAccessoryBlockedByError) {
@@ -281,7 +367,8 @@ export function CreateInvoicePage() {
     onSuccess: (invoice) => {
       toast({ title: copy.create.successToast });
       navigate(`/invoices/${invoice.id}`, {
-        state: { from: "/invoices/new" },
+        /** Conserva el módulo de origen; sin origen, el detalle vuelve al viaje ligado. */
+        state: { from: fromState ?? "/invoices/new" },
       });
     },
     onError: (err) => handleMutationError(copy.create.errorToast, err),
@@ -369,14 +456,11 @@ export function CreateInvoicePage() {
     });
   };
 
+  // En alta el código del viaje vive una sola vez, en la línea de contexto.
   const shellSubtitle =
     isEditMode && editableInvoice
       ? copy.edit.subtitleDraft(editableInvoice.serie, editableInvoice.folio)
-      : prefill
-        ? isAccessoryScope
-          ? copy.create.subtitleAccessoryFromTrip(prefill.tripCode)
-          : copy.create.subtitleFromTrip(prefill.tripCode)
-        : undefined;
+      : undefined;
 
   const fieldErrorMessages = collectFieldErrorMessages(form.formState.errors);
   const validationSummaryMessages = [...fieldErrorMessages, ...apiErrorMessages];
@@ -438,7 +522,11 @@ export function CreateInvoicePage() {
             <p className="text-sm text-muted-foreground">{copy.empty.body}</p>
             <div className="flex flex-wrap gap-3">
               {canInvoiceFromTrip ? (
-                <Button onClick={() => navigate(FINANCE_INVOICE_FROM_TRIP_CTA.tripsPath)}>
+                <Button
+                  onClick={() =>
+                    navigate(FINANCE_INVOICE_FROM_TRIP_CTA.invoiceablePath)
+                  }
+                >
                   {FINANCE_INVOICE_FROM_TRIP_CTA.label}
                 </Button>
               ) : null}
@@ -463,6 +551,17 @@ export function CreateInvoicePage() {
   }
 
   if (!isEditMode && isCreateBlocked) {
+    const blockedByOperationSat =
+      isBlockedByTripContext &&
+      !isAlreadyInvoicedByError &&
+      !linkedInvoiceId &&
+      !!tripContext?.invoicing.blockReason;
+    const blockedTitle = isAccessoryScope
+      ? copy.blocked.titleAccessory
+      : blockedByOperationSat
+        ? copy.blocked.titleNotReady
+        : copy.blocked.title;
+
     return (
       <InvoiceFormPageShell
         backHref={shellBackHref}
@@ -475,14 +574,28 @@ export function CreateInvoicePage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>
-              {isAccessoryScope ? copy.blocked.titleAccessory : copy.blocked.title}
-            </CardTitle>
+            <CardTitle>{blockedTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{blockedReason}</p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => navigate(shellBackHref)}>{copy.blocked.backToTrip}</Button>
+              {tripId && /ruta|paradas|coordenadas|distancias|carta\s+porte/i.test(blockedReason) ? (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/trips/${tripId}?tab=route`)}
+                >
+                  {copy.blocked.goToRouteTab}
+                </Button>
+              ) : null}
+              {tripId && /carga|mercanc/i.test(blockedReason) ? (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/trips/${tripId}?tab=cargo`)}
+                >
+                  {copy.blocked.goToCargoTab}
+                </Button>
+              ) : null}
               {linkedInvoiceId ? (
                 <Button
                   variant="outline"
@@ -510,6 +623,11 @@ export function CreateInvoicePage() {
       backHref={shellBackHref}
       title={shellTitle}
       subtitle={shellSubtitle}
+      trailing={
+        formBillingScope === "accessory" ? (
+          <InvoiceBillingScopeBadge scope="accessory" />
+        ) : null
+      }
     >
       <form
         onSubmit={form.handleSubmit(
@@ -518,9 +636,7 @@ export function CreateInvoicePage() {
             setApiErrorMessages([]);
             onSubmit(values);
           },
-          () => {
-            setShowValidationSummary(true);
-          },
+          handleInvalidSubmit,
         )}
         className="space-y-6"
       >
@@ -530,87 +646,114 @@ export function CreateInvoicePage() {
           tripId={tripId}
           invoice={editableInvoice}
           receiverName={receiverName}
+          receiverRfc={receiverRfc}
+          total={total}
         />
 
-        <InvoiceFiscalComprobanteCard control={control} />
+        <InvoiceFiscalComprobanteCard
+          control={control}
+          onEdit={() => openReceiverSheet()}
+        />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  {copy.section.concepts}
-                </CardTitle>
-                <CardDescription>
-                  {formBillingScope === "accessory"
-                    ? copy.concepts.sectionDescriptionAccessory
-                    : copy.concepts.sectionDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <InvoiceConceptsEditor
-                  control={control}
-                  setValue={form.setValue}
-                  taxRate={taxRate}
-                  tripBaseRate={
-                    formBillingScope === "accessory"
-                      ? undefined
-                      : (tripContext?.costs?.baseRate ?? prefill?.subtotal)
-                  }
-                  retentionRequired={retentionRequired}
-                  billingScope={formBillingScope}
-                />
-              </CardContent>
-            </Card>
+        <FormSectionCard
+          title={copy.section.concepts}
+          description={
+            formBillingScope === "accessory"
+              ? copy.concepts.sectionDescriptionAccessory
+              : copy.concepts.sectionDescription
+          }
+          icon={<ClipboardList className="h-4 w-4" />}
+          contentClassName="pt-0"
+        >
+          <div id={CONCEPTS_SECTION_ID}>
+            <InvoiceConceptsEditor
+              control={control}
+              setValue={form.setValue}
+              taxRate={taxRate}
+              tripBaseRate={
+                formBillingScope === "accessory"
+                  ? undefined
+                  : (tripContext?.costs?.baseRate ?? prefill?.subtotal)
+              }
+              retentionRequired={retentionRequired}
+              billingScope={formBillingScope}
+              showDiscount
+            />
+          </div>
+        </FormSectionCard>
 
-            <div className="xl:hidden">
-              <InvoiceAmountsSummaryPanel control={control} />
+        <InvoiceAmountsSummaryPanel
+          control={control}
+          className="w-full md:ml-auto md:max-w-md"
+        />
+
+        <FormSectionCard
+          title={copy.section.notes}
+          description={copy.label.notesDescription}
+          icon={<StickyNote className="h-4 w-4" />}
+          contentClassName="pt-0"
+        >
+          <RHFTextField
+            control={control}
+            name="notes"
+            label={copy.label.notesField}
+            placeholder={copy.label.notesPlaceholder}
+          />
+        </FormSectionCard>
+
+        {/* Barra de acción: el total y la consecuencia siempre a la vista. */}
+        <div className="sticky bottom-0 z-10 space-y-3 rounded-lg border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          {showValidationSummary && validationSummaryMessages.length > 0 ? (
+            <FormValidationSummary
+              title={validationSummaryTitle}
+              messages={validationSummaryMessages}
+              className="mb-0 max-h-40 overflow-y-auto"
+            />
+          ) : null}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm text-muted-foreground">
+                {copy.amountsPanel.totalLabel}{" "}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {formatMxCurrency(total)}
+                </span>
+              </p>
+              {!isEditMode ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.create.submitConsequence}
+                </p>
+              ) : null}
             </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  {copy.section.notes}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RHFTextField
-                  control={control}
-                  name="notes"
-                  label={copy.section.notes}
-                  placeholder={copy.label.notesPlaceholder}
-                />
-              </CardContent>
-            </Card>
-
-            {showValidationSummary && validationSummaryMessages.length > 0 ? (
-              <FormValidationSummary
-                title={validationSummaryTitle}
-                messages={validationSummaryMessages}
-              />
-            ) : null}
+            <div className="flex shrink-0 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(shellBackHref)}
+              >
+                {copy.label.cancel}
+              </Button>
+              <Button type="submit" disabled={isPending || isUpdating}>
+                {isPending || isUpdating
+                  ? copy.label.saving
+                  : isEditMode
+                    ? copy.edit.submit
+                    : copy.create.submit}
+              </Button>
+            </div>
           </div>
-
-          <aside className="hidden space-y-4 xl:sticky xl:top-4 xl:block xl:self-start">
-            <InvoiceAmountsSummaryPanel control={control} />
-          </aside>
-        </div>
-
-        <Separator />
-
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate(shellBackHref)}>
-            {copy.label.cancel}
-          </Button>
-          <Button type="submit" disabled={isPending || isUpdating}>
-            {isPending || isUpdating
-              ? copy.label.saving
-              : isEditMode
-                ? copy.edit.submit
-                : copy.create.submit}
-          </Button>
         </div>
       </form>
+
+      <InvoiceReceiverEditSheet
+        open={receiverSheetOpen}
+        onOpenChange={setReceiverSheetOpen}
+        values={receiverSheetValues}
+        onApply={applyReceiverValues}
+        validateOnOpen={receiverSheetValidate}
+        focusField={receiverSheetFocus}
+      />
     </InvoiceFormPageShell>
   );
 }

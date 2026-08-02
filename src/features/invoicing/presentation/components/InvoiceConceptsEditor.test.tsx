@@ -31,7 +31,7 @@ function AccessoryEditorHarness() {
 }
 
 describe("InvoiceConceptsEditor accessory mode (ADR-0068)", () => {
-  it("shows accessory empty state and add-service CTA without flete row", () => {
+  it("shows accessory empty state and add-concept CTA without flete row", () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -42,9 +42,9 @@ describe("InvoiceConceptsEditor accessory mode (ADR-0068)", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText("Sin servicios")).toBeInTheDocument();
+    expect(screen.getByText("Sin conceptos")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Agregar servicio/i }),
+      screen.getByRole("button", { name: /Agregar concepto/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Flete")).not.toBeInTheDocument();
   });

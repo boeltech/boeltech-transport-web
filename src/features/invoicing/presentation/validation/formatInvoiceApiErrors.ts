@@ -79,6 +79,13 @@ export function formatInvoiceApiErrorMessages(error: unknown): string[] {
         const fromIssues = fromDetailsArray(record.issues as unknown[]);
         if (fromIssues.length > 0) return fromIssues;
       }
+      // Defense in depth: never surface PAC `raw` dumps if they leak in details.
+      if (typeof record.raw === "string" && record.raw.length > 0) {
+        if (error.message) return [error.message];
+        if (typeof record.hint === "string" && record.hint.length > 0) {
+          return [record.hint];
+        }
+      }
     }
 
     if (error.message) return [error.message];

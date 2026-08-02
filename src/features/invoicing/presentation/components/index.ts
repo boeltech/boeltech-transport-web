@@ -7,6 +7,7 @@ export { PaymentFormDialog } from "./PaymentFormDialog";
 export { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 export { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
 export { InvoiceFormPageShell } from "./InvoiceFormPageShell";
+export { InvoiceReceiverEditSheet } from "./InvoiceReceiverEditSheet";
 export { InvoicesSummaryCards } from "./InvoicesSummaryCards";
 export { CopyableUuidSubtitle } from "./CopyableUuidSubtitle";
 export { InvoiceDetailHeaderSubtitle } from "./InvoiceDetailHeaderSubtitle";
@@ -19,10 +20,13 @@ export {
 } from "./InvoiceBillingScopeBadge";
 export {
   InvoiceDetailComprobanteCard,
+  InvoiceDetailPaymentTermsCard,
   InvoiceDetailAmountsPanel,
+  InvoiceDetailFiscalDossierBody,
   InvoiceDetailIssuerReceiverCards,
   InvoiceDetailCfdiAmountsCard,
 } from "./InvoiceDetailFiscalLabels";
+export { InvoiceDetailFiscalDossier } from "./InvoiceDetailFiscalDossier";
 export {
   INVOICE_STATUS_CONFIG,
   getInvoiceStatusConfig,

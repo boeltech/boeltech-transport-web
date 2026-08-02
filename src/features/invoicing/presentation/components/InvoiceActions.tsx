@@ -62,15 +62,6 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 
 const actionsCopy = invoicingCopy.detail.actions;
 
-function InvoiceActionSeparator() {
-  return (
-    <span
-      className="hidden h-6 w-px shrink-0 self-center bg-border sm:block"
-      aria-hidden
-    />
-  );
-}
-
 const cancelButtonClassName =
   "border-destructive/40 text-destructive hover:bg-destructive-soft hover:text-destructive-soft-foreground";
 
@@ -375,28 +366,16 @@ export function InvoiceActions({
   const hasSecondaryActions =
     canShowExport || canShowCancel;
 
+  const primaryIsStamp = isDraft && canCreate;
+  const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
+
   return (
     <>
       <div className="flex flex-col gap-2 sm:items-end">
-        {hasWorkflowActions ? (
+        {/* D5: CTA primaria única según estado */}
+        {(primaryIsStamp || primaryIsPayment) && (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {isDraft && canDelete && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={isLoading}
-              >
-                {deleting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                {actionsCopy.deleteDraft}
-              </Button>
-            )}
-
-            {isDraft && canCreate && (
+            {primaryIsStamp ? (
               <Button
                 variant="default"
                 size="sm"
@@ -410,8 +389,24 @@ export function InvoiceActions({
                 )}
                 {fiscal.isStamping ? actionsCopy.stamping : actionsCopy.stamp}
               </Button>
-            )}
+            ) : null}
 
+            {primaryIsPayment && fullInvoice ? (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setPaymentDialogOpen(true)}
+                disabled={isLoading}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                {actionsCopy.registerPayment}
+              </Button>
+            ) : null}
+          </div>
+        )}
+
+        {hasWorkflowActions || hasSecondaryActions ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isDraft && canUpdate && (
               <Button
                 variant="outline"
@@ -424,34 +419,6 @@ export function InvoiceActions({
               </Button>
             )}
 
-            {canShowRegisterPayment && fullInvoice && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setPaymentDialogOpen(true)}
-                disabled={isLoading}
-              >
-                <DollarSign className="mr-2 h-4 w-4" />
-                {actionsCopy.registerPayment}
-              </Button>
-            )}
-
-            {canShowSubstitute && fullInvoice && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSubstituteSheetOpen(true)}
-                disabled={isLoading}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {actionsCopy.substitute}
-              </Button>
-            )}
-          </div>
-        ) : null}
-
-        {hasSecondaryActions ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
             {canShowExport && fullInvoice ? (
               <>
                 <Button
@@ -493,7 +460,33 @@ export function InvoiceActions({
               </>
             ) : null}
 
-            {canShowExport && canShowCancel ? <InvoiceActionSeparator /> : null}
+            {canShowSubstitute && fullInvoice ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSubstituteSheetOpen(true)}
+                disabled={isLoading}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {actionsCopy.substitute}
+              </Button>
+            ) : null}
+
+            {isDraft && canDelete ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={isLoading}
+              >
+                {deleting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                {actionsCopy.deleteDraft}
+              </Button>
+            ) : null}
 
             {canShowCancel ? (
               <Button

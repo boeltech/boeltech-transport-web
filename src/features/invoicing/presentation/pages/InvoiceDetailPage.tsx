@@ -9,7 +9,6 @@ import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
-import { formatDateTime } from "@shared/utils/dateUtils";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
@@ -21,13 +20,14 @@ import {
   InvoiceDetailHeaderSubtitle,
   buildInvoiceStats,
   InvoiceDetailContextStrip,
-  InvoiceDetailComprobanteCard,
   InvoiceDetailAmountsPanel,
   InvoicePaymentRepRow,
   InvoiceBillingScopeBadge,
   resolveInvoiceBillingScope,
 } from "../components";
 import { InvoiceDetailConceptsCard } from "../components/InvoiceDetailConceptsCard";
+import { InvoiceDetailPaymentTermsCard } from "../components/InvoiceDetailFiscalLabels";
+import { InvoiceDetailFiscalDossier } from "../components/InvoiceDetailFiscalDossier";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   hasRepFiscalDeadlineAlert,
@@ -265,7 +265,7 @@ export function InvoiceDetailPage() {
           <InvoiceDetailHeaderSubtitle
             receiverName={invoice.receiverName}
             receiverRfc={invoice.receiverRfc}
-            cfdiUuid={invoice.cfdiUuid}
+            issuerName={invoice.issuerName}
           />
         ),
         actions: (
@@ -291,106 +291,63 @@ export function InvoiceDetailPage() {
         updatedBy: invoice.updatedByName?.trim() || undefined,
       }}
     >
-      <InvoiceDetailContextStrip invoice={invoice} fromPath={location.pathname} />
-
-      <InvoiceDetailComprobanteCard invoice={invoice} />
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-        <InvoiceDetailConceptsCard concepts={invoice.concepts} />
-        <InvoiceDetailAmountsPanel
+      {/* Banda 2 — Qué se cobró */}
+      <section className="space-y-4" aria-label={copy.section.billed}>
+        <InvoiceDetailContextStrip
           invoice={invoice}
-          displayAmounts={displayAmounts}
+          fromPath={location.pathname}
         />
-      </div>
 
-      {invoice.payments.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              {copy.section.payments(invoice.payments.length)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {invoice.payments.map((payment) => (
-              <InvoicePaymentRepRow
-                key={payment.id}
-                payment={payment}
-                invoiceId={invoice.id}
-                invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
-                canExportFiles={canExportFiles}
-                onRetry={retryRep}
-                retryingPaymentId={retryingPaymentId}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
+          <InvoiceDetailConceptsCard concepts={invoice.concepts} />
+          <InvoiceDetailAmountsPanel
+            invoice={invoice}
+            displayAmounts={displayAmounts}
+          />
+        </div>
 
-      {invoice.notes && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              {copy.section.notes}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{invoice.notes}</p>
-          </CardContent>
-        </Card>
-      )}
+        <InvoiceDetailPaymentTermsCard invoice={invoice} />
 
-      {(invoice.status === "cancelled" ||
-        invoice.status === "cancellation_pending") && (
-        <Card className="border-destructive">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-destructive uppercase tracking-wide">
-              {invoice.status === "cancellation_pending"
-                ? copy.section.cancellationPending
-                : copy.section.cancellation}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1">
-            {invoice.status === "cancellation_pending" && (
-              <p>
-                <span className="text-muted-foreground">
-                  {copy.label.satStatus}:{" "}
-                </span>
-                {invoice.satCancellationMessage ??
-                  copy.hint.cancellationPendingSat}
-              </p>
-            )}
-            <p>
-              <span className="text-muted-foreground">{copy.label.date}: </span>
-              {formatDateTime(
-                invoice.status === "cancellation_pending"
-                  ? invoice.satCancellationUpdatedAt
-                  : invoice.cancelledAt,
-              )}
-            </p>
-            <p>
-              <span className="text-muted-foreground">
-                {copy.label.satReason}:{" "}
-              </span>
-              {invoice.cancellationCode}
-            </p>
-            <p>
-              <span className="text-muted-foreground">
-                {copy.label.description}:{" "}
-              </span>
-              {invoice.cancellationReason}
-            </p>
-            {invoice.replacementCfdiUuid && (
-              <p>
-                <span className="text-muted-foreground">
-                  {copy.label.substitutionUuid}:{" "}
-                </span>
-                {invoice.replacementCfdiUuid}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        {invoice.payments.length > 0 ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                {copy.section.payments(invoice.payments.length)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {invoice.payments.map((payment) => (
+                <InvoicePaymentRepRow
+                  key={payment.id}
+                  payment={payment}
+                  invoiceId={invoice.id}
+                  invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
+                  canExportFiles={canExportFiles}
+                  onRetry={retryRep}
+                  retryingPaymentId={retryingPaymentId}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {invoice.notes ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {copy.section.notes}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{invoice.notes}</p>
+            </CardContent>
+          </Card>
+        ) : null}
+      </section>
+
+      {/* Banda 3 — Expediente fiscal */}
+      <InvoiceDetailFiscalDossier invoice={invoice} />
     </DetailPageShell>
   );
 }

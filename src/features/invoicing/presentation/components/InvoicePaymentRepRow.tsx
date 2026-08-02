@@ -177,9 +177,16 @@ export function InvoicePaymentRepRow({
                 {copy.label.stampedAt}: {formatDate(payment.repStampedAt)}
               </p>
             )}
-            {payment.repStatus === "failed" && payment.repLastError && (
-              <p className="text-xs text-destructive truncate max-w-md">
-                {payment.repLastError}
+            {payment.repStatus === "failed" && (
+              <p
+                className="text-xs text-destructive truncate max-w-md"
+                title={
+                  payment.repLastError ?? copy.repStatus.failedErrorFallback
+                }
+              >
+                {payment.repLastError?.trim()
+                  ? payment.repLastError
+                  : copy.repStatus.failedErrorFallback}
               </p>
             )}
             {showRepFiles && (

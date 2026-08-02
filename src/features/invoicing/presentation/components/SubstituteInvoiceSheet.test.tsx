@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
 
 const { mutateMock, TRIP_ID, STOP_ID } = vi.hoisted(() => ({
@@ -73,7 +74,7 @@ function buildInvoice(): Invoice {
     issuerTaxRegime: "601",
     issueLocation: "26015",
     receiverRfc: "XAXX010101000",
-    receiverName: "Cliente",
+    receiverName: "Cliente Demo SA",
     cfdiUsage: "G03",
     receiverTaxRegime: "616",
     receiverPostalCode: "26015",
@@ -147,58 +148,73 @@ function buildTripWithStop(): Trip {
   } as Trip;
 }
 
+function renderSheet() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  queryClient.setQueryData(tripQueryKeys.detail(TRIP_ID), buildTripWithStop());
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <SubstituteInvoiceSheet
+          invoice={buildInvoice()}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </TooltipProvider>
+    </QueryClientProvider>,
+  );
+}
+
 describe("SubstituteInvoiceSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders title and confirm action when open", () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SubstituteInvoiceSheet
-          invoice={buildInvoice()}
-          open
-          onOpenChange={vi.fn()}
-        />
-      </QueryClientProvider>,
-    );
+  it("renders operative header, intro and confirm without SAT codes in subtitle", () => {
+    renderSheet();
 
     expect(
-      screen.getByRole("heading", { name: /Sustituir factura/i }),
+      screen.getByRole("heading", { name: "Sustituir factura" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("A-15 · Cliente Demo SA")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Motivo SAT 01 — errores con relación"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Se emite una factura nueva/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Emitir sustituto y cancelar original/i }),
+      screen.getByText(/Se cancela la factura A-15/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/no tiene pagos registrados/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Si no cambias nada abajo/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/¿Qué quieres corregir\? \(opcional\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Sustituir factura$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Detalle fiscal de la sustitución/i }),
     ).toBeInTheDocument();
   });
 
   it("prefetches linked trip and includes trip corrections on submit", async () => {
     const user = userEvent.setup();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-
-    queryClient.setQueryData(tripQueryKeys.detail(TRIP_ID), buildTripWithStop());
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SubstituteInvoiceSheet
-          invoice={buildInvoice()}
-          open
-          onOpenChange={vi.fn()}
-        />
-      </QueryClientProvider>,
-    );
+    renderSheet();
 
     await user.type(
-      screen.getByLabelText(/Motivo de cancelación/i),
+      screen.getByLabelText(/Motivo de la corrección/i),
       "Corrección RFC parada origen",
     );
 
-    await user.click(screen.getByRole("button", { name: /Paradas y Carta Porte/i }));
+    await user.click(screen.getByRole("button", { name: /Paradas del viaje/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Corregir RFC/i })).toBeInTheDocument();
@@ -224,7 +240,7 @@ describe("SubstituteInvoiceSheet", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: /Emitir sustituto y cancelar original/i }),
+      screen.getByRole("button", { name: /^Sustituir factura$/i }),
     );
 
     await waitFor(() => {

@@ -16,6 +16,7 @@ import {
   FormValidationSummary,
   RHFTextareaField,
 } from "@shared/ui/form";
+import { HintIcon } from "@shared/ui/hint-icon";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import {
   useSubstituteStampedInvoice,
@@ -247,13 +248,17 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
     preflightMessages.length > 0 && validationMessages.length === 0
       ? copy.preflight.summaryTitle
       : copy.validationSummary;
+  const clientName = invoice.receiverName?.trim() || "—";
 
   return (
     <>
       <SheetHeader className={SUBSTITUTION_SHEET_HEADER_CLASS}>
-        <SheetTitle className="pr-8">{copy.title}</SheetTitle>
+        <div className="flex items-center gap-1 pr-8">
+          <SheetTitle>{copy.title}</SheetTitle>
+          <HintIcon label={copy.satCodesHintLabel}>{copy.satCodesHint}</HintIcon>
+        </div>
         <SheetDescription className="text-muted-foreground">
-          {copy.subtitle}
+          {copy.contextLine(invoice.serie, invoice.folio, clientName)}
         </SheetDescription>
       </SheetHeader>
 
@@ -279,7 +284,6 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
                 <li>
                   {copy.introStepCancel(invoice.serie, invoice.folio)}
                 </li>
-                <li>{copy.introStepRequirement}</li>
               </ol>
               <p className="mt-2 text-xs text-muted-foreground">
                 {copy.introFootnote}
