@@ -3,24 +3,25 @@
  * Namespace: legal.copy.*
  * Textos base para registro y footer; no sustituyen asesoría jurídica formal.
  */
+import { BRAND } from "@shared/ui/brand";
+
 export const legalCopy = {
-  brand: "Boeltech ERP",
+  brand: BRAND.productName,
   backHome: "Volver al inicio",
   contact: "soporte@boeltech.com",
-  updatedAt: "23 de julio de 2026",
+  updatedAt: "26 de julio de 2026",
 
   terms: {
     title: "Términos de servicio",
-    description:
-      "Condiciones de uso del servicio Boeltech ERP para empresas de transporte.",
+    description: `Condiciones de uso del servicio ${BRAND.productName} para empresas de transporte.`,
     sections: [
       {
         heading: "1. Aceptación",
-        body: "Al crear una cuenta, iniciar sesión o usar Boeltech ERP (el «Servicio»), aceptas estos términos. Si no estás de acuerdo, no uses el Servicio.",
+        body: `Al crear una cuenta, iniciar sesión o usar ${BRAND.productName} (el «Servicio»), aceptas estos términos. Si no estás de acuerdo, no uses el Servicio.`,
       },
       {
         heading: "2. Descripción del servicio",
-        body: "Boeltech ERP es una plataforma multi-tenant para gestionar operación de transporte y facturación fiscal en México (incluidos CFDI, Carta Porte y complementos de pago según el plan y módulos contratados). Algunas capacidades se ofrecen como add-ons o packs aparte del plan Operación.",
+        body: `${BRAND.productName} es una plataforma multi-tenant para gestionar operación de transporte y facturación fiscal en México (incluidos CFDI, Carta Porte y complementos de pago según el plan y módulos contratados). Algunas capacidades se ofrecen como add-ons o packs aparte del plan Operación. ${BRAND.productName} es un producto de ${BRAND.companyName}.`,
       },
       {
         heading: "3. Cuentas y acceso",
@@ -36,7 +37,7 @@ export const legalCopy = {
       },
       {
         heading: "6. Datos y responsabilidad fiscal",
-        body: "Tú eres el responsable fiscal de los CFDI y complementos emitidos con tus CSD y datos. Boeltech provee herramientas tecnológicas; no sustituye asesoría contable, legal o fiscal. Debes validar la información antes de timbrar.",
+        body: `Tú eres el responsable fiscal de los CFDI y complementos emitidos con tus CSD y datos. ${BRAND.companyName} provee herramientas tecnológicas; no sustituye asesoría contable, legal o fiscal. Debes validar la información antes de timbrar.`,
       },
       {
         heading: "7. Disponibilidad y cambios",
@@ -51,12 +52,11 @@ export const legalCopy = {
 
   privacy: {
     title: "Política de privacidad",
-    description:
-      "Cómo tratamos datos personales y de uso en Boeltech ERP.",
+    description: `Cómo tratamos datos personales y de uso en ${BRAND.productName}.`,
     sections: [
       {
         heading: "1. Responsable",
-        body: "Boeltech opera Boeltech ERP. Para ejercer derechos ARCO o consultas de privacidad: soporte@boeltech.com.",
+        body: `${BRAND.companyName} opera ${BRAND.productName}. Para ejercer derechos ARCO o consultas de privacidad: soporte@boeltech.com.`,
       },
       {
         heading: "2. Datos que tratamos",

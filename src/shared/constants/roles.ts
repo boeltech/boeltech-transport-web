@@ -1,7 +1,7 @@
 /**
  * User Roles Constants (Frontend)
  *
- * Defines the 7 official roles for the Boeltech ERP system.
+ * Defines the 7 official roles for the Tlama (Boeltech) tenant RBAC system.
  * Must match backend roles exactly.
  *
  * IMPORTANT:

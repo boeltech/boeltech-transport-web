@@ -1,3 +1,5 @@
+import { BRAND } from "@shared/ui/brand";
+
 /**
  * Configuración centralizada de la aplicación.
  * Todas las variables de entorno se acceden desde aquí.
@@ -27,6 +29,12 @@ interface AppConfig {
     version: string;
     isDevelopment: boolean;
     isProduction: boolean;
+  };
+  support: {
+    /** Destinatario mailto del Dialog Ayuda. Override: VITE_SUPPORT_EMAIL. */
+    email: string;
+    /** URL externa de guías; vacío = no mostrar botón. Override: VITE_HELP_DOCS_URL. */
+    helpDocsUrl: string;
   };
   observability: {
     sentryDsn: string;
@@ -64,10 +72,15 @@ const config: AppConfig = {
     ),
   },
   app: {
-    name: import.meta.env.VITE_APP_NAME || "Boeltech ERP",
+    name: import.meta.env.VITE_APP_NAME || BRAND.productName,
     version: import.meta.env.VITE_APP_VERSION || "1.0.0",
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
+  },
+  support: {
+    email:
+      (import.meta.env.VITE_SUPPORT_EMAIL || "").trim() || BRAND.supportEmail,
+    helpDocsUrl: (import.meta.env.VITE_HELP_DOCS_URL || "").trim(),
   },
   observability: {
     sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
@@ -88,6 +101,7 @@ Object.freeze(config.geolocation);
 Object.freeze(config.turnstile);
 Object.freeze(config.auth);
 Object.freeze(config.app);
+Object.freeze(config.support);
 Object.freeze(config.observability);
 
 export default config;

@@ -1,7 +1,7 @@
 /**
  * DesignSystemPage
  *
- * Página interna de referencia visual del Design System de Boeltech.
+ * Página interna de referencia visual del Design System de Tlama (Boeltech).
  *
  * Acceso: gated a admin (vía AdminRoute en routes.tsx).
  * Propósito:
@@ -32,7 +32,7 @@ import {
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Wordmark } from "@shared/ui/brand";
+import { BrandLockup } from "@shared/ui/brand";
 import { ThemeCycleButton } from "@shared/ui/theme";
 import { ColorPaletteSection } from "./sections/ColorPaletteSection";
 import { TypographySection } from "./sections/TypographySection";
@@ -80,7 +80,7 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "typography",
     label: "Tipografía",
     icon: Type,
-    description: "IBM Plex Sans + JetBrains Mono, escala y feature settings",
+    description: "Inter + JetBrains Mono, escala y feature settings",
     group: "Foundations",
   },
   {
@@ -166,7 +166,11 @@ export function DesignSystemPage() {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <Wordmark variant="brand" className="text-3xl" />
+              <BrandLockup
+                variant="brand"
+                markSize={36}
+                wordmarkClassName="text-3xl"
+              />
               <Badge variant="info" tone="soft">
                 Design System
               </Badge>
@@ -175,7 +179,7 @@ export function DesignSystemPage() {
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              Referencia visual viva del sistema de diseño del ERP Transporte.
+              Referencia visual viva del sistema de diseño de Tlama.
               Refleja el estado real de los tokens en{" "}
               <code className="font-mono text-xs">
                 src/app/styles/index.css

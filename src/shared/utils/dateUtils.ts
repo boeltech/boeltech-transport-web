@@ -1,5 +1,5 @@
 /**
- * Utilidades de fecha para Boeltech ERP — Frontend.
+ * Utilidades de fecha para Tlama — Frontend.
  *
  * Regla: las fechas viajan por la red como strings.
  * Solo se convierten a Date de JS en el último momento: el display.
@@ -204,6 +204,21 @@ export function getTodayString(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: MEXICO_TIMEZONE,
   }).format(new Date());
+}
+
+/**
+ * Día civil en México ("YYYY-MM-DD") de un instantáneo del API.
+ * Agrupar por este valor evita que un evento de las 11 p.m. caiga en el día siguiente.
+ */
+export function toMexicoDayKey(
+  isoString: string | null | undefined,
+): string | null {
+  if (!isoString) return null;
+  const d = new Date(toUtcIsoInstantForParse(isoString));
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: MEXICO_TIMEZONE,
+  }).format(d);
 }
 
 function addDays(dateString: string, days: number): string {

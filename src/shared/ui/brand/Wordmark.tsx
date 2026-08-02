@@ -1,31 +1,27 @@
 /**
- * Wordmark — Boeltech brand mark
+ * Wordmark — marca tipografica del producto Tlama
  *
- * Marca tipográfica de Boeltech. Sin ícono, sin símbolo: solo el wordmark
- * en IBM Plex Sans con tracking ajustado y color primario.
+ * Solo texto (Inter). El isotipo vive en TlamaMark / BrandLockup.
  *
  * Variantes:
- *   - default:  "Boeltech" completo, optimizado para el header del sidebar
- *               expandido o pantallas de auth.
- *   - compact:  Solo "B", optimizado para el sidebar colapsado, favicons
- *               internos o avatars de la marca.
+ *   - default:  "Tlama" completo
+ *   - compact:  "T" (monograma tipografico; preferir TlamaMark en chrome)
  *
  * Reglas de uso:
- *   - Color por default: --primary (azul-tinta de marca).
- *   - Tamaño controlado vía className (text-lg, text-xl, etc.).
- *   - Para fondos azules / oscuros, pasar variant="onBrand" para usar
- *     primary-foreground.
- *
- * Ubicación: src/shared/ui/brand/Wordmark.tsx
+ *   - Lockup icono + nombre: BrandLockup
+ *   - Color por default: --primary
+ *   - Fondos primary/oscuros: variant="onBrand"
+ *   - Consola platform NO usa este wordmark; usa PlatformBrandMark
  */
 
 import { memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
+import { BRAND } from "./brandIdentity";
 
 export interface WordmarkProps {
   /**
-   * Si es true, muestra solo "B" (para sidebar colapsado).
-   * Si es false (default), muestra "Boeltech" completo.
+   * Si es true, muestra solo el monograma "T" (sidebar colapsado).
+   * Si es false (default), muestra "Tlama" completo.
    */
   compact?: boolean;
 
@@ -44,9 +40,9 @@ export interface WordmarkProps {
   className?: string;
 
   /**
-   * Accesibilidad: si el wordmark es decorativo (porque ya hay texto
-   * "Boeltech" cerca), márcalo como true para que screen readers lo
-   * ignoren. Default false (se anuncia como "Boeltech").
+   * Accesibilidad: si el wordmark es decorativo (porque el Link/padre
+   * ya anuncia el producto), márcalo como true (aria-hidden).
+   * Default false (se anuncia como "Tlama").
    */
   decorative?: boolean;
 }
@@ -64,17 +60,16 @@ export const Wordmark = memo(function Wordmark({
   className,
   decorative = false,
 }: WordmarkProps) {
-  const text = compact ? "B" : "Boeltech";
+  const text = compact ? BRAND.productMonogram : BRAND.productName;
 
   return (
     <span
       aria-hidden={decorative || undefined}
-      aria-label={decorative ? undefined : "Boeltech"}
+      aria-label={decorative ? undefined : BRAND.productName}
       role={decorative ? undefined : "img"}
       className={cn(
         "font-sans font-bold leading-none select-none",
-        // Tracking ligeramente negativo da una sensación más editorial
-        // y compacta. Solo aplicamos al wordmark completo.
+        // Tracking ligeramente negativo: wordmark editorial/compacto.
         compact ? "tracking-tight" : "tracking-[-0.02em]",
         VARIANT_CLASSES[variant],
         className,

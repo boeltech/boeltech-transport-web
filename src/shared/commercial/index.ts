@@ -25,3 +25,13 @@ export {
   checkSubdomainQueryKey,
 } from "@shared/commercial/useCheckSubdomainAvailability";
 export { fetchPublicOperationalPlans } from "@shared/commercial/publicOperationalPlansApi";
+
+export {
+  COMMERCIAL_ASSET_IDS,
+  commercialAssets,
+  getCommercialAsset,
+  isCommercialAssetEnabled,
+  type CommercialAsset,
+  type CommercialAssetId,
+  type CommercialAssetKind,
+} from "@shared/commercial/assets/commercialAssets";

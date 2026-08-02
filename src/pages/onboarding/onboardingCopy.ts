@@ -2,10 +2,12 @@
  * Copy del onboarding de producto.
  * Namespace: onboarding.copy.*
  */
+import { BRAND } from "@shared/ui/brand";
+
 export const onboardingCopy = {
   header: {
     title: "Asistente de primer acceso",
-    subtitle: "Configura tu experiencia en Boeltech ERP",
+    subtitle: `Configura tu experiencia en ${BRAND.productName}`,
     back: "Volver",
     submit: "Finalizar y guardar",
     submitting: "Guardando…",
@@ -14,7 +16,7 @@ export const onboardingCopy = {
   steps: {
     welcome: {
       title: "Bienvenida",
-      description: "Tu cuenta en Boeltech ERP",
+      description: `Tu cuenta en ${BRAND.productName}`,
     },
     preferences: {
       title: "Preferencias",

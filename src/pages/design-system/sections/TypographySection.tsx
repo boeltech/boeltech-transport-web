@@ -2,7 +2,7 @@
  * TypographySection
  *
  * Muestra:
- *   - Familia sans (IBM Plex Sans) en pesos disponibles
+ *   - Familia sans (Inter) en pesos disponibles
  *   - Familia mono (JetBrains Mono) con sample de RFC, UUID, totales
  *   - Escala tipográfica con line-heights
  *   - Feature settings (tabular-nums en tablas)
@@ -34,16 +34,23 @@ export function TypographySection() {
       {/* Sans family */}
       <Card>
         <CardHeader>
-          <CardTitle>IBM Plex Sans — UI + display</CardTitle>
+          <CardTitle>Inter — UI + display</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              SoT canónico:{" "}
+              <span className="text-foreground font-medium">Inter Variable</span>
+              . Escala Conversión vs App en{" "}
+              <code className="font-mono text-xs">tokens.md</code>. Mono de datos:{" "}
+              JetBrains Mono.
+            </p>
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 Sample
               </p>
               <p className="text-5xl font-bold tracking-[-0.02em]">
-                Boeltech ERP Transporte
+                Tlama
               </p>
               <p className="text-2xl text-muted-foreground">
                 Sistema de gestión para empresas de transporte mexicanas
