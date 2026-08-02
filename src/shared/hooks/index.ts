@@ -10,6 +10,10 @@ export type {
   UseListingFiltersResult,
 } from "./useListingFilters";
 
+// Hook que controla los tabs de una pantalla desde la URL (?tab=)
+export { useTabParam } from "./useTabParam";
+export type { UseTabParamResult } from "./useTabParam";
+
 // Hook para detectar media queries
 export { useMediaQuery } from "./useMediaQuery";
 
