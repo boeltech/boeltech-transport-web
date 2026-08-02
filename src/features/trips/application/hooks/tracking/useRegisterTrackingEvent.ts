@@ -21,6 +21,10 @@ interface RegisterTrackingEventVariables {
   event: CreateTrackingEventInput;
 }
 
+/**
+ * Importante: no poner `...options` después de `onSuccess` — el caller
+ * (toast) sobrescribiría la invalidación de cache.
+ */
 export function useRegisterTrackingEvent(
   options?: UseMutationOptions<
     TrackingEvent,
@@ -29,8 +33,15 @@ export function useRegisterTrackingEvent(
   >,
 ) {
   const queryClient = useQueryClient();
+  const {
+    onSuccess: userOnSuccess,
+    onError: userOnError,
+    onSettled: userOnSettled,
+    ...rest
+  } = options ?? {};
 
   return useMutation({
+    ...rest,
     mutationFn: async ({ tripId, event }) => {
       const result = await trackingRepository.createEvent(tripId, event);
       return result.data;
@@ -40,8 +51,13 @@ export function useRegisterTrackingEvent(
       await refetchTripTrackingViews(queryClient, variables.tripId, patch);
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }

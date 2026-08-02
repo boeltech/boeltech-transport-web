@@ -413,7 +413,7 @@ export function TripActions(props: TripActionsProps) {
               {canSchedule && onSchedule && (
                 <DropdownMenuItem onClick={() => onSchedule(id)}>
                   <Calendar className="mr-2 h-4 w-4 text-info" />
-                  Programar
+                  Confirmar reserva
                 </DropdownMenuItem>
               )}
 
@@ -489,15 +489,15 @@ export function TripActions(props: TripActionsProps) {
                   setConfirmDialog({
                     open: true,
                     action: "schedule",
-                    title: "¿Programar este viaje?",
+                    title: "¿Confirmar esta reserva?",
                     description:
-                      "El viaje pasará a estado 'Programado' y estará listo para iniciarse.",
+                      "El viaje pasará a Programado y se reservará la unidad y el conductor. Debe tener tarifa y llegada estimada.",
                   })
                 }
                 disabled={isLoading}
               >
                 <Calendar className="mr-2 h-4 w-4 text-info" />
-                Programar
+                Confirmar reserva
               </DropdownMenuItem>
             ) : null}
 
@@ -559,9 +559,9 @@ export function TripActions(props: TripActionsProps) {
               setConfirmDialog({
                 open: true,
                 action: "schedule",
-                title: "¿Programar este viaje?",
+                title: "¿Confirmar esta reserva?",
                 description:
-                  "El viaje pasará a estado 'Programado' y estará listo para iniciarse.",
+                  "El viaje pasará a Programado y se reservará la unidad y el conductor. Debe tener tarifa y llegada estimada.",
               })
             }
             disabled={isLoading}
@@ -571,7 +571,7 @@ export function TripActions(props: TripActionsProps) {
             ) : (
               <Calendar className="mr-2 h-4 w-4" />
             )}
-            Programar
+            Confirmar reserva
           </Button>
         )}
 

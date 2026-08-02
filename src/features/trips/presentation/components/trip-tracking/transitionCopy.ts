@@ -1,24 +1,24 @@
 /**
- * Copy de transición explícita para acciones de seguimiento (ADR-0046 / ADR-0047).
- * Visible debajo de cada botón operativo — no requiere hover ni docs.
+ * Copy de transición explícita para acciones de seguimiento (ADR-0046).
+ * Visible debajo de cada botón operativo — frase operativa, sin notación A → B.
  */
 
 export const STOP_TRANSITION_COPY = {
-  dispatch: "Programado → En Progreso",
-  start: "Programado → En Progreso",
-  arrive: "Pendiente → En Progreso",
-  departOrigin: "Salida de origen (inicia tránsito fiscal)",
-  depart: "En Progreso → Completado",
-  close: "En Progreso → Completado (cierra viaje)",
+  dispatch: "El viaje pasa a en curso",
+  start: "El viaje pasa a en curso",
+  arrive: "La parada queda en curso",
+  departOrigin: "El viaje queda en tránsito",
+  depart: "La parada queda completada",
+  close: "La parada queda completada y el viaje se cierra",
 } as const;
 
 export type StopTransitionAction = keyof typeof STOP_TRANSITION_COPY;
 
 export const CARGO_TRANSITION_COPY = {
-  pickup: "Pendiente → En Tránsito",
-  deliver: "En Tránsito → Entregada",
-  return: "En Tránsito → Devuelta",
-  cancel: "→ Cancelada",
+  pickup: "La carga queda en tránsito",
+  deliver: "La carga queda entregada",
+  return: "La carga queda devuelta",
+  cancel: "La carga queda cancelada",
 } as const;
 
 export type CargoTransitionAction = keyof typeof CARGO_TRANSITION_COPY;
@@ -26,14 +26,14 @@ export type CargoTransitionAction = keyof typeof CARGO_TRANSITION_COPY;
 export const legendCopy = {
   stop: {
     title: "Estados de parada",
-    expand: "Ver leyenda de estados de paradas",
+    expand: "¿Qué significan los estados?",
     collapse: "Ocultar leyenda",
     flow: ["Pendiente", "En Progreso", "Completado"] as const,
     alternate: "Omitido",
   },
   cargo: {
     title: "Estados de carga",
-    expand: "Ver leyenda de estados de cargas",
+    expand: "¿Qué significan los estados?",
     collapse: "Ocultar leyenda",
     flow: ["Pendiente", "En Tránsito", "Entregada"] as const,
     terminals: ["Devuelta", "Cancelada"] as const,

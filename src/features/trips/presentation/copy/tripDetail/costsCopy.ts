@@ -12,8 +12,8 @@ export const costsCopy = {
     inProgress:
       "Registre costos y gastos reales en curso. Replanifique ruta, cargas o tarifa en edición completa.",
     breakdown: "Distribución de costos y gastos registrados.",
-    baseRateTraslado: "Opcional en viajes de traslado.",
-    baseRateIngresoRequired: "Obligatoria para viajes de ingreso con cliente.",
+    baseRateTraslado: "Opcional en viajes solo de traslado.",
+    baseRateIngresoRequired: "Obligatoria para viajes con factura de servicio y cliente.",
     baseRateIngresoOptional: "Opcional si el viaje no tiene cliente contratante.",
   },
   alert: {

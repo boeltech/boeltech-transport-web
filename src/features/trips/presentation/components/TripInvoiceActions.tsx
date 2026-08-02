@@ -3,10 +3,12 @@
  * Clean Architecture - Presentation Layer (Components)
  *
  * Encapsula la lógica visual de "Facturación" en el header del detalle de viaje.
- * La habilitación de "Generar factura" sigue `trip.invoicing.canGenerateInvoice` del API
- * (pre-stamp v2 puede permitirla antes de completar el viaje).
+ * La habilitación de "Generar factura" sigue `trip.invoicing.canGenerateInvoice`
+ * del API (status invoiceable + ruta CP-ready + ≥1 carga; ver handoff
+ * cerrar-cta-factura-operacion-sat).
  *
- * ADR-0068: «Facturar servicios adicionales» cuando `canGenerateAccessoryInvoice`.
+ * ADR-0068: «Facturar servicios adicionales» cuando `canGenerateAccessoryInvoice`
+ * (primaria activa + ruta CP-ready).
  *
  * Ubicación: src/features/trips/presentation/components/TripInvoiceActions.tsx
  */

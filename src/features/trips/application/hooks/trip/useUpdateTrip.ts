@@ -12,8 +12,47 @@ import { createUpdateTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 
 /**
+ * Merge de detalle tras PUT.
+ * El API suele devolver payload plano sin relaciones; si el body reemplazó `stops`
+ * (wizard estructural), no conservar stops/cargos/expenses previos (IDs stale).
+ */
+export function mergeTripDetailAfterUpdate(
+  previous: Trip | undefined,
+  updated: Trip,
+  options?: { structuralReplace?: boolean },
+): Trip {
+  if (!previous) return updated;
+
+  const structuralReplace = options?.structuralReplace === true;
+
+  return {
+    ...previous,
+    ...updated,
+    vehicle: updated.vehicle ?? previous.vehicle,
+    driver: updated.driver ?? previous.driver,
+    client: updated.client ?? previous.client,
+    internalStaff:
+      updated.internalStaff && updated.internalStaff.length > 0
+        ? updated.internalStaff
+        : previous.internalStaff,
+    stops: structuralReplace
+      ? updated.stops
+      : (updated.stops ?? previous.stops),
+    cargos: structuralReplace
+      ? updated.cargos
+      : (updated.cargos ?? previous.cargos),
+    expenses: structuralReplace
+      ? updated.expenses
+      : (updated.expenses ?? previous.expenses),
+    statusHistory: updated.statusHistory ?? previous.statusHistory,
+    profitability: updated.profitability ?? previous.profitability,
+  };
+}
+
+/**
  * Hook para actualizar viaje.
- * Cache: merge optimista en detalle vía setQueryData; invalidación solo de listados.
+ * Cache: merge en detalle + invalidación de detail (cubre cargos) y listados.
+ * Necesario porque PUT no anida stops/cargos y staleTime del detail es ~5 min.
  */
 export function useUpdateTrip(
   options?: UseMutationOptions<
@@ -31,27 +70,6 @@ export function useUpdateTrip(
     ...restOptions
   } = options ?? {};
 
-  function mergeTripDetail(previous: Trip | undefined, updated: Trip): Trip {
-    if (!previous) return updated;
-    return {
-      ...previous,
-      ...updated,
-      // El PATCH puede devolver payload parcial sin relaciones del detalle.
-      vehicle: updated.vehicle ?? previous.vehicle,
-      driver: updated.driver ?? previous.driver,
-      client: updated.client ?? previous.client,
-      internalStaff:
-        updated.internalStaff && updated.internalStaff.length > 0
-          ? updated.internalStaff
-          : previous.internalStaff,
-      stops: updated.stops ?? previous.stops,
-      cargos: updated.cargos ?? previous.cargos,
-      expenses: updated.expenses ?? previous.expenses,
-      statusHistory: updated.statusHistory ?? previous.statusHistory,
-      profitability: updated.profitability ?? previous.profitability,
-    };
-  }
-
   return useMutation({
     mutationFn: async ({ id, data }) => {
       const result = await updateTripUseCase.execute(id, data);
@@ -61,11 +79,17 @@ export function useUpdateTrip(
       return result.data;
     },
     onSuccess: async (updatedTrip, variables, onMutateResult, context) => {
-      const { id } = variables;
+      const { id, data } = variables;
+      const structuralReplace = data.stops !== undefined;
+
       queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), (previous) =>
-        mergeTripDetail(previous, updatedTrip),
+        mergeTripDetailAfterUpdate(previous, updatedTrip, { structuralReplace }),
       );
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      // Prefijo detail(id) también marca stale `…/cargos` (RQ v5 partial match).
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(id),
+      });
       await onSuccessExternal?.(updatedTrip, variables, onMutateResult, context);
     },
     onError: async (error, variables, onMutateResult, context) => {

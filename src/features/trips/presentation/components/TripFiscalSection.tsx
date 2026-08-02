@@ -1,28 +1,21 @@
 /**
- * TripFiscalSection — resumen fiscal del viaje (detalle).
- * ADR-0068: lista factura primaria + accesorias.
+ * TripFiscalSection — resumen compacto de facturación en el detalle (PD-TD2).
+ * Sin UUID prominente; detalle en menú Facturación / ficha de factura.
  */
 
 import { Link } from "react-router-dom";
-import { Copy, ExternalLink, Receipt } from "lucide-react";
+import { ExternalLink, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { useToast } from "@shared/hooks";
 import type { Trip } from "@features/trips/domain";
 import { getTripInvoicingBadgeConfig } from "../uiHelpers";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 
 const sectionCopy = tripFiscalCopy.invoicesSection;
 
-function truncateUuid(uuid: string, head = 8, tail = 4): string {
-  if (uuid.length <= head + tail + 1) return uuid;
-  return `${uuid.slice(0, head)}…${uuid.slice(-tail)}`;
-}
-
 export interface TripFiscalSectionProps {
   trip: Trip;
-  /** Aviso puntual (p. ej. tras cancelar con CFDI vigente) */
+  /** Aviso puntual (p. ej. tras cancelar con factura vigente) */
   postCancelFiscal?: {
     title: string;
     lines: readonly string[];
@@ -30,37 +23,27 @@ export interface TripFiscalSectionProps {
   };
 }
 
-export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionProps) {
-  const { toast } = useToast();
+function blockReasonNeedsRouteLink(reason: string): boolean {
+  return /ruta|paradas|coordenadas|distancias|carta\s+porte/i.test(reason);
+}
 
+function blockReasonNeedsCargoLink(reason: string): boolean {
+  return /carga|mercanc/i.test(reason);
+}
+
+export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionProps) {
   const invoicing = trip.invoicing;
   const badge = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing,
   });
 
-  const uuid = invoicing.invoiceCfdiUuid?.trim() || null;
-  const showUuid = !!uuid;
   const accessoryInvoices = invoicing.accessoryInvoices ?? [];
   const hasPrimaryInvoice = !!invoicing.invoiceId;
-  const hasInvoicesList = hasPrimaryInvoice || accessoryInvoices.length > 0;
+  const invoiceCount =
+    (hasPrimaryInvoice ? 1 : 0) + accessoryInvoices.length;
 
-  const copyUuid = async () => {
-    if (!uuid) return;
-    try {
-      await navigator.clipboard.writeText(uuid);
-      toast({ title: "UUID copiado", variant: "success" });
-    } catch {
-      toast({
-        title: "No se pudo copiar",
-        description: "Copia el UUID manualmente.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  /** Factura ya ligada (borrador, timbrada, etc.): no mostrar `blockReason` del API (suele explicar por qué no se puede *generar otra*). */
-  const suppressInvoicingBlockReason =
+  const suppressPrimaryBlockReason =
     invoicing.hasActiveInvoice ||
     !!invoicing.invoiceId ||
     !!invoicing.invoiceFolio ||
@@ -68,11 +51,13 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
     invoicing.invoiceStatus === "stamped" ||
     invoicing.invoiceStatus === "cancellation_pending";
 
+  /** D6: mostrar bloqueo de operación/SAT; también si accesoria está bloqueada por ruta. */
   const showInvoicingBlockReason =
-    !!invoicing.blockReason && !invoicing.canGenerateInvoice && !suppressInvoicingBlockReason;
+    !!invoicing.blockReason &&
+    !invoicing.canGenerateInvoice &&
+    (!suppressPrimaryBlockReason || !invoicing.canGenerateAccessoryInvoice);
 
   const hasFiscalContent =
-    showUuid ||
     invoicing.invoiceFolio ||
     invoicing.blockReason ||
     postCancelFiscal ||
@@ -84,15 +69,33 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
     return null;
   }
 
+  const showRouteLink =
+    showInvoicingBlockReason &&
+    invoicing.blockReason != null &&
+    blockReasonNeedsRouteLink(invoicing.blockReason);
+  const showCargoLink =
+    showInvoicingBlockReason &&
+    invoicing.blockReason != null &&
+    blockReasonNeedsCargoLink(invoicing.blockReason);
+
   return (
-    <Card className="border-l-4 border-l-primary/60">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Receipt className="h-4 w-4" />
-          Fiscal
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-0">
+    <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="text-sm font-medium">{sectionCopy.compactTitle}</span>
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+          {invoicing.invoiceFolio ? (
+            <span className="text-sm text-muted-foreground">
+              {sectionCopy.folio(invoicing.invoiceFolio)}
+            </span>
+          ) : null}
+          {invoiceCount > 1 ? (
+            <span className="text-xs text-muted-foreground">
+              {invoiceCount} facturas
+            </span>
+          ) : null}
+        </div>
         {postCancelFiscal ? (
           <div className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-sm">
             <p className="font-medium text-warning-soft-foreground">
@@ -116,91 +119,42 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
             ) : null}
           </div>
         ) : null}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={badge.variant}>{badge.label}</Badge>
-          {invoicing.invoiceFolio ? (
-            <span className="text-sm text-muted-foreground">
-              Folio {invoicing.invoiceFolio}
-            </span>
-          ) : null}
-        </div>
-
         {showInvoicingBlockReason ? (
-          <p className="text-sm text-muted-foreground">{invoicing.blockReason}</p>
-        ) : null}
-
-        {showUuid ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">{truncateUuid(uuid)}</span>
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={copyUuid}>
-              <Copy className="mr-1 h-3.5 w-3.5" />
-              Copiar UUID
-            </Button>
-          </div>
-        ) : null}
-
-        {hasInvoicesList ? (
-          <div className="space-y-2 border-t border-border pt-3">
-            <p className="text-sm font-medium">{sectionCopy.title}</p>
-            <ul className="space-y-2">
-              {hasPrimaryInvoice ? (
-                <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background/70 px-3 py-2 text-sm">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{sectionCopy.primaryLabel}</Badge>
-                    {invoicing.invoiceFolio ? (
-                      <span className="text-muted-foreground">
-                        {sectionCopy.folio(invoicing.invoiceFolio)}
-                      </span>
-                    ) : null}
-                    {invoicing.invoiceStatus ? (
-                      <span className="text-xs text-muted-foreground">
-                        {invoicing.invoiceStatus}
-                      </span>
-                    ) : null}
-                  </div>
-                  <Button variant="link" className="h-auto p-0" asChild>
-                    <Link
-                      to={`/invoices/${invoicing.invoiceId}`}
-                      className="inline-flex items-center gap-1"
-                    >
-                      {sectionCopy.openInvoice}
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{invoicing.blockReason}</p>
+            {showRouteLink || showCargoLink ? (
+              <div className="flex flex-wrap gap-2">
+                {showRouteLink ? (
+                  <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                    <Link to={`/trips/${trip.id}?tab=route`}>
+                      {sectionCopy.goToRouteTab}
                     </Link>
                   </Button>
-                </li>
-              ) : null}
-              {accessoryInvoices.map((inv) => (
-                <li
-                  key={inv.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background/70 px-3 py-2 text-sm"
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Badge variant="outline">{sectionCopy.accessoryLabel}</Badge>
-                    {inv.folio ? (
-                      <span className="text-muted-foreground">
-                        {sectionCopy.folio(inv.folio)}
-                      </span>
-                    ) : null}
-                    {inv.status ? (
-                      <span className="text-xs text-muted-foreground">{inv.status}</span>
-                    ) : null}
-                  </div>
-                  <Button variant="link" className="h-auto p-0" asChild>
-                    <Link
-                      to={`/invoices/${inv.id}`}
-                      className="inline-flex items-center gap-1"
-                    >
-                      {sectionCopy.openInvoice}
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                ) : null}
+                {showCargoLink ? (
+                  <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                    <Link to={`/trips/${trip.id}?tab=cargo`}>
+                      {sectionCopy.goToCargoTab}
                     </Link>
                   </Button>
-                </li>
-              ))}
-            </ul>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+        <p className="text-xs text-muted-foreground">{sectionCopy.openMenuHint}</p>
+      </div>
+      {hasPrimaryInvoice ? (
+        <Button variant="outline" size="sm" className="shrink-0" asChild>
+          <Link
+            to={`/invoices/${invoicing.invoiceId}`}
+            className="inline-flex items-center gap-1"
+          >
+            {sectionCopy.openInvoice}
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </Button>
+      ) : null}
+    </div>
   );
 }

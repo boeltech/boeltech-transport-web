@@ -3,7 +3,6 @@
  */
 export const cargoCopy = {
   section: {
-    scope: "Alcance de Cargas",
     summary: "Resumen de cargas",
     list: "Cargas del viaje",
     byStatus: "Por estado",
@@ -14,10 +13,6 @@ export const cargoCopy = {
     summary: "Totales consolidados de piezas, peso y valor declarado.",
     list: "Detalle por mercancía, movimientos y estado.",
     byStatus: "Cantidad de cargas según su estado operativo.",
-    scopeEditable:
-      "Estado operativo de la carga. Agregar o reestructurar mercancías en edición completa.",
-    scopeReadOnly:
-      "Consulta de cargas en solo lectura. Los cambios de estado se registran en Seguimiento.",
     manageInTracking:
       "Para recoger, entregar o registrar movimientos, usa el tab Seguimiento.",
     trackingManageCargo:
@@ -95,11 +90,11 @@ export const cargoCopy = {
   format: {
     cargoCount: (count: number) =>
       `${count} ${count === 1 ? "carga" : "cargas"}`,
-    stopNumber: (sequenceOrder: number) => `Parada #${sequenceOrder}`,
+    stopNumber: (displayOrder: number) => `Parada #${displayOrder}`,
     merchandiseCount: (count: number) =>
       `${count} ${count === 1 ? "mercancía" : "mercancías"}`,
     stopLabelFallback: (stopIndex: number) => `Parada #${stopIndex + 1}`,
-    satProductCode: (code: string) => `Clave ${code}`,
+    satProductCode: (code: string) => `Producto ${code}`,
     volume: (volume: string | number) => `Volumen: ${volume} m³`,
     declaredValueInline: (formatted: string) => `Valor: ${formatted}`,
     insurance: (name: string) => `Seguro: ${name}`,

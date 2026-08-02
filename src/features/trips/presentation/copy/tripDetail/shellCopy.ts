@@ -1,6 +1,7 @@
 /**
  * Namespace: trips.copy.tripDetail.shell.*
  * Copy transversal del detalle (header, tabs, alertas globales).
+ * Léxico operativo (PD-TD1 / PD-TD7) — sin CFDI/UUID/SAT como labels primarios.
  */
 export const shellCopy = {
   title: {
@@ -20,32 +21,43 @@ export const shellCopy = {
   stat: {
     cargo: "Cargas",
     distance: "Distancia",
-    distanceOdometerHint: "Odómetro final − inicial",
     duration: "Duración",
-    baseRate: "Tarifa base",
+    baseRate: "Tarifa",
+    departure: "Salida",
+    arrival: "Llegada est.",
+    vehicle: "Unidad",
+    driver: "Conductor",
+    noRate: "Sin tarifa",
     cargoWeightTotal: (kg: number) =>
       `${kg.toLocaleString("es-MX")} kg total`,
   },
   alert: {
     openIncidentTitle: "Incidente operativo abierto",
     openIncidentBody:
-      "Hay un incidente sin cerrar en el seguimiento. Revise el tab Seguimiento y el timeline.",
-    fiscalAttentionTitle: "Atención fiscal requerida",
+      "Hay un incidente sin cerrar. Revise el tab Seguimiento.",
+    fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:
-      "Este viaje requiere revisión fiscal. Consulte la sección Fiscal, la factura ligada o los pendientes SAT antes de continuar la operación.",
+      "Este viaje tiene un pendiente de facturación. Use el menú Facturación para continuar.",
     assignmentIncompleteTitle: "Viaje programado sin asignación completa",
     assignmentVehicleMissing: "Sin unidad asignada.",
     assignmentDriverMissing: "Sin conductor asignado.",
     assignmentVehicleLabel: "Vehículo",
     assignmentDriverLabel: "Conductor",
+    draftReserveTitle: "Reserva (borrador)",
+    draftReserveBody:
+      "Confirma cuando tengas tarifa y llegada estimada. Completa ruta y cargas antes de facturar.",
+    draftConfirmCta: "Confirmar reserva",
+    draftCompleteRouteCta: "Completar ruta",
+    draftCompleteCargoCta: "Completar cargas",
     etaPassedTitle: "Tiempo de llegada estimado superado",
     etaPassedLabel: "Llegada estimada",
     operationIncompleteTitle: "Datos de operación incompletos",
     operationVehicleMissing: "Sin datos de unidad en el viaje.",
     operationDriverMissing: "Sin datos de conductor en el viaje.",
-    postCancelFiscalTitle: "Acción fiscal pendiente tras la cancelación",
-    postCancelFiscalInvoiceStatus: (status: string) => `Estado factura: ${status}`,
-    postCancelFiscalCfdiUuid: (uuid: string) => `UUID CFDI: ${uuid}`,
+    postCancelFiscalTitle: "Acción de facturación pendiente tras la cancelación",
+    postCancelFiscalInvoiceStatus: (status: string) =>
+      `Estado de factura: ${status}`,
+    postCancelFiscalInvoiceRef: (ref: string) => `Referencia: ${ref}`,
   },
   state: {
     notFoundTitle: "Viaje no encontrado",

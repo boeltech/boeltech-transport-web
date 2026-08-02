@@ -6,6 +6,7 @@ import {
   validateTripRouteForScheduling,
 } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
+import { assertCommercialScheduleReadiness } from "@boeltech/cfdi-domain";
 
 // ============================================================================
 // SCHEDULE TRIP USE CASE
@@ -24,7 +25,6 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
 
   async execute(id: string): Promise<UseCaseResult<Trip>> {
     try {
-      // Obtener el viaje actual
       const currentTrip = await this.repository.findById(id);
 
       if (!currentTrip) {
@@ -37,7 +37,6 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         };
       }
 
-      // Validar que la transición de estado sea válida
       const validation = validateStatusTransition(
         currentTrip.data.status,
         TripStatus.SCHEDULED,
@@ -50,13 +49,11 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         };
       }
 
-      // Validar que el viaje tenga la información mínima requerida
       const validationResult = this.validateTripForScheduling(currentTrip.data);
       if (!validationResult.success) {
         return validationResult;
       }
 
-      // Actualizar el estado del viaje
       const updatedTrip = await this.repository.updateStatus(id, {
         status: TripStatus.SCHEDULED,
       });
@@ -77,54 +74,32 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
   }
 
   /**
-   * Valida que el viaje tenga la información mínima para ser programado
+   * Readiness comercial ADR-0071 + resumen de ruta.
+   * No exige paradas CP31 (se completan en /edit antes de timbrar).
    */
   private validateTripForScheduling(trip: Trip): UseCaseResult<null> {
-    // Validar que tenga fecha de salida programada
-    if (!trip.scheduledDeparture) {
+    const readiness = assertCommercialScheduleReadiness({
+      vehicleId: trip.vehicleId,
+      driverId: trip.driverId,
+      scheduledDeparture: trip.scheduledDeparture,
+      scheduledArrival: trip.scheduledArrival,
+      baseRate: trip.costs?.baseRate,
+      cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",
+    });
+
+    if (!readiness.ok) {
+      const first = readiness.error[0];
       return {
         success: false,
         error: {
-          code: "MISSING_SCHEDULED_DEPARTURE",
-          message: "El viaje debe tener una fecha de salida programada",
+          code: first?.code ?? "SCHEDULE_NOT_READY",
+          message:
+            first?.message ??
+            "Falta información comercial para confirmar la reserva",
         },
       };
     }
 
-    // Validar que tenga fecha de llegada estimada
-    if (!trip.scheduledArrival) {
-      return {
-        success: false,
-        error: {
-          code: "MISSING_SCHEDULED_ARRIVAL",
-          message: "El viaje debe tener una fecha de llegada estimada",
-        },
-      };
-    }
-
-    // Validar que tenga conductor asignado
-    if (!trip.driverId) {
-      return {
-        success: false,
-        error: {
-          code: "MISSING_DRIVER",
-          message: "El viaje debe tener un conductor asignado",
-        },
-      };
-    }
-
-    // Validar que tenga vehículo asignado
-    if (!trip.vehicleId) {
-      return {
-        success: false,
-        error: {
-          code: "MISSING_VEHICLE",
-          message: "El viaje debe tener un vehículo asignado",
-        },
-      };
-    }
-
-    // Validar que tenga origen y destino (resumen y, si aplica, paradas canónicas)
     const routeError = validateTripRouteForScheduling(trip);
     if (routeError) {
       return {

@@ -18,13 +18,32 @@ export function resolveTripDetailTab(raw: string | null): TripDetailTabValue {
   return "overview";
 }
 
+export function tripStatusNeedsTrackingContext(
+  status: TripStatusType | undefined,
+): boolean {
+  return (
+    status === TripStatus.IN_PROGRESS || status === TripStatus.COMPLETED
+  );
+}
+
+/**
+ * Lista de cargas: tab Cargas, o Seguimiento cuando el viaje ya opera
+ * (correlación parada↔mercancía).
+ */
 export function shouldFetchTripCargos(
   activeTab: TripDetailTabValue,
   tripId: string,
+  status?: TripStatusType,
 ): boolean {
-  return Boolean(tripId) && activeTab === "cargo";
+  if (!tripId) return false;
+  if (activeTab === "cargo") return true;
+  if (activeTab === "tracking" && tripStatusNeedsTrackingContext(status)) {
+    return true;
+  }
+  return false;
 }
 
+/** Lista pesada de gastos: solo tab Costos. */
 export function shouldFetchTripExpenses(
   activeTab: TripDetailTabValue,
   tripId: string,
@@ -32,11 +51,15 @@ export function shouldFetchTripExpenses(
   return Boolean(tripId) && activeTab === "costs";
 }
 
+/**
+ * Summary ligero para badge pending del chrome — siempre con tripId
+ * (no depende de haber abierto Costos).
+ */
 export function shouldFetchTripExpensesSummary(
-  activeTab: TripDetailTabValue,
+  _activeTab: TripDetailTabValue,
   tripId: string,
 ): boolean {
-  return Boolean(tripId) && activeTab === "costs";
+  return Boolean(tripId);
 }
 
 /** Timeline para badges/alertas del shell cuando el tab Seguimiento no está montado. */
@@ -62,12 +85,4 @@ export function shouldFetchTripTimeline(
   if (!tripId) return false;
   if (activeTab === "tracking" || activeTab === "route") return true;
   return shouldFetchTripTimelineForShell(activeTab, tripId, status);
-}
-
-export function tripStatusNeedsTrackingContext(
-  status: TripStatusType | undefined,
-): boolean {
-  return (
-    status === TripStatus.IN_PROGRESS || status === TripStatus.COMPLETED
-  );
 }

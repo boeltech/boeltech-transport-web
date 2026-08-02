@@ -1,6 +1,7 @@
 export { TripExpenseSheet } from "./TripExpenseSheet";
 export type { TripExpenseSheetProps } from "./TripExpenseSheet";
 export { TripWizardFinancialSummary } from "./TripWizardFinancialSummary";
+export { TripResultStrip } from "./TripResultStrip";
 export {
   buildTripWizardFinancialSnapshot,
   type TripWizardExpenseLine,

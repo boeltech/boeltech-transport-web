@@ -3,7 +3,6 @@
  */
 export const routeCopy = {
   section: {
-    scope: "Alcance de Ruta",
     summary: "Resumen de ruta",
     stops: "Paradas del recorrido",
     origin: "Origen",
@@ -11,52 +10,42 @@ export const routeCopy = {
     destination: "Destino",
   },
   hint: {
-    stops:
-      "Origen, escalas y destino en el mismo orden que el wizard. Operación en ruta desde Seguimiento.",
+    stops: "Origen, escalas y destino. Operación en ruta desde Seguimiento.",
     origin: "Punto de salida del viaje.",
     waypoints: "Paradas intermedias con operaciones de carga o descarga.",
     destination: "Punto final del recorrido.",
     summaryFallback: "Origen y destino según paradas del viaje.",
-    scopeEditable:
-      "Consulta la ruta y su progreso. Reordenar o reconfigurar paradas en edición completa.",
-    scopeEditableFields:
-      "Distancias y RFC por parada en edición completa (borrador o programado). Llegada estimada en destino y escalas en Operación. Tiempos reales en Seguimiento.",
-    scopeReadOnly:
-      "Ruta en solo lectura. Modificaciones estructurales solo en borrador o programado.",
     quickEditDistance:
       "Capture distancias entre tramos en edición completa del viaje.",
-    originDeparture:
-      "La salida programada del viaje se edita en Operación; al iniciar el viaje se registra la salida real en Seguimiento.",
-    waypointTimes:
-      "Llegada y salida estimadas de la escala; al operar el viaje, Seguimiento registra los tiempos reales.",
-    pendingRfc: "RFC remitente/destinatario pendiente para esta parada.",
+    pendingAddress:
+      "Domicilio incompleto en esta parada. Complételo en edición o con la corrección de domicilio.",
     sheetDescriptionOrigin:
-      "Datos fiscales del origen. La salida programada del viaje se edita en el tab Operación.",
+      "Datos del origen. La salida programada del viaje se edita en el tab Operación.",
     sheetDescriptionDestination:
-      "Llegada estimada (sincronizada con Operación), distancia y datos fiscales del destino.",
+      "Llegada estimada (sincronizada con Operación), distancia y domicilio del destino.",
     sheetDescriptionWaypoint:
-      "Llegada y salida estimadas, distancia y datos fiscales de la escala.",
+      "Llegada y salida estimadas, distancia y domicilio de la escala.",
     sheetOriginDeparture:
       "En origen no aplica hora de llegada. La salida programada se configura en el tab Operación; al iniciar el viaje, Seguimiento registra la salida real de esta parada.",
-    deliveryRfc:
-      "Úselo cuando quien recibe la mercancía en esta parada no sea el mismo que el destinatario fiscal de «RFC remitente/destinatario».",
+    deliveryParty:
+      "Úselo cuando quien recibe la mercancía en esta parada no sea el mismo que el destinatario del domicilio.",
     deliveryName:
-      "Nombre o razón social de quien recibe físicamente la entrega, cuando difiere del «Nombre remitente/destinatario».",
+      "Nombre o razón social de quien recibe físicamente la entrega, cuando difiere del nombre del domicilio.",
   },
   alert: {
     incompleteRoute: "Ruta incompleta",
     missingOrigin: "Falta la parada de origen en la secuencia del viaje.",
     missingDestination: "Falta la parada de destino en la secuencia del viaje.",
-    missingRfcTitle: "Datos fiscales pendientes",
-    missingRfcBody: (count: number) =>
-      `${count} parada(s) sin RFC remitente/destinatario. Complete los datos en edición completa antes de facturar.`,
+    missingAddressTitle: "Domicilios incompletos",
+    missingAddressBody: (count: number) =>
+      `${count} parada(s) con domicilio incompleto. Complételos en edición completa antes de facturar.`,
     segmentDistanceTitle: "Distancias entre tramos",
     missingSegmentBody: (count: number) =>
       `${count} tramo(s) sin distancia registrada desde la parada anterior.`,
     stopNotFoundTitle: "Parada no encontrada",
     stopNotFoundBody: "No se pudo cargar la parada seleccionada.",
     stopSaveFailedTitle: "No se pudo guardar",
-    stopValidationSummary: "Revise los datos operativos y fiscales de la parada.",
+    stopValidationSummary: "Revise los datos de la parada.",
     stopDepartureTitle: "Salida del viaje",
   },
   action: {
@@ -72,27 +61,28 @@ export const routeCopy = {
     waypoints: "Escalas",
     distanceFallback: "Distancia",
     notePrefix: "Nota:",
+    contactPrefix: "Contacto:",
     savedAddress: "Domicilio guardado",
     manageInTracking: "Gestionar en Seguimiento",
     actualDeparture: "Salida real",
     scheduledDeparture: "Salida programada",
-    scheduledDepartureTrip: "Salida programada (viaje)",
+    scheduledDepartureTrip: "Salida programada",
     actualArrival: "Llegada real",
     estimatedArrival: "Llegada estimada",
     estimatedDeparture: "Salida estimada",
     distanceManual: "Manual",
-    distanceMapbox: "Mapbox",
+    distanceMapbox: "Mapa",
     distanceEstimated: "Estimado",
-    fiscalOk: "Fiscal OK",
-    fiscalInvalid: "RFC inválido",
-    fiscalPending: "RFC pendiente",
-    estimatedArrivalDestination: "Llegada estimada al destino",
-    estimatedArrivalWaypoint: "Llegada estimada en escala",
-    estimatedDepartureWaypoint: "Salida estimada de escala",
+    addressOk: "Domicilio completo",
+    addressInvalid: "Domicilio inválido",
+    addressPending: "Domicilio incompleto",
+    estimatedArrivalDestination: "Llegada estimada",
+    estimatedArrivalWaypoint: "Llegada estimada",
+    estimatedDepartureWaypoint: "Salida estimada",
     distanceFromPreviousKm: "Distancia desde parada anterior (km)",
-    rfcRemitenteDestinatario: "RFC remitente/destinatario",
-    nombreRemitenteDestinatario: "Nombre remitente/destinatario",
-    deliveryRfcOptional: "RFC de entrega (opcional)",
+    partyId: "Identificación remitente/destinatario",
+    partyName: "Nombre remitente/destinatario",
+    deliveryIdOptional: "Identificación de entrega (opcional)",
     deliveryNameOptional: "Nombre de entrega (opcional)",
   },
   state: {

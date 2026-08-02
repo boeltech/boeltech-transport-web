@@ -72,28 +72,33 @@ export function TripStopAddressSingleLine({
   );
 }
 
-/** Nombre del lugar + domicilio en una línea (patrón cards de Ruta en detalle de viaje). */
+/** Nombre del lugar + calle + localidad (patrón compacto tipo wizard de ruta). */
 export function TripDetailRouteStopAddress({
   stop,
 }: {
   stop: TripStop;
 }) {
   const locationName = stop.locationName?.trim();
+  const streetLine = formatStopDisplayStreetLine(stop);
+  const locality = useTripStopLocalityLine(stop);
   const reference = stop.reference?.trim();
+  const fallbackPrimary = !locationName
+    ? formatStopDisplayPrimaryLine(stop)
+    : null;
 
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-0.5">
       {locationName ? (
-        <p className="truncate text-sm font-semibold">{locationName}</p>
+        <p className="truncate text-sm font-medium">{locationName}</p>
+      ) : fallbackPrimary ? (
+        <p className="truncate text-sm font-medium">{fallbackPrimary}</p>
       ) : null}
-      <TripStopAddressSingleLine
-        stop={stop}
-        hideWhenEmpty={Boolean(locationName)}
-        className={cn(
-          "truncate",
-          locationName ? "text-xs text-muted-foreground" : "text-sm font-semibold",
-        )}
-      />
+      {streetLine ? (
+        <p className="truncate text-sm text-muted-foreground">{streetLine}</p>
+      ) : null}
+      {locality && locality !== "—" ? (
+        <p className="text-sm text-muted-foreground">{locality}</p>
+      ) : null}
       {reference ? (
         <p className="text-xs text-muted-foreground">Referencia: {reference}</p>
       ) : null}

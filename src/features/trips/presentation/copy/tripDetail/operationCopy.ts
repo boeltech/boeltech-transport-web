@@ -5,26 +5,18 @@ import type { Trip } from "@features/trips/domain";
  */
 export const operationCopy = {
   section: {
-    scope: "Alcance de Operación",
-    client: "Cliente y documento",
+    client: "Cliente",
     schedule: "Programación y tiempos",
     assignment: "Unidad y conductor",
     mileage: "Kilometraje",
     notes: "Notas",
   },
   hint: {
-    client:
-      "Contratante del viaje e intención de CFDI para la operación.",
-    schedule: "Salidas, llegadas estimadas y duración del trayecto.",
+    client: "Contratante del viaje y tipo de operación.",
+    schedule: "Salidas, llegadas estimadas y tiempos reales.",
     assignment: "Vehículo, conductor y equipo de apoyo asignados.",
-    mileage: "Lecturas de odómetro y distancia recorrida o estimada.",
-    notes: "Observaciones registradas para este viaje.",
-    scopeEditable:
-      "Consulta programación, asignaciones y kilometraje. No sustituye al wizard ni a los demás tabs.",
-    scopeEditableEdit:
-      "Edite fechas en programación. Unidad, conductor y cliente en edición completa; paradas en Ruta.",
-    scopeReadOnly:
-      "Programación y asignaciones en solo lectura. Gastos y seguimiento en sus tabs.",
+    mileage: "Lecturas de odómetro al inicio y al cierre.",
+    notes: "Observaciones y notas del canal (teléfono, mensaje, etc.).",
     staffSection: "Equipo de apoyo (interno)",
     paymentResponsible: "Responsable de pago",
   },
@@ -33,16 +25,14 @@ export const operationCopy = {
   },
   label: {
     legalName: "Razón social",
-    cfdiIntent: "Intención CFDI",
+    tripType: "Tipo de viaje",
     actualDeparture: "Salida real",
     actualArrival: "Llegada real",
-    duration: "Duración",
     unit: "Unidad",
     plate: "Placa",
     driver: "Conductor",
     mileageStart: "Inicial",
     mileageEnd: "Final",
-    distance: "Distancia",
   },
   state: {
     clientUnavailable: "Cliente no disponible en esta vista",
@@ -50,11 +40,11 @@ export const operationCopy = {
     noDriver: "Sin conductor asignado",
   },
   format: {
-    cfdiIntent(intent: Trip["cfdiDocumentIntent"]): string {
+    tripType(intent: Trip["cfdiDocumentIntent"]): string {
       if (intent === "traslado") {
-        return "Traslado — movimiento entre ubicaciones";
+        return "Solo traslado (sin factura de servicio)";
       }
-      return "Ingreso — factura de servicio";
+      return "Servicio con factura";
     },
     clientUnavailableId(clientId: string): string {
       return `${operationCopy.state.clientUnavailable} (ID: ${clientId})`;

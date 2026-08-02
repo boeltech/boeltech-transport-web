@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { cn } from "@shared/lib/utils/cn";
 
 import { TripDetailCargoItemCard } from "./TripDetailCargoItemCard";
+import { getStopDisplayOrder } from "./tripCargoDetailHelpers";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.cargo;
@@ -125,7 +126,9 @@ export function TripDetailCargoByPickupView({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base">
-                      {copy.format.stopNumber(stop.sequenceOrder)}
+                      {copy.format.stopNumber(
+                        getStopDisplayOrder(stop, orderedStops),
+                      )}
                     </CardTitle>
                     <span
                       className={cn(

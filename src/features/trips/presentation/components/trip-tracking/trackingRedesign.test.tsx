@@ -321,7 +321,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(screen.getByText("Zapatos")).toBeInTheDocument();
   });
 
-  it("preselecciona la parada objetivo y muestra acción de llegada", () => {
+  it("preselecciona la parada objetivo y muestra acción de llegada en la cabecera del hub", () => {
     render(
       <TripTrackingStopsCargosMasterDetail
         {...defaultProps}
@@ -332,10 +332,69 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    expect(screen.getAllByText("Objetivo actual").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Qué sigue").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: /Registrar llegada/i }),
     ).toBeInTheDocument();
+  });
+
+  it("expone un solo CTA de parada en la cabecera (no en el panel)", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        onArrive={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /Registrar llegada/i }),
+    ).toHaveLength(1);
+  });
+
+  it("leyendas colapsadas por defecto con disparador de ayuda", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("button", {
+        name: /¿Qué significan los estados\?/i,
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("sin canOperateTracking no muestra CTAs de parada ni evidencia", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking={false}
+        onArrive={vi.fn()}
+        onRegisterNote={vi.fn()}
+        onRegisterIncident={vi.fn()}
+        canRegisterEvidence
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Registrar llegada/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Nota/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Incidente/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("al seleccionar otra parada muestra sus cargas vinculadas", async () => {
@@ -377,11 +436,13 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    const masterButtons = screen.getAllByRole("button");
-    const originRow = masterButtons.find((button) =>
+    const masterRows = screen
+      .getAllByRole("button")
+      .filter((button) => button.getAttribute("aria-pressed") != null);
+    const originRow = masterRows.find((button) =>
       /Parada 1/i.test(button.textContent ?? ""),
     );
-    const escalaRow = masterButtons.find((button) =>
+    const escalaRow = masterRows.find((button) =>
       /Parada 2/i.test(button.textContent ?? ""),
     );
     expect(originRow).toBeDefined();
@@ -496,7 +557,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(onDepartOrigin).toHaveBeenCalledOnce();
   });
 
-  it("al avanzar el objetivo deja de fijar la selección manual previa", async () => {
+  it("al seleccionar otra parada el CTA del hub permanece en el objetivo", async () => {
     const user = userEvent.setup();
     const initialStops = [
       {
@@ -514,17 +575,25 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
         stops={initialStops}
         tripStatus={TripStatus.IN_PROGRESS}
         cargos={[]}
+        onDepartOrigin={vi.fn()}
       />,
     );
 
+    expect(
+      screen.getByRole("button", { name: /Salida de origen/i }),
+    ).toBeInTheDocument();
+
     const destinationRow = screen
       .getAllByRole("button")
+      .filter((button) => button.getAttribute("aria-pressed") != null)
       .find((button) => /Parada 3/i.test(button.textContent ?? ""));
     expect(destinationRow).toBeDefined();
     await user.click(destinationRow!);
+
+    // CTA vive en cabecera: no desaparece al mirar otra parada
     expect(
-      screen.queryByRole("button", { name: /Salida de origen/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Salida de origen/i }),
+    ).toBeInTheDocument();
 
     rerender(
       <TripTrackingStopsCargosMasterDetail
@@ -550,7 +619,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("aplica focusRequest para seleccionar la parada indicada", () => {
+  it("aplica focusRequest para seleccionar la parada indicada sin mover el CTA del hub", () => {
     render(
       <TripTrackingStopsCargosMasterDetail
         {...defaultProps}
@@ -577,9 +646,10 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(
       screen.getByRole("button", { pressed: true }),
     ).toHaveTextContent(/Parada 3.*Destino foco/i);
+    // CTA sigue en cabecera del hub (parada objetivo = escala), no desaparece por focus
     expect(
-      screen.queryByRole("button", { name: /Registrar llegada/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Registrar llegada/i }),
+    ).toBeInTheDocument();
   });
 
   it("expone evidencia Nota/Incidente en el detail de la parada seleccionada", async () => {
@@ -621,7 +691,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
   });
 });
 
-describe("TripTrackingNextActionCard", () => {
+describe("TripTrackingNextActionCard (legacy guide)", () => {
   const origin = stop({
     id: "s1",
     sequenceOrder: 1,
@@ -633,89 +703,33 @@ describe("TripTrackingNextActionCard", () => {
     stopType: [StopType.DESTINATION],
   });
 
-  it("no expone CTAs de parada; solo orientación y evidencia", () => {
+  it("no expone CTAs de parada ni evidencia", () => {
     render(
       <TripTrackingNextActionCard
         tripStatus={TripStatus.IN_PROGRESS}
         stops={[origin, destination]}
         cargos={[]}
-        onRegisterNote={vi.fn()}
-        onRegisterIncident={vi.fn()}
       />,
     );
 
     expect(screen.getByText(trackingCopy.section.objective)).toBeInTheDocument();
-    expect(screen.getByText(trackingCopy.section.evidence)).toBeInTheDocument();
-    expect(
-      screen.getByText(trackingCopy.hint.executeInStopsAndCargos),
-    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Registrar llegada/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Iniciar viaje/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Nota/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Incidente/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /Nota/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("en cargo_blocked navega al hub operativo", async () => {
-    const user = userEvent.setup();
-    const onNavigate = vi.fn();
-    const cargos = [
-      cargo({
-        id: "c1",
-        movements: [
-          {
-            id: "m1",
-            movementType: "pickup",
-            stopId: "s1",
-            stopIndex: 1,
-            completedAt: null,
-            weight: null,
-            units: null,
-            notes: null,
-          },
-        ],
-      }),
-    ];
-
-    render(
-      <TripTrackingNextActionCard
-        tripStatus={TripStatus.IN_PROGRESS}
-        stops={[
-          {
-            ...origin,
-            actualArrival: new Date("2026-01-01T09:00:00Z"),
-            status: "in_progress",
-          },
-          destination,
-        ]}
-        cargos={cargos}
-        onRegisterNote={vi.fn()}
-        onRegisterIncident={vi.fn()}
-        onNavigateToOperationalHub={onNavigate}
-      />,
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: /Ir a cargas de la parada/i }),
-    );
-    expect(onNavigate).toHaveBeenCalledWith("s1");
-  });
-
-  it("en viaje completado muestra Solo lectura y oculta evidencia", () => {
+  it("en viaje completado muestra Solo lectura", () => {
     render(
       <TripTrackingNextActionCard
         tripStatus={TripStatus.COMPLETED}
         stops={[origin, destination]}
         cargos={[]}
-        onRegisterNote={vi.fn()}
-        onRegisterIncident={vi.fn()}
-        canRegisterNote={false}
-        canRegisterIncident={false}
       />,
     );
 
@@ -725,27 +739,23 @@ describe("TripTrackingNextActionCard", () => {
     expect(
       screen.getByText(trackingCopy.hint.readOnlyGuide),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText(trackingCopy.section.evidence),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Nota/i }),
-    ).not.toBeInTheDocument();
   });
 });
 
-describe("TripTrackingProgressStrip", () => {
-  it("renderiza métricas compactas en una sola región", () => {
+describe("TripTrackingProgressStrip (línea de contexto)", () => {
+  it("renderiza avance sin km planeados/recorridos", () => {
     render(
       <TripTrackingProgressStrip
         progress={{
           stopsTotal: 2,
-          stopsCompleted: 2,
-          percentComplete: 100,
+          stopsCompleted: 1,
+          percentComplete: 50,
           distancePlannedKm: 356.33,
-          distanceActualKm: 356.33,
+          distanceActualKm: 100,
           estimatedArrival: new Date("2026-07-12T16:21:00.000Z"),
         }}
+        actualDeparture={new Date("2026-07-12T08:00:00.000Z")}
+        overdue
         readOnly
       />,
     );
@@ -753,12 +763,13 @@ describe("TripTrackingProgressStrip", () => {
     expect(
       screen.getByRole("group", { name: trackingCopy.section.metrics }),
     ).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
-    expect(screen.getAllByText(/356\.33 km/).length).toBe(2);
+    expect(screen.getByText(/Parada 2 de 2/)).toBeInTheDocument();
+    expect(screen.getByText(trackingCopy.label.overdue)).toBeInTheDocument();
     expect(screen.getByText(trackingCopy.state.readOnly)).toBeInTheDocument();
+    expect(screen.queryByText(/356\.33 km/)).not.toBeInTheDocument();
   });
 
-  it("muestra guión cuando faltan distancias o ETA", () => {
+  it("muestra sin llegada estimada cuando falta ETA", () => {
     render(
       <TripTrackingProgressStrip
         progress={{
@@ -772,7 +783,8 @@ describe("TripTrackingProgressStrip", () => {
       />,
     );
 
-    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(trackingCopy.state.noEta)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(trackingCopy.state.noEta)),
+    ).toBeInTheDocument();
   });
 });

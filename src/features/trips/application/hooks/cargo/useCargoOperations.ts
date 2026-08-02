@@ -4,6 +4,9 @@
  *
  * Hooks de React Query para operaciones de cargas.
  * Sigue el patrón: Hook → UseCase → Repository
+ *
+ * Importante: no poner `...options` después de `onSuccess` — el caller
+ * (toast) sobrescribiría la invalidación de cache.
  */
 
 import {
@@ -45,6 +48,18 @@ export class CargoError extends Error {
     this.code = code;
     this.originalMessage = originalMessage;
   }
+}
+
+function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
+  options?: UseMutationOptions<TData, TError, TVariables, TContext>,
+) {
+  const {
+    onSuccess: userOnSuccess,
+    onError: userOnError,
+    onSettled: userOnSettled,
+    ...rest
+  } = options ?? {};
+  return { userOnSuccess, userOnError, userOnSettled, rest };
 }
 
 // ============================================================================
@@ -92,8 +107,11 @@ export function useAddCargo(
 ) {
   const queryClient = useQueryClient();
   const addCargoUseCase = createAddCargoUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (input: CreateCargoInput) => {
       const result = await addCargoUseCase.execute(tripId, input);
 
@@ -107,13 +125,21 @@ export function useAddCargo(
 
       return result.data;
     },
-    onSuccess: () => {
-      // Invalidar cache de cargas del viaje
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      // Invalidar detalle del viaje (puede incluir cargas)
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -130,8 +156,11 @@ export function useUpdateCargo(
 ) {
   const queryClient = useQueryClient();
   const updateCargoUseCase = createUpdateCargoUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async ({
       cargoId,
       data,
@@ -151,11 +180,21 @@ export function useUpdateCargo(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -168,8 +207,11 @@ export function useDeleteCargo(
 ) {
   const queryClient = useQueryClient();
   const deleteCargoUseCase = createDeleteCargoUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (cargoId: string) => {
       const result = await deleteCargoUseCase.execute(tripId, cargoId);
 
@@ -181,11 +223,21 @@ export function useDeleteCargo(
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -203,8 +255,11 @@ export function useAddCargoMovement(
 ) {
   const queryClient = useQueryClient();
   const addMovementUseCase = createAddCargoMovementUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (input: CreateCargoMovementInput) => {
       const result = await addMovementUseCase.execute(tripId, cargoId, input);
 
@@ -218,10 +273,21 @@ export function useAddCargoMovement(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -239,8 +305,11 @@ export function useCompleteTripCargoMovement(
   const queryClient = useQueryClient();
   const completeMovementUseCase =
     createCompleteCargoMovementUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async ({
       cargoId,
       movementId,
@@ -267,14 +336,24 @@ export function useCompleteTripCargoMovement(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.timeline(tripId),
       });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -293,8 +372,11 @@ export function useCompleteCargoMovement(
   const queryClient = useQueryClient();
   const completeMovementUseCase =
     createCompleteCargoMovementUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async ({
       movementId,
       completedAt,
@@ -319,11 +401,21 @@ export function useCompleteCargoMovement(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -341,8 +433,11 @@ export function useAddMultipleCargos(
 ) {
   const queryClient = useQueryClient();
   const addCargoUseCase = createAddCargoUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (cargos: CreateCargoInput[]) => {
       const results: TripCargo[] = [];
 
@@ -362,10 +457,20 @@ export function useAddMultipleCargos(
 
       return results;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.cargos(tripId) });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }

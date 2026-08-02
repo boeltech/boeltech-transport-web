@@ -1,17 +1,16 @@
 /**
  * Namespace: trips.copy.tripDetail.tracking.*
- * Migrado desde trip-tracking/trackingCopy.ts (patrón ACC).
+ * Léxico operativo (handoff Capa 1 — tab Seguimiento).
  */
 export const trackingCopy = {
   section: {
     status: "Estado operativo",
     actions: "Acciones de seguimiento",
-    objective: "Objetivo actual",
-    evidence: "Evidencia del viaje",
-    metrics: "Métricas del viaje",
+    objective: "Qué sigue",
+    metrics: "Avance del viaje",
     itinerary: "Itinerario operativo",
     stopsAndCargos: "Paradas y cargas",
-    timeline: "Timeline operativo",
+    timeline: "Bitácora del viaje",
     map: "Mapa operativo",
   },
   action: {
@@ -25,23 +24,35 @@ export const trackingCopy = {
     refresh: "Actualizar",
     cancel: "Cancelar",
     now: "Ahora",
-    goToCargos: "Ir a cargas de la parada",
+    goToCargos: "Ver cargas de la parada",
   },
   label: {
     departureAt: "Fecha y hora de salida",
     startMileage: "Kilometraje inicial",
-    currentTarget: "Objetivo actual",
-    distancePlanned: "Dist. planificada",
-    distanceActual: "Dist. real",
-    eta: "ETA",
+    currentTarget: "Qué sigue",
+    distancePlanned: "Km planeados",
+    distanceActual: "Km recorridos",
+    eta: "Llegada estimada",
+    stopsProgress: (completed: number, total: number) =>
+      `Parada ${Math.min(completed + 1, total)} de ${total}`,
+    stopsProgressDone: (total: number) =>
+      total === 1 ? "1 parada completada" : `${total} paradas completadas`,
+    departedAt: (time: string) => `Salió ${time}`,
+    arrivesAt: (time: string) => `Llega ~${time}`,
+    overdue: "Va tarde",
     cargoCount: (count: number) =>
       count === 1 ? "1 carga" : `${count} cargas`,
-    evidenceAtStop: "Evidencia en esta parada",
+    evidenceAtStop: "Registrar nota o incidente",
+    locationSaved: "Ubicación guardada",
+    locationFromStop: "Ubicación de la parada",
+    locationFromDevice: "Mi ubicación",
+    occurredAtArrival: "¿A qué hora llegó?",
+    occurredAtDeparture: "¿A qué hora salió?",
   },
   sheet: {
     startDescription:
-      "Despacha la unidad: registra hora, odómetro inicial y, si aplica, ubicación. El viaje pasa a «En curso»; la salida fiscal de origen se registra después.",
-    startHintLabel: "Iniciar viaje (dispatch)",
+      "Despacha la unidad: registra hora, odómetro inicial y, si aplica, ubicación. El viaje pasa a «En curso»; la salida de origen se registra después.",
+    startHintLabel: "Iniciar viaje",
     startHint: (tripCode: string) =>
       `El viaje ${tripCode} pasará a «En curso» al despachar. Registra el kilometraje del odómetro al arrancar; después podrás marcar llegada a origen, carga y salida de origen.`,
     startMileagePlaceholder: "Ej: 150000",
@@ -61,8 +72,21 @@ export const trackingCopy = {
     resourceBlockedDriver: (status: string) =>
       `El conductor no puede despacharse (estado: ${status}).`,
     departOriginDescription:
-      "Registra la salida fiscal de la parada origen (inicia tránsito para CP31 y cliente).",
+      "Registra la salida de la parada origen para iniciar el tránsito.",
     departOriginHintLabel: "Salida de origen",
+    civilTimeHint: "Hora local de México.",
+    arrivalDescription:
+      "Registra la llegada a la parada con la fecha y hora en que ocurrió.",
+    departureDescription:
+      "Registra la salida de la escala con la fecha y hora en que ocurrió.",
+    notesOptional: "Notas (opcional)",
+    notesPlaceholder: "Observaciones operativas…",
+    locationOptional: "¿Dónde ocurrió? (opcional)",
+    locationHint:
+      "Opcional. Puedes usar la ubicación del dispositivo o la de la parada.",
+    useMyLocation: "Usar mi ubicación",
+    useStopLocation: "Usar ubicación de la parada",
+    clearLocation: "Quitar",
   },
   toast: {
     tripStarted: "Viaje despachado",
@@ -73,10 +97,16 @@ export const trackingCopy = {
     startMileageRequired: "Kilometraje requerido",
     startMileageRequiredDescription:
       "Ingresa el odómetro al iniciar el viaje. Se sugiere el kilometraje actual del vehículo cuando está disponible.",
+    arrivalRegistered: (stopLabel: string) =>
+      `Llegada registrada · ${stopLabel}`,
+    departureRegistered: (stopLabel: string) =>
+      `Salida registrada · ${stopLabel}`,
+    registerFailed: "No se pudo registrar",
   },
   validation: {
     departureRequired: "Indica la fecha y hora de salida.",
-    civilTimeHint: "Hora civil México.",
+    occurredAtRequired: "Indica la fecha y hora.",
+    civilTimeHint: "Hora local de México.",
   },
   state: {
     live: "En vivo",
@@ -84,33 +114,31 @@ export const trackingCopy = {
     readOnly: "Solo lectura",
     noEvents: "Sin eventos",
     noStops: "Sin paradas en la ruta",
-    noEta: "Sin ETA",
+    noEta: "Sin llegada estimada",
+    locationSaved: "Ubicación guardada",
   },
   hint: {
-    scope: "Seguimiento registra eventos y evidencias operativas.",
     map: "Ubicación de paradas y eventos con GPS.",
-    itinerary: "Progreso por parada. «Objetivo actual» indica dónde actuar.",
+    itinerary: "Progreso por parada. «Qué sigue» indica dónde actuar.",
     objectiveGuide:
-      "Resumen de la siguiente operación. Las acciones de parada y carga se ejecutan en Paradas y cargas.",
+      "Resumen de la siguiente operación y el botón para registrarla.",
     readOnlyGuide:
-      "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, timeline y mapa abajo.",
+      "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, bitácora y mapa abajo.",
     idleGuide:
-      "No hay una acción de parada pendiente. Puedes revisar cargas o registrar evidencia si aplica.",
-    executeInStopsAndCargos:
-      "Ejecuta esta acción en la sección Paradas y cargas.",
+      "No hay una acción de parada pendiente. Puedes revisar cargas o registrar una nota o incidente si aplica.",
     evidenceAtStop:
       "La nota o incidente usará esta parada como referencia de ubicación cuando tenga coordenadas.",
     distancePlanned: "Calculada desde las paradas del viaje.",
     distanceActual: "Distancia real proyectada por el seguimiento.",
     eta: "Basado en la programación del viaje.",
     stopsAndCargos:
-      "Selecciona una parada para ver acciones operativas y cargas vinculadas.",
-    selectStop: "Selecciona una parada de la lista para operar.",
+      "Selecciona una parada para ver cargas y registrar nota o incidente.",
+    selectStop: "Selecciona una parada de la lista.",
     mobileDetailSheet: "Detalle de parada",
     actionsScope:
-      "Registra operaciones y evidencia. La parada objetivo se marca en el itinerario.",
+      "Registra operaciones y evidencia. La parada siguiente se marca en el itinerario.",
     nextStepFallback: "Sin acciones pendientes",
-    openIncident: "Hay un incidente abierto. Revisa el timeline antes de cerrar.",
+    openIncident: "Hay un incidente abierto. Revisa la bitácora antes de cerrar.",
     cargoBlockedTitle: (stopLabel: string) =>
       `Completa las cargas en ${stopLabel}`,
     cargoBlockedBody: (count: number) =>
@@ -121,6 +149,8 @@ export const trackingCopy = {
       "Registra la llegada a esta parada para operar las mercancías.",
     cargoBlockedBeforeDeparture:
       "Completa las acciones de carga en esta parada antes de registrar salida o cierre.",
+    legendHelp: "¿Qué significan los estados?",
+    timelineLocationSaved: "Ubicación registrada",
   },
   error: {
     startRequiresScheduled: "Requiere estado programado.",

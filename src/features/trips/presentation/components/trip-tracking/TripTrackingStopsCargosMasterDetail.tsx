@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ListOrdered, Package, Truck } from "lucide-react";
+import {
+  CheckCircle2,
+  ListOrdered,
+  MapPin,
+  Navigation,
+  Package,
+  Send,
+  Truck,
+} from "lucide-react";
 
 import {
   CARGO_STATUS_LABELS,
   TripStatus,
   type CargoStatusType,
   type StopStatusValue,
+  type TrackingTimelineProgress,
   type TripCargo,
   type TripStatusType,
   type TripStop,
@@ -51,6 +60,11 @@ import { CargoStateMachineLegend } from "./CargoStateMachineLegend";
 import { StopActionInline } from "./StopActionInline";
 import { StopStateMachineLegend } from "./StopStateMachineLegend";
 import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
+import { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
+import {
+  resolveTrackingPrimaryAction,
+  type TrackingPrimaryActionKind,
+} from "./trackingNextAction";
 import {
   buildTrackingItineraryRows,
   getTrackingStopRoleHint,
@@ -73,6 +87,10 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   tripStatus: TripStatusType;
   tripTimes?: TripScheduleTimes;
   cargos: readonly TripCargo[];
+  /** Progreso del timeline para la línea de contexto del hub (D4). */
+  progress?: TrackingTimelineProgress | null;
+  actualDeparture?: Date | null;
+  overdue?: boolean;
   pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
   onCargoAction: (cargoId: string, action: CargoManualAction) => void;
   getCargoStatusVariant: (
@@ -87,10 +105,41 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   onRegisterNote?: (stop: TripStop) => void;
   onRegisterIncident?: (stop: TripStop) => void;
   canRegisterEvidence?: boolean;
-  /** Focus request from the guide card (cargo blocked → jump to stop). */
+  /**
+   * RBAC: `trips.update` | `trips.updateStatus`.
+   * Sin permiso no se muestran CTAs de parada/carga ni se invocan mutaciones.
+   */
+  canOperateTracking?: boolean;
+  /** Focus request (p. ej. desde deep-link); selecciona parada en el hub. */
   focusRequest?: TrackingOperationalFocusRequest | null;
   className?: string;
 };
+
+const OPERABLE_HUB_KINDS = new Set<TrackingPrimaryActionKind>([
+  "dispatch",
+  "arrive",
+  "depart",
+  "depart_origin",
+  "close",
+]);
+
+function hubActionIcon(kind: TrackingPrimaryActionKind) {
+  switch (kind) {
+    case "dispatch":
+      return Send;
+    case "arrive":
+      return MapPin;
+    case "depart":
+    case "depart_origin":
+      return Navigation;
+    case "close":
+      return CheckCircle2;
+    case "cargo_blocked":
+      return Package;
+    default:
+      return MapPin;
+  }
+}
 
 function getCargoActionsForStopLink(
   link: StopCargoLink,
@@ -164,13 +213,12 @@ function dispatchInlineStopAction(
   }
 }
 
-function shouldShowStopAction(
+function shouldShowHubStopAction(
   tripStatus: TripStatusType,
-  row: TrackingItineraryRow,
-  selectedStopId: string,
+  row: TrackingItineraryRow | null,
 ): boolean {
-  if (row.stop.id !== selectedStopId) return false;
-  if (tripStatus === TripStatus.SCHEDULED) return true;
+  if (row == null) return false;
+  if (tripStatus === TripStatus.SCHEDULED) return isOriginStop(row.stop);
   if (tripStatus === TripStatus.IN_PROGRESS) return row.isActionTarget;
   return false;
 }
@@ -249,18 +297,12 @@ type TripTrackingStopOperationDetailProps = {
   orderedStops: readonly TripStop[];
   cargos: readonly TripCargo[];
   showHints: boolean;
-  showStopAction: boolean;
   tripInProgress: boolean;
   pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
   onCargoAction: (cargoId: string, action: CargoManualAction) => void;
-  onStartTrip?: () => void;
-  onArrive?: () => void;
-  onDepart?: () => void;
-  onDepartOrigin?: () => void;
-  onCloseTrip?: () => void;
   onRegisterNote?: (stop: TripStop) => void;
   onRegisterIncident?: (stop: TripStop) => void;
   canRegisterEvidence?: boolean;
@@ -272,16 +314,10 @@ function TripTrackingStopOperationDetail({
   orderedStops,
   cargos,
   showHints,
-  showStopAction,
   tripInProgress,
   pendingCargoAction,
   getCargoStatusVariant,
   onCargoAction,
-  onStartTrip,
-  onArrive,
-  onDepart,
-  onDepartOrigin,
-  onCloseTrip,
   onRegisterNote,
   onRegisterIncident,
   canRegisterEvidence = false,
@@ -294,12 +330,6 @@ function TripTrackingStopOperationDetail({
     row.stop.status as StopStatusValue | undefined,
   );
   const roleHint = showHints ? getTrackingStopRoleHint(row.stop) : null;
-  const inlineAction = showStopAction
-    ? resolveInlineStopAction(tripStatus, row.stop, row.nextAction)
-    : null;
-  const actionLabel = inlineAction
-    ? formatInlineActionLabel(inlineAction, row.stop, row.displayOrder)
-    : null;
   const links = getStopCargoLinks(row.stop, cargos, orderedStops);
   const stopActive = canOperateCargoAtStop(row.stop, tripStatus);
   const cargoBlock = getCargoBlockAtStop(row.stop, cargos, orderedStops);
@@ -318,11 +348,6 @@ function TripTrackingStopOperationDetail({
             status={stopStatus}
             isActive={row.isActionTarget && showHints}
           />
-          {row.isActionTarget && showHints ? (
-            <Badge variant="outline" className="text-xs border-primary/50">
-              {trackingCopy.label.currentTarget}
-            </Badge>
-          ) : null}
         </div>
         {secondary ? (
           <p className="text-sm text-muted-foreground">{secondary}</p>
@@ -339,29 +364,6 @@ function TripTrackingStopOperationDetail({
           title={trackingCopy.hint.cargoBlockedBeforeDeparture}
           items={cargoBlock.descriptions.map((text) => ({ text }))}
         />
-      ) : null}
-
-      {inlineAction && actionLabel ? (
-        <section className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Acciones de parada
-          </p>
-          <StopActionInline
-            label={actionLabel}
-            action={inlineAction.action}
-            variant="default"
-            size="lg"
-            onClick={() =>
-              dispatchInlineStopAction(inlineAction, {
-                onStartTrip,
-                onArrive,
-                onDepart,
-                onDepartOrigin,
-                onCloseTrip,
-              })
-            }
-          />
-        </section>
       ) : null}
 
       {showEvidenceToolbar ? (
@@ -483,6 +485,9 @@ export function TripTrackingStopsCargosMasterDetail({
   tripStatus,
   tripTimes,
   cargos,
+  progress = null,
+  actualDeparture = null,
+  overdue = false,
   pendingCargoAction,
   onCargoAction,
   getCargoStatusVariant,
@@ -494,6 +499,7 @@ export function TripTrackingStopsCargosMasterDetail({
   onRegisterNote,
   onRegisterIncident,
   canRegisterEvidence = tripStatus === TripStatus.IN_PROGRESS,
+  canOperateTracking = true,
   focusRequest = null,
   className,
 }: TripTrackingStopsCargosMasterDetailProps) {
@@ -519,6 +525,11 @@ export function TripTrackingStopsCargosMasterDetail({
   const actionTargetId = useMemo(
     () => rows.find((row) => row.isActionTarget)?.stop.id ?? null,
     [rows],
+  );
+
+  const primary = useMemo(
+    () => resolveTrackingPrimaryAction(tripStatus, stops, cargos),
+    [tripStatus, stops, cargos],
   );
 
   // Ajuste de estado durante render (patrón React vs useEffect+setState en cascada).
@@ -577,10 +588,50 @@ export function TripTrackingStopsCargosMasterDetail({
     [rows, resolvedViewId],
   );
 
+  const hubTargetRow = useMemo(() => {
+    if (primary.stop != null) {
+      return rows.find((row) => row.stop.id === primary.stop!.id) ?? null;
+    }
+    if (tripStatus === TripStatus.SCHEDULED) {
+      return rows.find((row) => isOriginStop(row.stop)) ?? null;
+    }
+    return rows.find((row) => row.isActionTarget) ?? null;
+  }, [primary.stop, rows, tripStatus]);
+
   const showHints = tripStatus === TripStatus.IN_PROGRESS;
   const tripInProgress = tripStatus === TripStatus.IN_PROGRESS;
   const canShowStopActions =
-    tripStatus === TripStatus.SCHEDULED || tripStatus === TripStatus.IN_PROGRESS;
+    canOperateTracking &&
+    (tripStatus === TripStatus.SCHEDULED ||
+      tripStatus === TripStatus.IN_PROGRESS);
+  const canMutateCargo = canOperateTracking && tripInProgress;
+
+  const hubInlineAction =
+    canShowStopActions &&
+    shouldShowHubStopAction(tripStatus, hubTargetRow) &&
+    hubTargetRow != null
+      ? resolveInlineStopAction(
+          tripStatus,
+          hubTargetRow.stop,
+          hubTargetRow.nextAction,
+        )
+      : null;
+  const hubActionLabel =
+    hubInlineAction && hubTargetRow
+      ? formatInlineActionLabel(
+          hubInlineAction,
+          hubTargetRow.stop,
+          hubTargetRow.displayOrder,
+        )
+      : null;
+
+  const HubIcon = hubActionIcon(primary.kind);
+  const isTerminal =
+    tripStatus === TripStatus.COMPLETED || tripStatus === TripStatus.CANCELLED;
+  const showsOperableCta =
+    hubInlineAction != null &&
+    hubActionLabel != null &&
+    OPERABLE_HUB_KINDS.has(primary.kind);
 
   const handleSelect = (stopId: string) => {
     setUserSelectedId(stopId);
@@ -597,21 +648,13 @@ export function TripTrackingStopsCargosMasterDetail({
         orderedStops: stops,
         cargos,
         showHints,
-        showStopAction:
-          canShowStopActions &&
-          shouldShowStopAction(tripStatus, selectedRow, selectedRow.stop.id),
-        tripInProgress,
+        tripInProgress: canMutateCargo,
         pendingCargoAction,
         getCargoStatusVariant,
         onCargoAction,
-        onStartTrip,
-        onArrive,
-        onDepart,
-        onDepartOrigin,
-        onCloseTrip,
         onRegisterNote,
         onRegisterIncident,
-        canRegisterEvidence,
+        canRegisterEvidence: canOperateTracking && canRegisterEvidence,
       }
     : null;
 
@@ -624,7 +667,86 @@ export function TripTrackingStopsCargosMasterDetail({
         </CardTitle>
         <CardDescription>{trackingCopy.hint.stopsAndCargos}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
+        <div
+          className={cn(
+            "space-y-3 rounded-lg border p-3 sm:p-4",
+            isTerminal || primary.kind === "none"
+              ? "border-border bg-muted/30"
+              : primary.kind === "idle"
+                ? "border-border bg-card"
+                : "border-primary/40 bg-primary/5",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{trackingCopy.section.objective}</p>
+            {isTerminal || primary.kind === "none" ? (
+              <Badge variant="outline" className="text-[10px] font-normal">
+                {trackingCopy.state.readOnly}
+              </Badge>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                isTerminal || primary.kind === "none" || primary.kind === "idle"
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-primary/15 text-primary",
+              )}
+              aria-hidden
+            >
+              <HubIcon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <p
+                className={cn(
+                  "font-semibold text-sm",
+                  isTerminal ? "text-muted-foreground" : null,
+                )}
+              >
+                {primary.title}
+              </p>
+              {primary.transitionText ? (
+                <p className="text-xs text-muted-foreground">
+                  {primary.transitionText}
+                </p>
+              ) : null}
+              {showsOperableCta ? (
+                <StopActionInline
+                  label={hubActionLabel!}
+                  action={hubInlineAction!.action}
+                  variant="default"
+                  size="lg"
+                  onClick={() =>
+                    dispatchInlineStopAction(hubInlineAction!, {
+                      onStartTrip,
+                      onArrive,
+                      onDepart,
+                      onDepartOrigin,
+                      onCloseTrip,
+                    })
+                  }
+                />
+              ) : null}
+            </div>
+          </div>
+
+          {progress != null ? (
+            <TripTrackingProgressStrip
+              progress={progress}
+              actualDeparture={actualDeparture}
+              overdue={overdue}
+              readOnly={
+                !canOperateTracking ||
+                (tripStatus !== TripStatus.SCHEDULED &&
+                  tripStatus !== TripStatus.IN_PROGRESS)
+              }
+            />
+          ) : null}
+        </div>
+
         <div className="space-y-2">
           <StopStateMachineLegend />
           {cargos.length > 0 ? <CargoStateMachineLegend /> : null}

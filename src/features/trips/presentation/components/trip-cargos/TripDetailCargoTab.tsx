@@ -28,6 +28,7 @@ import { tripDetailCopy } from "../../copy";
 import { getCargoStatusVariant } from "./tripCargoDetailHelpers";
 import { TripDetailCargoByPickupView } from "./TripDetailCargoByPickupView";
 import { formatCurrency } from "@features/trips";
+import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
 
 const copy = tripDetailCopy.cargo;
 
@@ -160,23 +161,18 @@ export function TripDetailCargoTab({
     return (
       count +
       cargo.movements.filter((movement) => {
-        const foundStop = orderedStops.find(
-          (stop) =>
-            stop.id === movement.stopId ||
-            stop.sequenceOrder === movement.stopIndex,
-        );
-        return !foundStop;
+        return !resolveStopForMovement(movement, orderedStops);
       }).length
     );
   }, 0);
 
   const pickupGroups = pickupStops.map((stop) => {
     const items = cargos.filter((cargo) =>
-      cargo.movements?.some(
-        (movement) =>
-          movement.movementType === "pickup" &&
-          (movement.stopId === stop.id || movement.stopIndex === stop.sequenceOrder),
-      ),
+      cargo.movements?.some((movement) => {
+        if (movement.movementType !== "pickup") return false;
+        const resolved = resolveStopForMovement(movement, orderedStops);
+        return resolved?.id === stop.id;
+      }),
     );
     return { stop, items };
   });
@@ -194,17 +190,6 @@ export function TripDetailCargoTab({
           cargoStatusBreakdown.length > 0 ? "lg:col-span-2" : "",
         )}
       >
-        <DetailAlertCard
-          severity="info"
-          icon={<Package className="h-4 w-4" />}
-          title={copy.section.scope}
-          items={
-            canEditStructural
-              ? [{ text: copy.hint.scopeEditable }]
-              : [{ text: copy.hint.scopeReadOnly }, { text: copy.hint.manageInTracking }]
-          }
-        />
-
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">

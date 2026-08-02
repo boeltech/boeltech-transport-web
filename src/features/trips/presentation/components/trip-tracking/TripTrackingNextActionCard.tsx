@@ -18,21 +18,16 @@ import {
   resolveTrackingPrimaryAction,
   type TrackingPrimaryActionKind,
 } from "./trackingNextAction";
-import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 
 export type TripTrackingNextActionCardProps = {
   tripStatus: TripStatusType;
   stops: readonly TripStop[];
   cargos?: readonly TripCargo[];
-  onRegisterNote: () => void;
-  onRegisterIncident: () => void;
   /**
    * Lleva el foco al hub «Paradas y cargas» (p. ej. cargas pendientes).
    * El padre asigna el nonce de `TrackingOperationalFocusRequest`.
    */
   onNavigateToOperationalHub?: (stopId: string) => void;
-  canRegisterNote?: boolean;
-  canRegisterIncident?: boolean;
   className?: string;
 };
 
@@ -80,15 +75,15 @@ function resolveGuideDescription(
   return title;
 }
 
+/**
+ * Guía de orientación: qué sigue y por qué.
+ * Las mutaciones (parada, carga, Nota/Incidente) viven solo en «Paradas y cargas».
+ */
 export function TripTrackingNextActionCard({
   tripStatus,
   stops,
   cargos,
-  onRegisterNote,
-  onRegisterIncident,
   onNavigateToOperationalHub,
-  canRegisterNote = tripStatus === TripStatus.IN_PROGRESS,
-  canRegisterIncident = tripStatus === TripStatus.IN_PROGRESS,
   className,
 }: TripTrackingNextActionCardProps) {
   const primary = resolveTrackingPrimaryAction(tripStatus, stops, cargos);
@@ -98,7 +93,6 @@ export function TripTrackingNextActionCard({
     terminal || primary.kind === "none" || primary.kind === "idle";
   const showsOperableHint = OPERABLE_GUIDE_KINDS.has(primary.kind);
   const showsCargoNavigate = primary.kind === "cargo_blocked";
-  const showEvidenceSection = canRegisterNote || canRegisterIncident;
   const description = resolveGuideDescription(primary.kind, primary.title);
 
   const handleGoToOperationalHub = () => {
@@ -167,7 +161,7 @@ export function TripTrackingNextActionCard({
             ) : null}
             {showsOperableHint ? (
               <p className="text-xs text-muted-foreground">
-                {trackingCopy.hint.executeInStopsAndCargos}
+                {trackingCopy.hint.objectiveGuide}
               </p>
             ) : null}
             {showsCargoNavigate ? (
@@ -184,20 +178,6 @@ export function TripTrackingNextActionCard({
             ) : null}
           </div>
         </div>
-
-        {showEvidenceSection ? (
-          <div className="space-y-2 border-t pt-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              {trackingCopy.section.evidence}
-            </p>
-            <TrackingEvidenceActions
-              onRegisterNote={onRegisterNote}
-              onRegisterIncident={onRegisterIncident}
-              canRegisterNote={canRegisterNote}
-              canRegisterIncident={canRegisterIncident}
-            />
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

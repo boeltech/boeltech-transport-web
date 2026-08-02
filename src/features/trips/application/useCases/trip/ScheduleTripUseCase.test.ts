@@ -62,7 +62,16 @@ describe("ScheduleTripUseCase route validation", () => {
   it("rechaza programar sin resumen de origen", async () => {
     const repository = {
       findById: vi.fn().mockResolvedValue({
-        data: draftTrip({ originCity: "" }),
+        data: draftTrip({
+          originCity: "",
+          costs: {
+            baseRate: 35_000,
+            fuelCost: 0,
+            tollCost: 0,
+            otherCosts: 0,
+            totalCost: 35_000,
+          },
+        }),
       }),
       updateStatus: vi.fn(),
     } as unknown as ITripRepository;
@@ -77,9 +86,28 @@ describe("ScheduleTripUseCase route validation", () => {
   });
 
   it("programa viaje con resumen de ruta válido", async () => {
-    const scheduled = draftTrip({ status: TripStatus.SCHEDULED });
+    const scheduled = draftTrip({
+      status: TripStatus.SCHEDULED,
+      costs: {
+        baseRate: 35_000,
+        fuelCost: 0,
+        tollCost: 0,
+        otherCosts: 0,
+        totalCost: 35_000,
+      },
+    });
     const repository = {
-      findById: vi.fn().mockResolvedValue({ data: draftTrip() }),
+      findById: vi.fn().mockResolvedValue({
+        data: draftTrip({
+          costs: {
+            baseRate: 35_000,
+            fuelCost: 0,
+            tollCost: 0,
+            otherCosts: 0,
+            totalCost: 35_000,
+          },
+        }),
+      }),
       updateStatus: vi.fn().mockResolvedValue({ data: scheduled }),
     } as unknown as ITripRepository;
     const useCase = new ScheduleTripUseCase(repository);
@@ -90,5 +118,20 @@ describe("ScheduleTripUseCase route validation", () => {
     expect(repository.updateStatus).toHaveBeenCalledWith("trip-1", {
       status: TripStatus.SCHEDULED,
     });
+  });
+
+  it("rechaza programar sin base_rate (ADR-0071)", async () => {
+    const repository = {
+      findById: vi.fn().mockResolvedValue({ data: draftTrip() }),
+      updateStatus: vi.fn(),
+    } as unknown as ITripRepository;
+    const useCase = new ScheduleTripUseCase(repository);
+
+    const result = await useCase.execute("trip-1");
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.code).toBe("SCHEDULE_NOT_READY");
+    expect(repository.updateStatus).not.toHaveBeenCalled();
   });
 });

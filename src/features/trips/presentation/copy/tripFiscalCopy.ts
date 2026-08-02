@@ -113,8 +113,8 @@ export const tripFiscalCopy = {
         : "RFC inválido en una parada del viaje.",
   },
   chip: {
-    invalidRfc: "RFC inválido — Corregir",
-    correctFiscal: "Corregir datos fiscales",
+    invalidRfc: "Domicilio inválido — Corregir",
+    correctFiscal: "Completar domicilio",
   },
   invoiceActions: {
     menuLabel: "Facturación",
@@ -125,12 +125,16 @@ export const tripFiscalCopy = {
       folio ? `Ver accesoria (${folio})` : "Ver factura accesoria",
   },
   invoicesSection: {
-    title: "Facturas",
+    title: "Facturas del viaje",
     primaryLabel: "Flete",
-    accessoryLabel: "Accesoria",
+    accessoryLabel: "Adicional",
     folio: (folio: string) => `Folio ${folio}`,
     status: (status: string) => status,
     openInvoice: "Abrir",
     empty: "Aún no hay facturas vinculadas a este viaje.",
+    compactTitle: "Facturación",
+    openMenuHint: "Gestionar en el menú Facturación",
+    goToRouteTab: "Ir a Ruta",
+    goToCargoTab: "Ir a Carga",
   },
 } as const;

@@ -10,6 +10,7 @@ import {
 } from "@features/trips/domain";
 import { createUpdateTripStatusUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
+import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 
 type UpdateTripStatusVariables = { id: string; status: TripStatusType };
@@ -79,6 +80,7 @@ export function useUpdateTripStatus(
       });
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       await invalidateTripAssignmentResources(queryClient);
+      invalidateNotificationsQueries(queryClient);
       userOnSettled?.(data, err, variables, context, mutation);
     },
     onSuccess: (data, variables, onMutateResult, context) => {

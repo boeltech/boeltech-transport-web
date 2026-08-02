@@ -247,21 +247,20 @@ export function buildTrackingItineraryRows(
   });
 }
 
+/**
+ * Alertas de alcance del tab: solo lectura o incidente abierto (D6).
+ * No repite el mensaje de «Iniciar viaje» cuando el viaje está programado.
+ */
 export function getTrackingScopeAlertItems(
   tripStatus: TripStatusType,
   hasOpenIncident: boolean,
 ): { label?: string; text: string }[] {
-  const items: { label?: string; text: string }[] = [
-    {
-      text: trackingCopy.hint.scope,
-    },
-  ];
+  const items: { label?: string; text: string }[] = [];
 
-  if (tripStatus === "scheduled") {
-    items.push({
-      text: "Inicia viaje (dispatch) para habilitar llegada a origen, cargas y registro operativo.",
-    });
-  } else if (tripStatus !== "in_progress") {
+  if (
+    tripStatus !== "scheduled" &&
+    tripStatus !== "in_progress"
+  ) {
     items.push({
       text: "Seguimiento en solo lectura para este estado.",
     });

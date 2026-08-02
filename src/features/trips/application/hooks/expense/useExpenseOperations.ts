@@ -4,6 +4,9 @@
  *
  * Hooks de React Query para operaciones de gastos.
  * Sigue el patrón: Hook → UseCase → Repository
+ *
+ * Importante: no poner `...options` después de `onSuccess` — el caller
+ * (toast) sobrescribiría la invalidación de cache.
  */
 
 import {
@@ -46,6 +49,18 @@ export class ExpenseError extends Error {
     this.code = code;
     this.originalMessage = originalMessage;
   }
+}
+
+function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
+  options?: UseMutationOptions<TData, TError, TVariables, TContext>,
+) {
+  const {
+    onSuccess: userOnSuccess,
+    onError: userOnError,
+    onSettled: userOnSettled,
+    ...rest
+  } = options ?? {};
+  return { userOnSuccess, userOnError, userOnSettled, rest };
 }
 
 // ============================================================================
@@ -121,8 +136,11 @@ export function useAddExpense(
 ) {
   const queryClient = useQueryClient();
   const addExpenseUseCase = createAddExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (input: CreateExpenseInput) => {
       const result = await addExpenseUseCase.execute(tripId, input);
 
@@ -136,15 +154,21 @@ export function useAddExpense(
 
       return result.data;
     },
-    onSuccess: () => {
-      // Invalidar cache de gastos del viaje
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      // Invalidar detalle del viaje (puede incluir gastos)
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -161,8 +185,11 @@ export function useUpdateExpense(
 ) {
   const queryClient = useQueryClient();
   const updateExpenseUseCase = createUpdateExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async ({
       expenseId,
       data,
@@ -186,13 +213,21 @@ export function useUpdateExpense(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -205,8 +240,11 @@ export function useDeleteExpense(
 ) {
   const queryClient = useQueryClient();
   const deleteExpenseUseCase = createDeleteExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (expenseId: string) => {
       const result = await deleteExpenseUseCase.execute(tripId, expenseId);
 
@@ -218,13 +256,21 @@ export function useDeleteExpense(
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -237,8 +283,11 @@ export function useApproveExpense(
 ) {
   const queryClient = useQueryClient();
   const approveExpenseUseCase = createApproveExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (expenseId: string) => {
       const result = await approveExpenseUseCase.execute(tripId, expenseId);
 
@@ -252,14 +301,22 @@ export function useApproveExpense(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
       invalidateApprovalsRelatedQueries(queryClient);
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -276,8 +333,11 @@ export function useRejectExpense(
 ) {
   const queryClient = useQueryClient();
   const rejectExpenseUseCase = createRejectExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async ({
       expenseId,
       reason,
@@ -301,14 +361,22 @@ export function useRejectExpense(
 
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
       invalidateApprovalsRelatedQueries(queryClient);
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -330,8 +398,11 @@ export function useAddMultipleExpenses(
 ) {
   const queryClient = useQueryClient();
   const addExpenseUseCase = createAddExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
 
   return useMutation({
+    ...rest,
     mutationFn: async (expenses: CreateExpenseInput[]) => {
       const results: TripExpense[] = [];
 
@@ -351,12 +422,20 @@ export function useAddMultipleExpenses(
 
       return results;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.expenses(tripId),
       });
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
   });
 }

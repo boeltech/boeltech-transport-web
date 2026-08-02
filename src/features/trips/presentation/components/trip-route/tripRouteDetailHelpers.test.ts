@@ -238,7 +238,7 @@ describe("tripRouteDetailHelpers", () => {
     const originRows = getStopTimeDisplayRows(origin, "origin", tripTimes);
     expect(originRows).toHaveLength(1);
     expect(originRows[0]?.kind).toBe("departure");
-    expect(originRows[0]?.label).toContain("viaje");
+    expect(originRows[0]?.label).toBe(routeCopy.label.scheduledDepartureTrip);
 
     const destination = stop({
       stopType: [StopType.DESTINATION],

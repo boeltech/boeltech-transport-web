@@ -10,7 +10,6 @@ import {
 
 import {
   StopType,
-  countCompletedStops,
   type Trip,
   type TripStatusType,
   type TripStop,
@@ -25,7 +24,6 @@ import { Separator } from "@shared/ui/separator";
 import { cn } from "@shared/lib/utils/cn";
 
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
-import { getCargoStatusVariant } from "../trip-cargos/tripCargoDetailHelpers";
 import { useTripFiscalSheets } from "../trip-fiscal";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
@@ -38,7 +36,6 @@ import {
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.route;
-const progressCopy = tripDetailCopy.progress;
 
 export interface TripDetailRouteTabProps {
   trip: Trip;
@@ -62,13 +59,11 @@ function getDisplayOrder(stop: TripStop, ordered: readonly TripStop[]): number {
 
 function RouteSection({
   title,
-  description,
   icon,
   children,
   className,
 }: {
   title: string;
-  description?: string;
   icon: ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -77,12 +72,7 @@ function RouteSection({
     <section className={cn("space-y-3", className)}>
       <div className="flex items-center gap-2">
         {icon}
-        <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {description ? (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
+        <h3 className="text-sm font-semibold">{title}</h3>
       </div>
       {children}
     </section>
@@ -94,7 +84,6 @@ function renderRouteStopCard(
   ordered: readonly TripStop[],
   tripStatus: TripStatusType,
   tripTimes: { scheduledDeparture: Date; actualDeparture: Date | null },
-  cargos: readonly TripCargo[],
   showFiscalWarning: (stop: TripStop) => boolean,
   showFiscalCorrection: (stop: TripStop) => boolean,
   onFixFiscal: (stopId: string) => void,
@@ -108,9 +97,6 @@ function renderRouteStopCard(
       displayOrder={getDisplayOrder(stop, ordered)}
       tripStatus={tripStatus}
       tripTimes={tripTimes}
-      cargos={cargos}
-      orderedStops={ordered}
-      getCargoStatusVariant={getCargoStatusVariant}
       fiscalWarning={
         warning
           ? {
@@ -133,9 +119,9 @@ export function TripDetailRouteTab({
   trip,
   tripStatus,
   orderedStops,
-  progress,
+  progress: _progress,
   canEditStructural,
-  cargos = [],
+  cargos: _cargos = [],
   legacyRoute,
 }: TripDetailRouteTabProps) {
   const fiscal = useTripFiscalSheets({ trip, enableAutoRestamp: false });
@@ -171,7 +157,6 @@ export function TripDetailRouteTab({
     scheduledDeparture: trip.scheduledDeparture,
     actualDeparture: trip.actualDeparture,
   };
-  const completedStopsCount = countCompletedStops(ordered);
   const pickupCount = ordered.filter((stop) =>
     hasStopType(stop.stopType, StopType.PICKUP),
   ).length;
@@ -214,39 +199,15 @@ export function TripDetailRouteTab({
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-0">
-        <div className="grid gap-3 grid-cols-1">
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {progressCopy.label.percent}
-            </p>
-            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
-              {progress}%
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {progressCopy.hint.percent}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {progressCopy.label.completedStops}
-            </p>
-            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
-              {progressCopy.format.completedRatio(completedStopsCount, ordered.length)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {progressCopy.hint.completedStops(completedStopsCount, ordered.length)}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {copy.label.segmentDistance}
-            </p>
-            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
-              {totalSegmentKm != null
-                ? `${totalSegmentKm.toLocaleString("es-MX")} km`
-                : "—"}
-            </p>
-          </div>
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {copy.label.segmentDistance}
+          </p>
+          <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight">
+            {totalSegmentKm != null
+              ? `${totalSegmentKm.toLocaleString("es-MX")} km`
+              : "—"}
+          </p>
         </div>
         <Separator />
         <div className="space-y-1 rounded-lg border bg-muted/20 px-3 py-3 text-sm">
@@ -261,23 +222,6 @@ export function TripDetailRouteTab({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
-        <DetailAlertCard
-          severity="info"
-          icon={<Navigation className="h-4 w-4" />}
-          title={copy.section.scope}
-          items={
-            canEditStructural
-              ? [
-                  { text: copy.hint.scopeEditable },
-                  { text: copy.hint.scopeEditableFields },
-                ]
-              : [
-                  { text: copy.hint.scopeReadOnly },
-                  { text: tripFiscalCopy.correctionSheet.readOnlyHint },
-                ]
-          }
-        />
-
         {!origin || !destination ? (
           <DetailAlertCard
             severity="warning"
@@ -294,8 +238,8 @@ export function TripDetailRouteTab({
           <DetailAlertCard
             severity="warning"
             icon={<AlertTriangle className="h-4 w-4" />}
-            title={copy.alert.missingRfcTitle}
-            items={[{ text: copy.alert.missingRfcBody(missingRfcCount) }]}
+            title={copy.alert.missingAddressTitle}
+            items={[{ text: copy.alert.missingAddressBody(missingRfcCount) }]}
           />
         ) : null}
 
@@ -321,10 +265,9 @@ export function TripDetailRouteTab({
             </CardTitle>
             <CardDescription>{copy.hint.stops}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8 pt-0">
+          <CardContent className="space-y-6 pt-0">
             <RouteSection
               title={copy.section.origin}
-              description={copy.hint.origin}
               icon={
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-success-soft text-success-soft-foreground">
                   <Navigation className="h-4 w-4" />
@@ -337,7 +280,6 @@ export function TripDetailRouteTab({
                   ordered,
                   tripStatus,
                   tripTimes,
-                  cargos,
                   showFiscalWarning,
                   showFiscalCorrection,
                   onFixFiscal,
@@ -352,7 +294,6 @@ export function TripDetailRouteTab({
             {waypoints.length > 0 ? (
               <RouteSection
                 title={`${copy.section.waypoints} (${copy.format.stopCount(waypoints.length)})`}
-                description={copy.hint.waypoints}
                 icon={
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <MapPin className="h-4 w-4" />
@@ -367,7 +308,6 @@ export function TripDetailRouteTab({
                         ordered,
                         tripStatus,
                         tripTimes,
-                        cargos,
                         showFiscalWarning,
                         showFiscalCorrection,
                         onFixFiscal,
@@ -380,7 +320,6 @@ export function TripDetailRouteTab({
 
             <RouteSection
               title={copy.section.destination}
-              description={copy.hint.destination}
               icon={
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-destructive-soft text-destructive-soft-foreground">
                   <Flag className="h-4 w-4" />
@@ -393,7 +332,6 @@ export function TripDetailRouteTab({
                   ordered,
                   tripStatus,
                   tripTimes,
-                  cargos,
                   showFiscalWarning,
                   showFiscalCorrection,
                   onFixFiscal,

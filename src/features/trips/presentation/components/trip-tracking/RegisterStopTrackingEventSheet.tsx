@@ -19,6 +19,7 @@ import {
 } from "@shared/ui/sheet";
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
+import { trackingCopy } from "../../copy";
 import {
   formatArrivalButtonLabel,
   formatDepartureButtonLabel,
@@ -60,10 +61,20 @@ function randomIdempotencyKey() {
     : undefined;
 }
 
+function stopToastLabel(
+  stop: TripStop,
+  displayOrder: number | undefined,
+): string {
+  if (stop.locationName?.trim()) return stop.locationName.trim();
+  if (displayOrder != null) return `Parada ${displayOrder}`;
+  return "parada";
+}
+
 type RegisterStopTrackingEventSheetBodyProps = {
   tripId: string;
   mode: StopTrackingEventMode;
   stop: TripStop;
+  displayOrder: number | undefined;
   cargos?: readonly TripCargo[];
   orderedStops?: readonly TripStop[];
   onOpenChange: (open: boolean) => void;
@@ -73,6 +84,7 @@ function RegisterStopTrackingEventSheetBody({
   tripId,
   mode,
   stop,
+  displayOrder,
   cargos = [],
   orderedStops = [],
   onOpenChange,
@@ -82,15 +94,23 @@ function RegisterStopTrackingEventSheetBody({
   const [notes, setNotes] = useState("");
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const copy = trackingCopy;
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
-      toast({ title: "Evento de seguimiento registrado", variant: "success" });
+      const label = stopToastLabel(stop, displayOrder);
+      toast({
+        title:
+          mode === "arrival"
+            ? copy.toast.arrivalRegistered(label)
+            : copy.toast.departureRegistered(label),
+        variant: "success",
+      });
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
-        title: "No se pudo registrar el evento",
+        title: copy.toast.registerFailed,
         description: error.message,
         variant: "destructive",
       });
@@ -99,7 +119,7 @@ function RegisterStopTrackingEventSheetBody({
 
   const handleSubmit = () => {
     if (!occurredAt.trim()) {
-      setFieldError("Indica la fecha y hora del evento.");
+      setFieldError(copy.validation.occurredAtRequired);
       return;
     }
 
@@ -129,11 +149,16 @@ function RegisterStopTrackingEventSheetBody({
     });
   };
 
+  const occurredAtLabel =
+    mode === "arrival"
+      ? copy.label.occurredAtArrival
+      : copy.label.occurredAtDeparture;
+
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
         <div className="space-y-2">
-          <Label htmlFor="tracking-event-occurred-at">Fecha y hora del evento</Label>
+          <Label htmlFor="tracking-event-occurred-at">{occurredAtLabel}</Label>
           <div className="flex flex-wrap gap-2">
             <Input
               id="tracking-event-occurred-at"
@@ -151,14 +176,14 @@ function RegisterStopTrackingEventSheetBody({
               onClick={() => setOccurredAt(defaultOccurredAtLocal())}
               disabled={registerMutation.isPending}
             >
-              Ahora
+              {copy.action.now}
             </Button>
           </div>
           {fieldError ? (
             <p className="text-xs text-destructive">{fieldError}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Hora civil México (mismo criterio que el wizard de viajes).
+              {copy.validation.civilTimeHint}
             </p>
           )}
         </div>
@@ -171,14 +196,14 @@ function RegisterStopTrackingEventSheetBody({
         />
 
         <div className="space-y-2">
-          <Label htmlFor="tracking-event-notes">Notas (opcional)</Label>
+          <Label htmlFor="tracking-event-notes">{copy.sheet.notesOptional}</Label>
           <Textarea
             id="tracking-event-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             disabled={registerMutation.isPending}
             rows={3}
-            placeholder="Observaciones operativas…"
+            placeholder={copy.sheet.notesPlaceholder}
           />
         </div>
       </div>
@@ -190,7 +215,7 @@ function RegisterStopTrackingEventSheetBody({
           onClick={() => onOpenChange(false)}
           disabled={registerMutation.isPending}
         >
-          Cancelar
+          {copy.action.cancel}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -225,6 +250,7 @@ export function RegisterStopTrackingEventSheet({
       : undefined;
 
   const Icon = mode === "arrival" ? MapPin : Navigation;
+  const copy = trackingCopy;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -236,13 +262,15 @@ export function RegisterStopTrackingEventSheet({
           </SheetTitle>
           <SheetDescription>
             {mode === "arrival"
-              ? "Registra la llegada a la parada con la fecha y hora en que ocurrió."
-              : "Registra la salida de la escala con la fecha y hora en que ocurrió."}
+              ? copy.sheet.arrivalDescription
+              : copy.sheet.departureDescription}
           </SheetDescription>
         </SheetHeader>
 
         {tooltip ? (
-          <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
+          <p className="text-xs text-muted-foreground whitespace-pre-line">
+            {tooltip}
+          </p>
         ) : null}
 
         {open && stop ? (
@@ -251,6 +279,7 @@ export function RegisterStopTrackingEventSheet({
             tripId={tripId}
             mode={mode}
             stop={stop}
+            displayOrder={displayOrder}
             cargos={cargos}
             orderedStops={orderedStops}
             onOpenChange={onOpenChange}

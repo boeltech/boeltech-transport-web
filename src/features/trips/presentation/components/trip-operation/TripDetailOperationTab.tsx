@@ -9,10 +9,7 @@ import {
 } from "lucide-react";
 
 import type { ClientRef, Trip } from "@features/trips/domain";
-import {
-  formatDuration,
-  formatMileage,
-} from "@features/trips";
+import { formatMileage } from "@features/trips";
 import { useInternalStaffEntitlement } from "@features/billing";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
@@ -29,13 +26,11 @@ const copy = tripDetailCopy.operation;
 export interface TripDetailOperationTabProps {
   /** Viaje completo (programación sincroniza `scheduledArrival` con parada destino). */
   trip: Trip;
-  duration: number | null;
-  distance: number | null;
   canEditStructural: boolean;
 }
 
-function formatCfdiDocumentIntentLabel(intent: Trip["cfdiDocumentIntent"]): string {
-  return copy.format.cfdiIntent(intent);
+function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
+  return copy.format.tripType(intent);
 }
 
 function ClientContractCard({
@@ -82,8 +77,8 @@ function ClientContractCard({
         )}
         <InfoRow
           variant="inline"
-          label={copy.label.cfdiIntent}
-          value={formatCfdiDocumentIntentLabel(cfdiDocumentIntent)}
+          label={copy.label.tripType}
+          value={formatTripTypeLabel(cfdiDocumentIntent)}
         />
       </CardContent>
     </Card>
@@ -92,8 +87,6 @@ function ClientContractCard({
 
 export function TripDetailOperationTab({
   trip,
-  duration,
-  distance,
   canEditStructural,
 }: TripDetailOperationTabProps) {
   const {
@@ -107,20 +100,6 @@ export function TripDetailOperationTab({
 
   return (
     <div className="space-y-6">
-      <DetailAlertCard
-        severity="info"
-        icon={<Truck className="h-4 w-4" />}
-        title={copy.section.scope}
-        items={
-          canEditStructural
-            ? [
-                { text: copy.hint.scopeEditable },
-                { text: copy.hint.scopeEditableEdit },
-              ]
-            : [{ text: copy.hint.scopeReadOnly }]
-        }
-      />
-
       <ClientContractCard
         client={trip.client}
         clientId={trip.clientId}
@@ -154,7 +133,6 @@ export function TripDetailOperationTab({
                 value={formatDateTime(trip.actualArrival.toISOString())}
               />
             ) : null}
-            <InfoRow variant="inline" label={copy.label.duration} value={formatDuration(duration) || "—"} />
           </CardContent>
         </Card>
 
@@ -249,8 +227,6 @@ export function TripDetailOperationTab({
           <CardContent className="pt-0">
             <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
             <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
-            <Separator className="my-3" />
-            <InfoRow variant="inline" label={copy.label.distance} value={formatMileage(distance)} />
           </CardContent>
         </Card>
       </div>

@@ -1,5 +1,15 @@
 /** Copy ACC — listado de viajes (`TripsListPage`). */
 export const tripsListCopy = {
+  actions: {
+    reserve: "Reservar viaje",
+    createFull: "Alta completa",
+    viewDrafts: "Ver reservas (borrador)",
+  },
+  reserve: {
+    hintTitle: "Reserva sin cotizador",
+    hintBody:
+      "Captura cliente, ruta, fecha, unidad y conductor. El viaje queda como borrador hasta que lo programes. Sin PDF de cotización.",
+  },
   filter: {
     overdue: "Sin finalizar",
     panelTitle: "Filtros",

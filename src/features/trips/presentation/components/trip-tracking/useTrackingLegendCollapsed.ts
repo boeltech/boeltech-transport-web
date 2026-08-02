@@ -7,9 +7,15 @@ const STORAGE_KEYS = {
 
 export type TrackingLegendKind = keyof typeof STORAGE_KEYS;
 
+/**
+ * Default colapsado (handoff D5). Solo se expande si el usuario lo pidió
+ * (`localStorage === "false"`). Ausencia de clave = nunca tocado → colapsado.
+ */
 function readCollapsed(key: TrackingLegendKind): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(STORAGE_KEYS[key]) === "true";
+  if (typeof window === "undefined") return true;
+  const raw = localStorage.getItem(STORAGE_KEYS[key]);
+  if (raw === null) return true;
+  return raw === "true";
 }
 
 export function useTrackingLegendCollapsed(kind: TrackingLegendKind) {

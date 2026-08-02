@@ -12,10 +12,16 @@
  */
 
 import { Suspense, useEffect, useMemo, useState, type ReactElement } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   DetailTimeline,
@@ -33,6 +39,7 @@ import {
   Receipt,
   Loader2,
   AlertTriangle,
+  Calendar,
 } from "lucide-react";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
@@ -108,8 +115,11 @@ function hasStopType(
 
 export function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveTripDetailTab(searchParams.get("tab"));
+  /** Origen real (bandeja de aprobaciones, factura…) o el listado de viajes. */
+  const backHref = (location.state?.from as string | undefined) ?? "/trips";
   const { hasPermission } = usePermissions();
   const tripId = id || "";
   const canUpdateTrip = hasPermission("trips", "update");
@@ -132,7 +142,7 @@ export function TripDetailPage() {
   const hasOpenTrackingIncident =
     trackingTimeline?.trip.hasOpenIncident === true;
 
-  const fetchCargos = shouldFetchTripCargos(activeTab, tripId);
+  const fetchCargos = shouldFetchTripCargos(activeTab, tripId, trip?.status);
   const fetchExpenses = shouldFetchTripExpenses(activeTab, tripId);
 
   const {
@@ -205,6 +215,37 @@ export function TripDetailPage() {
             },
           ]}
         />,
+      );
+    }
+
+    if (displayStatus === TripStatus.DRAFT) {
+      cards.push(
+        <DetailAlertCard
+          key="draft-reserve"
+          severity="info"
+          icon={<FileText className="h-5 w-5" />}
+          title={shell.alert.draftReserveTitle}
+        >
+          <p>{shell.alert.draftReserveBody}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {canUpdateTrip ? (
+              <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                {shell.alert.draftConfirmCta}: menú Operación
+              </span>
+            ) : null}
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to={`/trips/${trip.id}/edit?step=2`}>
+                {shell.alert.draftCompleteRouteCta}
+              </Link>
+            </Button>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to={`/trips/${trip.id}/edit?step=3`}>
+                {shell.alert.draftCompleteCargoCta}
+              </Link>
+            </Button>
+          </div>
+        </DetailAlertCard>,
       );
     }
 
@@ -306,7 +347,14 @@ export function TripDetailPage() {
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [trip, displayStatus, routeDetail?.trip, comparisonNowMs, hasOpenTrackingIncident]);
+  }, [
+    trip,
+    displayStatus,
+    routeDetail?.trip,
+    comparisonNowMs,
+    hasOpenTrackingIncident,
+    canUpdateTrip,
+  ]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -317,7 +365,7 @@ export function TripDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/trips",
+          backHref,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -342,7 +390,7 @@ export function TripDetailPage() {
           backLabel: shell.state.backToList,
         }}
         header={{
-          backHref: "/trips",
+          backHref,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -379,7 +427,7 @@ export function TripDetailPage() {
       <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/trips",
+        backHref,
         icon: <Truck className="h-6 w-6" />,
         iconVariant:
           resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
@@ -419,7 +467,7 @@ export function TripDetailPage() {
                     lines.push(...f.suggestedActions);
                   }
                   if (f.cfdiUuid) {
-                    lines.push(shell.alert.postCancelFiscalCfdiUuid(f.cfdiUuid));
+                    lines.push(shell.alert.postCancelFiscalInvoiceRef(f.cfdiUuid));
                   }
                   lines.push(
                     shell.alert.postCancelFiscalInvoiceStatus(f.invoiceStatus),
@@ -449,40 +497,148 @@ export function TripDetailPage() {
           }
         />
       }
-      stats={[
-        {
-          title: shell.stat.distance,
-          value:
-            distance != null && distance > 0
-              ? `${distance.toLocaleString("es-MX")} km`
-              : "—",
-          description: shell.stat.distanceOdometerHint,
-          tone: "primary",
-          icon: <Navigation className="h-5 w-5" />,
-        },
-        {
-          title: shell.stat.duration,
-          value: duration ? formatDuration(duration) : "—",
-          tone: "info",
-          icon: <Clock className="h-5 w-5" />,
-        },
-        {
-          title: shell.stat.cargo,
-          value: cargoCount,
-          tone: "warning",
-          icon: <Package className="h-5 w-5" />,
-          description:
-            totalCargoWeight > 0
-              ? shell.stat.cargoWeightTotal(totalCargoWeight)
-              : undefined,
-        },
-        {
-          title: shell.stat.baseRate,
-          value: trip.costs.baseRate > 0 ? formatCurrency(trip.costs.baseRate) : "—",
-          tone: "success",
-          icon: <DollarSign className="h-5 w-5" />,
-        },
-      ]}
+      stats={(() => {
+        const status = resolvedDisplayStatus;
+        const rateValue =
+          trip.costs.baseRate > 0
+            ? formatCurrency(trip.costs.baseRate)
+            : shell.stat.noRate;
+        const distanceValue =
+          distance != null && distance > 0
+            ? `${distance.toLocaleString("es-MX")} km`
+            : "—";
+        const durationValue = duration ? formatDuration(duration) : "—";
+        const departureValue = trip.scheduledDeparture
+          ? formatDateTime(trip.scheduledDeparture.toISOString())
+          : "—";
+        const arrivalValue = trip.scheduledArrival
+          ? formatDateTime(trip.scheduledArrival.toISOString())
+          : "—";
+        const vehicleValue = trip.vehicle?.unitNumber ?? "—";
+        const driverValue = trip.driver?.fullName ?? "—";
+
+        if (status === TripStatus.DRAFT) {
+          return [
+            {
+              title: shell.stat.departure,
+              value: departureValue,
+              tone: "info" as const,
+              icon: <Calendar className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.vehicle,
+              value: vehicleValue,
+              tone: "primary" as const,
+              icon: <Truck className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.driver,
+              value: driverValue,
+              tone: "warning" as const,
+              icon: <Navigation className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.baseRate,
+              value: rateValue,
+              tone: "success" as const,
+              icon: <DollarSign className="h-5 w-5" />,
+            },
+          ];
+        }
+
+        if (status === TripStatus.SCHEDULED) {
+          return [
+            {
+              title: shell.stat.departure,
+              value: departureValue,
+              tone: "info" as const,
+              icon: <Calendar className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.arrival,
+              value: arrivalValue,
+              tone: "primary" as const,
+              icon: <Clock className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.vehicle,
+              value: vehicleValue,
+              tone: "warning" as const,
+              icon: <Truck className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.driver,
+              value: driverValue,
+              tone: "success" as const,
+              icon: <Navigation className="h-5 w-5" />,
+            },
+          ];
+        }
+
+        if (status === TripStatus.IN_PROGRESS) {
+          return [
+            {
+              title: shell.stat.duration,
+              value: durationValue,
+              tone: "info" as const,
+              icon: <Clock className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.distance,
+              value: distanceValue,
+              tone: "primary" as const,
+              icon: <Navigation className="h-5 w-5" />,
+            },
+            {
+              title: shell.stat.cargo,
+              value: cargoCount,
+              tone: "warning" as const,
+              icon: <Package className="h-5 w-5" />,
+              description:
+                totalCargoWeight > 0
+                  ? shell.stat.cargoWeightTotal(totalCargoWeight)
+                  : undefined,
+            },
+            {
+              title: shell.stat.arrival,
+              value: arrivalValue,
+              tone: "success" as const,
+              icon: <Calendar className="h-5 w-5" />,
+            },
+          ];
+        }
+
+        return [
+          {
+            title: shell.stat.distance,
+            value: distanceValue,
+            tone: "primary" as const,
+            icon: <Navigation className="h-5 w-5" />,
+          },
+          {
+            title: shell.stat.duration,
+            value: durationValue,
+            tone: "info" as const,
+            icon: <Clock className="h-5 w-5" />,
+          },
+          {
+            title: shell.stat.cargo,
+            value: cargoCount,
+            tone: "warning" as const,
+            icon: <Package className="h-5 w-5" />,
+            description:
+              totalCargoWeight > 0
+                ? shell.stat.cargoWeightTotal(totalCargoWeight)
+                : undefined,
+          },
+          {
+            title: shell.stat.baseRate,
+            value: rateValue,
+            tone: "success" as const,
+            icon: <DollarSign className="h-5 w-5" />,
+          },
+        ];
+      })()}
       tabs={{
         defaultValue: "overview",
         value: activeTab,
@@ -507,8 +663,6 @@ export function TripDetailPage() {
             content: (
               <TripDetailOperationTab
                 trip={tripForMetrics}
-                duration={duration}
-                distance={distance}
                 canEditStructural={canEditStructural}
               />
             ),
@@ -559,6 +713,8 @@ export function TripDetailPage() {
                   driverId={trip.driverId}
                   tripStartMileage={trip.mileage.start}
                   status={resolvedDisplayStatus}
+                  cargos={cargos}
+                  onCargosChanged={() => refetchCargos()}
                 />
               </Suspense>
             ),

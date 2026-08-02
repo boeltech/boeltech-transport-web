@@ -6,9 +6,9 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 
+import { trackingCopy } from "../../copy";
 import {
   coordsFromStop,
-  formatTrackingCoords,
   readBrowserGeolocation,
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
@@ -29,6 +29,7 @@ export function TrackingGpsCaptureSection({
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stopCoords = stop ? coordsFromStop(stop) : null;
+  const copy = trackingCopy;
 
   const handleBrowserLocation = async () => {
     setError(null);
@@ -45,11 +46,8 @@ export function TrackingGpsCaptureSection({
 
   return (
     <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-      <Label className="text-sm">Ubicación del evento (opcional)</Label>
-      <p className="text-xs text-muted-foreground">
-        Mejora la trazabilidad operativa. Puedes usar el GPS del dispositivo o las
-        coordenadas ya guardadas en la parada.
-      </p>
+      <Label className="text-sm">{copy.sheet.locationOptional}</Label>
+      <p className="text-xs text-muted-foreground">{copy.sheet.locationHint}</p>
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -64,7 +62,7 @@ export function TrackingGpsCaptureSection({
           ) : (
             <Crosshair className="mr-2 h-3.5 w-3.5" />
           )}
-          Mi ubicación
+          {copy.sheet.useMyLocation}
         </Button>
         {stopCoords ? (
           <Button
@@ -75,7 +73,7 @@ export function TrackingGpsCaptureSection({
             disabled={disabled}
           >
             <MapPin className="mr-2 h-3.5 w-3.5" />
-            Coords. de parada
+            {copy.sheet.useStopLocation}
           </Button>
         ) : null}
         {value ? (
@@ -86,22 +84,21 @@ export function TrackingGpsCaptureSection({
             onClick={() => onChange(null)}
             disabled={disabled}
           >
-            Quitar
+            {copy.sheet.clearLocation}
           </Button>
         ) : null}
       </div>
 
       {value ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="font-mono text-xs">
+          <Badge variant="secondary" className="text-xs font-normal">
             <Navigation className="mr-1 h-3 w-3" />
-            {formatTrackingCoords(value.latitude, value.longitude)}
+            {copy.state.locationSaved}
           </Badge>
           <span className="text-xs text-muted-foreground">
-            {value.source === "browser" ? "Dispositivo" : "Parada"}
-            {value.accuracyMeters != null
-              ? ` · ~${value.accuracyMeters} m`
-              : null}
+            {value.source === "browser"
+              ? copy.label.locationFromDevice
+              : copy.label.locationFromStop}
           </span>
         </div>
       ) : null}

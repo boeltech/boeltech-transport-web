@@ -131,6 +131,7 @@ export function TripDetailCostsTab({
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
   const approvalsHubPath = useMemo(() => {
     const params = new URLSearchParams({
+      tab: "approvals",
       status: "pending",
       type: "trip_expense",
       tripId,
@@ -138,7 +139,7 @@ export function TripDetailCostsTab({
     if (tripCode) {
       params.set("tripCode", tripCode);
     }
-    return `/finance/approvals?${params.toString()}`;
+    return `/finance?${params.toString()}`;
   }, [tripCode, tripId]);
 
   const [sheetOpen, setSheetOpen] = useState(false);

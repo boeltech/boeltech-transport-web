@@ -24,15 +24,15 @@ export type TripExpenseSheetKind = "cost" | "expense";
 
 export const EXPENSE_CATEGORY_OPTIONS = [
   { value: "fuel", label: "Combustible", icon: Fuel },
-  { value: "tolls", label: "Casetas/Peajes", icon: CircleDollarSign },
-  { value: "driver_allowance", label: "Viáticos del Operador", icon: Wallet },
+  { value: "tolls", label: "Casetas / peajes", icon: CircleDollarSign },
+  { value: "driver_allowance", label: "Viáticos del operador", icon: Wallet },
   { value: "lodging", label: "Hospedaje", icon: Bed },
-  { value: "loading_unloading", label: "Maniobras Carga/Descarga", icon: Package },
-  { value: "parking", label: "Pensión/Estacionamiento", icon: ParkingCircle },
-  { value: "maintenance", label: "Mantenimiento en Ruta", icon: Wrench },
+  { value: "loading_unloading", label: "Maniobras de carga / descarga", icon: Package },
+  { value: "parking", label: "Pensión / estacionamiento", icon: ParkingCircle },
+  { value: "maintenance", label: "Mantenimiento en ruta", icon: Wrench },
   { value: "insurance", label: "Seguros", icon: Shield },
-  { value: "permits", label: "Permisos y Trámites", icon: FileText },
-  { value: "other", label: "Otros Gastos", icon: MoreHorizontal },
+  { value: "permits", label: "Permisos y trámites", icon: FileText },
+  { value: "other", label: "Otros conceptos", icon: MoreHorizontal },
 ] as const satisfies ReadonlyArray<{
   value: ExpenseCategory;
   label: string;

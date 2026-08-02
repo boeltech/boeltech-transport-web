@@ -36,7 +36,7 @@ import {
 import { Textarea } from "@shared/ui/text-area";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { usePermissions } from "@shared/permissions";
-import { Plus, Search, AlertTriangle, Clock } from "lucide-react";
+import { Plus, Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 
 // Feature imports
 import {
@@ -44,7 +44,7 @@ import {
   useDeleteTrip,
   useCancelTrip,
 } from "../../application";
-import { type TripStatusType } from "../../domain";
+import { type TripStatusType, TripStatus } from "../../domain";
 import {
   TripTable,
   TripCard,
@@ -385,9 +385,9 @@ export function TripsListPage() {
           ) : undefined
         }
         primaryAction={{
-          label: "Nuevo Viaje",
-          icon: <Plus className="h-4 w-4" />,
-          onClick: () => navigate("/trips/new"),
+          label: tripsListCopy.actions.reserve,
+          icon: <CalendarPlus className="h-4 w-4" />,
+          onClick: () => navigate("/trips/new?intent=reserve"),
           visible: canCreate,
         }}
         toolbar={{
@@ -410,19 +410,40 @@ export function TripsListPage() {
             />
           ),
           extraActions: (
-            <Button
-              type="button"
-              variant={overdueOnly ? "secondary" : "outline"}
-              size="sm"
-              className={cn(
-                overdueOnly &&
-                  "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
-              )}
-              onClick={handleOverdueToggle}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              {tripsListCopy.filter.overdue}
-            </Button>
+            <>
+              {canCreate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/trips/new")}
+                >
+                  <Plus className="h-4 w-4" />
+                  {tripsListCopy.actions.createFull}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => filters.setFilter("status", TripStatus.DRAFT)}
+              >
+                {tripsListCopy.actions.viewDrafts}
+              </Button>
+              <Button
+                type="button"
+                variant={overdueOnly ? "secondary" : "outline"}
+                size="sm"
+                className={cn(
+                  overdueOnly &&
+                    "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
+                )}
+                onClick={handleOverdueToggle}
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                {tripsListCopy.filter.overdue}
+              </Button>
+            </>
           ),
           onRefresh: async () => {
             await refetch();
@@ -455,7 +476,7 @@ export function TripsListPage() {
             onView={handleView}
             onEdit={canEdit ? handleEdit : undefined}
             onDelete={canDelete ? handleDelete : undefined}
-            onCancel={handleCancel}
+            onCancel={canEdit ? handleCancel : undefined}
           />
         )}
         renderCards={() =>
@@ -466,7 +487,7 @@ export function TripsListPage() {
               onView={handleView}
               onEdit={canEdit ? handleEdit : undefined}
               onDelete={canDelete ? handleDelete : undefined}
-              onCancel={handleCancel}
+              onCancel={canEdit ? handleCancel : undefined}
             />
           ))
         }

@@ -7,6 +7,7 @@ import {
   shouldFetchTripExpensesSummary,
   shouldFetchTripTimeline,
   shouldFetchTripTimelineForShell,
+  tripStatusNeedsTrackingContext,
 } from "./tripDetailQueryGating";
 
 describe("tripDetailQueryGating", () => {
@@ -16,16 +17,29 @@ describe("tripDetailQueryGating", () => {
     expect(resolveTripDetailTab("invalid")).toBe("overview");
   });
 
-  it("gates cargo query to cargo tab", () => {
+  it("gates cargo query to cargo tab or operational tracking", () => {
     expect(shouldFetchTripCargos("cargo", "trip-1")).toBe(true);
     expect(shouldFetchTripCargos("overview", "trip-1")).toBe(false);
     expect(shouldFetchTripCargos("cargo", "")).toBe(false);
+    expect(
+      shouldFetchTripCargos("tracking", "trip-1", TripStatus.IN_PROGRESS),
+    ).toBe(true);
+    expect(
+      shouldFetchTripCargos("tracking", "trip-1", TripStatus.COMPLETED),
+    ).toBe(true);
+    expect(
+      shouldFetchTripCargos("tracking", "trip-1", TripStatus.SCHEDULED),
+    ).toBe(false);
+    expect(shouldFetchTripCargos("tracking", "trip-1")).toBe(false);
   });
 
-  it("gates expenses queries to costs tab", () => {
+  it("gates expenses list to costs tab but summary is always-on with tripId", () => {
     expect(shouldFetchTripExpenses("costs", "trip-1")).toBe(true);
-    expect(shouldFetchTripExpensesSummary("costs", "trip-1")).toBe(true);
     expect(shouldFetchTripExpenses("overview", "trip-1")).toBe(false);
+    expect(shouldFetchTripExpensesSummary("costs", "trip-1")).toBe(true);
+    expect(shouldFetchTripExpensesSummary("overview", "trip-1")).toBe(true);
+    expect(shouldFetchTripExpensesSummary("cargo", "trip-1")).toBe(true);
+    expect(shouldFetchTripExpensesSummary("overview", "")).toBe(false);
   });
 
   it("fetches timeline on route and tracking tabs", () => {
@@ -40,7 +54,7 @@ describe("tripDetailQueryGating", () => {
     );
   });
 
-  it("gates shell timeline when not on tracking tab and trip is active", () => {
+  it("shell timeline only for in_progress/completed outside tracking", () => {
     expect(
       shouldFetchTripTimelineForShell(
         "overview",
@@ -49,18 +63,16 @@ describe("tripDetailQueryGating", () => {
       ),
     ).toBe(true);
     expect(
-      shouldFetchTripTimelineForShell(
-        "tracking",
-        "trip-1",
-        TripStatus.IN_PROGRESS,
-      ),
+      shouldFetchTripTimelineForShell("tracking", "trip-1", TripStatus.IN_PROGRESS),
     ).toBe(false);
     expect(
-      shouldFetchTripTimelineForShell(
-        "overview",
-        "trip-1",
-        TripStatus.SCHEDULED,
-      ),
+      shouldFetchTripTimelineForShell("overview", "trip-1", TripStatus.DRAFT),
     ).toBe(false);
+  });
+
+  it("tripStatusNeedsTrackingContext matches operational statuses", () => {
+    expect(tripStatusNeedsTrackingContext(TripStatus.IN_PROGRESS)).toBe(true);
+    expect(tripStatusNeedsTrackingContext(TripStatus.COMPLETED)).toBe(true);
+    expect(tripStatusNeedsTrackingContext(TripStatus.DRAFT)).toBe(false);
   });
 });

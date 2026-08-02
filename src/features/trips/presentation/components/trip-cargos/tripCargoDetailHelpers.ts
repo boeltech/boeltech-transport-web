@@ -18,6 +18,19 @@ export function getCargoStatusVariant(
   }
 }
 
+/** Orden visible 1-based en la ruta ordenada (Parada #1 = origen). */
+export function getStopDisplayOrder(
+  stop: TripStop,
+  orderedStops: readonly TripStop[],
+): number {
+  const sorted = [...orderedStops].sort(
+    (a, b) => a.sequenceOrder - b.sequenceOrder,
+  );
+  const index = sorted.findIndex((s) => s.id === stop.id);
+  if (index >= 0) return index + 1;
+  return stop.sequenceOrder + 1;
+}
+
 export function getStopLabelForCargo(
   stopIndex: number,
   orderedStops: TripStop[],
@@ -30,7 +43,8 @@ export function getStopLabelForCargo(
     sorted.find((s) => s.sequenceOrder === stopIndex) ??
     orderedStops[stopIndex];
   if (!stop) return cargoCopy.format.stopLabelFallback(stopIndex);
-  return `#${stop.sequenceOrder} ${stop.locationName || stop.city}`;
+  const displayOrder = getStopDisplayOrder(stop, sorted);
+  return `#${displayOrder} ${stop.locationName || stop.city}`;
 }
 
 export function isCargoHazmat(cargo: TripCargo): boolean {
