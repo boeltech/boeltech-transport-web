@@ -98,9 +98,9 @@ function SettingsLoadingFallback() {
 
 function SettingsIndexRedirect() {
   const { hasPermission } = usePermissions();
-  const canEditSettings = hasPermission("settings", "update");
+  const canReadSettings = hasPermission("settings", "read");
 
-  return <Navigate to={canEditSettings ? "general" : "billing"} replace />;
+  return <Navigate to={canReadSettings ? "general" : "billing"} replace />;
 }
 
 // ============================================================================
@@ -127,13 +127,13 @@ export function SettingsRoutes() {
         {/* Index - redirect to general */}
         <Route index element={<SettingsIndexRedirect />} />
 
-        {/* General Settings */}
+        {/* General Settings — lectura para todo rol con acceso a Configuración */}
         <Route
           path="general"
           element={
             <PermissionGuard
               module="settings"
-              action="update"
+              action="read"
               fallback={<Navigate to="/forbidden" replace />}
             >
               <GeneralSettingsPage />
@@ -146,8 +146,8 @@ export function SettingsRoutes() {
           path="catalogs"
           element={
             <PermissionGuard
-              module="settings"
-              action="update"
+              module="catalogs"
+              action="read"
               fallback={<Navigate to="/forbidden" replace />}
             >
               <CatalogsPage />
@@ -158,8 +158,8 @@ export function SettingsRoutes() {
           path="catalogs/:typeCode"
           element={
             <PermissionGuard
-              module="settings"
-              action="update"
+              module="catalogs"
+              action="read"
               fallback={<Navigate to="/forbidden" replace />}
             >
               <CatalogDetailPage />

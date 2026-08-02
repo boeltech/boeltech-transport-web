@@ -54,9 +54,6 @@ export interface UpdateBillingSettingsDTO {
   claveUnidad?: string;
   moneda?: string;
   tasaIva?: number;
-  // Foliación Carta Porte
-  serieCartaPorte?: string;
-  folioInicialCartaPorte?: number;
 }
 
 export interface UploadCertificateDTO {

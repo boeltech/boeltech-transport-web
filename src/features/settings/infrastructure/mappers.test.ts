@@ -17,15 +17,11 @@ function buildApiBillingSettings(
     default_metodo_pago: "PUE",
     serie_factura: "A",
     folio_inicial: 1,
-    folio_actual: 1,
     test_mode: false,
     clave_producto_servicio: "78101800",
     clave_unidad: "E48",
     moneda: "MXN",
     tasa_iva: 0.16,
-    serie_carta_porte: "CP",
-    folio_inicial_carta_porte: 1,
-    folio_actual_carta_porte: 1,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -55,5 +51,33 @@ describe("mapBillingSettings", () => {
 
     expect(mapped.moneda).toBe("USD");
     expect(mapped.tasaIva).toBe(0.16);
+  });
+
+  it("expone el consecutivo real que envía el servidor", () => {
+    const mapped = mapBillingSettings(
+      buildApiBillingSettings({ serie_factura: "A", next_folio: 51 }),
+    );
+
+    expect(mapped.nextFolio).toBe(51);
+  });
+
+  it("deja el consecutivo en null si el servidor no lo envía", () => {
+    const mapped = mapBillingSettings(buildApiBillingSettings({}));
+
+    expect(mapped.nextFolio).toBeNull();
+  });
+
+  it("expone hasIssuedInvoices cuando el servidor lo envía", () => {
+    const mapped = mapBillingSettings(
+      buildApiBillingSettings({ has_issued_invoices: true }),
+    );
+
+    expect(mapped.hasIssuedInvoices).toBe(true);
+  });
+
+  it("asume hasIssuedInvoices=false si el servidor no lo envía", () => {
+    const mapped = mapBillingSettings(buildApiBillingSettings({}));
+
+    expect(mapped.hasIssuedInvoices).toBe(false);
   });
 });

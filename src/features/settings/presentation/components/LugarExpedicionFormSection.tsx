@@ -3,10 +3,11 @@ import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
+import { generalSettingsCopy } from "../copy/generalSettingsCopy";
+
 export const LUGAR_EXPEDICION_SECTION_ID = "lugar-expedicion-cfdi";
 
-export const LUGAR_EXPEDICION_HINT =
-  "Código postal del lugar de expedición de facturas (atributo LugarExpedicion en CFDI 4.0).";
+const copy = generalSettingsCopy.expedition;
 
 export interface LugarExpedicionSectionContentProps {
   expideDesdeOtroCp: boolean;
@@ -19,7 +20,7 @@ export interface LugarExpedicionSectionContentProps {
 }
 
 export function LugarExpedicionSectionTitle(): ReactNode {
-  return "Lugar de expedición (CFDI)";
+  return copy.sectionTitle;
 }
 
 export function LugarExpedicionSectionContent({
@@ -33,7 +34,7 @@ export function LugarExpedicionSectionContent({
 }: LugarExpedicionSectionContentProps) {
   return (
     <>
-      <p className="text-sm text-muted-foreground">{LUGAR_EXPEDICION_HINT}</p>
+      <p className="text-sm text-muted-foreground">{copy.hint}</p>
 
       <div className="flex items-center gap-2">
         <Switch
@@ -43,18 +44,19 @@ export function LugarExpedicionSectionContent({
           onCheckedChange={onExpideDesdeOtroCpChange}
         />
         <Label htmlFor="expideDesdeOtroCp" className="cursor-pointer text-sm font-normal">
-          Expido desde otro código postal
+          {copy.toggle}
         </Label>
       </div>
 
       {expideDesdeOtroCp ? (
         <div className="space-y-2">
           <Label htmlFor="lugarExpedicion">
-            Código postal de expedición <span className="text-destructive">*</span>
+            {copy.fieldLabel}
+            <span className="text-destructive"> *</span>
           </Label>
           <Input
             id="lugarExpedicion"
-            placeholder="03100"
+            placeholder={copy.fieldPlaceholder}
             maxLength={5}
             inputMode="numeric"
             className="w-40"
@@ -71,7 +73,7 @@ export function LugarExpedicionSectionContent({
       ) : (
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">
-            Se usará el mismo CP del domicilio fiscal:{" "}
+            {copy.sameAsAddress}{" "}
             <span className="font-medium text-foreground tabular-nums">
               {fiscalPostalCode?.length === 5 ? fiscalPostalCode : "—"}
             </span>

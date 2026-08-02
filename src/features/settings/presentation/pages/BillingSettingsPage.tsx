@@ -1,410 +1,82 @@
 /**
  * BillingSettingsPage
  *
- * Página de configuración de facturación electrónica (CFDI).
- * Incluye configuración de PAC, certificados y valores por defecto.
- *
- * Arquitectura plug-and-play: el sub-panel de configuración PAC
- * varía según el proveedor seleccionado, sin acoplar la UI a un PAC específico.
+ * Puesta a punto para facturar: encabeza una ficha de preparación y sigue con
+ * los bloques en el orden en que se resuelven (sello, numeración, valores que
+ * se precargan, timbrado y servicios de cobro).
  *
  * Ubicación: src/features/settings/presentation/pages/BillingSettingsPage.tsx
  */
 
-import { Link } from "react-router-dom";
-import { memo, useCallback, useState } from "react";
-import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-  FileKey,
-  Upload,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  AlertTriangle,
-  RefreshCw,
-  Info,
-  ServerCog,
-} from "lucide-react";
+import { AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
 
-import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
-import { FieldInlineError } from "@shared/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { Skeleton } from "@shared/ui/skeleton";
-import { Badge } from "@shared/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { FormValidationSummary } from "@shared/ui/form";
+import { Skeleton } from "@shared/ui/skeleton";
 import { usePermissions } from "@shared/permissions";
 import { ROLES } from "@shared/constants/roles";
-
-import {
-  UsoCfdiSelect,
-  FormaPagoSelect,
-  MetodoPagoSelect,
-  ProductoServicioCPSearch,
-  UnidadMedidaSearch,
-} from "@features/catalogs";
-import type { CatalogItem } from "@features/catalogs";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 import { SettingsLayout } from "../components/SettingsLayout";
-import { SettingsCard } from "../components/SettingsLayout";
+import { BillingCertificateCard } from "../components/BillingCertificateCard";
+import { BillingDefaultsCard } from "../components/BillingDefaultsCard";
+import { BillingNumberingCard } from "../components/BillingNumberingCard";
+import { BillingReadinessCard } from "../components/BillingReadinessCard";
+import { BillingServiceConceptsCard } from "../components/BillingServiceConceptsCard";
+import { BillingStampingCard } from "../components/BillingStampingCard";
 import {
   useBillingSettings,
   useUpdateBillingSettings,
-  useUploadCertificate,
   useTestPacConnection,
   useRegisterPacEmitter,
 } from "../../application/hooks";
 import {
-  PAC_PROVIDER_LABELS,
   PAC_USES_CREDENTIALS,
-  SELECTABLE_PAC_PROVIDERS,
   resolveSelectablePacProvider,
   PacProviders,
-  type BillingSettings,
-  type UpdateBillingSettingsDTO,
   type PacProvider,
-  type TestPacConnectionPayload,
-  type RegisterPacEmitterResult,
+  type UpdateBillingSettingsDTO,
 } from "../../domain";
+import { billingSettingsCopy } from "../copy/billingSettingsCopy";
+import {
+  resolveCertificateReadiness,
+  resolveNumberingReadiness,
+  type BillingRequirementStatus,
+} from "../utils/billingReadiness";
+import {
+  billingSettingsSchema,
+  mapSettingsToForm,
+  type BillingSettingsFormData,
+} from "../validation/billingSettingsSchema";
 
-// ============================================================================
-// SAT CATALOG CONSTANTS / NORMALIZERS
-// ============================================================================
-
-const ALLOWED_MONEDA = ["MXN", "USD"] as const;
-const ALLOWED_TASA_IVA = [0, 0.08, 0.16] as const;
-
-function normalizeMoneda(value: unknown): (typeof ALLOWED_MONEDA)[number] | null {
-  const normalized = String(value ?? "")
-    .trim()
-    .toUpperCase();
-  return ALLOWED_MONEDA.includes(normalized as (typeof ALLOWED_MONEDA)[number])
-    ? (normalized as (typeof ALLOWED_MONEDA)[number])
-    : null;
-}
-
-function normalizeTasaIva(value: unknown): (typeof ALLOWED_TASA_IVA)[number] | null {
-  const parsed =
-    typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
-  if (!Number.isFinite(parsed)) return null;
-  const matched = ALLOWED_TASA_IVA.find((allowed) => Math.abs(allowed - parsed) < 0.000001);
-  return matched ?? null;
-}
-
-// ============================================================================
-// VALIDATION SCHEMA
-// ============================================================================
-
-const billingSettingsSchema = z
-  .object({
-    pacProvider: z.string().min(1, "Selecciona un proveedor"),
-    // Credenciales opcionales a nivel schema — la validación condicional
-    // se resuelve en superRefine según el PAC seleccionado.
-    pacUsername: z.string().optional(),
-    pacPassword: z.string().optional(),
-    defaultUsoCfdi: z.string().min(1, "Selecciona un uso de CFDI"),
-    defaultFormaPago: z.string().min(1, "Selecciona una forma de pago"),
-    defaultMetodoPago: z.string().min(1, "Selecciona un método de pago"),
-    serieFactura: z
-      .string()
-      .min(1, "La serie es requerida")
-      .max(5, "Máximo 5 caracteres"),
-    folioInicial: z.number().min(1, "El folio inicial debe ser mayor a 0"),
-    testMode: z.boolean(),
-    claveProductoServicio: z
-      .string()
-      .min(1, "La clave de producto/servicio es requerida"),
-    claveUnidad: z.string().min(1, "La clave de unidad es requerida"),
-    moneda: z.enum(ALLOWED_MONEDA, {
-      message: "Moneda SAT inválida. Usa MXN o USD.",
-    }),
-    tasaIva: z
-      .number()
-      .refine((value) => ALLOWED_TASA_IVA.includes(value as (typeof ALLOWED_TASA_IVA)[number]), {
-        message: "Tasa de IVA inválida. Usa 0%, 8% o 16%.",
-      }),
-    serieCartaPorte: z
-      .string()
-      .min(1, "La serie es requerida")
-      .max(5, "Máximo 5 caracteres"),
-    folioInicialCartaPorte: z
-      .number()
-      .min(1, "El folio inicial debe ser mayor a 0"),
-  })
-  .superRefine((data, ctx) => {
-    // Solo los PACs con credenciales por tenant requieren usuario
-    const usesCredentials =
-      PAC_USES_CREDENTIALS[data.pacProvider as PacProvider] ?? false;
-    if (usesCredentials && !data.pacUsername?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["pacUsername"],
-        message: "El usuario es requerido para este PAC",
-      });
-    }
-  });
-
-type BillingSettingsFormData = z.infer<typeof billingSettingsSchema>;
-
-// ============================================================================
-// CATÁLOGOS ESTÁTICOS (valores fijos del SAT — no cambian entre versiones)
-// ============================================================================
-
-const MONEDA_OPTIONS = [
-  { code: "MXN", name: "MXN – Peso mexicano" },
-  { code: "USD", name: "USD – Dólar americano" },
-];
-
-const TASA_IVA_OPTIONS = [
-  { value: 0.16, label: "16% (general)" },
-  { value: 0.08, label: "8% (zona fronteriza)" },
-  { value: 0, label: "0% (tasa 0 / exento)" },
-];
-
-// ============================================================================
-// PAC PROVIDER CONFIG — componente plug-and-play por proveedor
-// ============================================================================
-
-interface PacProviderConfigProps {
-  form: UseFormReturn<BillingSettingsFormData>;
-  settings?: BillingSettings;
-  isPending: boolean;
-  isRegisterEmitterPending: boolean;
-  registerEmitterResult?: RegisterPacEmitterResult;
-  canTestConnection: boolean;
-  onTestConnection: () => void;
-  onRegisterEmitter: () => void;
-  isDirty: boolean;
-}
-
-/**
- * Sub-panel de configuración que varía según el PAC seleccionado.
- *
- * Para agregar un nuevo PAC: añadirlo a PacProviders en entities.ts,
- * actualizar PAC_USES_CREDENTIALS, y agregar su case aquí si requiere
- * campos específicos de configuración.
- */
-function PacProviderConfig({
-  form,
-  settings,
-  isPending,
-  isRegisterEmitterPending,
-  registerEmitterResult,
-  canTestConnection,
-  onTestConnection,
-  onRegisterEmitter,
-  isDirty,
-}: PacProviderConfigProps) {
-  const pacProvider =
-    useWatch({ control: form.control, name: "pacProvider" }) as
-      | PacProvider
-      | undefined;
-
-  if (!pacProvider) return null;
-
-  // ── ProFact: token de servidor, sin credenciales por tenant ───────────────
-  if (pacProvider === PacProviders.PROFACT) {
-    return (
-      <div className="space-y-4">
-        <Alert>
-          <ServerCog className="h-4 w-4" />
-          <AlertTitle>Configuración a nivel servidor</AlertTitle>
-          <AlertDescription className="space-y-1">
-            <p>
-              ProFact se autentica mediante{" "}
-              <code className="font-mono text-xs">PROFACT_TOKEN</code>, una
-              variable de entorno del servidor. No se requieren credenciales por
-              tenant.
-            </p>
-            <p className="text-muted-foreground text-xs">
-              El ambiente (pruebas / producción) es determinado automáticamente
-              por la configuración del servidor.
-            </p>
-          </AlertDescription>
-        </Alert>
-
-        <div className="space-y-1">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onTestConnection}
-              disabled={isPending || !canTestConnection}
-            >
-              {isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Verificar conexión con ProFact
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onRegisterEmitter}
-              disabled={isRegisterEmitterPending || !canTestConnection}
-            >
-              {isRegisterEmitterPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <FileKey className="h-4 w-4 mr-2" />
-              )}
-              Registrar emisor en ProFact
-            </Button>
-          </div>
-          {isDirty && (
-            <p className="text-xs text-muted-foreground">
-              Estás probando con configuración no guardada.
-            </p>
-          )}
-          {registerEmitterResult ? (
-            <Alert variant={registerEmitterResult.success ? "default" : "warning"}>
-              {registerEmitterResult.success ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <AlertTriangle className="h-4 w-4" />
-              )}
-              <AlertTitle>
-                {registerEmitterResult.success
-                  ? "Emisor registrado"
-                  : registerEmitterResult.attempted
-                    ? "Registro fallido"
-                    : "Registro pendiente de prerequisitos"}
-              </AlertTitle>
-              <AlertDescription>{registerEmitterResult.message}</AlertDescription>
-            </Alert>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Stub: solo para desarrollo ─────────────────────────────────────────────
-  if (pacProvider === PacProviders.STUB) {
-    return (
-      <Alert variant="warning">
-        <Info className="h-4 w-4" />
-        <AlertTitle>Modo desarrollo</AlertTitle>
-        <AlertDescription>
-          El PAC Stub no timbra facturas reales. Úsalo solo en entornos de
-          desarrollo local.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  // ── PACs con credenciales por tenant (Finkok, SW Sapien, Digisat, FacturAPI)
-  return (
-    <div className="space-y-4">
-      <Alert variant="warning">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>PAC no disponible aún</AlertTitle>
-        <AlertDescription>
-          {PAC_PROVIDER_LABELS[pacProvider]} está en el roadmap. Configura{" "}
-          <strong>ProFact</strong> para comenzar a timbrar.
-        </AlertDescription>
-      </Alert>
-
-      {/* Campos de credenciales — disponibles cuando el PAC esté habilitado */}
-      <div className="grid gap-4 sm:grid-cols-2 opacity-50 pointer-events-none">
-        <div>
-          <Label htmlFor="pacUsername">
-            Usuario <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="pacUsername"
-            {...form.register("pacUsername")}
-            placeholder="usuario@empresa.com"
-            disabled
-          />
-          <FieldInlineError fieldId="pacUsername" message={form.formState.errors.pacUsername?.message} />
-        </div>
-
-        <div>
-          <Label htmlFor="pacPassword">
-            Contraseña
-            {settings?.pacPasswordConfigured && (
-              <Badge variant="secondary" className="ml-2">
-                Configurada
-              </Badge>
-            )}
-          </Label>
-          <Input
-            id="pacPassword"
-            type="password"
-            {...form.register("pacPassword")}
-            placeholder={
-              settings?.pacPasswordConfigured ? "••••••••" : "Ingresa la contraseña"
-            }
-            disabled
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = billingSettingsCopy;
 
 export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const { hasPermission, hasRole } = usePermissions();
-  const { data: settings, isLoading, isError } = useBillingSettings();
+  const { data: settings, isLoading, isError, refetch } = useBillingSettings();
   const updateMutation = useUpdateBillingSettings();
   const testConnectionMutation = useTestPacConnection();
   const registerEmitterMutation = useRegisterPacEmitter();
+
   const canUpdateSettings = hasPermission("settings", "update");
   const canUploadCertificate = hasRole(ROLES.ADMIN);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
     defaultValues: { pacProvider: PacProviders.PROFACT },
     values: settings ? mapSettingsToForm(settings) : undefined,
   });
-  const pacProvider =
-    useWatch({ control: form.control, name: "pacProvider" }) as
-      | PacProvider
-      | undefined;
-  const defaultUsoCfdi = useWatch({
-    control: form.control,
-    name: "defaultUsoCfdi",
-  });
-  const defaultFormaPago = useWatch({
-    control: form.control,
-    name: "defaultFormaPago",
-  });
-  const defaultMetodoPago = useWatch({
-    control: form.control,
-    name: "defaultMetodoPago",
-  });
-  const claveProductoServicio = useWatch({
-    control: form.control,
-    name: "claveProductoServicio",
-  });
-  const claveUnidad = useWatch({
-    control: form.control,
-    name: "claveUnidad",
-  });
-  const watchedMoneda = useWatch({ control: form.control, name: "moneda" });
-  const watchedTasaIva = useWatch({ control: form.control, name: "tasaIva" });
-
-  const pacProviderSelectDisabled =
-    !canUpdateSettings || SELECTABLE_PAC_PROVIDERS.length <= 1;
 
   const onSubmit = useCallback(
     (data: BillingSettingsFormData) => {
       if (!canUpdateSettings) return;
+      setShowValidationSummary(false);
 
       const dto: UpdateBillingSettingsDTO = {
         pacProvider: resolveSelectablePacProvider(data.pacProvider),
@@ -418,11 +90,9 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         claveUnidad: data.claveUnidad,
         moneda: data.moneda,
         tasaIva: data.tasaIva,
-        serieCartaPorte: data.serieCartaPorte,
-        folioInicialCartaPorte: data.folioInicialCartaPorte,
       };
 
-      // Solo incluir credenciales si el PAC las usa y se proporcionaron
+      // Solo los timbradores con credenciales por empresa las envían.
       const usesCredentials =
         PAC_USES_CREDENTIALS[data.pacProvider as PacProvider] ?? false;
       if (usesCredentials) {
@@ -432,646 +102,183 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
       updateMutation.mutate(dto);
     },
-    [updateMutation, canUpdateSettings],
+    [canUpdateSettings, updateMutation],
   );
 
   const handleTestConnection = useCallback(() => {
-    if (!canUpdateSettings) return;
-    const values = form.getValues();
-    const payload: TestPacConnectionPayload = {
-      pacProvider: values.pacProvider as PacProvider,
-      pacUsername: values.pacUsername || undefined,
-      pacPassword: values.pacPassword || undefined,
-    };
-    testConnectionMutation.mutate(payload);
-  }, [form, testConnectionMutation, canUpdateSettings]);
+    if (!canUpdateSettings || !settings) return;
+    testConnectionMutation.mutate({
+      pacProvider: resolveSelectablePacProvider(settings.pacProvider),
+    });
+  }, [canUpdateSettings, settings, testConnectionMutation]);
 
   const handleRegisterEmitter = useCallback(() => {
     if (!canUpdateSettings) return;
     registerEmitterMutation.mutate();
   }, [canUpdateSettings, registerEmitterMutation]);
 
+  const certificateReadiness = useMemo(
+    () =>
+      resolveCertificateReadiness(
+        settings ?? { certificateConfigured: false, certificateExpiry: null },
+      ),
+    [settings],
+  );
+
+  const numberingReadiness = useMemo(
+    () =>
+      resolveNumberingReadiness(settings ?? { serieFactura: "", folioInicial: 0 }),
+    [settings],
+  );
+
   if (isLoading) {
     return (
-      <SettingsLayout sectionTitle="Facturación">
+      <SettingsLayout
+        sectionTitle={copy.page.sectionTitle}
+        title={copy.page.title}
+        description={copy.page.description}
+      >
         <BillingSettingsPageSkeleton />
       </SettingsLayout>
     );
   }
 
-  if (isError) {
+  if (isError || !settings) {
     return (
-      <SettingsLayout sectionTitle="Facturación">
-        <div className="text-center py-12 text-muted-foreground">
-          Error al cargar la configuración. Por favor, intenta de nuevo.
-        </div>
+      <SettingsLayout
+        sectionTitle={copy.page.sectionTitle}
+        title={copy.page.title}
+        description={copy.page.description}
+      >
+        <EmptyState
+          icon={<AlertTriangle />}
+          title={copy.state.loadErrorTitle}
+          description={copy.state.loadErrorDescription}
+          cta={{
+            label: copy.state.retry,
+            icon: <RefreshCw />,
+            onClick: () => void refetch(),
+          }}
+        />
       </SettingsLayout>
     );
   }
 
+  const validationMessages = showValidationSummary
+    ? collectFieldErrorMessages(form.formState.errors)
+    : [];
+
   return (
-    <SettingsLayout sectionTitle="Facturación">
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <SettingsLayout
+      sectionTitle={copy.page.sectionTitle}
+      title={copy.page.title}
+      description={copy.page.description}
+    >
+      <div className="space-y-6">
         {!canUpdateSettings && (
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>Modo solo lectura</AlertTitle>
-            <AlertDescription>
-              Tu rol puede consultar la configuración de facturación, pero no
-              editarla.
-            </AlertDescription>
+            <AlertTitle>{copy.state.readOnlyTitle}</AlertTitle>
+            <AlertDescription>{copy.state.readOnlyDescription}</AlertDescription>
           </Alert>
         )}
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Servicios de cobro</AlertTitle>
-          <AlertDescription>
-            Administra el catálogo reutilizable para partidas de servicio en facturas
-            (maniobras, resguardo, etc.) en{" "}
-            <Link to="/settings/billing/service-concepts" className="underline">
-              Servicios de cobro
-            </Link>
-            .
-          </AlertDescription>
-        </Alert>
+        <BillingReadinessCard
+          certificate={certificateReadiness}
+          numbering={numberingReadiness}
+          connection={toCheckStatus(testConnectionMutation.data?.success)}
+          isCheckingConnection={testConnectionMutation.isPending}
+          emitter={toCheckStatus(registerEmitterMutation.data?.success)}
+          isRegisteringEmitter={registerEmitterMutation.isPending}
+        />
 
-        <fieldset
-          disabled={!canUpdateSettings}
-          className={!canUpdateSettings ? "opacity-70" : undefined}
+        <BillingCertificateCard
+          settings={settings}
+          readiness={certificateReadiness}
+          canUpload={canUploadCertificate}
+          showRestrictionNotice={canUpdateSettings && !canUploadCertificate}
+        />
+
+        <form
+          onSubmit={form.handleSubmit(onSubmit, () =>
+            setShowValidationSummary(true),
+          )}
+          className="space-y-6"
+          noValidate
         >
-          <div className="space-y-6">
+          <BillingNumberingCard
+            form={form}
+            settings={settings}
+            canEdit={canUpdateSettings}
+          />
 
-            {/* Proveedor PAC */}
-            <SettingsCard
-              title="Proveedor de timbrado (PAC)"
-              description="Configura la conexión con tu Proveedor Autorizado de Certificación"
-            >
-              <div className="space-y-6">
-                {/* Selector de PAC */}
-                <div className="max-w-xs">
-                  <Label htmlFor="pacProvider">
-                    Proveedor PAC <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={pacProvider ?? PacProviders.PROFACT}
-                    disabled={pacProviderSelectDisabled}
-                    onValueChange={(value) => {
-                      if (!value || pacProviderSelectDisabled) return;
-                      form.setValue("pacProvider", value, { shouldDirty: true });
-                      form.setValue("pacUsername", "");
-                      form.setValue("pacPassword", "");
-                    }}
-                  >
-                    <SelectTrigger id="pacProvider">
-                      <SelectValue placeholder="Seleccionar proveedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SELECTABLE_PAC_PROVIDERS.map((code) => (
-                        <SelectItem key={code} value={code}>
-                          {PAC_PROVIDER_LABELS[code]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {pacProviderSelectDisabled &&
-                    SELECTABLE_PAC_PROVIDERS.length === 1 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {PAC_PROVIDER_LABELS[SELECTABLE_PAC_PROVIDERS[0]!]} es el
-                        único proveedor disponible por ahora.
-                      </p>
-                    )}
-                  <FieldInlineError fieldId="pacProvider" message={form.formState.errors.pacProvider?.message} />
-                </div>
+          <BillingDefaultsCard
+            form={form}
+            settings={settings}
+            canEdit={canUpdateSettings}
+          />
 
-                {/* Sub-panel específico del PAC seleccionado */}
-                <PacProviderConfig
-                  form={form}
-                  settings={settings}
-                  isPending={testConnectionMutation.isPending}
-                  isRegisterEmitterPending={registerEmitterMutation.isPending}
-                  registerEmitterResult={registerEmitterMutation.data}
-                  canTestConnection={canUpdateSettings}
-                  onTestConnection={handleTestConnection}
-                  onRegisterEmitter={handleRegisterEmitter}
-                  isDirty={form.formState.isDirty}
-                />
+          {canUpdateSettings && (
+            <div className="space-y-4">
+              <FormValidationSummary
+                messages={validationMessages}
+                title={copy.validation.summaryTitle}
+                className="mb-0"
+              />
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowValidationSummary(false);
+                    form.reset();
+                  }}
+                  disabled={!form.formState.isDirty || updateMutation.isPending}
+                >
+                  {copy.action.cancel}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!form.formState.isDirty || updateMutation.isPending}
+                >
+                  {updateMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {updateMutation.isPending
+                    ? copy.action.saving
+                    : copy.action.save}
+                </Button>
               </div>
-            </SettingsCard>
-
-        {/* Valores por defecto CFDI */}
-        <SettingsCard
-          title="Valores por defecto"
-          description="Estos valores se usarán automáticamente en nuevas facturas"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Uso CFDI — catálogo SAT dinámico */}
-            <div>
-              <Label>
-                Uso de CFDI <span className="text-destructive">*</span>
-              </Label>
-              <UsoCfdiSelect
-                value={defaultUsoCfdi}
-                onValueChange={(value) =>
-                  form.setValue("defaultUsoCfdi", value, { shouldDirty: true })
-                }
-              />
-              <FieldInlineError fieldId="defaultUsoCfdi" message={form.formState.errors.defaultUsoCfdi?.message} />
             </div>
+          )}
+        </form>
 
-            {/* Forma de Pago — catálogo SAT dinámico */}
-            <div>
-              <Label>
-                Forma de Pago <span className="text-destructive">*</span>
-              </Label>
-              <FormaPagoSelect
-                value={defaultFormaPago}
-                onValueChange={(value) =>
-                  form.setValue("defaultFormaPago", value, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <FieldInlineError fieldId="defaultFormaPago" message={form.formState.errors.defaultFormaPago?.message} />
-            </div>
+        <BillingStampingCard
+          provider={resolveSelectablePacProvider(settings.pacProvider)}
+          canRunActions={canUpdateSettings}
+          connectionResult={testConnectionMutation.data}
+          isTestingConnection={testConnectionMutation.isPending}
+          onTestConnection={handleTestConnection}
+          emitterResult={registerEmitterMutation.data}
+          isRegisteringEmitter={registerEmitterMutation.isPending}
+          onRegisterEmitter={handleRegisterEmitter}
+        />
 
-            {/* Método de Pago — catálogo SAT dinámico */}
-            <div>
-              <Label>
-                Método de Pago <span className="text-destructive">*</span>
-              </Label>
-              <MetodoPagoSelect
-                value={defaultMetodoPago}
-                onValueChange={(value) =>
-                  form.setValue("defaultMetodoPago", value, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <FieldInlineError fieldId="defaultMetodoPago" message={form.formState.errors.defaultMetodoPago?.message} />
-            </div>
-          </div>
-        </SettingsCard>
-
-        {/* Foliación */}
-        <SettingsCard
-          title="Foliación"
-          description="Configura la serie y numeración de tus facturas"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="serieFactura">
-                Serie <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="serieFactura"
-                {...form.register("serieFactura")}
-                placeholder="A"
-                maxLength={5}
-                className="uppercase"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Máximo 5 caracteres
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="folioInicial">
-                Folio Inicial <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="folioInicial"
-                type="number"
-                min={1}
-                {...form.register("folioInicial", { valueAsNumber: true })}
-                placeholder="1"
-              />
-            </div>
-
-            {settings && (
-              <div className="sm:col-span-2 p-4 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">
-                  Folio actual:{" "}
-                  <span className="font-medium text-foreground">
-                    {settings.serieFactura}-{settings.folioActual}
-                  </span>
-                </p>
-              </div>
-            )}
-          </div>
-        </SettingsCard>
-
-        {/* Claves SAT por defecto */}
-        <SettingsCard
-          title="Claves SAT por defecto"
-          description="Se aplicarán automáticamente en cada concepto del CFDI de ingreso"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Clave producto/servicio — búsqueda en catálogo SAT grande */}
-            <div>
-              <Label>
-                Clave producto/servicio{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <ProductoServicioCPSearch
-                value={claveProductoServicio}
-                onSelect={(item: CatalogItem) =>
-                  form.setValue("claveProductoServicio", item.code, {
-                    shouldDirty: true,
-                  })
-                }
-                onClear={() =>
-                  form.setValue("claveProductoServicio", "", {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Para transporte de carga por carretera usa{" "}
-                <code className="font-mono">78101800</code>
-              </p>
-              <FieldInlineError fieldId="claveProductoServicio" message={form.formState.errors.claveProductoServicio?.message} />
-            </div>
-
-            {/* Clave unidad — búsqueda en catálogo SAT grande */}
-            <div>
-              <Label>
-                Clave de unidad <span className="text-destructive">*</span>
-              </Label>
-              <UnidadMedidaSearch
-                value={claveUnidad}
-                onSelect={(item: CatalogItem) =>
-                  form.setValue("claveUnidad", item.code, {
-                    shouldDirty: true,
-                  })
-                }
-                onClear={() =>
-                  form.setValue("claveUnidad", "", { shouldDirty: true })
-                }
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Para servicios de transporte usa{" "}
-                <code className="font-mono">E48</code>
-              </p>
-              <FieldInlineError fieldId="claveUnidad" message={form.formState.errors.claveUnidad?.message} />
-            </div>
-
-            {/* Moneda — solo MXN/USD son relevantes para transporte nacional */}
-            <div>
-              <Label htmlFor="moneda">
-                Moneda <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={normalizeMoneda(watchedMoneda) ?? "MXN"}
-                onValueChange={(v) =>
-                  form.setValue(
-                    "moneda",
-                    v.toUpperCase() as (typeof ALLOWED_MONEDA)[number],
-                    {
-                    shouldDirty: true,
-                    },
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar moneda" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONEDA_OPTIONS.map((o) => (
-                    <SelectItem key={o.code} value={o.code}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldInlineError fieldId="moneda" message={form.formState.errors.moneda?.message} />
-            </div>
-
-            {/* Tasa IVA */}
-            <div>
-              <Label htmlFor="tasaIva">
-                Tasa de IVA <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={String(normalizeTasaIva(watchedTasaIva) ?? 0.16)}
-                onValueChange={(v) =>
-                  form.setValue("tasaIva", parseFloat(v), {
-                    shouldDirty: true,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tasa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TASA_IVA_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldInlineError fieldId="tasaIva" message={form.formState.errors.tasaIva?.message} />
-            </div>
-          </div>
-        </SettingsCard>
-
-        {/* Foliación Carta Porte 3.1 */}
-        <SettingsCard
-          title="Carta Porte 3.1 — Foliación"
-          description="Serie y numeración exclusiva para CFDI de ingreso con Complemento Carta Porte"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="serieCartaPorte">
-                Serie <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="serieCartaPorte"
-                {...form.register("serieCartaPorte")}
-                placeholder="CP"
-                maxLength={5}
-                className="uppercase"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Usa una serie diferente a la de tus facturas normales (ej:{" "}
-                <code className="font-mono">CP</code>)
-              </p>
-              <FieldInlineError fieldId="serieCartaPorte" message={form.formState.errors.serieCartaPorte?.message} />
-            </div>
-
-            <div>
-              <Label htmlFor="folioInicialCartaPorte">
-                Folio inicial <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="folioInicialCartaPorte"
-                type="number"
-                min={1}
-                {...form.register("folioInicialCartaPorte", {
-                  valueAsNumber: true,
-                })}
-                placeholder="1"
-              />
-              <FieldInlineError fieldId="folioInicialCartaPorte" message={form.formState.errors.folioInicialCartaPorte?.message} />
-            </div>
-
-            {settings && (
-              <div className="sm:col-span-2 p-4 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">
-                  Último folio emitido:{" "}
-                  <span className="font-medium text-foreground">
-                    {settings.serieCartaPorte
-                      ? `${settings.serieCartaPorte}-${settings.folioActualCartaPorte}`
-                      : "Sin folio emitido aún"}
-                  </span>
-                </p>
-              </div>
-            )}
-          </div>
-        </SettingsCard>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => form.reset()}
-                disabled={!form.formState.isDirty || updateMutation.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={!form.formState.isDirty || updateMutation.isPending}
-              >
-                {updateMutation.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                Guardar cambios
-              </Button>
-            </div>
-          </div>
-        </fieldset>
-
-        {/* Certificado de Sello Digital */}
-        <CertificateCard settings={settings!} canUpload={canUploadCertificate} />
-
-        {!canUploadCertificate && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Carga de certificado restringida</AlertTitle>
-            <AlertDescription>
-              Solo el rol administrador puede cargar o actualizar el certificado
-              fiscal (.cer/.key).
-            </AlertDescription>
-          </Alert>
-        )}
-      </form>
+        <BillingServiceConceptsCard />
+      </div>
     </SettingsLayout>
   );
 });
 
 // ============================================================================
-// CERTIFICATE CARD
+// HELPERS
 // ============================================================================
 
-interface CertificateCardProps {
-  settings: BillingSettings;
-  canUpload: boolean;
+/** Las comprobaciones no se persisten: sin ejecutar en la sesión, se desconocen. */
+function toCheckStatus(success: boolean | undefined): BillingRequirementStatus {
+  if (success === undefined) return "unknown";
+  return success ? "ready" : "pending";
 }
-
-const CertificateCard = memo(function CertificateCard({
-  settings,
-  canUpload,
-}: CertificateCardProps) {
-  const uploadMutation = useUploadCertificate();
-  const [files, setFiles] = useState<{
-    certificate: File | null;
-    privateKey: File | null;
-    password: string;
-  }>({
-    certificate: null,
-    privateKey: null,
-    password: "",
-  });
-
-  const handleUpload = useCallback(() => {
-    if (!canUpload || !files.certificate || !files.privateKey || !files.password)
-      return;
-
-    uploadMutation.mutate({
-      certificate: files.certificate,
-      privateKey: files.privateKey,
-      password: files.password,
-    });
-  }, [files, uploadMutation, canUpload]);
-  const [nowTs] = useState(() => Date.now());
-
-  const isExpiringSoon =
-    settings.certificateExpiry &&
-    new Date(settings.certificateExpiry) <
-      new Date(nowTs + 30 * 24 * 60 * 60 * 1000);
-
-  return (
-    <SettingsCard
-      title="Certificado de Sello Digital (CSD)"
-      description="Certificado emitido por el SAT para firmar facturas"
-      actions={
-        settings.certificateConfigured ? (
-          <Badge
-            variant={isExpiringSoon ? "warning" : "success"}
-            tone="soft"
-            className="shrink-0"
-          >
-            {settings.certificateConfigured ? (
-              <>
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Configurado
-              </>
-            ) : (
-              <>
-                <XCircle className="h-3 w-3 mr-1" />
-                No configurado
-              </>
-            )}
-          </Badge>
-        ) : null
-      }
-    >
-      <div className="space-y-4">
-        {settings.certificateConfigured && settings.certificateExpiry && (
-          <div className="p-4 rounded-lg bg-muted/50">
-            <p className="text-sm">
-              Vence:{" "}
-              <span
-                className={
-                  isExpiringSoon
-                    ? "font-medium text-warning"
-                    : "font-medium text-foreground"
-                }
-              >
-                {new Date(settings.certificateExpiry).toLocaleDateString(
-                  "es-MX",
-                  {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  },
-                )}
-              </span>
-            </p>
-            {isExpiringSoon && (
-              <p className="text-xs text-warning mt-1">
-                El certificado vence pronto. Renuévalo antes de la fecha de
-                expiración.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Certificado (.cer)</Label>
-            <div className="mt-1">
-              <input
-                type="file"
-                accept=".cer"
-                id="certificate-file"
-                className="sr-only"
-                disabled={!canUpload}
-                onChange={(e) =>
-                  setFiles((prev) => ({
-                    ...prev,
-                    certificate: e.target.files?.[0] || null,
-                  }))
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <label htmlFor="certificate-file" className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
-                  {files.certificate?.name || "Seleccionar archivo"}
-                </label>
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <Label>Llave privada (.key)</Label>
-            <div className="mt-1">
-              <input
-                type="file"
-                accept=".key"
-                id="privatekey-file"
-                className="sr-only"
-                disabled={!canUpload}
-                onChange={(e) =>
-                  setFiles((prev) => ({
-                    ...prev,
-                    privateKey: e.target.files?.[0] || null,
-                  }))
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <label htmlFor="privatekey-file" className="cursor-pointer">
-                  <FileKey className="h-4 w-4 mr-2" />
-                  {files.privateKey?.name || "Seleccionar archivo"}
-                </label>
-              </Button>
-            </div>
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label htmlFor="cert-password">Contraseña del certificado</Label>
-            <Input
-              id="cert-password"
-              type="password"
-              value={files.password}
-              onChange={(e) =>
-                setFiles((prev) => ({ ...prev, password: e.target.value }))
-              }
-              placeholder="Contraseña de la llave privada"
-              disabled={!canUpload}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <Button
-              type="button"
-              onClick={handleUpload}
-              disabled={
-                !files.certificate ||
-                !files.privateKey ||
-                !files.password ||
-                uploadMutation.isPending ||
-                !canUpload
-              }
-            >
-              {uploadMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-2" />
-              )}
-              {settings.certificateConfigured
-                ? "Actualizar certificado"
-                : "Cargar certificado"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </SettingsCard>
-  );
-});
 
 // ============================================================================
 // SKELETON
@@ -1080,12 +287,12 @@ const CertificateCard = memo(function CertificateCard({
 function BillingSettingsPageSkeleton() {
   return (
     <div className="space-y-6">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-lg border p-6 space-y-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="space-y-4 rounded-lg border p-6">
           <Skeleton className="h-6 w-48" />
           <div className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, j) => (
-              <div key={j} className="space-y-2">
+            {Array.from({ length: 4 }).map((__, field) => (
+              <div key={field} className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-10 w-full" />
               </div>
@@ -1095,31 +302,4 @@ function BillingSettingsPageSkeleton() {
       ))}
     </div>
   );
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function mapSettingsToForm(settings: BillingSettings): BillingSettingsFormData {
-  const allowedMoneda = normalizeMoneda(settings.moneda) ?? "MXN";
-  const allowedTasa = normalizeTasaIva(settings.tasaIva) ?? 0.16;
-
-  return {
-    pacProvider: resolveSelectablePacProvider(settings.pacProvider),
-    pacUsername: settings.pacUsername ?? "",
-    pacPassword: "",
-    defaultUsoCfdi: settings.defaultUsoCfdi,
-    defaultFormaPago: settings.defaultFormaPago,
-    defaultMetodoPago: settings.defaultMetodoPago,
-    serieFactura: settings.serieFactura,
-    folioInicial: settings.folioInicial,
-    testMode: settings.testMode,
-    claveProductoServicio: settings.claveProductoServicio,
-    claveUnidad: settings.claveUnidad,
-    moneda: allowedMoneda,
-    tasaIva: allowedTasa,
-    serieCartaPorte: settings.serieCartaPorte,
-    folioInicialCartaPorte: settings.folioInicialCartaPorte,
-  };
 }

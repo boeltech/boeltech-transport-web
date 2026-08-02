@@ -49,18 +49,19 @@ export const settingsNavItems: SettingsNavItem[] = [
   {
     id: SettingsSection.GENERAL,
     label: "General",
-    description: "Datos de la empresa, logo y dirección fiscal",
+    description: "Identidad, domicilio y contacto de la empresa",
     path: "/settings/general",
     icon: Building2,
-    permission: { module: "settings", action: "update" },
+    permission: { module: "settings", action: "read" },
   },
   {
     id: SettingsSection.CATALOGS,
     label: "Catálogos",
-    description: "Consulta catálogos regulatorios y administra los internos de tu empresa",
+    description:
+      "Consulta los valores que el sistema usa en viajes, facturas y domicilios",
     path: "/settings/catalogs",
     icon: Database,
-    permission: { module: "settings", action: "update" },
+    permission: { module: "catalogs", action: "read" },
   },
   {
     id: SettingsSection.LOCATIONS,
@@ -72,8 +73,9 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
   {
     id: SettingsSection.BILLING,
-    label: "Facturación",
-    description: "Configuración de CFDI, PAC y certificados",
+    label: "Datos para facturar",
+    description:
+      "Sello digital, numeración y valores con los que emites tus facturas",
     path: "/settings/billing",
     icon: FileText,
     permission: { module: "settings", action: "read" },
@@ -81,7 +83,7 @@ export const settingsNavItems: SettingsNavItem[] = [
   {
     id: SettingsSection.SUBSCRIPTION,
     label: "Plan y consumo",
-    description: "Plan comercial, timbres y módulos contratados",
+    description: "Timbres del mes, qué incluye tu plan y módulos adicionales",
     path: "/settings/subscription",
     icon: CreditCard,
     permission: { module: "billing", action: "read" },

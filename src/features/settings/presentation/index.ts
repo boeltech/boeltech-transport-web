@@ -21,8 +21,6 @@ export {
   SettingsSection,
   SettingsCard,
 } from "./components/SettingsLayout";
-export { SettingsSidebar } from "./components/SettingsSidebar";
-
 // Pages (for direct imports if needed)
 export { GeneralSettingsPage } from "./pages/GeneralSettingsPage";
 export { BillingSettingsPage } from "./pages/BillingSettingsPage";

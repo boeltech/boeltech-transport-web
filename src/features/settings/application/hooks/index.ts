@@ -21,6 +21,9 @@ export {
   useRegisterPacEmitter,
 } from "./useBillingSettings";
 
+// Billing Service Concepts
+export { useBillingServiceConcepts } from "./useBillingServiceConcepts";
+
 // Notification Settings
 export {
   useNotificationSettings,

@@ -2,7 +2,7 @@
  * SettingsLayout Component
  *
  * Layout principal del módulo de configuración (solo tenant/empresa).
- * Tabs horizontales + área de contenido.
+ * Tabs horizontales canónicas (RouteTabsNav) + área de contenido.
  */
 
 import { memo, type ReactNode } from "react";
@@ -11,10 +11,19 @@ import { Settings, ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { SettingsNavTabs } from "./SettingsNavTabs";
 
+const DEFAULT_TITLE = "Configuración";
+const DEFAULT_DESCRIPTION = "Administra la configuración de tu empresa";
+
 export interface SettingsLayoutProps {
   children: ReactNode;
   /** Título de la sección actual (para breadcrumb) */
   sectionTitle?: string;
+  /** Título de la página. Por defecto, "Configuración". */
+  title?: ReactNode;
+  /** Bajada de la página. Por defecto, la descripción genérica del módulo. */
+  description?: ReactNode;
+  /** Elemento a la izquierda del título (p. ej. logo de la empresa). */
+  headerSlot?: ReactNode;
   /** Oculta tabs (p. ej. detalle de catálogo) */
   hideSidebar?: boolean;
   /** Alias de hideSidebar */
@@ -25,6 +34,9 @@ export interface SettingsLayoutProps {
 export const SettingsLayout = memo(function SettingsLayout({
   children,
   sectionTitle,
+  title,
+  description,
+  headerSlot,
   hideSidebar = false,
   hideNav,
   className,
@@ -50,13 +62,16 @@ export const SettingsLayout = memo(function SettingsLayout({
           )}
         </nav>
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Configuración
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Administra la configuración de tu empresa
-          </p>
+        <div className="flex items-start gap-3">
+          {headerSlot ? <div className="shrink-0">{headerSlot}</div> : null}
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {title ?? DEFAULT_TITLE}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {description ?? DEFAULT_DESCRIPTION}
+            </p>
+          </div>
         </div>
       </div>
 

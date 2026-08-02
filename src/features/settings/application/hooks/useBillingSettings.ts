@@ -26,6 +26,9 @@ import {
   settingsQueryKeys,
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
+import { billingSettingsCopy } from "../../presentation/copy/billingSettingsCopy";
+
+const copy = billingSettingsCopy.toast;
 
 // ============================================================================
 // QUERY HOOK
@@ -76,15 +79,14 @@ export function useUpdateBillingSettings(
       queryClient.setQueryData(settingsQueryKeys.billing(), result.data);
 
       toast({
-        title: "Configuración de facturación actualizada",
-        description:
-          result.message ?? "Los cambios se guardaron correctamente.",
+        title: copy.saved,
+        description: result.message ?? copy.savedDescription,
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al guardar",
-        description: error.message ?? "No se pudo actualizar la configuración.",
+        title: copy.saveError,
+        description: error.message ?? copy.saveErrorDescription,
         variant: "destructive",
       });
     },
@@ -115,16 +117,14 @@ export function useUploadCertificate(
       queryClient.setQueryData(settingsQueryKeys.billing(), result.data);
 
       toast({
-        title: "Certificado cargado",
-        description:
-          result.message ??
-          "El certificado de sello digital se configuró correctamente.",
+        title: copy.certificateUploaded,
+        description: result.message ?? copy.certificateUploadedDescription,
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al cargar certificado",
-        description: error.message ?? "No se pudo cargar el certificado.",
+        title: copy.certificateError,
+        description: error.message ?? copy.certificateErrorDescription,
         variant: "destructive",
       });
     },
@@ -156,28 +156,26 @@ export function useTestPacConnection(
     onSuccess: (result) => {
       if (result.success) {
         toast({
-          title: "Conexión exitosa",
-          description:
-            result.message ?? "La conexión con el PAC funciona correctamente.",
+          title: copy.connectionOk,
+          description: result.message ?? copy.connectionOkDescription,
         });
       } else if (result.errorType === "not_implemented") {
         toast({
-          title: "PAC aún no disponible",
-          description:
-            "Este proveedor está en el roadmap. Configura ProFact para timbrar.",
+          title: copy.connectionUnavailable,
+          description: result.message,
         });
       } else {
         toast({
-          title: "Conexión fallida",
-          description: result.message ?? "No se pudo conectar con el PAC.",
+          title: copy.connectionFailed,
+          description: result.message ?? copy.connectionFailedDescription,
           variant: "destructive",
         });
       }
     },
     onError: (error) => {
       toast({
-        title: "Error de conexión",
-        description: error.message ?? "No se pudo probar la conexión.",
+        title: copy.connectionError,
+        description: error.message ?? copy.connectionFailedDescription,
         variant: "destructive",
       });
     },
@@ -201,25 +199,21 @@ export function useRegisterPacEmitter(
     mutationFn: () => settingsRepository.registerPacEmitter(),
     onSuccess: (result) => {
       if (result.success) {
-        toast({
-          title: "Emisor registrado en ProFact",
-          description: result.message,
-        });
+        toast({ title: copy.emitterOk, description: result.message });
         return;
       }
 
       toast({
-        title: result.attempted
-          ? "No se pudo registrar en ProFact"
-          : "No se pudo iniciar el registro",
+        title: copy.emitterFailed,
+        // El detalle de lo que falta se enumera en la pantalla, junto a la acción.
         description: result.message,
         variant: result.attempted ? "destructive" : "default",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al registrar emisor",
-        description: error.message ?? "No se pudo completar la operación.",
+        title: copy.emitterError,
+        description: error.message ?? copy.emitterErrorDescription,
         variant: "destructive",
       });
     },

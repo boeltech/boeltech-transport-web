@@ -15,6 +15,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks/useToast";
+import { invalidateNotificationsQueries } from "@features/notifications";
 import {
   type NotificationSettings,
   type UpdateNotificationSettingsDTO,
@@ -70,6 +71,7 @@ export function useUpdateNotificationSettings(
       settingsRepository.updateNotificationSettings(data),
     onSuccess: (result) => {
       queryClient.setQueryData(settingsQueryKeys.notifications(), result.data);
+      void invalidateNotificationsQueries(queryClient);
 
       toast({
         title: "Preferencias actualizadas",

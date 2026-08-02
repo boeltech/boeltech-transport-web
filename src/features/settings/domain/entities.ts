@@ -74,7 +74,6 @@ export interface BillingSettings {
   readonly defaultMetodoPago: string;
   readonly serieFactura: string;
   readonly folioInicial: number;
-  readonly folioActual: number;
   readonly testMode: boolean;
   // ── Claves SAT por defecto para conceptos del CFDI ────────────────────────
   /** Clave del producto/servicio SAT (ej. 78101800 = Transporte de carga) */
@@ -85,11 +84,16 @@ export interface BillingSettings {
   readonly moneda: string;
   /** Tasa de IVA por defecto (0.16 = 16%, 0 = tasa 0%) */
   readonly tasaIva: number;
-  // ── Foliación independiente para Complemento Carta Porte ──────────────────
-  /** Serie para documentos con Complemento Carta Porte 3.1 */
-  readonly serieCartaPorte: string;
-  readonly folioInicialCartaPorte: number;
-  readonly folioActualCartaPorte: number;
+  /**
+   * Folio que tomará la próxima factura de `serieFactura`, calculado por el
+   * servidor sobre las facturas ya emitidas. `null` si el servidor no lo envía.
+   */
+  readonly nextFolio: number | null;
+  /**
+   * True cuando ya hay facturas en la serie configurada. Bloquea la edición
+   * del primer folio en pantalla (el API también lo rechaza con 422).
+   */
+  readonly hasIssuedInvoices: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

@@ -142,13 +142,13 @@ export const NotificationSettingsForm = memo(
         {/* Canales de notificación */}
         <SettingsCard
           title="Canales de notificación"
-          description="Elige cómo quieres recibir las notificaciones"
+          description="Preferencias guardadas para cuando se active el envío por email, push o SMS (aún no envían mensajes reales)."
         >
           <div className="space-y-4">
             <NotificationToggle
               icon={Mail}
               label="Notificaciones por email"
-              description="Recibe alertas y resúmenes en tu correo"
+              description="Se usará para alertas y resúmenes cuando el envío por correo esté disponible"
               checked={emailNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("emailNotifications", checked, {
@@ -162,7 +162,7 @@ export const NotificationSettingsForm = memo(
             <NotificationToggle
               icon={Smartphone}
               label="Notificaciones push"
-              description="Alertas en tiempo real en tu dispositivo"
+              description="Se usará para alertas en dispositivo cuando el canal push esté disponible"
               checked={pushNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("pushNotifications", checked, {
@@ -176,7 +176,7 @@ export const NotificationSettingsForm = memo(
             <NotificationToggle
               icon={MessageSquare}
               label="Notificaciones por SMS"
-              description="Alertas críticas vía mensaje de texto"
+              description="Se usará para alertas críticas cuando el canal SMS esté disponible"
               checked={smsNotifications}
               onCheckedChange={(checked) =>
                 form.setValue("smsNotifications", checked, {
@@ -190,7 +190,7 @@ export const NotificationSettingsForm = memo(
         {/* Alertas de operaciones */}
         <SettingsCard
           title="Alertas de operaciones"
-          description="Configura las alertas relacionadas con viajes y flota"
+          description="El vencimiento de documentos también controla lo que aparece en la campana del inbox. Recordatorios de viaje y mantenimiento se guardan para canales futuros."
         >
           <div className="space-y-6">
             {/* Recordatorios de viajes */}
@@ -265,7 +265,7 @@ export const NotificationSettingsForm = memo(
                 <NotificationToggle
                   icon={Bell}
                   label="Vencimiento de documentos"
-                  description="Alerta cuando licencias o permisos están por vencer"
+                  description="Controla alertas de licencia, certificado médico, seguro y permiso SCT en la campana del inbox (y en el panel de operación)"
                   checked={documentExpiryAlerts}
                   onCheckedChange={(checked) =>
                     form.setValue("documentExpiryAlerts", checked, {
@@ -276,12 +276,13 @@ export const NotificationSettingsForm = memo(
               </div>
               {documentExpiryAlerts && (
                 <div className="sm:w-32">
-                  <Label htmlFor="documentExpiryDays">Días antes</Label>
+                  <Label htmlFor="documentExpiryDays">Días (inbox)</Label>
                   <Input
                     id="documentExpiryDays"
                     type="number"
                     min={1}
                     max={90}
+                    title="Ventana en días para alertas de documentos en la campana"
                     {...form.register("documentExpiryDays", {
                       valueAsNumber: true,
                     })}
@@ -295,7 +296,7 @@ export const NotificationSettingsForm = memo(
         {/* Resumen diario */}
         <SettingsCard
           title="Resumen diario"
-          description="Recibe un resumen de la actividad del día"
+          description="Preferencia guardada para cuando el envío del resumen por email esté disponible"
         >
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
             <div className="flex-1">

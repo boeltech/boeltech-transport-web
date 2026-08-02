@@ -82,7 +82,6 @@ export {
   SettingsLayout,
   SettingsSection as SettingsSectionComponent,
   SettingsCard,
-  SettingsSidebar,
   // Account security panels (Mi cuenta)
   UserSecuritySettings,
 } from "./presentation";

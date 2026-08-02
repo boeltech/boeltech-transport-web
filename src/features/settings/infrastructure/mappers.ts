@@ -91,15 +91,15 @@ export interface ApiBillingSettingsResponse {
   default_metodo_pago: string;
   serie_factura: string;
   folio_inicial: number;
-  folio_actual: number;
   test_mode: boolean;
   clave_producto_servicio: string;
   clave_unidad: string;
   moneda: string;
   tasa_iva: number | string;
-  serie_carta_porte: string;
-  folio_inicial_carta_porte: number;
-  folio_actual_carta_porte: number;
+  /** Consecutivo real de `serie_factura`, calculado sobre las facturas emitidas. */
+  next_folio?: number;
+  /** True cuando ya hay facturas en la serie configurada. */
+  has_issued_invoices?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -200,15 +200,16 @@ export function mapBillingSettings(
     defaultMetodoPago: api.default_metodo_pago,
     serieFactura: api.serie_factura,
     folioInicial: api.folio_inicial,
-    folioActual: api.folio_actual,
     testMode: api.test_mode,
     claveProductoServicio: api.clave_producto_servicio,
     claveUnidad: api.clave_unidad,
     moneda: normalizedMoneda,
     tasaIva: Number.isFinite(rawTasaIva) ? rawTasaIva : 0.16,
-    serieCartaPorte: api.serie_carta_porte,
-    folioInicialCartaPorte: api.folio_inicial_carta_porte,
-    folioActualCartaPorte: api.folio_actual_carta_porte,
+    nextFolio:
+      typeof api.next_folio === "number" && api.next_folio > 0
+        ? api.next_folio
+        : null,
+    hasIssuedInvoices: Boolean(api.has_issued_invoices),
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };
@@ -290,10 +291,6 @@ export function toApiUpdateBillingSettings(
   if (dto.claveUnidad !== undefined) apiData.clave_unidad = dto.claveUnidad;
   if (dto.moneda !== undefined) apiData.moneda = dto.moneda;
   if (dto.tasaIva !== undefined) apiData.tasa_iva = dto.tasaIva;
-  if (dto.serieCartaPorte !== undefined)
-    apiData.serie_carta_porte = dto.serieCartaPorte;
-  if (dto.folioInicialCartaPorte !== undefined)
-    apiData.folio_inicial_carta_porte = dto.folioInicialCartaPorte;
 
   return apiData;
 }
