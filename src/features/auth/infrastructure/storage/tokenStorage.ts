@@ -108,8 +108,15 @@ export const tokenStorage: ITokenStorage = {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.SUBDOMAIN);
   },
 
+  /**
+   * Optimistic session marker for routing only (PrivateRoute).
+   * - bearer/dual: presence of access token in localStorage
+   * - cookies: presence of `erp_user` (not proof of HttpOnly cookies)
+   * AuthProvider must verify with the API before rendering sensitive UI.
+   */
   hasSession: (): boolean => {
     if (persistsAuthTokens()) {
       return !!localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);

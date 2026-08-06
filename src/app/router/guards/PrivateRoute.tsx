@@ -1,13 +1,16 @@
 /**
  * PrivateRoute
  *
- * Guard que protege rutas que requieren autenticación.
+ * Guard optimista de routing: comprueba un *marker* de sesión en storage
+ * (`tokenStorage.hasSession`), no la validez del access token ni la cookie HttpOnly.
  *
- * IMPORTANTE: Este componente NO usa useAuth() porque se ejecuta
- * ANTES de que los providers se monten completamente.
+ * Flujo real de privilegios:
+ * 1. PrivateRoute: si no hay marker → /login
+ * 2. AppLayout monta AuthProvider, que verifica /auth/profile (isLoading spinner)
+ * 3. Solo tras verify exitoso se renderizan rutas sensibles
  *
- * En su lugar, verifica directamente si existe un token en storage.
- * La validación real del token la hace AuthProvider cuando se monte.
+ * En modo cookies, `hasSession` se basa en `erp_user` (forjable en el cliente);
+ * AuthProvider es la autoridad: logout si el profile falla.
  *
  * Ubicación: src/app/router/guards/PrivateRoute.tsx
  */
@@ -19,22 +22,18 @@ import { tokenStorage } from "@/features/auth";
  * PrivateRoute
  *
  * Flujo:
- * 1. Verifica si hay token en storage
- * 2. Si hay token → renderiza Outlet (children)
- * 3. Si no hay token → redirige a login guardando ubicación actual
+ * 1. Verifica marker de sesión en storage (no valida JWT/cookie)
+ * 2. Si hay marker → Outlet (AuthProvider verifica de verdad)
+ * 3. Si no hay marker → redirige a login guardando ubicación actual
  */
 export function PrivateRoute() {
   const location = useLocation();
 
-  // Verificar si hay token (no validamos, solo existencia)
-  const hasToken = tokenStorage.hasSession();
+  const hasSessionMarker = tokenStorage.hasSession();
 
-  if (!hasToken) {
-    // Guardar la ubicación actual para redirigir después del login
+  if (!hasSessionMarker) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Si hay token, permitir acceso
-  // AuthProvider validará el token cuando se monte
   return <Outlet />;
 }

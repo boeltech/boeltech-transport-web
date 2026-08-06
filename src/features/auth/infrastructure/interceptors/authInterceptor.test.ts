@@ -289,4 +289,23 @@ describe("setupAuthInterceptor public auth 401", () => {
     ).toBe(true);
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
+
+  it("sets withCredentials false on platform-scoped requests", async () => {
+    let seenWithCredentials: boolean | undefined;
+    instance.defaults.adapter = async (config) => {
+      seenWithCredentials = config.withCredentials;
+      return {
+        data: { data: {} },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      };
+    };
+
+    platformGetToken.mockReturnValue("platform-access");
+    await instance.get("/platform/tenants");
+
+    expect(seenWithCredentials).toBe(false);
+  });
 });

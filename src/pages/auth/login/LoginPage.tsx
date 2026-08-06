@@ -25,6 +25,7 @@ import {
   markFreshLoginSession,
   isMfaChallenge,
 } from "@features/auth";
+import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 import { loginSchema, type LoginFormData } from "@features/auth";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
@@ -101,6 +102,7 @@ const LoginPage = () => {
       onboardingCompletedAt?: string | null;
     };
   }, subdomain: string) => {
+    platformTokenStorage.clear();
     if (response.accessToken && response.refreshToken) {
       tokenStorage.setToken(response.accessToken);
       tokenStorage.setRefreshToken(response.refreshToken);
@@ -181,6 +183,17 @@ const LoginPage = () => {
     } catch (err: unknown) {
       const mapped = mapBackendError(err);
       setError(!navigator.onLine ? copy.offline : mapped.message);
+      if (
+        mapped.code === "MFA_CHALLENGE_EXPIRED" ||
+        mapped.code === "ACCOUNT_LOCKED"
+      ) {
+        setMfaChallengeToken(null);
+        setMfaCode("");
+        setMfaFieldError(null);
+      } else if (mapped.code === "MFA_INVALID") {
+        setMfaCode("");
+        setMfaFieldError(null);
+      }
     } finally {
       setIsSubmitting(false);
     }

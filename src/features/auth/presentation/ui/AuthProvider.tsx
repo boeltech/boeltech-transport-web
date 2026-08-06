@@ -408,6 +408,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Provider siempre montado: evita "useAuth must be used within an AuthProvider"
   // si algún hijo (p. ej. tras login/logout) renderiza durante la verificación inicial.
+  // Mientras isLoading, no se renderizan children (datos sensibles) — PrivateRoute
+  // solo pasó un marker optimista; aquí se completa el verify del servidor.
   return (
     <AuthContext.Provider value={value}>
       {state.isLoading ? (

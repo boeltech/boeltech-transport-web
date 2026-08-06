@@ -1,9 +1,16 @@
 /**
  * Modo de sesión tenant (AUTH-HARDEN Phase 2 Fase 4).
  * Platform permanece Bearer + localStorage propio.
+ *
+ * Production builds hard-fail unless VITE_AUTH_SESSION_MODE=cookies
+ * (or unset, which defaults to cookies).
  */
 
-export type AuthSessionMode = "bearer" | "dual" | "cookies";
+import { assertProductionAuthSessionMode } from "./assertProductionAuthSessionMode";
+import type { AuthSessionMode } from "./sessionModeTypes";
+
+export type { AuthSessionMode } from "./sessionModeTypes";
+export { assertProductionAuthSessionMode } from "./assertProductionAuthSessionMode";
 
 function parseAuthSessionMode(raw: string | undefined): AuthSessionMode {
   const value = (raw ?? "cookies").trim().toLowerCase();
@@ -15,6 +22,11 @@ function parseAuthSessionMode(raw: string | undefined): AuthSessionMode {
 
 export const authSessionMode: AuthSessionMode = parseAuthSessionMode(
   import.meta.env.VITE_AUTH_SESSION_MODE as string | undefined,
+);
+
+assertProductionAuthSessionMode(
+  authSessionMode,
+  Boolean(import.meta.env.PROD),
 );
 
 /** Enviar cookies en peticiones tenant (dual | cookies). */

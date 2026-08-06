@@ -117,7 +117,9 @@ function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
     url.includes("/auth/mfa/verify") ||
     url.includes("/onboarding/") ||
     url.includes("/platform/auth/login") ||
-    url.includes("/platform/auth/refresh")
+    url.includes("/platform/auth/refresh") ||
+    url.includes("/platform/auth/logout") ||
+    url.includes("/platform/auth/mfa/verify")
   );
 }
 
@@ -188,6 +190,11 @@ export function setupAuthInterceptor(
       const scope = resolveAuthScope(requestConfig);
       const storage = getTokenStorage(scope);
       const token = storage.getToken();
+
+      // Never send tenant cookies on platform API calls (identity isolation).
+      if (scope === "platform") {
+        requestConfig.withCredentials = false;
+      }
 
       const attachBearer =
         scope === "platform"
