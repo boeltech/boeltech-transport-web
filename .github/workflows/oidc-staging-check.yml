@@ -1,0 +1,29 @@
+# Temporary OIDC smoke for Fase 3 — delete after green run(s).
+name: OIDC Staging Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  assume-role:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: us-east-1
+
+      - name: Verify assumed role
+        run: |
+          set -euo pipefail
+          IDENTITY="$(aws sts get-caller-identity --output json)"
+          echo "$IDENTITY"
+          ARN="$(echo "$IDENTITY" | jq -r '.Arn')"
+          echo "Assumed Arn: $ARN"
+          echo "$ARN" | grep -q 'assumed-role/github-actions-staging/'
