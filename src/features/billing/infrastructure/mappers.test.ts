@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapBillingArrears,
   mapBillingEntitlements,
   mapBillingSubscription,
   mapBillingUsage,
@@ -100,5 +101,36 @@ describe("billing mappers", () => {
     expect(entitlements.directEntitlements[0]?.priceLockedCents).toBe(5900);
     expect(entitlements.commercialSummary.estimatedTotalCents).toBe(93728);
     expect(entitlements.catalog[0]?.maturity).toBe("beta");
+  });
+
+  it("mapBillingArrears maps open July charge (S2) snake_case payload", () => {
+    const arrears = mapBillingArrears({
+      currency: "MXN",
+      open_count: 1,
+      total_open_cents: 215424,
+      oldest_due_date: "2026-08-15T05:59:59.999Z",
+      max_days_overdue: 0,
+      invoices: [
+        {
+          id: "inv-july",
+          period_key: "2026-07",
+          status: "open",
+          total_cents: 215424,
+          amount_due_cents: 215424,
+          due_date: "2026-08-15T05:59:59.999Z",
+          days_overdue: 0,
+          issued_at: "2026-08-01T16:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(arrears.openCount).toBe(1);
+    expect(arrears.totalOpenCents).toBe(215424);
+    expect(arrears.oldestDueDate).toBe("2026-08-15T05:59:59.999Z");
+    expect(arrears.maxDaysOverdue).toBe(0);
+    expect(arrears.invoices[0]?.periodKey).toBe("2026-07");
+    expect(arrears.invoices[0]?.amountDueCents).toBe(215424);
+    expect(arrears.invoices[0]?.daysOverdue).toBe(0);
+    expect(arrears.invoices[0]?.dueDate).toBe("2026-08-15T05:59:59.999Z");
   });
 });

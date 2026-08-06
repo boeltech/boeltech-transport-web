@@ -13,7 +13,6 @@ import { formatDate } from "@shared/utils/dateUtils";
 import type { BillingSubscription } from "../../domain/entities";
 import { billingCopy } from "../copy/billingCopy";
 import {
-  formatBillingPeriodRange,
   formatHistoryMonths,
   formatLimitValue,
   getSubscriptionStatusLabel,
@@ -73,14 +72,6 @@ export function BillingPlanCard({
               label={copy.fields.historyRetention}
               value={formatHistoryMonths(subscription.limits.historyMonths)}
             />
-            <InfoRow
-              variant="inline"
-              label={copy.fields.period}
-              value={formatBillingPeriodRange(
-                subscription.currentPeriodStart,
-                subscription.currentPeriodEnd,
-              )}
-            />
             {subscription.trialEndsAt ? (
               <InfoRow
                 variant="inline"
@@ -89,13 +80,13 @@ export function BillingPlanCard({
                 alert={trialEnded ? "warning" : undefined}
               />
             ) : null}
-            {subscription.status === "trialing" && !trialEnded && includedStamps
-              ? (
-                <p className="text-xs text-muted-foreground">
-                  {copy.trialQuotaHint(includedStamps)}
-                </p>
-              )
-              : null}
+            {subscription.status === "trialing" &&
+            !trialEnded &&
+            includedStamps ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.trialQuotaHint(includedStamps)}
+              </p>
+            ) : null}
             {subscription.status === "trialing" && trialEnded ? (
               <p className="text-xs text-muted-foreground">
                 {copy.trialEndedHint}

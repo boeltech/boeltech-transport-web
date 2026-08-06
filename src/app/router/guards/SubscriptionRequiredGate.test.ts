@@ -1,26 +1,9 @@
 import { describe, expect, it } from "vitest";
-
-/** Mirrors gate allowlist + operational statuses (unit without React Query). */
-const OPERATIONAL_STATUSES = new Set(["trialing", "active", "past_due"]);
-
-const ALLOWED_PATH_PREFIXES = [
-  "/settings/subscription",
-  "/account",
-  "/profile",
-  "/onboarding",
-] as const;
-
-function isAllowedWithoutOperationalSubscription(pathname: string): boolean {
-  return ALLOWED_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
-function isOperationalSubscriptionStatus(
-  status: string | null | undefined,
-): boolean {
-  return status != null && OPERATIONAL_STATUSES.has(status);
-}
+import {
+  isAllowedWithoutOperationalSubscription,
+  isOperationalSubscriptionStatus,
+  shouldRedirectToSubscriptionPaywall,
+} from "./SubscriptionRequiredGate";
 
 describe("SubscriptionRequiredGate rules", () => {
   it("allows billing and account paths without operational sub", () => {
@@ -40,5 +23,64 @@ describe("SubscriptionRequiredGate rules", () => {
     expect(isOperationalSubscriptionStatus("active")).toBe(true);
     expect(isOperationalSubscriptionStatus("canceled")).toBe(false);
     expect(isOperationalSubscriptionStatus(undefined)).toBe(false);
+  });
+
+  it("does not paywall portal roles client and driver", () => {
+    for (const role of ["client", "driver"] as const) {
+      expect(
+        shouldRedirectToSubscriptionPaywall({
+          role,
+          pathname: "/dashboard",
+          isLoading: false,
+          isError: false,
+          status: undefined,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it("does not paywall staff when billing query errors (403 ≠ no plan)", () => {
+    expect(
+      shouldRedirectToSubscriptionPaywall({
+        role: "manager",
+        pathname: "/dashboard",
+        isLoading: false,
+        isError: true,
+        status: undefined,
+      }),
+    ).toBe(false);
+  });
+
+  it("paywalls staff with non-operational status", () => {
+    expect(
+      shouldRedirectToSubscriptionPaywall({
+        role: "admin",
+        pathname: "/dashboard",
+        isLoading: false,
+        isError: false,
+        status: "canceled",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRedirectToSubscriptionPaywall({
+        role: "accountant",
+        pathname: "/trips",
+        isLoading: false,
+        isError: false,
+        status: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows staff with operational status", () => {
+    expect(
+      shouldRedirectToSubscriptionPaywall({
+        role: "admin",
+        pathname: "/dashboard",
+        isLoading: false,
+        isError: false,
+        status: "active",
+      }),
+    ).toBe(false);
   });
 });

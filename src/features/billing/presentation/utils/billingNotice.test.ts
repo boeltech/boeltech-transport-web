@@ -11,6 +11,7 @@ const base = {
   stampsUsed: 10,
   usagePercent: 8,
   branchesOverQuota: false,
+  hasOpenArrears: false,
   now: NOW,
 };
 
@@ -21,6 +22,16 @@ describe("resolveBillingNotice", () => {
     ).toBeNull();
   });
 
+  it("no inventa no_plan cuando la query falló (p. ej. 403)", () => {
+    expect(
+      resolveBillingNotice({
+        ...base,
+        isSubscriptionResolved: false,
+        status: null,
+      }),
+    ).toBeNull();
+  });
+
   it("sin plan gana sobre cualquier otra condición", () => {
     expect(
       resolveBillingNotice({
@@ -28,14 +39,55 @@ describe("resolveBillingNotice", () => {
         status: null,
         usagePercent: 100,
         branchesOverQuota: true,
+        hasOpenArrears: true,
       }),
     ).toBe("no_plan");
   });
 
   it.each(["paused", "canceled"])("plan %s se reporta como bloqueado", (status) => {
     expect(
-      resolveBillingNotice({ ...base, status, usagePercent: 100 }),
+      resolveBillingNotice({
+        ...base,
+        status,
+        usagePercent: 100,
+        hasOpenArrears: true,
+      }),
     ).toBe("blocked");
+  });
+
+  it("arrears no emite notice: la card es la superficie (D3)", () => {
+    expect(
+      resolveBillingNotice({
+        ...base,
+        status: "active",
+        hasOpenArrears: true,
+        usagePercent: 100,
+      }),
+    ).toBe("stamps_exhausted");
+  });
+
+  it("con saldo open no emite past_due (la card cubre el cobro)", () => {
+    expect(
+      resolveBillingNotice({
+        ...base,
+        status: "past_due",
+        hasOpenArrears: true,
+        usagePercent: 8,
+        branchesOverQuota: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("past_due gana sin open arrears sobre umbrales de timbres y sobrecupo", () => {
+    expect(
+      resolveBillingNotice({
+        ...base,
+        status: "past_due",
+        hasOpenArrears: false,
+        usagePercent: 100,
+        branchesOverQuota: true,
+      }),
+    ).toBe("past_due");
   });
 
   it("prueba agotada gana sobre prueba vencida", () => {

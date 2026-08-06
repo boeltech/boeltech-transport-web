@@ -28,6 +28,7 @@ import {
 import { cn } from "@shared/lib/utils/cn";
 import type { BillingUsage } from "../../domain/entities";
 import { billingCopy } from "../copy/billingCopy";
+import { filterClosedBillingPeriods } from "../utils/billingGrace";
 import {
   formatBillingPeriodKey,
   formatBillingPriceCents,
@@ -60,6 +61,12 @@ export function BillingStampsCard({
   const copy = billingCopy.stamps;
   const [historyOpen, setHistoryOpen] = useState(false);
   const tone = getStampUsageTone(usagePercent);
+  const closedHistory = usage
+    ? filterClosedBillingPeriods(usage.history, usage.periodKey)
+    : [];
+  const periodLabel = usage?.periodKey
+    ? formatBillingPeriodKey(usage.periodKey)
+    : null;
 
   return (
     <Card>
@@ -68,7 +75,17 @@ export function BillingStampsCard({
           <Stamp className="h-4 w-4" />
           {copy.title}
         </CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
+        <CardDescription>
+          {copy.description}
+          {periodLabel ? (
+            <>
+              {" "}
+              <span className="text-foreground/80">
+                {copy.periodLabel(periodLabel)}
+              </span>
+            </>
+          ) : null}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
@@ -119,81 +136,93 @@ export function BillingStampsCard({
               </AlertWithIcon>
             ) : null}
 
-            {usage.history.length > 0 ? (
-              <Collapsible
-                open={historyOpen}
-                onOpenChange={setHistoryOpen}
-                className="border-t pt-2"
-              >
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="px-0 hover:bg-transparent"
-                  >
-                    {historyOpen
-                      ? copy.history.hideLabel
-                      : copy.history.showLabel}
-                    <ChevronDown
-                      aria-hidden
-                      className={cn(
-                        "ml-1.5 h-4 w-4 transition-transform",
-                        historyOpen && "rotate-180",
-                      )}
-                    />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  <div className="hidden sm:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{copy.history.columns.period}</TableHead>
-                          <TableHead>{copy.history.columns.used}</TableHead>
-                          <TableHead>{copy.history.columns.overage}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {usage.history.map((item) => (
-                          <TableRow key={item.periodKey}>
-                            <TableCell>
-                              {formatBillingPeriodKey(item.periodKey)}
-                            </TableCell>
-                            <TableCell className="tabular-nums">
-                              {item.stampsUsed}
-                            </TableCell>
-                            <TableCell className="tabular-nums">
-                              {item.overageStamps > 0
-                                ? item.overageStamps
-                                : copy.history.none}
-                            </TableCell>
+            <Collapsible
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+              className="border-t pt-2"
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="px-0 hover:bg-transparent"
+                >
+                  {historyOpen
+                    ? copy.history.hideLabel
+                    : copy.history.showLabel}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      "ml-1.5 h-4 w-4 transition-transform",
+                      historyOpen && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                {closedHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {copy.history.empty}
+                  </p>
+                ) : (
+                  <>
+                    <div className="hidden sm:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>
+                              {copy.history.columns.period}
+                            </TableHead>
+                            <TableHead>
+                              {copy.history.columns.used}
+                            </TableHead>
+                            <TableHead>
+                              {copy.history.columns.overage}
+                            </TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <ul className="space-y-2 sm:hidden">
-                    {usage.history.map((item) => (
-                      <li
-                        key={item.periodKey}
-                        className="rounded-md border px-3 py-2 text-sm"
-                      >
-                        <p className="font-medium">
-                          {formatBillingPeriodKey(item.periodKey)}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {copy.history.mobileUsed(item.stampsUsed)}
-                          {item.overageStamps > 0
-                            ? ` · ${copy.history.mobileOverage(item.overageStamps)}`
-                            : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleContent>
-              </Collapsible>
-            ) : null}
+                        </TableHeader>
+                        <TableBody>
+                          {closedHistory.map((item) => (
+                            <TableRow key={item.periodKey}>
+                              <TableCell>
+                                {formatBillingPeriodKey(item.periodKey)}
+                              </TableCell>
+                              <TableCell className="tabular-nums">
+                                {item.stampsUsed}
+                              </TableCell>
+                              <TableCell className="tabular-nums">
+                                {item.overageStamps > 0
+                                  ? item.overageStamps
+                                  : copy.history.none}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <ul className="space-y-2 sm:hidden">
+                      {closedHistory.map((item) => (
+                        <li
+                          key={item.periodKey}
+                          className="rounded-md border px-3 py-2 text-sm"
+                        >
+                          <p className="font-medium">
+                            {formatBillingPeriodKey(item.periodKey)}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {copy.history.mobileUsed(item.stampsUsed)}
+                            {item.overageStamps > 0
+                              ? ` · ${copy.history.mobileOverage(item.overageStamps)}`
+                              : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </>
         ) : (
           <EmptyState

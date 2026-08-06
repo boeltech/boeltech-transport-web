@@ -15,7 +15,6 @@ import { billingCopy } from "../copy/billingCopy";
 import {
   formatBillingPriceCents,
   formatModuleActivatedAt,
-  formatProfitabilityLevelBadge,
   getProfitabilityLevelDetail,
 } from "../utils/billingFormatters";
 
@@ -57,20 +56,10 @@ export function BillingModulesCard({
             <p className="text-xs font-medium text-muted-foreground">
               {copy.level.label}
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold">{levelDetail.label}</p>
-              <Badge variant="neutral" tone="soft">
-                {formatProfitabilityLevelBadge(level)}
-              </Badge>
-            </div>
+            <p className="text-sm font-semibold">{levelDetail.label}</p>
             {levelDetail.includes ? (
               <p className="text-sm text-muted-foreground">
                 {levelDetail.includes}
-              </p>
-            ) : null}
-            {levelDetail.pending ? (
-              <p className="text-xs text-muted-foreground">
-                {levelDetail.pending}
               </p>
             ) : null}
             {hasPermission("invoices", "read") ? (

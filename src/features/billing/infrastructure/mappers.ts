@@ -1,4 +1,5 @@
 import type {
+  BillingArrears,
   BillingEntitlements,
   BillingSubscription,
   BillingUsage,
@@ -83,6 +84,26 @@ export interface ApiBillingEntitlements {
   };
 }
 
+export interface ApiBillingArrearsInvoice {
+  id: string;
+  period_key: string;
+  status: string;
+  total_cents: number;
+  amount_due_cents: number;
+  due_date: string | null;
+  days_overdue: number;
+  issued_at: string | null;
+}
+
+export interface ApiBillingArrears {
+  currency: "MXN";
+  open_count: number;
+  total_open_cents: number;
+  oldest_due_date: string | null;
+  max_days_overdue: number;
+  invoices: ApiBillingArrearsInvoice[];
+}
+
 export const mapBillingSubscription = (
   raw: ApiBillingSubscription,
 ): BillingSubscription => ({
@@ -163,4 +184,22 @@ export const mapBillingEntitlements = (
     periodKey: raw.commercial_summary.period_key,
     billingCycle: raw.commercial_summary.billing_cycle,
   },
+});
+
+export const mapBillingArrears = (raw: ApiBillingArrears): BillingArrears => ({
+  currency: raw.currency,
+  openCount: raw.open_count,
+  totalOpenCents: raw.total_open_cents,
+  oldestDueDate: raw.oldest_due_date,
+  maxDaysOverdue: raw.max_days_overdue,
+  invoices: raw.invoices.map((invoice) => ({
+    id: invoice.id,
+    periodKey: invoice.period_key,
+    status: invoice.status,
+    totalCents: invoice.total_cents,
+    amountDueCents: invoice.amount_due_cents,
+    dueDate: invoice.due_date,
+    daysOverdue: invoice.days_overdue,
+    issuedAt: invoice.issued_at,
+  })),
 });

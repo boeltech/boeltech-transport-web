@@ -5,9 +5,15 @@
  * condiciones que no ganan quedan como texto secundario en su bloque, nunca
  * como una alerta adicional.
  *
+ * Prioridad (producto PD2/PD5 · ADR-0072 · Capa 1 D3):
+ * no_plan → blocked → past_due (sin saldo open) → trial_exhausted →
+ * trial_ended → stamps_exhausted → stamps_low → branches_over_quota
+ *
+ * El saldo open (`hasOpenArrears`) se muestra en `BillingArrearsCard`, no como
+ * aviso duplicado. Con saldo open, `past_due` también se omite (la card cubre).
+ *
  * El fin de prueba se resuelve por `status` cuando el API lo expresa; si sigue
- * en `trialing` la fecha solo puede compararse contra el reloj del navegador,
- * así que el aviso es informativo y no afirma que el timbrado esté bloqueado.
+ * en `trialing` la fecha solo puede compararse contra el reloj del navegador.
  */
 
 import {
@@ -18,6 +24,8 @@ import {
 export type BillingNoticeId =
   | "no_plan"
   | "blocked"
+  | "arrears"
+  | "past_due"
   | "trial_exhausted"
   | "trial_ended"
   | "stamps_exhausted"
@@ -33,6 +41,8 @@ export interface BillingNoticeInput {
   stampsUsed?: number | null;
   usagePercent: number;
   branchesOverQuota: boolean;
+  /** `total_open_cents > 0` desde GET /billing/arrears — card, no notice. */
+  hasOpenArrears?: boolean;
   /** Referencia temporal inyectable (tests y comparación de fin de prueba). */
   now?: number;
 }
@@ -47,6 +57,10 @@ export function resolveBillingNotice(
   const { status } = input;
   if (!status) return "no_plan";
   if (BLOCKED_STATUSES.has(status)) return "blocked";
+
+  // D3: saldo open → BillingArrearsCard; no emitir notice `arrears`.
+  // Tampoco past_due si ya hay card de saldo (evita doble mensaje de cobro).
+  if (status === "past_due" && !input.hasOpenArrears) return "past_due";
 
   const isTrialing = status === "trialing";
   const includedStamps = input.includedStamps ?? null;

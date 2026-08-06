@@ -10,15 +10,34 @@ interface BillingStatusNoticeProps {
   includedStamps: number;
   stampsRemaining: number;
   trialEndsAtLabel: string;
+  graceDeadlineLabel: string;
   quotaPolicy: string;
   branchesMeta?: BranchListMeta;
 }
 
+function ContactMailtoLink({ label }: { label: string }) {
+  return (
+    <p className="mt-2">
+      <a
+        className="font-medium underline underline-offset-4"
+        href={`mailto:${billingCopy.contact.email}`}
+      >
+        {label}
+      </a>
+    </p>
+  );
+}
+
+/**
+ * Avisos críticos (bloqueo, prueba, timbres, past_due sin saldo open).
+ * Saldo open → `BillingArrearsCard` (D3/D8).
+ */
 export function BillingStatusNotice({
   notice,
   includedStamps,
   stampsRemaining,
   trialEndsAtLabel,
+  graceDeadlineLabel,
   quotaPolicy,
   branchesMeta,
 }: BillingStatusNoticeProps) {
@@ -35,14 +54,22 @@ export function BillingStatusNotice({
     return (
       <AlertWithIcon variant="destructive" title={content.title}>
         <p>{content.description}</p>
-        <p className="mt-2">
-          <a
-            className="font-medium underline underline-offset-4"
-            href={`mailto:${billingCopy.contact.email}`}
-          >
-            {copy.contactCta}
-          </a>
-        </p>
+        <ContactMailtoLink label={copy.contactCta} />
+      </AlertWithIcon>
+    );
+  }
+
+  // D3: `arrears` ya no se emite desde resolveBillingNotice; guard residual.
+  if (notice === "arrears") {
+    return null;
+  }
+
+  if (notice === "past_due") {
+    return (
+      <AlertWithIcon variant="warning" title={copy.pastDue.title}>
+        <p>{copy.pastDue.description(graceDeadlineLabel)}</p>
+        <p className="mt-2 text-sm">{copy.pastDue.softCapNote}</p>
+        <ContactMailtoLink label={copy.contactCta} />
       </AlertWithIcon>
     );
   }
@@ -50,15 +77,17 @@ export function BillingStatusNotice({
   if (notice === "trial_exhausted") {
     return (
       <AlertWithIcon variant="destructive" title={copy.trialExhausted.title}>
-        {copy.trialExhausted.description(includedStamps)}
+        <p>{copy.trialExhausted.description(includedStamps)}</p>
+        <ContactMailtoLink label={copy.contactCta} />
       </AlertWithIcon>
     );
   }
 
   if (notice === "trial_ended") {
     return (
-      <AlertWithIcon variant="info" title={copy.trialEnded.title}>
-        {copy.trialEnded.description(trialEndsAtLabel)}
+      <AlertWithIcon variant="warning" title={copy.trialEnded.title}>
+        <p>{copy.trialEnded.description(trialEndsAtLabel)}</p>
+        <ContactMailtoLink label={copy.contactCta} />
       </AlertWithIcon>
     );
   }

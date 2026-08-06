@@ -61,19 +61,21 @@ describe("BillingModulesCard", () => {
     mockHasPermission.mockReturnValue(true);
   });
 
-  it("muestra la etiqueta del nivel, el código y qué incluye el cálculo", () => {
+  it("muestra la etiqueta humana del nivel sin código Lx", () => {
     renderCard();
 
     expect(
       screen.getByText(PROFITABILITY_LEVEL_COPY["L0.5"].label),
     ).toBeInTheDocument();
-    expect(screen.getByText("Nivel L0.5")).toBeInTheDocument();
+    expect(screen.queryByText("Nivel L0.5")).not.toBeInTheDocument();
+    expect(screen.queryByText("L0.5")).not.toBeInTheDocument();
     expect(
       screen.getByText(PROFITABILITY_LEVEL_COPY["L0.5"].includes),
     ).toBeInTheDocument();
+    // D7: sin "qué falta" en esta superficie (detalle en Finance)
     expect(
-      screen.getByText(PROFITABILITY_LEVEL_COPY["L0.5"].pending as string),
-    ).toBeInTheDocument();
+      screen.queryByText(PROFITABILITY_LEVEL_COPY["L0.5"].pending as string),
+    ).not.toBeInTheDocument();
   });
 
   it("no muestra qué falta por cubrir desde L3", () => {
@@ -113,7 +115,7 @@ describe("BillingModulesCard", () => {
     renderCard({ profitabilityLevel: "L9" });
 
     expect(screen.getByText("L9")).toBeInTheDocument();
-    expect(screen.getByText("Nivel L9")).toBeInTheDocument();
+    expect(screen.queryByText("Nivel L9")).not.toBeInTheDocument();
   });
 
   it("muestra un solo badge por módulo y el precio mensual", () => {

@@ -104,6 +104,46 @@ export function isValidRole(role: string): role is UserRole {
 }
 
 /**
+ * Portal roles (`client` / `driver`) are outside the SaaS subscription paywall
+ * (ADR-0064): they must not hit billing soft-gate queries or “no plan” UX when
+ * the API returns 403 for missing `billing.read`.
+ */
+export function isSubscriptionPaywallExemptRole(
+  role: UserRole | null | undefined,
+): boolean {
+  return role === ROLES.CLIENT || role === ROLES.DRIVER;
+}
+
+/**
+ * UX de consulta del rol `client` (portal): envíos + facturas propias.
+ * No incluye `driver` (necesita captura de estado / tracking).
+ */
+export function isClientPortalRole(
+  role: UserRole | null | undefined,
+): boolean {
+  return role === ROLES.CLIENT;
+}
+
+/**
+ * UX operativa del rol `driver` (portal): sus viajes + seguimiento.
+ * Distinto de `isClientPortalRole` y de paywall-exempt.
+ */
+export function isDriverPortalRole(
+  role: UserRole | null | undefined,
+): boolean {
+  return role === ROLES.DRIVER;
+}
+
+/**
+ * Portal tenant (client | driver): lean chrome, sin alertas de flota/ops staff.
+ */
+export function isTenantPortalRole(
+  role: UserRole | null | undefined,
+): boolean {
+  return isClientPortalRole(role) || isDriverPortalRole(role);
+}
+
+/**
  * Get role label in Spanish
  */
 export function getRoleLabel(role: UserRole): string {

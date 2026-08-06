@@ -1,9 +1,9 @@
 export const billingCopy = {
   page: {
-    sectionTitle: "Plan y consumo",
-    title: "Plan y consumo",
+    sectionTitle: "Tu plan",
+    title: "Tu plan",
     description:
-      "Qué incluye tu plan, cuántas facturas puedes emitir este mes y cuánto se estima que pagarás.",
+      "Tu cupo para facturar, lo que incluye tu plan y si hay algo por pagar.",
   },
   /** Aviso único de la parte superior: se muestra solo el primero que aplique. */
   notices: {
@@ -12,22 +12,54 @@ export const billingCopy = {
       description:
         "Sin un plan activo no puedes crear viajes ni facturar. Escríbenos para activarlo; entretanto puedes entrar y consultar esta página.",
     },
-    blocked: {
-      title: "Tu plan está pausado",
+    accessDenied: {
+      title: "No puedes ver tu plan",
       description:
-        "Mientras esté pausado no puedes crear viajes ni facturar. Escríbenos para reactivarlo.",
+        "Tu usuario no tiene permiso para consultar el plan de la empresa. Si necesitas ese acceso, pide ayuda a un administrador.",
+    },
+    blocked: {
+      title: "Tu plan está pausado o cancelado",
+      description:
+        "Mientras esté en este estado no puedes crear viajes ni facturar. Escríbenos para reactivarlo.",
+    },
+    /** @deprecated Surfacer de saldo = BillingArrearsCard (D3); copy retenido por compat de tests históricos. */
+    arrears: {
+      title: "Saldo pendiente",
+      description: (args: {
+        totalLabel: string;
+        periodsLabel: string;
+        dueOrOverdueLabel: string;
+      }) =>
+        `Tienes un saldo de ${args.totalLabel} por mes(es) ${args.periodsLabel}. ${args.dueOrOverdueLabel} Puedes seguir operando y facturando con normalidad; contacta a Boeltech para regularizar.`,
+      dueOn: (dateLabel: string) =>
+        dateLabel
+          ? `Vence el ${dateLabel}.`
+          : "Consulta la fecha de vencimiento abajo.",
+      overdueBy: (days: number) =>
+        days === 1
+          ? "Venció hace 1 día."
+          : `Venció hace ${days} días.`,
+    },
+    pastDue: {
+      title: "Pago pendiente",
+      description: (deadlineLabel: string) =>
+        deadlineLabel
+          ? `Puedes seguir operando y facturando con normalidad. Regulariza el pago con Boeltech antes del ${deadlineLabel}.`
+          : "Puedes seguir operando y facturando con normalidad. Contacta a Boeltech para regularizar el pago.",
+      softCapNote:
+        "Si agotas los timbres del plan, puedes seguir emitiendo; el excedente se suma al estimado del mes.",
     },
     trialExhausted: {
       title: "Se acabaron los timbres de tu prueba",
       description: (included: number) =>
         included === 1
-          ? "Usaste el único timbre de la prueba. Para seguir facturando hay que activar tu plan."
-          : `Usaste los ${included} timbres de la prueba. Para seguir facturando hay que activar tu plan.`,
+          ? "Usaste el único timbre de la prueba. Ya no puedes facturar hasta activar tu plan."
+          : `Usaste los ${included} timbres de la prueba. Ya no puedes facturar hasta activar tu plan.`,
     },
     trialEnded: {
       title: "Tu prueba llegó a su fecha de fin",
       description: (date: string) =>
-        `La fecha de fin registrada es ${date}. Si ya no puedes facturar, escríbenos para activar tu plan.`,
+        `La fecha de fin registrada es ${date}. El timbrado puede quedar bloqueado; escríbenos para activar tu plan y evitar perder el acceso operativo.`,
     },
     stampsExhausted: {
       title: "Se acabaron los timbres del mes",
@@ -45,8 +77,9 @@ export const billingCopy = {
     contactCta: "Escribir a Boeltech",
   },
   stamps: {
-    title: "Timbres para facturar",
+    title: "Facturación del mes",
     description: "Cada factura o complemento de pago que emites usa un timbre.",
+    periodLabel: (period: string) => `Mes en curso: ${period}`,
     loading: "Cargando consumo…",
     unavailable: "No pudimos mostrar tu consumo de timbres.",
     summary: (used: number, included: number) =>
@@ -65,7 +98,7 @@ export const billingCopy = {
       soft_cap:
         "Si se acaban, puedes seguir facturando y se cobra cada timbre extra.",
       hard_cap:
-        "Si se acaban, la facturación se detiene hasta el siguiente periodo.",
+        "Si se acaban, la facturación se detiene hasta el siguiente mes.",
     } as Record<string, string>,
     overageTitle: "Timbres extra usados",
     overage: (stamps: number, amount: string) =>
@@ -81,6 +114,7 @@ export const billingCopy = {
         overage: "Extra",
       },
       none: "Sin extra",
+      empty: "Aún no hay meses cerrados con consumo.",
       mobileUsed: (used: number) =>
         used === 1 ? "1 timbre usado" : `${used} timbres usados`,
       mobileOverage: (count: number) =>
@@ -102,7 +136,6 @@ export const billingCopy = {
       users: "Usuarios incluidos",
       branches: "Sucursales incluidas",
       historyRetention: "Historial disponible",
-      period: "Periodo en curso",
       trial: "Fin de la prueba",
       notes: "Notas de tu acuerdo",
     },
@@ -121,37 +154,67 @@ export const billingCopy = {
       included === 1
         ? "Durante la prueba tienes 1 timbre; al activar tu plan se restaura el paquete completo."
         : `Durante la prueba tienes ${included} timbres; al activar tu plan se restaura el paquete completo.`,
-    trialEndedHint: "La fecha de fin de prueba ya pasó.",
+    trialEndedHint:
+      "La fecha de fin de prueba ya pasó. Activa tu plan para seguir facturando.",
     unlimited: "Sin límite",
     historyMonths: (months: number) =>
       months === 1 ? "1 mes" : `${months} meses`,
     periodRange: (start: string, end: string) => `${start} — ${end}`,
   },
   costs: {
-    title: "Cuánto pagarás este mes",
-    description: "Estimación del periodo en curso.",
-    loading: "Cargando el desglose…",
-    unavailable: "No pudimos mostrar el desglose de tu mes.",
-    totalLabel: "Estimado a pagar este mes",
-    totalHint: "IVA incluido",
+    title: "Este mes",
+    description: "Estimación del mes en curso.",
+    periodLabel: (period: string) => `Mes en curso: ${period}`,
+    loading: "Cargando el estimado…",
+    unavailable: "No pudimos mostrar el estimado de tu mes.",
+    totalLabel: "Estimado a pagar",
+    totalHint: "Incluye impuestos",
     cycleHint: (cycle: string) => `Se cobra ${cycle}`,
     rows: {
       plan: "Precio del plan",
       modules: "Módulos adicionales",
       overage: "Timbres extra",
       subtotal: "Subtotal",
-      iva: "IVA (16%)",
+      iva: "Impuestos",
+    },
+    breakdownToggle: {
+      show: "Ver desglose",
+      hide: "Ocultar desglose",
     },
     disclaimer:
-      "Es una estimación. Boeltech te enviará la factura del periodo.",
+      "Es una estimación. Boeltech te envía la factura del mes por correo.",
+  },
+  arrears: {
+    title: "Saldo pendiente",
+    description:
+      "Todavía debes cobros de meses anteriores. Puedes seguir operando; escríbenos para regularizar el pago.",
+    loading: "Cargando saldo…",
+    openCount: (count: number) =>
+      count === 1 ? "1 cobro pendiente" : `${count} cobros pendientes`,
+    totalLabel: "Total por pagar",
+    columns: {
+      period: "Mes",
+      amount: "Monto",
+      dueDate: "Vencimiento",
+      daysOverdue: "Atraso",
+    },
+    /** Estado de un cobro open que aún no vence (nunca «Al corriente»). */
+    pendingPayment: "Por pagar",
+    daysOverdue: (days: number) =>
+      days === 1 ? "1 día de atraso" : `${days} días de atraso`,
+    dueOn: (dateLabel: string) => `Vence el ${dateLabel}`,
+    overdueOn: (dateLabel: string) => `Venció el ${dateLabel}`,
+    footer:
+      "Para registrar el pago o aclarar un cobro, escríbenos. El estimado del mes actual está más abajo, en Este mes.",
+    contactCta: "Escribir a Boeltech",
   },
   modules: {
-    title: "Módulos adicionales",
+    title: "Extras contratados",
     description:
-      "Los módulos de operación vienen en tu plan. Aquí ves lo que contrataste además.",
-    loading: "Cargando módulos…",
+      "Lo que contrataste además de los módulos de operación de tu plan.",
+    loading: "Cargando extras…",
     empty: {
-      title: "Sin módulos adicionales",
+      title: "Sin extras contratados",
       description: (planName: string) =>
         planName
           ? `Tu plan ${planName} incluye los módulos de operación. Aquí aparecerán los que contrates después.`
@@ -164,7 +227,6 @@ export const billingCopy = {
     activatedAt: (date: string) => `Activo desde ${date}`,
     level: {
       label: "Análisis de rentabilidad",
-      badge: (code: string) => `Nivel ${code}`,
       profitabilityLink: "Ver rentabilidad de tus viajes",
     },
   },

@@ -3,6 +3,7 @@ export {
   useBillingSubscription,
   useBillingUsage,
   useBillingEntitlements,
+  useBillingArrears,
   useHasBillingModule,
   useInternalStaffEntitlement,
 } from "./application/hooks/useBilling";
@@ -12,4 +13,6 @@ export {
   type BillingSubscription,
   type BillingUsage,
   type BillingEntitlements,
+  type BillingArrears,
+  type BillingArrearsInvoice,
 } from "./domain/index";

@@ -3,14 +3,17 @@ import {
   type ApiSingleResponse,
 } from "@shared/api";
 import type {
+  BillingArrears,
   BillingEntitlements,
   BillingSubscription,
   BillingUsage,
 } from "../domain/entities";
 import {
+  mapBillingArrears,
   mapBillingEntitlements,
   mapBillingSubscription,
   mapBillingUsage,
+  type ApiBillingArrears,
   type ApiBillingEntitlements,
   type ApiBillingSubscription,
   type ApiBillingUsage,
@@ -41,5 +44,12 @@ export const billingApi = {
       `${BASE}/entitlements`,
     );
     return mapBillingEntitlements(response.data);
+  },
+
+  getArrears: async (): Promise<BillingArrears> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiBillingArrears>>(
+      `${BASE}/arrears`,
+    );
+    return mapBillingArrears(response.data);
   },
 };

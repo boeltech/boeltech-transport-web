@@ -92,11 +92,33 @@ export interface BillingEntitlements {
   commercialSummary: BillingCommercialSummary;
 }
 
+/** Cargo SaaS open del ledger AR (GET /billing/arrears). */
+export interface BillingArrearsInvoice {
+  id: string;
+  periodKey: string;
+  status: string;
+  totalCents: number;
+  amountDueCents: number;
+  dueDate: string | null;
+  daysOverdue: number;
+  issuedAt: string | null;
+}
+
+export interface BillingArrears {
+  currency: "MXN";
+  openCount: number;
+  totalOpenCents: number;
+  oldestDueDate: string | null;
+  maxDaysOverdue: number;
+  invoices: BillingArrearsInvoice[];
+}
+
 export const billingQueryKeys = {
   all: ["billing-saas"] as const,
   subscription: () => [...billingQueryKeys.all, "subscription"] as const,
   usage: () => [...billingQueryKeys.all, "usage"] as const,
   entitlements: () => [...billingQueryKeys.all, "entitlements"] as const,
+  arrears: () => [...billingQueryKeys.all, "arrears"] as const,
 };
 
 export const INTERNAL_STAFF_MODULE_CODE = "internal_staff_compensation";
