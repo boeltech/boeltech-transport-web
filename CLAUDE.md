@@ -17,6 +17,7 @@ npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbr
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
 npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
 npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
+npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
 npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
 npm run test:smoke:catalogs-tenant # smoke catálogos tenant: sin import SAT + CRUD internos
 npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + wizard Costos
@@ -110,6 +111,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Design system | `...\docs\design-system\` + `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
 | Wizards (alta) | `src/shared/ui/page-shells/README.md` · `...\docs\design-system\wizard-page-pattern.md` |
 | Mejoras UX/UI / copy | `.cursor/prompts/ux-ui-mejoras.md` |
+| Landing + login (look / motion / assets) | `.cursor/prompts/landing-visual-polish.md` |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |

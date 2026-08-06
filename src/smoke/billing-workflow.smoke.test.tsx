@@ -40,12 +40,14 @@ vi.mock("@features/billing", async (importOriginal) => {
 const mockGetSubscription = vi.fn();
 const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
+const mockGetArrears = vi.fn();
 
 vi.mock("@features/billing/infrastructure/billingApi", () => ({
   billingApi: {
     getSubscription: (...args: unknown[]) => mockGetSubscription(...args),
     getUsage: (...args: unknown[]) => mockGetUsage(...args),
     getEntitlements: (...args: unknown[]) => mockGetEntitlements(...args),
+    getArrears: (...args: unknown[]) => mockGetArrears(...args),
   },
 }));
 
@@ -228,6 +230,14 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     mockGetSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
     mockGetUsage.mockResolvedValue(MOCK_USAGE);
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS_WITHOUT);
+    mockGetArrears.mockResolvedValue({
+      currency: "MXN",
+      openCount: 0,
+      totalOpenCents: 0,
+      oldestDueDate: null,
+      maxDaysOverdue: 0,
+      invoices: [],
+    });
     mockUseInternalStaffEntitlement.mockReturnValue({
       hasModule: false,
       isFetched: true,

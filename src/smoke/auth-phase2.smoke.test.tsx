@@ -77,7 +77,7 @@ vi.mock("@shared/hooks/useToast", () => ({
   }),
 }));
 
-import { SecuritySettingsPage } from "@features/settings/presentation/pages/SecuritySettingsPage";
+import { UserSecuritySettings } from "@features/settings/presentation/pages/SecuritySettingsPage";
 import {
   persistsAuthTokens,
   usesAuthCookies,
@@ -191,7 +191,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
   });
 
   it("shows admin MFA recommendation, activate CTA, and sessions", async () => {
-    render(wrap(<SecuritySettingsPage />));
+    render(wrap(<UserSecuritySettings />));
 
     await waitFor(() => {
       expect(
@@ -205,7 +205,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
   });
 
   it("exposes activate MFA action when MFA is off", async () => {
-    render(wrap(<SecuritySettingsPage />));
+    render(wrap(<UserSecuritySettings />));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^activar$/i })).toBeEnabled();
@@ -216,7 +216,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
 
   it("shows TOTP QR after starting MFA setup", async () => {
     const user = userEvent.setup();
-    render(wrap(<SecuritySettingsPage />));
+    render(wrap(<UserSecuritySettings />));
 
     await user.click(await screen.findByRole("button", { name: /^activar$/i }));
 
@@ -236,7 +236,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
   it("revokes a non-current session", async () => {
     const user = userEvent.setup();
     mockRevokeSession.mockResolvedValue(undefined);
-    render(wrap(<SecuritySettingsPage />));
+    render(wrap(<UserSecuritySettings />));
 
     const closeButtons = await screen.findAllByRole("button", {
       name: /cerrar sesión/i,

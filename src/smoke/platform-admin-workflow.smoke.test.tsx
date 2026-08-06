@@ -37,7 +37,17 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
   platformApi: {
     login: vi.fn(),
     refresh: vi.fn(),
-    getProfile: vi.fn(),
+    logout: vi.fn().mockResolvedValue(undefined),
+    getProfile: vi.fn(async () => ({
+      id: "user-platform-smoke",
+      email: "platform@boeltech.com",
+      firstName: "Platform",
+      lastName: "Owner",
+      platformRole: "platform_owner",
+      scope: "platform",
+      mfaEnabled: true,
+      mfaEnabledAt: "2026-01-01T00:00:00.000Z",
+    })),
     getMetrics: (...args: unknown[]) => mockGetMetrics(...args),
     listPlans: (...args: unknown[]) => mockListPlans(...args),
     listTenants: (...args: unknown[]) => mockListTenants(...args),
@@ -64,6 +74,8 @@ const PLATFORM_USER: PlatformUserJSON = {
   lastName: "Owner",
   platformRole: "platform_owner",
   scope: "platform",
+  mfaEnabled: true,
+  mfaEnabledAt: "2026-01-01T00:00:00.000Z",
 };
 
 function createActiveTenant(): PlatformTenantDetail {
@@ -72,6 +84,7 @@ function createActiveTenant(): PlatformTenantDetail {
     name: "Transporte Demo",
     subdomain: "demo-transporte",
     status: "active",
+    subscriptionStatus: "active",
     planCode: "operacion_esencial",
     planName: "Operación Esencial",
     declaredFleetBand: null,
@@ -249,25 +262,35 @@ describe("smoke platform admin workflow", () => {
       await screen.findByRole("heading", { name: "Transporte Demo" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(platformCopy.tenants.commercial.title),
+      await screen.findByText(platformCopy.tenants.detail.sections.thisMonth),
     ).toBeInTheDocument();
-    expect(screen.getByText("Equipo de apoyo en viajes")).toBeInTheDocument();
     expect(screen.getAllByText(/\$937/).length).toBeGreaterThan(0);
-    expect(
+
+    await user.click(
       screen.getByRole("button", {
-        name: platformCopy.tenants.detail.actions.suspend,
+        name: platformCopy.tenants.detail.sections.breakdownShow,
       }),
+    );
+    expect(
+      await screen.findByText("Equipo de apoyo en viajes"),
     ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", {
+        name: platformCopy.tenants.detail.actions.moreActions,
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
         name: platformCopy.tenants.detail.actions.suspend,
       }),
     );
 
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(platformCopy.tenants.suspend.suspendTitle),
+      within(dialog).getByRole("heading", {
+        name: platformCopy.tenants.suspend.suspendTitle,
+      }),
     ).toBeInTheDocument();
 
     await user.click(
@@ -283,16 +306,21 @@ describe("smoke platform admin workflow", () => {
       });
     });
 
-    await waitFor(() => {
-      expect(
+    await waitFor(async () => {
+      await user.click(
         screen.getByRole("button", {
+          name: platformCopy.tenants.detail.actions.moreActions,
+        }),
+      );
+      expect(
+        screen.getByRole("menuitem", {
           name: platformCopy.tenants.detail.actions.reactivate,
         }),
       ).toBeInTheDocument();
     });
 
     expect(
-      screen.queryByRole("button", {
+      screen.queryByRole("menuitem", {
         name: platformCopy.tenants.detail.actions.suspend,
       }),
     ).not.toBeInTheDocument();
