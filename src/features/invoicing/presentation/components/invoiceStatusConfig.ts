@@ -2,6 +2,7 @@ import {
   CheckCircle2,
   Clock,
   FileEdit,
+  Loader2,
   XCircle,
 } from "lucide-react";
 import {
@@ -17,6 +18,11 @@ export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, StatusConfig> = {
     label: InvoiceStatusLabels.draft,
     icon: FileEdit,
     description: "Borrador sin timbrar",
+  }),
+  stamping: createStatusConfig("warning", {
+    label: InvoiceStatusLabels.stamping,
+    icon: Loader2,
+    description: "Timbrado en curso ante el PAC",
   }),
   stamped: createStatusConfig("success", {
     label: InvoiceStatusLabels.stamped,

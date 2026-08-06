@@ -158,8 +158,13 @@ export const invoicingCopy = {
       fiscalDossier: "Expediente fiscal",
       fiscalDossierHint:
         "Folio fiscal, sellado, régimen y datos SAT (útil para contabilidad)",
+      fiscalDossierClient: "Datos del comprobante",
+      fiscalDossierHintClient:
+        "Folio y datos del comprobante (para tu contabilidad)",
       linkedTrips: (count: number) =>
         count === 1 ? "Viaje vinculado" : `Viajes vinculados (${count})`,
+      linkedTripsClient: (count: number) =>
+        count === 1 ? "Envío vinculado" : `Envíos vinculados (${count})`,
       payments: (count: number) =>
         count === 1 ? "Pagos recibidos" : `Pagos recibidos (${count})`,
       notes: "Notas internas",

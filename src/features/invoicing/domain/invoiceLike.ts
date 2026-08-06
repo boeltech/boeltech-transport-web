@@ -11,6 +11,7 @@ function toSatCancellationStatus(
   value: string,
 ): SatCancellationStatus {
   if (
+    value === "requesting" ||
     value === "pending_receiver" ||
     value === "cancelled" ||
     value === "rejected"

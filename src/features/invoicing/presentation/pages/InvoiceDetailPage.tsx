@@ -6,7 +6,8 @@ import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
+import { usePermissions, useRole } from "@shared/permissions";
+import { isClientPortalRole } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
@@ -54,7 +55,11 @@ export function InvoiceDetailPage() {
   const location = useLocation();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const canExportFiles = hasPermission("invoices", "export");
+  const role = useRole();
+  const isClientPortal = isClientPortalRole(role);
+  const canExportFiles =
+    hasPermission("invoices", "export") ||
+    (isClientPortal && hasPermission("invoices", "read"));
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
     null,
@@ -204,7 +209,8 @@ export function InvoiceDetailPage() {
   const backHref = resolveInvoiceBackHref(fromState, invoice);
 
   const hasAlerts =
-    isActiveSubstitute || isStampedLike || showRepFiscalAlert;
+    !isClientPortal &&
+    (isActiveSubstitute || isStampedLike || showRepFiscalAlert);
   const alerts = hasAlerts ? (
     <div className="space-y-3">
       {showRepFiscalAlert && repFiscalWorstStatus ? (
@@ -266,6 +272,7 @@ export function InvoiceDetailPage() {
             receiverName={invoice.receiverName}
             receiverRfc={invoice.receiverRfc}
             issuerName={invoice.issuerName}
+            isClientPortal={isClientPortal}
           />
         ),
         actions: (
@@ -296,6 +303,7 @@ export function InvoiceDetailPage() {
         <InvoiceDetailContextStrip
           invoice={invoice}
           fromPath={location.pathname}
+          isClientPortal={isClientPortal}
         />
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
@@ -346,8 +354,11 @@ export function InvoiceDetailPage() {
         ) : null}
       </section>
 
-      {/* Banda 3 — Expediente fiscal */}
-      <InvoiceDetailFiscalDossier invoice={invoice} />
+      {/* Banda 3 — Expediente fiscal / datos del comprobante */}
+      <InvoiceDetailFiscalDossier
+        invoice={invoice}
+        isClientPortal={isClientPortal}
+      />
     </DetailPageShell>
   );
 }

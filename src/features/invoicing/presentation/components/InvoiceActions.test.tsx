@@ -6,11 +6,13 @@ import type { Invoice } from "@features/invoicing/domain";
 import { InvoiceActions } from "./InvoiceActions";
 
 const mockHasPermission = vi.fn();
+const mockUseRole = vi.fn(() => "accountant");
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: mockHasPermission,
   }),
+  useRole: () => mockUseRole(),
 }));
 
 vi.mock("@features/trips/presentation/components/trip-fiscal", () => ({
@@ -113,6 +115,7 @@ function renderActions(invoice: Invoice) {
 describe("InvoiceActions register payment visibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseRole.mockReturnValue("accountant");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "create" || action === "delete",
     );
@@ -158,6 +161,7 @@ describe("InvoiceActions register payment visibility", () => {
 describe("InvoiceActions RBAC execute/delete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseRole.mockReturnValue("manager");
   });
 
   it("manager with execute sees Cancelar and Sustituir but not Eliminar borrador", () => {
@@ -206,5 +210,39 @@ describe("InvoiceActions RBAC execute/delete", () => {
     expect(
       screen.getByRole("button", { name: /Eliminar borrador/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("InvoiceActions portal client export", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRole.mockReturnValue("client");
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) => action === "read",
+    );
+  });
+
+  it("client with invoices.read sees PDF/XML without invoices.export", () => {
+    renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
+
+    expect(
+      screen.getByRole("button", { name: /Descargar PDF/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Descargar XML/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("staff without export does not see PDF/XML", () => {
+    mockUseRole.mockReturnValue("dispatcher");
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) => action === "read",
+    );
+
+    renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
+
+    expect(
+      screen.queryByRole("button", { name: /Descargar PDF/i }),
+    ).not.toBeInTheDocument();
   });
 });

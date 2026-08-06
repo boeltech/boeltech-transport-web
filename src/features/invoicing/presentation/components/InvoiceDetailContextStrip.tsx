@@ -20,6 +20,8 @@ const detailCopy = invoicingCopy.detail;
 export interface InvoiceDetailContextStripProps {
   invoice: Invoice;
   fromPath: string;
+  /** Portal client: copy operativo (envíos) y sin hint de borrador staff. */
+  isClientPortal?: boolean;
 }
 
 /**
@@ -29,15 +31,20 @@ export interface InvoiceDetailContextStripProps {
 export function InvoiceDetailContextStrip({
   invoice,
   fromPath,
+  isClientPortal = false,
 }: InvoiceDetailContextStripProps) {
+  const linkedTitle = isClientPortal
+    ? detailCopy.section.linkedTripsClient(invoice.trips.length)
+    : detailCopy.section.linkedTrips(invoice.trips.length);
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Route className="h-4 w-4 text-muted-foreground" aria-hidden />
-          {detailCopy.section.linkedTrips(invoice.trips.length)}
+          {linkedTitle}
         </CardTitle>
-        {invoice.status === "draft" ? (
+        {!isClientPortal && invoice.status === "draft" ? (
           <CardDescription>{invoicingCopy.hint.tripEdit}</CardDescription>
         ) : null}
       </CardHeader>

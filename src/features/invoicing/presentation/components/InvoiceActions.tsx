@@ -34,7 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
-import { usePermissions } from "@shared/permissions";
+import { usePermissions, useRole } from "@shared/permissions";
+import { isClientPortalRole } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import {
@@ -193,6 +194,8 @@ export function InvoiceActions({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isClientPortal = isClientPortalRole(role);
 
   // ── Dialog states ─────────────────────────────────────────────────────────
 
@@ -240,7 +243,9 @@ export function InvoiceActions({
   const canUpdate = hasPermission("invoices", "update");
   const canDelete = hasPermission("invoices", "delete");
   const canExecute = hasPermission("invoices", "execute");
-  const canExport = hasPermission("invoices", "export");
+  const canExport =
+    hasPermission("invoices", "export") ||
+    (isClientPortal && hasPermission("invoices", "read"));
 
   const isDraft = invoiceStatus === "draft";
   const isStamped = invoiceStatus === "stamped";

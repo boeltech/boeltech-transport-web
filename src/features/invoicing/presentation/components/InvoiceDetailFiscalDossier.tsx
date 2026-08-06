@@ -16,21 +16,32 @@ const copy = invoicingCopy.detail;
 
 export interface InvoiceDetailFiscalDossierProps {
   invoice: Invoice;
+  /** Portal client: colapsado y copy sin jerga primaria. */
+  isClientPortal?: boolean;
 }
 
 /**
  * Banda 3 — Expediente fiscal.
  * Abierto en borrador; colapsado cuando ya está sellada / en cancelación.
+ * En portal client siempre inicia colapsado.
  */
 export function InvoiceDetailFiscalDossier({
   invoice,
+  isClientPortal = false,
 }: InvoiceDetailFiscalDossierProps) {
-  const defaultOpen = invoice.status === "draft";
+  const defaultOpen = isClientPortal ? false : invoice.status === "draft";
   const [open, setOpen] = useState(defaultOpen);
 
   const showCancellation =
     invoice.status === "cancelled" ||
     invoice.status === "cancellation_pending";
+
+  const title = isClientPortal
+    ? copy.section.fiscalDossierClient
+    : copy.section.fiscalDossier;
+  const hint = isClientPortal
+    ? copy.section.fiscalDossierHintClient
+    : copy.section.fiscalDossierHint;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -47,10 +58,10 @@ export function InvoiceDetailFiscalDossier({
                     className="h-4 w-4 text-muted-foreground"
                     aria-hidden
                   />
-                  {copy.section.fiscalDossier}
+                  {title}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {copy.section.fiscalDossierHint}
+                  {hint}
                 </p>
               </div>
               <ChevronDown

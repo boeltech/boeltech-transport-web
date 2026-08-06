@@ -12,12 +12,14 @@
 
 export type InvoiceStatus =
   | "draft"
+  | "stamping"
   | "stamped"
   | "cancellation_pending"
   | "cancelled";
 
 export const InvoiceStatusLabels: Record<InvoiceStatus, string> = {
   draft: "Borrador",
+  stamping: "Timbrando…",
   stamped: "Timbrada",
   cancellation_pending: "Cancelación pendiente",
   cancelled: "Cancelada",
