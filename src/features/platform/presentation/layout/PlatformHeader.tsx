@@ -70,7 +70,7 @@ export const PlatformHeader = memo(function PlatformHeader({
 
 interface PlatformUserMenuProps {
   user: ReturnType<typeof usePlatformAuth>["user"];
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
 }
 
 const PlatformUserMenu = memo(function PlatformUserMenu({

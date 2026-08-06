@@ -1,25 +1,38 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Building2, GitBranch, Route, Users } from "lucide-react";
+import { Building2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
 import { InfoRow } from "@shared/ui/data-display";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
+import { cn } from "@shared/lib/utils/cn";
 import {
   PlatformTenantStatus,
   isPlatformOwner,
 } from "../../domain/entities";
 import { usePlatformTenant } from "../../application/hooks/usePlatformTenants";
+import { usePlatformTenantSubscription } from "../../application/hooks/usePlatformBilling";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
-import { PlatformTenantStatusBadge } from "../config/platformTenantStatusConfig";
 import { SuspendTenantDialog } from "../components/SuspendTenantDialog";
-import { TenantStampUsageCard } from "../components/TenantStampUsageCard";
 import { TenantSubscriptionCard } from "../components/TenantSubscriptionCard";
-import { TenantCommercialSummaryCard } from "../components/TenantCommercialSummaryCard";
-import { TenantCommercialOverview } from "../components/TenantCommercialOverview";
+import { TenantThisMonthCard } from "../components/TenantThisMonthCard";
+import { TenantGovernanceControls } from "../components/TenantGovernanceControls";
 import { ManageSubscriptionSheet } from "../components/ManageSubscriptionSheet";
 import { TenantEntitlementsSheet } from "../components/TenantEntitlementsSheet";
 import { GrantStampPackSheet } from "../components/GrantStampPackSheet";
+import { TenantSaasArCard } from "../components/TenantSaasArCard";
 import { platformCopy } from "../copy/platformCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import type { PlatformTenantStatusType } from "../../domain/entities";
@@ -29,6 +42,8 @@ export function PlatformTenantDetailPage() {
   const { user } = usePlatformAuth();
   const canMutate = isPlatformOwner(user?.platformRole);
   const { data: tenant, isLoading, isError } = usePlatformTenant(id);
+  const { data: subscription } = usePlatformTenantSubscription(id);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [manageSubscriptionOpen, setManageSubscriptionOpen] = useState(false);
   const [entitlementsOpen, setEntitlementsOpen] = useState(false);
@@ -37,65 +52,78 @@ export function PlatformTenantDetailPage() {
   const [targetStatus, setTargetStatus] =
     useState<PlatformTenantStatusType | null>(null);
 
+  const isPastDue =
+    (subscription?.status ?? tenant?.subscriptionStatus) === "past_due";
+
   const actions = useMemo(() => {
     if (!tenant) return undefined;
+    const copy = platformCopy.tenants.detail.actions;
+
     return (
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" asChild>
-          <Link
-            to={`/platform/audit?targetTenantId=${encodeURIComponent(tenant.id)}`}
-          >
-            {platformCopy.audit.viewTenantAudit}
-          </Link>
-        </Button>
-        <Button variant="outline" onClick={() => setEntitlementsOpen(true)}>
-          {platformCopy.tenants.detail.actions.manageEntitlements}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
         {canMutate ? (
-          <>
-            <Button
-              variant="outline"
-              onClick={() => setManageSubscriptionOpen(true)}
-            >
-              {platformCopy.tenants.detail.actions.manageSubscription}
-            </Button>
-            <Button variant="outline" onClick={() => setStampPackOpen(true)}>
-              {platformCopy.tenants.detail.actions.grantStampPack}
-            </Button>
-            {tenant.status !== PlatformTenantStatus.SUSPENDED ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setTargetStatus(PlatformTenantStatus.SUSPENDED);
-                  setStatusDialogOpen(true);
-                }}
-              >
-                {platformCopy.tenants.detail.actions.suspend}
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setTargetStatus(PlatformTenantStatus.ACTIVE);
-                  setStatusDialogOpen(true);
-                }}
-              >
-                {platformCopy.tenants.detail.actions.reactivate}
-              </Button>
-            )}
-            {tenant.status !== PlatformTenantStatus.CANCELLED ? (
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  setTargetStatus(PlatformTenantStatus.CANCELLED);
-                  setStatusDialogOpen(true);
-                }}
-              >
-                {platformCopy.tenants.detail.actions.cancel}
-              </Button>
-            ) : null}
-          </>
+          <Button onClick={() => setManageSubscriptionOpen(true)}>
+            {copy.manageSubscription}
+          </Button>
         ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <MoreHorizontal className="mr-2 h-4 w-4" />
+              {copy.moreActions}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setEntitlementsOpen(true)}>
+              {copy.manageEntitlements}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                to={`/platform/audit?targetTenantId=${encodeURIComponent(tenant.id)}`}
+              >
+                {copy.viewHistory}
+              </Link>
+            </DropdownMenuItem>
+            {canMutate ? (
+              <>
+                <DropdownMenuItem onClick={() => setStampPackOpen(true)}>
+                  {copy.grantStampPack}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {tenant.status !== PlatformTenantStatus.SUSPENDED ? (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setTargetStatus(PlatformTenantStatus.SUSPENDED);
+                      setStatusDialogOpen(true);
+                    }}
+                  >
+                    {copy.suspend}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setTargetStatus(PlatformTenantStatus.ACTIVE);
+                      setStatusDialogOpen(true);
+                    }}
+                  >
+                    {copy.reactivate}
+                  </DropdownMenuItem>
+                )}
+                {tenant.status !== PlatformTenantStatus.CANCELLED ? (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => {
+                      setTargetStatus(PlatformTenantStatus.CANCELLED);
+                      setStatusDialogOpen(true);
+                    }}
+                  >
+                    {copy.cancel}
+                  </DropdownMenuItem>
+                ) : null}
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
   }, [tenant, canMutate]);
@@ -117,35 +145,74 @@ export function PlatformTenantDetailPage() {
           icon: <Building2 className="h-5 w-5" />,
           title: tenant?.name ?? platformCopy.tenants.detail.title,
           subtitle: tenant?.subdomain,
-          statusBadge: tenant ? (
-            <PlatformTenantStatusBadge status={tenant.status} />
-          ) : undefined,
           actions,
         }}
       >
         {tenant ? (
           <div className="space-y-6">
-            <TenantCommercialOverview
+            <TenantGovernanceControls
+              tenant={tenant}
+              canMutate={canMutate}
+              onManageSubscription={() => setManageSubscriptionOpen(true)}
+            />
+
+            <TenantThisMonthCard
               tenantId={tenant.id}
-              tenantName={tenant.name}
               planName={tenant.planName}
+              canExport
+              forceBreakdownOpen={isPastDue}
             />
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <TenantSubscriptionCard tenantId={tenant.id} />
-              <TenantStampUsageCard tenantId={tenant.id} canExport />
-            </div>
-
-            <TenantCommercialSummaryCard
+            <TenantSaasArCard
               tenantId={tenant.id}
-              onManageEntitlements={() => setEntitlementsOpen(true)}
+              tenantLabel={tenant.name}
+              canMutate={canMutate}
             />
 
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                {platformCopy.tenants.detail.sections.operation}
-              </h3>
-              <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">
+                  {platformCopy.tenants.detail.sections.operation}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">
+                  {platformCopy.tenants.detail.sections.capacitySummary(
+                    tenant.usage.userCount,
+                    tenant.usage.branchCount,
+                  )}
+                </p>
+                {tenant.suspendedAt ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {platformCopy.tenants.detail.suspendedAt(
+                      formatDateTime(tenant.suspendedAt),
+                    )}
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-auto px-0 hover:bg-transparent"
+                >
+                  {advancedOpen
+                    ? platformCopy.tenants.detail.sections.advancedHide
+                    : platformCopy.tenants.detail.sections.advancedShow}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      "ml-1.5 h-4 w-4 transition-transform",
+                      advancedOpen && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <TenantSubscriptionCard tenantId={tenant.id} />
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
@@ -155,52 +222,18 @@ export function PlatformTenantDetailPage() {
                   <CardContent className="space-y-3">
                     <InfoRow
                       variant="inline"
-                      label={platformCopy.tenants.detail.subscription.fields.plan}
-                      value={tenant.planName ?? tenant.planCode ?? "—"}
+                      label={platformCopy.tenants.detail.usage.createdAt}
+                      value={formatDateTime(tenant.createdAt)}
                     />
                     <InfoRow
                       variant="inline"
-                      label="Alta"
-                      value={formatDateTime(tenant.createdAt)}
-                    />
-                    {tenant.suspendedAt ? (
-                      <InfoRow
-                        variant="inline"
-                        label="Suspensión"
-                        value={platformCopy.tenants.detail.suspendedAt(
-                          formatDateTime(tenant.suspendedAt),
-                        )}
-                      />
-                    ) : null}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {platformCopy.tenants.detail.sections.usage}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 sm:grid-cols-3">
-                    <InfoRow
-                      label={platformCopy.tenants.detail.usage.users}
-                      value={String(tenant.usage.userCount)}
-                      icon={<Users className="h-4 w-4" />}
-                    />
-                    <InfoRow
-                      label={platformCopy.tenants.detail.usage.branches}
-                      value={String(tenant.usage.branchCount)}
-                      icon={<GitBranch className="h-4 w-4" />}
-                    />
-                    <InfoRow
                       label={platformCopy.tenants.detail.usage.trips}
                       value={String(tenant.usage.tripCount)}
-                      icon={<Route className="h-4 w-4" />}
                     />
                   </CardContent>
                 </Card>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         ) : null}
       </DetailPageShell>

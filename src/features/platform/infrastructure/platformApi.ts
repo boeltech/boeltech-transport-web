@@ -26,6 +26,16 @@ import type {
   UpsertPlatformTenantSubscriptionPayload,
   MutatePlatformEntitlementPayload,
   GrantPlatformStampPackPayload,
+  PlatformArListQueryParams,
+  PlatformSaasArRow,
+  PlatformSaasInvoice,
+  PlatformSaasInvoiceDetail,
+  PlatformReconciliationPreview,
+  IssuePlatformSaasInvoicePayload,
+  MarkPlatformSaasInvoicePaidPayload,
+  VoidPlatformSaasInvoicePayload,
+  PlatformLoginResult,
+  PlatformMfaStatus,
 } from "../domain/entities";
 import {
   mapPlatformBillingPlan,
@@ -40,14 +50,24 @@ import {
   mapPlatformModuleCatalogItem,
   mapPlatformStampPackCatalogItem,
   mapPlatformTenantStampPackBalance,
+  mapPlatformSaasArRow,
+  mapPlatformSaasInvoice,
+  mapPlatformSaasInvoiceDetail,
+  mapPlatformReconciliationPreview,
   toApiCreatePlatformTenant,
   toApiUpdateDeclaredFleet,
   toApiUpdatePlatformTenantStatus,
+  isApiPlatformMfaChallenge,
   type ApiPlatformBillingPlan,
   type ApiPlatformMetrics,
   type ApiPlatformTenantListItem,
   type ApiPlatformUser,
   type ApiPlatformAuditLogItem,
+  type ApiPlatformSaasArRow,
+  type ApiPlatformSaasInvoice,
+  type ApiPlatformSaasInvoiceDetail,
+  type ApiPlatformReconciliationRow,
+  type ApiPlatformLoginData,
 } from "./mappers";
 import type {
   ApiBillingEntitlements,
@@ -61,6 +81,30 @@ export const platformApi = {
   login: async (credentials: {
     email: string;
     password: string;
+  }): Promise<PlatformLoginResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformLoginData>
+    >(`${BASE}/auth/login`, credentials);
+
+    const data = response.data;
+    if (isApiPlatformMfaChallenge(data)) {
+      return {
+        needsMfa: true,
+        mfaChallengeToken: data.mfa_challenge_token,
+        mfaChallengeExpiresAt: data.mfa_challenge_expires_at,
+      };
+    }
+
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      user: mapPlatformUser(data.user),
+    };
+  },
+
+  verifyMfaLogin: async (payload: {
+    mfaChallengeToken: string;
+    code: string;
   }): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -72,13 +116,66 @@ export const platformApi = {
         refresh_token: string;
         user: ApiPlatformUser;
       }>
-    >(`${BASE}/auth/login`, credentials);
+    >(
+      `${BASE}/auth/mfa/verify`,
+      {
+        mfa_challenge_token: payload.mfaChallengeToken,
+        code: payload.code,
+      },
+      { authScope: "platform" },
+    );
 
     return {
       accessToken: response.data.access_token,
       refreshToken: response.data.refresh_token,
       user: mapPlatformUser(response.data.user),
     };
+  },
+
+  logout: async (refreshToken?: string | null): Promise<void> => {
+    await apiClient.post(
+      `${BASE}/auth/logout`,
+      refreshToken ? { refresh_token: refreshToken } : {},
+      { authScope: "platform" },
+    );
+  },
+
+  getMfaStatus: async (): Promise<PlatformMfaStatus> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<{ enabled: boolean; enabled_at: string | null }>
+    >(`${BASE}/auth/mfa/status`, { authScope: "platform" });
+    return {
+      enabled: response.data.enabled,
+      enabledAt: response.data.enabled_at,
+    };
+  },
+
+  setupMfa: async (): Promise<{ otpauthUrl: string; secret: string }> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<{ otpauth_url: string; secret: string }>
+    >(`${BASE}/auth/mfa/setup`, {}, { authScope: "platform" });
+    return {
+      otpauthUrl: response.data.otpauth_url,
+      secret: response.data.secret,
+    };
+  },
+
+  confirmMfa: async (
+    code: string,
+  ): Promise<{ recoveryCodes: string[] }> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<{ recovery_codes: string[] }>
+    >(`${BASE}/auth/mfa/confirm`, { code }, { authScope: "platform" });
+    return { recoveryCodes: response.data.recovery_codes };
+  },
+
+  disableMfa: async (payload: {
+    password: string;
+    code: string;
+  }): Promise<void> => {
+    await apiClient.post(`${BASE}/auth/mfa/disable`, payload, {
+      authScope: "platform",
+    });
   },
 
   refresh: async (
@@ -128,6 +225,9 @@ export const platformApi = {
       limit: params?.limit ?? 20,
     };
     if (params?.status) queryParams.status = params.status;
+    if (params?.subscriptionStatus) {
+      queryParams.subscription_status = params.subscriptionStatus;
+    }
     if (params?.planCode) queryParams.plan_code = params.planCode;
     if (params?.search) queryParams.search = params.search;
 
@@ -409,20 +509,151 @@ export const platformApi = {
 
   downloadTenantReconciliationCsv: async (
     tenantId: string,
-    periodKey?: string,
+    periodKey: string,
   ): Promise<void> => {
     const params = new URLSearchParams({
       format: "csv",
       tenant_id: tenantId,
+      period_key: periodKey,
     });
-    if (periodKey) {
-      params.set("period_key", periodKey);
-    }
-    const filename = `billing-reconciliation-${tenantId.slice(0, 8)}${periodKey ? `-${periodKey}` : ""}.csv`;
+    const filename = `billing-reconciliation-${tenantId.slice(0, 8)}-${periodKey}.csv`;
     await apiClient.downloadFile(
       `${BASE}/billing/reconciliation?${params.toString()}`,
       filename,
       { authScope: "platform" },
     );
+  },
+
+  listAr: async (
+    params?: PlatformArListQueryParams,
+  ): Promise<MappedPaginatedResult<PlatformSaasArRow>> => {
+    const queryParams: Record<string, unknown> = {
+      page: params?.page ?? 1,
+      page_size: params?.pageSize ?? 25,
+    };
+    if (params?.status) queryParams.status = params.status;
+    if (params?.periodKey) queryParams.period_key = params.periodKey;
+    if (params?.tenantId) queryParams.tenant_id = params.tenantId;
+    if (params?.minDaysOverdue != null) {
+      queryParams.min_days_overdue = params.minDaysOverdue;
+    }
+
+    const response = await apiClient.get<{
+      data: ApiPlatformSaasArRow[];
+      pagination: { page: number; page_size: number; total: number };
+    }>(`${BASE}/billing/ar`, {
+      params: queryParams,
+      authScope: "platform",
+    });
+
+    const pageSize = response.pagination.page_size;
+    const total = response.pagination.total;
+    return {
+      data: response.data.map(mapPlatformSaasArRow),
+      pagination: {
+        page: response.pagination.page,
+        limit: pageSize,
+        total,
+        totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
+      },
+    };
+  },
+
+  listTenantSaasInvoices: async (
+    tenantId: string,
+  ): Promise<PlatformSaasInvoice[]> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiPlatformSaasInvoice[]>
+    >(`${BASE}/tenants/${tenantId}/saas-invoices`, {
+      authScope: "platform",
+    });
+    return response.data.map(mapPlatformSaasInvoice);
+  },
+
+  getTenantSaasInvoice: async (
+    tenantId: string,
+    invoiceId: string,
+  ): Promise<PlatformSaasInvoiceDetail> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiPlatformSaasInvoiceDetail>
+    >(`${BASE}/tenants/${tenantId}/saas-invoices/${invoiceId}`, {
+      authScope: "platform",
+    });
+    return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  issueSaasInvoice: async (
+    tenantId: string,
+    payload: IssuePlatformSaasInvoicePayload,
+  ): Promise<PlatformSaasInvoiceDetail> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformSaasInvoiceDetail>
+    >(
+      `${BASE}/tenants/${tenantId}/saas-invoices`,
+      {
+        period_key: payload.periodKey,
+        status: payload.status ?? "open",
+        notes: payload.notes ?? null,
+        due_days: payload.dueDays ?? 14,
+      },
+      { authScope: "platform" },
+    );
+    return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  markSaasInvoicePaid: async (
+    tenantId: string,
+    invoiceId: string,
+    payload: MarkPlatformSaasInvoicePaidPayload,
+  ): Promise<PlatformSaasInvoiceDetail> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformSaasInvoiceDetail>
+    >(
+      `${BASE}/tenants/${tenantId}/saas-invoices/${invoiceId}/mark-paid`,
+      {
+        paid_at: payload.paidAt,
+        method: payload.method ?? "manual",
+        reference: payload.reference ?? null,
+        notes: payload.notes ?? null,
+        ...(payload.amountCents != null
+          ? { amount_cents: payload.amountCents }
+          : {}),
+      },
+      { authScope: "platform" },
+    );
+    return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  voidSaasInvoice: async (
+    tenantId: string,
+    invoiceId: string,
+    payload?: VoidPlatformSaasInvoicePayload,
+  ): Promise<PlatformSaasInvoiceDetail> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformSaasInvoiceDetail>
+    >(
+      `${BASE}/tenants/${tenantId}/saas-invoices/${invoiceId}/void`,
+      { void_reason: payload?.voidReason ?? null },
+      { authScope: "platform" },
+    );
+    return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  getTenantReconciliationJson: async (
+    tenantId: string,
+    periodKey: string,
+  ): Promise<PlatformReconciliationPreview | null> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiPlatformReconciliationRow[]>
+    >(`${BASE}/billing/reconciliation`, {
+      params: {
+        tenant_id: tenantId,
+        period_key: periodKey,
+        format: "json",
+      },
+      authScope: "platform",
+    });
+    const row = response.data[0];
+    return row ? mapPlatformReconciliationPreview(row) : null;
   },
 };

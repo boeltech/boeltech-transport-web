@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { PlatformAuthProvider } from "../providers/PlatformAuthProvider";
+import { PlatformMfaEnrollmentGate } from "../providers/PlatformMfaEnrollmentGate";
 import {
   PlatformSidebarProvider,
   usePlatformSidebar,
@@ -13,7 +14,9 @@ export function PlatformShell() {
   return (
     <PlatformAuthProvider>
       <PlatformSidebarProvider>
-        <PlatformShellLayout />
+        <PlatformMfaEnrollmentGate>
+          <PlatformShellLayout />
+        </PlatformMfaEnrollmentGate>
       </PlatformSidebarProvider>
     </PlatformAuthProvider>
   );

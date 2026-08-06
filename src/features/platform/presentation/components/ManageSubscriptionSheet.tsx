@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
   FormValidationSummary,
@@ -63,6 +62,14 @@ const SUBSCRIPTION_STATUS_OPTIONS = [
 ] as const;
 
 const BILLING_CYCLE_OPTIONS = ["monthly", "annual"] as const;
+
+function defaultTrialEndsAtLocal(): string {
+  const end = new Date();
+  end.setDate(end.getDate() + 14);
+  return new Date(end.getTime() - end.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+}
 
 export function ManageSubscriptionSheet({
   tenant,
@@ -121,15 +128,17 @@ export function ManageSubscriptionSheet({
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!tenant) return;
+    const trialEndsAt =
+      values.status === "trialing" && values.trialEndsAt
+        ? new Date(values.trialEndsAt).toISOString()
+        : null;
     await upsertMutation.mutateAsync({
       tenantId: tenant.id,
       payload: {
         planCode: values.planCode,
         status: values.status,
         billingCycle: values.billingCycle,
-        trialEndsAt: values.trialEndsAt
-          ? new Date(values.trialEndsAt).toISOString()
-          : null,
+        trialEndsAt,
         notes: values.notes?.trim() || null,
       },
     });
@@ -138,6 +147,8 @@ export function ManageSubscriptionSheet({
   const summaryErrors = collectFieldErrorMessages(form.formState.errors);
   const copy = platformCopy.tenants.manageSubscription;
   const createCopy = platformCopy.tenants.create;
+  const statusLabels = platformCopy.tenants.detail.subscription.statusLabels;
+  const cycleLabels = platformCopy.tenants.detail.subscription.cycleLabels;
 
   const fleetBand =
     tenant?.declaredFleetBand && isDeclaredFleetBand(tenant.declaredFleetBand)
@@ -154,87 +165,46 @@ export function ManageSubscriptionSheet({
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          {fleetBand ? (
-            <AlertWithIcon variant="info" title="Tip por flota">
-              {copy.fleetHint(createCopy.fleetBands[fleetBand], suggestedPlanName)}
-            </AlertWithIcon>
-          ) : null}
-
-          {status === "trialing" ? (
-            <AlertWithIcon variant="info" title="Cupo de prueba">
-              {copy.trialHint}
-            </AlertWithIcon>
-          ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="sub-planCode">{copy.fields.plan}</Label>
-            <Select
-              value={form.watch("planCode")}
-              onValueChange={(value) =>
-                form.setValue("planCode", value, { shouldValidate: true })
-              }
-            >
-              <SelectTrigger
-                id="sub-planCode"
-                {...getRegisterFieldErrorProps(
-                  "planCode",
-                  form.formState.errors.planCode?.message,
-                )}
-              >
-                <SelectValue placeholder={copy.placeholders.plan} />
-              </SelectTrigger>
-              <SelectContent>
-                {(plans ?? []).map((plan) => (
-                  <SelectItem key={plan.code} value={plan.code}>
-                    {formatPlanSelectLabel(plan)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldInlineError
-              fieldId="sub-planCode"
-              message={form.formState.errors.planCode?.message}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={onSubmit} className="mt-6 space-y-6">
+          <div className="space-y-3">
+            <p className="text-sm font-medium">{copy.sectionPlan}</p>
             <div className="space-y-2">
-              <Label htmlFor="sub-status">{copy.fields.status}</Label>
+              <Label htmlFor="sub-planCode">{copy.fields.plan}</Label>
               <Select
-                value={form.watch("status")}
-                onValueChange={(value) => {
-                  const next =
-                    value as ManagePlatformSubscriptionFormData["status"];
-                  form.setValue("status", next, { shouldValidate: true });
-                  if (
-                    next === "trialing" &&
-                    !form.getValues("trialEndsAt")
-                  ) {
-                    const end = new Date();
-                    end.setDate(end.getDate() + 14);
-                    const local = new Date(
-                      end.getTime() - end.getTimezoneOffset() * 60_000,
-                    )
-                      .toISOString()
-                      .slice(0, 16);
-                    form.setValue("trialEndsAt", local, {
-                      shouldValidate: false,
-                    });
-                  }
-                }}
+                value={form.watch("planCode")}
+                onValueChange={(value) =>
+                  form.setValue("planCode", value, { shouldValidate: true })
+                }
               >
-                <SelectTrigger id="sub-status">
-                  <SelectValue />
+                <SelectTrigger
+                  id="sub-planCode"
+                  {...getRegisterFieldErrorProps(
+                    "planCode",
+                    form.formState.errors.planCode?.message,
+                  )}
+                >
+                  <SelectValue placeholder={copy.placeholders.plan} />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUBSCRIPTION_STATUS_OPTIONS.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {platformCopy.tenants.detail.subscription.statusLabels[status]}
+                  {(plans ?? []).map((plan) => (
+                    <SelectItem key={plan.code} value={plan.code}>
+                      {formatPlanSelectLabel(plan)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FieldInlineError
+                fieldId="sub-planCode"
+                message={form.formState.errors.planCode?.message}
+              />
+              {fleetBand ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.fleetHint(
+                    createCopy.fleetBands[fleetBand],
+                    suggestedPlanName,
+                  )}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -255,7 +225,7 @@ export function ManageSubscriptionSheet({
                 <SelectContent>
                   {BILLING_CYCLE_OPTIONS.map((cycle) => (
                     <SelectItem key={cycle} value={cycle}>
-                      {platformCopy.tenants.detail.subscription.cycleLabels[cycle]}
+                      {cycleLabels[cycle]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -263,31 +233,73 @@ export function ManageSubscriptionSheet({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sub-trial">{copy.fields.trial}</Label>
-            <Input
-              id="sub-trial"
-              type="datetime-local"
-              {...form.register("trialEndsAt")}
-            />
-            <FieldInlineError
-              fieldId="sub-trial"
-              message={form.formState.errors.trialEndsAt?.message}
-            />
+          <div className="space-y-3">
+            <p className="text-sm font-medium">{copy.sectionStatus}</p>
+            <div className="space-y-2">
+              <Label htmlFor="sub-status">{copy.fields.status}</Label>
+              <Select
+                value={form.watch("status")}
+                onValueChange={(value) => {
+                  const next =
+                    value as ManagePlatformSubscriptionFormData["status"];
+                  form.setValue("status", next, { shouldValidate: true });
+                  if (next === "trialing" && !form.getValues("trialEndsAt")) {
+                    form.setValue("trialEndsAt", defaultTrialEndsAtLocal(), {
+                      shouldValidate: false,
+                    });
+                  }
+                }}
+              >
+                <SelectTrigger id="sub-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {statusLabels[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {status && copy.statusEffects[status] ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.statusEffects[status]}
+                </p>
+              ) : null}
+            </div>
+
+            {status === "trialing" ? (
+              <div className="space-y-2">
+                <Label htmlFor="sub-trial">{copy.fields.trial}</Label>
+                <Input
+                  id="sub-trial"
+                  type="datetime-local"
+                  {...form.register("trialEndsAt")}
+                />
+                <FieldInlineError
+                  fieldId="sub-trial"
+                  message={form.formState.errors.trialEndsAt?.message}
+                />
+              </div>
+            ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sub-notes">{copy.fields.notes}</Label>
-            <Textarea
-              id="sub-notes"
-              rows={3}
-              placeholder={copy.placeholders.notes}
-              {...form.register("notes")}
-            />
-            <FieldInlineError
-              fieldId="sub-notes"
-              message={form.formState.errors.notes?.message}
-            />
+          <div className="space-y-3">
+            <p className="text-sm font-medium">{copy.sectionNotes}</p>
+            <div className="space-y-2">
+              <Label htmlFor="sub-notes">{copy.fields.notes}</Label>
+              <Textarea
+                id="sub-notes"
+                rows={3}
+                placeholder={copy.placeholders.notes}
+                {...form.register("notes")}
+              />
+              <p className="text-xs text-muted-foreground">{copy.notesHint}</p>
+              <FieldInlineError
+                fieldId="sub-notes"
+                message={form.formState.errors.notes?.message}
+              />
+            </div>
           </div>
 
           <FormValidationSummary messages={summaryErrors} />
@@ -298,7 +310,7 @@ export function ManageSubscriptionSheet({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {copy.cancel}
             </Button>
             <Button type="submit" disabled={upsertMutation.isPending}>
               {upsertMutation.isPending ? copy.submitting : copy.submit}

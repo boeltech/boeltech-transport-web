@@ -9,7 +9,6 @@ import {
   Users,
 } from "lucide-react";
 import { StatCard } from "@shared/ui/data-display";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
   Card,
@@ -59,39 +58,6 @@ export function PlatformDashboardPage() {
           {copy.error.description}
         </AlertWithIcon>
       ) : null}
-
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="space-y-4 p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{copy.hero.badge}</Badge>
-            <Badge variant="outline">{copy.hero.secondaryBadge}</Badge>
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">
-              {copy.hero.title}
-            </h2>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              {copy.hero.description}
-            </p>
-          </div>
-          <ol className="grid gap-3 sm:grid-cols-3">
-            {copy.hero.steps.map((step, index) => (
-              <li
-                key={step.title}
-                className="rounded-lg border bg-background/80 p-3"
-              >
-                <p className="text-xs font-medium text-muted-foreground">
-                  {copy.hero.stepPrefix(index + 1)}
-                </p>
-                <p className="mt-1 text-sm font-medium">{step.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {step.description}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {isLoading ? (
@@ -156,9 +122,6 @@ export function PlatformDashboardPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-medium">{row.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.planCode}
-                        </p>
                       </div>
                       <span className="text-sm tabular-nums text-muted-foreground">
                         {copy.plans.tenantCount(row.count)}

@@ -242,41 +242,6 @@ export function PlatformTenantCreatePage() {
       }}
     >
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{copy.hero.badge}</Badge>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold tracking-tight">
-                {copy.hero.title}
-              </h2>
-              <p className="text-sm text-muted-foreground">{copy.hero.description}</p>
-            </div>
-            <ol className="grid gap-3 sm:grid-cols-3">
-              {copy.hero.steps.map((step, index) => (
-                <li
-                  key={step.title}
-                  className="flex gap-3 rounded-lg border bg-background/80 p-3"
-                >
-                  <span
-                    aria-hidden
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold tabular-nums text-primary"
-                  >
-                    {copy.hero.stepPrefix(index + 1)}
-                  </span>
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-medium">{step.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {step.description}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-
         <form onSubmit={onSubmit} className="space-y-6" noValidate>
           {errors.root?.message ? (
             <AlertWithIcon variant="destructive" title={copy.error}>
@@ -287,7 +252,7 @@ export function PlatformTenantCreatePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {copy.hero.stepPrefix(1)} · {copy.sections.company}
+                {copy.sections.company}
               </CardTitle>
               <CardDescription>{copy.sections.companyDescription}</CardDescription>
             </CardHeader>
@@ -345,7 +310,7 @@ export function PlatformTenantCreatePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {copy.hero.stepPrefix(2)} · {copy.sections.admin}
+                {copy.sections.admin}
               </CardTitle>
               <CardDescription>{copy.sections.adminDescription}</CardDescription>
             </CardHeader>
@@ -489,7 +454,7 @@ export function PlatformTenantCreatePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {copy.hero.stepPrefix(3)} · {copy.sections.plan}
+                {copy.sections.plan}
               </CardTitle>
               <CardDescription>{copy.sections.planDescription}</CardDescription>
             </CardHeader>

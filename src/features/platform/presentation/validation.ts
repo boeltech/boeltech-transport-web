@@ -10,6 +10,16 @@ export const platformLoginSchema = z.object({
 
 export type PlatformLoginFormData = z.infer<typeof platformLoginSchema>;
 
+export const platformMfaCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(6, "Ingresa el código de 6 dígitos")
+    .max(64, "Código demasiado largo"),
+});
+
+export type PlatformMfaCodeFormData = z.infer<typeof platformMfaCodeSchema>;
+
 export const createPlatformTenantSchema = z.object({
   companyName: z
     .string()
@@ -78,3 +88,37 @@ export const managePlatformSubscriptionSchema = z.object({
 export type ManagePlatformSubscriptionFormData = z.infer<
   typeof managePlatformSubscriptionSchema
 >;
+
+import { isClosedBillingPeriodKey } from "./utils/billingPeriod";
+
+const issueCopy = platformCopy.ar.issue;
+
+export const issueSaasInvoiceSchema = z.object({
+  periodKey: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Usa el formato AAAA-MM (ej. 2026-07)")
+    .refine((value) => isClosedBillingPeriodKey(value), {
+      message: issueCopy.periodKeyClosedOnly,
+    }),
+  notes: z.string().max(2000).optional(),
+  dueDays: z.coerce.number().int().min(1).max(90).optional().default(14),
+});
+
+export type IssueSaasInvoiceFormData = z.infer<typeof issueSaasInvoiceSchema>;
+
+export const markSaasInvoicePaidSchema = z.object({
+  paidAt: z.string().min(1, "Indica la fecha de pago"),
+  method: z.enum(["manual", "spei", "card_external", "other"]),
+  reference: z.string().max(500).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export type MarkSaasInvoicePaidFormData = z.infer<
+  typeof markSaasInvoicePaidSchema
+>;
+
+export const voidSaasInvoiceSchema = z.object({
+  voidReason: z.string().max(2000).optional(),
+});
+
+export type VoidSaasInvoiceFormData = z.infer<typeof voidSaasInvoiceSchema>;

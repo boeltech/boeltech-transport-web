@@ -24,6 +24,22 @@ export const PLATFORM_TENANT_STATUS_LABELS: Record<
   [PlatformTenantStatus.CANCELLED]: "Cancelado",
 };
 
+/** Commercial subscription statuses (tenant_subscriptions.status). */
+export const PlatformSubscriptionStatus = {
+  TRIALING: "trialing",
+  ACTIVE: "active",
+  PAST_DUE: "past_due",
+  PAUSED: "paused",
+  CANCELED: "canceled",
+} as const;
+
+export type PlatformSubscriptionStatusType =
+  (typeof PlatformSubscriptionStatus)[keyof typeof PlatformSubscriptionStatus];
+
+export const PLATFORM_SUBSCRIPTION_STATUS_VALUES = Object.values(
+  PlatformSubscriptionStatus,
+) as PlatformSubscriptionStatusType[];
+
 export interface PlatformUserJSON {
   id: string;
   email: string;
@@ -31,6 +47,35 @@ export interface PlatformUserJSON {
   lastName: string;
   platformRole: PlatformRoleType;
   scope: "platform";
+  /** Present after profile fetch / login that includes MFA fields. */
+  mfaEnabled?: boolean;
+  mfaEnabledAt?: string | null;
+}
+
+/** Challenge MFA tras password OK (sin tokens de sesión aún). */
+export interface PlatformMfaChallengeResponse {
+  needsMfa: true;
+  mfaChallengeToken: string;
+  mfaChallengeExpiresAt: string;
+}
+
+export type PlatformLoginResult =
+  | {
+      accessToken: string;
+      refreshToken: string;
+      user: PlatformUserJSON;
+    }
+  | PlatformMfaChallengeResponse;
+
+export function isPlatformMfaChallenge(
+  result: PlatformLoginResult,
+): result is PlatformMfaChallengeResponse {
+  return "needsMfa" in result && result.needsMfa === true;
+}
+
+export interface PlatformMfaStatus {
+  enabled: boolean;
+  enabledAt: string | null;
 }
 
 export interface PlatformTenantListItem {
@@ -38,6 +83,8 @@ export interface PlatformTenantListItem {
   name: string;
   subdomain: string;
   status: PlatformTenantStatusType;
+  /** Commercial axis; null when the tenant has no subscription row. */
+  subscriptionStatus: string | null;
   planCode: string | null;
   planName: string | null;
   declaredFleetBand: string | null;
@@ -85,6 +132,7 @@ export interface PlatformTenantsQueryParams {
   page?: number;
   limit?: number;
   status?: PlatformTenantStatusType;
+  subscriptionStatus?: PlatformSubscriptionStatusType;
   planCode?: string;
   search?: string;
 }
@@ -213,14 +261,161 @@ export interface MutatePlatformEntitlementPayload {
   action: "activate" | "deactivate";
 }
 
+/** Cargo SaaS (CxC) statuses — ADR-0072. */
+export const PlatformSaasInvoiceStatus = {
+  DRAFT: "draft",
+  OPEN: "open",
+  PAID: "paid",
+  VOID: "void",
+} as const;
+
+export type PlatformSaasInvoiceStatusType =
+  (typeof PlatformSaasInvoiceStatus)[keyof typeof PlatformSaasInvoiceStatus];
+
+export const PLATFORM_SAAS_INVOICE_STATUS_VALUES = Object.values(
+  PlatformSaasInvoiceStatus,
+) as PlatformSaasInvoiceStatusType[];
+
+export type PlatformSaasPaymentMethod =
+  | "manual"
+  | "spei"
+  | "card_external"
+  | "other";
+
+export interface PlatformSaasInvoiceItem {
+  id: string;
+  saasInvoiceId: string;
+  kind: string;
+  code: string | null;
+  description: string;
+  quantity: number;
+  unitPriceCents: number;
+  totalCents: number;
+  sortOrder: number;
+}
+
+export interface PlatformSaasInvoicePayment {
+  id: string;
+  saasInvoiceId: string;
+  tenantId: string;
+  amountCents: number;
+  paidAt: string;
+  method: PlatformSaasPaymentMethod;
+  reference: string | null;
+  notes: string | null;
+  recordedByPlatformUserId: string | null;
+  gatewayPaymentId: string | null;
+  createdAt: string;
+}
+
+export interface PlatformSaasInvoice {
+  id: string;
+  tenantId: string;
+  subscriptionId: string | null;
+  periodKey: string;
+  periodStart: string;
+  periodEnd: string;
+  status: PlatformSaasInvoiceStatusType;
+  currency: string;
+  planCode: string;
+  stampsIncluded: number;
+  stampsUsed: number;
+  stampsOverage: number;
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
+  amountDueCents: number;
+  amountPaidCents: number;
+  issuedAt: string | null;
+  dueDate: string | null;
+  paidAt: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  notes: string | null;
+  daysOverdue: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlatformSaasArRow extends PlatformSaasInvoice {
+  tenantName: string;
+  subdomain: string;
+  subscriptionStatus: string | null;
+}
+
+export interface PlatformSaasInvoiceDetail extends PlatformSaasInvoice {
+  items: PlatformSaasInvoiceItem[];
+  payments: PlatformSaasInvoicePayment[];
+}
+
+export interface PlatformArListQueryParams {
+  page?: number;
+  pageSize?: number;
+  status?: PlatformSaasInvoiceStatusType;
+  periodKey?: string;
+  tenantId?: string;
+  minDaysOverdue?: number;
+}
+
+export interface IssuePlatformSaasInvoicePayload {
+  periodKey: string;
+  status?: "draft" | "open";
+  notes?: string | null;
+  dueDays?: number;
+}
+
+export interface MarkPlatformSaasInvoicePaidPayload {
+  paidAt: string;
+  method?: PlatformSaasPaymentMethod;
+  reference?: string | null;
+  notes?: string | null;
+  amountCents?: number;
+}
+
+export interface VoidPlatformSaasInvoicePayload {
+  voidReason?: string | null;
+}
+
+/** Preview row from GET /platform/billing/reconciliation (format=json). */
+export interface PlatformReconciliationPreview {
+  tenantId: string;
+  tenantName: string;
+  subdomain: string;
+  periodKey: string;
+  planCode: string | null;
+  planName: string | null;
+  monthlyPriceCents: number;
+  billingCycle: string | null;
+  status: string | null;
+  includedStamps: number;
+  stampsUsed: number;
+  overageStamps: number;
+  overagePriceCents: number;
+  overageTotalCents: number;
+  activeModules: string[];
+  modulesTotalCents: number;
+  subtotalCents: number;
+  ivaCents: number;
+  totalCents: number;
+}
+
 export const PlatformAuditAction = {
   TENANT_CREATED: "tenant_created",
   TENANT_STATUS_CHANGED: "tenant_status_changed",
   TENANT_PLAN_ASSIGNED: "tenant_plan_assigned",
+  TENANT_FLEET_DECLARED: "tenant_fleet_declared",
+  TENANT_SELF_SERVE_REGISTERED: "tenant_self_serve_registered",
+  TRIAL_AUTO_CUT: "trial_auto_cut",
   CATALOG_IMPORT: "catalog_import",
   SUBSCRIPTION_ASSIGNED: "subscription_assigned",
   MODULE_ENTITLED: "module_entitled",
   MODULE_REVOKED: "module_revoked",
+  STAMP_PACK_GRANTED: "stamp_pack_granted",
+  SAAS_INVOICE_ISSUED: "saas_invoice_issued",
+  SAAS_INVOICE_PAID: "saas_invoice_paid",
+  SAAS_INVOICE_VOIDED: "saas_invoice_voided",
+  SUBSCRIPTION_PAST_DUE_AUTO: "subscription_past_due_auto",
+  SUBSCRIPTION_ACTIVE_RESTORED_AUTO: "subscription_active_restored_auto",
 } as const;
 
 export type PlatformAuditActionType =
@@ -228,7 +423,7 @@ export type PlatformAuditActionType =
 
 export interface PlatformAuditLogItem {
   id: string;
-  platformUserId: string;
+  platformUserId: string | null;
   platformUserEmail: string | null;
   action: string;
   targetTenantId: string | null;
@@ -271,6 +466,25 @@ export const platformQueryKeys = {
   auditLog: () => [...platformQueryKeys.all, "audit-log"] as const,
   auditLogList: (params?: PlatformAuditLogQueryParams) =>
     [...platformQueryKeys.auditLog(), params] as const,
+  ar: () => [...platformQueryKeys.all, "ar"] as const,
+  arList: (params?: PlatformArListQueryParams) =>
+    [...platformQueryKeys.ar(), "list", params] as const,
+  tenantSaasInvoices: (tenantId: string) =>
+    [...platformQueryKeys.tenants(), "saas-invoices", tenantId] as const,
+  tenantSaasInvoice: (tenantId: string, invoiceId: string) =>
+    [
+      ...platformQueryKeys.tenants(),
+      "saas-invoices",
+      tenantId,
+      invoiceId,
+    ] as const,
+  tenantReconciliationPreview: (tenantId: string, periodKey: string) =>
+    [
+      ...platformQueryKeys.tenants(),
+      "reconciliation-preview",
+      tenantId,
+      periodKey,
+    ] as const,
 } as const;
 
 export function isPlatformOwner(role: PlatformRoleType | undefined): boolean {

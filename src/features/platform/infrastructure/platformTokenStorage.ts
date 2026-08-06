@@ -67,6 +67,7 @@ export const platformTokenStorage = {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
+    sessionStorage.removeItem(FRESH_LOGIN_KEY);
   },
 
   /**

@@ -10,7 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import type { PlatformUserJSON } from "../../domain/entities";
-import { platformQueryKeys } from "../../domain/entities";
+import { isPlatformMfaChallenge, platformQueryKeys } from "../../domain/entities";
 import { platformApi } from "../../infrastructure/platformApi";
 import {
   consumePlatformFreshLoginSession,
@@ -18,6 +18,7 @@ import {
   platformTokenStorage,
 } from "../../infrastructure/platformTokenStorage";
 import { setPlatformUnauthorizedHandler } from "../../infrastructure/platformSessionHandlers";
+import { clearTenantSessionForPlatformBoundary } from "../../infrastructure/clearTenantSessionBoundary";
 
 interface PlatformAuthState {
   user: PlatformUserJSON | null;
@@ -28,7 +29,8 @@ interface PlatformAuthState {
 
 interface PlatformAuthContextValue extends PlatformAuthState {
   login: (credentials: { email: string; password: string }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const PlatformAuthContext = createContext<PlatformAuthContextValue | null>(null);
@@ -66,6 +68,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
     (options?: { sessionExpired?: boolean }) => {
       platformBootstrapRefresh = null;
       platformTokenStorage.clear();
+      void clearTenantSessionForPlatformBoundary();
       queryClient.removeQueries({ queryKey: platformQueryKeys.all });
       setState({
         user: null,
@@ -146,10 +149,13 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
   }, [state.token, handleLogout]);
 
   useEffect(() => {
-    if (!state.token || state.user) {
-      if (!state.token) {
-        return;
-      }
+    if (!state.token) {
+      return;
+    }
+
+    const needsProfile =
+      !state.user || state.user.mfaEnabled === undefined;
+    if (!needsProfile) {
       setState((prev) =>
         prev.isLoading ? { ...prev, isLoading: false } : prev,
       );
@@ -181,7 +187,12 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (credentials: { email: string; password: string }) => {
+      await clearTenantSessionForPlatformBoundary();
+
       const response = await platformApi.login(credentials);
+      if (isPlatformMfaChallenge(response)) {
+        throw new Error("MFA_REQUIRED");
+      }
       platformTokenStorage.setToken(response.accessToken);
       platformTokenStorage.setRefreshToken(response.refreshToken);
       platformTokenStorage.setUser(response.user);
@@ -196,17 +207,37 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = platformTokenStorage.getRefreshToken();
+    if (refreshToken) {
+      try {
+        await platformApi.logout(refreshToken);
+      } catch {
+        // Best-effort server revoke.
+      }
+    }
     handleLogout();
   }, [handleLogout]);
+
+  const refreshUser = useCallback(async () => {
+    const profile = await platformApi.getProfile();
+    platformTokenStorage.setUser(profile);
+    setState((prev) => ({
+      ...prev,
+      user: profile,
+      isAuthenticated: true,
+      isLoading: false,
+    }));
+  }, []);
 
   const value = useMemo<PlatformAuthContextValue>(
     () => ({
       ...state,
       login,
       logout,
+      refreshUser,
     }),
-    [state, login, logout],
+    [state, login, logout, refreshUser],
   );
 
   return (

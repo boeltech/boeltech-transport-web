@@ -345,6 +345,16 @@ const PlatformAuditLogPage = lazy(() =>
     default: module.PlatformAuditLogPage,
   })),
 );
+const PlatformArLedgerPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformArLedgerPage,
+  })),
+);
+const PlatformSecurityPage = lazy(() =>
+  import("@features/platform").then((module) => ({
+    default: module.PlatformSecurityPage,
+  })),
+);
 
 // Errors
 const NotFoundPage = lazy(() => import("@/pages/errors/not-found"));
@@ -914,6 +924,14 @@ export const router = createBrowserRouter([
           {
             path: "/platform/audit",
             element: withSuspense(PlatformAuditLogPage),
+          },
+          {
+            path: "/platform/billing/ar",
+            element: withSuspense(PlatformArLedgerPage),
+          },
+          {
+            path: "/platform/security",
+            element: withSuspense(PlatformSecurityPage),
           },
         ],
       },

@@ -12,6 +12,14 @@ import type {
   PlatformStampPackCatalogItem,
   PlatformTenantStampPack,
   PlatformTenantStampPackBalance,
+  PlatformSaasInvoice,
+  PlatformSaasInvoiceDetail,
+  PlatformSaasInvoiceItem,
+  PlatformSaasInvoicePayment,
+  PlatformSaasArRow,
+  PlatformSaasInvoiceStatusType,
+  PlatformSaasPaymentMethod,
+  PlatformReconciliationPreview,
 } from "../domain/entities";
 import {
   mapBillingEntitlements,
@@ -28,13 +36,31 @@ export interface ApiPlatformUser {
   last_name: string;
   platform_role: string;
   scope: "platform";
+  mfa_enabled?: boolean;
+  mfa_enabled_at?: string | null;
 }
+
+export interface ApiPlatformMfaChallenge {
+  needs_mfa: true;
+  mfa_challenge_token: string;
+  mfa_challenge_expires_at: string;
+}
+
+export type ApiPlatformLoginData =
+  | {
+      needs_mfa?: false;
+      access_token: string;
+      refresh_token: string;
+      user: ApiPlatformUser;
+    }
+  | ApiPlatformMfaChallenge;
 
 export interface ApiPlatformTenantListItem {
   id: string;
   name: string;
   subdomain: string;
   status: string;
+  subscription_status?: string | null;
   plan_code: string | null;
   plan_name: string | null;
   declared_fleet_band?: string | null;
@@ -77,7 +103,14 @@ export const mapPlatformUser = (raw: ApiPlatformUser): PlatformUserJSON => ({
   lastName: raw.last_name,
   platformRole: raw.platform_role as PlatformUserJSON["platformRole"],
   scope: raw.scope,
+  mfaEnabled: raw.mfa_enabled,
+  mfaEnabledAt: raw.mfa_enabled_at ?? null,
 });
+
+export const isApiPlatformMfaChallenge = (
+  data: ApiPlatformLoginData,
+): data is ApiPlatformMfaChallenge =>
+  "needs_mfa" in data && data.needs_mfa === true;
 
 export const mapPlatformTenantListItem = (
   raw: ApiPlatformTenantListItem,
@@ -86,6 +119,7 @@ export const mapPlatformTenantListItem = (
   name: raw.name,
   subdomain: raw.subdomain,
   status: raw.status as PlatformTenantListItem["status"],
+  subscriptionStatus: raw.subscription_status ?? null,
   planCode: raw.plan_code,
   planName: raw.plan_name,
   declaredFleetBand: raw.declared_fleet_band ?? null,
@@ -193,7 +227,7 @@ export const toApiUpdatePlatformTenantStatus = (payload: {
 
 export type ApiPlatformAuditLogItem = {
   id: string;
-  platform_user_id: string;
+  platform_user_id: string | null;
   platform_user_email: string | null;
   action: string;
   target_tenant_id: string | null;
@@ -207,7 +241,7 @@ export const mapPlatformAuditLogItem = (
   raw: ApiPlatformAuditLogItem,
 ): PlatformAuditLogItem => ({
   id: raw.id,
-  platformUserId: raw.platform_user_id,
+  platformUserId: raw.platform_user_id ?? null,
   platformUserEmail: raw.platform_user_email,
   action: raw.action,
   targetTenantId: raw.target_tenant_id,
@@ -314,4 +348,194 @@ export const mapPlatformModuleCatalogItem = (raw: {
   priceEaCents: raw.price_ea_cents,
   priceGaCents: raw.price_ga_cents,
   memberCodes: raw.member_codes,
+});
+
+export interface ApiPlatformSaasInvoiceItem {
+  id: string;
+  saas_invoice_id: string;
+  kind: string;
+  code: string | null;
+  description: string;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+  sort_order: number;
+}
+
+export interface ApiPlatformSaasInvoicePayment {
+  id: string;
+  saas_invoice_id: string;
+  tenant_id: string;
+  amount_cents: number;
+  paid_at: string;
+  method: string;
+  reference: string | null;
+  notes: string | null;
+  recorded_by_platform_user_id: string | null;
+  gateway_payment_id: string | null;
+  created_at: string;
+}
+
+export interface ApiPlatformSaasInvoice {
+  id: string;
+  tenant_id: string;
+  subscription_id: string | null;
+  period_key: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  currency: string;
+  plan_code: string;
+  stamps_included: number;
+  stamps_used: number;
+  stamps_overage: number;
+  subtotal_cents: number;
+  tax_cents: number;
+  total_cents: number;
+  amount_due_cents: number;
+  amount_paid_cents: number;
+  issued_at: string | null;
+  due_date: string | null;
+  paid_at: string | null;
+  voided_at: string | null;
+  void_reason: string | null;
+  notes: string | null;
+  days_overdue: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiPlatformSaasArRow extends ApiPlatformSaasInvoice {
+  tenant_name: string;
+  subdomain: string;
+  subscription_status: string | null;
+}
+
+export interface ApiPlatformSaasInvoiceDetail extends ApiPlatformSaasInvoice {
+  items: ApiPlatformSaasInvoiceItem[];
+  payments: ApiPlatformSaasInvoicePayment[];
+}
+
+export interface ApiPlatformReconciliationRow {
+  tenant_id: string;
+  tenant_name: string;
+  subdomain: string;
+  period_key: string;
+  plan_code: string | null;
+  plan_name: string | null;
+  monthly_price_cents: number;
+  billing_cycle: string | null;
+  status: string | null;
+  included_stamps: number;
+  stamps_used: number;
+  overage_stamps: number;
+  overage_price_cents: number;
+  overage_total_cents: number;
+  active_modules: string[];
+  modules_total_cents: number;
+  subtotal_cents: number;
+  iva_cents: number;
+  total_cents: number;
+}
+
+export const mapPlatformSaasInvoiceItem = (
+  raw: ApiPlatformSaasInvoiceItem,
+): PlatformSaasInvoiceItem => ({
+  id: raw.id,
+  saasInvoiceId: raw.saas_invoice_id,
+  kind: raw.kind,
+  code: raw.code,
+  description: raw.description,
+  quantity: raw.quantity,
+  unitPriceCents: raw.unit_price_cents,
+  totalCents: raw.total_cents,
+  sortOrder: raw.sort_order,
+});
+
+export const mapPlatformSaasInvoicePayment = (
+  raw: ApiPlatformSaasInvoicePayment,
+): PlatformSaasInvoicePayment => ({
+  id: raw.id,
+  saasInvoiceId: raw.saas_invoice_id,
+  tenantId: raw.tenant_id,
+  amountCents: raw.amount_cents,
+  paidAt: raw.paid_at,
+  method: raw.method as PlatformSaasPaymentMethod,
+  reference: raw.reference,
+  notes: raw.notes,
+  recordedByPlatformUserId: raw.recorded_by_platform_user_id,
+  gatewayPaymentId: raw.gateway_payment_id,
+  createdAt: raw.created_at,
+});
+
+export const mapPlatformSaasInvoice = (
+  raw: ApiPlatformSaasInvoice,
+): PlatformSaasInvoice => ({
+  id: raw.id,
+  tenantId: raw.tenant_id,
+  subscriptionId: raw.subscription_id,
+  periodKey: raw.period_key,
+  periodStart: raw.period_start,
+  periodEnd: raw.period_end,
+  status: raw.status as PlatformSaasInvoiceStatusType,
+  currency: raw.currency,
+  planCode: raw.plan_code,
+  stampsIncluded: raw.stamps_included,
+  stampsUsed: raw.stamps_used,
+  stampsOverage: raw.stamps_overage,
+  subtotalCents: raw.subtotal_cents,
+  taxCents: raw.tax_cents,
+  totalCents: raw.total_cents,
+  amountDueCents: raw.amount_due_cents,
+  amountPaidCents: raw.amount_paid_cents,
+  issuedAt: raw.issued_at,
+  dueDate: raw.due_date,
+  paidAt: raw.paid_at,
+  voidedAt: raw.voided_at,
+  voidReason: raw.void_reason,
+  notes: raw.notes,
+  daysOverdue: raw.days_overdue,
+  createdAt: raw.created_at,
+  updatedAt: raw.updated_at,
+});
+
+export const mapPlatformSaasArRow = (
+  raw: ApiPlatformSaasArRow,
+): PlatformSaasArRow => ({
+  ...mapPlatformSaasInvoice(raw),
+  tenantName: raw.tenant_name,
+  subdomain: raw.subdomain,
+  subscriptionStatus: raw.subscription_status,
+});
+
+export const mapPlatformSaasInvoiceDetail = (
+  raw: ApiPlatformSaasInvoiceDetail,
+): PlatformSaasInvoiceDetail => ({
+  ...mapPlatformSaasInvoice(raw),
+  items: (raw.items ?? []).map(mapPlatformSaasInvoiceItem),
+  payments: (raw.payments ?? []).map(mapPlatformSaasInvoicePayment),
+});
+
+export const mapPlatformReconciliationPreview = (
+  raw: ApiPlatformReconciliationRow,
+): PlatformReconciliationPreview => ({
+  tenantId: raw.tenant_id,
+  tenantName: raw.tenant_name,
+  subdomain: raw.subdomain,
+  periodKey: raw.period_key,
+  planCode: raw.plan_code,
+  planName: raw.plan_name,
+  monthlyPriceCents: raw.monthly_price_cents,
+  billingCycle: raw.billing_cycle,
+  status: raw.status,
+  includedStamps: raw.included_stamps,
+  stampsUsed: raw.stamps_used,
+  overageStamps: raw.overage_stamps,
+  overagePriceCents: raw.overage_price_cents,
+  overageTotalCents: raw.overage_total_cents,
+  activeModules: raw.active_modules ?? [],
+  modulesTotalCents: raw.modules_total_cents,
+  subtotalCents: raw.subtotal_cents,
+  ivaCents: raw.iva_cents,
+  totalCents: raw.total_cents,
 });

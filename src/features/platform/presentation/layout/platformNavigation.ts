@@ -3,6 +3,8 @@ import {
   ClipboardList,
   Database,
   LayoutDashboard,
+  Shield,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { platformCopy } from "../copy/platformCopy";
@@ -28,6 +30,12 @@ export const PLATFORM_NAV_ITEMS: PlatformNavItem[] = [
     icon: Building2,
   },
   {
+    id: "ar",
+    href: "/platform/billing/ar",
+    label: platformCopy.nav.ar,
+    icon: Wallet,
+  },
+  {
     id: "catalogs",
     href: "/platform/catalogs",
     label: platformCopy.nav.catalogs,
@@ -38,6 +46,12 @@ export const PLATFORM_NAV_ITEMS: PlatformNavItem[] = [
     href: "/platform/audit",
     label: platformCopy.nav.audit,
     icon: ClipboardList,
+  },
+  {
+    id: "security",
+    href: "/platform/security",
+    label: platformCopy.nav.security,
+    icon: Shield,
   },
 ];
 

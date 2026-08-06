@@ -1,11 +1,9 @@
 import { CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { Badge } from "@shared/ui/badge";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import { isTrialDateReached } from "@features/billing/presentation/utils/billingNotice";
 import {
   usePlatformTenantStampUsage,
   usePlatformTenantSubscription,
@@ -16,6 +14,8 @@ import {
   formatPlatformHistoryMonths,
   formatPlatformLimitValue,
   getPlatformBillingCycleLabel,
+  getPlatformQuotaPolicyDescription,
+  getPlatformQuotaPolicyLabel,
   getPlatformSubscriptionStatusLabel,
   getProfitabilityLevelDetail,
 } from "../utils/platformBillingFormatters";
@@ -24,19 +24,13 @@ interface TenantSubscriptionCardProps {
   tenantId: string;
 }
 
+/** Detalle avanzado del plan (límites, margen, política de excedente, notas). */
 export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps) {
   const copy = platformCopy.tenants.detail.subscription;
+  const stampCopy = platformCopy.tenants.detail.stampUsage;
   const { data: subscription, isLoading, isError } =
     usePlatformTenantSubscription(tenantId);
   const { data: usage } = usePlatformTenantStampUsage(tenantId);
-
-  const isTrialing = subscription?.status === "trialing";
-  const trialDateExpired =
-    isTrialing && isTrialDateReached(subscription?.trialEndsAt);
-  const trialStampsExhausted =
-    isTrialing &&
-    !!usage &&
-    usage.stampsUsed >= usage.includedStamps;
 
   return (
     <Card>
@@ -58,13 +52,6 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
           />
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">
-                {platformCopy.tenants.detail.subscription.levelBadge(
-                  subscription.profitabilityLevel,
-                )}
-              </Badge>
-            </div>
             <InfoRow
               variant="inline"
               label={copy.fields.plan}
@@ -92,18 +79,6 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
             />
             <InfoRow
               variant="inline"
-              label={copy.fields.profitabilityLevel}
-              value={
-                getProfitabilityLevelDetail(subscription.profitabilityLevel)
-                  .label
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {getProfitabilityLevelDetail(subscription.profitabilityLevel)
-                .includes}
-            </p>
-            <InfoRow
-              variant="inline"
               label={copy.fields.users}
               value={formatPlatformLimitValue(subscription.limits.maxUsers)}
             />
@@ -124,36 +99,46 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
                 value={formatDateTime(subscription.trialEndsAt)}
               />
             ) : null}
-            {subscription.status === "trialing" ? (
-              <AlertWithIcon
-                variant="info"
-                title={copy.statusLabels.trialing}
-              >
-                {copy.trialQuotaHint}
-              </AlertWithIcon>
+            {usage ? (
+              <>
+                <InfoRow
+                  variant="inline"
+                  label={stampCopy.quotaPolicy}
+                  value={getPlatformQuotaPolicyLabel(usage.quotaPolicy)}
+                />
+                {getPlatformQuotaPolicyDescription(usage.quotaPolicy) ? (
+                  <p className="text-xs text-muted-foreground">
+                    {getPlatformQuotaPolicyDescription(usage.quotaPolicy)}
+                  </p>
+                ) : null}
+              </>
             ) : null}
-            {trialDateExpired ? (
-              <AlertWithIcon
-                variant="destructive"
-                title={copy.trialExpiredTitle}
-              >
-                {copy.trialExpiredDescription}
-              </AlertWithIcon>
-            ) : null}
-            {trialStampsExhausted && !trialDateExpired ? (
-              <AlertWithIcon
-                variant="destructive"
-                title={copy.trialExhaustedTitle}
-              >
-                {copy.trialExhaustedDescription}
-              </AlertWithIcon>
-            ) : null}
+            <InfoRow
+              variant="inline"
+              label={copy.fields.profitabilityLevel}
+              value={
+                getProfitabilityLevelDetail(subscription.profitabilityLevel)
+                  .label
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {getProfitabilityLevelDetail(subscription.profitabilityLevel)
+                .includes}
+            </p>
             {subscription.notes ? (
               <InfoRow
                 variant="inline"
                 label={copy.fields.notes}
                 value={subscription.notes}
               />
+            ) : null}
+            {subscription.status === "past_due" ? (
+              <AlertWithIcon
+                variant="warning"
+                title={platformCopy.tenants.detail.governance.grace.title}
+              >
+                {platformCopy.tenants.detail.governance.grace.itemNotes}
+              </AlertWithIcon>
             ) : null}
           </>
         )}

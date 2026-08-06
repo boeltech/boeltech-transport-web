@@ -9,7 +9,7 @@ export const platformCopy = {
     tenantProduct: BRAND.productName,
   },
   shell: {
-    headerContext: "Consola tenant 0",
+    headerContext: "Consola de plataforma",
     openMenu: "Abrir menú",
     closeMenu: "Cerrar menú",
     collapseSidebar: "Colapsar",
@@ -29,56 +29,64 @@ export const platformCopy = {
       invalidCredentials: "Credenciales inválidas. Verifica tu correo y contraseña.",
       sessionExpired: "Tu sesión de plataforma expiró. Inicia sesión de nuevo.",
     },
+    mfa: {
+      title: "Verificación en dos pasos",
+      description:
+        "Ingresa el código de tu app autenticadora o un código de recuperación.",
+      codeLabel: "Código",
+      submit: "Verificar y entrar",
+      submitting: "Verificando…",
+      back: "Volver al login",
+      invalidCode: "Código MFA inválido. Inténtalo de nuevo.",
+    },
+  },
+  security: {
+    title: "Seguridad",
+    description:
+      "Protege la consola de plataforma con autenticación en dos pasos (TOTP).",
+    mfaRequiredBanner:
+      "Los propietarios de plataforma deben activar MFA antes de continuar.",
+    statusEnabled: "MFA activo",
+    statusDisabled: "MFA inactivo",
+    setup: "Configurar MFA",
+    confirm: "Confirmar código",
+    disable: "Desactivar MFA",
+    secretHint: "Guarda este secreto o escanea el QR en tu app autenticadora.",
+    recoveryTitle: "Códigos de recuperación",
+    recoveryHint:
+      "Guárdalos en un lugar seguro. Cada código solo se puede usar una vez.",
+    passwordLabel: "Contraseña actual",
+    codeLabel: "Código TOTP",
+    enabledAt: (iso: string) => `Activado el ${iso}`,
   },
   nav: {
     dashboard: "Panel",
     tenants: "Empresas",
+    ar: "Cobros",
     catalogs: "Catálogos globales",
-    audit: "Auditoría",
+    audit: "Historial",
+    security: "Seguridad",
     logout: "Cerrar sesión",
     erpLink: `Ir a ${BRAND.productName}`,
   },
   dashboard: {
     title: "Panel de plataforma",
-    description: `Vista agregada del parque de clientes ${BRAND.productName}.`,
-    hero: {
-      badge: "Consola SaaS",
-      secondaryBadge: "Tenant 0",
-      title: "Supervisa empresas, planes y crecimiento",
-      description:
-        `Punto de entrada para operadores ${BRAND.companyName}: revisa cuántas empresas están activas, cómo se distribuyen por plan y qué tan saludable es la base instalada antes de entrar al detalle de cada tenant.`,
-      stepPrefix: (step: number) => `Paso ${step}`,
-      steps: [
-        {
-          title: "Lee los indicadores",
-          description: "Empresas activas, suspendidas y usuarios totales.",
-        },
-        {
-          title: "Revisa planes",
-          description: "Distribución comercial del parque de clientes.",
-        },
-        {
-          title: "Profundiza por tenant",
-          description: "Desde Empresas: plan, timbres, módulos y auditoría.",
-        },
-      ],
-    },
+    description: `Indicadores del parque de clientes ${BRAND.productName}.`,
     cards: {
       totalTenants: "Empresas registradas",
-      totalTenantsHint: "Tenants provisionados en plataforma",
+      totalTenantsHint: "Empresas dadas de alta en plataforma",
       activeTenants: "Empresas activas",
-      activeTenantsHint: "Operando sin suspensión",
+      activeTenantsHint: "Sin suspensión de acceso",
       suspendedTenants: "Empresas suspendidas",
       suspendedTenantsHint: "Requieren revisión o reactivación",
       totalUsers: "Usuarios activos",
-      totalUsersHint: "Suma en todos los tenants",
+      totalUsersHint: "Suma en todas las empresas",
       newTenants: "Altas últimos 30 días",
-      newTenantsHint: "Nuevas empresas en el mes",
+      newTenantsHint: "Nuevas empresas en los últimos 30 días",
     },
     plans: {
-      title: "Distribución por plan comercial",
-      description:
-        "Cuántas empresas tiene asignado cada plan. Los códigos se muestran con su nombre comercial cuando está disponible.",
+      title: "Distribución por plan",
+      description: "Cuántas empresas tiene asignado cada plan comercial.",
       columns: {
         plan: "Plan",
         tenants: "Empresas",
@@ -88,19 +96,19 @@ export const platformCopy = {
         count === 1 ? "1 empresa" : `${count} empresas`,
       empty: {
         title: "Sin empresas con plan",
-        description: "Aún no hay tenants con plan comercial asignado.",
+        description: "Aún no hay empresas con plan comercial asignado.",
       },
     },
     quickLinks: {
       title: "Accesos rápidos",
-      description: "Tareas frecuentes desde la consola de plataforma.",
+      description: "Tareas frecuentes de la consola.",
       tenants: {
-        label: "Empresas cliente",
-        description: "Lista, alta, detalle y ciclo de vida.",
+        label: "Empresas",
+        description: "Lista, alta y detalle.",
       },
       audit: {
-        label: "Auditoría",
-        description: "Acciones de operadores sobre tenants.",
+        label: "Historial",
+        description: "Cambios de operadores y del sistema.",
       },
       catalogs: {
         label: "Catálogos globales",
@@ -115,68 +123,35 @@ export const platformCopy = {
   },
   tenants: {
     list: {
-      title: "Empresas cliente",
-      description: "Gestiona el ciclo de vida, planes y uso operativo de cada tenant.",
+      title: "Empresas",
+      description: "Consulta acceso y suscripción de cada empresa.",
       entityLabelPlural: "empresas",
-      hero: {
-        badge: "Cartera de clientes",
-        title: "Encuentra y administra empresas del ecosistema",
-        description:
-          "Busca por nombre o identificador, filtra por estado y plan, y entra al detalle para revisar suscripción, timbres, módulos y auditoría.",
-        stepPrefix: (step: number) => `Paso ${step}`,
-        steps: [
-          {
-            title: "Busca o filtra",
-            description: "Ubica la empresa por nombre, estado o plan.",
-          },
-          {
-            title: "Abre el detalle",
-            description: "Consulta plan, consumo y módulos contratados.",
-          },
-          {
-            title: "Gestiona el ciclo de vida",
-            description: "Asigna plan, suspende o revisa auditoría.",
-          },
-        ],
-      },
-      metrics: {
-        registered: "Empresas registradas",
-        registeredHint: "Total en plataforma",
-        active: "Empresas activas",
-        activeHint: "Operando sin suspensión",
-        suspended: "Suspendidas",
-        suspendedHint: "Requieren seguimiento",
-      },
-      table: {
-        title: "Listado de empresas",
-        description: "Haz clic en una fila para abrir el detalle del tenant.",
-      },
       searchPlaceholder: "Buscar por nombre o identificador…",
       create: "Nueva empresa",
       readOnlyHint:
-        "Tu rol es de soporte: puedes consultar empresas, pero no crear ni cambiar su ciclo de vida.",
-      readOnlyTitle: "Modo solo lectura",
+        "Tu rol es de soporte: puedes consultar empresas, pero no crear ni cambiar su estado.",
+      readOnlyTitle: "Solo lectura",
       filters: {
-        status: "Estado",
+        access: "Acceso",
+        commercial: "Suscripción",
         plan: "Plan",
-        allStatuses: "Todos los estados",
+        allAccess: "Todos",
+        allCommercial: "Todas las suscripciones",
         allPlans: "Todos los planes",
-        statusChip: (label: string) => `Estado: ${label}`,
+        accessChip: (label: string) => `Acceso: ${label}`,
+        commercialChip: (label: string) => `Suscripción: ${label}`,
         planChip: (label: string) => `Plan: ${label}`,
       },
       columns: {
         name: "Empresa",
-        subdomain: "Identificador",
         plan: "Plan",
-        usage: "Uso",
-        status: "Estado",
-        created: "Alta",
+        access: "Acceso",
+        commercial: "Suscripción",
       },
-      usageSummary: (users: number, branches: number) =>
-        `${users} usuarios · ${branches} sucursales`,
+      commercialEmpty: "Sin suscripción",
       empty: {
         title: "Sin empresas",
-        description: "Crea la primera empresa cliente desde plataforma.",
+        description: "Crea la primera empresa desde aquí.",
         searchTitle: "Sin coincidencias",
         searchDescription:
           "No hay empresas que coincidan con la búsqueda o filtros actuales.",
@@ -188,63 +163,91 @@ export const platformCopy = {
       back: "Volver a empresas",
       notFound: {
         title: "Empresa no encontrada",
-        description: "El tenant no existe o fue eliminado.",
+        description: "La empresa no existe o fue eliminada.",
       },
       sections: {
-        overview: "Resumen operativo",
-        usage: "Uso operativo",
-        operation: "Operación del tenant",
-        plan: "Plan comercial",
-        subscription: "Suscripción comercial",
-        stampUsage: "Consumo de timbres",
-      },
-      hero: {
-        badge: "Cliente ERP",
-        description:
-          "Consulta el plan comercial, los módulos contratados y el consumo de timbres fiscales de esta empresa. Usa las acciones del encabezado para gestionar suscripción, módulos o ciclo de vida.",
+        thisMonth: "Este mes",
+        thisMonthDescription:
+          "Plan, consumo de timbres y total estimado del periodo.",
         planFallback: "Plan comercial",
-        stepPrefix: (step: number) => `Paso ${step}`,
-        steps: [
-          {
-            title: "Suscripción y límites",
-            description: "Plan, precio, periodo y capacidad incluida.",
-          },
-          {
-            title: "Consumo de timbres",
-            description: "Uso fiscal del periodo y excedentes estimados.",
-          },
-          {
-            title: "Módulos y facturación",
-            description: "Add-ons activos y total mensual estimado.",
-          },
-        ],
+        overview: "Datos de alta",
+        usage: "Capacidad",
+        operation: "Capacidad de la empresa",
+        capacitySummary: (users: number, branches: number) =>
+          `${users} usuarios · ${branches} sucursales`,
+        plan: "Plan comercial",
+        subscription: "Detalle del plan",
+        stampUsage: "Consumo de timbres",
+        governance: "Estado de la empresa",
+        advanced: "Más detalle",
+        advancedShow: "Ver detalle del plan",
+        advancedHide: "Ocultar detalle del plan",
+        breakdownShow: "Ver desglose",
+        breakdownHide: "Ocultar desglose",
+      },
+      governance: {
+        title: "Estado de la empresa",
+        helpLabel: "¿Por qué hay dos estados?",
+        helpHide: "Ocultar explicación",
+        helpBody:
+          "Acceso controla si pueden iniciar sesión. Suscripción controla si pueden operar. Puedes cerrar el acceso sin cambiar el plan, o pausar la operación dejando el acceso abierto.",
+        accessTitle: "Acceso",
+        accessEffect: {
+          active: "Pueden iniciar sesión.",
+          suspended: "No pueden iniciar sesión.",
+          cancelled: "Cuenta cancelada: no pueden iniciar sesión.",
+        },
+        commercialTitle: "Suscripción",
+        commercialEffect: {
+          trialing: "Puede operar en periodo de prueba.",
+          active: "Puede operar con el plan contratado.",
+          past_due: "Sigue operando · cobro pendiente.",
+          paused: "No puede operar.",
+          canceled: "No puede operar.",
+          missing: "Sin suscripción: no puede operar.",
+        },
+        commercialLoading: "Cargando suscripción…",
+        grace: {
+          title: "Cobro pendiente — acción manual",
+          orientation: (deadlineLabel: string) =>
+            `Referencia de gracia: ${deadlineLabel}. No hay corte automático; decide Pausada o Activa según el cobro.`,
+          orientationMissing:
+            "Referencia de gracia no disponible. Decide Pausada o Activa según el cobro.",
+          itemNotes: "Anotar cobro o acuerdo en las notas de la suscripción",
+          itemPause: "Si venció la gracia → marcar suscripción como Pausada",
+          itemActive: "Si pagó → volver suscripción a Activa",
+          openSubscription: "Gestionar suscripción",
+          readOnlyHint: "Solo el propietario puede cambiar el estado comercial.",
+        },
       },
       metrics: {
-        monthlyPrice: "Precio mensual",
-        monthlyPriceHint: "Precio de lista del plan",
+        monthlyPrice: "Precio del plan",
+        monthlyPriceHint: "Precio de lista mensual",
         stampsUsed: "Timbres usados",
         stampsHint: (period: string) => `Periodo ${period}`,
         estimatedTotal: "Total estimado",
         estimatedTotalHint: "Con IVA · periodo actual",
         activeModules: "Módulos contratados",
-        activeModulesHint: "Add-ons y packs activos",
+        activeModulesHint: "Complementos activos",
       },
       usage: {
         users: "Usuarios activos",
         branches: "Sucursales activas",
         trips: "Viajes registrados",
+        createdAt: "Alta",
+        suspendedAt: "Suspensión",
       },
       subscription: {
-        loading: "Cargando suscripción…",
+        loading: "Cargando plan…",
         unavailable: "Sin suscripción comercial registrada.",
         description:
-          "Condiciones comerciales y límites operativos asignados al tenant.",
-        levelBadge: (level: string) => `Nivel ${level}`,
+          "Límites del plan, periodo, notas internas e indicador de margen.",
+        levelBadge: (level: string) => `Indicador ${level}`,
         trialQuotaHint:
-          "En prueba: cupo efectivo 15 timbres. Al pasar a Activa se restaura el paquete del plan.",
+          "En prueba: cupo de 15 timbres. Al pasar a Activa se restaura el paquete del plan.",
         trialExhaustedTitle: "Cupo de prueba agotado",
         trialExhaustedDescription:
-          "El tenant usó los 15 timbres de prueba. El timbrado está bloqueado hasta reactivar el plan.",
+          "La empresa usó los 15 timbres de prueba. El timbrado está bloqueado hasta reactivar el plan.",
         trialExpiredTitle: "Periodo de prueba vencido",
         trialExpiredDescription:
           "La fecha de fin de prueba ya pasó. El timbrado está bloqueado hasta reactivar el plan.",
@@ -257,12 +260,12 @@ export const platformCopy = {
           cycle: "Ciclo de facturación",
           price: "Precio de lista",
           period: "Periodo actual",
-          profitabilityLevel: "Nivel de rentabilidad",
+          profitabilityLevel: "Indicador interno de margen",
           users: "Usuarios incluidos",
           branches: "Sucursales incluidas",
           historyRetention: "Retención de historial",
           trial: "Fin de prueba",
-          notes: "Notas internas",
+          notes: "Notas del acuerdo",
         },
         statusLabels: {
           trialing: "En prueba",
@@ -279,8 +282,7 @@ export const platformCopy = {
       stampUsage: {
         loading: "Cargando consumo…",
         unavailable: "Consumo de timbres no disponible.",
-        description:
-          "Timbres consumidos al timbrar CFDI (facturas, Carta Porte, REP, etc.) en el periodo de facturación.",
+        description: "Timbres usados al facturar en el periodo actual.",
         summary: (used: number, included: number) =>
           `${used} de ${included} timbres`,
         remaining: (count: number) =>
@@ -293,12 +295,12 @@ export const platformCopy = {
         period: "Periodo",
         quotaPolicy: "Política de excedente",
         quotaPolicyLabels: {
-          soft_cap: "Tope flexible",
-          hard_cap: "Tope estricto",
+          soft_cap: "Permite excedente",
+          hard_cap: "Corta al límite",
         } as Record<string, string>,
         quotaPolicyDescriptions: {
           soft_cap:
-            "Puede superar el paquete incluido; el excedente se factura por timbre adicional.",
+            "Puede superar el paquete incluido; el excedente se cobra por timbre adicional.",
           hard_cap:
             "Al agotar el paquete, el timbrado se detiene hasta el siguiente periodo.",
         } as Record<string, string>,
@@ -310,30 +312,34 @@ export const platformCopy = {
             title: "Consumo en seguimiento (70%)",
             description: (remaining: number) =>
               remaining <= 0
-                ? "El tenant alcanzó el umbral de seguimiento del paquete incluido."
+                ? "La empresa alcanzó el umbral de seguimiento del paquete incluido."
                 : `≥70% del paquete. Quedan ${remaining} timbre${remaining === 1 ? "" : "s"} en el periodo.`,
           },
           warning: {
             title: "Paquete casi agotado (80%)",
             description: (remaining: number) =>
               remaining <= 0
-                ? "El tenant agotó el paquete incluido. Revisa la política de excedente o contacta a facturación."
+                ? "La empresa agotó el paquete incluido. Revisa la política de excedente o contacta a facturación."
                 : `Quedan ${remaining} timbre${remaining === 1 ? "" : "s"} del paquete incluido.`,
           },
           exhausted: {
             title: "Paquete agotado (100%)",
             description:
-              "El tenant consumió el 100% de los timbres incluidos. Con tope flexible puede seguir timbrando; el excedente se factura por timbre adicional.",
+              "La empresa consumió el 100% de los timbres incluidos. Si permite excedente, puede seguir timbrando; el excedente se cobra por timbre adicional.",
           },
         },
-        exportCsv: "Exportar conciliación",
-        exportSuccess: "Conciliación descargada",
-        exportError: "No se pudo exportar la conciliación",
+        exportCsv: "Descargar estimado",
+        exportSuccess: "Estimado descargado",
+        exportError: "No se pudo descargar el estimado",
+        exportEstimateHint:
+          "Proyección del mes en curso. No usar para CFDI ni para Nuevo cobro.",
       },
       actions: {
         manageSubscription: "Gestionar suscripción",
-        manageEntitlements: "Módulos contratados",
-        grantStampPack: "Acreditar prepago",
+        manageEntitlements: "Módulos",
+        grantStampPack: "Acreditar timbres",
+        viewHistory: "Historial",
+        moreActions: "Más acciones",
         suspend: "Suspender",
         reactivate: "Reactivar",
         cancel: "Cancelar cuenta",
@@ -341,9 +347,9 @@ export const platformCopy = {
       suspendedAt: (date: string) => `Suspendida el ${date}`,
     },
     stampPacks: {
-      title: "Acreditar prepago de timbres",
+      title: "Acreditar timbres prepago",
       description:
-        "Asigna un pack del catálogo (50 / 150 / 500). Sin caducidad; se consume antes del overage. No aplica en trial.",
+        "Asigna un pack del catálogo (50 / 150 / 500). Sin caducidad; se consume antes del excedente. No aplica en periodo de prueba.",
       balanceTitle: "Saldo prepago actual",
       balanceSummary: (remaining: number) =>
         remaining === 1
@@ -368,40 +374,19 @@ export const platformCopy = {
         count === 1 ? "1 timbre" : `${count} timbres`,
     },
     create: {
-      title: "Nueva empresa cliente",
-      description: "Alta de tenant con administrador inicial y plan comercial.",
+      title: "Nueva empresa",
+      description: "Alta con administrador inicial y plan comercial.",
       back: "Volver a empresas",
-      hero: {
-        badge: "Provisionamiento",
-        title: "Crea una empresa cliente en tres bloques",
-        description:
-          "Registra la empresa, define quién administrará el entorno por primera vez y asigna el plan comercial. Al guardar, podrás revisar plan, timbres y módulos en el detalle.",
-        stepPrefix: (step: number) => `${step}`,
-        steps: [
-          {
-            title: "Empresa",
-            description: "Nombre comercial e identificador único.",
-          },
-          {
-            title: "Administrador inicial",
-            description: "Primera cuenta con acceso al ERP de la empresa.",
-          },
-          {
-            title: "Plan comercial",
-            description: "Límites, timbres incluidos y precio de lista.",
-          },
-        ],
-      },
       sections: {
         company: "Empresa",
         companyDescription:
-          "Datos que identifican a la empresa en la consola y en el ERP.",
+          "Datos que identifican a la empresa en la consola y en el sistema.",
         admin: "Administrador inicial",
         adminDescription:
-          "Usuario con rol administrador que recibirá acceso al entorno recién creado.",
+          "Usuario administrador que recibirá acceso al entorno recién creado.",
         plan: "Plan comercial",
         planDescription:
-          "Define capacidad operativa y paquete de timbres desde el primer día. La flota es orientativa: puedes elegir otro tier.",
+          "Define capacidad y paquete de timbres desde el primer día. La flota es orientativa: puedes elegir otro plan.",
       },
       fields: {
         companyName: "Nombre comercial",
@@ -433,7 +418,7 @@ export const platformCopy = {
         adminPassword:
           "Entre 8 y 128 caracteres, con mayúscula, minúscula y número. Puedes generar una segura y copiarla para entregarla al administrador.",
         adminEmail:
-          "Será el usuario con el que el administrador inicia sesión en el ERP.",
+          "Será el usuario con el que el administrador inicia sesión.",
         fleetBand:
           "Rangos orientativos del catálogo comercial. No bloquean un plan distinto.",
         planOverride:
@@ -448,7 +433,8 @@ export const platformCopy = {
         copyError: "No se pudo copiar la contraseña",
       },
       plansLoading: "Cargando planes comerciales…",
-      plansEmpty: "No hay planes comerciales disponibles. Intenta de nuevo más tarde.",
+      plansEmpty:
+        "No hay planes comerciales disponibles. Intenta de nuevo más tarde.",
       planPreview: {
         title: "Resumen del plan seleccionado",
         price: "Precio de lista",
@@ -461,7 +447,7 @@ export const platformCopy = {
       notice: {
         title: "Qué ocurre al crear",
         description:
-          "Se provisiona la empresa, se asigna el plan seleccionado y se redirige al detalle. El administrador podrá entrar al ERP con el correo y contraseña indicados.",
+          "Se crea la empresa, se asigna el plan seleccionado y se redirige al detalle. El administrador podrá entrar con el correo y contraseña indicados.",
       },
       validation: {
         companyNameRequired: "El nombre comercial es requerido",
@@ -490,162 +476,133 @@ export const platformCopy = {
       accessDenied: "No tienes permiso para crear empresas.",
     },
     manageSubscription: {
-      title: "Gestionar suscripción",
-      description:
-        "Único lugar para cambiar el plan comercial, ciclo, estado y notas internas de la suscripción.",
+      title: "Cambiar plan y operación",
+      description: "Cambia el plan y cómo puede operar esta empresa.",
       fleetHint: (bandLabel: string, planName: string) =>
-        `Según flota declarada (${bandLabel}) → sugerido ${planName}. Puedes elegir otro plan.`,
-      trialHint:
-        "En prueba: cupo de 15 timbres en el periodo y 14 días por defecto si no defines fin de prueba. Al pasar a Activa se restaura el paquete del plan.",
+        `Con flota ${bandLabel}, suele encajar ${planName}. Puedes elegir otro.`,
       fields: {
-        plan: "Plan comercial",
+        plan: "Plan",
         status: "Estado",
         cycle: "Ciclo",
-        trial: "Fin de prueba (opcional)",
+        trial: "Fin de prueba",
         notes: "Notas internas",
       },
       placeholders: {
         plan: "Selecciona un plan",
-        notes: "Ej. acuerdo comercial, descuento temporal…",
+        notes: "Ej. acuerdo de pago del 12/ago; pendiente de confirmar…",
       },
-      submit: "Guardar suscripción",
+      notesHint: "Opcional. Referencia de acuerdo o cobro para el equipo.",
+      statusEffects: {
+        trialing: "Puede operar en periodo de prueba.",
+        active: "Puede operar con el plan.",
+        past_due: "Sigue operando · pago pendiente.",
+        paused: "No puede operar.",
+        canceled: "No puede operar.",
+      },
+      sectionPlan: "Plan",
+      sectionStatus: "Cómo opera",
+      sectionNotes: "Notas (opcional)",
+      cancel: "Cancelar",
+      submit: "Guardar",
       submitting: "Guardando…",
-      success: "Suscripción actualizada",
-      error: "No se pudo actualizar la suscripción",
+      success: "Cambios guardados",
+      error: "No se pudieron guardar los cambios",
     },
     entitlements: {
       title: "Módulos contratados",
       description:
-        "Activa o revoca add-ons y packs. Los packs expanden sus módulos incluidos automáticamente.",
+        "Activa o revoca complementos y packs. Los packs expanden sus módulos incluidos automáticamente.",
       loading: "Cargando catálogo…",
       empty: "No hay módulos en el catálogo comercial.",
       packBadge: "Pack",
       includesMembers: (count: number) =>
         count === 1 ? "Incluye 1 módulo" : `Incluye ${count} módulos`,
-      levelBadge: (level: string) => `Nivel ${level}`,
+      levelBadge: (level: string) => `Indicador ${level}`,
       effectiveCount: (count: number) =>
         count === 1 ? "1 módulo efectivo" : `${count} módulos efectivos`,
-      success: "Entitlements actualizados",
+      success: "Módulos actualizados",
       error: "No se pudo actualizar el módulo",
-      readOnlyHint: "Tu rol es de soporte: solo lectura de entitlements.",
+      readOnlyHint: "Tu rol es de soporte: solo lectura de módulos.",
       previewPrice: (amount: string, tier: "ea" | "ga") =>
         tier === "ea"
-          ? `Precio al activar: ${amount} (Early Access)`
+          ? `Precio al activar: ${amount} (acceso anticipado)`
           : `Precio al activar: ${amount}`,
       lockedPrice: (amount: string) => `Precio bloqueado: ${amount}/mes`,
     },
     commercial: {
-      title: "Módulos y facturación estimada",
-      description:
-        "Add-ons y packs contratados con desglose de precios de lista y total mensual estimado.",
-      loading: "Cargando desglose comercial…",
-      unavailable: "Desglose comercial no disponible.",
+      title: "Módulos contratados",
+      description: "Complementos activos y desglose del total estimado.",
+      loading: "Cargando desglose…",
+      unavailable: "Desglose no disponible.",
       manageCta: "Gestionar módulos",
       noModules: {
-        title: "Sin add-ons adicionales",
+        title: "Sin complementos adicionales",
         description:
-          "El plan base incluye los módulos operativos. Los add-ons contratados aparecerán aquí.",
+          "El plan base incluye la operación. Los complementos contratados aparecerán aquí.",
       },
-      totalsSection: "Desglose mensual estimado",
-      eaBadge: "Early Access",
+      totalsSection: "Desglose del mes",
+      eaBadge: "Acceso anticipado",
       perMonth: "/mes",
       kindLabels: {
-        addon: "Add-on",
+        addon: "Complemento",
         pack: "Pack",
         minipack: "Mini-pack",
       } as Record<string, string>,
       totals: {
-        plan: "Plan Operación",
-        modules: "Add-ons y packs",
-        overage: "Excedente de timbres (periodo)",
+        plan: "Plan",
+        modules: "Complementos",
+        overage: "Excedente de timbres",
         subtotal: "Subtotal estimado",
         iva: "IVA (16%)",
         estimatedTotal: "Total estimado (con IVA)",
       },
       disclaimer:
-        "Precios de lista mensuales sin IVA en líneas; el total incluye IVA. El cobro y CFDI los gestiona Boeltech fuera del producto (v1 manual).",
+        "Precios de lista mensuales sin IVA en líneas; el total incluye IVA. El cobro y la factura los gestiona Boeltech fuera del producto.",
     },
     suspend: {
-      suspendTitle: "Suspender empresa",
-      reactivateTitle: "Reactivar empresa",
-      cancelTitle: "Cancelar empresa",
+      suspendTitle: "Suspender acceso",
+      reactivateTitle: "Reactivar acceso",
+      cancelTitle: "Cancelar cuenta (acceso)",
       suspendDescription:
-        "Los usuarios del tenant no podrán iniciar sesión hasta reactivar la cuenta.",
+        "Bloquea el inicio de sesión de todos los usuarios hasta reactivar. No cambia la suscripción ni los módulos.",
       reactivateDescription:
-        "Restaura el acceso operativo para todos los usuarios activos del tenant.",
+        "Restaura el inicio de sesión. Si la suscripción está pausada o cancelada, la empresa podría seguir sin poder operar.",
       cancelDescription:
-        "Marca la cuenta como cancelada. Usa esta acción solo para bajas definitivas.",
+        "Baja definitiva de acceso. No cancela la suscripción ni revoca módulos; usa Gestionar suscripción para el eje comercial.",
       reasonLabel: "Motivo (opcional)",
       reasonPlaceholder: "Ej. impago, solicitud del cliente…",
-      confirmSuspend: "Suspender",
-      confirmReactivate: "Reactivar",
-      confirmCancel: "Confirmar cancelación",
-      success: "Estado actualizado",
-      error: "No se pudo actualizar el estado",
+      confirmSuspend: "Suspender acceso",
+      confirmReactivate: "Reactivar acceso",
+      confirmCancel: "Confirmar cancelación de acceso",
+      success: "Acceso actualizado",
+      error: "No se pudo actualizar el acceso",
     },
   },
   catalogs: {
     title: "Catálogos globales",
     description:
-      "Importación centralizada de catálogos regulatorios SAT para todo el ecosistema Tlama.",
+      "Actualiza las tablas oficiales que usan todas las empresas.",
     entityLabelPlural: "catálogos",
-    hero: {
-      badge: "Catálogos regulatorios",
-      secondaryBadge: "Ámbito global",
-      title: "Actualiza catálogos SAT para todos los tenants",
-      description:
-        "Desde aquí cargas versiones oficiales en CSV. Los cambios aplican a nivel plataforma y alimentan validaciones fiscales y operativas de las empresas cliente.",
-      stepPrefix: (step: number) => `Paso ${step}`,
-      steps: [
-        {
-          title: "Elige el catálogo",
-          description: "Ubica el tipo SAT que vas a actualizar.",
-        },
-        {
-          title: "Importa el CSV",
-          description: "Sube el archivo oficial y valida la estructura.",
-        },
-        {
-          title: "Confirma la versión",
-          description: "La importación queda registrada en auditoría.",
-        },
-      ],
-    },
-    metrics: {
-      satCatalogs: "Catálogos SAT",
-      satCatalogsHint: "Disponibles para importación global",
-      visibleResults: "Resultados visibles",
-      visibleResultsHint: "Según tu búsqueda actual",
-      importAccess: "Permiso de importación",
-      importEnabled: "Habilitado",
-      importDisabled: "Solo lectura",
-      importEnabledHint: "Rol platform owner",
-      importDisabledHint: "Rol platform support",
-    },
     search: {
-      placeholder: "Buscar por nombre o código SAT…",
+      placeholder: "Buscar por nombre o código…",
     },
     table: {
-      title: "Catálogos SAT disponibles",
-      description:
-        "Selecciona un catálogo para abrir el asistente de importación CSV.",
       columns: {
         catalog: "Catálogo",
-        source: "Fuente",
         action: "Acción",
       },
     },
-    import: "Importar CSV",
+    import: "Actualizar",
     readOnlyHint:
-      "Tu rol es de soporte: puedes consultar catálogos, pero no importar CSV.",
-    readOnlyTitle: "Modo solo lectura",
+      "Tu rol es de soporte: puedes consultar catálogos, pero no actualizarlos.",
+    readOnlyTitle: "Solo lectura",
     csvTypeMismatchHint:
-      "El CSV no coincide con el catálogo seleccionado. Verifica el archivo SAT correcto.",
+      "El archivo no coincide con el catálogo seleccionado. Verifica el archivo correcto.",
     empty: {
-      title: "Sin catálogos SAT",
-      description: "No hay tipos de catálogo disponibles para importación global.",
+      title: "Sin catálogos",
+      description: "No hay catálogos disponibles para actualizar.",
       searchTitle: "Sin coincidencias",
-      searchDescription: "Prueba con otro nombre o código de catálogo SAT.",
+      searchDescription: "Prueba con otro nombre o código.",
     },
     error: {
       title: "No se pudieron cargar los catálogos",
@@ -654,51 +611,16 @@ export const platformCopy = {
     },
   },
   audit: {
-    title: "Auditoría de plataforma",
-    description:
-      "Historial de acciones cross-tenant realizadas por operadores Boeltech.",
+    title: "Historial",
+    description: "Cambios de operadores y del sistema.",
     entityLabelPlural: "eventos",
-    hero: {
-      badge: "Trazabilidad",
-      title: "Revisa qué hicieron los operadores en la plataforma",
-      description:
-        "Cada alta de empresa, cambio de plan, importación de catálogo o ajuste de módulos queda registrado con operador, fecha y tenant afectado.",
-      stepPrefix: (step: number) => `Paso ${step}`,
-      steps: [
-        {
-          title: "Filtra el historial",
-          description: "Por acción, empresa o rango de fechas.",
-        },
-        {
-          title: "Identifica el operador",
-          description: "Correo del usuario de plataforma que ejecutó el cambio.",
-        },
-        {
-          title: "Profundiza en el tenant",
-          description: "Abre la empresa para ver su contexto comercial.",
-        },
-      ],
-    },
-    metrics: {
-      totalEvents: "Eventos registrados",
-      totalEventsHint: "Según filtros aplicados",
-      pageResults: "En esta página",
-      pageResultsHint: "Eventos visibles ahora",
-      activeFilters: "Filtros activos",
-      activeFiltersHint: "Criterios aplicados al historial",
-    },
-    filtersCard: {
-      title: "Filtros de auditoría",
-      description:
-        "Combina acción, fechas y empresa para acotar el historial. Usa «Aplicar fechas» después de elegir el rango.",
-    },
     tenantFilter: {
       title: "Filtrando por empresa",
       description: (tenantName: string) =>
         `Mostrando solo eventos de ${tenantName}.`,
       clear: "Ver todos los eventos",
     },
-    refreshSuccess: "Auditoría actualizada",
+    refreshSuccess: "Historial actualizado",
     filters: {
       action: "Acción",
       allActions: "Todas las acciones",
@@ -712,35 +634,52 @@ export const platformCopy = {
     },
     columns: {
       date: "Fecha",
-      operator: "Operador",
-      action: "Acción",
+      operator: "Quién",
+      action: "Qué",
       tenant: "Empresa",
       details: "Detalle",
     },
     actions: {
       tenant_created: "Empresa creada",
-      tenant_status_changed: "Estado de empresa",
+      tenant_status_changed: "Acceso de empresa",
       tenant_plan_assigned: "Plan asignado",
-      catalog_import: "Importación catálogo",
+      tenant_fleet_declared: "Flota declarada",
+      tenant_self_serve_registered: "Alta pública",
+      trial_auto_cut: "Corte automático de prueba",
+      catalog_import: "Catálogo actualizado",
       subscription_assigned: "Suscripción asignada",
       module_entitled: "Módulo activado",
       module_revoked: "Módulo revocado",
+      stamp_pack_granted: "Prepago acreditado",
+      saas_invoice_issued: "Cobro emitido",
+      saas_invoice_paid: "Cobro pagado",
+      saas_invoice_voided: "Cobro anulado",
+      subscription_past_due_auto: "Suscripción → past_due (auto)",
+      subscription_active_restored_auto: "Suscripción → active (auto)",
     },
-    viewTenantAudit: "Ver auditoría",
+    systemOperator: "Sistema",
+    selfServeOperator: "Alta pública",
+    unknownTenant: "Empresa desconocida",
+    noDetail: "Sin detalle",
+    viewTenantAudit: "Historial",
     empty: {
       title: "Sin eventos",
-      description: "No hay registros de auditoría con los filtros actuales.",
+      description: "No hay registros con los filtros actuales.",
       searchTitle: "Sin coincidencias",
       searchDescription:
         "Prueba ampliando el rango de fechas o quitando filtros.",
     },
     error: {
-      title: "No se pudo cargar la auditoría",
+      title: "No se pudo cargar el historial",
       description:
         "Revisa la conexión con la API de plataforma e intenta recargar.",
     },
     metadata: {
-      statusChanged: (previousStatus: string, status: string, reason?: string | null) =>
+      statusChanged: (
+        previousStatus: string,
+        status: string,
+        reason?: string | null,
+      ) =>
         reason
           ? `${previousStatus} → ${status} · ${reason}`
           : `${previousStatus} → ${status}`,
@@ -752,11 +691,158 @@ export const platformCopy = {
           ? version
             ? `${typeCode} v${version}`
             : typeCode
-          : "Importación global",
+          : "Catálogo actualizado",
       subscriptionAssigned: (planCode: string, status?: string | null) =>
         status ? `Plan: ${planCode} · ${status}` : `Plan: ${planCode}`,
       moduleEntitled: (moduleCode: string) => `Módulo: ${moduleCode}`,
       moduleRevoked: (moduleCode: string) => `Módulo: ${moduleCode}`,
+      fleetDeclared: (band?: string | null, units?: number | null) =>
+        band
+          ? units != null
+            ? `Banda ${band} · ${units} unidades`
+            : `Banda ${band}`
+          : "Flota declarada",
+      stampPackGranted: (catalogCode?: string | null) =>
+        catalogCode ? `Pack: ${catalogCode}` : "Prepago acreditado",
+      selfServeRegistered: (subdomain: string, planCode?: string | null) =>
+        planCode
+          ? `${subdomain} · ${planCode} · en prueba`
+          : `${subdomain} · en prueba`,
+      trialAutoCut: (reason?: string | null, planCode?: string | null) => {
+        const parts = ["→ Cancelada"];
+        if (reason) parts.unshift(reason);
+        if (planCode) parts.push(planCode);
+        return parts.join(" · ");
+      },
+    },
+  },
+  ar: {
+    title: "Cobros",
+    description:
+      "Quién debe, de qué mes y si está atrasado. Registra el pago cuando lo recibas.",
+    entityLabelPlural: "cobros",
+    navHint: "Cobros",
+    columns: {
+      tenant: "Empresa",
+      period: "Mes",
+      status: "Estado",
+      total: "Monto",
+      dueDate: "Vence",
+      daysOverdue: "Atraso",
+      dueAndOverdue: "Vence / atraso",
+      actions: "Acciones",
+    },
+    status: {
+      draft: "Borrador",
+      open: "Pendiente",
+      paid: "Pagado",
+      void: "Anulado",
+    },
+    views: {
+      pending: "Pendientes",
+      overdue: "Atrasados",
+      all: "Todos",
+    },
+    filters: {
+      status: "Estado",
+      statusAll: "Todos",
+      periodKey: "Mes (AAAA-MM)",
+      periodKeyPlaceholder: "2026-07",
+      minDaysOverdue: "Días de atraso mín.",
+      overdueNone: "Sin mínimo",
+      tenant: "Empresa",
+      tenantPlaceholder: "Buscar empresa…",
+      tenantEmpty: "No hay empresas con ese nombre",
+      tenantClear: "Quitar filtro de empresa",
+    },
+    actions: {
+      issue: "Nuevo cobro",
+      markPaid: "Registrar pago",
+      void: "Anular",
+      viewTenant: "Ver empresa",
+      viewAr: "Ver en Cobros",
+    },
+    empty: {
+      title: "Sin cobros",
+      description: "No hay cobros con los filtros actuales.",
+    },
+    error: {
+      title: "No se pudieron cargar los cobros",
+      description: "Intenta recargar en un momento.",
+    },
+    readOnlyAlert:
+      "Tu rol es de solo lectura: puedes consultar los cobros, pero no emitir ni registrar pagos.",
+    refreshToast: "Cobros actualizados",
+    card: {
+      title: "Cobros",
+      description: "Cargos de servicio de esta empresa pendientes o saldados.",
+      empty: "Aún no hay cobros emitidos.",
+      openBadge: (n: number) =>
+        n === 1 ? "1 cobro pendiente" : `${n} cobros pendientes`,
+      daysOverdue: (n: number) =>
+        n === 1 ? "1 día de atraso" : `${n} días de atraso`,
+      closeExportTitle: "Cierre del mes",
+      closeExportDescription:
+        "CSV del periodo cerrado para CFDI fuera y para emitir el cobro.",
+      closePeriodLabel: "Mes de cierre",
+      closePeriodPlaceholder: "2026-07",
+      exportClose: "Exportar cierre",
+      exportCloseSuccess: "Cierre descargado",
+      exportCloseError: "No se pudo exportar el cierre",
+      exportCloseNotClosed:
+        "Solo periodos cerrados. El mes en curso es estimado (card Este mes).",
+      exportCloseInvalidPeriod: "Usa el formato AAAA-MM (ej. 2026-07).",
+    },
+    closeHint:
+      "Los pendientes son cobros ya emitidos. Para montos de un mes aún no cargado: Exportar cierre en la empresa (o CLI masivo) → CFDI fuera → Nuevo cobro.",
+    issue: {
+      title: "Nuevo cobro del mes",
+      description:
+        "Se calcula el monto del mes cerrado y se crea el cobro pendiente.",
+      periodKey: "Mes a emitir",
+      periodKeyClosedOnly:
+        "Solo meses cerrados. El mes en curso es estimado (card Este mes).",
+      notes: "Notas",
+      dueDays: "Días para pagar",
+      preview: "Monto del mes",
+      previewLoading: "Calculando…",
+      previewEmpty: "Sin datos de ese mes todavía.",
+      previewHint: "Indica un mes cerrado para ver el monto.",
+      subtotal: "Subtotal",
+      iva: "Impuestos",
+      total: "Total",
+      submit: "Emitir cobro",
+      submitting: "Emitiendo…",
+      success: "Cobro emitido",
+      error: "No se pudo emitir el cobro",
+    },
+    markPaid: {
+      title: "Registrar pago",
+      description: "Marca el cobro como pagado (pago completo).",
+      paidAt: "Fecha de pago",
+      method: "Forma de pago",
+      methods: {
+        manual: "Manual",
+        spei: "Transferencia",
+        card_external: "Tarjeta",
+        other: "Otro",
+      },
+      reference: "Referencia",
+      notes: "Notas",
+      submit: "Marcar pagado",
+      submitting: "Guardando…",
+      success: "Cobro marcado como pagado",
+      error: "No se pudo registrar el pago",
+    },
+    void: {
+      title: "Anular cobro",
+      description:
+        "El cobro anulado deja de contar como pendiente y podrás emitir otro del mismo mes.",
+      reason: "Motivo (opcional)",
+      confirm: "Anular cobro",
+      cancelling: "Anulando…",
+      success: "Cobro anulado",
+      error: "No se pudo anular el cobro",
     },
   },
   roles: {

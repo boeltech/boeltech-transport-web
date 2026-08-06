@@ -9,6 +9,8 @@ import {
   mapPlatformTenantStampUsage,
   mapPlatformTenantEntitlements,
   mapPlatformModuleCatalogItem,
+  mapPlatformSaasArRow,
+  mapPlatformReconciliationPreview,
   toApiCreatePlatformTenant,
 } from "./mappers";
 import type { ApiBillingUsage } from "@features/billing/infrastructure/mappers";
@@ -22,10 +24,38 @@ describe("platform mappers", () => {
       last_name: "Owner",
       platform_role: "platform_owner",
       scope: "platform",
+      mfa_enabled: false,
+      mfa_enabled_at: null,
     });
 
     expect(user.platformRole).toBe("platform_owner");
     expect(user.firstName).toBe("Boeltech");
+    expect(user.mfaEnabled).toBe(false);
+  });
+
+  it("isApiPlatformMfaChallenge detects MFA challenge payloads", async () => {
+    const { isApiPlatformMfaChallenge } = await import("./mappers");
+    expect(
+      isApiPlatformMfaChallenge({
+        needs_mfa: true,
+        mfa_challenge_token: "tok",
+        mfa_challenge_expires_at: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      isApiPlatformMfaChallenge({
+        access_token: "a",
+        refresh_token: "r",
+        user: {
+          id: "u1",
+          email: "a@b.c",
+          first_name: "A",
+          last_name: "B",
+          platform_role: "platform_owner",
+          scope: "platform",
+        },
+      }),
+    ).toBe(false);
   });
 
   it("mapPlatformTenantListItem maps usage counters", () => {
@@ -34,6 +64,7 @@ describe("platform mappers", () => {
       name: "Demo",
       subdomain: "demo",
       status: "active",
+      subscription_status: "past_due",
       plan_code: "operacion_esencial",
       plan_name: "Operación Esencial",
       user_count: 2,
@@ -45,6 +76,7 @@ describe("platform mappers", () => {
 
     expect(item.planCode).toBe("operacion_esencial");
     expect(item.tripCount).toBe(5);
+    expect(item.subscriptionStatus).toBe("past_due");
     expect(item.declaredFleetBand).toBeNull();
   });
 
@@ -217,5 +249,70 @@ describe("platform mappers", () => {
 
     expect(item.memberCodes).toHaveLength(2);
     expect(item.priceGaCents).toBe(150000);
+  });
+
+  it("mapPlatformSaasArRow maps cartera fields", () => {
+    const row = mapPlatformSaasArRow({
+      id: "inv-1",
+      tenant_id: "t1",
+      subscription_id: "sub-1",
+      period_key: "2026-07",
+      period_start: "2026-07-01T06:00:00.000Z",
+      period_end: "2026-08-01T06:00:00.000Z",
+      status: "open",
+      currency: "MXN",
+      plan_code: "operacion_crecimiento",
+      stamps_included: 380,
+      stamps_used: 400,
+      stamps_overage: 20,
+      subtotal_cents: 167700,
+      tax_cents: 26832,
+      total_cents: 194532,
+      amount_due_cents: 194532,
+      amount_paid_cents: 0,
+      issued_at: "2026-08-01T16:00:00.000Z",
+      due_date: "2026-08-15T16:00:00.000Z",
+      paid_at: null,
+      voided_at: null,
+      void_reason: null,
+      notes: null,
+      days_overdue: 3,
+      created_at: "2026-08-01T16:00:00.000Z",
+      updated_at: "2026-08-01T16:00:00.000Z",
+      tenant_name: "Demo SA",
+      subdomain: "demo",
+      subscription_status: "past_due",
+    });
+
+    expect(row.tenantName).toBe("Demo SA");
+    expect(row.daysOverdue).toBe(3);
+    expect(row.totalCents).toBe(194532);
+  });
+
+  it("mapPlatformReconciliationPreview maps totals", () => {
+    const preview = mapPlatformReconciliationPreview({
+      tenant_id: "t1",
+      tenant_name: "Demo",
+      subdomain: "demo",
+      period_key: "2026-07",
+      plan_code: "operacion_crecimiento",
+      plan_name: "Operación Crecimiento",
+      monthly_price_cents: 149900,
+      billing_cycle: "monthly",
+      status: "active",
+      included_stamps: 380,
+      stamps_used: 10,
+      overage_stamps: 0,
+      overage_price_cents: 400,
+      overage_total_cents: 0,
+      active_modules: [],
+      modules_total_cents: 0,
+      subtotal_cents: 149900,
+      iva_cents: 23984,
+      total_cents: 173884,
+    });
+
+    expect(preview.periodKey).toBe("2026-07");
+    expect(preview.totalCents).toBe(173884);
   });
 });

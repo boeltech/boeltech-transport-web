@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createPlatformTenantSchema } from "./validation";
+import {
+  createPlatformTenantSchema,
+  issueSaasInvoiceSchema,
+  markSaasInvoicePaidSchema,
+} from "./validation";
+import {
+  getLastClosedMexicoCityPeriodKey,
+  getMexicoCityPeriodKey,
+} from "./utils/billingPeriod";
 
 const validBase = {
   companyName: "Transportes Demo",
@@ -58,5 +66,44 @@ describe("createPlatformTenantSchema", () => {
       adminPassword: "password",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("issueSaasInvoiceSchema", () => {
+  it("accepts YYYY-MM and defaults dueDays", () => {
+    const result = issueSaasInvoiceSchema.safeParse({
+      periodKey: getLastClosedMexicoCityPeriodKey(),
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.dueDays).toBe(14);
+    }
+  });
+
+  it("rejects invalid period_key", () => {
+    expect(
+      issueSaasInvoiceSchema.safeParse({ periodKey: "2026-7" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects the open CDMX month", () => {
+    const result = issueSaasInvoiceSchema.safeParse({
+      periodKey: getMexicoCityPeriodKey(),
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("markSaasInvoicePaidSchema", () => {
+  it("requires paidAt and method", () => {
+    expect(
+      markSaasInvoicePaidSchema.safeParse({
+        paidAt: "2026-08-03T12:00",
+        method: "spei",
+      }).success,
+    ).toBe(true);
+    expect(
+      markSaasInvoicePaidSchema.safeParse({ method: "spei" }).success,
+    ).toBe(false);
   });
 });
