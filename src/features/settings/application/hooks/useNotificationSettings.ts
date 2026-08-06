@@ -23,6 +23,7 @@ import {
   settingsQueryKeys,
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
+import { notificationSettingsCopy } from "../../presentation/copy/notificationSettingsCopy";
 
 // ============================================================================
 // QUERY HOOK
@@ -74,17 +75,17 @@ export function useUpdateNotificationSettings(
       void invalidateNotificationsQueries(queryClient);
 
       toast({
-        title: "Preferencias actualizadas",
+        title: notificationSettingsCopy.toast.saved,
         description:
-          result.message ??
-          "Las preferencias de notificaciones se guardaron correctamente.",
+          result.message ?? notificationSettingsCopy.toast.savedDescription,
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al guardar",
+        title: notificationSettingsCopy.toast.saveError,
         description:
-          error.message ?? "No se pudieron actualizar las preferencias.",
+          error.message ??
+          notificationSettingsCopy.toast.saveErrorDescription,
         variant: "destructive",
       });
     },

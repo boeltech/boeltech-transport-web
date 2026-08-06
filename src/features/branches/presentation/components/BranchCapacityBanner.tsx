@@ -18,7 +18,7 @@ export function BranchCapacityBanner({ meta, className }: BranchCapacityBannerPr
   return (
     <div
       className={cn(
-        "mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground",
+        "flex flex-wrap items-center gap-2 text-sm text-muted-foreground",
         className,
       )}
     >

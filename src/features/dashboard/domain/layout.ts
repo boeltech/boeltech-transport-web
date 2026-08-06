@@ -52,6 +52,10 @@ export interface DashboardWidgetGateContext {
   canReadTrips: boolean;
   showFinance: boolean;
   canReadBranches: boolean;
+  /** Portal client: sin widgets de flota / atención operativa. */
+  isClientPortal?: boolean;
+  /** Portal driver: solo viajes propios (recent + por día). */
+  isDriverPortal?: boolean;
 }
 
 export interface DashboardWidgetDefinition {
@@ -83,7 +87,8 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       span: "full",
       defaultVisible: true,
       defaultOrder: 1,
-      gate: ({ canReadTrips }) => canReadTrips,
+      gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
+        canReadTrips && !isClientPortal && !isDriverPortal,
     },
     {
       id: "alerts",
@@ -91,7 +96,8 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       span: "half",
       defaultVisible: true,
       defaultOrder: 2,
-      gate: ({ canReadTrips }) => canReadTrips,
+      gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
+        canReadTrips && !isClientPortal && !isDriverPortal,
     },
     {
       id: "recent_trips",
@@ -107,7 +113,8 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       span: "half",
       defaultVisible: true,
       defaultOrder: 4,
-      gate: ({ canReadTrips }) => canReadTrips,
+      gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
+        canReadTrips && !isClientPortal && !isDriverPortal,
     },
     {
       id: "trips_by_day",

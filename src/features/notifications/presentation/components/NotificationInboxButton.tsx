@@ -1,7 +1,9 @@
 import { memo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { isTenantPortalRole } from "@shared/constants/roles";
 import { cn } from "@shared/lib/utils/cn";
+import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import {
   Popover,
@@ -19,9 +21,14 @@ import { NotificationInboxSheet } from "./NotificationInboxSheet";
 
 export const NotificationInboxButton = memo(function NotificationInboxButton() {
   const navigate = useNavigate();
+  const role = useRole();
+  const isPortal = isTenantPortalRole(role);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: unreadCount = 0 } = useUnreadNotificationsCount();
+  // Portal: force sync so prior staff-ops drafts are dismissed and badge clears.
+  const { data: unreadCount = 0 } = useUnreadNotificationsCount({
+    force: isPortal,
+  });
   const markRead = useMarkNotificationRead();
 
   const handleItemClick = useCallback(

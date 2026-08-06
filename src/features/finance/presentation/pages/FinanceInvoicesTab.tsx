@@ -35,19 +35,25 @@ import {
 
 interface FinanceInvoicesTabProps {
   showFinanceSummaryMetrics: boolean;
+  isClientPortal?: boolean;
 }
 
-const invoiceStatusLabels = financeCopy.invoices.statusLabels;
 const newInvoiceCta = financeCopy.invoices.newInvoiceCta;
 
 export function FinanceInvoicesTab({
   showFinanceSummaryMetrics,
+  isClientPortal = false,
 }: FinanceInvoicesTabProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
+  const canInvoiceFromTrip =
+    !isClientPortal && canShowInvoiceFromTripCta(hasPermission);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const invoiceStatusLabels = isClientPortal
+    ? financeCopy.invoices.statusLabelsClient
+    : financeCopy.invoices.statusLabels;
 
   const filters = useFinanceListingFilters<"status">({
     filters: { status: {} },
@@ -139,7 +145,9 @@ export function FinanceInvoicesTab({
       toolbar={{
         search: {
           ...filters.searchProps,
-          placeholder: financeCopy.invoices.searchPlaceholder,
+          placeholder: isClientPortal
+            ? financeCopy.invoices.searchPlaceholderClient
+            : financeCopy.invoices.searchPlaceholder,
         },
         filters: (
           <Select
@@ -197,6 +205,7 @@ export function FinanceInvoicesTab({
           invoices={invoices}
           isLoading={isLoading}
           onView={handleView}
+          isClientPortal={isClientPortal}
         />
       )}
       emptyState={{
@@ -204,7 +213,9 @@ export function FinanceInvoicesTab({
         title: financeCopy.invoices.empty.title,
         description: filters.hasFilters
           ? financeCopy.invoices.empty.withFilters
-          : newInvoiceCta.emptyDescription,
+          : isClientPortal
+            ? financeCopy.invoices.empty.noDataClient
+            : newInvoiceCta.emptyDescription,
         cta: canInvoiceFromTrip
           ? {
               label: newInvoiceCta.label,

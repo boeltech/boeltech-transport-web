@@ -1,25 +1,30 @@
 /**
- * NotificationSettingsForm Component
+ * Formulario de avisos de la empresa.
  *
- * Formulario para configurar las preferencias de notificaciones.
- *
- * Ubicación: src/features/settings/ui/components/NotificationSettingsForm.tsx
+ * Solo expone lo que hoy afecta la campana: documentos por vencer.
+ * El resto de campos del contrato se ocultan y no se envían en el PUT
+ * (todos son opcionales en el API).
  */
 
-import { memo, useCallback, useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { memo, useCallback, useState } from "react";
+import { Link } from "react-router-dom";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Bell, Mail, MessageSquare, Smartphone } from "lucide-react";
+import { AlertTriangle, Bell, Loader2, RefreshCw } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
+import { EmptyState } from "@shared/ui/feedback-states";
+import {
+  FormFieldShell,
+  FormValidationSummary,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
-import { Switch } from "@shared/ui/switch";
 import { Skeleton } from "@shared/ui/skeleton";
-import { Separator } from "@shared/ui/separator";
+import { Switch } from "@shared/ui/switch";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
-import { SettingsCard } from "./SettingsLayout";
 import {
   useNotificationSettings,
   useUpdateNotificationSettings,
@@ -28,412 +33,216 @@ import type {
   NotificationSettings,
   UpdateNotificationSettingsDTO,
 } from "../../domain";
+import { notificationSettingsCopy } from "../copy/notificationSettingsCopy";
+import { SettingsCard } from "./SettingsLayout";
 
-// ============================================================================
-// VALIDATION SCHEMA
-// ============================================================================
+const copy = notificationSettingsCopy;
 
 const notificationSettingsSchema = z.object({
-  emailNotifications: z.boolean(),
-  smsNotifications: z.boolean(),
-  pushNotifications: z.boolean(),
-  tripReminders: z.boolean(),
-  tripReminderHours: z.number().min(1).max(72),
-  maintenanceAlerts: z.boolean(),
-  maintenanceAlertDays: z.number().min(1).max(90),
   documentExpiryAlerts: z.boolean(),
-  documentExpiryDays: z.number().min(1).max(90),
-  dailyDigest: z.boolean(),
-  digestTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:mm"),
+  documentExpiryDays: z
+    .number({ message: copy.validation.daysRequired })
+    .int()
+    .min(1, copy.validation.daysMin)
+    .max(365, copy.validation.daysMax),
 });
 
 type NotificationSettingsFormData = z.infer<typeof notificationSettingsSchema>;
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function mapSettingsToForm(
+  settings: NotificationSettings,
+): NotificationSettingsFormData {
+  return {
+    documentExpiryAlerts: settings.documentExpiryAlerts,
+    documentExpiryDays: settings.documentExpiryDays,
+  };
+}
 
 export const NotificationSettingsForm = memo(
   function NotificationSettingsForm() {
-    const { data: settings, isLoading, isError } = useNotificationSettings();
+    const { data: settings, isLoading, isError, refetch } =
+      useNotificationSettings();
     const updateMutation = useUpdateNotificationSettings();
+    const [showValidationSummary, setShowValidationSummary] = useState(false);
 
     const form = useForm<NotificationSettingsFormData>({
       resolver: zodResolver(notificationSettingsSchema),
       defaultValues: {
-        emailNotifications: true,
-        smsNotifications: false,
-        pushNotifications: true,
-        tripReminders: true,
-        tripReminderHours: 24,
-        maintenanceAlerts: true,
-        maintenanceAlertDays: 7,
         documentExpiryAlerts: true,
         documentExpiryDays: 30,
-        dailyDigest: false,
-        digestTime: "08:00",
       },
+      values: settings ? mapSettingsToForm(settings) : undefined,
     });
-  const emailNotifications = useWatch({
-    control: form.control,
-    name: "emailNotifications",
-  });
-  const pushNotifications = useWatch({
-    control: form.control,
-    name: "pushNotifications",
-  });
-  const smsNotifications = useWatch({
-    control: form.control,
-    name: "smsNotifications",
-  });
-  const tripReminders = useWatch({ control: form.control, name: "tripReminders" });
-  const maintenanceAlerts = useWatch({
-    control: form.control,
-    name: "maintenanceAlerts",
-  });
-  const documentExpiryAlerts = useWatch({
-    control: form.control,
-    name: "documentExpiryAlerts",
-  });
-  const dailyDigest = useWatch({ control: form.control, name: "dailyDigest" });
 
-    // Sincronizar con datos del servidor
-    useEffect(() => {
-      if (settings) {
-        form.reset(mapSettingsToForm(settings));
-      }
-    }, [settings, form]);
+    const documentExpiryAlerts = useWatch({
+      control: form.control,
+      name: "documentExpiryAlerts",
+    });
 
     const onSubmit = useCallback(
       (data: NotificationSettingsFormData) => {
+        setShowValidationSummary(false);
         const dto: UpdateNotificationSettingsDTO = {
-          emailNotifications: data.emailNotifications,
-          smsNotifications: data.smsNotifications,
-          pushNotifications: data.pushNotifications,
-          tripReminders: data.tripReminders,
-          tripReminderHours: data.tripReminderHours,
-          maintenanceAlerts: data.maintenanceAlerts,
-          maintenanceAlertDays: data.maintenanceAlertDays,
           documentExpiryAlerts: data.documentExpiryAlerts,
           documentExpiryDays: data.documentExpiryDays,
-          dailyDigest: data.dailyDigest,
-          digestTime: data.digestTime,
         };
-
         updateMutation.mutate(dto);
       },
       [updateMutation],
     );
 
+    const onInvalid = useCallback(() => {
+      setShowValidationSummary(true);
+    }, []);
+
     if (isLoading) {
       return <NotificationSettingsFormSkeleton />;
     }
 
-    if (isError) {
+    if (isError || !settings) {
       return (
-        <div className="text-center py-12 text-muted-foreground">
-          Error al cargar las preferencias. Por favor, intenta de nuevo.
-        </div>
+        <EmptyState
+          icon={<AlertTriangle />}
+          title={copy.state.loadErrorTitle}
+          description={copy.state.loadErrorDescription}
+          cta={{
+            label: copy.state.retry,
+            icon: <RefreshCw />,
+            onClick: () => void refetch(),
+          }}
+        />
       );
     }
 
+    const fieldErrors = collectFieldErrorMessages(form.formState.errors);
+
     return (
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Canales de notificación */}
+      <form
+        onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+        className="space-y-6"
+        noValidate
+      >
+        {showValidationSummary && fieldErrors.length > 0 ? (
+          <FormValidationSummary
+            title={copy.validation.summaryTitle}
+            messages={fieldErrors}
+          />
+        ) : null}
+
         <SettingsCard
-          title="Canales de notificación"
-          description="Preferencias guardadas para cuando se active el envío por email, push o SMS (aún no envían mensajes reales)."
-        >
-          <div className="space-y-4">
-            <NotificationToggle
-              icon={Mail}
-              label="Notificaciones por email"
-              description="Se usará para alertas y resúmenes cuando el envío por correo esté disponible"
-              checked={emailNotifications}
-              onCheckedChange={(checked) =>
-                form.setValue("emailNotifications", checked, {
-                  shouldDirty: true,
-                })
-              }
-            />
-
-            <Separator />
-
-            <NotificationToggle
-              icon={Smartphone}
-              label="Notificaciones push"
-              description="Se usará para alertas en dispositivo cuando el canal push esté disponible"
-              checked={pushNotifications}
-              onCheckedChange={(checked) =>
-                form.setValue("pushNotifications", checked, {
-                  shouldDirty: true,
-                })
-              }
-            />
-
-            <Separator />
-
-            <NotificationToggle
-              icon={MessageSquare}
-              label="Notificaciones por SMS"
-              description="Se usará para alertas críticas cuando el canal SMS esté disponible"
-              checked={smsNotifications}
-              onCheckedChange={(checked) =>
-                form.setValue("smsNotifications", checked, {
-                  shouldDirty: true,
-                })
-              }
-            />
-          </div>
-        </SettingsCard>
-
-        {/* Alertas de operaciones */}
-        <SettingsCard
-          title="Alertas de operaciones"
-          description="El vencimiento de documentos también controla lo que aparece en la campana del inbox. Recordatorios de viaje y mantenimiento se guardan para canales futuros."
+          title={copy.documents.title}
+          description={copy.documents.description}
         >
           <div className="space-y-6">
-            {/* Recordatorios de viajes */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className="flex-1">
-                <NotificationToggle
-                  icon={Bell}
-                  label="Recordatorios de viajes"
-                  description="Notifica antes de la hora de salida programada"
-                  checked={tripReminders}
-                  onCheckedChange={(checked) =>
-                    form.setValue("tripReminders", checked, {
-                      shouldDirty: true,
-                    })
-                  }
-                />
-              </div>
-              {tripReminders && (
-                <div className="sm:w-32">
-                  <Label htmlFor="tripReminderHours">Horas antes</Label>
-                  <Input
-                    id="tripReminderHours"
-                    type="number"
-                    min={1}
-                    max={72}
-                    {...form.register("tripReminderHours", {
-                      valueAsNumber: true,
-                    })}
-                  />
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Alertas de mantenimiento */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className="flex-1">
-                <NotificationToggle
-                  icon={Bell}
-                  label="Alertas de mantenimiento"
-                  description="Avisa cuando un vehículo requiere servicio"
-                  checked={maintenanceAlerts}
-                  onCheckedChange={(checked) =>
-                    form.setValue("maintenanceAlerts", checked, {
-                      shouldDirty: true,
-                    })
-                  }
-                />
-              </div>
-              {maintenanceAlerts && (
-                <div className="sm:w-32">
-                  <Label htmlFor="maintenanceAlertDays">Días antes</Label>
-                  <Input
-                    id="maintenanceAlertDays"
-                    type="number"
-                    min={1}
-                    max={90}
-                    {...form.register("maintenanceAlertDays", {
-                      valueAsNumber: true,
-                    })}
-                  />
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Vencimiento de documentos */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className="flex-1">
-                <NotificationToggle
-                  icon={Bell}
-                  label="Vencimiento de documentos"
-                  description="Controla alertas de licencia, certificado médico, seguro y permiso SCT en la campana del inbox (y en el panel de operación)"
-                  checked={documentExpiryAlerts}
-                  onCheckedChange={(checked) =>
-                    form.setValue("documentExpiryAlerts", checked, {
-                      shouldDirty: true,
-                    })
-                  }
-                />
-              </div>
-              {documentExpiryAlerts && (
-                <div className="sm:w-32">
-                  <Label htmlFor="documentExpiryDays">Días (inbox)</Label>
-                  <Input
-                    id="documentExpiryDays"
-                    type="number"
-                    min={1}
-                    max={90}
-                    title="Ventana en días para alertas de documentos en la campana"
-                    {...form.register("documentExpiryDays", {
-                      valueAsNumber: true,
-                    })}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </SettingsCard>
-
-        {/* Resumen diario */}
-        <SettingsCard
-          title="Resumen diario"
-          description="Preferencia guardada para cuando el envío del resumen por email esté disponible"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-            <div className="flex-1">
-              <NotificationToggle
-                icon={Mail}
-                label="Enviar resumen diario"
-                description="Un email con el resumen de viajes, alertas y pendientes"
-                checked={dailyDigest}
-                onCheckedChange={(checked) =>
-                  form.setValue("dailyDigest", checked, { shouldDirty: true })
-                }
+            <div className="flex items-start gap-4">
+              <Bell
+                className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+                aria-hidden
               />
-            </div>
-            {dailyDigest && (
-              <div className="sm:w-32">
-                <Label htmlFor="digestTime">Hora de envío</Label>
-                <Input
-                  id="digestTime"
-                  type="time"
-                  {...form.register("digestTime")}
+              <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    {copy.documents.toggleLabel}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {copy.documents.toggleHint}
+                  </p>
+                </div>
+                <Controller
+                  control={form.control}
+                  name="documentExpiryAlerts"
+                  render={({ field }) => (
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      aria-label={copy.documents.toggleLabel}
+                    />
+                  )}
                 />
               </div>
-            )}
+            </div>
+
+            {documentExpiryAlerts ? (
+              <FormFieldShell
+                fieldId="documentExpiryDays"
+                label={copy.documents.daysLabel}
+                required
+                description={copy.documents.daysHint}
+                errorMessage={form.formState.errors.documentExpiryDays?.message}
+              >
+                <Input
+                  id="documentExpiryDays"
+                  type="number"
+                  min={1}
+                  max={365}
+                  className="max-w-[8rem]"
+                  {...form.register("documentExpiryDays", {
+                    valueAsNumber: true,
+                  })}
+                  {...getRegisterFieldErrorProps(
+                    "documentExpiryDays",
+                    form.formState.errors.documentExpiryDays?.message,
+                  )}
+                />
+              </FormFieldShell>
+            ) : null}
           </div>
         </SettingsCard>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => form.reset()}
-            disabled={!form.formState.isDirty || updateMutation.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            disabled={!form.formState.isDirty || updateMutation.isPending}
-          >
-            {updateMutation.isPending && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            Guardar preferencias
-          </Button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <Button variant="link" className="h-auto px-0" asChild>
+              <Link to="/notifications">{copy.action.viewInbox}</Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">{copy.inboxLink.hint}</p>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                form.reset(mapSettingsToForm(settings));
+                setShowValidationSummary(false);
+              }}
+              disabled={!form.formState.isDirty || updateMutation.isPending}
+            >
+              {copy.action.cancel}
+            </Button>
+            <Button
+              type="submit"
+              disabled={!form.formState.isDirty || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  {copy.action.saving}
+                </>
+              ) : (
+                copy.action.save
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     );
   },
 );
 
-// ============================================================================
-// NOTIFICATION TOGGLE
-// ============================================================================
-
-interface NotificationToggleProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  disabled?: boolean;
-}
-
-const NotificationToggle = memo(function NotificationToggle({
-  icon: Icon,
-  label,
-  description,
-  checked,
-  onCheckedChange,
-  disabled,
-}: NotificationToggleProps) {
+function NotificationSettingsFormSkeleton() {
   return (
-    <div className="flex items-start gap-4">
-      <Icon className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium text-sm">{label}</p>
-            <p className="text-sm text-muted-foreground">{description}</p>
+    <div className="space-y-6">
+      <div className="space-y-4 rounded-xl border p-6">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-full max-w-md" />
+        <div className="flex items-center justify-between pt-2">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-64" />
           </div>
-          <Switch
-            checked={checked}
-            onCheckedChange={onCheckedChange}
-            disabled={disabled}
-          />
+          <Skeleton className="h-6 w-11 rounded-full" />
         </div>
       </div>
     </div>
   );
-});
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function NotificationSettingsFormSkeleton() {
-  return (
-    <div className="space-y-6">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-lg border p-6 space-y-4">
-          <Skeleton className="h-6 w-48" />
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, j) => (
-              <div key={j} className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
-                <Skeleton className="h-6 w-11 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function mapSettingsToForm(
-  settings: NotificationSettings,
-): NotificationSettingsFormData {
-  return {
-    emailNotifications: settings.emailNotifications,
-    smsNotifications: settings.smsNotifications,
-    pushNotifications: settings.pushNotifications,
-    tripReminders: settings.tripReminders,
-    tripReminderHours: settings.tripReminderHours,
-    maintenanceAlerts: settings.maintenanceAlerts,
-    maintenanceAlertDays: settings.maintenanceAlertDays,
-    documentExpiryAlerts: settings.documentExpiryAlerts,
-    documentExpiryDays: settings.documentExpiryDays,
-    dailyDigest: settings.dailyDigest,
-    digestTime: settings.digestTime,
-  };
 }

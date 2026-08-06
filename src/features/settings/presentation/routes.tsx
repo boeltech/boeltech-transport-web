@@ -116,7 +116,7 @@ function SettingsIndexRedirect() {
  * /settings/catalogs     → Catálogos SAT e internos
  * /settings/catalogs/:typeCode → Detalle de catálogo
  * /settings/billing      → Facturación electrónica
- * /settings/notifications → Preferencias de notificaciones
+ * /settings/notifications → Avisos de la empresa (documentos por vencer)
  * /settings/security     → Redirect a /account/security
  * /settings/integrations → Integraciones (próximamente)
  */

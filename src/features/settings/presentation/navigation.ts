@@ -2,8 +2,6 @@
  * Settings Navigation Configuration
  *
  * Configuración de la navegación interna del módulo Settings.
- *
- * Ubicación: src/features/settings/ui/navigation.ts
  */
 
 import {
@@ -19,10 +17,6 @@ import {
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
 import type { Module, Action } from "@shared/permissions/domain/entities";
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 export interface SettingsNavItem {
   id: SettingsSectionValue;
@@ -40,10 +34,6 @@ export interface SettingsNavItem {
   /** Badge opcional */
   badge?: string;
 }
-
-// ============================================================================
-// NAVIGATION CONFIG
-// ============================================================================
 
 export const settingsNavItems: SettingsNavItem[] = [
   {
@@ -82,16 +72,16 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
   {
     id: SettingsSection.SUBSCRIPTION,
-    label: "Plan y consumo",
-    description: "Timbres del mes, qué incluye tu plan y módulos adicionales",
+    label: "Tu plan",
+    description: "Cupo para facturar, plan y saldo pendiente",
     path: "/settings/subscription",
     icon: CreditCard,
     permission: { module: "billing", action: "read" },
   },
   {
     id: SettingsSection.NOTIFICATIONS,
-    label: "Notificaciones",
-    description: "Preferencias de alertas y notificaciones",
+    label: "Avisos de la empresa",
+    description: "Qué avisos ve el equipo en la campana",
     path: "/settings/notifications",
     icon: Bell,
     permission: { module: "settings", action: "update" },
@@ -115,26 +105,18 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
 ];
 
-/**
- * Obtiene un item de navegación por su ID
- */
 export function getSettingsNavItem(
   id: SettingsSectionValue,
 ): SettingsNavItem | undefined {
   return settingsNavItems.find((item) => item.id === id);
 }
 
-/**
- * Obtiene el item activo basado en el pathname
- */
 export function getActiveSettingsNavItem(
   pathname: string,
 ): SettingsNavItem | undefined {
-  // Buscar coincidencia exacta primero
   const exactMatch = settingsNavItems.find((item) => item.path === pathname);
   if (exactMatch) return exactMatch;
 
-  // Buscar por prefijo (para subrutas como /settings/catalogs/sat_estado)
   return settingsNavItems.find(
     (item) => pathname.startsWith(item.path) && item.path !== "/settings",
   );

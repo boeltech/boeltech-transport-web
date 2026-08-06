@@ -53,6 +53,12 @@ export const branchesApi = {
       queryParams.is_active = params.filters.isActive;
     }
     if (params?.filters?.search) queryParams.search = params.filters.search;
+    if (params?.filters?.createdFrom) {
+      queryParams.created_from = params.filters.createdFrom;
+    }
+    if (params?.filters?.createdTo) {
+      queryParams.created_to = params.filters.createdTo;
+    }
 
     const response = await apiClient.get<ApiBranchListResponse>(
       BRANCHES_ENDPOINT,

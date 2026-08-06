@@ -8,12 +8,16 @@ interface MutationCallbacks<TData = unknown, TError = Error> {
   onError?: (error: TError) => void;
 }
 
-export const useBranches = (params?: BranchQueryParams) =>
+export const useBranches = (
+  params?: BranchQueryParams,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: branchQueryKeys.list(params),
     queryFn: () => branchesApi.getAll(params),
     staleTime: 30_000,
     placeholderData: (previousData) => previousData,
+    enabled: options?.enabled ?? true,
   });
 
 export const useBranch = (id: string) =>

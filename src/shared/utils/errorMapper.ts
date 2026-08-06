@@ -88,7 +88,7 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
 
   // ===== PLAN / LÍMITES (WS-D) =====
   USER_LIMIT_REACHED:
-    "Tu plan permite hasta 3 usuarios. Contacta a soporte para ampliar tu plan.",
+    "Tu plan no tiene plazas libres para más usuarios activos. Revisa Tu plan para ampliarlo.",
   BRANCH_LIMIT_REACHED:
     "Tu plan permite 1 sucursal. Contacta a soporte para ampliar tu plan.",
   BRANCH_NOT_PLAN_ELIGIBLE:
@@ -135,6 +135,8 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
     "Esta contraseña aparece en filtraciones conocidas. Elige otra más segura.",
   REGISTRATION_CLOSED:
     "El registro público está cerrado. Solicita acceso a Boeltech o usa una invitación.",
+  EMAIL_EXISTS:
+    "No se pudo completar el registro. Si ya tienes cuenta, inicia sesión.",
   MFA_INVALID:
     "Código de autenticación incorrecto. Revisa la app o usa un código de recuperación.",
   MFA_CHALLENGE_EXPIRED:

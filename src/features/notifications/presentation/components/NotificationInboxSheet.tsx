@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { isTenantPortalRole } from "@shared/constants/roles";
+import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import {
   Sheet,
@@ -11,6 +13,7 @@ import { ScrollArea } from "@shared/ui/scroll-area";
 import { useNotificationsList } from "../../application";
 import type { UserNotification } from "../../domain";
 import { notificationsCopy } from "../copy/notificationsCopy";
+import { filterNotificationsForPortal } from "../helpers/portalNotificationVisibility";
 import { NotificationRow } from "./NotificationRow";
 
 interface NotificationInboxSheetProps {
@@ -24,6 +27,8 @@ export function NotificationInboxSheet({
   onOpenChange,
   onItemClick,
 }: NotificationInboxSheetProps) {
+  const role = useRole();
+  const isPortal = isTenantPortalRole(role);
   const { data, isLoading, isError } = useNotificationsList(
     {
       status: "unread",
@@ -33,7 +38,7 @@ export function NotificationInboxSheet({
     { enabled: open },
   );
 
-  const items = data?.items ?? [];
+  const items = filterNotificationsForPortal(data?.items ?? [], isPortal);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

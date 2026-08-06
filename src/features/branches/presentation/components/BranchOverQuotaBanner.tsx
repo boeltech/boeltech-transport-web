@@ -8,7 +8,7 @@ interface BranchOverQuotaBannerProps {
   meta?: BranchListMeta;
   canReconcile?: boolean;
   onReconcile?: () => void;
-  /** Oculta el enlace a Plan y consumo cuando el banner ya se muestra ahí. */
+  /** Oculta el enlace a Tu plan cuando el banner ya se muestra ahí. */
   hideBillingLink?: boolean;
 }
 
@@ -25,7 +25,7 @@ export function BranchOverQuotaBanner({
   const copy = branchesCopy.overQuota;
 
   return (
-    <AlertWithIcon variant="destructive" className="mb-4">
+    <AlertWithIcon variant="destructive">
       <div className="space-y-3">
         <div>
           <p className="font-medium">{copy.title}</p>

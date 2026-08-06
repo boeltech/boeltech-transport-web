@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { isTenantPortalRole } from "@shared/constants/roles";
+import { useRole } from "@shared/permissions";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -14,9 +16,12 @@ import type { ListNotificationsFilters } from "../../domain";
 import { NotificationFilters } from "../components/NotificationFilters";
 import { NotificationRow } from "../components/NotificationRow";
 import { notificationsCopy } from "../copy/notificationsCopy";
+import { filterNotificationsForPortal } from "../helpers/portalNotificationVisibility";
 
 export function NotificationsInboxPage() {
   const navigate = useNavigate();
+  const role = useRole();
+  const isPortal = isTenantPortalRole(role);
   const { success: toastSuccess, error: toastError } = useToast();
   const [filters, setFilters] = useState<ListNotificationsFilters>({
     status: "all",
@@ -29,15 +34,15 @@ export function NotificationsInboxPage() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const items = data?.items ?? [];
+  const items = filterNotificationsForPortal(data?.items ?? [], isPortal);
   const pagination = useMemo(
     () => ({
       page: data?.page ?? 1,
       totalPages: data?.totalPages ?? 1,
-      total: data?.total ?? 0,
+      total: isPortal ? items.length : (data?.total ?? 0),
       limit: data?.pageSize ?? 25,
     }),
-    [data],
+    [data, isPortal, items.length],
   );
 
   const handleItemClick = useCallback(
@@ -65,6 +70,10 @@ export function NotificationsInboxPage() {
     }
   }, [filters.source, filters.type, markAllRead, toastError, toastSuccess]);
 
+  const unreadVisible = isPortal
+    ? items.filter((item) => item.readAt == null).length
+    : (data?.unreadCount ?? 0);
+
   return (
     <ListPageShell
       title={notificationsCopy.pageTitle}
@@ -76,7 +85,8 @@ export function NotificationsInboxPage() {
           </DetailAlertCard>
         ) : data ? (
           <p className="text-sm text-muted-foreground">
-            {data.total} notificaciones · {data.unreadCount} no leídas
+            {isPortal ? items.length : data.total} notificaciones ·{" "}
+            {unreadVisible} no leídas
           </p>
         ) : null
       }
@@ -90,7 +100,7 @@ export function NotificationsInboxPage() {
       primaryAction={{
         label: notificationsCopy.markAllRead,
         onClick: () => void handleMarkAllRead(),
-        visible: (data?.unreadCount ?? 0) > 0,
+        visible: unreadVisible > 0,
         disabled: markAllRead.isPending,
       }}
       isLoading={isLoading}

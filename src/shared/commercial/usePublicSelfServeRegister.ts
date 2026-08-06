@@ -32,7 +32,8 @@ async function fetchRegistrationStatusOpen(): Promise<boolean> {
   if (typeof body.self_serve_register_open === "boolean") {
     return body.self_serve_register_open;
   }
-  // Fail-open alineado al default API true cuando el shape no responde
+  // Fail-open solo si el shape no responde; SoT = GET registration-status / API kill-switch
+  // (production API defaults closed when PUBLIC_SELF_SERVE_REGISTER unset).
   return true;
 }
 

@@ -10,7 +10,6 @@ import {
 import { BranchStatus } from "../../domain";
 import { useBranch, useUpdateBranch } from "../../application";
 import { BranchForm } from "../components";
-import { BranchStatusBadge } from "../config/branchStatusConfig";
 import { branchesCopy } from "../copy/branchesCopy";
 import { branchFormToUpdateDTO, type BranchFormData } from "../validation/branchSchema";
 import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
@@ -89,17 +88,15 @@ export function BranchEditPage() {
         title: branch
           ? branchesCopy.edit.titleWithName(branch.name)
           : branchesCopy.edit.title,
-        subtitle: branch ? branchesCopy.edit.subtitle(branch.code) : undefined,
-        trailing: branch ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <BranchStatusBadge status={branch.status} showIcon size="sm" />
-            {branch.isMain ? (
-              <Badge variant="info" tone="soft">
-                {branchesCopy.card.mainBadge}
-              </Badge>
-            ) : null}
-          </div>
-        ) : undefined,
+        subtitle: branch
+          ? branchesCopy.edit.subtitle(branch.code, branch.isMain)
+          : undefined,
+        trailing:
+          branch?.isMain ? (
+            <Badge variant="info" tone="soft">
+              {branchesCopy.edit.mainBadge}
+            </Badge>
+          ) : undefined,
       }}
     >
       {branch ? (

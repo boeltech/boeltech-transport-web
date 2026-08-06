@@ -30,4 +30,15 @@ export const navigationCopy = {
     usersActivity: "Historial de usuarios",
     settings: "Configuración",
   },
+  /** Labels del sidebar para rol client (portal de consulta). */
+  portal: {
+    dashboard: "Inicio",
+    trips: "Mis envíos",
+    invoices: "Mis facturas",
+  },
+  /** Labels del sidebar para rol driver (portal operativo). */
+  driverPortal: {
+    dashboard: "Inicio",
+    trips: "Mis viajes",
+  },
 } as const;

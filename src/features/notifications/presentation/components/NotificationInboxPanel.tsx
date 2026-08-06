@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { isTenantPortalRole } from "@shared/constants/roles";
+import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { ScrollArea } from "@shared/ui/scroll-area";
 import { useNotificationsList } from "../../application";
 import type { UserNotification } from "../../domain";
 import { notificationsCopy } from "../copy/notificationsCopy";
+import { filterNotificationsForPortal } from "../helpers/portalNotificationVisibility";
 import { NotificationRow } from "./NotificationRow";
 
 interface NotificationInboxPanelProps {
@@ -18,13 +21,15 @@ export function NotificationInboxPanel({
   onClose,
   limit = 8,
 }: NotificationInboxPanelProps) {
+  const role = useRole();
+  const isPortal = isTenantPortalRole(role);
   const { data, isLoading, isError } = useNotificationsList({
     status: "unread",
     page: 1,
     pageSize: limit,
   });
 
-  const items = data?.items ?? [];
+  const items = filterNotificationsForPortal(data?.items ?? [], isPortal);
 
   return (
     <div className="flex w-[360px] flex-col">

@@ -206,7 +206,7 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   // ── Facturación ────────────────────────────────────────────────────────────
   TRIP_ALREADY_INVOICED: "El viaje ya está vinculado a una factura activa",
   COMPANY_SETTINGS_INCOMPLETE: "Configura los datos del emisor en Configuración → Empresa antes de facturar",
-  PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Facturación.",
+  PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Datos para facturar.",
   PAC_CONFIG_ERROR: "Error de configuración del PAC. Verifica las variables de entorno del servidor.",
 
   // ── Viajes ─────────────────────────────────────────────────────────────────
@@ -236,7 +236,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   FORBIDDEN: "No tienes permisos para realizar esta acción",
   INVALID_CREDENTIALS: "Credenciales inválidas",
   USER_NOT_FOUND: "Usuario no encontrado",
-  EMAIL_EXISTS: "El correo electrónico ya está registrado",
+  EMAIL_EXISTS:
+    "No se pudo completar el registro. Si ya tienes cuenta, inicia sesión.",
   INVALID_TOKEN: "Token inválido o expirado",
 
   // ── Validación ─────────────────────────────────────────────────────────────

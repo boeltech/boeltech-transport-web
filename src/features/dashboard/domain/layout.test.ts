@@ -80,4 +80,47 @@ describe("dashboard layout", () => {
     const reordered = reorderWidgets(base, reversed);
     expect(reordered.widgets[0]?.id).toBe(reversed[0]);
   });
+
+  it("applyRbac hides fleet widgets for client portal", () => {
+    const layout = buildSystemDefaultLayout();
+    const filtered = applyRbac(layout, {
+      canReadTrips: true,
+      showFinance: false,
+      canReadBranches: false,
+      isClientPortal: true,
+    });
+    expect(
+      filtered.widgets.some((w) => w.id === "operations_snapshot"),
+    ).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "alerts")).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "fleet_drivers")).toBe(
+      false,
+    );
+    expect(filtered.widgets.some((w) => w.id === "recent_trips")).toBe(
+      true,
+    );
+  });
+
+  it("applyRbac hides ops/alerts/fleet widgets for driver portal", () => {
+    const layout = buildSystemDefaultLayout();
+    const filtered = applyRbac(layout, {
+      canReadTrips: true,
+      showFinance: false,
+      canReadBranches: false,
+      isDriverPortal: true,
+    });
+    expect(
+      filtered.widgets.some((w) => w.id === "operations_snapshot"),
+    ).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "alerts")).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "fleet_drivers")).toBe(
+      false,
+    );
+    expect(filtered.widgets.some((w) => w.id === "recent_trips")).toBe(
+      true,
+    );
+    expect(filtered.widgets.some((w) => w.id === "trips_by_day")).toBe(
+      true,
+    );
+  });
 });

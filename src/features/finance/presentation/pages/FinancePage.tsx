@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Landmark } from "lucide-react";
 import { ApprovalInboxPage } from "@features/approvals";
 import { useAuth } from "@features/auth";
+import { isClientPortalRole } from "@shared/constants/roles";
 import {
   buildFinanceTabSearchParams,
   isFinanceAnalysisView,
@@ -29,13 +30,18 @@ const ANALYTICS_TABS: FinanceHubTab[] = [
   "approvals",
 ];
 
+/** Staff sin analytics (p. ej. dispatcher): facturas + cobros. */
 const LIMITED_TABS: FinanceHubTab[] = ["invoices", "cobros"];
+
+/** Portal client: solo consulta de facturas (D4). */
+const CLIENT_PORTAL_TABS: FinanceHubTab[] = ["invoices"];
 
 const APPROVALS_TAB_VALUE = "approvals";
 
 export function FinancePage() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const isClientPortal = isClientPortalRole(user?.role);
   const canAnalytics = useMemo(
     () => canAccessFinanceSummaryRoute(user?.role),
     [user?.role],
@@ -45,13 +51,17 @@ export function FinancePage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const enabledTabs = useMemo<FinanceHubTab[]>(() => {
-    const base = canAnalytics ? ANALYTICS_TABS : LIMITED_TABS;
+    const base = isClientPortal
+      ? CLIENT_PORTAL_TABS
+      : canAnalytics
+        ? ANALYTICS_TABS
+        : LIMITED_TABS;
     return base.filter(
       (tab) =>
         (tab !== "invoiceable" || canInvoiceFromTrip) &&
         (tab !== APPROVALS_TAB_VALUE || canApprove),
     );
-  }, [canAnalytics, canApprove, canInvoiceFromTrip]);
+  }, [canAnalytics, canApprove, canInvoiceFromTrip, isClientPortal]);
 
   useEffect(() => {
     const requested = searchParams.get("tab");
@@ -83,8 +93,9 @@ export function FinancePage() {
     if (resolved.tab && enabledTabs.includes(resolved.tab)) {
       return resolved.tab;
     }
+    if (isClientPortal) return "invoices";
     return canAnalytics ? "summary" : "invoices";
-  }, [searchParams, enabledTabs, canAnalytics]);
+  }, [searchParams, enabledTabs, canAnalytics, isClientPortal]);
 
   const analysisView = useMemo<FinanceAnalysisView>(() => {
     const fromUrl = searchParams.get("view");
@@ -121,7 +132,7 @@ export function FinancePage() {
 
   const tabs = useMemo(() => {
     const items = [
-      canAnalytics
+      !isClientPortal && canAnalytics
         ? {
             value: "summary",
             label: financeCopy.page.tabs.summary,
@@ -130,7 +141,7 @@ export function FinancePage() {
             ),
           }
         : null,
-      canInvoiceFromTrip
+      !isClientPortal && canInvoiceFromTrip
         ? {
             value: "invoiceable",
             label: financeCopy.page.tabs.invoiceable,
@@ -143,17 +154,24 @@ export function FinancePage() {
         : null,
       {
         value: "invoices",
-        label: financeCopy.page.tabs.invoices,
+        label: isClientPortal
+          ? financeCopy.page.portal.invoicesTab
+          : financeCopy.page.tabs.invoices,
         content: (
-          <FinanceInvoicesTab showFinanceSummaryMetrics={canAnalytics} />
+          <FinanceInvoicesTab
+            showFinanceSummaryMetrics={canAnalytics && !isClientPortal}
+            isClientPortal={isClientPortal}
+          />
         ),
       },
-      {
-        value: "cobros",
-        label: financeCopy.page.tabs.cobros,
-        content: <FinanceCobranzaTab />,
-      },
-      canAnalytics
+      !isClientPortal
+        ? {
+            value: "cobros",
+            label: financeCopy.page.tabs.cobros,
+            content: <FinanceCobranzaTab />,
+          }
+        : null,
+      !isClientPortal && canAnalytics
         ? {
             value: "analysis",
             label: financeCopy.page.tabs.analysis,
@@ -166,7 +184,7 @@ export function FinancePage() {
             ),
           }
         : null,
-      canApprove
+      !isClientPortal && canApprove
         ? {
             value: APPROVALS_TAB_VALUE,
             label: financeCopy.page.tabs.approvals,
@@ -183,6 +201,7 @@ export function FinancePage() {
     canApprove,
     canInvoiceFromTrip,
     handleAnalysisViewChange,
+    isClientPortal,
   ]);
 
   return (
@@ -191,11 +210,15 @@ export function FinancePage() {
       header={{
         icon: <Landmark className="h-5 w-5" />,
         iconVariant: "primary",
-        title: financeCopy.page.title,
-        subtitle: financeCopy.page.subtitle,
+        title: isClientPortal
+          ? financeCopy.page.portal.title
+          : financeCopy.page.title,
+        subtitle: isClientPortal
+          ? financeCopy.page.portal.subtitle
+          : financeCopy.page.subtitle,
       }}
       tabs={{
-        defaultValue: canAnalytics ? "summary" : "invoices",
+        defaultValue: canAnalytics && !isClientPortal ? "summary" : "invoices",
         value: activeTab,
         onValueChange: handleTabChange,
         items: tabs,

@@ -86,6 +86,11 @@ export const financeCopy = {
   page: {
     title: "Finanzas",
     subtitle: "Cobros, facturas, margen y gastos del negocio.",
+    portal: {
+      title: "Mis facturas",
+      subtitle: "Consulta las facturas de tus envíos.",
+      invoicesTab: "Facturas",
+    },
     tabs: {
       summary: "Resumen",
       invoiceable: "Por facturar",
@@ -189,6 +194,7 @@ export const financeCopy = {
   invoices: {
     title: "Facturas",
     searchPlaceholder: "Buscar por cliente, RFC o folio…",
+    searchPlaceholderClient: "Buscar por folio…",
     filters: {
       statusPlaceholder: "Estado",
       all: "Todos los estados",
@@ -203,6 +209,7 @@ export const financeCopy = {
       withFilters:
         "No hay resultados con los filtros actuales. Prueba otro criterio o limpia los filtros.",
       clearFilters: "Limpiar filtros",
+      noDataClient: "Cuando haya facturas de tus envíos, aparecerán aquí.",
     },
     entityLabelPlural: "facturas",
     kpi: {
@@ -221,6 +228,13 @@ export const financeCopy = {
       cancellation_pending: "Cancelación pendiente",
       cancelled: "Cancelada",
     },
+    /** Labels entendibles para portal client (sin jerga de timbrado). */
+    statusLabelsClient: {
+      draft: "Borrador",
+      stamped: "Facturado",
+      cancellation_pending: "Cancelación en proceso",
+      cancelled: "Cancelada",
+    },
     table: {
       folio: "Folio",
       client: "Cliente",
@@ -229,6 +243,7 @@ export const financeCopy = {
       total: "Total",
       balance: "Saldo",
       trips: "Viajes",
+      tripsClient: "Envíos",
       status: "Estado",
       paid: "Pagado",
       empty: "No se encontraron facturas.",

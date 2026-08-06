@@ -4,6 +4,7 @@ import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BranchForm, type BranchFormRef } from "./BranchForm";
 import { branchesCopy } from "../copy/branchesCopy";
+import { buildBranch } from "../../test/branchTestFixtures";
 import { TooltipProvider } from "@shared/ui/tooltip";
 
 vi.mock("@shared/ui/address-input/AddressInput", () => ({
@@ -101,3 +102,26 @@ describe("BranchForm wizard step validation", () => {
     expect(screen.getAllByText(/Ubicación en mapa/i).length).toBeGreaterThan(0);
   });
 });
+
+describe("BranchForm edit layout", () => {
+  it("muestra tres secciones operativas sin card de notas aparte", () => {
+    render(
+      <TooltipProvider>
+        <BranchForm branch={buildBranch()} onSubmit={vi.fn()} onCancel={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+    expect(
+      screen.getByText(branchesCopy.form.sections.general.editTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(branchesCopy.form.sections.contact.title).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(branchesCopy.form.sections.address.editTitle),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(branchesCopy.form.fields.notes.label)).toBeInTheDocument();
+    expect(screen.getByLabelText(branchesCopy.form.fields.isMain.label)).toBeInTheDocument();
+  });
+});
+

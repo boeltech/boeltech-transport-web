@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 
 import { useAuth } from "@/features/auth";
+import type { UserRole } from "@shared/constants/roles";
+import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
 import {
   usePermissions,
   canAccessFinanceSummaryRoute,
 } from "@shared/permissions";
-import type { UserRole } from "@shared/constants/roles";
 import {
   buildSystemDefaultLayout,
   mergeWithDefaults,
@@ -76,10 +77,18 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     persistMode === "role" ? roleForEdit : userRole;
 
   const showFinance = canAccessFinanceSummaryRoute(gateRole);
+  const isClientPortal = isClientPortalRole(gateRole);
+  const isDriverPortal = isDriverPortalRole(gateRole);
 
   const gateCtx: DashboardWidgetGateContext = useMemo(
-    () => ({ canReadTrips, showFinance, canReadBranches }),
-    [canReadTrips, showFinance, canReadBranches],
+    () => ({
+      canReadTrips,
+      showFinance,
+      canReadBranches,
+      isClientPortal,
+      isDriverPortal,
+    }),
+    [canReadTrips, showFinance, canReadBranches, isClientPortal, isDriverPortal],
   );
 
   const [layout, setLayout] = useState<DashboardLayout>(() =>

@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
+import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { useDashboard } from "../application/hooks/useDashboard";
@@ -41,6 +42,9 @@ import { Button } from "@/shared/ui/button";
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isClientPortal = isClientPortalRole(user?.role);
+  const isDriverPortal = isDriverPortalRole(user?.role);
+  const hideDashboardCustomize = isClientPortal || isDriverPortal;
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, refetch, isFetching } = useDashboard();
 
@@ -148,11 +152,15 @@ function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold">{getGreeting(user)}</h1>
           <p className="text-sm text-muted-foreground">
-            {dashboardCopy.page.subtitle}
+            {isClientPortal
+              ? dashboardCopy.page.subtitleClient
+              : isDriverPortal
+                ? dashboardCopy.page.subtitleDriver
+                : dashboardCopy.page.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canReadTrips ? (
+          {canReadTrips && !hideDashboardCustomize ? (
             <Button
               variant="outline"
               size="sm"

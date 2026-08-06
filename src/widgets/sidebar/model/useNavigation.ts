@@ -13,7 +13,12 @@
 import { useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { usePermissions } from "@/shared/permissions";
-import { navigationConfig } from "./navigation";
+import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import {
+  clientPortalNavigationConfig,
+  driverPortalNavigationConfig,
+  navigationConfig,
+} from "./navigation";
 import type { NavGroup, NavItem } from "./types";
 import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
@@ -235,7 +240,12 @@ export function useNavigation(): UseNavigationReturn {
    * Solo se recalcula cuando cambian los permisos o el rol
    */
   const navigation = useMemo<NavGroup[]>(() => {
-    return filterNavigation(navigationConfig, hasPermission, role);
+    const config = isClientPortalRole(role)
+      ? clientPortalNavigationConfig
+      : isDriverPortalRole(role)
+        ? driverPortalNavigationConfig
+        : navigationConfig;
+    return filterNavigation(config, hasPermission, role);
   }, [hasPermission, role]);
 
   /**

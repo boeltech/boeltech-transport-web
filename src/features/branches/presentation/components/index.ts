@@ -9,5 +9,6 @@ export { BranchDetailLocationMap } from "./BranchDetailLocationMap";
 export { BranchForm, type BranchFormRef } from "./BranchForm";
 export { BranchOperationalKpiCard } from "./BranchOperationalKpiCard";
 export { BranchOverQuotaBanner } from "./BranchOverQuotaBanner";
+export { BranchPlanLimitNotice } from "./BranchPlanLimitNotice";
 export { BranchReconcilePlanSheet } from "./BranchReconcilePlanSheet";
 export { BranchTable } from "./BranchTable";

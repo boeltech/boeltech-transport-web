@@ -190,6 +190,67 @@ export const navigationConfig: NavGroup[] = [
   },
 ];
 
+/**
+ * Navegación plana del portal client (consulta: envíos + facturas).
+ * Staff sigue usando `navigationConfig`.
+ */
+export const clientPortalNavigationConfig: NavGroup[] = [
+  {
+    id: "portal",
+    title: "",
+    items: [
+      {
+        id: "dashboard",
+        label: copy.portal.dashboard,
+        path: "/dashboard",
+        icon: LayoutDashboard,
+        module: "dashboard",
+      },
+      {
+        id: "trips",
+        label: copy.portal.trips,
+        path: "/trips",
+        icon: Route,
+        module: "trips",
+      },
+      {
+        id: "finance-invoices",
+        label: copy.portal.invoices,
+        path: "/finance?tab=invoices",
+        icon: FileText,
+        roles: [ROLES.CLIENT],
+      },
+    ],
+  },
+];
+
+/**
+ * Navegación plana del portal driver (operación: sus viajes + seguimiento).
+ * Sin flota/reportes/finanzas. Staff y client usan otras configs.
+ */
+export const driverPortalNavigationConfig: NavGroup[] = [
+  {
+    id: "driver-portal",
+    title: "",
+    items: [
+      {
+        id: "dashboard",
+        label: copy.driverPortal.dashboard,
+        path: "/dashboard",
+        icon: LayoutDashboard,
+        module: "dashboard",
+      },
+      {
+        id: "trips",
+        label: copy.driverPortal.trips,
+        path: "/trips",
+        icon: Route,
+        module: "trips",
+      },
+    ],
+  },
+];
+
 /** Rutas que no requieren autenticación */
 export const publicRoutes = [
   "/login",

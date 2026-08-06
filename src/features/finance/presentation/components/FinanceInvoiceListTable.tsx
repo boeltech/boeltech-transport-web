@@ -1,3 +1,7 @@
+/**
+ * FinanceInvoiceListTable — listado de facturas del hub Finanzas.
+ */
+
 import {
   Table,
   TableBody,
@@ -10,7 +14,10 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { FinanceInvoiceListItem } from "@features/finance/domain";
+import type {
+  FinanceInvoiceListItem,
+  FinanceInvoiceStatus,
+} from "@features/finance/domain";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
 import { financeCopy } from "../copy";
@@ -21,94 +28,73 @@ interface FinanceInvoiceListTableProps {
   invoices: FinanceInvoiceListItem[];
   isLoading: boolean;
   onView: (id: string) => void;
+  /** Portal client: oculta columna Cliente/RFC y usa labels de estado entendibles. */
+  isClientPortal?: boolean;
 }
 
-const TABLE_HEADERS = [
-  { key: "folio", label: copy.table.folio },
-  { key: "client", label: copy.table.client },
-  { key: "date", label: copy.table.date },
-  { key: "method", label: copy.table.method },
-  { key: "total", label: copy.table.total, className: "text-right" },
-  { key: "balance", label: copy.table.balance, className: "text-right" },
-  { key: "trips", label: copy.table.trips },
-  { key: "status", label: copy.table.status },
-];
-
-function TableHeaderRow() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {TABLE_HEADERS.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
+function getHeaders(isClientPortal: boolean) {
+  const headers: { key: string; label: string; className?: string }[] = [
+    { key: "folio", label: copy.table.folio },
+  ];
+  if (!isClientPortal) {
+    headers.push({ key: "client", label: copy.table.client });
+  }
+  headers.push(
+    { key: "date", label: copy.table.date },
+    { key: "method", label: copy.table.method },
+    { key: "total", label: copy.table.total, className: "text-right" },
+    { key: "balance", label: copy.table.balance, className: "text-right" },
+    {
+      key: "trips",
+      label: isClientPortal ? copy.table.tripsClient : copy.table.trips,
+    },
+    { key: "status", label: copy.table.status },
   );
+  return headers;
 }
 
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: FINANCE_INVOICES_PAGE_SIZE }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell>
-            <Skeleton className="h-4 w-16" />
-          </TableCell>
-          <TableCell>
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-12" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-20" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
-}
-
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
-          {copy.table.empty}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
+function statusLabel(
+  status: FinanceInvoiceStatus,
+  isClientPortal: boolean,
+): string {
+  if (isClientPortal) return copy.statusLabelsClient[status];
+  return copy.statusLabels[status];
 }
 
 export function FinanceInvoiceListTable({
   invoices,
   isLoading,
   onView,
+  isClientPortal = false,
 }: FinanceInvoiceListTableProps) {
+  const headers = getHeaders(isClientPortal);
+
   if (isLoading) {
     return (
       <div className="rounded-md border">
         <Table>
-          <TableHeaderRow />
-          <LoadingSkeleton />
+          <TableHeader>
+            <TableRow>
+              {headers.map((header) => (
+                <TableHead key={header.key} className={header.className}>
+                  {header.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: FINANCE_INVOICES_PAGE_SIZE }).map(
+              (_, index) => (
+                <TableRow key={index}>
+                  {headers.map((header) => (
+                    <TableCell key={header.key}>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ),
+            )}
+          </TableBody>
         </Table>
       </div>
     );
@@ -118,8 +104,25 @@ export function FinanceInvoiceListTable({
     return (
       <div className="rounded-md border">
         <Table>
-          <TableHeaderRow />
-          <EmptyState />
+          <TableHeader>
+            <TableRow>
+              {headers.map((header) => (
+                <TableHead key={header.key} className={header.className}>
+                  {header.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell
+                colSpan={headers.length}
+                className="h-24 text-center"
+              >
+                {copy.table.empty}
+              </TableCell>
+            </TableRow>
+          </TableBody>
         </Table>
       </div>
     );
@@ -128,7 +131,15 @@ export function FinanceInvoiceListTable({
   return (
     <div className="rounded-md border">
       <Table>
-        <TableHeaderRow />
+        <TableHeader>
+          <TableRow>
+            {headers.map((header) => (
+              <TableHead key={header.key} className={header.className}>
+                {header.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {invoices.map((invoice) => (
             <TableRow
@@ -139,12 +150,18 @@ export function FinanceInvoiceListTable({
               <TableCell className="font-medium font-mono">
                 {invoice.serie}-{invoice.folio}
               </TableCell>
-              <TableCell>
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">{invoice.receiverName}</p>
-                  <p className="text-xs text-muted-foreground">{invoice.receiverRfc}</p>
-                </div>
-              </TableCell>
+              {!isClientPortal ? (
+                <TableCell>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">
+                      {invoice.receiverName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {invoice.receiverRfc}
+                    </p>
+                  </div>
+                </TableCell>
+              ) : null}
               <TableCell className="text-sm">
                 {formatDate(invoice.issuedAt.split("T")[0])}
               </TableCell>
@@ -162,7 +179,9 @@ export function FinanceInvoiceListTable({
                     {formatMxCurrency(invoice.balanceDue)}
                   </span>
                 ) : (
-                  <span className="text-sm text-success">{copy.table.paid}</span>
+                  <span className="text-sm text-success">
+                    {copy.table.paid}
+                  </span>
                 )}
               </TableCell>
               <TableCell>
@@ -180,7 +199,13 @@ export function FinanceInvoiceListTable({
                 </div>
               </TableCell>
               <TableCell>
-                <FinanceInvoiceStatusBadge status={invoice.status} />
+                {isClientPortal ? (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {statusLabel(invoice.status, true)}
+                  </Badge>
+                ) : (
+                  <FinanceInvoiceStatusBadge status={invoice.status} />
+                )}
               </TableCell>
             </TableRow>
           ))}

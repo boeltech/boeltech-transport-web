@@ -103,6 +103,9 @@ export interface BranchFilters {
   readonly isMain?: boolean;
   readonly isActive?: boolean;
   readonly search?: string;
+  /** YYYY-MM-DD (inicio del día UTC en API). */
+  readonly createdFrom?: string;
+  readonly createdTo?: string;
 }
 
 export interface BranchSortOptions {

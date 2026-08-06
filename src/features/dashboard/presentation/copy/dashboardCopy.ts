@@ -1,6 +1,8 @@
 export const dashboardCopy = {
   page: {
     subtitle: "Scorecard del mes: margen, cobranza y operación",
+    subtitleClient: "Resumen de tus envíos recientes",
+    subtitleDriver: "Tus viajes recientes y por día",
     refresh: "Actualizar",
     error: {
       title: "No se pudieron cargar los datos del dashboard.",

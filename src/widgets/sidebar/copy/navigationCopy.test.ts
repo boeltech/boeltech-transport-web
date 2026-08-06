@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { navigationConfig } from "../model/navigation";
+import {
+  clientPortalNavigationConfig,
+  driverPortalNavigationConfig,
+  navigationConfig,
+} from "../model/navigation";
 import { navigationCopy } from "./navigationCopy";
 
 describe("navigationCopy", () => {
@@ -25,6 +29,14 @@ describe("navigationCopy", () => {
     expect(labels).toContain("Historial de usuarios");
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
+  });
+
+  it("exposes portal labels without staff finance/fleet jargon", () => {
+    expect(navigationCopy.portal.dashboard).toBe("Inicio");
+    expect(navigationCopy.portal.trips).toBe("Mis envíos");
+    expect(navigationCopy.portal.invoices).toBe("Mis facturas");
+    expect(navigationCopy.driverPortal.dashboard).toBe("Inicio");
+    expect(navigationCopy.driverPortal.trips).toBe("Mis viajes");
   });
 });
 
@@ -58,5 +70,37 @@ describe("navigationConfig", () => {
       "drivers",
       "employees",
     ]);
+  });
+});
+
+describe("clientPortalNavigationConfig", () => {
+  it("only lists consulta items (no Reportes / Cobros / flota)", () => {
+    const items = clientPortalNavigationConfig.flatMap((g) => g.items);
+    const ids = items.map((item) => item.id);
+    const labels = items.map((item) => item.label);
+
+    expect(ids).toEqual(["dashboard", "trips", "finance-invoices"]);
+    expect(labels).toEqual(["Inicio", "Mis envíos", "Mis facturas"]);
+    expect(ids).not.toContain("reports");
+    expect(labels.some((l) => /reporte|cobro|flota|vehículo/i.test(l))).toBe(
+      false,
+    );
+  });
+});
+
+describe("driverPortalNavigationConfig", () => {
+  it("only lists Inicio + Mis viajes (no Reportes / Flota / Finanzas)", () => {
+    const items = driverPortalNavigationConfig.flatMap((g) => g.items);
+    const ids = items.map((item) => item.id);
+    const labels = items.map((item) => item.label);
+
+    expect(ids).toEqual(["dashboard", "trips"]);
+    expect(labels).toEqual(["Inicio", "Mis viajes"]);
+    expect(ids).not.toContain("reports");
+    expect(ids).not.toContain("vehicles");
+    expect(ids).not.toContain("finance-hub");
+    expect(labels.some((l) => /reporte|flota|finanza|factura/i.test(l))).toBe(
+      false,
+    );
   });
 });

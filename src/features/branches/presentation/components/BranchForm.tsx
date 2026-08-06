@@ -10,7 +10,7 @@ import {
   type FieldErrors,
   type Resolver,
 } from "react-hook-form";
-import { Building2, FileText, Loader2, MapPin, Pencil, Phone, Save } from "lucide-react";
+import { Building2, Loader2, MapPin, Pencil, Phone, Save } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
@@ -218,8 +218,11 @@ function formatReviewCoordinates(
 
 function BranchAddressGeocodingSection({
   disabled = false,
+  embedded = false,
 }: {
   disabled?: boolean;
+  /** Sin card propia (va dentro de la sección Ubicación en edición). */
+  embedded?: boolean;
 }) {
   const {
     control,
@@ -242,6 +245,41 @@ function BranchAddressGeocodingSection({
     [setValue],
   );
 
+  const content = (
+    <AddressGeocodingSectionContent
+      address={{
+        street: address?.street,
+        exteriorNumber: address?.exteriorNumber,
+        interiorNumber: address?.interiorNumber,
+        postalCode: address?.postalCode,
+        satMunicipalityCode: address?.satMunicipalityCode,
+        satStateCode: address?.satStateCode,
+        satCountryCode: address?.satCountryCode,
+      }}
+      latitude={address?.latitude}
+      longitude={address?.longitude}
+      latitudeError={errors.address?.latitude?.message}
+      onCoordinatesChange={onCoordinatesChange}
+      disabled={disabled}
+    />
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-3 border-t pt-4">
+        <div>
+          <p className="text-sm font-medium">
+            <AddressGeocodingSectionTitle />
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {branchesCopy.form.sections.geolocation.description}
+          </p>
+        </div>
+        {content}
+      </div>
+    );
+  }
+
   return (
     <FormSectionCard
       title={<AddressGeocodingSectionTitle />}
@@ -249,22 +287,7 @@ function BranchAddressGeocodingSection({
       description={branchesCopy.form.sections.geolocation.description}
       contentClassName="space-y-4"
     >
-      <AddressGeocodingSectionContent
-        address={{
-          street: address?.street,
-          exteriorNumber: address?.exteriorNumber,
-          interiorNumber: address?.interiorNumber,
-          postalCode: address?.postalCode,
-          satMunicipalityCode: address?.satMunicipalityCode,
-          satStateCode: address?.satStateCode,
-          satCountryCode: address?.satCountryCode,
-        }}
-        latitude={address?.latitude}
-        longitude={address?.longitude}
-        latitudeError={errors.address?.latitude?.message}
-        onCoordinatesChange={onCoordinatesChange}
-        disabled={disabled}
-      />
+      {content}
     </FormSectionCard>
   );
 }
@@ -450,13 +473,16 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       (fieldErrors: FieldErrors<BranchFormData>) => {
         setShowValidationSummary(true);
         void trigger(undefined, { shouldFocus: true });
-        toast({
-          title: branchesCopy.form.validationToastTitle,
-          description: formatFormValidationToastDescription(fieldErrors),
-          variant: "destructive",
-        });
+        // En edición: solo summary (evita toast duplicado). En alta/wizard: toast + summary.
+        if (!editLayout) {
+          toast({
+            title: branchesCopy.form.validationToastTitle,
+            description: formatFormValidationToastDescription(fieldErrors),
+            variant: "destructive",
+          });
+        }
       },
-      [toast, trigger],
+      [editLayout, toast, trigger],
     );
 
     const handleValidSubmit = useCallback(
@@ -469,18 +495,20 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
         if (!addressResult.ok) {
           setShowValidationSummary(true);
           applyAddressFieldErrors(addressResult.fieldErrors);
-          toast({
-            title: branchesCopy.form.validationToastTitle,
-            description: branchesCopy.form.validationAddressSummary,
-            variant: "destructive",
-          });
+          if (!editLayout) {
+            toast({
+              title: branchesCopy.form.validationToastTitle,
+              description: branchesCopy.form.validationAddressSummary,
+              variant: "destructive",
+            });
+          }
           return;
         }
 
         setShowValidationSummary(false);
         onSubmit(data);
       },
-      [applyAddressFieldErrors, onSubmit, toast],
+      [applyAddressFieldErrors, editLayout, onSubmit, toast],
     );
 
     useImperativeHandle(
@@ -506,7 +534,11 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
           aria-hidden={wizardActive && wizardStepIndex !== 0}
         >
           <FormSectionCard
-            title={branchesCopy.form.sections.general.title}
+            title={
+              editLayout
+                ? branchesCopy.form.sections.general.editTitle
+                : branchesCopy.form.sections.general.title
+            }
             icon={<Building2 className="h-4 w-4" />}
             description={
               editLayout
@@ -613,12 +645,18 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
           aria-hidden={wizardActive && wizardStepIndex !== 1}
         >
           <FormSectionCard
-            title={branchesCopy.form.sections.address.title}
+            title={
+              editLayout
+                ? branchesCopy.form.sections.address.editTitle
+                : branchesCopy.form.sections.address.title
+            }
             icon={<MapPin className="h-4 w-4" />}
             description={
-              wizardActive
-                ? ADDRESS_FORM_COPY.branchOperational.globalInfoMessage
-                : branchesCopy.form.sections.address.description
+              editLayout
+                ? branchesCopy.form.sections.address.editDescription
+                : wizardActive
+                  ? ADDRESS_FORM_COPY.branchOperational.globalInfoMessage
+                  : branchesCopy.form.sections.address.description
             }
             contentClassName="grid gap-4 sm:grid-cols-2"
           >
@@ -637,39 +675,35 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
                 disabled={isSubmitting}
               />
             </div>
-            {!editLayout ? (
+            {editLayout ? (
               <div className="sm:col-span-2">
-                <RHFTextareaField
-                  control={control}
-                  name="notes"
-                  label={fieldCopy.notes.label}
-                  rows={4}
-                  placeholder={fieldCopy.notes.placeholder}
-                  maxLength={1000}
+                <BranchAddressGeocodingSection
+                  disabled={isSubmitting}
+                  embedded
                 />
               </div>
             ) : null}
+            <div className="sm:col-span-2">
+              <RHFTextareaField
+                control={control}
+                name="notes"
+                label={fieldCopy.notes.label}
+                description={
+                  editLayout
+                    ? branchesCopy.form.sections.notes.description
+                    : undefined
+                }
+                rows={editLayout ? 3 : 4}
+                placeholder={fieldCopy.notes.placeholder}
+                maxLength={1000}
+              />
+            </div>
           </FormSectionCard>
 
-          <BranchAddressGeocodingSection disabled={isSubmitting} />
+          {!editLayout ? (
+            <BranchAddressGeocodingSection disabled={isSubmitting} />
+          ) : null}
         </div>
-
-        {editLayout ? (
-          <FormSectionCard
-            title={branchesCopy.form.sections.notes.title}
-            icon={<FileText className="h-4 w-4" />}
-            description={branchesCopy.form.sections.notes.description}
-          >
-            <RHFTextareaField
-              control={control}
-              name="notes"
-              label={<span className="sr-only">{fieldCopy.notes.label}</span>}
-              rows={4}
-              placeholder={fieldCopy.notes.placeholder}
-              maxLength={1000}
-            />
-          </FormSectionCard>
-        ) : null}
 
         <div
           className={cn(!wizardActive || wizardStepIndex !== 2 ? "hidden" : undefined)}
@@ -690,7 +724,13 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
         ) : null}
 
         {!wizardActive ? (
-          <div className="flex items-center justify-end gap-4 border-t pt-4">
+          <div
+            className={cn(
+              "flex items-center justify-end gap-3 border-t pt-4",
+              editLayout &&
+                "sticky bottom-0 z-20 -mx-4 mt-6 border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6",
+            )}
+          >
             {onCancel ? (
               <Button
                 type="button"
