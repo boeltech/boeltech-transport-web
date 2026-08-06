@@ -38,6 +38,19 @@ Limite: a 16px el canal se reduce; sobre fondos claros el ink mantiene contraste
 | `tlama-mark-b-route.svg` | T + ruta |
 | `tlama-mark-c-load.svg` | T + carga + banda |
 
+## Marketing — landing `/welcome`
+
+Dirección: **Industrial confiable / blueprint elevado**. Hero: banda `primary` +
+stage (motivo ruta + plinto + tracto).
+
+| Archivo | Uso | Light/Dark | Notas |
+|---------|-----|------------|-------|
+| `tlama-landing-hero-visual-tractor.png` | **Ancla visual del hero** (tracto line-art) | CSS invert → blanco sobre `bg-primary` | Raster / alpha; no es logo |
+| `tlama-landing-motif-route.svg` | Motivo ruta detrás del tracto | Idem vía filter en hero | Decorativo |
+| `tlama-landing-route-mesh.svg` | Ruta detrás del preview *standalone* | Stroke ink | `LandingProductPreview` con `backdrop` |
+
+Grain/mesh de atmósfera: CSS en `landing.css` (data-URI / gradients); sin archivo grain/atmosphere en `public/brand/`.
+
 ## Como revisar
 
 Con `npm run dev`:
@@ -46,5 +59,9 @@ Con `npm run dev`:
 - `/brand/tlama-mark-g-paths.svg`
 - `/brand/tlama-mark-g-paths-ink.svg`
 - `/brand/tlama-mark-g-paths-onbrand.svg`
+- `/brand/tlama-landing-hero-visual-tractor.png`
+- `/brand/tlama-landing-motif-route.svg`
+- `/brand/tlama-landing-route-mesh.svg`
+- `/welcome` (hero split + tracto)
 
-Checklist visual: 16px · 64px · fondo claro y oscuro.
+Checklist visual: 16px · 64px · fondo claro y oscuro · `prefers-reduced-motion`.

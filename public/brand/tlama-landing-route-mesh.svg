@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" fill="none" aria-hidden="true">
+  <!-- Abstract route / load geometry for /welcome hero (Industrial confiable). Not a logo. -->
+  <g stroke="#2558a8" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="1.25" opacity="0.22" d="M48 312 C180 280 220 120 360 148 C480 172 500 300 640 268 C760 242 820 120 912 96"/>
+    <path stroke-width="1.5" opacity="0.38" d="M64 340 C200 300 260 200 380 210 C520 222 540 320 680 300 C800 284 860 180 920 150"/>
+    <path stroke-width="2" opacity="0.55" d="M80 360 C220 318 280 240 400 248 C540 258 560 340 700 324 C820 310 880 220 936 188"/>
+    <path stroke-width="1" opacity="0.18" d="M40 200 H200 M760 80 H920 M120 100 V220 M840 260 V360"/>
+  </g>
+  <g fill="#2558a8">
+    <circle cx="80" cy="360" r="5" opacity="0.65"/>
+    <circle cx="400" cy="248" r="4" opacity="0.5"/>
+    <circle cx="700" cy="324" r="4" opacity="0.5"/>
+    <circle cx="936" cy="188" r="5" opacity="0.65"/>
+    <rect x="452" y="168" width="14" height="14" rx="1.5" opacity="0.42"/>
+  </g>
+</svg>

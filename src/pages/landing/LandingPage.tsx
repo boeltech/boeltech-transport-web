@@ -1,51 +1,28 @@
 import { Link } from "react-router-dom";
-import {
-  Truck,
-  Route,
-  Users,
-  Wallet,
-  ChevronRight,
-  CheckCircle,
-  Fuel,
-  Wrench,
-  Satellite,
-  UserPlus,
-  Building2,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronRight, CheckCircle, UserPlus } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import { Badge } from "@shared/ui/badge";
 import { BrandLockup, Wordmark } from "@shared/ui/brand";
 import { cn } from "@shared/lib/utils/cn";
 import { landingCopy } from "./landingCopy";
 import { usePublicOperationalPlans } from "@shared/commercial/usePublicOperationalPlans";
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
 import { LandingReveal } from "./LandingReveal";
-import { LandingProductPreview } from "./LandingProductPreview";
+import { LandingHeroVisual } from "./LandingHeroVisual";
 import "./landing.css";
-
-const productIcons: LucideIcon[] = [Truck, Route, Users, Wallet];
-const optionalIcons: LucideIcon[] = [Fuel, Wrench, Satellite, Building2];
 
 /**
  * Landing pública (`/welcome`): embudo D1–D7 (Capa 1).
- * Hero → Preview+trust → Qué incluye → Precios → Opcionales → CTA.
+ * Look: «Industrial confiable / blueprint elevado» (landing-visual-polish).
+ * Banding: primary(+trust) → surface → secondary → surface → secondary(+primary CTA).
+ * Ver `.landing-band-*` en landing.css (par background / secondary).
  */
 const LandingPage = () => {
   return (
     <div className="bg-background relative min-h-screen overflow-x-hidden">
+      <div className="landing-mesh pointer-events-none absolute inset-0 -z-10" aria-hidden />
       <div
-        className="landing-dot-grid pointer-events-none absolute inset-0 -z-10 opacity-[0.45]"
+        className="landing-grain pointer-events-none absolute inset-0 -z-10"
         aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-90"
-        aria-hidden
-        style={{
-          backgroundImage: `
-            radial-gradient(ellipse 70% 45% at 50% -10%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 55%)
-          `,
-        }}
       />
 
       <Header />
@@ -70,8 +47,8 @@ const Header = () => {
   ];
 
   return (
-    <header className="bg-background/90 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-50 border-b backdrop-blur">
-      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4">
+    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/85 sticky top-0 z-50 border-b">
+      <div className="landing-shell flex h-16 items-center justify-between gap-3">
         <Link
           to="/welcome"
           className="flex shrink-0 items-center gap-2"
@@ -86,14 +63,14 @@ const Header = () => {
         </Link>
 
         <nav
-          className="bg-muted/80 hidden items-center gap-1 rounded-full px-1.5 py-1 md:flex"
+          className="hidden items-center gap-6 md:flex"
           aria-label="Secciones"
         >
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-muted-foreground hover:text-foreground hover:bg-background/80 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
             >
               {link.label}
             </a>
@@ -132,142 +109,185 @@ const HeroSection = () => {
   const { open: registrationOpen } = usePublicSelfServeRegister();
 
   return (
-    <section className="relative overflow-hidden pt-14 pb-8 md:pt-20 md:pb-10">
-      <div className="container mx-auto px-4 text-center">
-        <LandingReveal>
-          <div className="mb-6 flex justify-center">
-            <BrandLockup
-              variant="brand"
-              decorative
-              markSize={44}
-              wordmarkClassName="text-3xl sm:text-4xl"
-            />
-          </div>
+    <section className="landing-hero relative overflow-hidden">
+      {/* Banda sólida primary (DS) — copy + visual + trust fiscal */}
+      <div className="landing-hero-band bg-primary text-primary-foreground">
+        <div className="landing-shell pt-12 pb-10 md:pt-16 md:pb-12 lg:pt-20 lg:pb-14">
+          <div className="grid items-center gap-8 md:gap-10 lg:grid-cols-2 lg:gap-10 xl:gap-14">
+            <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
+              <LandingReveal delayMs={0}>
+                <div className="mb-5 flex flex-col items-center lg:mb-7 lg:items-start">
+                  <BrandLockup
+                    variant="onBrand"
+                    decorative
+                    markSize={40}
+                    wordmarkClassName="text-2xl tracking-tight sm:text-3xl lg:text-[2rem]"
+                  />
+                  <span className="landing-hero-brand-rule" aria-hidden />
+                </div>
+              </LandingReveal>
 
-          <div className="bg-primary/10 text-primary border-primary/20 mb-6 inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium">
-            <span
-              className={cn(
-                "mr-2 flex h-2 w-2 rounded-full",
-                registrationOpen ? "bg-success animate-pulse" : "bg-primary/60",
-              )}
-            />
-            {registrationOpen ? hero.badgeOpen : hero.badgeClosed}
-          </div>
+              <LandingReveal delayMs={90}>
+                <h1 className="landing-display text-primary-foreground">
+                  {hero.title}
+                </h1>
+                <p className="landing-hero-support text-primary-foreground/80 mx-auto mt-6 text-base md:text-lg lg:mx-0">
+                  {hero.subtitle}
+                </p>
+              </LandingReveal>
 
-          <h1 className="text-foreground mx-auto max-w-3xl text-4xl font-bold tracking-tight text-balance md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-            {hero.title}
-          </h1>
+              <LandingReveal delayMs={180}>
+                <div className="mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
+                  {registrationOpen ? (
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      asChild
+                      className="landing-hero-cta min-w-[210px]"
+                    >
+                      <Link to="/register">
+                        {hero.ctaPrimaryOpen}
+                        <ChevronRight className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      asChild
+                      className="landing-hero-cta min-w-[210px]"
+                    >
+                      <a href="mailto:ventas@boeltech.com">
+                        {hero.ctaPrimaryClosed}
+                        <ChevronRight className="ml-2 h-5 w-5" />
+                      </a>
+                    </Button>
+                  )}
+                  <Link
+                    to="/login"
+                    className="text-primary-foreground/85 hover:text-primary-foreground text-sm font-medium underline-offset-4 transition-colors hover:underline"
+                  >
+                    {hero.ctaLogin}
+                  </Link>
+                </div>
+                <p className="text-primary-foreground/70 mt-4 flex items-center justify-center gap-2 text-sm lg:justify-start">
+                  {registrationOpen ? (
+                    <>
+                      <span
+                        className="bg-primary-foreground/80 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                        aria-hidden
+                      />
+                      {hero.trialHint}
+                    </>
+                  ) : (
+                    hero.badgeClosed
+                  )}
+                </p>
+              </LandingReveal>
+            </div>
 
-          <p className="text-muted-foreground mx-auto mt-5 max-w-xl text-base leading-relaxed md:text-lg">
-            {hero.subtitle}
-          </p>
-
-          <div className="mt-9 flex flex-col items-center justify-center gap-4">
-            {registrationOpen ? (
-              <Button size="lg" asChild className="min-w-[220px]">
-                <Link to="/register">
-                  {hero.ctaPrimaryOpen}
-                  <ChevronRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            ) : (
-              <Button size="lg" asChild className="min-w-[220px]">
-                <a href="mailto:ventas@boeltech.com">
-                  {hero.ctaPrimaryClosed}
-                  <ChevronRight className="ml-2 h-5 w-5" />
-                </a>
-              </Button>
-            )}
-            <Link
-              to="/login"
-              className="text-muted-foreground hover:text-foreground text-sm font-medium underline-offset-4 hover:underline"
+            <LandingReveal
+              className="landing-preview-rise landing-hero-visual-wrap"
+              delayMs={120}
             >
-              {hero.ctaLogin}
-            </Link>
+              <LandingHeroVisual />
+            </LandingReveal>
           </div>
-          {registrationOpen ? (
-            <p className="text-muted-foreground mt-4 text-sm">{hero.trialHint}</p>
-          ) : null}
-        </LandingReveal>
+        </div>
 
-        <LandingReveal className="mt-12 md:mt-16" delayMs={80}>
-          <LandingProductPreview />
-          <TrustStrip />
-        </LandingReveal>
+        {/* Trust fiscal — misma banda primary (contraste onBrand) */}
+        <div className="landing-hero-trust landing-shell">
+          <LandingReveal delayMs={40}>
+            <TrustStrip />
+          </LandingReveal>
+        </div>
       </div>
     </section>
   );
 };
 
-/** Trust fiscal pegado al preview (D4); sin RBAC jerga en strip. */
+/** Trust fiscal tipográfico (D4); pie de la banda primary del hero. */
 const TrustStrip = () => {
   const { trust } = landingCopy;
   return (
-    <div
-      className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-center gap-2 sm:gap-3"
+    <p
+      className="landing-hero-trust-text mx-auto max-w-3xl text-center text-sm tracking-wide"
       aria-label={trust.ariaLabel}
     >
-      {trust.items.map((item) => (
-        <div
-          key={item.label}
-          className="bg-muted/60 border-border/70 flex min-w-[120px] flex-col items-center rounded-full border px-4 py-2 text-center sm:min-w-[140px]"
-        >
-          <span className="text-foreground text-sm font-semibold">
+      {trust.items.map((item, i) => (
+        <span key={item.label}>
+          {i > 0 ? (
+            <span className="landing-hero-trust-sep mx-2.5" aria-hidden>
+              ·
+            </span>
+          ) : null}
+          <span className="landing-hero-trust-label font-medium">
             {item.label}
           </span>
-          <span className="text-muted-foreground text-sm">{item.hint}</span>
-        </div>
+          <span className="landing-hero-trust-hint"> {item.hint}</span>
+        </span>
       ))}
-    </div>
+    </p>
   );
 };
 
 const ProductSection = () => {
   const { product } = landingCopy;
   return (
-    <section id={product.id} className="py-16 md:py-20">
-      <div className="container mx-auto px-4">
+    <section
+      id={product.id}
+      className="landing-band landing-band-surface py-16 md:py-20"
+    >
+      <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+          <h2 className="landing-section-title text-foreground">
             {product.title}
           </h2>
           <p className="text-muted-foreground mt-4">{product.subtitle}</p>
         </LandingReveal>
 
-        <div className="landing-reveal-stagger mt-12 grid gap-4 md:grid-cols-2">
-          {product.items.map((module, index) => {
-            const Icon = productIcons[index] ?? Truck;
-            return (
-              <LandingReveal
-                key={module.title}
-                className="bg-muted/35 border-border/50 rounded-3xl border p-6 md:p-7"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div className="bg-primary text-primary-foreground flex h-11 w-11 items-center justify-center rounded-2xl">
-                    <Icon className="h-5 w-5" />
+        <div className="landing-panel landing-reveal-stagger border-border/60 mt-12 overflow-hidden rounded-2xl border">
+          <div className="grid md:grid-cols-2">
+            {product.items.map((module, index) => {
+              const n = String(index + 1).padStart(2, "0");
+              return (
+                <LandingReveal
+                  key={module.title}
+                  className={cn(
+                    "border-border/50 p-6 md:p-8",
+                    index % 2 === 1 && "md:border-l",
+                    index >= 2 && "border-t",
+                  )}
+                >
+                  <div className="mb-4 flex items-baseline justify-between gap-3">
+                    <span className="text-primary/70 font-mono text-xs font-medium tracking-widest">
+                      {n}
+                    </span>
+                    <span className="text-primary bg-primary/8 rounded px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase">
+                      {product.includedBadge}
+                    </span>
                   </div>
-                  <Badge variant="success" tone="soft">
-                    {product.includedBadge}
-                  </Badge>
-                </div>
-                <h3 className="mb-2 text-lg font-semibold">{module.title}</h3>
-                <p className="text-muted-foreground mb-4 text-base">
-                  {module.description}
-                </p>
-                <ul className="space-y-2">
-                  {module.bullets.map((bullet) => (
-                    <li
-                      key={bullet}
-                      className="flex items-center gap-2 text-base"
-                    >
-                      <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              </LandingReveal>
-            );
-          })}
+                  <h3 className="mb-2 text-lg font-semibold tracking-tight">
+                    {module.title}
+                  </h3>
+                  <p className="text-muted-foreground mb-4 text-base leading-relaxed">
+                    {module.description}
+                  </p>
+                  <ul className="space-y-2">
+                    {module.bullets.map((bullet) => (
+                      <li
+                        key={bullet}
+                        className="flex items-center gap-2 text-base"
+                      >
+                        <CheckCircle className="text-primary h-4 w-4 shrink-0" />
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </LandingReveal>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
@@ -280,10 +300,13 @@ const PricingSection = () => {
   const { open: registrationOpen } = usePublicSelfServeRegister();
 
   return (
-    <section id={pricing.id} className="py-16 md:py-24">
-      <div className="container mx-auto px-4">
+    <section
+      id={pricing.id}
+      className="landing-band landing-band-muted py-16 md:py-24"
+    >
+      <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+          <h2 className="landing-section-title text-foreground">
             {pricing.title}
           </h2>
           <p className="text-muted-foreground mt-4 text-base md:text-lg">
@@ -294,8 +317,8 @@ const PricingSection = () => {
           </p>
         </LandingReveal>
 
-        <div className="landing-reveal-stagger mt-14 grid gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:items-stretch">
-          {plans.map((plan) => {
+        <div className="landing-panel landing-reveal-stagger border-border/60 mt-14 overflow-hidden rounded-2xl border xl:grid xl:grid-cols-4">
+          {plans.map((plan, index) => {
             const isPopular = plan.code === pricing.popularCode;
             const audience = pricing.audiences[plan.code] ?? plan.unitsLabel;
 
@@ -303,49 +326,35 @@ const PricingSection = () => {
               <LandingReveal key={plan.code}>
                 <article
                   className={cn(
-                    "bg-muted/40 relative flex h-full flex-col rounded-3xl border p-6 transition-shadow",
-                    isPopular
-                      ? "border-primary bg-card ring-primary/20 shadow-md ring-2 xl:-translate-y-1"
-                      : "border-border/60 hover:border-primary/30",
+                    "landing-plan relative flex h-full flex-col border-border/50 p-6 md:p-7",
+                    index > 0 && "border-t xl:border-t-0 xl:border-l",
+                    isPopular &&
+                      "landing-plan-popular bg-primary/[0.04] ring-primary/25 xl:z-[1] xl:ring-2",
                   )}
                 >
                   {isPopular ? (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge variant="info" tone="soft" className="shadow-sm">
-                        {pricing.popularBadge}
-                      </Badge>
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-xl",
-                        isPopular
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-primary/10 text-primary",
-                      )}
-                    >
-                      <Truck className="h-4 w-4" />
-                    </div>
-                    <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    <p className="text-primary mb-3 text-[11px] font-semibold tracking-[0.14em] uppercase">
+                      {pricing.popularBadge}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground mb-3 text-[11px] font-medium tracking-[0.14em] uppercase">
                       {pricing.familyLabel}
-                    </span>
-                  </div>
+                    </p>
+                  )}
 
                   <h3
                     className={cn(
-                      "mt-4 text-2xl font-bold tracking-tight",
+                      "text-xl font-bold tracking-tight",
                       isPopular ? "text-primary" : "text-foreground",
                     )}
                   >
                     {plan.shortName}
                   </h3>
 
-                  <p className="mt-3 flex flex-wrap items-baseline gap-1">
+                  <p className="mt-4 flex flex-wrap items-baseline gap-1">
                     <span
                       className={cn(
-                        "text-4xl font-bold tracking-tight tabular-nums",
+                        "landing-price-amount",
                         isPopular ? "text-primary" : "text-foreground",
                       )}
                     >
@@ -356,7 +365,7 @@ const PricingSection = () => {
                     </span>
                   </p>
 
-                  <p className="text-muted-foreground mt-3 min-h-[2.75rem] text-base leading-relaxed">
+                  <p className="text-muted-foreground mt-3 min-h-[2.75rem] text-sm leading-relaxed">
                     {audience}
                   </p>
 
@@ -377,39 +386,27 @@ const PricingSection = () => {
                         <CheckCircle className="text-primary h-4 w-4 shrink-0" />
                         {pricing.featureLabels.users}
                       </span>
-                      <Badge
-                        variant="neutral"
-                        tone="soft"
-                        className="tabular-nums"
-                      >
+                      <span className="text-foreground text-sm font-medium tabular-nums">
                         {plan.usersBadge}
-                      </Badge>
+                      </span>
                     </li>
                     <li className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground flex items-center gap-2.5">
                         <CheckCircle className="text-primary h-4 w-4 shrink-0" />
                         {pricing.featureLabels.branches}
                       </span>
-                      <Badge
-                        variant="neutral"
-                        tone="soft"
-                        className="tabular-nums"
-                      >
+                      <span className="text-foreground text-sm font-medium tabular-nums">
                         {plan.branchesBadge}
-                      </Badge>
+                      </span>
                     </li>
                     <li className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground flex items-center gap-2.5">
                         <CheckCircle className="text-primary h-4 w-4 shrink-0" />
                         {pricing.featureLabels.stamps}
                       </span>
-                      <Badge
-                        variant="neutral"
-                        tone="soft"
-                        className="tabular-nums"
-                      >
+                      <span className="text-foreground text-sm font-medium tabular-nums">
                         {plan.stampsBadge}
-                      </Badge>
+                      </span>
                     </li>
                     <li className="flex items-start gap-2.5 pt-1">
                       <CheckCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" />
@@ -470,20 +467,23 @@ const PricingSection = () => {
 const OptionalsSection = () => {
   const { optionals } = landingCopy;
   return (
-    <section id={optionals.id} className="py-16 md:py-20">
-      <div className="container mx-auto px-4">
+    <section
+      id={optionals.id}
+      className="landing-band landing-band-surface py-16 md:py-20"
+    >
+      <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+          <h2 className="landing-section-title text-foreground">
             {optionals.title}
           </h2>
           <p className="text-muted-foreground mt-4">{optionals.subtitle}</p>
         </LandingReveal>
 
         <LandingReveal className="mt-12">
-          <div className="bg-muted/40 border-border/50 overflow-hidden rounded-3xl border">
+          <div className="landing-panel border-border/60 overflow-hidden rounded-2xl border">
             <div className="landing-reveal-stagger grid md:grid-cols-2 lg:grid-cols-4">
               {optionals.items.map((item, index) => {
-                const Icon = optionalIcons[index] ?? Wrench;
+                const n = String(index + 1).padStart(2, "0");
                 return (
                   <LandingReveal
                     key={item.title}
@@ -494,15 +494,17 @@ const OptionalsSection = () => {
                       index >= 1 && "lg:border-l",
                     )}
                   >
-                    <div className="mb-4 flex items-start justify-between gap-2">
-                      <div className="bg-background text-muted-foreground flex h-11 w-11 items-center justify-center rounded-full border">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <Badge variant="neutral" tone="soft">
+                    <div className="mb-3 flex items-baseline justify-between gap-2">
+                      <span className="text-muted-foreground/70 font-mono text-xs tracking-widest">
+                        {n}
+                      </span>
+                      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
                         {optionals.badge}
-                      </Badge>
+                      </span>
                     </div>
-                    <h3 className="mb-2 font-semibold">{item.title}</h3>
+                    <h3 className="mb-2 font-semibold tracking-tight">
+                      {item.title}
+                    </h3>
                     <p className="text-muted-foreground text-base leading-relaxed">
                       {item.description}
                     </p>
@@ -527,21 +529,22 @@ const CTASection = () => {
   const { cta } = landingCopy;
   const { open: registrationOpen } = usePublicSelfServeRegister();
   return (
-    <section className="py-16 md:py-20">
-      <div className="container mx-auto px-4">
+    <section className="landing-band landing-band-muted py-16 md:py-20">
+      <div className="landing-shell">
         <LandingReveal>
-          <div className="bg-primary text-primary-foreground relative overflow-hidden rounded-3xl px-6 py-14 text-center shadow-lg md:px-12 md:py-16">
+          <div className="bg-primary text-primary-foreground relative overflow-hidden rounded-2xl px-6 py-14 text-center md:px-12 md:py-16">
             <div
-              className="pointer-events-none absolute inset-0 opacity-40"
+              className="pointer-events-none absolute inset-0 opacity-30"
               aria-hidden
               style={{
                 backgroundImage: `
-                  radial-gradient(ellipse 60% 50% at 100% 0%, color-mix(in oklch, var(--primary-foreground) 18%, transparent), transparent 50%)
+                  radial-gradient(ellipse 55% 45% at 100% 0%, color-mix(in oklch, var(--primary-foreground) 16%, transparent), transparent 55%),
+                  radial-gradient(ellipse 40% 35% at 0% 100%, color-mix(in oklch, var(--primary-foreground) 10%, transparent), transparent 50%)
                 `,
               }}
             />
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+              <h2 className="landing-section-title text-primary-foreground">
                 {registrationOpen ? cta.title : cta.closedTitle}
               </h2>
               <p className="text-primary-foreground/80 mx-auto mt-4 max-w-2xl">
@@ -592,8 +595,8 @@ const CTASection = () => {
 const Footer = () => {
   const { brandByline, footer, nav } = landingCopy;
   return (
-    <footer className="pb-10 pt-4">
-      <div className="container mx-auto px-4">
+    <footer className="landing-band landing-band-surface pb-10 pt-10 md:pt-12">
+      <div className="landing-shell">
         <LandingReveal>
           <div className="grid gap-10 border-b pb-10 md:grid-cols-4">
             <div className="md:col-span-1">
@@ -682,7 +685,7 @@ const Footer = () => {
             </div>
           </div>
 
-          <div className="bg-muted/50 mt-6 flex flex-col items-center justify-between gap-3 rounded-full px-5 py-3 text-center sm:flex-row sm:text-left">
+          <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t pt-6 text-center sm:flex-row sm:text-left">
             <p className="text-muted-foreground text-xs sm:text-sm">
               {footer.copyright(new Date().getFullYear())}
             </p>

@@ -29,7 +29,7 @@ export const legalCopy = {
       },
       {
         heading: "4. Prueba y suscripción",
-        body: "Podemos ofrecer un periodo de prueba (por ejemplo, 14 días con cupo limitado de timbres) sin tarjeta, sujeto a las condiciones comerciales vigentes. Al terminar la prueba o agotar el cupo, el acceso operativo o el timbrado pueden restringirse hasta activar o renovar un plan. Los precios, límites de capacidad y módulos se describen en el catálogo comercial y en la pantalla Plan y consumo de tu cuenta.",
+        body: "Podemos ofrecer un periodo de prueba (por ejemplo, 14 días con cupo limitado de timbres) sin tarjeta, sujeto a las condiciones comerciales vigentes. Al terminar la prueba o agotar el cupo, el acceso operativo o el timbrado pueden restringirse hasta activar o renovar un plan. Los precios, límites de capacidad y módulos se describen en el catálogo comercial y en la pantalla Tu plan de tu cuenta.",
       },
       {
         heading: "5. Uso aceptable",

@@ -53,13 +53,13 @@ export const onboardingCopy = {
     planLabel: "Plan preferido",
     serverTitle: "Estado en el servidor",
     serverBody:
-      "El alta pública guarda tu plan y flota declarada, y deja la suscripción en prueba. Consulta Plan y consumo para ver estado, fin de prueba y cupo reales.",
+      "El alta pública guarda tu plan y flota declarada, y deja la suscripción en prueba. Consulta Tu plan para ver estado, fin de prueba y cupo reales.",
     trialTitle: "Periodo de prueba",
     trialBody:
-      "14 días · 15 timbres · sin tarjeta. El detalle vigente de tu tenant (estado En prueba, fechas y cupo) aparece en Plan y consumo.",
+      "14 días · 15 timbres · sin tarjeta. El detalle vigente de tu tenant (estado En prueba, fechas y cupo) aparece en Tu plan.",
     limitsTitle: "Capacidad del plan (lista)",
-    ctaSubscription: "Ver plan y consumo",
-    ctaHint: "Abre Configuración → Plan y consumo cuando termines el asistente.",
+    ctaSubscription: "Ver Tu plan",
+    ctaHint: "Abre Configuración → Tu plan cuando termines el asistente.",
   },
   workspace: {
     body: "El menú lateral muestra solo los módulos que aplican a tu rol: viajes, vehículos, clientes, facturación y más. Si no ves una sección, es porque tu administrador no la ha habilitado para tu perfil.",

@@ -166,7 +166,7 @@ export const landingCopy = {
       },
     ],
     footnote:
-      "Los precios y disponibilidad de opcionales viven en el catálogo comercial. En la app puedes consultar tu plan en Configuración → Plan y consumo.",
+      "Los precios y disponibilidad de opcionales viven en el catálogo comercial. En la app puedes consultar tu plan en Configuración → Tu plan.",
   },
 
   pricing: {
@@ -224,8 +224,7 @@ export const landingCopy = {
     privacy: "Política de privacidad",
     support: "Soporte",
     tagline: "Operación y facturación para transporte en México",
-    nameOrigin:
-      "El nombre Tlama evoca la raíz de cargar y llevar a distancia en la historia del transporte en México.",
+    nameOrigin: `${BRAND.productName} es un producto de ${BRAND.companyName} para operación y facturación de transporte en México.`,
     copyright: (year: number) =>
       `© ${year} ${BRAND.companyName}. Todos los derechos reservados.`,
   },

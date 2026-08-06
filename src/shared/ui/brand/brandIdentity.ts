@@ -2,7 +2,7 @@
  * Identidad de marca canónica (empresa vs producto).
  *
  * - Empresa: Boeltech
- * - Producto (tenant UI): Tlama
+ * - Producto (tenant UI): TA3L (preview de naming; antes telal / Tlama)
  * - Platform (tenant 0): Boeltech Platform — no usa el nombre del producto
  *
  * SoT de naming: docs/design-system/branding-unification-checklist.md §0
@@ -10,12 +10,12 @@
 
 export const BRAND = {
   companyName: "Boeltech",
-  productName: "Tlama",
+  productName: "TA3L",
   productMonogram: "T",
-  productByline: "Tlama by Boeltech",
+  productByline: "TA3L by Boeltech",
   productSubtitle: "ERP para empresas de transporte",
   platformName: "Boeltech Platform",
-  /** Subtítulo de la consola tenant 0 (no es el producto Tlama). */
+  /** Subtítulo de la consola tenant 0 (no es el producto TA3L). */
   platformSubtitle: "Consola SaaS",
   /** Correo de soporte por defecto (landing + menú Ayuda). */
   supportEmail: "soporte@boeltech.com",
