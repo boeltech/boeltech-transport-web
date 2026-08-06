@@ -7,6 +7,8 @@ export interface CreateUserDTO {
   readonly firstName: string;
   readonly lastName: string;
   readonly role: UserRole;
+  readonly clientId?: string | null;
+  readonly employeeId?: string | null;
 }
 
 export interface UpdateUserDTO {
@@ -14,6 +16,8 @@ export interface UpdateUserDTO {
   readonly firstName?: string;
   readonly lastName?: string;
   readonly role?: UserRole;
+  readonly clientId?: string | null;
+  readonly employeeId?: string | null;
 }
 
 export interface UpdateUserStatusDTO {

@@ -23,14 +23,23 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { cn } from "@shared/lib/utils/cn";
 
+import { usersCopy } from "../copy/usersCopy";
 import { invitationsPendingQueryKey } from "./invitationsPendingQueryKey";
+
+interface PendingInvitationsPanelProps {
+  className?: string;
+}
 
 /**
  * Invitaciones pendientes con reenvío y cancelación (API).
  * Solo visible con permiso de listado de usuarios.
  */
-export function PendingInvitationsPanel() {
+export function PendingInvitationsPanel({
+  className,
+}: PendingInvitationsPanelProps) {
+  const copy = usersCopy.invitations;
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -51,7 +60,7 @@ export function PendingInvitationsPanel() {
     },
     onError: (e: unknown) => {
       toast({
-        title: "No se pudo reenviar",
+        title: copy.resendError,
         description: mapBackendError(e).message,
         variant: "destructive",
       });
@@ -66,7 +75,7 @@ export function PendingInvitationsPanel() {
     },
     onError: (e: unknown) => {
       toast({
-        title: "No se pudo cancelar",
+        title: copy.cancelError,
         description: mapBackendError(e).message,
         variant: "destructive",
       });
@@ -84,37 +93,34 @@ export function PendingInvitationsPanel() {
   }
 
   return (
-    <Card className="border-dashed">
+    <Card className={cn("border-dashed", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <Mail className="text-muted-foreground h-5 w-5" />
+          <Mail className="h-4 w-4 text-muted-foreground" />
           <div>
-            <CardTitle className="text-lg">Invitaciones pendientes</CardTitle>
-            <CardDescription>
-              Correos enviados que aún no se han aceptado. Puedes reenviar el
-              enlace o cancelar la invitación.
-            </CardDescription>
+            <CardTitle className="text-base">{copy.title}</CardTitle>
+            <CardDescription>{copy.description}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando invitaciones…
+            {copy.loading}
           </div>
         ) : isError ? (
-          <p className="text-destructive text-sm">
-            No se pudieron cargar las invitaciones pendientes.
-          </p>
+          <p className="text-sm text-destructive">{copy.error}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Correo</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Vence</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead>{copy.columns.email}</TableHead>
+                <TableHead>{copy.columns.role}</TableHead>
+                <TableHead>{copy.columns.expires}</TableHead>
+                <TableHead className="text-right">
+                  {copy.columns.actions}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,7 +130,7 @@ export function PendingInvitationsPanel() {
                   <TableCell>
                     {ROLE_LABELS[inv.role as UserRole] ?? inv.role}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDateTime(inv.expiresAt)}
                   </TableCell>
                   <TableCell className="text-right">
@@ -134,10 +140,9 @@ export function PendingInvitationsPanel() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          title="Reenviar invitación"
-                          disabled={
-                            resend.isPending || cancel.isPending
-                          }
+                          title={copy.resend}
+                          aria-label={copy.resend}
+                          disabled={resend.isPending || cancel.isPending}
                           onClick={() => resend.mutate(inv.id)}
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -146,17 +151,16 @@ export function PendingInvitationsPanel() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          title="Cancelar invitación"
-                          disabled={
-                            resend.isPending || cancel.isPending
-                          }
+                          title={copy.cancel}
+                          aria-label={copy.cancel}
+                          disabled={resend.isPending || cancel.isPending}
                           onClick={() => cancel.mutate(inv.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
                 </TableRow>

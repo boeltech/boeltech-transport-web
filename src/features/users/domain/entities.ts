@@ -19,6 +19,15 @@ export interface UserListItem {
   readonly createdAt: string;
 }
 
+/** Cupo de asientos del plan en el listado (`GET /users` → `meta`). */
+export interface UserListMeta {
+  readonly activeCount: number;
+  readonly maxUsers: number | null;
+  readonly limitReached: boolean;
+  readonly overQuota: boolean;
+  readonly overQuotaCount: number;
+}
+
 export interface User {
   readonly id: string;
   readonly tenantId: string;
@@ -40,6 +49,9 @@ export interface User {
   readonly updatedBy: string | null;
   readonly createdByName: string | null;
   readonly updatedByName: string | null;
+  readonly clientId: string | null;
+  readonly employeeId: string | null;
+  readonly driverId: string | null;
 }
 
 export interface UserFilters {

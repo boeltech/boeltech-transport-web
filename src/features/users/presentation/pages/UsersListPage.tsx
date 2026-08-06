@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Calendar, Filter, Mail, Plus, Search, UserCog, X } from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
+import { Filter, Search, SlidersHorizontal, UserPlus, X } from "lucide-react";
 import { ROLE_OPTIONS, ROLE_LABELS, type UserRole } from "@shared/constants/roles";
 import { Button } from "@shared/ui/button";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
@@ -28,15 +27,18 @@ import {
 } from "../../domain";
 import { useUpdateUserStatus, useUsers } from "../../application";
 import {
-  InviteUserDialog,
+  AddUserSheet,
   PendingInvitationsPanel,
+  UserCapacityBanner,
   UserCard,
   UserCardSkeleton,
+  UserPlanLimitNotice,
   UserTable,
   invitationsPendingQueryKey,
   type UserSortableColumn,
 } from "../components";
-import { ARRANQUE_USER_LIMIT, usersCopy } from "../copy/usersCopy";
+import { usersCopy } from "../copy/usersCopy";
+import { capacityFromUserListMeta } from "../helpers/userPlanCapacity";
 
 type DateDraftState = {
   createdFrom: string;
@@ -57,6 +59,7 @@ export function UsersListPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const copy = usersCopy.list;
 
   const filters = useListingFilters<
     "status" | "role" | "createdFrom" | "createdTo" | "lastLoginFrom" | "lastLoginTo"
@@ -71,8 +74,11 @@ export function UsersListPage() {
     },
     chipLabels: {
       status: (value) =>
-        `Estado: ${USER_STATUS_LABELS[value as UserStatusType] ?? value}`,
-      role: (value) => `Rol: ${ROLE_LABELS[value as UserRole] ?? value}`,
+        copy.filters.chipStatus(
+          USER_STATUS_LABELS[value as UserStatusType] ?? value,
+        ),
+      role: (value) =>
+        copy.filters.chipRole(ROLE_LABELS[value as UserRole] ?? value),
     },
   });
 
@@ -132,7 +138,7 @@ export function UsersListPage() {
     direction: "desc",
   });
 
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [addUserSheetOpen, setAddUserSheetOpen] = useState(false);
 
   const handleSortChange = useCallback(
     (field: UserSortableColumn) => {
@@ -164,30 +170,20 @@ export function UsersListPage() {
 
   const canCreate = hasPermission("users", "create");
 
-  const { data: activeUsersData } = useUsers(
-    {
-      page: 1,
-      limit: 1,
-      filters: { status: UserStatus.ACTIVE },
-      sort: { field: "created_at", direction: "desc" },
-    },
-    { enabled: canCreate },
-  );
-
-  const activeUserCount = activeUsersData?.pagination.total ?? 0;
-  const userLimitReached = activeUserCount >= ARRANQUE_USER_LIMIT;
+  const capacity = capacityFromUserListMeta(data?.meta);
+  const userLimitReached = !capacity.canAdd;
 
   const updateStatusMutation = useUpdateUserStatus({
     onSuccess: () => {
       toast({
-        title: "Usuario actualizado",
+        title: usersCopy.status.updateSuccess,
         variant: "success",
       });
       void refetch();
     },
     onError: (error) => {
       toast({
-        title: "Error al actualizar usuario",
+        title: usersCopy.status.updateError,
         description: error.message,
         variant: "destructive",
       });
@@ -196,8 +192,6 @@ export function UsersListPage() {
 
   const users = data?.data ?? [];
   const canUpdateStatus = hasPermission("users", "delete");
-
-  const handleCreate = useCallback(() => navigate("/users/new"), [navigate]);
 
   const handleView = useCallback(
     (id: string) => {
@@ -209,10 +203,10 @@ export function UsersListPage() {
   const handleRefresh = useCallback(async () => {
     await refetch();
     toast({
-      title: "Lista actualizada",
+      title: copy.refreshSuccess,
       variant: "success",
     });
-  }, [refetch, toast]);
+  }, [refetch, toast, copy.refreshSuccess]);
 
   const handleStatusChange = useCallback(
     (id: string, status: UserStatusType) => {
@@ -229,25 +223,30 @@ export function UsersListPage() {
   const hasLastLoginDateFilter = Boolean(lastLoginFrom || lastLoginTo);
   const hasDateFilter = hasCreatedDateFilter || hasLastLoginDateFilter;
 
-  const formatRange = useCallback((from: string, to: string) => {
-    if (from && to) return `${formatDate(from)} - ${formatDate(to)}`;
-    if (from) return `Desde ${formatDate(from)}`;
-    if (to) return `Hasta ${formatDate(to)}`;
-    return "Sin filtro";
-  }, []);
+  const formatRange = useCallback(
+    (from: string, to: string) => {
+      if (from && to) {
+        return copy.filters.rangeBoth(formatDate(from), formatDate(to));
+      }
+      if (from) return copy.filters.rangeFrom(formatDate(from));
+      if (to) return copy.filters.rangeTo(formatDate(to));
+      return "";
+    },
+    [copy.filters],
+  );
 
   const dateFilterText = hasDateFilter
     ? [
         hasCreatedDateFilter
-          ? `Alta: ${formatRange(createdFrom, createdTo)}`
+          ? copy.filters.createdPrefix(formatRange(createdFrom, createdTo))
           : null,
         hasLastLoginDateFilter
-          ? `Acceso: ${formatRange(lastLoginFrom, lastLoginTo)}`
+          ? copy.filters.accessPrefix(formatRange(lastLoginFrom, lastLoginTo))
           : null,
       ]
         .filter(Boolean)
         .join(" · ")
-    : "Filtrar por fecha";
+    : copy.filters.dateButton;
 
   const handleClearDateFilter = useCallback(() => {
     filters.setFilters({
@@ -266,7 +265,7 @@ export function UsersListPage() {
       ? [
           {
             id: "date",
-            label: `Fechas: ${dateFilterText}`,
+            label: copy.filters.chipDates(dateFilterText),
             onRemove: handleClearDateFilter,
           },
         ]
@@ -274,298 +273,307 @@ export function UsersListPage() {
   ];
 
   return (
-    <div className="space-y-6">
-    <PendingInvitationsPanel />
-    <ListPageShell
-      title="Usuarios"
-      description="Administración de usuarios del tenant"
-      primaryAction={{
-        label: "Nuevo usuario",
-        icon: <Plus className="h-4 w-4" />,
-        onClick: handleCreate,
-        visible: canCreate,
-        disabled: userLimitReached,
-        disabledTitle: usersCopy.limitReached.createDisabled,
-      }}
-      toolbar={{
-        search: {
-          ...filters.searchProps,
-          placeholder: "Buscar usuario...",
-        },
-        filters: (
-          <>
-            {canCreate ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="hidden sm:inline-flex"
-                disabled={userLimitReached}
-                title={
-                  userLimitReached ? usersCopy.limitReached.inviteDisabled : undefined
-                }
-                onClick={() => setInviteDialogOpen(true)}
+    <>
+      <ListPageShell
+        title={copy.title}
+        description={copy.description}
+        primaryAction={{
+          label: copy.primaryAction,
+          icon: <UserPlus className="h-4 w-4" />,
+          onClick: () => setAddUserSheetOpen(true),
+          visible: canCreate,
+          disabled: userLimitReached,
+          disabledTitle:
+            userLimitReached
+              ? usersCopy.limitReached.inviteDisabled
+              : undefined,
+        }}
+        beforeToolbar={
+          <div className="space-y-4">
+            <UserCapacityBanner capacity={capacity} />
+            <UserPlanLimitNotice capacity={capacity} />
+            <PendingInvitationsPanel />
+          </div>
+        }
+        toolbar={{
+          search: {
+            ...filters.searchProps,
+            placeholder: copy.searchPlaceholder,
+          },
+          filters: (
+            <>
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={(value) => filters.setFilter("status", value)}
               >
-                <Mail className="mr-2 h-4 w-4" />
-                Invitar
-              </Button>
-            ) : null}
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(value) => filters.setFilter("status", value)}
-            >
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value={UserStatus.ACTIVE}>
-                  {USER_STATUS_LABELS[UserStatus.ACTIVE]}
-                </SelectItem>
-                <SelectItem value={UserStatus.INACTIVE}>
-                  {USER_STATUS_LABELS[UserStatus.INACTIVE]}
-                </SelectItem>
-                <SelectItem value={UserStatus.SUSPENDED}>
-                  {USER_STATUS_LABELS[UserStatus.SUSPENDED]}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={roleFilter || "all"}
-              onValueChange={(value) => filters.setFilter("role", value)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Rol" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los roles</SelectItem>
-                {ROLE_OPTIONS.map((roleOption) => (
-                  <SelectItem key={roleOption.value} value={roleOption.value}>
-                    {roleOption.label}
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder={copy.filters.statusPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.filters.statusAll}</SelectItem>
+                  <SelectItem value={UserStatus.ACTIVE}>
+                    {USER_STATUS_LABELS[UserStatus.ACTIVE]}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  <SelectItem value={UserStatus.INACTIVE}>
+                    {USER_STATUS_LABELS[UserStatus.INACTIVE]}
+                  </SelectItem>
+                  <SelectItem value={UserStatus.SUSPENDED}>
+                    {USER_STATUS_LABELS[UserStatus.SUSPENDED]}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Popover open={isDateFilterOpen} onOpenChange={handleDatePopoverOpenChange}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={hasDateFilter ? "secondary" : "outline"}
-                  className={cn(
-                    "w-auto justify-start text-left font-normal",
-                    hasDateFilter && "pr-2",
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span className="max-w-[260px] truncate">{dateFilterText}</span>
-                  {hasDateFilter ? (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="ml-2 rounded p-1 hover:bg-muted"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClearDateFilter();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.stopPropagation();
-                          handleClearDateFilter();
-                        }
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </span>
-                  ) : null}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[24rem] p-4" align="start">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Filter className="h-4 w-4" />
-                    Filtros por fecha
-                  </div>
+              <Select
+                value={roleFilter || "all"}
+                onValueChange={(value) => filters.setFilter("role", value)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder={copy.filters.rolePlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.filters.roleAll}</SelectItem>
+                  {ROLE_OPTIONS.map((roleOption) => (
+                    <SelectItem key={roleOption.value} value={roleOption.value}>
+                      {roleOption.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-                  <div className="space-y-2 border-b pb-3">
-                    <p className="text-xs font-medium text-muted-foreground">Fecha de alta</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="users-created-from">Desde</Label>
-                        <Input
-                          id="users-created-from"
-                          type="date"
-                          value={dateDraft.createdFrom}
-                          max={dateDraft.createdTo || undefined}
-                          onChange={(e) =>
-                            setDateDraft((d) => ({ ...d, createdFrom: e.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="users-created-to">Hasta</Label>
-                        <Input
-                          id="users-created-to"
-                          type="date"
-                          value={dateDraft.createdTo}
-                          min={dateDraft.createdFrom || undefined}
-                          onChange={(e) =>
-                            setDateDraft((d) => ({ ...d, createdTo: e.target.value }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Último acceso
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="users-login-from">Desde</Label>
-                        <Input
-                          id="users-login-from"
-                          type="date"
-                          value={dateDraft.lastLoginFrom}
-                          max={dateDraft.lastLoginTo || undefined}
-                          onChange={(e) =>
-                            setDateDraft((d) => ({ ...d, lastLoginFrom: e.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="users-login-to">Hasta</Label>
-                        <Input
-                          id="users-login-to"
-                          type="date"
-                          value={dateDraft.lastLoginTo}
-                          min={dateDraft.lastLoginFrom || undefined}
-                          onChange={(e) =>
-                            setDateDraft((d) => ({ ...d, lastLoginTo: e.target.value }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <Popover
+                open={isDateFilterOpen}
+                onOpenChange={handleDatePopoverOpenChange}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={hasDateFilter ? "secondary" : "outline"}
+                  >
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                    {copy.filters.more}
                     {hasDateFilter ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start text-muted-foreground sm:order-1"
-                        onClick={handleClearDateFilter}
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Limpiar fechas
-                      </Button>
-                    ) : (
-                      <span className="hidden sm:block sm:order-1" />
-                    )}
-                    <div className="flex w-full gap-2 sm:order-2 sm:w-auto sm:justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        onClick={handleCancelDatePopover}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        disabled={dateDraftMatchesApplied}
-                        onClick={handleApplyDateFilters}
-                      >
-                        Aplicar
-                      </Button>
+                      <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
+                        ·
+                      </span>
+                    ) : null}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[24rem] p-4" align="start">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Filter className="h-4 w-4" />
+                      {copy.filters.moreHeading}
+                    </div>
+
+                    <div className="space-y-2 border-b pb-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {copy.filters.createdHeading}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="users-created-from">
+                            {copy.filters.from}
+                          </Label>
+                          <Input
+                            id="users-created-from"
+                            type="date"
+                            value={dateDraft.createdFrom}
+                            max={dateDraft.createdTo || undefined}
+                            onChange={(e) =>
+                              setDateDraft((d) => ({
+                                ...d,
+                                createdFrom: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="users-created-to">
+                            {copy.filters.to}
+                          </Label>
+                          <Input
+                            id="users-created-to"
+                            type="date"
+                            value={dateDraft.createdTo}
+                            min={dateDraft.createdFrom || undefined}
+                            onChange={(e) =>
+                              setDateDraft((d) => ({
+                                ...d,
+                                createdTo: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {copy.filters.lastLoginHeading}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="users-login-from">
+                            {copy.filters.from}
+                          </Label>
+                          <Input
+                            id="users-login-from"
+                            type="date"
+                            value={dateDraft.lastLoginFrom}
+                            max={dateDraft.lastLoginTo || undefined}
+                            onChange={(e) =>
+                              setDateDraft((d) => ({
+                                ...d,
+                                lastLoginFrom: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="users-login-to">
+                            {copy.filters.to}
+                          </Label>
+                          <Input
+                            id="users-login-to"
+                            type="date"
+                            value={dateDraft.lastLoginTo}
+                            min={dateDraft.lastLoginFrom || undefined}
+                            onChange={(e) =>
+                              setDateDraft((d) => ({
+                                ...d,
+                                lastLoginTo: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                      {hasDateFilter ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start text-muted-foreground sm:order-1"
+                          onClick={handleClearDateFilter}
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          {copy.filters.clearDates}
+                        </Button>
+                      ) : (
+                        <span className="hidden sm:order-1 sm:block" />
+                      )}
+                      <div className="flex w-full gap-2 sm:order-2 sm:w-auto sm:justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          onClick={handleCancelDatePopover}
+                        >
+                          {copy.filters.cancel}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          disabled={dateDraftMatchesApplied}
+                          onClick={handleApplyDateFilters}
+                        >
+                          {copy.filters.apply}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </>
-        ),
-        onRefresh: handleRefresh,
-        isRefreshing: isFetching,
-        activeFilterChips: activeFilterChips,
-        onClearFilters: filters.clearAll,
-        hasFilters: filters.hasFilters || hasDateFilter,
-        viewMode: filters.viewModeProps,
-      }}
-      isLoading={isLoading}
-      items={users}
-      pagination={
-        data?.pagination
-          ? {
-              page: filters.page,
-              totalPages: data.pagination.totalPages,
-              total: data.pagination.total,
-              limit: data.pagination.limit,
-            }
-          : undefined
-      }
-      onPageChange={filters.setPage}
-      entityLabelPlural="usuarios"
-      renderTable={() => (
-        <UserTable
-          users={users}
-          isLoading={isLoading}
-          onView={handleView}
-          onStatusChange={canUpdateStatus ? handleStatusChange : undefined}
-          sortField={sort.field}
-          sortDirection={sort.direction}
-          onSortChange={handleSortChange}
-        />
-      )}
-      renderCards={() =>
-        users.map((user) => (
-          <UserCard
-            key={user.id}
-            user={user}
+                </PopoverContent>
+              </Popover>
+            </>
+          ),
+          onRefresh: handleRefresh,
+          isRefreshing: isFetching,
+          activeFilterChips: activeFilterChips,
+          onClearFilters: filters.clearAll,
+          hasFilters: filters.hasFilters || hasDateFilter,
+          viewMode: filters.viewModeProps,
+        }}
+        isLoading={isLoading}
+        items={users}
+        pagination={
+          data?.pagination
+            ? {
+                page: filters.page,
+                totalPages: data.pagination.totalPages,
+                total: data.pagination.total,
+                limit: data.pagination.limit,
+              }
+            : undefined
+        }
+        onPageChange={filters.setPage}
+        entityLabelPlural={copy.entityLabelPlural}
+        renderTable={() => (
+          <UserTable
+            users={users}
+            isLoading={isLoading}
             onView={handleView}
             onStatusChange={canUpdateStatus ? handleStatusChange : undefined}
+            sortField={sort.field}
+            sortDirection={sort.direction}
+            onSortChange={handleSortChange}
           />
-        ))
-      }
-      renderCardSkeleton={() => <UserCardSkeleton />}
-      emptyState={{
-        icon: <Search className="h-10 w-10 text-muted-foreground" />,
-        title: "No se encontraron usuarios",
-        description: filters.hasFilters || hasDateFilter
-          ? "Intenta ajustar los filtros de búsqueda."
-          : "Comienza registrando el primer usuario de tu equipo.",
-        cta: canCreate
-          ? {
-              label: userLimitReached
-                ? usersCopy.limitReached.createDisabled
-                : "Nuevo usuario",
-              icon: <UserCog className="h-4 w-4" />,
-              onClick: userLimitReached ? () => undefined : handleCreate,
-            }
-          : undefined,
-        secondaryCta: filters.hasFilters || hasDateFilter
-          ? {
-              label: "Limpiar filtros",
-              onClick: filters.clearAll,
-              variant: "outline",
-            }
-          : undefined,
-      }}
-    />
-    <InviteUserDialog
-      open={inviteDialogOpen}
-      onOpenChange={setInviteDialogOpen}
-      onInvited={() => {
-        void refetch();
-        void queryClient.invalidateQueries({
-          queryKey: invitationsPendingQueryKey,
-        });
-      }}
-    />
-    </div>
+        )}
+        renderCards={() =>
+          users.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              onView={handleView}
+              onStatusChange={canUpdateStatus ? handleStatusChange : undefined}
+            />
+          ))
+        }
+        renderCardSkeleton={() => <UserCardSkeleton />}
+        emptyState={{
+          icon: <Search className="h-10 w-10 text-muted-foreground" />,
+          title:
+            filters.hasFilters || hasDateFilter
+              ? copy.empty.filteredTitle
+              : copy.empty.title,
+          description:
+            filters.hasFilters || hasDateFilter
+              ? copy.empty.filteredDescription
+              : copy.empty.description,
+          cta: canCreate
+            ? {
+                label: userLimitReached
+                  ? usersCopy.limitReached.inviteDisabled
+                  : copy.primaryAction,
+                icon: <UserPlus className="h-4 w-4" />,
+                onClick: userLimitReached
+                  ? () => undefined
+                  : () => setAddUserSheetOpen(true),
+              }
+            : undefined,
+          secondaryCta:
+            filters.hasFilters || hasDateFilter
+              ? {
+                  label: copy.empty.clearFilters,
+                  onClick: filters.clearAll,
+                  variant: "outline",
+                }
+              : undefined,
+        }}
+      />
+      <AddUserSheet
+        open={addUserSheetOpen}
+        onOpenChange={setAddUserSheetOpen}
+        onCompleted={() => {
+          void refetch();
+          void queryClient.invalidateQueries({
+            queryKey: invitationsPendingQueryKey,
+          });
+        }}
+      />
+    </>
   );
 }

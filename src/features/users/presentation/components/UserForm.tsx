@@ -25,7 +25,10 @@ import {
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { useActiveClients } from "@features/clients";
+import { formatDriverName, useDrivers } from "@features/drivers";
 import type { User } from "../../domain";
+import { usersCopy } from "../copy/usersCopy";
 import {
   createUserFormSchemaWithRoleAllowlist,
   defaultCreateUserFormValues,
@@ -49,6 +52,8 @@ function userToUpdateFormData(user: User): UpdateUserFormData {
     lastName: user.lastName,
     email: user.email,
     role: user.role,
+    clientId: user.clientId ?? undefined,
+    employeeId: user.employeeId ?? undefined,
   };
 }
 
@@ -112,27 +117,58 @@ export function UserForm({
     watchedRole &&
     ROLE_HIERARCHY[watchedRole] < ROLE_HIERARCHY[user.role];
 
+  const { data: activeClients } = useActiveClients({
+    enabled: watchedRole === ROLES.CLIENT,
+  });
+  const { data: driversPage } = useDrivers(
+    { page: 1, limit: 100 },
+    { enabled: watchedRole === ROLES.DRIVER },
+  );
+
+  const clientOptions = useMemo(
+    () =>
+      (activeClients ?? []).map((c) => ({
+        value: c.id,
+        label: c.tradeName || c.legalName || c.taxId || c.id,
+      })),
+    [activeClients],
+  );
+
+  const employeeOptions = useMemo(
+    () =>
+      (driversPage?.data ?? []).map((d) => ({
+        value: d.employeeId,
+        label:
+          d.employee.fullName?.trim() ||
+          formatDriverName(d.employee) ||
+          d.employeeId,
+      })),
+    [driversPage?.data],
+  );
+
+  const formCopy = usersCopy.form;
+
   const handleGeneratePassword = useCallback(() => {
     const next = generateSecurePassword(16);
     form.setValue("password", next, { shouldValidate: true, shouldDirty: true });
     setShowPassword(true);
     toast({
-      title: "Contraseña generada",
-      description: "Puedes conservarla o sustituirla por la que prefieras.",
+      title: formCopy.passwordGenerated,
+      description: formCopy.passwordGeneratedDescription,
       variant: "success",
     });
-  }, [form, toast]);
+  }, [form, formCopy.passwordGenerated, formCopy.passwordGeneratedDescription, toast]);
 
   const handleCopyEmail = useCallback(
     async (email: string) => {
       const ok = await copyToClipboard(email);
       toast(
         ok
-          ? { title: "Email copiado", variant: "success" }
-          : { title: "No se pudo copiar", variant: "destructive" },
+          ? { title: formCopy.emailCopied, variant: "success" }
+          : { title: formCopy.copyFailed, variant: "destructive" },
       );
     },
-    [toast],
+    [formCopy.copyFailed, formCopy.emailCopied, toast],
   );
 
   const handleCopyPassword = useCallback(
@@ -140,11 +176,11 @@ export function UserForm({
       const ok = await copyToClipboard(password);
       toast(
         ok
-          ? { title: "Contraseña copiada", variant: "success" }
-          : { title: "No se pudo copiar", variant: "destructive" },
+          ? { title: formCopy.passwordCopied, variant: "success" }
+          : { title: formCopy.copyFailed, variant: "error" },
       );
     },
-    [toast],
+    [formCopy.copyFailed, formCopy.passwordCopied, toast],
   );
 
   const handleFormSubmit = form.handleSubmit(
@@ -162,9 +198,9 @@ export function UserForm({
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6">
       <FormSectionCard
-        title={isCreate ? "Nuevo usuario" : "Editar usuario"}
+        title={isCreate ? formCopy.createSectionTitle : formCopy.editSectionTitle}
         icon={isCreate ? <UserPlus className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-        description="Datos de acceso y rol del usuario"
+        description={formCopy.sectionDescription}
         contentClassName="grid gap-4 sm:grid-cols-2"
       >
         <RHFTextField
@@ -189,7 +225,7 @@ export function UserForm({
             <FormFieldShell
               fieldId="email"
               className="sm:col-span-2"
-              label="Email"
+              label={formCopy.email}
               required
               errorMessage={fieldState.error?.message}
             >
@@ -208,7 +244,7 @@ export function UserForm({
                   variant="outline"
                   size="icon"
                   className="shrink-0"
-                  aria-label="Copiar email"
+                  aria-label={formCopy.copyEmailAria}
                   disabled={!field.value?.trim()}
                   onClick={() => void handleCopyEmail(String(field.value ?? ""))}
                 >
@@ -227,16 +263,16 @@ export function UserForm({
               <FormFieldShell
                 fieldId="password"
                 className="sm:col-span-2"
-                label="Contraseña inicial"
+                label={formCopy.password}
                 required
                 errorMessage={fieldState.error?.message}
-                description="Entre 8 y 128 caracteres, con mayúscula, minúscula y número. Puedes usar «Generar segura». El usuario podrá cambiarla después con recuperación de acceso."
+                description={formCopy.passwordHint}
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                   <div className="flex min-w-0 flex-1 gap-2">
                     <Input
                       id="password"
-                      placeholder="Mínimo 8 caracteres (mayúscula, minúscula y número)"
+                      placeholder={formCopy.passwordPlaceholder}
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       className="min-w-0 flex-1"
@@ -280,7 +316,7 @@ export function UserForm({
                     onClick={handleGeneratePassword}
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Generar segura
+                    {formCopy.generatePassword}
                   </Button>
                 </div>
               </FormFieldShell>
@@ -308,9 +344,7 @@ export function UserForm({
           placeholder="Selecciona un rol"
           disabled={!isCreate && roleOptions.length <= 1}
           description={
-            isCreate
-              ? "Solo se listan los roles que tu usuario puede delegar en este tenant."
-              : "Al reducir el nivel del rol, revisa permisos y sesiones activas del usuario."
+            isCreate ? formCopy.roleHintCreate : formCopy.roleHintEdit
           }
           options={roleOptions.map((option) => ({
             value: option.value,
@@ -318,11 +352,39 @@ export function UserForm({
           }))}
         />
         </div>
+
+        {watchedRole === ROLES.CLIENT ? (
+          <div className="sm:col-span-2">
+            <RHFSelectField
+              control={control}
+              name="clientId"
+              label="Cliente vinculado"
+              required
+              placeholder="Selecciona un cliente"
+              description="Solo verá los viajes de este cliente"
+              options={clientOptions}
+            />
+          </div>
+        ) : null}
+
+        {watchedRole === ROLES.DRIVER ? (
+          <div className="sm:col-span-2">
+            <RHFSelectField
+              control={control}
+              name="employeeId"
+              label="Empleado conductor"
+              required
+              placeholder="Selecciona un conductor"
+              description="Solo podrá operar los viajes asignados a este conductor"
+              options={employeeOptions}
+            />
+          </div>
+        ) : null}
       </FormSectionCard>
 
       {showValidationSummary && validationMessages.length > 0 ? (
         <FormValidationSummary
-          title="Revisa los datos del usuario"
+          title={formCopy.validationSummary}
           messages={validationMessages}
         />
       ) : null}
@@ -330,7 +392,7 @@ export function UserForm({
       <div className="flex justify-end">
         <Button type="submit" disabled={isSubmitting}>
           <Save className="mr-2 h-4 w-4" />
-          {isCreate ? "Crear usuario" : "Guardar cambios"}
+          {isCreate ? formCopy.submitCreate : formCopy.submitEdit}
         </Button>
       </div>
     </form>

@@ -5,6 +5,7 @@ export {
   type User,
   type UserFilters,
   type UserListItem,
+  type UserListMeta,
   type UserManagementEvent,
   type UserManagementActivityFilters,
   type UserQueryParams,

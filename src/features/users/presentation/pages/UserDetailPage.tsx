@@ -9,6 +9,7 @@ import { useUpdateUserStatus, useUser } from "../../application";
 import { UserActions, UserActivitySection } from "../components";
 import { UserStatusBadge } from "../config/userStatusConfig";
 import { USER_STATUS_LABELS, UserStatus, type UserStatusType } from "../../domain";
+import { usersCopy } from "../copy/usersCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
 export function UserDetailPage() {
@@ -21,13 +22,13 @@ export function UserDetailPage() {
   const statusMutation = useUpdateUserStatus({
     onSuccess: () => {
       toast({
-        title: "Usuario actualizado",
+        title: usersCopy.detail.toasts.statusSuccess,
         variant: "success",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al actualizar usuario",
+        title: usersCopy.detail.toasts.statusError,
         description: error.message,
         variant: "destructive",
       });
@@ -152,7 +153,12 @@ export function UserDetailPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <InfoRow variant="inline" label="Nombre completo" value={fullName} copyable />
-              <InfoRow variant="inline" label="Email" value={user.email} copyable />
+              <InfoRow
+                variant="inline"
+                label={usersCopy.detail.email}
+                value={user.email}
+                copyable
+              />
             </CardContent>
           </Card>
 

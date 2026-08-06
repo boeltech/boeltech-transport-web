@@ -10,7 +10,6 @@ import {
 } from "@shared/api";
 import type {
   User,
-  UserListItem,
   UserManagementActivityFilters,
   UserManagementEvent,
   UserQueryParams,
@@ -26,17 +25,16 @@ import {
   mapSingleUser,
   toApiCreateUser,
   toApiUpdateUser,
-  type ApiUserListItemResponse,
+  type ApiUserListResponse,
   type ApiUserManagementEventResponse,
   type ApiUserResponse,
+  type MappedUserListResult,
 } from "./mappers";
 
 const USERS_ENDPOINT = "/users";
 
 export const usersApi = {
-  getAll: async (
-    params?: UserQueryParams,
-  ): Promise<MappedPaginatedResult<UserListItem>> => {
+  getAll: async (params?: UserQueryParams): Promise<MappedUserListResult> => {
     const queryParams: Record<string, unknown> = {
       page: params?.page ?? 1,
       limit: params?.limit ?? 10,
@@ -53,12 +51,9 @@ export const usersApi = {
     if (params?.filters?.lastLoginFrom) queryParams.last_login_from = params.filters.lastLoginFrom;
     if (params?.filters?.lastLoginTo) queryParams.last_login_to = params.filters.lastLoginTo;
 
-    const response = await apiClient.get<ApiPaginatedResponse<ApiUserListItemResponse>>(
-      USERS_ENDPOINT,
-      {
-        params: queryParams,
-      },
-    );
+    const response = await apiClient.get<ApiUserListResponse>(USERS_ENDPOINT, {
+      params: queryParams,
+    });
     return mapPaginatedUsers(response);
   },
 

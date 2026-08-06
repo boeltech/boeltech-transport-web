@@ -21,7 +21,7 @@ export function UserCreatePage() {
     onSuccess: (data) => {
       toast({
         title: usersCopy.create.toasts.successTitle,
-        description: `${data.fullName} se registró correctamente`,
+        description: usersCopy.create.toasts.successDescription(data.fullName),
         variant: "success",
       });
       navigate("/users");
@@ -56,8 +56,8 @@ export function UserCreatePage() {
       header={{
         backHref: "/users",
         icon: <UserPlus className="h-5 w-5" />,
-        title: "Nuevo usuario",
-        subtitle: "Registra un usuario para este tenant",
+        title: usersCopy.create.title,
+        subtitle: usersCopy.create.subtitle,
       }}
     >
       <UserForm

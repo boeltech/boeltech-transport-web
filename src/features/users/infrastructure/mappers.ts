@@ -6,7 +6,13 @@ import {
 } from "@shared/api";
 import type { ApiPaginatedResponse, ApiSingleResponse } from "@shared/api";
 import type { UserRole } from "@shared/constants/roles";
-import type { User, UserListItem, UserManagementEvent, UserStatusType } from "../domain/entities";
+import type {
+  User,
+  UserListItem,
+  UserListMeta,
+  UserManagementEvent,
+  UserStatusType,
+} from "../domain/entities";
 import type { CreateUserDTO, UpdateUserDTO } from "../domain/repository";
 
 export interface ApiUserListItemResponse {
@@ -20,6 +26,24 @@ export interface ApiUserListItemResponse {
   created_at: string;
 }
 
+export interface ApiUserListMeta {
+  active_count: number;
+  max_users: number | null;
+  limit_reached: boolean;
+  over_quota: boolean;
+  over_quota_count: number;
+}
+
+export interface ApiUserListResponse extends ApiPaginatedResponse<ApiUserListItemResponse> {
+  meta?: ApiUserListMeta;
+}
+
+export interface MappedUserListResult {
+  data: UserListItem[];
+  pagination: MappedPaginatedResult<UserListItem>["pagination"];
+  meta?: UserListMeta;
+}
+
 export interface ApiUserResponse extends ApiUserListItemResponse {
   tenant_id: string;
   updated_at: string;
@@ -27,6 +51,9 @@ export interface ApiUserResponse extends ApiUserListItemResponse {
   updated_by: string | null;
   created_by_name: string | null;
   updated_by_name: string | null;
+  client_id?: string | null;
+  employee_id?: string | null;
+  driver_id?: string | null;
 }
 
 export interface ApiUserManagementEventResponse {
@@ -47,15 +74,36 @@ export interface ApiUserPayload {
   first_name: string;
   last_name: string;
   role: UserRole;
+  client_id?: string | null;
+  employee_id?: string | null;
 }
 
 export interface ApiUserStatusPayload {
   status: UserStatusType;
 }
 
+function mapUserListMeta(meta?: ApiUserListMeta): UserListMeta | undefined {
+  if (!meta) return undefined;
+
+  return {
+    activeCount: meta.active_count,
+    maxUsers: meta.max_users,
+    limitReached: meta.limit_reached,
+    overQuota: meta.over_quota,
+    overQuotaCount: meta.over_quota_count,
+  };
+}
+
 export const mapPaginatedUsers = (
-  response: ApiPaginatedResponse<ApiUserListItemResponse>,
-): MappedPaginatedResult<UserListItem> => mapPaginatedResponse(response);
+  response: ApiUserListResponse,
+): MappedUserListResult => {
+  const mapped = mapPaginatedResponse(response);
+  return {
+    data: mapped.data,
+    pagination: mapped.pagination,
+    meta: mapUserListMeta(response.meta),
+  };
+};
 
 export const mapPaginatedUserActivity = (
   response: ApiPaginatedResponse<ApiUserManagementEventResponse>,
@@ -71,6 +119,8 @@ export const toApiCreateUser = (data: CreateUserDTO): ApiUserPayload => ({
   first_name: data.firstName,
   last_name: data.lastName,
   role: data.role,
+  ...(data.clientId !== undefined ? { client_id: data.clientId } : {}),
+  ...(data.employeeId !== undefined ? { employee_id: data.employeeId } : {}),
 });
 
 export const toApiUpdateUser = (data: UpdateUserDTO): Partial<ApiUserPayload> => {
@@ -80,6 +130,8 @@ export const toApiUpdateUser = (data: UpdateUserDTO): Partial<ApiUserPayload> =>
   if (data.firstName !== undefined) payload.first_name = data.firstName;
   if (data.lastName !== undefined) payload.last_name = data.lastName;
   if (data.role !== undefined) payload.role = data.role;
+  if (data.clientId !== undefined) payload.client_id = data.clientId;
+  if (data.employeeId !== undefined) payload.employee_id = data.employeeId;
 
   return payload;
 };

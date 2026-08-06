@@ -11,8 +11,11 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import type { UserListItem, UserSortOptions, UserStatusType } from "../../domain";
+import { usersCopy } from "../copy/usersCopy";
 import { UserActions } from "./UserActions";
 import { UserStatusBadge } from "../config/userStatusConfig";
+
+const columns = usersCopy.list.columns;
 
 export type UserSortableColumn = UserSortOptions["field"];
 
@@ -63,12 +66,20 @@ export function UserTable({
         <Table>
           <TableHeader>
             <TableRow>
-              {renderSortableHead("first_name", "Nombre")}
-              {renderSortableHead("email", "Email", "hidden md:table-cell")}
-              {renderSortableHead("role", "Rol", "hidden lg:table-cell")}
-              {renderSortableHead("status", "Estatus")}
-              {renderSortableHead("last_login", "Último acceso", "hidden lg:table-cell")}
-              {renderSortableHead("created_at", "Alta", "hidden xl:table-cell")}
+              {renderSortableHead("first_name", columns.name)}
+              {renderSortableHead("email", columns.email, "hidden md:table-cell")}
+              {renderSortableHead("role", columns.role, "hidden lg:table-cell")}
+              {renderSortableHead("status", columns.status)}
+              {renderSortableHead(
+                "last_login",
+                columns.lastLogin,
+                "hidden lg:table-cell",
+              )}
+              {renderSortableHead(
+                "created_at",
+                columns.createdAt,
+                "hidden xl:table-cell",
+              )}
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -109,12 +120,20 @@ export function UserTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {renderSortableHead("first_name", "Nombre")}
-            {renderSortableHead("email", "Email", "hidden md:table-cell")}
-            {renderSortableHead("role", "Rol", "hidden lg:table-cell")}
-            {renderSortableHead("status", "Estatus")}
-            {renderSortableHead("last_login", "Último acceso", "hidden lg:table-cell")}
-            {renderSortableHead("created_at", "Alta", "hidden xl:table-cell")}
+            {renderSortableHead("first_name", columns.name)}
+            {renderSortableHead("email", columns.email, "hidden md:table-cell")}
+            {renderSortableHead("role", columns.role, "hidden lg:table-cell")}
+            {renderSortableHead("status", columns.status)}
+            {renderSortableHead(
+              "last_login",
+              columns.lastLogin,
+              "hidden lg:table-cell",
+            )}
+            {renderSortableHead(
+              "created_at",
+              columns.createdAt,
+              "hidden xl:table-cell",
+            )}
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
