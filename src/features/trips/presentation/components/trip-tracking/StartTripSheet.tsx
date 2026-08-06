@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Loader2, Play } from "lucide-react";
+import { AlertTriangle, Loader2, Play } from "lucide-react";
 import {
   isDriverStartableStatus,
   isVehicleStartableStatus,
@@ -12,9 +12,7 @@ import { useVehicle } from "@features/vehicles/application";
 import { VEHICLE_STATUS_LABELS } from "@features/vehicles/domain";
 import type { Trip, TripStop } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { HintIcon } from "@shared/ui/hint-icon";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
@@ -84,9 +82,10 @@ function StartTripSheetBody({
   const [timeError, setTimeError] = useState<string | null>(null);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
-  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(vehicleId ?? "", {
-    enabled: !!vehicleId,
-  });
+  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
+    vehicleId ?? "",
+    { enabled: !!vehicleId },
+  );
   const { data: driver, isLoading: isLoadingDriver } = useDriver(driverId ?? "", {
     enabled: !!driverId,
   });
@@ -174,65 +173,77 @@ function StartTripSheetBody({
     });
   };
 
-  const mileageSourceHint =
-    vehicle?.currentMileage != null
-      ? copy.sheet.vehicleMileageHint(
-          vehicle.currentMileage.toLocaleString("es-MX"),
-        )
-      : tripStartMileage != null
-        ? copy.sheet.tripMileageHint(tripStartMileage.toLocaleString("es-MX"))
-        : null;
-
   const isPending = startMutation.isPending;
   const startDisabled = isPending || !resourceStartCheck.canStart;
+  const showAssignment = Boolean(vehicleId || driverId);
+  const isLoadingAssignment =
+    (Boolean(vehicleId) && isLoadingVehicle) ||
+    (Boolean(driverId) && isLoadingDriver);
+
+  const vehicleLine = vehicleId
+    ? [
+        vehicle?.unitNumber ?? null,
+        vehicle?.licensePlate ? vehicle.licensePlate : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || copy.sheet.loadingResource
+    : null;
+
+  const driverLine = driverId
+    ? (driver?.employee?.fullName ?? copy.sheet.loadingResource)
+    : null;
 
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
-        {(vehicleId || driverId) && (
-          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
-            <p className="text-sm font-medium">{copy.sheet.resourcesTitle}</p>
-            {vehicleId ? (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted-foreground">{copy.sheet.vehicleLabel}</span>
-                <span>
-                  {vehicle?.unitNumber ?? copy.sheet.loadingResource}
-                  {vehicle?.licensePlate ? ` · ${vehicle.licensePlate}` : ""}
+        {showAssignment ? (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {isLoadingAssignment ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {copy.sheet.loadingResource}
                 </span>
-                {vehicle ? (
-                  <Badge variant="secondary">
-                    {VEHICLE_STATUS_LABELS[vehicle.status] ?? vehicle.status}
-                  </Badge>
-                ) : isLoadingVehicle ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                ) : null}
-              </div>
-            ) : null}
-            {driverId ? (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted-foreground">{copy.sheet.driverLabel}</span>
-                <span>
-                  {driver?.employee?.fullName ?? copy.sheet.loadingResource}
-                </span>
-                {driver ? (
-                  <Badge variant="secondary">
-                    {DRIVER_STATUS_LABELS[driver.status] ?? driver.status}
-                  </Badge>
-                ) : isLoadingDriver ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                ) : null}
-              </div>
-            ) : null}
+              ) : (
+                <>
+                  {vehicleLine ? (
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {copy.sheet.vehicleLabel}
+                      </span>
+                      {` ${vehicleLine}`}
+                    </span>
+                  ) : null}
+                  {vehicleLine && driverLine ? (
+                    <span className="mx-1.5 text-border">·</span>
+                  ) : null}
+                  {driverLine ? (
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {copy.sheet.driverLabel}
+                      </span>
+                      {` ${driverLine}`}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </p>
             {resourceStartCheck.message ? (
-              <p className="text-xs text-destructive">{resourceStartCheck.message}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">{copy.sheet.resourcesHint}</p>
-            )}
+              <p
+                role="alert"
+                className="flex items-start gap-2 text-xs text-destructive"
+              >
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{resourceStartCheck.message}</span>
+              </p>
+            ) : null}
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="start-occurred-at">{copy.label.departureAt}</Label>
+          <Label htmlFor="start-occurred-at">
+            {copy.label.occurredAtDeparture}
+          </Label>
           <div className="flex flex-wrap gap-2">
             <Input
               id="start-occurred-at"
@@ -255,11 +266,7 @@ function StartTripSheetBody({
           </div>
           {timeError ? (
             <p className="text-xs text-destructive">{timeError}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {copy.validation.civilTimeHint}
-            </p>
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -278,8 +285,12 @@ function StartTripSheetBody({
             <p className="text-xs text-muted-foreground">
               {copy.sheet.loadingVehicleMileage}
             </p>
-          ) : mileageSourceHint ? (
-            <p className="text-xs text-muted-foreground">{mileageSourceHint}</p>
+          ) : suggestedMileage != null ? (
+            <p className="text-xs text-muted-foreground">
+              {copy.sheet.suggestedMileageHint(
+                suggestedMileage.toLocaleString("es-MX"),
+              )}
+            </p>
           ) : null}
         </div>
 
@@ -288,6 +299,7 @@ function StartTripSheetBody({
           value={gps}
           onChange={setGps}
           disabled={isPending}
+          variant="quiet"
         />
       </div>
 
@@ -334,12 +346,7 @@ export function StartTripSheet({
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <Play className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="inline-flex items-center gap-1.5">
-              {copy.action.start}
-              <HintIcon label={copy.sheet.startHintLabel}>
-                {copy.sheet.startHint(tripCode)}
-              </HintIcon>
-            </span>
+            <span>{copy.action.start}</span>
           </SheetTitle>
           <SheetDescription>{copy.sheet.startDescription}</SheetDescription>
         </SheetHeader>

@@ -332,10 +332,13 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    expect(screen.getAllByText("Qué sigue").length).toBeGreaterThan(0);
+    expect(screen.getByText("Qué sigue")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Registrar llegada/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(STOP_TRANSITION_COPY.arrive),
+    ).not.toBeInTheDocument();
   });
 
   it("expone un solo CTA de parada en la cabecera (no en el panel)", () => {
@@ -354,6 +357,52 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     ).toHaveLength(1);
   });
 
+  it("con cargo_blocked guía a Ver cargas de la parada", async () => {
+    const user = userEvent.setup();
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+    const pendingCargo = cargo({
+      id: "c1",
+      status: CargoStatus.PENDING,
+      movements: [
+        {
+          id: "m1",
+          movementType: "pickup",
+          stopId: "s1",
+          stopIndex: 1,
+          completedAt: null,
+          weight: null,
+          units: null,
+          notes: null,
+        },
+      ],
+    });
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[originArrived, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[pendingCargo]}
+      />,
+    );
+
+    expect(
+      screen.getAllByText(/Completa las cargas/i).length,
+    ).toBeGreaterThan(0);
+    const goCargos = screen.getByRole("button", {
+      name: /Ver cargas de la parada/i,
+    });
+    await user.click(goCargos);
+    expect(screen.getByText("Zapatos")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(trackingCopy.section.cargosAtStop).length,
+    ).toBeGreaterThan(0);
+  });
+
   it("leyendas colapsadas por defecto con disparador de ayuda", () => {
     render(
       <TripTrackingStopsCargosMasterDetail
@@ -365,10 +414,10 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     );
 
     expect(
-      screen.getAllByRole("button", {
-        name: /¿Qué significan los estados\?/i,
-      }).length,
-    ).toBeGreaterThan(0);
+      screen.getByRole("button", {
+        name: /Estados de parada/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("sin canOperateTracking no muestra CTAs de parada ni evidencia", () => {

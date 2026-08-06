@@ -17,10 +17,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
-import { HintIcon } from "@shared/ui/hint-icon";
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
-import { formatStopActionTooltip } from "../trackingActionLabels";
+import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import {
@@ -40,6 +39,22 @@ const copy = trackingCopy;
 
 function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
+}
+
+/** Contexto lean: Parada N · Tipo · lugar (mismo patrón que llegada/salida). */
+function formatStopContextLine(
+  stop: TripStop,
+  displayOrder: number | undefined,
+): string {
+  const place = stop.locationName?.trim();
+  if (displayOrder != null) {
+    const short = formatStopActionShortLabel(stop, displayOrder);
+    if (place && !short.includes(place)) {
+      return `${short} · ${place}`;
+    }
+    return short;
+  }
+  return place || "Parada origen";
 }
 
 export type DepartOriginSheetProps = {
@@ -125,11 +140,13 @@ function DepartOriginSheetBody({
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
         <p className="text-sm text-muted-foreground">
-          {formatStopActionTooltip(originStop, displayOrder ?? 1)}
+          {formatStopContextLine(originStop, displayOrder ?? 1)}
         </p>
 
         <div className="space-y-2">
-          <Label htmlFor="depart-origin-occurred-at">{copy.label.departureAt}</Label>
+          <Label htmlFor="depart-origin-occurred-at">
+            {copy.label.occurredAtDeparture}
+          </Label>
           <div className="flex flex-wrap gap-2">
             <Input
               id="depart-origin-occurred-at"
@@ -152,22 +169,7 @@ function DepartOriginSheetBody({
           </div>
           {fieldError ? (
             <p className="text-xs text-destructive">{fieldError}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {copy.validation.civilTimeHint}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="depart-origin-notes">Notas (opcional)</Label>
-          <Textarea
-            id="depart-origin-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={isPending}
-            rows={2}
-          />
+          ) : null}
         </div>
 
         <TrackingGpsCaptureSection
@@ -175,7 +177,26 @@ function DepartOriginSheetBody({
           value={gps}
           onChange={setGps}
           disabled={isPending}
+          variant="quiet"
         />
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="depart-origin-notes"
+            className="text-muted-foreground"
+          >
+            {copy.sheet.notesOptional}
+          </Label>
+          <Textarea
+            id="depart-origin-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={isPending}
+            rows={2}
+            placeholder={copy.sheet.notesPlaceholder}
+            className="text-sm"
+          />
+        </div>
       </div>
 
       <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
@@ -219,14 +240,11 @@ export function DepartOriginSheet({
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <Navigation className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="inline-flex items-center gap-1.5">
-              {copy.action.departOrigin}
-              <HintIcon label={copy.sheet.departOriginHintLabel}>
-                {copy.sheet.departOriginDescription}
-              </HintIcon>
-            </span>
+            <span>{copy.action.departOrigin}</span>
           </SheetTitle>
-          <SheetDescription>{copy.sheet.departOriginDescription}</SheetDescription>
+          <SheetDescription>
+            {copy.sheet.departOriginDescription}
+          </SheetDescription>
         </SheetHeader>
 
         {open && originStop ? (

@@ -706,7 +706,7 @@ export function validateCostsStep(
 
 export const tripWizardSchema = z.object({
   // Paso 1: Información Básica
-  vehicleId: z.string().min(1, "Vehículo requerido"),
+  vehicleId: z.string().min(1, "Unidad requerida"),
   driverId: z.string().min(1, "Conductor requerido"),
   clientId: z.string().optional(),
   originBranchId: z.string().uuid().optional().or(z.literal("")),
@@ -861,7 +861,7 @@ export const WIZARD_STEP_FIELDS_RESERVE = WIZARD_STEPS_RESERVE.map(
  */
 export const tripReserveWizardSchema = z
   .object({
-    vehicleId: z.string().min(1, "Vehículo requerido"),
+    vehicleId: z.string().min(1, "Unidad requerida"),
     driverId: z.string().min(1, "Conductor requerido"),
     clientId: z
       .string()

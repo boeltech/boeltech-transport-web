@@ -43,23 +43,27 @@ export function shouldFetchTripCargos(
   return false;
 }
 
-/** Lista pesada de gastos: solo tab Costos. */
+/** Lista pesada de gastos: solo tab Costos (y si el rol puede ver costos). */
 export function shouldFetchTripExpenses(
   activeTab: TripDetailTabValue,
   tripId: string,
+  canFetchExpenses = true,
 ): boolean {
-  return Boolean(tripId) && activeTab === "costs";
+  return (
+    canFetchExpenses && Boolean(tripId) && activeTab === "costs"
+  );
 }
 
 /**
- * Summary ligero para badge pending del chrome — siempre con tripId
- * (no depende de haber abierto Costos).
+ * Summary ligero para badge pending del chrome — con tripId
+ * cuando el rol puede ver costos (no depende de haber abierto Costos).
  */
 export function shouldFetchTripExpensesSummary(
   _activeTab: TripDetailTabValue,
   tripId: string,
+  canFetchExpenses = true,
 ): boolean {
-  return Boolean(tripId);
+  return canFetchExpenses && Boolean(tripId);
 }
 
 /** Timeline para badges/alertas del shell cuando el tab Seguimiento no está montado. */

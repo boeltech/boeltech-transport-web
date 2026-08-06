@@ -52,8 +52,7 @@ function renderWithQuery(ui: ReactNode) {
 }
 
 describe("TripCard RBAC cancel", () => {
-  it("no muestra Cancelar cuando onCancel es undefined (read-only)", async () => {
-    const user = userEvent.setup();
+  it("no muestra menú Acciones cuando solo hay onView (read-only / portal)", () => {
     renderWithQuery(
       <TripCard
         trip={listTrip({ id: "t1", status: TripStatus.SCHEDULED })}
@@ -61,8 +60,9 @@ describe("TripCard RBAC cancel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Acciones/i }));
-    expect(screen.queryByText("Cancelar")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Acciones/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("muestra Cancelar cuando onCancel está definido y el status lo permite", async () => {

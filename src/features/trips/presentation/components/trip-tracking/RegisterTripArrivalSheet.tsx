@@ -10,7 +10,6 @@ import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
-import { HintIcon } from "@shared/ui/hint-icon";
 import {
   Sheet,
   SheetContent,
@@ -25,19 +24,27 @@ import {
   utcIsoToLocalInput,
 } from "@shared/utils/dateUtils";
 
-import {
-  formatStopActionTooltip,
-  formatTripArrivalButtonLabel,
-} from "../trackingActionLabels";
+import { formatStopActionShortLabel } from "../trackingActionLabels";
 import {
   resolveSuggestedStartMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
+import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  TRACKING_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./trackingSheetLayout";
+
+const copy = trackingCopy;
 
 export type RegisterTripArrivalSheetProps = {
   tripId: string;
@@ -55,23 +62,24 @@ export type RegisterTripArrivalSheetProps = {
   onSuccess?: () => void;
 };
 
-import { createTrackingIdempotencyKey } from "./trackingIdempotency";
-import {
-  TRACKING_SHEET_BODY_CLASS,
-  TRACKING_SHEET_CONTENT_CLASS,
-  TRACKING_SHEET_FOOTER_CLASS,
-  TRACKING_SHEET_HEADER_CLASS,
-  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
-} from "./trackingSheetLayout";
-
 function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
 }
 
-type RegisterTripArrivalSheetBodyProps = Omit<RegisterTripArrivalSheetProps, "open" | "displayOrder"> & {
-  title: string;
-  tooltip?: string;
-};
+function formatDestinationContextLine(
+  stop: TripStop,
+  displayOrder: number | undefined,
+): string {
+  const place = stop.locationName?.trim();
+  if (displayOrder != null) {
+    const short = formatStopActionShortLabel(stop, displayOrder);
+    if (place && !short.includes(place)) {
+      return `${short} · ${place}`;
+    }
+    return short;
+  }
+  return place || "Destino";
+}
 
 function resolveEarliestClosureInstant(
   scheduledDeparture?: Date | string | null,
@@ -82,6 +90,13 @@ function resolveEarliestClosureInstant(
   return null;
 }
 
+type RegisterTripArrivalSheetBodyProps = Omit<
+  RegisterTripArrivalSheetProps,
+  "open" | "displayOrder"
+> & {
+  displayOrder?: number;
+};
+
 function RegisterTripArrivalSheetBody({
   tripId,
   tripCode,
@@ -90,11 +105,11 @@ function RegisterTripArrivalSheetBody({
   scheduledDeparture,
   actualDeparture,
   destinationStop,
+  displayOrder,
   cargos = [],
   orderedStops = [],
   onOpenChange,
   onSuccess,
-  tooltip,
 }: RegisterTripArrivalSheetBodyProps) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
@@ -102,9 +117,10 @@ function RegisterTripArrivalSheetBody({
   const [timeError, setTimeError] = useState<string | null>(null);
   const [closureNotes, setClosureNotes] = useState("");
 
-  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(vehicleId ?? "", {
-    enabled: !!vehicleId,
-  });
+  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
+    vehicleId ?? "",
+    { enabled: !!vehicleId },
+  );
 
   const suggestedMileage = resolveSuggestedStartMileage(
     vehicle?.currentMileage,
@@ -119,8 +135,8 @@ function RegisterTripArrivalSheetBody({
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
       toast({
-        title: "Viaje finalizado",
-        description: `${tripCode} quedó completado`,
+        title: copy.toast.tripClosed,
+        description: copy.toast.tripClosedDescription(tripCode),
         variant: "success",
       });
       onSuccess?.();
@@ -128,7 +144,7 @@ function RegisterTripArrivalSheetBody({
     },
     onError: (error) => {
       toast({
-        title: "No se pudo finalizar el viaje",
+        title: copy.toast.tripCloseFailed,
         description: error.message,
         variant: "destructive",
       });
@@ -139,8 +155,8 @@ function RegisterTripArrivalSheetBody({
     const parsed = mileageField.parseValue();
     if (parsed === null) {
       toast({
-        title: "Odómetro final requerido",
-        description: "Ingresa el odómetro final para completar el viaje.",
+        title: copy.toast.endMileageRequired,
+        description: copy.toast.endMileageRequiredDescription,
         variant: "destructive",
       });
       return;
@@ -152,27 +168,30 @@ function RegisterTripArrivalSheetBody({
       parsed < tripStartMileage
     ) {
       toast({
-        title: "Odómetro inválido",
-        description: `Debe ser mayor o igual al kilometraje inicial (${tripStartMileage.toLocaleString("es-MX")} km).`,
+        title: copy.toast.endMileageInvalid,
+        description: copy.toast.endMileageBelowStart(
+          tripStartMileage.toLocaleString("es-MX"),
+        ),
         variant: "destructive",
       });
       return;
     }
 
     if (!occurredAt.trim()) {
-      setTimeError("Indica la fecha y hora de llegada al destino.");
+      setTimeError(copy.validation.arrivalAtDestinationRequired);
       return;
     }
 
     const occurredAtIso = localInputToUtcIso(occurredAt);
     if (earliestClosure && new Date(occurredAtIso) < earliestClosure) {
       const floorLabel = actualDeparture
-        ? "la salida real del viaje"
-        : "la salida programada";
+        ? copy.validation.closureFloorActualDeparture
+        : copy.validation.closureFloorScheduledDeparture;
       setTimeError(
-        `La hora de cierre no puede ser anterior a ${floorLabel} (${formatDateTime(
-          earliestClosure.toISOString(),
-        )}).`,
+        copy.validation.closureBeforeDeparture(
+          floorLabel,
+          formatDateTime(earliestClosure.toISOString()),
+        ),
       );
       return;
     }
@@ -206,110 +225,120 @@ function RegisterTripArrivalSheetBody({
     });
   };
 
-  const mileageSourceHint =
-    vehicle?.currentMileage != null
-      ? `Kilometraje actual del vehículo: ${vehicle.currentMileage.toLocaleString("es-MX")} km`
-      : tripStartMileage != null
-        ? `Kilometraje inicial del viaje: ${tripStartMileage.toLocaleString("es-MX")} km`
-        : null;
+  const pending = registerMutation.isPending;
 
   return (
     <>
-      {tooltip ? (
-        <p className="text-xs text-muted-foreground whitespace-pre-line">{tooltip}</p>
-      ) : null}
-
       <div className={TRACKING_SHEET_BODY_CLASS}>
-          <div className="space-y-2">
-            <Label htmlFor="trip-arrival-occurred-at">Fecha y hora de llegada</Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id="trip-arrival-occurred-at"
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-                disabled={registerMutation.isPending}
-                aria-invalid={timeError ? true : undefined}
-                className="min-w-[220px] flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-                disabled={registerMutation.isPending}
-              >
-                Ahora
-              </Button>
-            </div>
-            {timeError ? (
-              <p className="text-xs text-destructive">{timeError}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Hora civil México.</p>
-            )}
-          </div>
+        {destinationStop ? (
+          <p className="text-sm text-muted-foreground">
+            {formatDestinationContextLine(destinationStop, displayOrder)}
+          </p>
+        ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="trip-arrival-mileage">Odómetro final (km)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="trip-arrival-occurred-at">
+            {copy.label.occurredAtArrival}
+          </Label>
+          <div className="flex flex-wrap gap-2">
             <Input
-              id="trip-arrival-mileage"
-              type="number"
-              min={0}
-              inputMode="numeric"
-              value={mileageField.value}
-              onChange={(e) => mileageField.onValueChange(e.target.value)}
-              disabled={registerMutation.isPending}
+              id="trip-arrival-occurred-at"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              disabled={pending}
+              aria-invalid={timeError ? true : undefined}
+              className="min-w-[220px] flex-1"
             />
-            {mileageSourceHint ? (
-              <p className="text-xs text-muted-foreground">{mileageSourceHint}</p>
-            ) : null}
-            {isLoadingVehicle ? (
-              <p className="text-xs text-muted-foreground">Cargando vehículo…</p>
-            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
+              disabled={pending}
+            >
+              {copy.action.now}
+            </Button>
           </div>
-
-          <TrackingGpsCaptureSection
-            stop={destinationStop}
-            value={gps}
-            onChange={setGps}
-            disabled={registerMutation.isPending}
-          />
-
-          <div className="space-y-2">
-            <Label htmlFor="trip-arrival-notes">Notas de cierre (opcional)</Label>
-            <Textarea
-              id="trip-arrival-notes"
-              placeholder="Observaciones al finalizar el viaje…"
-              value={closureNotes}
-              onChange={(e) => setClosureNotes(e.target.value)}
-              disabled={registerMutation.isPending}
-              rows={3}
-            />
-          </div>
+          {timeError ? (
+            <p className="text-xs text-destructive">{timeError}</p>
+          ) : null}
         </div>
 
-        <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
-          <Button
-            variant="outline"
-            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
-            onClick={() => onOpenChange(false)}
-            disabled={registerMutation.isPending}
+        <div className="space-y-2">
+          <Label htmlFor="trip-arrival-mileage">{copy.label.endMileage}</Label>
+          <Input
+            id="trip-arrival-mileage"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder={copy.sheet.startMileagePlaceholder}
+            value={mileageField.value}
+            onChange={(e) => mileageField.onValueChange(e.target.value)}
+            disabled={pending}
+          />
+          {isLoadingVehicle ? (
+            <p className="text-xs text-muted-foreground">
+              {copy.sheet.loadingVehicle}
+            </p>
+          ) : suggestedMileage != null ? (
+            <p className="text-xs text-muted-foreground">
+              {copy.sheet.suggestedMileageHint(
+                suggestedMileage.toLocaleString("es-MX"),
+              )}
+            </p>
+          ) : null}
+        </div>
+
+        <TrackingGpsCaptureSection
+          stop={destinationStop}
+          value={gps}
+          onChange={setGps}
+          disabled={pending}
+          variant="quiet"
+        />
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="trip-arrival-notes"
+            className="text-muted-foreground"
           >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={registerMutation.isPending}
-            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
-          >
-            {registerMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-            )}
-            Finalizar viaje
-          </Button>
-        </SheetFooter>
+            {copy.sheet.notesOptional}
+          </Label>
+          <Textarea
+            id="trip-arrival-notes"
+            placeholder={copy.sheet.closeNotesPlaceholder}
+            value={closureNotes}
+            onChange={(e) => setClosureNotes(e.target.value)}
+            disabled={pending}
+            rows={2}
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>
+        <Button
+          variant="outline"
+          className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
+          onClick={() => onOpenChange(false)}
+          disabled={pending}
+        >
+          {copy.action.cancel}
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={pending}
+          className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
+        >
+          {pending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+          )}
+          {copy.action.close}
+        </Button>
+      </SheetFooter>
     </>
   );
 }
@@ -329,34 +358,15 @@ export function RegisterTripArrivalSheet({
   onOpenChange,
   onSuccess,
 }: RegisterTripArrivalSheetProps) {
-  const title = formatTripArrivalButtonLabel(
-    destinationStop ?? undefined,
-    displayOrder,
-  );
-  const tooltip =
-    destinationStop && displayOrder != null
-      ? formatStopActionTooltip(destinationStop, displayOrder)
-      : undefined;
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="inline-flex items-center gap-1.5">
-              {title}
-              <HintIcon label="Finalizar viaje">
-                Registra el evento fiscal de llegada final, cierra cargas y costos
-                operativos, libera unidad y conductor, y marca el viaje como completado.
-                Requiere odómetro final.
-              </HintIcon>
-            </span>
+            <span>{copy.action.close}</span>
           </SheetTitle>
-          <SheetDescription>
-            Captura la hora de cierre, el odómetro final y, si aplica, la ubicación
-            del evento.
-          </SheetDescription>
+          <SheetDescription>{copy.sheet.closeDescription}</SheetDescription>
         </SheetHeader>
 
         {open ? (
@@ -369,12 +379,11 @@ export function RegisterTripArrivalSheet({
             scheduledDeparture={scheduledDeparture}
             actualDeparture={actualDeparture}
             destinationStop={destinationStop}
+            displayOrder={displayOrder}
             cargos={cargos}
             orderedStops={orderedStops}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
-            title={title}
-            tooltip={tooltip}
           />
         ) : null}
       </SheetContent>

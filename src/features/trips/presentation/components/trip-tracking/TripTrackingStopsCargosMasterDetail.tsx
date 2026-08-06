@@ -55,6 +55,7 @@ import {
   getCargoBlockAtStop,
 } from "../../utils/trackingCargoGating";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { Button } from "@shared/ui/button";
 import { CargoActionInline } from "./CargoActionInline";
 import { CargoStateMachineLegend } from "./CargoStateMachineLegend";
 import { StopActionInline } from "./StopActionInline";
@@ -67,7 +68,6 @@ import {
 } from "./trackingNextAction";
 import {
   buildTrackingItineraryRows,
-  getTrackingStopRoleHint,
   resolveInlineStopAction,
   type InlineStopAction,
   type TrackingItineraryRow,
@@ -107,9 +107,14 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   canRegisterEvidence?: boolean;
   /**
    * RBAC: `trips.update` | `trips.updateStatus`.
-   * Sin permiso no se muestran CTAs de parada/carga ni se invocan mutaciones.
+   * Sin permiso no se muestran CTAs de parada ni evidencia.
    */
   canOperateTracking?: boolean;
+  /**
+   * RBAC: `trips.update` para mutaciones de carga (API).
+   * Si se omite, hereda `canOperateTracking` (compat staff).
+   */
+  canMutateCargo?: boolean;
   /** Focus request (p. ej. desde deep-link); selecciona parada en el hub. */
   focusRequest?: TrackingOperationalFocusRequest | null;
   className?: string;
@@ -280,11 +285,6 @@ function TripTrackingStopMasterRow({
               {trackingCopy.label.cargoCount(cargoCount)}
             </span>
           ) : null}
-          {row.isActionTarget && showHints ? (
-            <Badge variant="outline" className="text-[10px] border-primary/50">
-              {trackingCopy.label.currentTarget}
-            </Badge>
-          ) : null}
         </div>
       </div>
     </button>
@@ -329,7 +329,6 @@ function TripTrackingStopOperationDetail({
   const stopStatus = trackingStopStatusForBadge(
     row.stop.status as StopStatusValue | undefined,
   );
-  const roleHint = showHints ? getTrackingStopRoleHint(row.stop) : null;
   const links = getStopCargoLinks(row.stop, cargos, orderedStops);
   const stopActive = canOperateCargoAtStop(row.stop, tripStatus);
   const cargoBlock = getCargoBlockAtStop(row.stop, cargos, orderedStops);
@@ -341,7 +340,7 @@ function TripTrackingStopOperationDetail({
 
   return (
     <div className="space-y-4">
-      <header className="space-y-2 border-b pb-3">
+      <header className="space-y-1 border-b pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-base font-semibold">{primary}</h3>
           <TrackingStopStatusBadgeRow
@@ -351,9 +350,6 @@ function TripTrackingStopOperationDetail({
         </div>
         {secondary ? (
           <p className="text-sm text-muted-foreground">{secondary}</p>
-        ) : null}
-        {roleHint ? (
-          <p className="text-xs text-muted-foreground">{roleHint}</p>
         ) : null}
       </header>
 
@@ -366,27 +362,10 @@ function TripTrackingStopOperationDetail({
         />
       ) : null}
 
-      {showEvidenceToolbar ? (
-        <section className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            {trackingCopy.label.evidenceAtStop}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {trackingCopy.hint.evidenceAtStop}
-          </p>
-          <TrackingEvidenceActions
-            onRegisterNote={() => onRegisterNote(row.stop)}
-            onRegisterIncident={() => onRegisterIncident(row.stop)}
-            canRegisterNote={canRegisterEvidence}
-            canRegisterIncident={canRegisterEvidence}
-          />
-        </section>
-      ) : null}
-
       <section className="space-y-2">
         <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Package className="h-3.5 w-3.5 shrink-0" />
-          {cargoCopy.section.atStop}
+          {trackingCopy.section.cargosAtStop}
         </p>
         {links.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -433,8 +412,13 @@ function TripTrackingStopOperationDetail({
                           link.cargo.status}
                       </Badge>
                       {link.movement.completedAt != null ? (
-                        <Badge variant="outline" className="text-[10px] font-normal">
-                          {cargoCopy.label.movementDone}
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-normal"
+                        >
+                          {link.movementType === "pickup"
+                            ? cargoCopy.label.pickupCompleted
+                            : cargoCopy.label.deliveryCompleted}
                         </Badge>
                       ) : null}
                     </div>
@@ -457,6 +441,7 @@ function TripTrackingStopOperationDetail({
                             action={action}
                             pending={isPending}
                             disabled={disabled}
+                            showTransition={false}
                             title={
                               disabled
                                 ? stopActive
@@ -476,6 +461,20 @@ function TripTrackingStopOperationDetail({
           </ul>
         )}
       </section>
+
+      {showEvidenceToolbar ? (
+        <section className="space-y-2 border-t pt-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {trackingCopy.label.evidenceAtStop}
+          </p>
+          <TrackingEvidenceActions
+            onRegisterNote={() => onRegisterNote(row.stop)}
+            onRegisterIncident={() => onRegisterIncident(row.stop)}
+            canRegisterNote={canRegisterEvidence}
+            canRegisterIncident={canRegisterEvidence}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -500,6 +499,7 @@ export function TripTrackingStopsCargosMasterDetail({
   onRegisterIncident,
   canRegisterEvidence = tripStatus === TripStatus.IN_PROGRESS,
   canOperateTracking = true,
+  canMutateCargo: canMutateCargoProp,
   focusRequest = null,
   className,
 }: TripTrackingStopsCargosMasterDetailProps) {
@@ -604,7 +604,8 @@ export function TripTrackingStopsCargosMasterDetail({
     canOperateTracking &&
     (tripStatus === TripStatus.SCHEDULED ||
       tripStatus === TripStatus.IN_PROGRESS);
-  const canMutateCargo = canOperateTracking && tripInProgress;
+  const canMutateCargo =
+    (canMutateCargoProp ?? canOperateTracking) && tripInProgress;
 
   const hubInlineAction =
     canShowStopActions &&
@@ -708,7 +709,8 @@ export function TripTrackingStopsCargosMasterDetail({
               >
                 {primary.title}
               </p>
-              {primary.transitionText ? (
+              {/* D2: con CTA operable no repetir transitionText; D3: cargo_blocked sí muestra guía. */}
+              {primary.transitionText && !showsOperableCta ? (
                 <p className="text-xs text-muted-foreground">
                   {primary.transitionText}
                 </p>
@@ -719,6 +721,7 @@ export function TripTrackingStopsCargosMasterDetail({
                   action={hubInlineAction!.action}
                   variant="default"
                   size="lg"
+                  showTransition={false}
                   onClick={() =>
                     dispatchInlineStopAction(hubInlineAction!, {
                       onStartTrip,
@@ -729,6 +732,20 @@ export function TripTrackingStopsCargosMasterDetail({
                     })
                   }
                 />
+              ) : null}
+              {primary.kind === "cargo_blocked" &&
+              primary.stop &&
+              canOperateTracking ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => handleSelect(primary.stop!.id)}
+                >
+                  <Package className="mr-2 h-4 w-4" />
+                  {trackingCopy.action.goToCargos}
+                </Button>
               ) : null}
             </div>
           </div>
@@ -745,11 +762,6 @@ export function TripTrackingStopsCargosMasterDetail({
               }
             />
           ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <StopStateMachineLegend />
-          {cargos.length > 0 ? <CargoStateMachineLegend /> : null}
         </div>
 
         {rows.length === 0 ? (
@@ -788,6 +800,11 @@ export function TripTrackingStopsCargosMasterDetail({
             )}
           </div>
         )}
+
+        <div className="flex flex-wrap gap-2 border-t pt-3">
+          <StopStateMachineLegend />
+          {cargos.length > 0 ? <CargoStateMachineLegend /> : null}
+        </div>
       </CardContent>
 
       <Sheet
@@ -798,7 +815,7 @@ export function TripTrackingStopsCargosMasterDetail({
           <SheetHeader className="border-b px-5 py-4">
             <SheetTitle>{trackingCopy.hint.mobileDetailSheet}</SheetTitle>
             <SheetDescription>
-              {trackingCopy.hint.stopsAndCargos}
+              {trackingCopy.section.cargosAtStop}
             </SheetDescription>
           </SheetHeader>
           <div className="h-[calc(85vh-88px)] overflow-y-auto px-5 py-4">

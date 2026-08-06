@@ -42,6 +42,13 @@ describe("tripDetailQueryGating", () => {
     expect(shouldFetchTripExpensesSummary("overview", "")).toBe(false);
   });
 
+  it("disables expenses queries when canFetchExpenses is false (portal client)", () => {
+    expect(shouldFetchTripExpenses("costs", "trip-1", false)).toBe(false);
+    expect(shouldFetchTripExpensesSummary("overview", "trip-1", false)).toBe(
+      false,
+    );
+  });
+
   it("fetches timeline on route and tracking tabs", () => {
     expect(shouldFetchTripTimeline("route", "trip-1", TripStatus.SCHEDULED)).toBe(
       true,

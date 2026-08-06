@@ -53,8 +53,8 @@ export const cargoCopy = {
     noPickupStops: "No hay paradas con operación de carga en este viaje.",
     emptyAtStopTitle: "Sin cargas en esta parada",
     emptyAtStopHint:
-      "La planeación de mercancías se gestiona en edición completa.",
-    emptyDeliveryAtStopTitle: "Sin mercancía pendiente de entrega",
+      "La planeación de cargas se gestiona en edición completa.",
+    emptyDeliveryAtStopTitle: "Sin cargas pendientes de entrega",
     emptyDeliveryAtStopHint:
       "Las cargas en tránsito aparecerán aquí para registrar entrega.",
   },

@@ -36,7 +36,6 @@ import {
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { Skeleton } from "@shared/ui/skeleton";
 import { FormValidationSummary } from "@shared/ui/form";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 // Feature hooks
@@ -1099,15 +1098,7 @@ export function TripFormPage() {
     (currentStep: number, helpers?: WizardStepRenderHelpers) => (
       <FormProvider key={id ?? "create"} {...form}>
         <form onSubmit={(e) => e.preventDefault()}>
-          {isReserveIntent ? (
-            <Alert variant="info" className="mb-4">
-              <AlertTitle>{shell.reserveBanner.title}</AlertTitle>
-              <AlertDescription>
-                {shell.reserveBanner.description}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {currentStep < activeWizardSteps.length - 1 ? (
+          {!isReserveIntent && currentStep < activeWizardSteps.length - 1 ? (
             <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
               Completa los campos obligatorios del paso para continuar.
             </p>

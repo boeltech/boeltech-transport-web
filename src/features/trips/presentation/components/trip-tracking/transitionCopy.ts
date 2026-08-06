@@ -26,16 +26,16 @@ export type CargoTransitionAction = keyof typeof CARGO_TRANSITION_COPY;
 export const legendCopy = {
   stop: {
     title: "Estados de parada",
-    expand: "¿Qué significan los estados?",
-    collapse: "Ocultar leyenda",
-    flow: ["Pendiente", "En Progreso", "Completado"] as const,
+    expand: "Estados de parada",
+    collapse: "Ocultar",
+    flow: ["Pendiente", "En curso", "Completado"] as const,
     alternate: "Omitido",
   },
   cargo: {
     title: "Estados de carga",
-    expand: "¿Qué significan los estados?",
-    collapse: "Ocultar leyenda",
-    flow: ["Pendiente", "En Tránsito", "Entregada"] as const,
+    expand: "Estados de carga",
+    collapse: "Ocultar",
+    flow: ["Pendiente", "En tránsito", "Entregada"] as const,
     terminals: ["Devuelta", "Cancelada"] as const,
   },
   nextAction: {

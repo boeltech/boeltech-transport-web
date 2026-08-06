@@ -10,7 +10,7 @@ export const basicInfoCopy = {
   },
   label: {
     originBranch: "Base operativa del viaje",
-    vehicle: "Vehículo",
+    vehicle: "Unidad",
     driver: "Conductor",
     client: "Cliente que contrata",
     cfdiDocumentIntent: "Tipo de viaje",
@@ -29,7 +29,7 @@ export const basicInfoCopy = {
   },
   hint: {
     assignmentsScope:
-      "Asigna la base, vehículo, conductor y cliente. Las paradas se capturan en el paso Ruta.",
+      "Asigna la base, unidad, conductor y cliente. Las paradas se capturan en el paso Ruta.",
     originBranch:
       "Filtra la flota sugerida y queda registrada para reportes. No es, por defecto, el punto donde se carga la mercancía.",
     client:
@@ -57,7 +57,7 @@ export const basicInfoCopy = {
   },
   placeholder: {
     selectOriginBranch: "Seleccionar base operativa",
-    selectVehicle: "Seleccionar vehículo",
+    selectVehicle: "Seleccionar unidad",
     selectDriver: "Seleccionar conductor",
     selectClient: "Seleccionar cliente",
     cfdiDocumentIntent: "Tipo de viaje",
@@ -71,7 +71,7 @@ export const basicInfoCopy = {
     withExpiredDocs: "Con documentación vencida",
     notAssignable: "No asignables",
     noBranches: "No hay sucursales activas",
-    noVehicles: "No hay vehículos disponibles",
+    noVehicles: "No hay unidades disponibles",
     noDrivers: "No hay conductores disponibles",
     noDriversOutsideSupportStaff:
       "No hay conductores fuera del equipo de apoyo. Quita colaboradores de apoyo para poder asignarlos como conductor principal.",
@@ -87,7 +87,7 @@ export const basicInfoCopy = {
     expiredDriverItem: (reason: string) => reason,
     assignmentClearedTitle: "Asignación actualizada",
     assignmentClearedBody:
-      "El vehículo o conductor ya no corresponden a la base operativa. Vuelve a seleccionarlos.",
+      "La unidad o el conductor ya no corresponden a la base operativa. Vuelve a seleccionarlos.",
   },
   action: {
     add: "Agregar",
@@ -115,8 +115,8 @@ export const basicInfoCopy = {
   paywall: {
     title: "Módulo no contratado",
     description:
-      "El equipo de apoyo interno requiere el add-on de compensación interna. Actívalo desde Plan y consumo o contacta a Boeltech.",
-    cta: "Ver plan y consumo",
+      "El equipo de apoyo interno requiere el add-on de compensación interna. Actívalo desde Tu plan o contacta a Boeltech.",
+    cta: "Ver Tu plan",
   },
   format: {
     vehicleOption: (unitNumber: string, licensePlate: string) =>

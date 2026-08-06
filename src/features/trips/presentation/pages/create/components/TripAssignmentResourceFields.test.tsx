@@ -1,13 +1,20 @@
 /**
  * TripAssignmentResourceFields — filtros de flota, docs vencidas y grupos.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm } from "react-hook-form";
 import type { ReactElement } from "react";
 
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { ROLES } from "@shared/constants/roles";
+
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { role: ROLES.ADMIN },
+  }),
+}));
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import type { AssignableDriverItem } from "../tripAssignmentDrivers";
 import {
@@ -57,7 +64,7 @@ function renderWithProviders(ui: ReactElement) {
 }
 
 function vehicleCombobox() {
-  return screen.getByRole("combobox", { name: /Vehículo/ });
+  return screen.getByRole("combobox", { name: /Unidad/ });
 }
 
 function driverCombobox() {
@@ -93,6 +100,7 @@ function Harness({
       isLoadingDrivers={props.isLoadingDrivers ?? false}
       excludedDriverEmployeeIds={props.excludedDriverEmployeeIds}
       idPrefix={props.idPrefix}
+      density={props.density}
     />
   );
 }
@@ -286,5 +294,31 @@ describe("TripAssignmentResourceFields", () => {
     const listbox = await screen.findByRole("listbox");
     expect(within(listbox).queryByText("Conductor A")).not.toBeInTheDocument();
     expect(within(listbox).getByText("Conductor Ocupado")).toBeInTheDocument();
+  });
+
+  it("collapses fleet options by default in reserve density", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Harness vehicles={vehicles} drivers={drivers} density="reserve" />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: wizardCopy.shell.reserve.label.fleetOptions,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: copy.label.showAllFleet }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: wizardCopy.shell.reserve.label.fleetOptions,
+      }),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: copy.label.showAllFleet }),
+    ).toBeInTheDocument();
+    expect(allowExpiredDocsCheckbox()).toBeInTheDocument();
   });
 });

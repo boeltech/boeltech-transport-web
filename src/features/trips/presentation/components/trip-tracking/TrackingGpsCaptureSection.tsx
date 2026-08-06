@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Crosshair, Loader2, MapPin, Navigation } from "lucide-react";
 
 import type { TripStop } from "@features/trips/domain";
+import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
@@ -18,6 +19,11 @@ type TrackingGpsCaptureSectionProps = {
   value: TrackingGpsCapture | null;
   onChange: (value: TrackingGpsCapture | null) => void;
   disabled?: boolean;
+  /**
+   * `quiet`: sin card — secundaria en sheets lean (p. ej. Iniciar viaje).
+   * No cambia el contrato de captura GPS.
+   */
+  variant?: "default" | "quiet";
 };
 
 export function TrackingGpsCaptureSection({
@@ -25,11 +31,13 @@ export function TrackingGpsCaptureSection({
   value,
   onChange,
   disabled = false,
+  variant = "default",
 }: TrackingGpsCaptureSectionProps) {
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stopCoords = stop ? coordsFromStop(stop) : null;
   const copy = trackingCopy;
+  const isQuiet = variant === "quiet";
 
   const handleBrowserLocation = async () => {
     setError(null);
@@ -45,9 +53,20 @@ export function TrackingGpsCaptureSection({
   };
 
   return (
-    <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-      <Label className="text-sm">{copy.sheet.locationOptional}</Label>
-      <p className="text-xs text-muted-foreground">{copy.sheet.locationHint}</p>
+    <div
+      className={cn(
+        "space-y-2",
+        !isQuiet && "rounded-md border bg-muted/20 p-3",
+      )}
+    >
+      <Label className={cn("text-sm", isQuiet && "text-muted-foreground")}>
+        {isQuiet
+          ? copy.sheet.locationOptionalQuiet
+          : copy.sheet.locationOptional}
+      </Label>
+      {!isQuiet ? (
+        <p className="text-xs text-muted-foreground">{copy.sheet.locationHint}</p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button

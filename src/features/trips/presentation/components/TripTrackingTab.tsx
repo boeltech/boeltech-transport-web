@@ -74,9 +74,11 @@ export function TripTrackingTab({
   onCargosChanged,
 }: TripTrackingTabProps) {
   const { hasPermission } = usePermissions();
+  const canUpdateTrip = hasPermission("trips", "update");
   const canOperateTracking =
-    hasPermission("trips", "update") ||
-    hasPermission("trips", "updateStatus");
+    canUpdateTrip || hasPermission("trips", "updateStatus");
+  /** Mutaciones de carga requieren `trips.update` (API); no inventar ACL. */
+  const canMutateCargo = canUpdateTrip;
   const [startSheetOpen, setStartSheetOpen] = useState(false);
   const [tripArrivalSheetOpen, setTripArrivalSheetOpen] = useState(false);
   const [arrivalSheetOpen, setArrivalSheetOpen] = useState(false);
@@ -129,7 +131,7 @@ export function TripTrackingTab({
   });
 
   const handleCargoAction = (cargoId: string, action: CargoManualAction) => {
-    if (!canOperateTracking) return;
+    if (!canMutateCargo) return;
     setPendingCargoAction({ cargoId, action });
     updateCargoMutation.mutate({
       cargoId,
@@ -366,6 +368,7 @@ export function TripTrackingTab({
         onCargoAction={handleCargoAction}
         getCargoStatusVariant={getCargoStatusVariant}
         canOperateTracking={canOperateTracking}
+        canMutateCargo={canMutateCargo}
         onStartTrip={
           canOperateTracking ? () => setStartSheetOpen(true) : undefined
         }

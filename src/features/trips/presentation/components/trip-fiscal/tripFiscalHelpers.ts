@@ -87,7 +87,11 @@ export function canApplyStopFiscalCorrection(
 ): boolean {
   if (trip.status !== TripStatus.COMPLETED) return false;
   const invoiceStatus = trip.invoicing.invoiceStatus;
-  if (invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending") {
+  if (
+    invoiceStatus === "stamping" ||
+    invoiceStatus === "stamped" ||
+    invoiceStatus === "cancellation_pending"
+  ) {
     return false;
   }
   return true;

@@ -34,6 +34,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { TripStatusBadge } from "../config/tripStatusConfig";
+import { tripsListCopy } from "../copy/listCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { getTripInvoicingBadgeConfig } from "../uiHelpers";
 import { TripOverdueBadge } from "./TripOverdueBadge";
@@ -47,6 +48,8 @@ interface TripCardProps {
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   className?: string;
+  /** Portal cliente: no enfatiza el nombre del cliente (siempre el mismo). */
+  hideClient?: boolean;
 }
 
 export const TripCard = memo(function TripCard({
@@ -58,12 +61,18 @@ export const TripCard = memo(function TripCard({
   isSelected,
   onSelect,
   className,
+  hideClient = false,
 }: TripCardProps) {
   const canEdit = canEditTrip(trip.status);
   const canDelete = canDeleteTrip(trip.status);
   const canCancel =
     trip.status === TripStatus.SCHEDULED ||
     trip.status === TripStatus.IN_PROGRESS;
+
+  const showEdit = canEdit && Boolean(onEdit);
+  const showCancel = canCancel && Boolean(onCancel);
+  const showDelete = canDelete && Boolean(onDelete);
+  const showActionsMenu = showEdit || showCancel || showDelete;
 
   const invoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
@@ -107,69 +116,75 @@ export const TripCard = memo(function TripCard({
               <h3 className="truncate text-lg font-semibold leading-none">
                 {trip.tripCode}
               </h3>
-              <p className="mt-1 truncate text-sm text-muted-foreground">
-                {trip.client?.legalName ?? "Sin cliente"}
-              </p>
+              {!hideClient ? (
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {trip.client?.legalName ?? tripsListCopy.columns.noClient}
+                </p>
+              ) : null}
             </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-              >
-                <MoreVertical className="h-4 w-4" />
-                <span className="sr-only">Acciones</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onView?.(trip.id);
-                }}
-              >
-                <Eye className="mr-2 h-4 w-4" /> Ver detalles
-              </DropdownMenuItem>
-              {canEdit && onEdit && (
+          {showActionsMenu ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Acciones</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEdit(trip.id);
+                    onView?.(trip.id);
                   }}
                 >
-                  <Pencil className="mr-2 h-4 w-4" /> Editar
+                  <Eye className="mr-2 h-4 w-4" /> Ver detalles
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              {canCancel && onCancel && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCancel(trip.id);
-                  }}
-                >
-                  <XCircle className="mr-2 h-4 w-4 text-warning" /> Cancelar
-                </DropdownMenuItem>
-              )}
-              {canDelete && onDelete && (
-                <>
-                  <DropdownMenuSeparator />
+                {showEdit && onEdit ? (
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(trip.id);
+                      onEdit(trip.id);
                     }}
-                    className="text-destructive focus:text-destructive"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                    <Pencil className="mr-2 h-4 w-4" /> Editar
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                ) : null}
+                {showCancel && onCancel ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCancel(trip.id);
+                      }}
+                    >
+                      <XCircle className="mr-2 h-4 w-4 text-warning" /> Cancelar
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                {showDelete && onDelete ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(trip.id);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       </CardHeader>
 
@@ -189,7 +204,19 @@ export const TripCard = memo(function TripCard({
           {trip.vehicle ? (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <Truck className="h-4 w-4 shrink-0" />
-              <span className="truncate font-mono">{trip.vehicle.licensePlate}</span>
+              <span className="min-w-0 truncate">
+                <span className="text-foreground">
+                  {trip.vehicle.unitNumber || tripsListCopy.columns.emptyCell}
+                </span>
+                {trip.vehicle.licensePlate ? (
+                  <span
+                    className="ml-1 font-mono text-xs"
+                    title={trip.vehicle.licensePlate}
+                  >
+                    ({trip.vehicle.licensePlate})
+                  </span>
+                ) : null}
+              </span>
             </div>
           ) : null}
           {trip.driver ? (
@@ -213,8 +240,8 @@ export const TripCard = memo(function TripCard({
             <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
             <TripOverdueBadge trip={trip} />
             {trip.requiresFiscalAttention ? (
-              <Badge variant="destructive" className="text-xs">
-                Fiscal
+              <Badge variant="destructive" tone="soft" className="text-xs">
+                {tripsListCopy.badge.fiscalAttention}
               </Badge>
             ) : null}
           </div>
@@ -227,7 +254,7 @@ export const TripCard = memo(function TripCard({
               onView?.(trip.id);
             }}
           >
-            Ver más
+            {tripsListCopy.actions.viewMore}
             <Eye className="ml-2 h-4 w-4" />
           </Button>
         </div>

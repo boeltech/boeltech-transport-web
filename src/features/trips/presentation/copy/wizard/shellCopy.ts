@@ -8,15 +8,10 @@ export const shellCopy = {
     editTitle: "Editar Viaje",
     createSubtitle: "Complete los pasos para crear un viaje",
     reserveSubtitle:
-      "Pedido y asignación: deja el viaje en borrador listo para confirmar",
+      "Anota el pedido del cliente y deja unidad y conductor listos.",
     editSubtitle: (tripCode: string) =>
       tripCode ? `Editando ${tripCode}` : "Editando",
     backLabel: "Volver",
-  },
-  reserveBanner: {
-    title: "Flujo de reserva",
-    description:
-      "Dos pasos: pedido comercial y asignación de unidad/conductor. Sin ruta ni cargas todavía. Completa el detalle después y confirma cuando el cliente cierre.",
   },
   step: {
     basic: { title: "Información", description: "Asignaciones y programación" },
@@ -26,7 +21,7 @@ export const shellCopy = {
     summary: { title: "Resumen", description: "Confirmar y crear" },
     pedido: {
       title: "Pedido",
-      description: "Cliente, ruta operativa y fecha",
+      description: "Cliente, ruta y fecha de salida",
     },
     asignar: {
       title: "Asignar",
@@ -52,11 +47,11 @@ export const shellCopy = {
       "Revisa el resumen antes de guardar",
     ] as const,
     reserveStepSummaryTitles: [
-      "Revisa el pedido comercial",
+      "Revisa el pedido",
       "Revisa la asignación",
     ] as const,
     stepSummaryFallback: "Revisa los siguientes campos",
-    selectClient: "Selecciona el cliente que contrata el viaje",
+    selectClient: "Selecciona el cliente del pedido",
     originCityRequired: "Indica la ciudad de origen",
     destinationCityRequired: "Indica la ciudad de destino",
     duplicateSupportStaff:
@@ -87,24 +82,32 @@ export const shellCopy = {
     unknownError: "Error desconocido",
   },
   reserve: {
+    section: {
+      routeApprox: "Ruta aproximada",
+      schedule: "Fecha y notas",
+    },
     label: {
+      client: "Cliente",
       originCity: "Ciudad de origen",
       destinationCity: "Ciudad de destino",
-      notes: "Canal / notas del pedido",
-      baseRate: "Tarifa base (opcional)",
+      notes: "Notas del pedido",
+      baseRate: "Tarifa acordada (opcional)",
+      fleetOptions: "Opciones de flota",
     },
     placeholder: {
       originCity: "Ej. CDMX",
       destinationCity: "Ej. Monterrey",
-      notes: "Ej. Canal: WhatsApp · Pedido verbal",
+      notes: "Ej. Llamada · WhatsApp · Pedido verbal",
     },
     hint: {
-      notes: "Deja el canal y el contexto del pedido. No es cotizador.",
-      baseRate: "Puedes capturarla ahora o al confirmar la reserva.",
-      newClient: "Si el cliente no está en el catálogo, ábrelo en otra pestaña.",
+      notes: "Cómo lo pidieron y cualquier detalle útil para la operación.",
+      baseRate: "Si ya la acordaron; si no, la capturas al confirmar.",
+      newClient: "Si el cliente no aparece en la lista,",
+      arrival: "Opcional; puedes completarla al confirmar.",
+      client: "Quién solicita el viaje.",
     },
     action: {
-      newClient: "Alta de cliente",
+      newClient: "regístralo aquí",
     },
   },
 } as const;

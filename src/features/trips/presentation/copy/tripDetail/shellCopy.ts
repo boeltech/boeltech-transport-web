@@ -9,6 +9,8 @@ export const shellCopy = {
   },
   tab: {
     operation: "Operación",
+    operationClient: "Resumen",
+    operationDriver: "Resumen",
     route: "Ruta",
     tracking: "Seguimiento",
     cargo: "Cargas",
@@ -23,6 +25,8 @@ export const shellCopy = {
     distance: "Distancia",
     duration: "Duración",
     baseRate: "Tarifa",
+    baseRateClient: "Tarifa del envío",
+    baseRateDriver: "Tarifa",
     departure: "Salida",
     arrival: "Llegada est.",
     vehicle: "Unidad",
@@ -41,11 +45,11 @@ export const shellCopy = {
     assignmentIncompleteTitle: "Viaje programado sin asignación completa",
     assignmentVehicleMissing: "Sin unidad asignada.",
     assignmentDriverMissing: "Sin conductor asignado.",
-    assignmentVehicleLabel: "Vehículo",
+    assignmentVehicleLabel: "Unidad",
     assignmentDriverLabel: "Conductor",
-    draftReserveTitle: "Reserva (borrador)",
+    draftReserveTitle: "Reserva pendiente",
     draftReserveBody:
-      "Confirma cuando tengas tarifa y llegada estimada. Completa ruta y cargas antes de facturar.",
+      "Confirma cuando tengas tarifa y llegada estimada. Completa ruta y cargas antes de continuar.",
     draftConfirmCta: "Confirmar reserva",
     draftCompleteRouteCta: "Completar ruta",
     draftCompleteCargoCta: "Completar cargas",
@@ -67,5 +71,9 @@ export const shellCopy = {
   format: {
     routeTab: (stopCount: number) =>
       stopCount > 0 ? `Ruta (${stopCount})` : "Ruta",
+  },
+  /** Portal cliente: enlace read-only al módulo de facturas. */
+  action: {
+    viewInvoices: "Ver facturas",
   },
 } as const;

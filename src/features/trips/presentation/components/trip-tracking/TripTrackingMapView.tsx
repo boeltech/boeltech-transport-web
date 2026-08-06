@@ -17,6 +17,7 @@ import {
   type TrackingMapEventMarker,
   type TrackingMapStopMarker,
 } from "./trackingMapHelpers";
+import { escapeHtml } from "./escapeHtml";
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const DEFAULT_ZOOM = 4.5;
@@ -83,9 +84,9 @@ function syncMapOverlays(map: mapboxgl.Map, params: SyncMapOverlaysParams) {
       .setLngLat([stop.longitude, stop.latitude])
       .setPopup(
         new mapboxgl.Popup({ offset: 16 }).setHTML(
-          `<strong>${stop.order}. ${stop.label}</strong>${
+          `<strong>${stop.order}. ${escapeHtml(stop.label)}</strong>${
             stop.sublabel
-              ? `<br/><span style="font-size:12px;opacity:0.75">${stop.sublabel}</span>`
+              ? `<br/><span style="font-size:12px;opacity:0.75">${escapeHtml(stop.sublabel)}</span>`
               : ""
           }`,
         ),

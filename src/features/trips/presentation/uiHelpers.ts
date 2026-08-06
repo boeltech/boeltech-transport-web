@@ -26,6 +26,7 @@ import {
   isUnifiedAddressId,
 } from "../domain";
 import { composeStopLocalityLine } from "./stopLocalityDisplay";
+import { tripsListCopy } from "./copy/listCopy";
 import { formatMxCurrencyOrDash } from "@shared/utils/formatMxCurrency";
 
 // ============================================================================
@@ -391,6 +392,7 @@ export function formatTripRouteSubtitle(
 export function getTripInvoicingBadgeConfig(
   tripItem: Pick<TripListItem, "status" | "invoicing">,
 ): InvoicingBadgeConfig {
+  const labels = tripsListCopy.invoicingBadge;
   const invoicing = tripItem.invoicing;
   const hasLinkedInvoiceEvidence =
     !!invoicing.invoiceId ||
@@ -401,29 +403,29 @@ export function getTripInvoicingBadgeConfig(
   if (hasLinkedInvoiceEvidence || invoicing.hasActiveInvoice) {
     switch (invoicing.invoiceStatus) {
       case "draft":
-        return { label: "Borrador", variant: "secondary" };
+        return { label: labels.draft, variant: "secondary" };
       case "stamped":
-        return { label: "Facturado", variant: "default" };
+        return { label: labels.stamped, variant: "default" };
       case "cancellation_pending":
-        return { label: "Pend. cancelación", variant: "destructive" };
+        return { label: labels.cancellationPending, variant: "destructive" };
       case "cancelled":
-        return { label: "Cancelado", variant: "outline" };
+        return { label: labels.cancelled, variant: "outline" };
       default:
         if (invoicing.hasActiveInvoice) {
-          return { label: "Facturado", variant: "default" };
+          return { label: labels.stamped, variant: "default" };
         }
         if (hasLinkedInvoiceEvidence) {
-          return { label: "Borrador", variant: "secondary" };
+          return { label: labels.draft, variant: "secondary" };
         }
         break;
     }
   }
 
   if (invoicing.canGenerateInvoice) {
-    return { label: "Disponible", variant: "outline" };
+    return { label: labels.available, variant: "outline" };
   }
 
-  return { label: "No Disponible", variant: "outline" };
+  return { label: labels.unavailable, variant: "outline" };
 }
 
 export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | null {

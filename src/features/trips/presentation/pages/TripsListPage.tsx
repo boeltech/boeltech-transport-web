@@ -2,10 +2,7 @@
  * TripsListPage
  * Clean Architecture - Presentation Layer (Pages)
  *
- * Página principal de listado de viajes.
- * Sin selección múltiple (checkboxes).
- *
- * Ubicación: src/features/trips/presentation/pages/TripsListPage.tsx
+ * Listado de viajes: operación primero, factura secundaria.
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -34,11 +31,14 @@ import {
   DialogFooter,
 } from "@shared/ui/dialog";
 import { Textarea } from "@shared/ui/text-area";
-import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
-import { usePermissions } from "@shared/permissions";
+import { HintIcon, SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import {
+  isClientPortalRole,
+  isDriverPortalRole,
+} from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import { Plus, Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 
-// Feature imports
 import {
   useTrips,
   useDeleteTrip,
@@ -57,9 +57,7 @@ import { TRIP_STATUS_CONFIG } from "../index";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { tripsListCopy } from "../copy/listCopy";
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = tripsListCopy;
 
 export function TripsListPage() {
   const navigate = useNavigate();
@@ -67,13 +65,11 @@ export function TripsListPage() {
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Estado para diálogos de confirmación
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
 
-  // Filtros principales (search + status + viewMode + paginación) vía hook compartido
   const filters = useListingFilters<"status">({
     filters: { status: {} },
     chipLabels: {
@@ -96,7 +92,6 @@ export function TripsListPage() {
       ? ("unassigned" as const)
       : originBranchIdParam || undefined;
 
-  // Fetch trips
   const { data, isLoading, isFetching, refetch } = useTrips({
     page: filters.page,
     limit: 10,
@@ -127,15 +122,14 @@ export function TripsListPage() {
 
   const overdueTripCount = overdueCountData?.pagination.total ?? 0;
 
-  // Mutations
   const deleteMutation = useDeleteTrip({
     onSuccess: () => {
-      toast({ title: "Viaje eliminado", variant: "success" });
+      toast({ title: copy.toast.deleted, variant: "success" });
       refetch();
     },
     onError: (error) => {
       toast({
-        title: "Error al eliminar",
+        title: copy.toast.deleteError,
         description: error.message,
         variant: "destructive",
       });
@@ -144,18 +138,17 @@ export function TripsListPage() {
 
   const cancelMutation = useCancelTrip({
     onSuccess: () => {
-      toast({ title: "Viaje cancelado", variant: "success" });
+      toast({ title: copy.toast.cancelled, variant: "success" });
       refetch();
     },
     onError: (error) =>
       toast({
-        title: "Error al cancelar",
+        title: copy.toast.cancelError,
         description: error.message,
         variant: "destructive",
       }),
   });
 
-  // Data
   const trips = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
@@ -169,20 +162,29 @@ export function TripsListPage() {
     hasOverdueFilter ||
     hasOriginBranchFilter;
 
-  // Permissions
+  /** Filtros del panel (sin búsqueda ni overdue toggle de toolbar). */
+  const hasPanelFilters =
+    Boolean(status) ||
+    hasDateFilter ||
+    hasFiscalFilter ||
+    hasOriginBranchFilter;
+
   const canCreate = hasPermission("trips", "create");
   const canEdit = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
+  const role = useRole();
+  const isClientPortal = isClientPortalRole(role);
+  const isDriverPortal = isDriverPortalRole(role);
+  const isLeanTripPortal = isClientPortal || isDriverPortal;
 
-  const dateFilterChipLabel = tripsListCopy.chip.date(
+  const dateFilterChipLabel = copy.chip.date(
     formatListingDateRangeLabel(
       dateFrom,
       dateTo,
-      tripsListCopy.filter.datePlaceholder,
+      copy.filter.datePlaceholder,
     ),
   );
 
-  // Handlers
   const handleView = useCallback(
     (id: string) => navigate(`/trips/${id}`),
     [navigate],
@@ -291,13 +293,17 @@ export function TripsListPage() {
     });
   }, [overdueOnly, setSearchParams]);
 
+  const goCreateReserve = useCallback(() => {
+    navigate("/trips/new?intent=reserve");
+  }, [navigate]);
+
   const activeFilterChips: ActiveFilterChip[] = [
     ...filters.activeChips,
     ...(fiscalAttentionOnly
       ? [
           {
             id: "fiscal",
-            label: tripsListCopy.chip.fiscalAttention,
+            label: copy.chip.fiscalAttention,
             onRemove: () => handleFiscalAttentionChange(false),
           },
         ]
@@ -306,7 +312,7 @@ export function TripsListPage() {
       ? [
           {
             id: "invoice-status",
-            label: tripsListCopy.chip.invoice(
+            label: copy.chip.invoice(
               getTripInvoiceStatusLabel(invoiceStatusFilter),
             ),
             onRemove: () => handleInvoiceStatusChange("all"),
@@ -317,7 +323,7 @@ export function TripsListPage() {
       ? [
           {
             id: "overdue",
-            label: tripsListCopy.chip.overdue,
+            label: copy.chip.overdue,
             onRemove: () => {
               setSearchParams((prev) => {
                 const params = new URLSearchParams(prev);
@@ -335,8 +341,8 @@ export function TripsListPage() {
             id: "origin-branch",
             label:
               originBranchFilter === "unassigned"
-                ? tripsListCopy.chip.originBranchUnassigned
-                : tripsListCopy.chip.originBranch(originBranchIdParam),
+                ? copy.chip.originBranchUnassigned
+                : copy.chip.originBranch(originBranchIdParam),
             onRemove: () => {
               setSearchParams((prev) => {
                 const params = new URLSearchParams(prev);
@@ -362,15 +368,27 @@ export function TripsListPage() {
   return (
     <>
       <ListPageShell
-        title="Viajes"
-        description="Gestiona los viajes de tu flota"
+        title={
+          isClientPortal
+            ? copy.page.titleClient
+            : isDriverPortal
+              ? copy.page.titleDriver
+              : copy.page.title
+        }
+        description={
+          isClientPortal
+            ? copy.page.descriptionClient
+            : isDriverPortal
+              ? copy.page.descriptionDriver
+              : copy.page.description
+        }
         beforeToolbar={
-          !overdueOnly && overdueTripCount > 0 ? (
+          !isLeanTripPortal && !overdueOnly && overdueTripCount > 0 ? (
             <Alert variant="warning">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>{tripsListCopy.banner.title}</AlertTitle>
+              <AlertTitle>{copy.banner.title}</AlertTitle>
               <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span>{tripsListCopy.banner.body(overdueTripCount)}</span>
+                <span>{copy.banner.body(overdueTripCount)}</span>
                 <Button
                   type="button"
                   variant="outline"
@@ -378,76 +396,98 @@ export function TripsListPage() {
                   className="shrink-0 border-warning/40 bg-background"
                   onClick={handleOverdueToggle}
                 >
-                  {tripsListCopy.banner.action}
+                  {copy.banner.action}
                 </Button>
               </AlertDescription>
             </Alert>
           ) : undefined
         }
         primaryAction={{
-          label: tripsListCopy.actions.reserve,
+          label: copy.actions.create,
           icon: <CalendarPlus className="h-4 w-4" />,
-          onClick: () => navigate("/trips/new?intent=reserve"),
+          onClick: goCreateReserve,
           visible: canCreate,
         }}
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: tripsListCopy.filter.searchPlaceholder,
+            placeholder: isClientPortal
+              ? copy.filter.searchPlaceholderClient
+              : isDriverPortal
+                ? copy.filter.searchPlaceholderDriver
+                : copy.filter.searchPlaceholder,
           },
           filters: (
             <TripListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
               status={status}
               fiscalAttentionOnly={fiscalAttentionOnly}
               invoiceStatusFilter={invoiceStatusFilter}
               dateFrom={dateFrom}
               dateTo={dateTo}
+              hasActiveFilters={hasPanelFilters}
               onStatusChange={handleStatusChange}
               onFiscalAttentionChange={handleFiscalAttentionChange}
               onInvoiceStatusChange={handleInvoiceStatusChange}
               onApplyDateRange={handleApplyDateRange}
               onClearDateRange={handleClearDateRange}
+              hideInvoiceFilters={isLeanTripPortal}
             />
           ),
           extraActions: (
             <>
               {canCreate ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/trips/new")}
-                >
-                  <Plus className="h-4 w-4" />
-                  {tripsListCopy.actions.createFull}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/trips/new")}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {copy.actions.createFull}
+                  </Button>
+                  <HintIcon
+                    label={copy.createFullHint.label}
+                    side="bottom"
+                    className="shrink-0"
+                  >
+                    {copy.createFullHint.body}
+                  </HintIcon>
+                </div>
               ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => filters.setFilter("status", TripStatus.DRAFT)}
-              >
-                {tripsListCopy.actions.viewDrafts}
-              </Button>
-              <Button
-                type="button"
-                variant={overdueOnly ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  overdueOnly &&
-                    "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
-                )}
-                onClick={handleOverdueToggle}
-              >
-                <Clock className="mr-2 h-4 w-4" />
-                {tripsListCopy.filter.overdue}
-              </Button>
+              {!isLeanTripPortal ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      filters.setFilter("status", TripStatus.DRAFT)
+                    }
+                  >
+                    {copy.actions.viewDrafts}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={overdueOnly ? "secondary" : "outline"}
+                    size="sm"
+                    className={cn(
+                      overdueOnly &&
+                        "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
+                    )}
+                    onClick={handleOverdueToggle}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    {copy.filter.overdue}
+                  </Button>
+                </>
+              ) : null}
             </>
           ),
           onRefresh: async () => {
             await refetch();
-            toast({ title: tripsListCopy.refreshSuccess, variant: "success" });
+            toast({ title: copy.refreshSuccess, variant: "success" });
           },
           isRefreshing: isFetching,
           activeFilterChips,
@@ -468,7 +508,13 @@ export function TripsListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
-        entityLabelPlural="viajes"
+        entityLabelPlural={
+          isClientPortal
+            ? copy.entityLabelPluralClient
+            : isDriverPortal
+              ? copy.entityLabelPluralDriver
+              : copy.entityLabelPlural
+        }
         renderTable={() => (
           <TripTable
             trips={trips}
@@ -477,6 +523,8 @@ export function TripsListPage() {
             onEdit={canEdit ? handleEdit : undefined}
             onDelete={canDelete ? handleDelete : undefined}
             onCancel={canEdit ? handleCancel : undefined}
+            hideClientColumn={isLeanTripPortal}
+            hideFiscalAttentionBadge={isLeanTripPortal}
           />
         )}
         renderCards={() =>
@@ -488,6 +536,7 @@ export function TripsListPage() {
               onEdit={canEdit ? handleEdit : undefined}
               onDelete={canDelete ? handleDelete : undefined}
               onCancel={canEdit ? handleCancel : undefined}
+              hideClient={isLeanTripPortal}
             />
           ))
         }
@@ -495,23 +544,31 @@ export function TripsListPage() {
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
           title: hasOverdueFilter
-            ? tripsListCopy.empty.overdueTitle
-            : "No se encontraron viajes",
+            ? copy.empty.overdueTitle
+            : isClientPortal
+              ? copy.empty.titleClient
+              : isDriverPortal
+                ? copy.empty.titleDriver
+                : copy.empty.title,
           description: hasOverdueFilter
-            ? tripsListCopy.empty.overdueDescription
+            ? copy.empty.overdueDescription
             : hasFilters
-              ? "Intenta ajustar los filtros de búsqueda"
-              : "Comienza creando tu primer viaje",
+              ? copy.empty.filteredDescription
+              : isClientPortal
+                ? copy.empty.noDataDescriptionClient
+                : isDriverPortal
+                  ? copy.empty.noDataDescriptionDriver
+                  : copy.empty.noDataDescription,
           cta: canCreate
             ? {
-                label: "Nuevo Viaje",
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () => navigate("/trips/new"),
+                label: copy.actions.create,
+                icon: <CalendarPlus className="h-4 w-4" />,
+                onClick: goCreateReserve,
               }
             : undefined,
           secondaryCta: hasFilters
             ? {
-                label: "Limpiar filtros",
+                label: copy.actions.clearFilters,
                 onClick: clearAllTripsFilters,
                 variant: "outline",
               }
@@ -519,37 +576,29 @@ export function TripsListPage() {
         }}
       />
 
-      {/* ================================================================ */}
-      {/* DIÁLOGO: Confirmar eliminación                                   */}
-      {/* ================================================================ */}
       <AlertDialog
         open={!!pendingDeleteId}
         onOpenChange={(open) => !open && setPendingDeleteId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
+            <AlertDialogTitle>{copy.dialog.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. El viaje y todos sus datos
-              asociados (paradas, cargas y gastos) serán eliminados
-              permanentemente.
+              {copy.dialog.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{copy.dialog.deleteCancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Eliminar
+              {copy.dialog.deleteConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ================================================================ */}
-      {/* DIÁLOGO: Cancelar viaje con motivo                               */}
-      {/* ================================================================ */}
       <Dialog
         open={!!cancelDialogId}
         onOpenChange={(open) => !open && setCancelDialogId(null)}
@@ -558,29 +607,24 @@ export function TripsListPage() {
           <DialogHeader>
             <DialogTitle>
               <SectionHeadingWithHint
-                title="Cancelar viaje"
+                title={copy.dialog.cancelTitle}
                 titleClassName="text-lg font-semibold leading-none tracking-tight"
-                hintLabel="Cancelar viaje"
-                hint={
-                  <>
-                    ¿Está seguro de que desea cancelar este viaje? Esta acción cambiará el estado a
-                    «Cancelado».
-                  </>
-                }
+                hintLabel={copy.dialog.cancelTitle}
+                hint={copy.dialog.cancelHint}
               />
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Motivo de cancelación{" "}
-                <span className="text-muted-foreground font-normal">
-                  (opcional)
+                {copy.dialog.cancelReasonLabel}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {copy.dialog.cancelReasonOptional}
                 </span>
               </label>
               <Textarea
                 ref={cancelReasonRef}
-                placeholder="Ej: Cliente solicitó cancelación, condiciones climáticas adversas..."
+                placeholder={copy.dialog.cancelReasonPlaceholder}
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={3}
@@ -589,10 +633,10 @@ export function TripsListPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelDialogId(null)}>
-              Volver
+              {copy.dialog.cancelBack}
             </Button>
             <Button variant="destructive" onClick={confirmCancel}>
-              Cancelar viaje
+              {copy.dialog.cancelConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>

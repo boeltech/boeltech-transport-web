@@ -54,6 +54,8 @@ export type CargoActionInlineProps = {
   pending?: boolean;
   disabled?: boolean;
   title?: string;
+  /** Microcopy bajo el botón; en detalle lean del hub va en `false`. */
+  showTransition?: boolean;
   className?: string;
 };
 
@@ -63,6 +65,7 @@ export function CargoActionInline({
   pending = false,
   disabled = false,
   title,
+  showTransition = true,
   className,
 }: CargoActionInlineProps) {
   const transitionId = useId();
@@ -79,7 +82,7 @@ export function CargoActionInline({
         disabled={disabled || pending}
         title={title}
         onClick={onClick}
-        aria-describedby={transitionId}
+        aria-describedby={showTransition ? transitionId : undefined}
       >
         {pending ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -88,9 +91,11 @@ export function CargoActionInline({
         )}
         <span className="font-medium">{meta.label}</span>
       </Button>
-      <p id={transitionId} className="text-xs text-muted-foreground">
-        {CARGO_TRANSITION_COPY[meta.transition]}
-      </p>
+      {showTransition ? (
+        <p id={transitionId} className="text-xs text-muted-foreground">
+          {CARGO_TRANSITION_COPY[meta.transition]}
+        </p>
+      ) : null}
     </div>
   );
 }

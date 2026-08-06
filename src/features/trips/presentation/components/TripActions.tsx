@@ -377,6 +377,17 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
 
   if (variant === "dropdown") {
+    const hasMutationMenuItems =
+      (canEditTrip && Boolean(onEdit)) ||
+      (canSchedule && Boolean(onSchedule)) ||
+      (canCancelTrip && Boolean(onCancel)) ||
+      (canDeleteTrip && Boolean(onDelete));
+
+    // Read-only (p. ej. portal client): la fila ya navega al detalle; sin ⋯ vacío.
+    if (!hasMutationMenuItems) {
+      return null;
+    }
+
     const hasStateActions =
       (canSchedule && onSchedule) || (canCancelTrip && onCancel);
 
@@ -389,7 +400,6 @@ export function TripActions(props: TripActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {/* Ver detalles */}
           {onView && (
             <DropdownMenuItem onClick={() => onView(id)}>
               <Eye className="mr-2 h-4 w-4" />
@@ -397,7 +407,6 @@ export function TripActions(props: TripActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Editar */}
           {canEditTrip && onEdit && (
             <DropdownMenuItem onClick={() => onEdit(id)}>
               <Pencil className="mr-2 h-4 w-4" />
@@ -405,7 +414,6 @@ export function TripActions(props: TripActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Acciones de estado */}
           {hasStateActions && (
             <>
               <DropdownMenuSeparator />
@@ -429,7 +437,6 @@ export function TripActions(props: TripActionsProps) {
             </>
           )}
 
-          {/* Eliminar */}
           {canDeleteTrip && onDelete && (
             <>
               <DropdownMenuSeparator />

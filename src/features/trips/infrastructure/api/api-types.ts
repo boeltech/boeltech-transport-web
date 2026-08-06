@@ -43,7 +43,7 @@ export interface ApiClientRefResponse {
 
 export interface ApiTripFiscalActionRequiredResponse {
   invoice_id: string;
-  invoice_status: "draft" | "stamped" | "cancellation_pending" | "cancelled";
+  invoice_status: "draft" | "stamping" | "stamped" | "cancellation_pending" | "cancelled";
   cfdi_uuid?: string | null;
   suggested_actions?: string[];
 }
@@ -63,7 +63,7 @@ export interface ApiTripInvoicingResponse {
   invoice_id?: string | null;
   invoice_folio?: string | null;
   invoice_cfdi_uuid?: string | null;
-  invoice_status?: "draft" | "stamped" | "cancellation_pending" | "cancelled" | null;
+  invoice_status?: "draft" | "stamping" | "stamped" | "cancellation_pending" | "cancelled" | null;
   accessory_invoices?: ApiTripAccessoryInvoice[];
   block_reason?: string | null;
 }

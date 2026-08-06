@@ -66,7 +66,8 @@ import {
   getOrderedStops,
 } from "@features/trips/domain";
 
-import { usePermissions } from "@shared/permissions";
+import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import {
   getTripStatusConfig,
   TripActions,
@@ -121,9 +122,18 @@ export function TripDetailPage() {
   /** Origen real (bandeja de aprobaciones, factura…) o el listado de viajes. */
   const backHref = (location.state?.from as string | undefined) ?? "/trips";
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isClientPortal = isClientPortalRole(role);
+  const isDriverPortal = isDriverPortalRole(role);
+  const isLeanTripPortal = isClientPortal || isDriverPortal;
   const tripId = id || "";
   const canUpdateTrip = hasPermission("trips", "update");
   const canApproveTripExpenses = hasPermission("finance_approvals", "update");
+  const canReadInvoices = hasPermission("invoices", "read");
+  const canFetchExpenses = !isLeanTripPortal;
+
+  const resolvedActiveTab =
+    isLeanTripPortal && activeTab === "costs" ? "overview" : activeTab;
 
   // ══════════════════════════════════════════════════════════════════════════
   // QUERIES
@@ -137,13 +147,25 @@ export function TripDetailPage() {
   } = useTrip(tripId);
 
   const { data: trackingTimeline } = useTripTimeline(tripId, {
-    enabled: shouldFetchTripTimeline(activeTab, tripId, trip?.status),
+    enabled: shouldFetchTripTimeline(
+      resolvedActiveTab,
+      tripId,
+      trip?.status,
+    ),
   });
   const hasOpenTrackingIncident =
     trackingTimeline?.trip.hasOpenIncident === true;
 
-  const fetchCargos = shouldFetchTripCargos(activeTab, tripId, trip?.status);
-  const fetchExpenses = shouldFetchTripExpenses(activeTab, tripId);
+  const fetchCargos = shouldFetchTripCargos(
+    resolvedActiveTab,
+    tripId,
+    trip?.status,
+  );
+  const fetchExpenses = shouldFetchTripExpenses(
+    resolvedActiveTab,
+    tripId,
+    canFetchExpenses,
+  );
 
   const {
     data: cargos = [],
@@ -164,8 +186,24 @@ export function TripDetailPage() {
   });
 
   const { data: expensesSummary } = useTripExpensesSummary(tripId, {
-    enabled: shouldFetchTripExpensesSummary(activeTab, tripId),
+    enabled: shouldFetchTripExpensesSummary(
+      resolvedActiveTab,
+      tripId,
+      canFetchExpenses,
+    ),
   });
+
+  useEffect(() => {
+    if (!isLeanTripPortal || searchParams.get("tab") !== "costs") return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("tab");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [isLeanTripPortal, searchParams, setSearchParams]);
 
   // Stops del viaje (vienen en el trip o se pueden obtener separados)
   const stops = trip?.stops ?? [];
@@ -202,7 +240,7 @@ export function TripDetailPage() {
 
     const cards: ReactElement[] = [];
 
-    if (trip.requiresFiscalAttention) {
+    if (!isLeanTripPortal && trip.requiresFiscalAttention) {
       cards.push(
         <DetailAlertCard
           key="fiscal-attention"
@@ -218,7 +256,7 @@ export function TripDetailPage() {
       );
     }
 
-    if (displayStatus === TripStatus.DRAFT) {
+    if (displayStatus === TripStatus.DRAFT && !isLeanTripPortal) {
       cards.push(
         <DetailAlertCard
           key="draft-reserve"
@@ -354,6 +392,7 @@ export function TripDetailPage() {
     comparisonNowMs,
     hasOpenTrackingIncident,
     canUpdateTrip,
+    isLeanTripPortal,
   ]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -450,55 +489,85 @@ export function TripDetailPage() {
         ),
         actions: (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <TripInvoiceActions trip={trip} presentation="headerMenu" />
-            <TripActions
-              variant="detailMenu"
-              tripId={trip.id}
-              tripCode={trip.tripCode}
-              status={resolvedDisplayStatus}
-              onActionComplete={(updated) => {
-                refetchTrip();
-                refetchCargos();
-                refetchExpenses();
-                const f = updated?.fiscalActionRequired;
-                if (f) {
-                  const lines: string[] = [];
-                  if (f.suggestedActions?.length) {
-                    lines.push(...f.suggestedActions);
-                  }
-                  if (f.cfdiUuid) {
-                    lines.push(shell.alert.postCancelFiscalInvoiceRef(f.cfdiUuid));
-                  }
-                  lines.push(
-                    shell.alert.postCancelFiscalInvoiceStatus(f.invoiceStatus),
-                  );
-                  setPostCancelFiscal({
-                    title: shell.alert.postCancelFiscalTitle,
-                    lines,
-                  });
-                }
-              }}
-            />
+            {isClientPortal ? (
+              canReadInvoices ? (
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <Link
+                    to={
+                      trip.invoicing.invoiceId
+                        ? `/invoices/${trip.invoicing.invoiceId}`
+                        : "/finance?tab=invoices"
+                    }
+                  >
+                    <Receipt className="mr-1.5 h-4 w-4" />
+                    {shell.action.viewInvoices}
+                  </Link>
+                </Button>
+              ) : null
+            ) : isDriverPortal ? null : (
+              <>
+                <TripInvoiceActions trip={trip} presentation="headerMenu" />
+                <TripActions
+                  variant="detailMenu"
+                  tripId={trip.id}
+                  tripCode={trip.tripCode}
+                  status={resolvedDisplayStatus}
+                  onActionComplete={(updated) => {
+                    refetchTrip();
+                    refetchCargos();
+                    refetchExpenses();
+                    const f = updated?.fiscalActionRequired;
+                    if (f) {
+                      const lines: string[] = [];
+                      if (f.suggestedActions?.length) {
+                        lines.push(...f.suggestedActions);
+                      }
+                      if (f.cfdiUuid) {
+                        lines.push(
+                          shell.alert.postCancelFiscalInvoiceRef(f.cfdiUuid),
+                        );
+                      }
+                      lines.push(
+                        shell.alert.postCancelFiscalInvoiceStatus(
+                          f.invoiceStatus,
+                        ),
+                      );
+                      setPostCancelFiscal({
+                        title: shell.alert.postCancelFiscalTitle,
+                        lines,
+                      });
+                    }
+                  }}
+                />
+              </>
+            )}
           </div>
         ),
       }}
       alerts={tripAlerts}
       preStats={
-        <TripFiscalSection
-          trip={trip}
-          postCancelFiscal={
-            postCancelFiscal
-              ? {
-                  title: postCancelFiscal.title,
-                  lines: postCancelFiscal.lines,
-                  onDismiss: () => setPostCancelFiscal(null),
-                }
-              : undefined
-          }
-        />
+        isLeanTripPortal ? undefined : (
+          <TripFiscalSection
+            trip={trip}
+            postCancelFiscal={
+              postCancelFiscal
+                ? {
+                    title: postCancelFiscal.title,
+                    lines: postCancelFiscal.lines,
+                    onDismiss: () => setPostCancelFiscal(null),
+                  }
+                : undefined
+            }
+          />
+        )
       }
       stats={(() => {
         const status = resolvedDisplayStatus;
+        const baseRateTitle = isClientPortal
+          ? shell.stat.baseRateClient
+          : isDriverPortal
+            ? shell.stat.baseRateDriver
+            : shell.stat.baseRate;
         const rateValue =
           trip.costs.baseRate > 0
             ? formatCurrency(trip.costs.baseRate)
@@ -538,7 +607,7 @@ export function TripDetailPage() {
               icon: <Navigation className="h-5 w-5" />,
             },
             {
-              title: shell.stat.baseRate,
+              title: baseRateTitle,
               value: rateValue,
               tone: "success" as const,
               icon: <DollarSign className="h-5 w-5" />,
@@ -632,7 +701,7 @@ export function TripDetailPage() {
                 : undefined,
           },
           {
-            title: shell.stat.baseRate,
+            title: baseRateTitle,
             value: rateValue,
             tone: "success" as const,
             icon: <DollarSign className="h-5 w-5" />,
@@ -641,8 +710,9 @@ export function TripDetailPage() {
       })()}
       tabs={{
         defaultValue: "overview",
-        value: activeTab,
+        value: resolvedActiveTab,
         onValueChange: (value) => {
+          if (isLeanTripPortal && value === "costs") return;
           setSearchParams(
             (prev) => {
               const next = new URLSearchParams(prev);
@@ -659,11 +729,17 @@ export function TripDetailPage() {
         items: [
           {
             value: "overview",
-            label: shell.tab.operation,
+            label: isClientPortal
+              ? shell.tab.operationClient
+              : isDriverPortal
+                ? shell.tab.operationDriver
+                : shell.tab.operation,
             content: (
               <TripDetailOperationTab
                 trip={tripForMetrics}
                 canEditStructural={canEditStructural}
+                showClientLink={!isLeanTripPortal}
+                showMileage={!isClientPortal}
               />
             ),
           },
@@ -751,42 +827,46 @@ export function TripDetailPage() {
               </Suspense>
             ),
           },
-          {
-            value: "costs",
-            label: (
-              <span className="inline-flex items-center gap-1">
-                {shell.tab.costs}
-                {pendingExpenses > 0 ? (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {pendingExpenses}
-                  </Badge>
-                ) : null}
-              </span>
-            ),
-            content: (
-              <Suspense fallback={<TripDetailTabFallback />}>
-                <TripDetailCostsTabLazy
-                  tripId={trip.id}
-                  tripStatus={resolvedDisplayStatus}
-                  baseRate={trip.costs.baseRate}
-                  cfdiDocumentIntent={trip.cfdiDocumentIntent}
-                  clientId={trip.client?.id}
-                  vehicleId={trip.vehicle?.id}
-                  stops={orderedStops}
-                  expenses={expenses}
-                  expensesSummary={expensesSummary}
-                  isLoading={isLoadingExpenses}
-                  isError={isErrorExpenses}
-                  onRetry={() => refetchExpenses()}
-                  canEditBaseRate={canEditBaseRate}
-                  canManageExpenses={canManageExpensesOnTrip}
-                  canApproveExpenses={canApproveTripExpenses}
-                  pendingExpenseCount={pendingExpenses}
-                  tripCode={trip.tripCode}
-                />
-              </Suspense>
-            ),
-          },
+          ...(isLeanTripPortal
+            ? []
+            : [
+                {
+                  value: "costs" as const,
+                  label: (
+                    <span className="inline-flex items-center gap-1">
+                      {shell.tab.costs}
+                      {pendingExpenses > 0 ? (
+                        <Badge variant="secondary" className="ml-1 text-xs">
+                          {pendingExpenses}
+                        </Badge>
+                      ) : null}
+                    </span>
+                  ),
+                  content: (
+                    <Suspense fallback={<TripDetailTabFallback />}>
+                      <TripDetailCostsTabLazy
+                        tripId={trip.id}
+                        tripStatus={resolvedDisplayStatus}
+                        baseRate={trip.costs.baseRate}
+                        cfdiDocumentIntent={trip.cfdiDocumentIntent}
+                        clientId={trip.client?.id}
+                        vehicleId={trip.vehicle?.id}
+                        stops={orderedStops}
+                        expenses={expenses}
+                        expensesSummary={expensesSummary}
+                        isLoading={isLoadingExpenses}
+                        isError={isErrorExpenses}
+                        onRetry={() => refetchExpenses()}
+                        canEditBaseRate={canEditBaseRate}
+                        canManageExpenses={canManageExpensesOnTrip}
+                        canApproveExpenses={canApproveTripExpenses}
+                        pendingExpenseCount={pendingExpenses}
+                        tripCode={trip.tripCode}
+                      />
+                    </Suspense>
+                  ),
+                },
+              ]),
           {
             value: "history",
             label: shell.tab.history,

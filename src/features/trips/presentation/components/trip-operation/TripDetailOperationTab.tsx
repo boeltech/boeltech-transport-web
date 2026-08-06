@@ -11,6 +11,7 @@ import {
 import type { ClientRef, Trip } from "@features/trips/domain";
 import { formatMileage } from "@features/trips";
 import { useInternalStaffEntitlement } from "@features/billing";
+import { cn } from "@shared/lib/utils/cn";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -27,6 +28,10 @@ export interface TripDetailOperationTabProps {
   /** Viaje completo (programación sincroniza `scheduledArrival` con parada destino). */
   trip: Trip;
   canEditStructural: boolean;
+  /** Portal cliente: sin enlace al módulo Clientes. */
+  showClientLink?: boolean;
+  /** Portal cliente: sin odómetro inicial/final. */
+  showMileage?: boolean;
 }
 
 function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
@@ -37,10 +42,12 @@ function ClientContractCard({
   client,
   clientId,
   cfdiDocumentIntent,
+  showClientLink,
 }: {
   client?: ClientRef;
   clientId: string | null;
   cfdiDocumentIntent: Trip["cfdiDocumentIntent"];
+  showClientLink: boolean;
 }) {
   return (
     <Card>
@@ -55,7 +62,7 @@ function ClientContractCard({
               {copy.hint.client}
             </CardDescription>
           </div>
-          {client ? (
+          {showClientLink && client ? (
             <Button type="button" size="sm" variant="outline" className="shrink-0" asChild>
               <Link to={`/clients/${client.id}`}>
                 {copy.action.viewClient}
@@ -88,6 +95,8 @@ function ClientContractCard({
 export function TripDetailOperationTab({
   trip,
   canEditStructural,
+  showClientLink = true,
+  showMileage = true,
 }: TripDetailOperationTabProps) {
   const {
     hasModule: hasInternalStaffModule,
@@ -104,9 +113,15 @@ export function TripDetailOperationTab({
         client={trip.client}
         clientId={trip.clientId}
         cfdiDocumentIntent={trip.cfdiDocumentIntent}
+        showClientLink={showClientLink}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-6",
+          showMileage ? "lg:grid-cols-3" : "lg:grid-cols-2",
+        )}
+      >
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -181,7 +196,7 @@ export function TripDetailOperationTab({
                       está activo en tu cuenta. Los datos se muestran solo lectura.
                     </p>
                     <Button variant="link" className="mt-2 h-auto p-0" asChild>
-                      <Link to="/settings/subscription">Ver plan y consumo</Link>
+                      <Link to="/settings/subscription">Ver Tu plan</Link>
                     </Button>
                   </DetailAlertCard>
                 ) : null}
@@ -214,21 +229,23 @@ export function TripDetailOperationTab({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Gauge className="h-4 w-4 shrink-0 text-primary" />
-              {copy.section.mileage}
-            </CardTitle>
-            <CardDescription>
-              {copy.hint.mileage}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
-            <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
-          </CardContent>
-        </Card>
+        {showMileage ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Gauge className="h-4 w-4 shrink-0 text-primary" />
+                {copy.section.mileage}
+              </CardTitle>
+              <CardDescription>
+                {copy.hint.mileage}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
+              <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {trip.notes ? (

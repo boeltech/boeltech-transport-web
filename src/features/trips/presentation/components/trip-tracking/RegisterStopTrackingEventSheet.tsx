@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Navigation } from "lucide-react";
+import { Loader2, MapPin, Navigation } from "lucide-react";
 
 import type { TripCargo, TripStop } from "@features/trips/domain";
 import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
@@ -20,11 +20,7 @@ import {
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { trackingCopy } from "../../copy";
-import {
-  formatArrivalButtonLabel,
-  formatDepartureButtonLabel,
-  formatStopActionTooltip,
-} from "../trackingActionLabels";
+import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import {
   trackingGpsToEventFields,
@@ -68,6 +64,22 @@ function stopToastLabel(
   if (stop.locationName?.trim()) return stop.locationName.trim();
   if (displayOrder != null) return `Parada ${displayOrder}`;
   return "parada";
+}
+
+/** Contexto lean: Parada N · Tipo · lugar (sin duplicar el título del sheet). */
+function formatStopContextLine(
+  stop: TripStop,
+  displayOrder: number | undefined,
+): string {
+  const place = stop.locationName?.trim();
+  if (displayOrder != null) {
+    const short = formatStopActionShortLabel(stop, displayOrder);
+    if (place && !short.includes(place)) {
+      return `${short} · ${place}`;
+    }
+    return short;
+  }
+  return place || "Parada";
 }
 
 type RegisterStopTrackingEventSheetBodyProps = {
@@ -154,9 +166,20 @@ function RegisterStopTrackingEventSheetBody({
       ? copy.label.occurredAtArrival
       : copy.label.occurredAtDeparture;
 
+  const confirmLabel =
+    mode === "arrival"
+      ? copy.action.confirmArrival
+      : copy.action.confirmDeparture;
+
+  const pending = registerMutation.isPending;
+
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+        <p className="text-sm text-muted-foreground">
+          {formatStopContextLine(stop, displayOrder)}
+        </p>
+
         <div className="space-y-2">
           <Label htmlFor="tracking-event-occurred-at">{occurredAtLabel}</Label>
           <div className="flex flex-wrap gap-2">
@@ -165,7 +188,7 @@ function RegisterStopTrackingEventSheetBody({
               type="datetime-local"
               value={occurredAt}
               onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={registerMutation.isPending}
+              disabled={pending}
               aria-invalid={fieldError ? true : undefined}
               className="min-w-[220px] flex-1"
             />
@@ -174,36 +197,39 @@ function RegisterStopTrackingEventSheetBody({
               variant="outline"
               size="sm"
               onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-              disabled={registerMutation.isPending}
+              disabled={pending}
             >
               {copy.action.now}
             </Button>
           </div>
           {fieldError ? (
             <p className="text-xs text-destructive">{fieldError}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {copy.validation.civilTimeHint}
-            </p>
-          )}
+          ) : null}
         </div>
 
         <TrackingGpsCaptureSection
           stop={stop}
           value={gps}
           onChange={setGps}
-          disabled={registerMutation.isPending}
+          disabled={pending}
+          variant="quiet"
         />
 
         <div className="space-y-2">
-          <Label htmlFor="tracking-event-notes">{copy.sheet.notesOptional}</Label>
+          <Label
+            htmlFor="tracking-event-notes"
+            className="text-muted-foreground"
+          >
+            {copy.sheet.notesOptional}
+          </Label>
           <Textarea
             id="tracking-event-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            disabled={registerMutation.isPending}
-            rows={3}
+            disabled={pending}
+            rows={2}
             placeholder={copy.sheet.notesPlaceholder}
+            className="text-sm"
           />
         </div>
       </div>
@@ -213,16 +239,19 @@ function RegisterStopTrackingEventSheetBody({
           variant="outline"
           className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
           onClick={() => onOpenChange(false)}
-          disabled={registerMutation.isPending}
+          disabled={pending}
         >
           {copy.action.cancel}
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={registerMutation.isPending}
+          disabled={pending}
           className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
         >
-          Registrar
+          {pending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          {confirmLabel}
         </Button>
       </SheetFooter>
     </>
@@ -239,18 +268,14 @@ export function RegisterStopTrackingEventSheet({
   open,
   onOpenChange,
 }: RegisterStopTrackingEventSheetProps) {
-  const title =
-    mode === "arrival"
-      ? formatArrivalButtonLabel(stop ?? undefined, displayOrder)
-      : formatDepartureButtonLabel(stop ?? undefined, displayOrder);
-
-  const tooltip =
-    stop && displayOrder != null
-      ? formatStopActionTooltip(stop, displayOrder)
-      : undefined;
-
-  const Icon = mode === "arrival" ? MapPin : Navigation;
   const copy = trackingCopy;
+  const title =
+    mode === "arrival" ? copy.action.arrive : copy.action.depart;
+  const description =
+    mode === "arrival"
+      ? copy.sheet.arrivalDescription
+      : copy.sheet.departureDescription;
+  const Icon = mode === "arrival" ? MapPin : Navigation;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -260,18 +285,8 @@ export function RegisterStopTrackingEventSheet({
             <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span>{title}</span>
           </SheetTitle>
-          <SheetDescription>
-            {mode === "arrival"
-              ? copy.sheet.arrivalDescription
-              : copy.sheet.departureDescription}
-          </SheetDescription>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
-
-        {tooltip ? (
-          <p className="text-xs text-muted-foreground whitespace-pre-line">
-            {tooltip}
-          </p>
-        ) : null}
 
         {open && stop ? (
           <RegisterStopTrackingEventSheetBody

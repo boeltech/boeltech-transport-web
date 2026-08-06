@@ -1,13 +1,18 @@
 /**
- * Bloque compartido de asignación vehículo/conductor (wizard completo + reserva).
+ * Bloque compartido de asignación unidad/conductor (wizard completo + reserva).
  * Incluye «Ver toda la flota», docs vencidas, grupos y limpieza de selección.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
-import { AlertTriangle, Loader2, Truck, User } from "lucide-react";
+import { AlertTriangle, ChevronDown, Loader2, Truck, User } from "lucide-react";
 
 import { Badge } from "@shared/ui/badge";
 import { Checkbox } from "@shared/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
@@ -22,10 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { cn } from "@shared/lib/utils/cn";
 
 import { useToast } from "@shared/hooks";
+import { useAuth } from "@features/auth";
+import { ROLES } from "@shared/constants/roles";
 
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
+
+const ALLOW_EXPIRED_DOCS_ROLES = new Set([
+  ROLES.ADMIN,
+  ROLES.MANAGER,
+  ROLES.DISPATCHER,
+]);
 
 import { wizardCopy } from "../../../copy";
 import type { AssignableDriverItem } from "../tripAssignmentDrivers";
@@ -36,6 +50,9 @@ import {
 import type { TripWizardFormValues } from "./validation";
 
 const copy = wizardCopy.basicInfo;
+const reserveCopy = wizardCopy.shell.reserve;
+
+export type TripAssignmentDensity = "default" | "reserve";
 
 export interface TripAssignmentResourceFieldsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,6 +65,11 @@ export interface TripAssignmentResourceFieldsProps {
   excludedDriverEmployeeIds?: ReadonlySet<string>;
   /** Prefijo de ids HTML para evitar colisiones si hay varios mounts. */
   idPrefix?: string;
+  /**
+   * `reserve`: unidad/conductor primero; opciones de flota/docs en bloque
+   * colapsado (intake ADR-0071).
+   */
+  density?: TripAssignmentDensity;
 }
 
 export function TripAssignmentResourceFields({
@@ -58,16 +80,28 @@ export function TripAssignmentResourceFields({
   isLoadingDrivers,
   excludedDriverEmployeeIds,
   idPrefix = "",
+  density = "default",
 }: TripAssignmentResourceFieldsProps) {
   const { control } = form;
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
   const originBranchId = form.watch("originBranchId");
+  const isReserveDensity = density === "reserve";
 
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canAllowExpiredDocs =
+    user?.role != null && ALLOW_EXPIRED_DOCS_ROLES.has(user.role);
 
   const [showAllFleet, setShowAllFleet] = useState(false);
   const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
+  const [fleetOptionsOpen, setFleetOptionsOpen] = useState(!isReserveDensity);
+
+  useEffect(() => {
+    if (!canAllowExpiredDocs && allowExpiredDocs) {
+      setAllowExpiredDocs(false);
+    }
+  }, [canAllowExpiredDocs, allowExpiredDocs]);
 
   const showAllFleetId = `${idPrefix}showAllFleet`;
   const allowExpiredDocsId = `${idPrefix}allowExpiredDocs`;
@@ -242,50 +276,76 @@ export function TripAssignmentResourceFields({
     toast,
   ]);
 
-  return (
-    <div className="space-y-5">
-      <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
-        <p className="text-sm font-medium">{copy.section.listingOptions}</p>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id={showAllFleetId}
-              checked={showAllFleet}
-              onCheckedChange={(checked) => setShowAllFleet(checked === true)}
-            />
-            <Label htmlFor={showAllFleetId} className="text-sm font-normal">
-              {copy.label.showAllFleet}
-            </Label>
-          </div>
-          {!showAllFleet && originBranchId?.trim() ? (
-            <p className="pl-6 text-xs text-muted-foreground">
-              {copy.hint.fleetBranchFilter}
-            </p>
-          ) : null}
-        </div>
-        {hasExpiredDocsInScope ? (
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id={allowExpiredDocsId}
-              className="mt-0.5"
-              checked={allowExpiredDocs}
-              onCheckedChange={(checked) =>
-                setAllowExpiredDocs(checked === true)
-              }
-            />
-            <Label htmlFor={allowExpiredDocsId} className="cursor-pointer">
-              <SectionHeadingWithHint
-                noTitleWrap
-                title={copy.label.allowExpiredDocs}
-                hintLabel={copy.hintLabel.allowExpiredDocs}
-                hint={<>{copy.hint.allowExpiredDocs}</>}
-                titleClassName="text-sm font-normal"
-              />
-            </Label>
-          </div>
-        ) : null}
+  const fleetOptionsBody = (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={showAllFleetId}
+          checked={showAllFleet}
+          onCheckedChange={(checked) => setShowAllFleet(checked === true)}
+        />
+        <Label htmlFor={showAllFleetId} className="text-sm font-normal">
+          {copy.label.showAllFleet}
+        </Label>
       </div>
+      {!showAllFleet && originBranchId?.trim() ? (
+        <p className="pl-6 text-xs text-muted-foreground">
+          {copy.hint.fleetBranchFilter}
+        </p>
+      ) : null}
+      {hasExpiredDocsInScope && canAllowExpiredDocs ? (
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id={allowExpiredDocsId}
+            className="mt-0.5"
+            checked={allowExpiredDocs}
+            onCheckedChange={(checked) =>
+              setAllowExpiredDocs(checked === true)
+            }
+          />
+          <Label htmlFor={allowExpiredDocsId} className="cursor-pointer">
+            <SectionHeadingWithHint
+              noTitleWrap
+              title={copy.label.allowExpiredDocs}
+              hintLabel={copy.hintLabel.allowExpiredDocs}
+              hint={<>{copy.hint.allowExpiredDocs}</>}
+              titleClassName="text-sm font-normal"
+            />
+          </Label>
+        </div>
+      ) : null}
+    </div>
+  );
 
+  const fleetOptionsPanel = isReserveDensity ? (
+    <Collapsible open={fleetOptionsOpen} onOpenChange={setFleetOptionsOpen}>
+      <div className="rounded-lg border bg-muted/30">
+        <CollapsibleTrigger
+          type="button"
+          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium hover:bg-muted/50"
+        >
+          {reserveCopy.label.fleetOptions}
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              fleetOptionsOpen && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-border/60 px-3 py-3">
+          {fleetOptionsBody}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  ) : (
+    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+      <p className="text-sm font-medium">{copy.section.listingOptions}</p>
+      {fleetOptionsBody}
+    </div>
+  );
+
+  const assignmentFields = (
       <div className="grid gap-4 sm:grid-cols-2">
         <Controller
           control={control}
@@ -522,6 +582,21 @@ export function TripAssignmentResourceFields({
           )}
         />
       </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {isReserveDensity ? (
+        <>
+          {assignmentFields}
+          {fleetOptionsPanel}
+        </>
+      ) : (
+        <>
+          {fleetOptionsPanel}
+          {assignmentFields}
+        </>
+      )}
 
       {expiredAssignmentAlertItems.length > 0 ? (
         <DetailAlertCard

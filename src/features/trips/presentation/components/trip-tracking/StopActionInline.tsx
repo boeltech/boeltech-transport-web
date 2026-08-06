@@ -18,6 +18,11 @@ export type StopActionInlineProps = {
   variant?: "default" | "outline";
   /** `lg` en el hub operativo (única CTA de parada del tab). */
   size?: "sm" | "default" | "lg";
+  /**
+   * Microcopy de transición bajo el botón.
+   * En el hub lean (D2) va en `false`: título + CTA bastan.
+   */
+  showTransition?: boolean;
   className?: string;
 };
 
@@ -29,6 +34,7 @@ export function StopActionInline({
   disabled = false,
   variant = "outline",
   size = "sm",
+  showTransition = true,
   className,
 }: StopActionInlineProps) {
   const transitionId = useId();
@@ -49,16 +55,18 @@ export function StopActionInline({
         )}
         disabled={disabled || pending}
         onClick={onClick}
-        aria-describedby={transitionId}
+        aria-describedby={showTransition ? transitionId : undefined}
       >
         {pending ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-spin" />
         ) : null}
         <span className="font-medium">{label}</span>
       </Button>
-      <p id={transitionId} className="text-xs text-muted-foreground">
-        {transitionText}
-      </p>
+      {showTransition ? (
+        <p id={transitionId} className="text-xs text-muted-foreground">
+          {transitionText}
+        </p>
+      ) : null}
     </div>
   );
 }
