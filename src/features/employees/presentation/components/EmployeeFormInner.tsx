@@ -384,13 +384,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           : [],
         isEditing ? (existing?.branchId ?? undefined) : undefined,
       ),
-    [
-      branchesResult?.data,
-      branchesResult?.meta?.overQuota,
-      branchesResult?.meta?.planEligibleBranchIds,
-      existing?.branchId,
-      isEditing,
-    ],
+    [branchesResult, existing?.branchId, isEditing],
   );
   const hasBranchOptions = branchOptions.length > 0;
   const currentBranchOutsidePlan =
@@ -637,7 +631,8 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
       return next;
     };
 
-    const { domicilio, work_location: _legacyWorkLocation, ...employeeRest } = values;
+    const { domicilio, work_location, ...employeeRest } = values;
+    void work_location;
     const cleaned = normalizeForApi(
       clean(employeeRest as Record<string, unknown>),
     );

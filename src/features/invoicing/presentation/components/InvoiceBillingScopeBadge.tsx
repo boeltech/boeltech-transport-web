@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Badge } from "@shared/ui/badge";
 import type { InvoiceBillingScope } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";

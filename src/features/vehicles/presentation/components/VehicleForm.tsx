@@ -331,13 +331,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             : [],
           isEditMode ? (vehicle?.branchId ?? undefined) : undefined,
         ),
-      [
-        branchesResult?.data,
-        branchesResult?.meta?.overQuota,
-        branchesResult?.meta?.planEligibleBranchIds,
-        isEditMode,
-        vehicle?.branchId,
-      ],
+      [branchesResult, isEditMode, vehicle?.branchId],
     );
     const hasBranchOptions = branchOptions.length > 0;
     const currentBranchOutsidePlan =

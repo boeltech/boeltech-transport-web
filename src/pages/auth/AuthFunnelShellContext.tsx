@@ -2,6 +2,7 @@
  * Contexto del shell auth: permite inyectar contenido en el panel de marca
  * (p. ej. stepper vertical del registro) sin cambiar AuthLayout.
  */
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,

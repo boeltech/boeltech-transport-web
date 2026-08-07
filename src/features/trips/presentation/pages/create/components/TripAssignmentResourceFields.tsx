@@ -97,11 +97,7 @@ export function TripAssignmentResourceFields({
   const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
   const [fleetOptionsOpen, setFleetOptionsOpen] = useState(!isReserveDensity);
 
-  useEffect(() => {
-    if (!canAllowExpiredDocs && allowExpiredDocs) {
-      setAllowExpiredDocs(false);
-    }
-  }, [canAllowExpiredDocs, allowExpiredDocs]);
+  const effectiveAllowExpiredDocs = canAllowExpiredDocs && allowExpiredDocs;
 
   const showAllFleetId = `${idPrefix}showAllFleet`;
   const allowExpiredDocsId = `${idPrefix}allowExpiredDocs`;
@@ -129,11 +125,14 @@ export function TripAssignmentResourceFields({
   const assignableVehicles = scopedVehicles.filter((v) => v.canBeAssigned);
   const expiredDocsVehicles = scopedVehicles.filter(
     (v) =>
-      !v.canBeAssigned && allowExpiredDocs && v.expiredDocsOverridable === true,
+      !v.canBeAssigned &&
+      effectiveAllowExpiredDocs &&
+      v.expiredDocsOverridable === true,
   );
   const blockedVehicles = scopedVehicles.filter(
     (v) =>
-      !v.canBeAssigned && !(allowExpiredDocs && v.expiredDocsOverridable === true),
+      !v.canBeAssigned &&
+      !(effectiveAllowExpiredDocs && v.expiredDocsOverridable === true),
   );
 
   const hasExpiredDocsInScope = useMemo(
@@ -199,13 +198,13 @@ export function TripAssignmentResourceFields({
       (d) =>
         !d.canBeAssigned &&
         d.expiredDocsOverridable === true &&
-        allowExpiredDocs &&
+        effectiveAllowExpiredDocs &&
         keepInDriverSelect(d),
     );
     const blocked = scopedDrivers.filter(
       (d) =>
         !d.canBeAssigned &&
-        !(allowExpiredDocs && d.expiredDocsOverridable === true) &&
+        !(effectiveAllowExpiredDocs && d.expiredDocsOverridable === true) &&
         keepInDriverSelect(d),
     );
     return {
@@ -217,7 +216,7 @@ export function TripAssignmentResourceFields({
     scopedDrivers,
     excludedDriverEmployeeIds,
     selectedDriverId,
-    allowExpiredDocs,
+    effectiveAllowExpiredDocs,
   ]);
 
   useEffect(() => {
@@ -225,7 +224,7 @@ export function TripAssignmentResourceFields({
     const vehicle = vehicles.find((item) => item.id === selectedVehicleId);
     if (
       shouldClearVehicleSelection(vehicle, {
-        allowExpiredDocs,
+        allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(vehicle?.branchId),
       })
     ) {
@@ -239,7 +238,7 @@ export function TripAssignmentResourceFields({
       });
     }
   }, [
-    allowExpiredDocs,
+    effectiveAllowExpiredDocs,
     showAllFleet,
     originBranchId,
     selectedVehicleId,
@@ -254,7 +253,7 @@ export function TripAssignmentResourceFields({
     const driver = drivers.find((item) => item.id === selectedDriverId);
     if (
       shouldClearDriverSelection(driver, {
-        allowExpiredDocs,
+        allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(driver?.branchId),
       })
     ) {
@@ -266,7 +265,7 @@ export function TripAssignmentResourceFields({
       });
     }
   }, [
-    allowExpiredDocs,
+    effectiveAllowExpiredDocs,
     showAllFleet,
     originBranchId,
     selectedDriverId,
@@ -298,9 +297,9 @@ export function TripAssignmentResourceFields({
           <Checkbox
             id={allowExpiredDocsId}
             className="mt-0.5"
-            checked={allowExpiredDocs}
+            checked={effectiveAllowExpiredDocs}
             onCheckedChange={(checked) =>
-              setAllowExpiredDocs(checked === true)
+              setAllowExpiredDocs(canAllowExpiredDocs && checked === true)
             }
           />
           <Label htmlFor={allowExpiredDocsId} className="cursor-pointer">

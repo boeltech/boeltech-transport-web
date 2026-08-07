@@ -19,6 +19,7 @@ export interface GeolocationPanelMode {
 export function resolveGeolocationPanelMode(
   _input: ResolveGeolocationPanelModeInput,
 ): GeolocationPanelMode {
+  void _input;
   return {
     showSearchControls: true,
     showDistanceSection: false,

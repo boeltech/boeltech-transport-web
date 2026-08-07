@@ -119,9 +119,7 @@ export function TripDetailRouteTab({
   trip,
   tripStatus,
   orderedStops,
-  progress: _progress,
   canEditStructural,
-  cargos: _cargos = [],
   legacyRoute,
 }: TripDetailRouteTabProps) {
   const fiscal = useTripFiscalSheets({ trip, enableAutoRestamp: false });

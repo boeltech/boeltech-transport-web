@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- widget + helper */
 import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import config from "@shared/config/env";
 
@@ -44,7 +45,10 @@ export const TurnstileWidget = forwardRef<
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
-  onTokenRef.current = onToken;
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
 
   useImperativeHandle(ref, () => ({
     reset: () => {

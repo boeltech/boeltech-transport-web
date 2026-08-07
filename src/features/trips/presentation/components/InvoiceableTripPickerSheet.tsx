@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTrips } from "@features/trips/application";
 import type { TripListItem } from "@features/trips/domain";
 import { Button } from "@shared/ui/button";
@@ -75,19 +75,23 @@ export function InvoiceableTripPickerSheet({
   onSelect,
 }: InvoiceableTripPickerSheetProps) {
   const [searchInput, setSearchInput] = useState("");
-  const [page, setPage] = useState(1);
+  const [pageState, setPageState] = useState({ search: "", page: 1 });
   const debouncedSearch = useDebounce(searchInput, 300);
 
-  useEffect(() => {
-    if (!open) {
-      setSearchInput("");
-      setPage(1);
-    }
-  }, [open]);
+  const page =
+    pageState.search === debouncedSearch ? pageState.page : 1;
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
+  const setPage = (nextPage: number) => {
+    setPageState({ search: debouncedSearch, page: nextPage });
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSearchInput("");
+      setPageState({ search: "", page: 1 });
+    }
+    onOpenChange(nextOpen);
+  };
 
   const { data, isLoading, isError } = useTrips(
     {
@@ -107,11 +111,11 @@ export function InvoiceableTripPickerSheet({
 
   const handleSelect = (tripId: string) => {
     onSelect(tripId);
-    onOpenChange(false);
+    handleOpenChange(false);
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>

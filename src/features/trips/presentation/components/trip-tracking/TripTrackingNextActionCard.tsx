@@ -4,6 +4,7 @@ import {
   Navigation,
   Package,
   Send,
+  type LucideIcon,
 } from "lucide-react";
 
 import type { TripCargo, TripStatusType, TripStop } from "@features/trips/domain";
@@ -31,23 +32,16 @@ export type TripTrackingNextActionCardProps = {
   className?: string;
 };
 
-function actionIcon(kind: TrackingPrimaryActionKind) {
-  switch (kind) {
-    case "dispatch":
-      return Send;
-    case "arrive":
-      return MapPin;
-    case "depart":
-    case "depart_origin":
-      return Navigation;
-    case "close":
-      return CheckCircle2;
-    case "cargo_blocked":
-      return Package;
-    default:
-      return MapPin;
-  }
-}
+const ACTION_ICONS: Record<TrackingPrimaryActionKind, LucideIcon> = {
+  dispatch: Send,
+  arrive: MapPin,
+  depart: Navigation,
+  depart_origin: Navigation,
+  close: CheckCircle2,
+  cargo_blocked: Package,
+  idle: MapPin,
+  none: MapPin,
+};
 
 const OPERABLE_GUIDE_KINDS = new Set<TrackingPrimaryActionKind>([
   "dispatch",
@@ -87,7 +81,7 @@ export function TripTrackingNextActionCard({
   className,
 }: TripTrackingNextActionCardProps) {
   const primary = resolveTrackingPrimaryAction(tripStatus, stops, cargos);
-  const Icon = actionIcon(primary.kind);
+  const Icon = ACTION_ICONS[primary.kind];
   const terminal = isTerminalTripStatus(tripStatus);
   const isReadOnlyGuide =
     terminal || primary.kind === "none" || primary.kind === "idle";

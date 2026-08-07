@@ -138,8 +138,6 @@ export function TripDetailRouteStopCard({
 
   displayOrder,
 
-  tripStatus: _tripStatus,
-
   tripTimes,
 
   fiscalWarning,

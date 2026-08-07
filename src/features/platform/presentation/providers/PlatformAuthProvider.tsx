@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- provider + hooks co-located */
 import {
   createContext,
   useCallback,
@@ -103,16 +104,23 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
     const refreshToken = platformTokenStorage.getRefreshToken();
     const user = platformTokenStorage.getUser();
+    let cancelled = false;
+
     if (!refreshToken || !user) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isAuthenticated: false,
-      }));
-      return;
+      // Defer setState to a microtask so it is not sync in the effect body.
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isAuthenticated: false,
+        }));
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
-    let cancelled = false;
     if (!platformBootstrapRefresh) {
       platformBootstrapRefresh = platformApi
         .refresh(refreshToken)
@@ -155,14 +163,20 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
     const needsProfile =
       !state.user || state.user.mfaEnabled === undefined;
+    let cancelled = false;
+
     if (!needsProfile) {
-      setState((prev) =>
-        prev.isLoading ? { ...prev, isLoading: false } : prev,
-      );
-      return;
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setState((prev) =>
+          prev.isLoading ? { ...prev, isLoading: false } : prev,
+        );
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
-    let cancelled = false;
     platformApi
       .getProfile()
       .then((profile) => {

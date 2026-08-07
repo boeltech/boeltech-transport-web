@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, Download } from "lucide-react";
 import {
   Card,
@@ -55,7 +55,10 @@ export function TenantThisMonthCard({
   const commercialCopy = platformCopy.tenants.commercial;
   const stampCopy = copy.stampUsage;
   const { toast } = useToast();
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  /** null = follow auto-open from overage / past_due; otherwise user toggle. */
+  const [breakdownOverride, setBreakdownOverride] = useState<boolean | null>(
+    null,
+  );
 
   const subscription = usePlatformTenantSubscription(tenantId);
   const usageQuery = usePlatformTenantStampUsage(tenantId);
@@ -88,11 +91,9 @@ export function TenantThisMonthCard({
     (usage?.overageStamps ?? 0) > 0 ||
     (ent?.commercialSummary.overageTotalCents ?? 0) > 0;
 
-  useEffect(() => {
-    if (forceBreakdownOpen || hasOverage) {
-      setBreakdownOpen(true);
-    }
-  }, [forceBreakdownOpen, hasOverage]);
+  const autoBreakdownOpen = forceBreakdownOpen || hasOverage;
+  const breakdownOpen = breakdownOverride ?? autoBreakdownOpen;
+  const setBreakdownOpen = (open: boolean) => setBreakdownOverride(open);
 
   return (
     <Card className="border-primary/20">

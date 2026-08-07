@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { NavigateFunction } from "react-router-dom";
 import { Building2, GitCompareArrows, Info } from "lucide-react";
@@ -57,6 +57,22 @@ function buildTripsHref(token: SelectionToken): string {
   return `/trips?originBranchId=${encodeURIComponent(token)}`;
 }
 
+function defaultCompareSelection(
+  activeBranches: { id: string }[],
+  initialCompareBranchIds?: string[],
+): SelectionToken[] {
+  if (initialCompareBranchIds?.length) {
+    return initialCompareBranchIds.slice(0, 3);
+  }
+  if (activeBranches.length >= 2) {
+    return activeBranches.slice(0, 2).map((b) => b.id);
+  }
+  if (activeBranches.length === 1) {
+    return [activeBranches[0].id];
+  }
+  return [];
+}
+
 interface DashboardBranchKpisWidgetProps {
   showFinance: boolean;
   navigate: NavigateFunction;
@@ -73,42 +89,26 @@ export function DashboardBranchKpisWidget({
     limit: 100,
   });
 
-  const activeBranches = branchesData?.data ?? [];
+  const activeBranches = useMemo(
+    () => branchesData?.data ?? [],
+    [branchesData?.data],
+  );
 
-  const [selected, setSelected] = useState<SelectionToken[]>([]);
+  const [selectedOverride, setSelectedOverride] = useState<
+    SelectionToken[] | null
+  >(null);
   const [period, setPeriod] = useState<BranchKpisPeriodValue>(
     DEFAULT_BRANCH_KPIS_PERIOD,
   );
   const [trendMonths, setTrendMonths] = useState<BranchKpisTrendMonths>(6);
-  const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    if (initialized || branchesLoading) return;
+  const defaultSelected = useMemo(
+    () => defaultCompareSelection(activeBranches, initialCompareBranchIds),
+    [activeBranches, initialCompareBranchIds],
+  );
 
-    if (initialCompareBranchIds?.length) {
-      setSelected(initialCompareBranchIds.slice(0, 3));
-      setInitialized(true);
-      return;
-    }
-
-    if (activeBranches.length >= 2) {
-      setSelected(activeBranches.slice(0, 2).map((b) => b.id));
-      setInitialized(true);
-      return;
-    }
-
-    if (activeBranches.length === 1) {
-      setSelected([activeBranches[0].id]);
-      setInitialized(true);
-    } else if (!branchesLoading) {
-      setInitialized(true);
-    }
-  }, [
-    activeBranches,
-    branchesLoading,
-    initialCompareBranchIds,
-    initialized,
-  ]);
+  const selected = selectedOverride ?? defaultSelected;
+  const initialized = !branchesLoading;
 
   const branchIds = selected.filter((id): id is string => id !== UNASSIGNED);
   const includeUnassigned = selected.includes(UNASSIGNED);
@@ -131,12 +131,13 @@ export function DashboardBranchKpisWidget({
     enabled: initialized && selected.length > 0,
   });
 
+  const rows = data?.rows;
   const displayRows = useMemo(() => {
-    if (!data?.rows?.length) return [];
-    if (selected.length === 0) return data.rows;
+    if (!rows?.length) return [];
+    if (selected.length === 0) return rows;
     const selectedSet = new Set(selected);
-    return data.rows.filter((row) => selectedSet.has(rowToken(row)));
-  }, [data?.rows, selected]);
+    return rows.filter((row) => selectedSet.has(rowToken(row)));
+  }, [rows, selected]);
 
   const chartData = useMemo(
     () =>
@@ -158,12 +159,13 @@ export function DashboardBranchKpisWidget({
   );
 
   const toggleSelection = (token: SelectionToken, checked: boolean) => {
-    setSelected((prev) => {
+    setSelectedOverride((prev) => {
+      const current = prev ?? defaultSelected;
       if (checked) {
-        if (prev.includes(token) || prev.length >= 3) return prev;
-        return [...prev, token];
+        if (current.includes(token) || current.length >= 3) return current;
+        return [...current, token];
       }
-      return prev.filter((id) => id !== token);
+      return current.filter((id) => id !== token);
     });
   };
 

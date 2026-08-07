@@ -20,19 +20,28 @@ type QrState =
   | { status: "ready"; dataUrl: string }
   | { status: "error" };
 
-export const PlatformTotpSetupQr = memo(function PlatformTotpSetupQr({
+/**
+ * Fresh mount per otpauthUrl (parent keys by url) so loading is initial state,
+ * not a sync setState at the start of an effect.
+ */
+const PlatformTotpSetupQrInner = memo(function PlatformTotpSetupQrInner({
   otpauthUrl,
   alt,
-  loadingLabel = "Generando código QR…",
+  loadingLabel,
   errorMessage,
   className,
-  size = 200,
-}: PlatformTotpSetupQrProps) {
+  size,
+}: Required<
+  Pick<
+    PlatformTotpSetupQrProps,
+    "otpauthUrl" | "alt" | "loadingLabel" | "errorMessage" | "size"
+  >
+> &
+  Pick<PlatformTotpSetupQrProps, "className">) {
   const [state, setState] = useState<QrState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: "loading" });
 
     void QRCode.toDataURL(otpauthUrl, {
       errorCorrectionLevel: "M",
@@ -88,5 +97,26 @@ export const PlatformTotpSetupQr = memo(function PlatformTotpSetupQr({
         className="rounded-lg border border-border bg-white p-1 shadow-xs"
       />
     </div>
+  );
+});
+
+export const PlatformTotpSetupQr = memo(function PlatformTotpSetupQr({
+  otpauthUrl,
+  alt,
+  loadingLabel = "Generando código QR…",
+  errorMessage,
+  className,
+  size = 200,
+}: PlatformTotpSetupQrProps) {
+  return (
+    <PlatformTotpSetupQrInner
+      key={`${otpauthUrl}:${size}`}
+      otpauthUrl={otpauthUrl}
+      alt={alt}
+      loadingLabel={loadingLabel}
+      errorMessage={errorMessage}
+      className={className}
+      size={size}
+    />
   );
 });
