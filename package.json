@@ -23,7 +23,7 @@
     "test:smoke:fiscal-edit": "vitest run src/smoke/fiscal-edit-workflow.smoke.test.tsx",
     "test:smoke:address-picker": "vitest run src/smoke/address-picker-trip-stop.smoke.test.tsx src/smoke/address-picker-substitution.smoke.test.tsx src/shared/ui/address-picker",
     "test:smoke:profitability-scope": "vitest run src/smoke/profitability-scope.smoke.test.tsx",
-    "test:smoke:platform": "vitest run src/smoke/platform-admin-workflow.smoke.test.tsx src/smoke/platform-ar-workflow.smoke.test.tsx src/features/platform/infrastructure/mappers.test.ts src/features/platform/presentation/validation.test.ts",
+    "test:smoke:platform": "vitest run src/smoke/platform-admin-workflow.smoke.test.tsx src/smoke/platform-ar-workflow.smoke.test.tsx src/smoke/session-platform-erp-isolation.smoke.test.ts src/features/platform/infrastructure/mappers.test.ts src/features/platform/infrastructure/sessionIsolation.boundary.test.ts src/features/platform/presentation/validation.test.ts",
     "test:smoke:billing": "vitest run src/smoke/billing-workflow.smoke.test.tsx src/features/billing/infrastructure/mappers.test.ts",
     "test:smoke:billing-ar": "vitest run src/smoke/billing-ar.smoke.test.tsx src/features/billing/infrastructure/mappers.test.ts src/features/billing/presentation/utils/billingNotice.test.ts",
     "test:smoke:catalogs-tenant": "vitest run src/smoke/catalogs-tenant-workflow.smoke.test.tsx src/features/catalogs/domain/entities.catalogPolicy.test.ts src/features/catalogs/presentation/validation/catalogItemFormSchema.test.ts",
@@ -31,7 +31,7 @@
     "test:smoke:branches": "vitest run src/smoke/branches-workflow.smoke.test.tsx src/features/branches/presentation/components/BranchCapacityBanner.test.tsx src/features/branches/presentation/components/BranchOverQuotaBanner.test.tsx src/features/branches/presentation/components/BranchReconcilePlanSheet.test.tsx src/features/branches/presentation/components/BranchActions.test.tsx src/features/branches/presentation/components/BranchTable.test.tsx src/features/branches/presentation/components/BranchDetailLocationMap.test.tsx src/features/branches/presentation/components/BranchActivitySection.test.tsx src/features/branches/presentation/components/BranchAssignedVehiclesCard.test.tsx src/features/branches/presentation/helpers/branchActivityCopy.test.ts src/features/employees/presentation/utils/branchSelectUtils.test.ts src/features/branches/application/hooks/useExportBranches.test.ts",
     "test:smoke:branch-kpis": "vitest run src/features/dashboard/presentation/components/DashboardBranchKpisWidget.test.tsx src/features/branches/presentation/components/BranchOperationalKpiCard.test.tsx src/features/dashboard/infrastructure/mappers.test.ts",
     "test:smoke:trip-multi-invoice": "vitest run src/smoke/trip-multi-invoice.smoke.test.tsx src/features/trips/infrastructure/api/mappers.test.ts src/features/invoicing/infrastructure/mappers.test.ts",
-    "test:smoke:auth-phase2": "vitest run src/smoke/auth-phase2.smoke.test.tsx src/features/auth/infrastructure/interceptors/authInterceptor.test.ts src/features/auth/infrastructure/storage/tokenStorage.test.ts"
+    "test:smoke:auth-phase2": "vitest run src/smoke/auth-phase2.smoke.test.tsx src/smoke/session-platform-erp-isolation.smoke.test.ts src/features/auth/application/useCases/LogoutUseCase.test.ts src/features/auth/infrastructure/interceptors/authInterceptor.test.ts src/features/auth/infrastructure/storage/tokenStorage.test.ts"
   },
   "dependencies": {
     "@boeltech/cfdi-domain": "0.17.1",

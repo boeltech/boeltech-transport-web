@@ -20,7 +20,6 @@ import {
   markPlatformFreshLoginSession,
   platformTokenStorage,
 } from "../../infrastructure/platformTokenStorage";
-import { clearTenantSessionForPlatformBoundary } from "../../infrastructure/clearTenantSessionBoundary";
 import { platformApi } from "../../infrastructure/platformApi";
 import { isPlatformMfaChallenge } from "../../domain/entities";
 import {
@@ -80,7 +79,6 @@ export function PlatformLoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await clearTenantSessionForPlatformBoundary();
       const response = await platformApi.login(data);
       if (isPlatformMfaChallenge(response)) {
         setMfaChallengeToken(response.mfaChallengeToken);

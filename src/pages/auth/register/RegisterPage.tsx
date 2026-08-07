@@ -42,7 +42,6 @@ import {
   markFreshLoginSession,
   tokenStorage,
 } from "@features/auth/infrastructure";
-import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 import {
   registerSchema,
   type RegisterFormData,
@@ -269,7 +268,6 @@ const RegisterPage = () => {
         tokenStorage.removeToken();
         tokenStorage.removeRefreshToken();
       }
-      platformTokenStorage.clear();
       tokenStorage.setUser({
         id: response.data.user.id,
         email: response.data.user.email,

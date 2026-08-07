@@ -25,7 +25,6 @@ import {
   markFreshLoginSession,
   isMfaChallenge,
 } from "@features/auth";
-import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 import { loginSchema, type LoginFormData } from "@features/auth";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
@@ -102,7 +101,6 @@ const LoginPage = () => {
       onboardingCompletedAt?: string | null;
     };
   }, subdomain: string) => {
-    platformTokenStorage.clear();
     if (response.accessToken && response.refreshToken) {
       tokenStorage.setToken(response.accessToken);
       tokenStorage.setRefreshToken(response.refreshToken);

@@ -31,6 +31,8 @@ const {
   platformClear: vi.fn(),
 }));
 
+const notifyPlatformUnauthorized = vi.hoisted(() => vi.fn());
+
 vi.mock("../storage/tokenStorage", () => ({
   tokenStorage: {
     getToken,
@@ -60,10 +62,11 @@ vi.mock("@features/platform/infrastructure/platformTokenStorage", () => ({
 }));
 
 vi.mock("@features/platform/infrastructure/platformSessionHandlers", () => ({
-  notifyPlatformUnauthorized: vi.fn(),
+  notifyPlatformUnauthorized,
 }));
 
 import { setupAuthInterceptor } from "./authInterceptor";
+import { notifyPlatformUnauthorized as notifyPlatformUnauthorizedImport } from "@features/platform/infrastructure/platformSessionHandlers";
 
 function axios401(
   config: AxiosError["config"],
@@ -307,5 +310,31 @@ describe("setupAuthInterceptor public auth 401", () => {
     await instance.get("/platform/tenants");
 
     expect(seenWithCredentials).toBe(false);
+  });
+
+  it("platform 401 without refresh clears platform storage only", async () => {
+    getToken.mockReturnValue("tenant-access");
+    getRefreshToken.mockReturnValue("tenant-refresh");
+    getUser.mockReturnValue({ id: "tenant-1" });
+    platformGetToken.mockReturnValue("platform-access");
+    platformGetRefreshToken.mockReturnValue(null);
+
+    instance.defaults.adapter = async (config) => {
+      throw axios401(config, {
+        error: "Token expired",
+        code: "TOKEN_EXPIRED",
+      });
+    };
+
+    await expect(
+      instance.get("/platform/tenants", { authScope: "platform" } as never),
+    ).rejects.toMatchObject({
+      response: { status: 401, data: { code: "TOKEN_EXPIRED" } },
+    });
+
+    expect(platformClear).toHaveBeenCalled();
+    expect(notifyPlatformUnauthorizedImport).toHaveBeenCalled();
+    expect(clear).not.toHaveBeenCalled();
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,6 @@
 
 import { type IAuthRepository, type ITokenStorage } from "../../domain";
 import { usesAuthCookies } from "../../infrastructure/sessionMode";
-import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 
 export class LogoutUseCase {
   private readonly authRepository: IAuthRepository;
@@ -26,7 +25,6 @@ export class LogoutUseCase {
       console.error("[LogoutUseCase] Backend logout failed:", error);
     } finally {
       this.tokenStorage.clear();
-      platformTokenStorage.clear();
       console.log("[LogoutUseCase] Local storage cleared");
     }
   }

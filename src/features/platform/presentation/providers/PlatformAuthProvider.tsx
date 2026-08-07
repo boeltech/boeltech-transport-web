@@ -19,7 +19,6 @@ import {
   platformTokenStorage,
 } from "../../infrastructure/platformTokenStorage";
 import { setPlatformUnauthorizedHandler } from "../../infrastructure/platformSessionHandlers";
-import { clearTenantSessionForPlatformBoundary } from "../../infrastructure/clearTenantSessionBoundary";
 
 interface PlatformAuthState {
   user: PlatformUserJSON | null;
@@ -65,11 +64,11 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
     readInitialPlatformAuthState,
   );
 
-  const handleLogout = useCallback(
+  /** Ends platform session only — does not touch tenant cookies or erp_* storage. */
+  const endPlatformSession = useCallback(
     (options?: { sessionExpired?: boolean }) => {
       platformBootstrapRefresh = null;
       platformTokenStorage.clear();
-      void clearTenantSessionForPlatformBoundary();
       queryClient.removeQueries({ queryKey: platformQueryKeys.all });
       setState({
         user: null,
@@ -89,12 +88,12 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setPlatformUnauthorizedHandler(() => {
-      handleLogout({ sessionExpired: true });
+      endPlatformSession({ sessionExpired: true });
     });
     return () => {
       setPlatformUnauthorizedHandler(() => {});
     };
-  }, [handleLogout]);
+  }, [endPlatformSession]);
 
   // Access ausente pero refresh+user vivos → renovar sesión.
   useEffect(() => {
@@ -148,13 +147,13 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return;
-        handleLogout({ sessionExpired: true });
+        endPlatformSession({ sessionExpired: true });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [state.token, handleLogout]);
+  }, [state.token, endPlatformSession]);
 
   useEffect(() => {
     if (!state.token) {
@@ -191,18 +190,16 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return;
-        handleLogout({ sessionExpired: true });
+        endPlatformSession({ sessionExpired: true });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [state.token, state.user, handleLogout]);
+  }, [state.token, state.user, endPlatformSession]);
 
   const login = useCallback(
     async (credentials: { email: string; password: string }) => {
-      await clearTenantSessionForPlatformBoundary();
-
       const response = await platformApi.login(credentials);
       if (isPlatformMfaChallenge(response)) {
         throw new Error("MFA_REQUIRED");
@@ -230,8 +227,8 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
         // Best-effort server revoke.
       }
     }
-    handleLogout();
-  }, [handleLogout]);
+    endPlatformSession();
+  }, [endPlatformSession]);
 
   const refreshUser = useCallback(async () => {
     const profile = await platformApi.getProfile();
