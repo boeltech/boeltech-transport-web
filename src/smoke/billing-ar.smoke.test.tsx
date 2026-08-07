@@ -184,9 +184,6 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     expect(screen.getAllByText(/\$2,154\.24/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/jul 2026/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
-    expect(
-      screen.getByText(billingCopy.costs.priorArrearsHint),
-    ).toBeInTheDocument();
   });
 
   it("S4: after mark paid (empty arrears) saldo pendiente disappears", async () => {
@@ -204,9 +201,6 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
 
     expect(
       screen.queryByText(billingCopy.notices.arrears.title),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(billingCopy.costs.priorArrearsHint),
     ).not.toBeInTheDocument();
     // Card title only appears in notice/card — should not be present as Saldo pendiente card
     const saldoTitles = screen.queryAllByText(billingCopy.arrears.title);

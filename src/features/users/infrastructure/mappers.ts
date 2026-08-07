@@ -111,7 +111,18 @@ export const mapPaginatedUserActivity = (
 
 export const mapSingleUser = (
   response: ApiSingleResponse<ApiUserResponse>,
-): MappedSingleResult<User> => mapSingleResponse(response);
+): MappedSingleResult<User> => {
+  const mapped = mapSingleResponse(response);
+  return {
+    ...mapped,
+    data: {
+      ...mapped.data,
+      clientId: mapped.data.clientId ?? null,
+      employeeId: mapped.data.employeeId ?? null,
+      driverId: mapped.data.driverId ?? null,
+    },
+  };
+};
 
 export const toApiCreateUser = (data: CreateUserDTO): ApiUserPayload => ({
   email: data.email,

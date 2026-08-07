@@ -112,6 +112,7 @@ export interface TripInternalStaff {
 
 export type TripInvoiceStatus =
   | "draft"
+  | "stamping"
   | "stamped"
   | "cancellation_pending"
   | "cancelled";

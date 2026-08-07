@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import type { InfiniteData } from "@tanstack/react-query";
 import { AlertTriangle, Route, Truck } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
 import { DetailSection, DetailTimeline } from "@shared/ui/data-display";
+import type { MappedPaginatedResult } from "@shared/api";
+import type { DriverTripSummary } from "../../domain";
 import { TripStatus, TRIP_STATUS_LABELS } from "@features/trips";
 import { useDriverTripsInfinite } from "../../application";
 import { driversCopy } from "../copy";
@@ -28,17 +31,23 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
     isFetchingNextPage,
   } = useDriverTripsInfinite(driverId, { limit: 10 });
 
+  const infiniteData = data as
+    | InfiniteData<MappedPaginatedResult<DriverTripSummary>>
+    | undefined;
+
   const trips = useMemo(
-    () => data?.pages.flatMap((page) => page.data) ?? [],
-    [data?.pages],
+    () => infiniteData?.pages.flatMap((page) => page.data) ?? [],
+    [infiniteData?.pages],
   );
-  const tripsTotal = data?.pages[0]?.pagination.total ?? trips.length;
+  const tripsTotal = infiniteData?.pages[0]?.pagination.total ?? trips.length;
 
   const tripTimelineItems = useMemo(
     () =>
-      trips.map((trip) => {
+      trips.map((trip: DriverTripSummary) => {
         const vehicleLabel = `${trip.vehicle.unitNumber} · ${trip.vehicle.licensePlate}`;
         const clientLabel = trip.client?.legalName?.trim() || null;
+        const statusLabel =
+          TRIP_STATUS_LABELS[trip.status] ?? String(trip.status);
 
         return {
           id: trip.id,
@@ -73,9 +82,7 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <Badge variant="outline">
-                  {TRIP_STATUS_LABELS[trip.status] ?? trip.status}
-                </Badge>
+                <Badge variant="outline">{statusLabel}</Badge>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {formatDate(
                     trip.scheduledDeparture.toISOString().split("T")[0],

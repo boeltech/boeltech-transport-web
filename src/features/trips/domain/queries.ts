@@ -8,6 +8,7 @@
  */
 
 import type { TripStatusType } from "./enums";
+import type { TripInvoiceStatus } from "./entities";
 
 // ============================================================================
 // FILTER TYPES
@@ -29,11 +30,7 @@ export interface TripFilters {
   /** Solo viajes con `requires_fiscal_attention` en el API */
   readonly requiresFiscalAttention?: boolean;
   /** Filtro por estado de factura ligada (`invoice_status` en query API) */
-  readonly invoiceStatus?:
-    | "draft"
-    | "stamped"
-    | "cancellation_pending"
-    | "cancelled";
+  readonly invoiceStatus?: TripInvoiceStatus;
   /** Solo viajes in_progress con llegada programada vencida (overdue_trip). */
   readonly overdueOnly?: boolean;
   /** Solo viajes elegibles para facturar (pre-emisión v2, sin factura activa). */

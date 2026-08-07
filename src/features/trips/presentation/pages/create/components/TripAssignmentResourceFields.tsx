@@ -31,11 +31,11 @@ import { cn } from "@shared/lib/utils/cn";
 
 import { useToast } from "@shared/hooks";
 import { useAuth } from "@features/auth";
-import { ROLES } from "@shared/constants/roles";
+import { ROLES, type UserRole } from "@shared/constants/roles";
 
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 
-const ALLOW_EXPIRED_DOCS_ROLES = new Set([
+const ALLOW_EXPIRED_DOCS_ROLES: ReadonlySet<UserRole> = new Set([
   ROLES.ADMIN,
   ROLES.MANAGER,
   ROLES.DISPATCHER,

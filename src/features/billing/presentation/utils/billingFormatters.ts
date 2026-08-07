@@ -73,7 +73,7 @@ export function getProfitabilityLevelDetail(
 }
 
 export function formatProfitabilityLevelBadge(level: string): string {
-  return billingCopy.modules.level.badge(level);
+  return getProfitabilityLevelCopy(level).label;
 }
 
 /** Tone de badge/progress alineado a SoT §4.7 (80 warning / 100 destructive). */

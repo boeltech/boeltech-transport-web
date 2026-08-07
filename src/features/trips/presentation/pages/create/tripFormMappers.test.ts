@@ -152,7 +152,7 @@ describe("mapTripToWizardFormValues", () => {
       ...baseTrip,
       stops: [
         {
-          ...baseTrip.stops[0],
+          ...baseTrip.stops?.[0],
           addressId: "11111111-2222-4333-8444-555555555555",
           clientAddressId: null,
           sourceAddressId: catalogId,

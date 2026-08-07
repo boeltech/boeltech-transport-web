@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Sheet,
@@ -60,7 +60,9 @@ export function IssueSaasInvoiceSheet({
   );
 
   const form = useForm<IssueSaasInvoiceFormData>({
-    resolver: zodResolver(issueSaasInvoiceSchema),
+    resolver: zodResolver(
+      issueSaasInvoiceSchema,
+    ) as Resolver<IssueSaasInvoiceFormData>,
     defaultValues: { periodKey: resolvedDefault, notes: "", dueDays: 14 },
   });
 
@@ -123,7 +125,7 @@ export function IssueSaasInvoiceSheet({
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           {summaryErrors.length > 0 ? (
-            <FormValidationSummary errors={summaryErrors} />
+            <FormValidationSummary messages={summaryErrors} />
           ) : null}
 
           <div className="space-y-2">
@@ -132,9 +134,15 @@ export function IssueSaasInvoiceSheet({
               id="periodKey"
               placeholder="2026-07"
               {...form.register("periodKey")}
-              {...getRegisterFieldErrorProps(form.formState.errors.periodKey)}
+              {...getRegisterFieldErrorProps(
+                "periodKey",
+                form.formState.errors.periodKey?.message,
+              )}
             />
-            <FieldInlineError error={form.formState.errors.periodKey} />
+            <FieldInlineError
+              fieldId="periodKey"
+              message={form.formState.errors.periodKey?.message}
+            />
           </div>
 
           <div className="space-y-2">

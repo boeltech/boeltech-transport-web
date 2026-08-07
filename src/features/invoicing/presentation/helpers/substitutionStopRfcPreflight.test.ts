@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { CreateTripStopAddressInput } from "@boeltech/cfdi-domain/validadores/address";
 import type { TripStop } from "@features/trips/domain";
 import type { TripCorrectionFormEntry } from "../validation/substitutionCorrectionsSchema";
 import {
@@ -8,6 +9,41 @@ import {
 } from "./substitutionStopRfcPreflight";
 
 const STOP_ID = "stop-1";
+
+function buildStopAddress(
+  overrides: Partial<CreateTripStopAddressInput> = {},
+): CreateTripStopAddressInput {
+  return {
+    address_type: "trip_stop",
+    sat_country_code: "MEX",
+    sat_state_code: "19",
+    sat_municipality_code: null,
+    sat_locality_code: null,
+    locality_name: null,
+    sat_neighborhood_code: null,
+    neighborhood_name: null,
+    postal_code: "66600",
+    street: "Av Demo",
+    exterior_number: "1",
+    interior_number: null,
+    reference: null,
+    location_name: null,
+    notes: null,
+    latitude: null,
+    longitude: null,
+    is_primary: false,
+    rfc_remitente_destinatario: null,
+    nombre_remitente_destinatario: null,
+    destinatario_rfc: null,
+    destinatario_name: null,
+    contact_name: null,
+    contact_phone: null,
+    contact_email: null,
+    business_hours: null,
+    special_instructions: null,
+    ...overrides,
+  };
+}
 
 function buildStop(overrides: Partial<TripStop> = {}): TripStop {
   return {
@@ -67,16 +103,9 @@ describe("substitutionStopRfcPreflight", () => {
     const entry: TripCorrectionFormEntry = {
       trip_id: "trip-1",
       stop_id: STOP_ID,
-      stop_address: {
-        address_type: "trip_stop",
-        sat_country_code: "MEX",
-        sat_state_code: "19",
-        postal_code: "66600",
-        street: "Av Demo",
-        exterior_number: "1",
+      stop_address: buildStopAddress({
         rfc_remitente_destinatario: "AAA010101AAA",
-        is_primary: false,
-      },
+      }),
       reason: "Corregir domicilio",
     };
 
@@ -92,15 +121,7 @@ describe("substitutionStopRfcPreflight", () => {
       {
         trip_id: "trip-1",
         stop_id: STOP_ID,
-        stop_address: {
-          address_type: "trip_stop",
-          sat_country_code: "MEX",
-          sat_state_code: "19",
-          postal_code: "66600",
-          street: "Av Demo",
-          exterior_number: "1",
-          is_primary: false,
-        },
+        stop_address: buildStopAddress(),
         reason: "Corregir domicilio",
       },
     ];
@@ -117,16 +138,9 @@ describe("substitutionStopRfcPreflight", () => {
       {
         trip_id: "trip-1",
         stop_id: STOP_ID,
-        stop_address: {
-          address_type: "trip_stop",
-          sat_country_code: "MEX",
-          sat_state_code: "19",
-          postal_code: "66600",
-          street: "Av Demo",
-          exterior_number: "1",
+        stop_address: buildStopAddress({
           rfc_remitente_destinatario: "AAA010101AAA",
-          is_primary: false,
-        },
+        }),
         reason: "Corregir domicilio",
       },
     ];

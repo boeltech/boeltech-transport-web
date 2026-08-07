@@ -76,6 +76,7 @@ export const tripsListCopy = {
 
   invoiceStatus: {
     draft: "Borrador",
+    stamping: "Timbrando",
     stamped: "Facturado",
     cancellation_pending: "Cancelación en proceso",
     cancelled: "Cancelada",

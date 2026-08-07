@@ -27,21 +27,19 @@ export function addressSearchItemToTripStopAddress(
     interior_number: snapshot.interiorNumber,
     reference: snapshot.reference,
     location_name: snapshot.locationName || null,
+    notes: null,
     latitude: snapshot.latitude,
     longitude: snapshot.longitude,
     geolocation_pending: snapshot.geolocationPending,
     is_primary: false,
-    ...(source.remitenteRfc
-      ? { rfc_remitente_destinatario: source.remitenteRfc }
-      : {}),
-    ...(source.remitenteName
-      ? { nombre_remitente_destinatario: source.remitenteName }
-      : {}),
-    ...(source.destinatarioRfc
-      ? { destinatario_rfc: source.destinatarioRfc }
-      : {}),
-    ...(source.destinatarioName
-      ? { destinatario_name: source.destinatarioName }
-      : {}),
+    rfc_remitente_destinatario: source.remitenteRfc || null,
+    nombre_remitente_destinatario: source.remitenteName || null,
+    destinatario_rfc: source.destinatarioRfc || null,
+    destinatario_name: source.destinatarioName || null,
+    contact_name: null,
+    contact_phone: null,
+    contact_email: null,
+    business_hours: null,
+    special_instructions: null,
   };
 }

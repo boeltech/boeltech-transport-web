@@ -3,6 +3,7 @@ import { tripsListCopy } from "../copy/listCopy";
 
 const TRIP_INVOICE_STATUS_FILTER_VALUES: TripInvoiceStatus[] = [
   "draft",
+  "stamping",
   "stamped",
   "cancellation_pending",
   "cancelled",

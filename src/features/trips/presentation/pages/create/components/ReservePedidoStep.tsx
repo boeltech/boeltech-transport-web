@@ -250,7 +250,6 @@ export function ReservePedidoStep({
                   onBlur={field.onBlur}
                   placeholder={reserve.placeholder.notes}
                   rows={3}
-                  aria-invalid={Boolean(fieldState.error)}
                   {...getFieldErrorAriaProps(
                     "notes",
                     fieldState.error?.message,

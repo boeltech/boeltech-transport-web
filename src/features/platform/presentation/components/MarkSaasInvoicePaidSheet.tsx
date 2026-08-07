@@ -132,7 +132,7 @@ export function MarkSaasInvoicePaidSheet({
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           {summaryErrors.length > 0 ? (
-            <FormValidationSummary errors={summaryErrors} />
+            <FormValidationSummary messages={summaryErrors} />
           ) : null}
 
           <div className="space-y-2">
@@ -141,9 +141,15 @@ export function MarkSaasInvoicePaidSheet({
               id="paidAt"
               type="datetime-local"
               {...form.register("paidAt")}
-              {...getRegisterFieldErrorProps(form.formState.errors.paidAt)}
+              {...getRegisterFieldErrorProps(
+                "paidAt",
+                form.formState.errors.paidAt?.message,
+              )}
             />
-            <FieldInlineError error={form.formState.errors.paidAt} />
+            <FieldInlineError
+              fieldId="paidAt"
+              message={form.formState.errors.paidAt?.message}
+            />
           </div>
 
           <div className="space-y-2">
