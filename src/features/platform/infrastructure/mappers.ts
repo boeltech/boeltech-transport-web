@@ -1,6 +1,10 @@
 import type {
+  AdminActivationStatusType,
+  CreatePlatformTenantResult,
+  PlatformAdminActivation,
   PlatformBillingPlan,
   PlatformMetrics,
+  PlatformTenantAdmin,
   PlatformTenantDetail,
   PlatformTenantListItem,
   PlatformUserJSON,
@@ -72,6 +76,42 @@ export interface ApiPlatformTenantListItem {
   suspended_at: string | null;
 }
 
+export interface ApiPlatformAdminActivation {
+  status: string;
+  email: string | null;
+  expires_at: string | null;
+  last_sent_at: string | null;
+  last_send_error: string | null;
+  send_attempts: number;
+}
+
+export interface ApiPlatformTenantAdmin {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  status: string;
+}
+
+export type ApiPlatformTenantDetail = ApiPlatformTenantListItem & {
+  usage?: { user_count: number; branch_count: number; trip_count: number };
+  admin_activation?: ApiPlatformAdminActivation | null;
+};
+
+export type ApiCreatePlatformTenantData = {
+  tenant: ApiPlatformTenantListItem;
+  admin: ApiPlatformTenantAdmin;
+  admin_activation: ApiPlatformAdminActivation;
+  plan?: {
+    code: string;
+    name: string;
+    max_users: number | null;
+    max_branches: number | null;
+    history_months: number | null;
+  };
+};
+
 export interface ApiPlatformMetrics {
   total_tenants: number;
   active_tenants: number;
@@ -132,10 +172,30 @@ export const mapPlatformTenantListItem = (
   suspendedAt: raw.suspended_at,
 });
 
+export const mapAdminActivation = (
+  raw: ApiPlatformAdminActivation,
+): PlatformAdminActivation => ({
+  status: raw.status as AdminActivationStatusType,
+  email: raw.email,
+  expiresAt: raw.expires_at,
+  lastSentAt: raw.last_sent_at,
+  lastSendError: raw.last_send_error,
+  sendAttempts: raw.send_attempts,
+});
+
+export const mapPlatformTenantAdmin = (
+  raw: ApiPlatformTenantAdmin,
+): PlatformTenantAdmin => ({
+  id: raw.id,
+  email: raw.email,
+  firstName: raw.first_name,
+  lastName: raw.last_name,
+  role: raw.role,
+  status: raw.status,
+});
+
 export const mapPlatformTenantDetail = (
-  raw: ApiPlatformTenantListItem & {
-    usage?: { user_count: number; branch_count: number; trip_count: number };
-  },
+  raw: ApiPlatformTenantDetail,
 ): PlatformTenantDetail => ({
   ...mapPlatformTenantListItem(raw),
   usage: raw.usage
@@ -149,6 +209,17 @@ export const mapPlatformTenantDetail = (
         branchCount: raw.branch_count,
         tripCount: raw.trip_count,
       },
+  adminActivation: raw.admin_activation
+    ? mapAdminActivation(raw.admin_activation)
+    : null,
+});
+
+export const mapCreatePlatformTenantResult = (
+  raw: ApiCreatePlatformTenantData,
+): CreatePlatformTenantResult => ({
+  tenant: mapPlatformTenantListItem(raw.tenant),
+  admin: mapPlatformTenantAdmin(raw.admin),
+  adminActivation: mapAdminActivation(raw.admin_activation),
 });
 
 export const mapPlatformMetrics = (raw: ApiPlatformMetrics): PlatformMetrics => ({

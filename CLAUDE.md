@@ -16,6 +16,7 @@ npm run test:smoke:notifications # smoke inbox campana + /notifications
 npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
 npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
+npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (create/card/activate-tenant)
 npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
 npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
 npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
@@ -28,7 +29,7 @@ npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria
 
 **Crédito L0 (ADR-0049):** semáforo en detalle cliente + wizard Costos (`GET /clients/:id/credit-summary`) · sin bloqueo. Guía usuario: `D:\cowork\boeltech\erp-transport\docs\finanzas\credito-disponible-semaforo-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\credit-exposure\sdd.md`.
 
-**Plataforma (ADR-0062):** consola en `/platform/*` (panel, empresas, catálogos globales, **auditoría** `/platform/audit`) · login `/platform/login` · API `POST /api/v1/platform/auth/login` · requiere backend Fase 3+ y migr. **106** (`platform_owner` en enum) + `npm run seed:platform-owner` en API.
+**Plataforma (ADR-0062):** consola en `/platform/*` (panel, empresas, catálogos globales, **auditoría** `/platform/audit`) · login `/platform/login` · API `POST /api/v1/platform/auth/login` · requiere backend Fase 3+ y migr. **106** (`platform_owner` en enum) + `npm run seed:platform-owner` en API. **Activación admin al alta (ADR-0073):** email activate + gate login; UI card/resend/rotate + `/activate-tenant`; smoke `npm run test:smoke:platform-tenant-activate`; guía `docs/plataforma/panel-tenant0-usuario.md` §3.2/3.3.
 
 **Billing SaaS v1 (ADR-0064):** `@features/billing` read-only en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención) · consola platform (suscripción, entitlements, export conciliación CSV) · paywall `internal_staff_compensation` en wizard viajes. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md`.
 

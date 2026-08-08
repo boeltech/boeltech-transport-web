@@ -95,6 +95,14 @@ function createActiveTenant(): PlatformTenantDetail {
     createdAt: "2026-06-01T10:00:00.000Z",
     suspendedAt: null,
     usage: { userCount: 3, branchCount: 1, tripCount: 12 },
+    adminActivation: {
+      status: "activated",
+      email: "admin@demo.mx",
+      expiresAt: null,
+      lastSentAt: "2026-06-01T10:00:00.000Z",
+      lastSendError: null,
+      sendAttempts: 1,
+    },
   };
 }
 

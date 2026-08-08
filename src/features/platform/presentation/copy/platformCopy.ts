@@ -184,6 +184,54 @@ export const platformCopy = {
         advancedHide: "Ocultar detalle del plan",
         breakdownShow: "Ver desglose",
         breakdownHide: "Ocultar desglose",
+        adminActivation: "Activación del administrador",
+      },
+      adminActivation: {
+        title: "Activación del administrador",
+        description:
+          "Estado del enlace enviado al admin inicial. La contraseña se entrega aparte; el correo solo activa el acceso.",
+        fields: {
+          status: "Estado",
+          email: "Correo",
+          expiresAt: "Vence",
+          lastSentAt: "Último envío",
+          sendAttempts: "Intentos de envío",
+          lastSendError: "Último error de envío",
+        },
+        statusLabels: {
+          pending: "Pendiente",
+          email_failed: "Email falló",
+          expired: "Expirada",
+          activated: "Activado",
+          none: "Sin activación",
+        } as Record<string, string>,
+        statusHints: {
+          pending: "El administrador aún no activó el acceso.",
+          email_failed:
+            "La empresa quedó creada, pero el email no se envió. Reenvía la invitación.",
+          expired: "El enlace venció. Reenvía para emitir uno nuevo.",
+          activated: "El administrador ya activó su acceso.",
+          none: "Empresa anterior al flujo de activación; sin fila de invite.",
+        } as Record<string, string>,
+        resend: "Reenviar invitación",
+        resending: "Reenviando…",
+        resendSuccess: "Invitación de activación reenviada",
+        resendError: "No se pudo reenviar la invitación",
+        rotate: "Rotar contraseña",
+        rotateDialog: {
+          title: "Rotar contraseña del administrador",
+          description:
+            "Define una nueva contraseña sin activar la cuenta. Entrégala por un canal seguro; no se envía en el correo.",
+          passwordLabel: "Nueva contraseña",
+          resendLabel: "Reenviar enlace de activación",
+          submit: "Guardar contraseña",
+          submitting: "Guardando…",
+          success: "Contraseña actualizada",
+          successWithResend: "Contraseña actualizada y activación reenviada",
+          error: "No se pudo actualizar la contraseña",
+          cancel: "Cancelar",
+        },
+        readOnlyHint: "Solo el propietario puede reenviar o rotar credenciales.",
       },
       governance: {
         title: "Estado de la empresa",
@@ -416,9 +464,9 @@ export const platformCopy = {
             ? `Identificador: ${value}`
             : "El identificador aparecerá aquí al escribirlo.",
         adminPassword:
-          "Entre 8 y 128 caracteres, con mayúscula, minúscula y número. Puedes generar una segura y copiarla para entregarla al administrador.",
+          "Entre 8 y 128 caracteres, con mayúscula, minúscula y número. Genera una segura, cópiala y entrégala por un canal seguro: la contraseña no se envía por correo.",
         adminEmail:
-          "Será el usuario con el que el administrador inicia sesión.",
+          "Será el usuario con el que el administrador inicia sesión tras activar el acceso.",
         fleetBand:
           "Rangos orientativos del catálogo comercial. No bloquean un plan distinto.",
         planOverride:
@@ -447,7 +495,7 @@ export const platformCopy = {
       notice: {
         title: "Qué ocurre al crear",
         description:
-          "Se crea la empresa, se asigna el plan seleccionado y se redirige al detalle. El administrador podrá entrar con el correo y contraseña indicados.",
+          "Se crea la empresa y se envía un enlace de activación al administrador. La contraseña no va en el correo: cópiala y entrégala por un canal seguro. El admin activa el acceso con el enlace y luego inicia sesión en el ERP.",
       },
       validation: {
         companyNameRequired: "El nombre comercial es requerido",
@@ -472,6 +520,12 @@ export const platformCopy = {
       submit: "Crear empresa",
       submitting: "Creando empresa…",
       success: "Empresa creada correctamente",
+      successPending:
+        "Empresa creada. Se envió la invitación de activación al administrador.",
+      successEmailFailed:
+        "Empresa creada, pero no se pudo enviar el email de activación.",
+      successEmailFailedHint:
+        "Reenvía la invitación desde el detalle de la empresa.",
       error: "No se pudo crear la empresa",
       accessDenied: "No tienes permiso para crear empresas.",
     },

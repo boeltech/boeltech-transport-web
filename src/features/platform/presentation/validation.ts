@@ -77,6 +77,22 @@ export type SuspendPlatformTenantFormData = z.infer<
   typeof suspendPlatformTenantSchema
 >;
 
+export const rotateAdminCredentialsSchema = z.object({
+  password: z
+    .string()
+    .min(8, createValidation.adminPasswordMin)
+    .max(128, createValidation.adminPasswordMax)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      createValidation.adminPasswordComplexity,
+    ),
+  resendActivation: z.boolean().default(true),
+});
+
+export type RotateAdminCredentialsFormData = z.infer<
+  typeof rotateAdminCredentialsSchema
+>;
+
 export const managePlatformSubscriptionSchema = z.object({
   planCode: z.string().min(1, "Selecciona un plan"),
   status: z.enum(["trialing", "active", "past_due", "paused", "canceled"]),

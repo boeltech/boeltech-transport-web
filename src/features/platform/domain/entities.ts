@@ -96,12 +96,65 @@ export interface PlatformTenantListItem {
   suspendedAt: string | null;
 }
 
+/** Derived admin-activation status from platform GET/POST tenants (ADR-0073). */
+export const AdminActivationStatus = {
+  PENDING: "pending",
+  EMAIL_FAILED: "email_failed",
+  EXPIRED: "expired",
+  ACTIVATED: "activated",
+  NONE: "none",
+} as const;
+
+export type AdminActivationStatusType =
+  (typeof AdminActivationStatus)[keyof typeof AdminActivationStatus];
+
+export const ADMIN_ACTIVATION_STATUS_LABELS: Record<
+  AdminActivationStatusType,
+  string
+> = {
+  pending: "Pendiente",
+  email_failed: "Email falló",
+  expired: "Expirada",
+  activated: "Activado",
+  none: "Sin activación",
+};
+
+export interface PlatformAdminActivation {
+  status: AdminActivationStatusType;
+  email: string | null;
+  expiresAt: string | null;
+  lastSentAt: string | null;
+  lastSendError: string | null;
+  sendAttempts: number;
+}
+
+export interface PlatformTenantAdmin {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  status: string;
+}
+
 export interface PlatformTenantDetail extends PlatformTenantListItem {
   usage: {
     userCount: number;
     branchCount: number;
     tripCount: number;
   };
+  adminActivation: PlatformAdminActivation | null;
+}
+
+export interface CreatePlatformTenantResult {
+  tenant: PlatformTenantListItem;
+  admin: PlatformTenantAdmin;
+  adminActivation: PlatformAdminActivation;
+}
+
+export interface RotateAdminCredentialsPayload {
+  password: string;
+  resendActivation?: boolean;
 }
 
 export interface PlatformBillingPlan {

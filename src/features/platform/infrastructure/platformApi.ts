@@ -7,6 +7,8 @@ import {
 } from "@shared/api";
 import type {
   CreatePlatformTenantPayload,
+  CreatePlatformTenantResult,
+  PlatformAdminActivation,
   PlatformBillingPlan,
   PlatformMetrics,
   PlatformTenantDetail,
@@ -15,6 +17,7 @@ import type {
   PlatformUserJSON,
   UpdateDeclaredFleetPayload,
   UpdatePlatformTenantStatusPayload,
+  RotateAdminCredentialsPayload,
   PlatformAuditLogItem,
   PlatformAuditLogQueryParams,
   PlatformTenantSubscription,
@@ -54,6 +57,8 @@ import {
   mapPlatformSaasInvoice,
   mapPlatformSaasInvoiceDetail,
   mapPlatformReconciliationPreview,
+  mapAdminActivation,
+  mapCreatePlatformTenantResult,
   toApiCreatePlatformTenant,
   toApiUpdateDeclaredFleet,
   toApiUpdatePlatformTenantStatus,
@@ -61,6 +66,9 @@ import {
   type ApiPlatformBillingPlan,
   type ApiPlatformMetrics,
   type ApiPlatformTenantListItem,
+  type ApiPlatformTenantDetail,
+  type ApiCreatePlatformTenantData,
+  type ApiPlatformAdminActivation,
   type ApiPlatformUser,
   type ApiPlatformAuditLogItem,
   type ApiPlatformSaasArRow,
@@ -253,7 +261,7 @@ export const platformApi = {
     id: string,
   ): Promise<MappedSingleResult<PlatformTenantDetail>> => {
     const response = await apiClient.get<
-      ApiSingleResponse<ApiPlatformTenantListItem>
+      ApiSingleResponse<ApiPlatformTenantDetail>
     >(`${BASE}/tenants/${id}`, { authScope: "platform" });
     return {
       data: mapPlatformTenantDetail(response.data),
@@ -263,14 +271,48 @@ export const platformApi = {
 
   createTenant: async (
     payload: CreatePlatformTenantPayload,
-  ): Promise<MappedSingleResult<{ tenant: PlatformTenantListItem }>> => {
+  ): Promise<MappedSingleResult<CreatePlatformTenantResult>> => {
     const response = await apiClient.post<
-      ApiSingleResponse<{ tenant: ApiPlatformTenantListItem }>
+      ApiSingleResponse<ApiCreatePlatformTenantData>
     >(`${BASE}/tenants`, toApiCreatePlatformTenant(payload), {
       authScope: "platform",
     });
     return {
-      data: { tenant: mapPlatformTenantListItem(response.data.tenant) },
+      data: mapCreatePlatformTenantResult(response.data),
+      message: response.message,
+    };
+  },
+
+  resendAdminActivation: async (
+    id: string,
+  ): Promise<MappedSingleResult<PlatformAdminActivation>> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<{ admin_activation: ApiPlatformAdminActivation }>
+    >(`${BASE}/tenants/${id}/admin-activation/resend`, {}, {
+      authScope: "platform",
+    });
+    return {
+      data: mapAdminActivation(response.data.admin_activation),
+      message: response.message,
+    };
+  },
+
+  rotateAdminCredentials: async (
+    id: string,
+    payload: RotateAdminCredentialsPayload,
+  ): Promise<MappedSingleResult<PlatformAdminActivation>> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<{ admin_activation: ApiPlatformAdminActivation }>
+    >(
+      `${BASE}/tenants/${id}/admin-activation/rotate-credentials`,
+      {
+        password: payload.password,
+        resendActivation: payload.resendActivation ?? true,
+      },
+      { authScope: "platform" },
+    );
+    return {
+      data: mapAdminActivation(response.data.admin_activation),
       message: response.message,
     };
   },

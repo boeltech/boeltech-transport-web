@@ -33,6 +33,7 @@ import { ManageSubscriptionSheet } from "../components/ManageSubscriptionSheet";
 import { TenantEntitlementsSheet } from "../components/TenantEntitlementsSheet";
 import { GrantStampPackSheet } from "../components/GrantStampPackSheet";
 import { TenantSaasArCard } from "../components/TenantSaasArCard";
+import { TenantAdminActivationCard } from "../components/TenantAdminActivationCard";
 import { platformCopy } from "../copy/platformCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import type { PlatformTenantStatusType } from "../../domain/entities";
@@ -154,6 +155,12 @@ export function PlatformTenantDetailPage() {
               tenant={tenant}
               canMutate={canMutate}
               onManageSubscription={() => setManageSubscriptionOpen(true)}
+            />
+
+            <TenantAdminActivationCard
+              tenantId={tenant.id}
+              activation={tenant.adminActivation}
+              canMutate={canMutate}
             />
 
             <TenantThisMonthCard

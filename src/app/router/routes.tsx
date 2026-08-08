@@ -98,6 +98,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const ActivateTenantPage = lazy(() =>
+  import("@features/tenant-activations").then((m) => ({
+    default: m.ActivateTenantPage,
+  })),
+);
 
 const BillingSubscriptionPage = lazy(() =>
   import("@features/billing").then((m) => ({
@@ -435,6 +440,10 @@ export const router = createBrowserRouter([
       {
         path: "/accept-invitation",
         element: withSuspense(AcceptInvitationPage),
+      },
+      {
+        path: "/activate-tenant",
+        element: withSuspense(ActivateTenantPage),
       },
     ],
   },

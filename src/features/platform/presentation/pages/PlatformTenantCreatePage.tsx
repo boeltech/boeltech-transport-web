@@ -139,10 +139,24 @@ export function PlatformTenantCreatePage() {
 
   const createMutation = useCreatePlatformTenant({
     onSuccess: (result) => {
-      toast({
-        title: copy.success,
-        variant: "success",
-      });
+      const activationStatus = result.data.adminActivation?.status;
+      if (activationStatus === "email_failed") {
+        toast({
+          title: copy.successEmailFailed,
+          description: copy.successEmailFailedHint,
+          variant: "warning",
+        });
+      } else if (activationStatus === "pending") {
+        toast({
+          title: copy.successPending,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: copy.success,
+          variant: "success",
+        });
+      }
       navigate(`/platform/tenants/${result.data.tenant.id}`);
     },
   });

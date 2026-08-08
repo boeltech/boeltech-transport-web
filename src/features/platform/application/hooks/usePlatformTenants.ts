@@ -8,6 +8,7 @@ import {
   platformQueryKeys,
   type CreatePlatformTenantPayload,
   type PlatformTenantsQueryParams,
+  type RotateAdminCredentialsPayload,
   type UpdateDeclaredFleetPayload,
   type UpdatePlatformTenantStatusPayload,
 } from "../../domain/entities";
@@ -120,6 +121,55 @@ export const useUpdateDeclaredFleet = (
         queryKey: platformQueryKeys.tenantDetail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: platformQueryKeys.tenantLists() });
+      onSuccess?.(result, variables, ...rest);
+    },
+    ...restOptions,
+  });
+};
+
+export const useResendPlatformTenantActivation = (
+  options?: Omit<
+    UseMutationOptions<
+      Awaited<ReturnType<typeof platformApi.resendAdminActivation>>,
+      Error,
+      { id: string }
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ id }) => platformApi.resendAdminActivation(id),
+    onSuccess: (result, variables, ...rest) => {
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantDetail(variables.id),
+      });
+      onSuccess?.(result, variables, ...rest);
+    },
+    ...restOptions,
+  });
+};
+
+export const useRotatePlatformAdminCredentials = (
+  options?: Omit<
+    UseMutationOptions<
+      Awaited<ReturnType<typeof platformApi.rotateAdminCredentials>>,
+      Error,
+      { id: string; payload: RotateAdminCredentialsPayload }
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ id, payload }) =>
+      platformApi.rotateAdminCredentials(id, payload),
+    onSuccess: (result, variables, ...rest) => {
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantDetail(variables.id),
+      });
       onSuccess?.(result, variables, ...rest);
     },
     ...restOptions,

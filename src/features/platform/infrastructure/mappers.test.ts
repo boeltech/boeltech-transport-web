@@ -119,6 +119,87 @@ describe("platform mappers", () => {
 
     expect(detail.usage.userCount).toBe(3);
     expect(detail.status).toBe("suspended");
+    expect(detail.adminActivation).toBeNull();
+  });
+
+  it("mapAdminActivation and detail map admin_activation", async () => {
+    const { mapAdminActivation, mapCreatePlatformTenantResult } =
+      await import("./mappers");
+    const activation = mapAdminActivation({
+      status: "pending",
+      email: "admin@demo.mx",
+      expires_at: "2026-08-14T18:00:00.000Z",
+      last_sent_at: "2026-08-07T18:00:00.000Z",
+      last_send_error: null,
+      send_attempts: 1,
+    });
+    expect(activation).toEqual({
+      status: "pending",
+      email: "admin@demo.mx",
+      expiresAt: "2026-08-14T18:00:00.000Z",
+      lastSentAt: "2026-08-07T18:00:00.000Z",
+      lastSendError: null,
+      sendAttempts: 1,
+    });
+
+    const detail = mapPlatformTenantDetail({
+      id: "t1",
+      name: "Demo",
+      subdomain: "demo",
+      status: "active",
+      plan_code: "operacion_esencial",
+      plan_name: "Operación Esencial",
+      user_count: 1,
+      branch_count: 0,
+      trip_count: 0,
+      created_at: "2026-08-07T18:00:00.000Z",
+      suspended_at: null,
+      admin_activation: {
+        status: "email_failed",
+        email: "admin@demo.mx",
+        expires_at: "2026-08-14T18:00:00.000Z",
+        last_sent_at: "2026-08-07T18:00:00.000Z",
+        last_send_error: "EMAIL_SEND_FAILED",
+        send_attempts: 1,
+      },
+    });
+    expect(detail.adminActivation?.status).toBe("email_failed");
+    expect(detail.adminActivation?.lastSendError).toBe("EMAIL_SEND_FAILED");
+
+    const created = mapCreatePlatformTenantResult({
+      tenant: {
+        id: "t1",
+        name: "Demo",
+        subdomain: "demo",
+        status: "active",
+        plan_code: "operacion_esencial",
+        plan_name: "Operación Esencial",
+        user_count: 1,
+        branch_count: 0,
+        trip_count: 0,
+        created_at: "2026-08-07T18:00:00.000Z",
+        suspended_at: null,
+      },
+      admin: {
+        id: "u1",
+        email: "admin@demo.mx",
+        first_name: "Ada",
+        last_name: "Admin",
+        role: "admin",
+        status: "pending_activation",
+      },
+      admin_activation: {
+        status: "pending",
+        email: "admin@demo.mx",
+        expires_at: "2026-08-14T18:00:00.000Z",
+        last_sent_at: "2026-08-07T18:00:00.000Z",
+        last_send_error: null,
+        send_attempts: 1,
+      },
+    });
+    expect(created.admin.firstName).toBe("Ada");
+    expect(created.adminActivation.status).toBe("pending");
+    expect(created.tenant.subdomain).toBe("demo");
   });
 
   it("mapPlatformMetrics maps KPI fields", () => {
