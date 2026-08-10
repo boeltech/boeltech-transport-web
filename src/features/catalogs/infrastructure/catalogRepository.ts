@@ -236,6 +236,21 @@ export class CatalogRepository implements ICatalogRepository {
   // Import
   // ─────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Catálogos SAT grandes (p. ej. sat_colonia ~145k) superan el timeout global
+   * de Axios (30s). Validate/import usan 5 min; el caller puede sobreescribir.
+   */
+  private static readonly IMPORT_HTTP_TIMEOUT_MS = 300_000;
+
+  private mergeImportRequestConfig(
+    requestConfig?: AxiosRequestConfig,
+  ): AxiosRequestConfig {
+    return {
+      timeout: CatalogRepository.IMPORT_HTTP_TIMEOUT_MS,
+      ...requestConfig,
+    };
+  }
+
   async importCatalog(
     typeCode: string,
     file: File,
@@ -256,7 +271,11 @@ export class CatalogRepository implements ICatalogRepository {
     const response = await apiClient.post<{
       data: ApiCatalogImportResultResponse;
       message?: string;
-    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import`, formData, requestConfig);
+    }>(
+      `${CATALOGS_ENDPOINT}/${typeCode}/import`,
+      formData,
+      this.mergeImportRequestConfig(requestConfig),
+    );
 
     return mapCatalogImportResult(response.data);
   }
@@ -272,7 +291,11 @@ export class CatalogRepository implements ICatalogRepository {
     const response = await apiClient.post<{
       data: ApiCatalogValidationResultResponse;
       message?: string;
-    }>(`${CATALOGS_ENDPOINT}/${typeCode}/import/validate`, formData, requestConfig);
+    }>(
+      `${CATALOGS_ENDPOINT}/${typeCode}/import/validate`,
+      formData,
+      this.mergeImportRequestConfig(requestConfig),
+    );
 
     return mapCatalogValidationResult(response.data);
   }

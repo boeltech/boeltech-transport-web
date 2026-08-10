@@ -536,7 +536,9 @@ export function CatalogImportWizard({
         {validationResult.errors.length > 0 && (
           <div className="space-y-2">
             <p className="font-medium text-destructive">
-              Errores encontrados ({validationResult.errors.length}):
+              Errores encontrados (
+              {validationResult.errorCount ?? validationResult.errors.length}
+              ):
             </p>
             <div className="max-h-40 overflow-y-auto border rounded-lg">
               <Table>
@@ -558,9 +560,12 @@ export function CatalogImportWizard({
                 </TableBody>
               </Table>
             </div>
-            {validationResult.errors.length > 10 && (
+            {(validationResult.errorsTruncated ||
+              validationResult.errors.length > 10) && (
               <p className="text-sm text-muted-foreground">
-                Y {validationResult.errors.length - 10} errores más...
+                {validationResult.errorsTruncated
+                  ? `Mostrando ${Math.min(10, validationResult.errors.length)} de ${validationResult.errorCount} errores (respuesta truncada).`
+                  : `Y ${validationResult.errors.length - 10} errores más...`}
               </p>
             )}
           </div>

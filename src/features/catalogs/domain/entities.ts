@@ -195,6 +195,9 @@ export interface CatalogValidationResult {
   totalRows: number;
   validRows: number;
   errors: Array<{ row: number; errors: string[] }>;
+  /** Total de filas inválidas (puede ser > errors.length si truncated). */
+  errorCount?: number;
+  errorsTruncated?: boolean;
   preview: Array<{
     code: string;
     name: string;

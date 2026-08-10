@@ -120,6 +120,8 @@ export interface ApiCatalogValidationResultResponse {
   total_rows: number;
   valid_rows: number;
   errors: Array<{ row: number; errors: string[] }>;
+  error_count?: number;
+  errors_truncated?: boolean;
   preview: Array<{
     code: string;
     name: string;
@@ -267,6 +269,8 @@ export function mapCatalogValidationResult(
     totalRows: api.total_rows,
     validRows: api.valid_rows,
     errors: api.errors,
+    errorCount: api.error_count ?? api.errors.length,
+    errorsTruncated: api.errors_truncated ?? false,
     preview: api.preview.map((p) => ({
       code: p.code,
       name: p.name,

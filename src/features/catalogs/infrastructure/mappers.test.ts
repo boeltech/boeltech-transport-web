@@ -51,6 +51,22 @@ describe("mapCatalogValidationResult", () => {
     expect(result.estimatedDeactivateCount).toBeUndefined();
     expect(result.detectedProfile).toBeUndefined();
     expect(result.detectedDelimiter).toBeUndefined();
+    expect(result.errorCount).toBe(1);
+    expect(result.errorsTruncated).toBe(false);
+  });
+
+  it("maps error_count and errors_truncated for large validates", () => {
+    const result = mapCatalogValidationResult({
+      is_valid: false,
+      total_rows: 200,
+      valid_rows: 50,
+      errors: [{ row: 2, errors: ["x"] }],
+      error_count: 150,
+      errors_truncated: true,
+      preview: [],
+    });
+    expect(result.errorCount).toBe(150);
+    expect(result.errorsTruncated).toBe(true);
   });
 });
 
