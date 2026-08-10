@@ -183,6 +183,7 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
 
   // ===== ERRORES GENÉRICOS =====
   UNKNOWN_ERROR: "Ha ocurrido un error inesperado",
+  TEMPLATE_NOT_FOUND: "Plantilla de importación no disponible. Contacta a soporte si el problema continúa.",
   NOT_FOUND: "Recurso no encontrado",
   BAD_REQUEST: "Solicitud inválida",
 };
