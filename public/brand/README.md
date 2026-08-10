@@ -1,67 +1,58 @@
-# Marks Tlama - v1.1
+# Marks laTuno - v2.0
 
-Color `#2558a8` (azul-tinta). Sin figura de porteador. SVG ASCII-safe (sin comentarios internos).
+Color `#2558a8` (azul-tinta). Producto: **laTuno** · Empresa: Boeltech.
 
-## Elegido (2026-07-26): G — T con caminos
+## Logo de producto (lockup)
 
-**Canonico por ahora.** T solida casi esquinada (r 1 en viewBox 100), perforada por una T
-interior en negativo (canal/ranura 6). Sin triangulo. Origen: concepto Davinci, limpio a SVG.
+Composición canónica: **`la` + isotipo G + `uno`**  
+La «T» tipográfica se sustituye por `tlama-mark-g-paths-ink` (T con caminos).
+
+### Espaciado (safe area)
+
+Referencia de diseño (grid en px, tip guía adjunta):
+
+| Zona | Tamaño | Ratio vs mark |
+|------|--------|---------------|
+| Altura mark / letras (`la` / `uno`) | 100 | 1 |
+| Gap óptico letra↔mark | ~6 | 0.06 |
+| Safe area exterior (exports) | 50 | 0.5 |
+
+En UI: `BrandLockup` (`brandLockupMetrics.ts`).  
+Asset de referencia: `latuno-lockup-safe-area.svg`.
+
+## Isotipo canónico: G — T con caminos
 
 | Archivo | Color | Uso |
 |---------|-------|-----|
-| `tlama-mark-g-paths.svg` | tinta `#0a0a0a` | Lockup, docs, export monocromo |
-| `tlama-mark-g-paths-ink.svg` | azul `#2558a8` | **Canonico UI** / favicon / marketing |
+| `tlama-mark-g-paths.svg` | tinta `#0a0a0a` | Export monocromo |
+| `tlama-mark-g-paths-ink.svg` | azul `#2558a8` | **Canónico UI** / favicon / letra «T» del lockup |
 | `tlama-mark-g-paths-onbrand.svg` | blanco sobre tile `#2558a8` | Archivo (alternativa tile) |
+| `tlama-mark-g-paths-ink-email.png` | ink | Email HTML (PNG 160×160) |
 
 **Integrado:**
-- `public/favicon.svg` = geometria `ink`
-- UI: `BrandLockup` (`TlamaMark` brand/ink + `Wordmark`) en sidebar, landing header, auth y design-system
-- **Email (PNG):** `tlama-mark-g-paths-ink-email.png` (160×160) — Gmail/Outlook no renderizan SVG en `<img>`; la API usa este path vía `emailBrandHeaderHtml`. Con `FRONTEND_URL=localhost` el logo no carga en clientes externos: usar `EMAIL_BRAND_ASSET_BASE_URL` (HTTPS público) o staging.
+- `public/favicon.svg` = geometría ink G
+- UI: `BrandLockup` (`la` + `LatunoMark` + `uno`) en sidebar, landing, auth, design-system
+- Email: API `emailBrandHeaderHtml` → PNG G vía `FRONTEND_URL` / `EMAIL_BRAND_ASSET_BASE_URL`
 
-Limite: a 16px el canal se reduce; sobre fondos claros el ink mantiene contraste.
-
-## Archivo — propuestas no elegidas
-
-### Serie 2 - Isotipos minimal (sin monograma)
+## Propuestas experimentales (archivo, no canónicas)
 
 | Archivo | Idea |
 |---------|------|
-| `tlama-mark-d-bond.svg` | Bloque + curva |
-| `tlama-mark-e-span.svg` | Arco + dos nodos + carga |
-| `tlama-mark-f-pack.svg` | Correa + dos bloques |
-
-### Serie 1 - Monograma
-
-| Archivo | Idea |
-|---------|------|
-| `tlama-mark-a-monogram.svg` | Solo T |
-| `tlama-mark-b-route.svg` | T + ruta |
-| `tlama-mark-c-load.svg` | T + carga + banda |
+| `latuno-mark-a-twin.svg` (+ ink / onbrand) | Curvas gemelas |
+| `latuno-mark-b-portal.svg` | Portal de carga |
+| `latuno-mark-c-signal.svg` | Señal de ruta |
 
 ## Marketing — landing `/welcome`
 
-Dirección: **Industrial confiable / blueprint elevado**. Hero: banda `primary` +
-stage (motivo ruta + plinto + tracto).
+Hero sigue usando assets `tlama-landing-*` (tracto / ruta) como ancla visual; no son el logo.
 
-| Archivo | Uso | Light/Dark | Notas |
-|---------|-----|------------|-------|
-| `tlama-landing-hero-visual-tractor.png` | **Ancla visual del hero** (tracto line-art) | CSS invert → blanco sobre `bg-primary` | Raster / alpha; no es logo |
-| `tlama-landing-motif-route.svg` | Motivo ruta detrás del tracto | Idem vía filter en hero | Decorativo |
-| `tlama-landing-route-mesh.svg` | Ruta detrás del preview *standalone* | Stroke ink | `LandingProductPreview` con `backdrop` |
-
-Grain/mesh de atmósfera: CSS en `landing.css` (data-URI / gradients); sin archivo grain/atmosphere en `public/brand/`.
-
-## Como revisar
+## Cómo revisar
 
 Con `npm run dev`:
 
 - `/favicon.svg`
-- `/brand/tlama-mark-g-paths.svg`
 - `/brand/tlama-mark-g-paths-ink.svg`
-- `/brand/tlama-mark-g-paths-onbrand.svg`
-- `/brand/tlama-landing-hero-visual-tractor.png`
-- `/brand/tlama-landing-motif-route.svg`
-- `/brand/tlama-landing-route-mesh.svg`
-- `/welcome` (hero split + tracto)
+- `/brand/latuno-lockup-safe-area.svg`
+- `/welcome` (BrandLockup `la`+mark+`uno`)
 
-Checklist visual: 16px · 64px · fondo claro y oscuro · `prefers-reduced-motion`.
+Checklist visual: 16px · 64px · fondo claro/oscuro · gap letra↔mark.

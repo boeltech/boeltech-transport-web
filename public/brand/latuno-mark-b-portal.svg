@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="laTuno mark B portal">
+  <g fill="#2558a8">
+    <rect x="14" y="18" width="72" height="12" rx="2"/>
+    <path d="M20 38 L40 38 A2 2 0 0 1 42 40 L42 78 A2 2 0 0 1 40 80 L28 80 A2 2 0 0 1 26 78 L26 50 L20 50 A2 2 0 0 1 18 48 L18 40 A2 2 0 0 1 20 38 Z"/>
+    <path d="M80 38 L60 38 A2 2 0 0 0 58 40 L58 78 A2 2 0 0 0 60 80 L72 80 A2 2 0 0 0 74 78 L74 50 L80 50 A2 2 0 0 0 82 48 L82 40 A2 2 0 0 0 80 38 Z"/>
+  </g>
+</svg>

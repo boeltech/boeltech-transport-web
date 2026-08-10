@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 import { ThemeToggle } from "@shared/ui/theme";
-import { TlamaMark, Wordmark } from "@shared/ui/brand";
+import { BrandLockup } from "@shared/ui/brand";
 import { cn } from "@shared/lib/utils/cn";
 import {
   authFunnelCopy as copy,
@@ -25,18 +25,15 @@ type AuthFunnelShellProps = {
 };
 
 function BrandLockupBlock({ onBrand = false }: { onBrand?: boolean }) {
+  const markSize = onBrand ? 28 : 36;
   return (
-    <div className="flex items-center gap-3">
-      <TlamaMark
+    <div className="flex flex-col gap-1">
+      <BrandLockup
         variant={onBrand ? "onBrand" : "brand"}
-        size={onBrand ? 28 : 36}
+        markSize={markSize}
         decorative
       />
       <div className="min-w-0">
-        <Wordmark
-          variant={onBrand ? "onBrand" : "brand"}
-          className={onBrand ? "text-xl" : "text-2xl"}
-        />
         <p
           className={cn(
             "mt-1 text-xs leading-snug",

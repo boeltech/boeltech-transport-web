@@ -1,6 +1,6 @@
 /**
  * Imagen comercial tipada — solo ids del catálogo (L1).
- * No sustituye BrandLockup / TlamaMark.
+ * No sustituye BrandLockup / LatunoMark.
  */
 import { cn } from "@shared/lib/utils/cn";
 import {

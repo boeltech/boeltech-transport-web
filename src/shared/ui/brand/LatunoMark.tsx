@@ -1,31 +1,35 @@
 /**
- * TlamaMark — isotipo G (T con caminos).
+ * LatunoMark — isotipo canónico G (T con caminos).
  *
  * Fuente: public/brand/tlama-mark-g-paths*.svg
- * Preferir este componente en UI; los SVG en /public son assets estaticos
- * (favicon, export, docs).
+ * En el lockup de producto sustituye la letra «T» de «laTuno»
+ * (la + mark + uno). Preferir este componente en UI; los SVG en /public
+ * son assets estáticos (favicon, export, docs).
  */
 
 import { memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { BRAND } from "./brandIdentity";
 
-export interface TlamaMarkProps {
+export interface LatunoMarkProps {
   /**
    * - "brand":   paths en primary (fondos claros)
    * - "onBrand": paths en primary-foreground (fondos primary)
-   * - "tile":    tile primary + paths blancos (alternativa; UI usa ink/brand)
+   * - "tile":    tile primary + paths blancos
    * - "current": hereda currentColor
    */
   variant?: "brand" | "onBrand" | "tile" | "current";
-  /** Tamano del icono (lado). Default 28. */
+  /** Tamaño del icono (lado). Default 28. */
   size?: number;
   className?: string;
   decorative?: boolean;
 }
 
+/** @deprecated Use LatunoMarkProps */
+export type TlamaMarkProps = LatunoMarkProps;
+
 const VARIANT_CLASSES: Record<
-  NonNullable<TlamaMarkProps["variant"]>,
+  NonNullable<LatunoMarkProps["variant"]>,
   string
 > = {
   brand: "text-primary",
@@ -49,12 +53,12 @@ function Paths({ className }: { className?: string }) {
   );
 }
 
-export const TlamaMark = memo(function TlamaMark({
+export const LatunoMark = memo(function LatunoMark({
   variant = "brand",
   size = 28,
   className,
   decorative = false,
-}: TlamaMarkProps) {
+}: LatunoMarkProps) {
   if (variant === "tile") {
     return (
       <span
@@ -90,4 +94,7 @@ export const TlamaMark = memo(function TlamaMark({
   );
 });
 
-export default TlamaMark;
+/** @deprecated Use LatunoMark — alias de transición desde TlamaMark. */
+export const TlamaMark = LatunoMark;
+
+export default LatunoMark;

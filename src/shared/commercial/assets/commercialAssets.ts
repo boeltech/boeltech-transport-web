@@ -40,7 +40,7 @@ export const commercialAssets: Record<CommercialAssetId, CommercialAsset> = {
   "product-preview-dashboard": {
     id: "product-preview-dashboard",
     src: "/commercial/product/product-preview-dashboard.webp",
-    alt: "Vista de operaciones en Tlama: viajes recientes y señal de timbrado fiscal",
+    alt: "Vista de operaciones en laTuno: viajes recientes y señal de timbrado fiscal",
     width: 1200,
     height: 750,
     kind: "product-preview",
@@ -49,7 +49,7 @@ export const commercialAssets: Record<CommercialAssetId, CommercialAsset> = {
   "og-default": {
     id: "og-default",
     src: "/commercial/og/og-default.webp",
-    alt: "Tlama — ERP para empresas de transporte en México",
+    alt: "laTuno — ERP para empresas de transporte en México",
     width: 1200,
     height: 630,
     kind: "og",

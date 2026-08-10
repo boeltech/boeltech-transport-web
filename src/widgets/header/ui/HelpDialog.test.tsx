@@ -16,7 +16,7 @@ describe("HelpDialog", () => {
         helpDocsUrl=""
         environment="staging"
         release="deadbeef"
-        productName="Tlama"
+        productName="laTuno"
       />,
     );
 

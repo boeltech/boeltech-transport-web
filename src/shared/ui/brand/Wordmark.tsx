@@ -1,27 +1,27 @@
 /**
- * Wordmark — marca tipografica del producto Tlama
+ * Wordmark — marca tipográfica del producto laTuno.
  *
- * Solo texto (Inter). El isotipo vive en TlamaMark / BrandLockup.
+ * Solo texto (Inter). El isotipo vive en LatunoMark / BrandLockup.
  *
  * Variantes:
- *   - default:  "Tlama" completo
- *   - compact:  "T" (monograma tipografico; preferir TlamaMark en chrome)
+ *   - default:  "laTuno" completo
+ *   - compact:  "T" (monograma tipográfico; preferir LatunoMark en chrome)
  *
  * Reglas de uso:
- *   - Lockup icono + nombre: BrandLockup
+ *   - Lockup icono + nombre: BrandLockup (gap 0.5 × mark)
  *   - Color por default: --primary
  *   - Fondos primary/oscuros: variant="onBrand"
  *   - Consola platform NO usa este wordmark; usa PlatformBrandMark
  */
 
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { BRAND } from "./brandIdentity";
 
 export interface WordmarkProps {
   /**
    * Si es true, muestra solo el monograma "T" (sidebar colapsado).
-   * Si es false (default), muestra "Tlama" completo.
+   * Si es false (default), muestra "laTuno" completo.
    */
   compact?: boolean;
 
@@ -36,13 +36,17 @@ export interface WordmarkProps {
 
   /**
    * Clases extra. Útil para tamaño (text-lg, text-xl, etc.) y spacing.
+   * En BrandLockup el tamaño se fija vía `style.fontSize` (altura = mark).
    */
   className?: string;
+
+  /** Estilo inline (p. ej. fontSize desde BrandLockup). */
+  style?: CSSProperties;
 
   /**
    * Accesibilidad: si el wordmark es decorativo (porque el Link/padre
    * ya anuncia el producto), márcalo como true (aria-hidden).
-   * Default false (se anuncia como "Tlama").
+   * Default false (se anuncia como "laTuno").
    */
   decorative?: boolean;
 }
@@ -58,6 +62,7 @@ export const Wordmark = memo(function Wordmark({
   compact = false,
   variant = "brand",
   className,
+  style,
   decorative = false,
 }: WordmarkProps) {
   const text = compact ? BRAND.productMonogram : BRAND.productName;
@@ -67,6 +72,7 @@ export const Wordmark = memo(function Wordmark({
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : BRAND.productName}
       role={decorative ? undefined : "img"}
+      style={style}
       className={cn(
         "font-sans font-bold leading-none select-none",
         // Tracking ligeramente negativo: wordmark editorial/compacto.

@@ -1,7 +1,7 @@
 /**
  * DesignSystemPage
  *
- * Página interna de referencia visual del Design System de Tlama (Boeltech).
+ * Página interna de referencia visual del Design System de laTuno (Boeltech).
  *
  * Acceso: gated a admin (vía AdminRoute en routes.tsx).
  * Propósito:
@@ -179,7 +179,7 @@ export function DesignSystemPage() {
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              Referencia visual viva del sistema de diseño de Tlama.
+              Referencia visual viva del sistema de diseño de laTuno.
               Refleja el estado real de los tokens en{" "}
               <code className="font-mono text-xs">
                 src/app/styles/index.css

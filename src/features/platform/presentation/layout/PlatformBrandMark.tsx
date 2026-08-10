@@ -1,7 +1,7 @@
 /**
  * Mark visual de la consola platform (tenant 0).
  *
- * Deliberadamente distinto del Wordmark de Tlama: Shield + nombre
+ * Deliberadamente distinto del Wordmark de laTuno: Shield + nombre
  * `BRAND.platformName`. No usar `@shared/ui/brand` Wordmark aquí.
  */
 import { Shield } from "lucide-react";

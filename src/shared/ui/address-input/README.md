@@ -1,6 +1,6 @@
 # AddressInput
 
-Componente compartido para captura de direcciones SAT-first en Tlama.
+Componente compartido para captura de direcciones SAT-first en laTuno.
 
 ## Objetivo
 

@@ -16,7 +16,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
-import { BrandLockup } from "@/shared/ui/brand";
+import { BrandLockup, BRAND } from "@/shared/ui/brand";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   Tooltip,
@@ -56,7 +56,7 @@ export const Sidebar = memo(function Sidebar() {
             <Link
               to="/dashboard"
               className="flex items-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-              aria-label="Ir al dashboard de Tlama"
+              aria-label={`Ir al dashboard de ${BRAND.productName}`}
             >
               <BrandLockup
                 compact={isCollapsed}
