@@ -37,6 +37,7 @@ export const MODULES = [
   "billing",
   "audit_logs",
   "catalogs",
+  "imports",
 ] as const;
 
 export type Module = (typeof MODULES)[number];

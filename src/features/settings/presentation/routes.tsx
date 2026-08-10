@@ -84,6 +84,12 @@ const CatalogDetailPage = lazy(() =>
   ),
 );
 
+const ImportsHubPage = lazy(() =>
+  import("@features/imports/presentation/pages/ImportsHubPage").then((m) => ({
+    default: m.ImportsHubPage,
+  })),
+);
+
 // ============================================================================
 // LOADING FALLBACK
 // ============================================================================
@@ -177,6 +183,20 @@ export function SettingsRoutes() {
               fallback={<Navigate to="/forbidden" replace />}
             >
               <TenantLocationsPage />
+            </PermissionGuard>
+          }
+        />
+
+        {/* Tenant master CSV imports (ADR-0074) */}
+        <Route
+          path="imports"
+          element={
+            <PermissionGuard
+              module="imports"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <ImportsHubPage />
             </PermissionGuard>
           }
         />

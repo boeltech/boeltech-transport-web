@@ -32,7 +32,9 @@ import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
-import { Loader2, Plus, Search } from "lucide-react";
+import { MasterImportWizard, importsCopy } from "@features/imports";
+import { Button } from "@shared/ui/button";
+import { FileUp, Loader2, Plus, Search } from "lucide-react";
 
 import { useVehicles, useDeleteVehicle } from "../../application";
 import {
@@ -142,6 +144,9 @@ export function VehicleListPage() {
   const canCreate = hasPermission("vehicles", "create");
   const canEdit = hasPermission("vehicles", "update");
   const canDelete = hasPermission("vehicles", "delete");
+  const canImport =
+    hasPermission("imports", "execute") && hasPermission("vehicles", "create");
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
     (id: string) => navigate(`/vehicles/${id}`),
@@ -245,6 +250,17 @@ export function VehicleListPage() {
               </Select>
             </>
           ),
+          extraActions: canImport ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setImportWizardOpen(true)}
+              leftIcon={<FileUp className="h-4 w-4" />}
+            >
+              {importsCopy.cta.importCsv}
+            </Button>
+          ) : null,
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
           activeFilterChips: filters.activeChips,
@@ -308,6 +324,13 @@ export function VehicleListPage() {
               }
             : undefined,
         }}
+      />
+
+      <MasterImportWizard
+        open={importWizardOpen}
+        onOpenChange={setImportWizardOpen}
+        entityType="vehicles"
+        lockEntityType
       />
 
       <AlertDialog

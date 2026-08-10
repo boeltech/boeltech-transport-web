@@ -10,9 +10,9 @@ import {
   FileText,
   Bell,
   LayoutDashboard,
-  Plug,
   MapPin,
   CreditCard,
+  FileUp,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -62,6 +62,15 @@ export const settingsNavItems: SettingsNavItem[] = [
     permission: { module: "settings", action: "update" },
   },
   {
+    id: SettingsSection.IMPORTS,
+    label: "Cargas",
+    description:
+      "Sube clientes, direcciones, empleados, vehículos o conductores desde un archivo",
+    path: "/settings/imports",
+    icon: FileUp,
+    permission: { module: "imports", action: "read" },
+  },
+  {
     id: SettingsSection.BILLING,
     label: "Datos para facturar",
     description:
@@ -94,15 +103,8 @@ export const settingsNavItems: SettingsNavItem[] = [
     icon: LayoutDashboard,
     permission: { module: "settings", action: "update" },
   },
-  {
-    id: SettingsSection.INTEGRATIONS,
-    label: "Integraciones",
-    description: "APIs externas y webhooks",
-    path: "/settings/integrations",
-    icon: Plug,
-    disabled: true,
-    badge: "Próximamente",
-  },
+  // Integraciones: oculto del nav (placeholder «Próximamente»). Ruta
+  // /settings/integrations sigue registrada por si se reactiva el tab.
 ];
 
 export function getSettingsNavItem(

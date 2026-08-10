@@ -18,10 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { Button } from "@shared/ui/button";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
-import { Plus, Search } from "lucide-react";
+import { FileUp, Plus, Search } from "lucide-react";
 
+import { MasterImportWizard, importsCopy } from "@features/imports";
 import { useEmployees } from "../../application/hooks/useEmployees";
 import type {
   EmployeeSortOptions,
@@ -99,6 +101,9 @@ export function EmployeesListPage() {
 
   const canCreate = hasPermission("employees", "create");
   const canEdit = hasPermission("employees", "update");
+  const canImport =
+    hasPermission("imports", "execute") && hasPermission("employees", "create");
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
     (id: string) => navigate(`/employees/${id}`),
@@ -117,6 +122,7 @@ export function EmployeesListPage() {
   }, [refetch, toast]);
 
   return (
+    <>
     <ListPageShell
       title="Empleados"
       description="Gestiona el personal de la empresa"
@@ -187,6 +193,17 @@ export function EmployeesListPage() {
             </Select>
           </>
         ),
+        extraActions: canImport ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setImportWizardOpen(true)}
+            leftIcon={<FileUp className="h-4 w-4" />}
+          >
+            {importsCopy.cta.importCsv}
+          </Button>
+        ) : null,
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
         activeFilterChips: filters.activeChips,
@@ -254,5 +271,12 @@ export function EmployeesListPage() {
           : undefined,
       }}
     />
+    <MasterImportWizard
+      open={importWizardOpen}
+      onOpenChange={setImportWizardOpen}
+      entityType="employees"
+      lockEntityType
+    />
+    </>
   );
 }

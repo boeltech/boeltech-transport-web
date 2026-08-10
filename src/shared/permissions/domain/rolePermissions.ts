@@ -141,6 +141,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "catalogs.create",
       "catalogs.update",
       "catalogs.delete",
+
+      // Import CSV maestros tenant (ADR-0074)
+      "imports.read",
+      "imports.execute",
     ],
   },
 

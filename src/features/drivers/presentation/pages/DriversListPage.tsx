@@ -34,7 +34,8 @@ import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
-import { Plus, Search, AlertTriangle, Loader2 } from "lucide-react";
+import { MasterImportWizard, importsCopy } from "@features/imports";
+import { Plus, Search, AlertTriangle, FileUp, Loader2 } from "lucide-react";
 
 import { useDrivers, useDeleteDriver } from "../../application";
 import {
@@ -140,6 +141,9 @@ export function DriversListPage() {
   const canCreate = hasPermission("drivers", "create");
   const canEdit = hasPermission("drivers", "update");
   const canDelete = hasPermission("drivers", "delete");
+  const canImport =
+    hasPermission("imports", "execute") && hasPermission("drivers", "create");
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
     (id: string) => navigate(`/drivers/${id}`),
@@ -243,6 +247,17 @@ export function DriversListPage() {
               </Button>
             </>
           ),
+          extraActions: canImport ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setImportWizardOpen(true)}
+              leftIcon={<FileUp className="h-4 w-4" />}
+            >
+              {importsCopy.cta.importCsv}
+            </Button>
+          ) : null,
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
           activeFilterChips: filters.activeChips,
@@ -306,6 +321,13 @@ export function DriversListPage() {
               }
             : undefined,
         }}
+      />
+
+      <MasterImportWizard
+        open={importWizardOpen}
+        onOpenChange={setImportWizardOpen}
+        entityType="drivers"
+        lockEntityType
       />
 
       <AlertDialog

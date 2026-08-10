@@ -8,11 +8,12 @@
  * Ubicación: src/features/clients/presentation/pages/ClientsListPage.tsx
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { Button } from "@shared/ui/button";
 import {
   Select,
   SelectContent,
@@ -25,8 +26,10 @@ import {
   Users,
   Building2,
   User,
+  FileUp,
 } from "lucide-react";
 
+import { MasterImportWizard, importsCopy } from "@features/imports";
 import { useClients } from "../../application";
 import type { ClientFilters, ClientType, PaymentTerms } from "../../domain";
 import { ClientTable, ClientCard, ClientCardSkeleton } from "../components";
@@ -90,6 +93,9 @@ export function ClientsListPage() {
 
   // Permisos
   const canCreate = hasPermission("clients", "create");
+  const canImport =
+    hasPermission("imports", "execute") && hasPermission("clients", "create");
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleSortChange = useCallback(
     (field: string) => {
@@ -119,6 +125,7 @@ export function ClientsListPage() {
   }, [refetch, toast]);
 
   return (
+    <>
     <ListPageShell
       title="Clientes"
       description="Gestiona tus clientes y sus direcciones"
@@ -194,6 +201,17 @@ export function ClientsListPage() {
             </Select>
           </>
         ),
+        extraActions: canImport ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setImportWizardOpen(true)}
+            leftIcon={<FileUp className="h-4 w-4" />}
+          >
+            {importsCopy.cta.importCsv}
+          </Button>
+        ) : null,
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
         activeFilterChips: listing.activeChips,
@@ -248,6 +266,13 @@ export function ClientsListPage() {
           : undefined,
       }}
     />
+    <MasterImportWizard
+      open={importWizardOpen}
+      onOpenChange={setImportWizardOpen}
+      entityType="clients"
+      lockEntityType
+    />
+    </>
   );
 }
 
