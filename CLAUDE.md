@@ -17,6 +17,7 @@ npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbr
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
 npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
 npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (create/card/activate-tenant)
+npm run test:smoke:platform-catalogs-import # smoke release kit SAT (hub + plantilla + estimate; support RO)
 npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
 npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
 npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
@@ -25,6 +26,7 @@ npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + 
 npm run test:smoke:branches      # smoke sucursales: listado → detalle (mapa geo) → export → baja/restaurar + wizard alta
 npm run test:smoke:branch-kpis   # smoke SUC-M12 widget dashboard compare + tarjeta KPI detalle sucursal
 npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria (CTA/scope/badge)
+npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → validate → commit)
 ```
 
 **Crédito L0 (ADR-0049):** semáforo en detalle cliente + wizard Costos (`GET /clients/:id/credit-summary`) · sin bloqueo. Guía usuario: `D:\cowork\boeltech\erp-transport\docs\finanzas\credito-disponible-semaforo-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\credit-exposure\sdd.md`.
