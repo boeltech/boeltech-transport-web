@@ -40,6 +40,8 @@ jobs:
           VITE_API_URL: ${{ env.VITE_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN_STAGING }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY_STAGING }}
+          VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN_STAGING }}
+          VITE_GEO_PROVIDER: mapbox
           VITE_ENVIRONMENT: staging
           VITE_GIT_SHA: ${{ github.sha }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
