@@ -15,15 +15,19 @@
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import {
+  type CatalogAuthScope,
   type CatalogTypeWithVersion,
   type CatalogVersion,
   catalogQueryKeys,
 } from "../../domain";
 import { catalogRepository } from "../../infrastructure";
 
-// ============================================================================
-// HOOKS
-// ============================================================================
+export type UseCatalogTypeOptions = Omit<
+  UseQueryOptions<CatalogTypeWithVersion | null, Error>,
+  "queryKey" | "queryFn"
+> & {
+  authScope?: CatalogAuthScope;
+};
 
 /**
  * Hook para obtener un tipo de catálogo específico por su código.
@@ -31,27 +35,30 @@ import { catalogRepository } from "../../infrastructure";
  * Incluye la versión actual y el conteo de items.
  *
  * @param typeCode - Código del tipo de catálogo (ej: "sat_municipio")
- * @param options - Opciones adicionales de React Query
+ * @param options - Opciones adicionales de React Query + authScope
  *
  * @example
  * // En CatalogImportWizard:
- * const { data: catalogType } = useCatalogType(typeCode);
+ * const { data: catalogType } = useCatalogType(typeCode, { authScope: "platform" });
  * const wizard = useCatalogImportWizard(catalogType?.currentVersion);
  */
 export function useCatalogType(
   typeCode: string,
-  options?: Omit<
-    UseQueryOptions<CatalogTypeWithVersion | null, Error>,
-    "queryKey" | "queryFn"
-  >,
+  options?: UseCatalogTypeOptions,
 ) {
+  const { authScope, ...queryOptions } = options ?? {};
+
   return useQuery({
-    queryKey: catalogQueryKeys.type(typeCode),
-    queryFn: () => catalogRepository.findTypeByCode(typeCode),
+    queryKey: catalogQueryKeys.type(typeCode, authScope),
+    queryFn: () =>
+      catalogRepository.findTypeByCode(
+        typeCode,
+        authScope ? { authScope } : undefined,
+      ),
     enabled: Boolean(typeCode),
     staleTime: 1000 * 60 * 5, // 5 minutos - refrescar después de importación
     gcTime: 1000 * 60 * 30, // 30 minutos en cache
-    ...options,
+    ...queryOptions,
   });
 }
 

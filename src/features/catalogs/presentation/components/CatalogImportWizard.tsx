@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -48,6 +59,7 @@ import {
   ArrowRight,
   Download,
   Info,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import {
@@ -59,6 +71,7 @@ import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import {
   useCatalogImportWizard,
   useCatalogType,
+  useDownloadCatalogTemplate,
 } from "../../application/hooks";
 import {
   type CatalogImportOptions,
@@ -68,6 +81,7 @@ import {
 } from "../../domain";
 import { suggestNextVersion } from "@shared/utils/dateUtils";
 import { getErrorMessage, isErrorCode } from "@shared/utils/errorMapper";
+import { catalogImportWizardCopy } from "../copy/catalogImportWizardCopy";
 
 // ============================================================================
 // TYPES
@@ -92,7 +106,6 @@ const importOptionsSchema = z.object({
   sourceUrl: z.string().url("URL inválida").optional().or(z.literal("")),
   notes: z.string().optional(),
   skipErrors: z.boolean(),
-  updateExisting: z.boolean(),
   deactivateMissing: z.boolean(),
 });
 
@@ -117,10 +130,19 @@ export function CatalogImportWizard({
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<ImportOptionsForm | null>(
+    null,
+  );
+
+  const wizardCopy = catalogImportWizardCopy;
+  const isPlatformScope = authScope === "platform";
 
   // Obtener el tipo de catálogo con su versión actual
-  const { data: catalogType, isLoading: isLoadingType } =
-    useCatalogType(typeCode);
+  const { data: catalogType, isLoading: isLoadingType } = useCatalogType(
+    typeCode,
+    authScope ? { authScope } : undefined,
+  );
 
   const {
     validate,
@@ -135,6 +157,8 @@ export function CatalogImportWizard({
     resetAll,
   } = useCatalogImportWizard(catalogType?.currentVersion);
 
+  const downloadTemplate = useDownloadCatalogTemplate();
+
   // Calcular versión sugerida basada en la versión actual
   const suggestedVersion = suggestNextVersion(
     catalogType?.currentVersion?.version,
@@ -147,12 +171,10 @@ export function CatalogImportWizard({
       sourceUrl: "",
       notes: "",
       skipErrors: true,
-      updateExisting: true,
       deactivateMissing: false,
     },
   });
   const skipErrors = useWatch({ control: form.control, name: "skipErrors" });
-  const updateExisting = useWatch({ control: form.control, name: "updateExisting" });
   const deactivateMissing = useWatch({
     control: form.control,
     name: "deactivateMissing",
@@ -174,6 +196,8 @@ export function CatalogImportWizard({
   const handleClose = useCallback(() => {
     setStep("upload");
     setFile(null);
+    setDeactivateConfirmOpen(false);
+    setPendingImport(null);
     resetAll();
     form.reset();
     onOpenChange(false);
@@ -232,7 +256,7 @@ export function CatalogImportWizard({
         sourceUrl: data.sourceUrl || undefined,
         notes: data.notes || undefined,
         skipErrors: data.skipErrors,
-        updateExisting: data.updateExisting,
+        updateExisting: true,
         deactivateMissing: data.deactivateMissing,
       };
 
@@ -248,6 +272,25 @@ export function CatalogImportWizard({
     },
     [file, typeCode, importCatalog, onSuccess, authScope],
   );
+
+  const requestImport = useCallback(
+    (data: ImportOptionsForm) => {
+      if (data.deactivateMissing) {
+        setPendingImport(data);
+        setDeactivateConfirmOpen(true);
+        return;
+      }
+      handleImport(data);
+    },
+    [handleImport],
+  );
+
+  const confirmDeactivateImport = useCallback(() => {
+    if (!pendingImport) return;
+    setDeactivateConfirmOpen(false);
+    handleImport(pendingImport);
+    setPendingImport(null);
+  }, [pendingImport, handleImport]);
 
   const handleBack = useCallback(() => {
     if (step === "validate") {
@@ -366,43 +409,49 @@ export function CatalogImportWizard({
       {/* Info */}
       <Alert>
         <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Formato del archivo CSV</AlertTitle>
-        <AlertDescription>
-          {typeCode === CatalogTypeCode.SAT_CODIGO_POSTAL ? (
-            <>
-              Para CP147 use el CSV exportado del catálogo SAT con columnas:{" "}
-              <br />
-              <code className="text-xs bg-muted px-1 rounded">
-                code, parent_code, municipio_code, localidad_code
-              </code>
-              <br />
-              También se aceptan encabezados originales SAT (
-              <code className="text-xs bg-muted px-1 rounded">
-                c_CodigoPostal, c_Estado, c_Municipio, c_Localidad
-              </code>
-              ). El nombre puede omitirse; se genera como{" "}
-              <code className="text-xs bg-muted px-1 rounded">CP {"{code}"}</code>
-              . Municipio/localidad vacíos o <code>0</code> se omiten en metadata.
-            </>
-          ) : (
-            <>
-              El archivo debe contener columnas con los encabezados: <br />
-              <code className="text-xs bg-muted px-1 rounded">
-                codigo, nombre, descripcion, codigo_padre
-              </code>
-              <br />
-              También se aceptan variantes en inglés (code, name, description,
-              parent_code).
-            </>
-          )}
+        <AlertTitle>{wizardCopy.csvHelp.title}</AlertTitle>
+        <AlertDescription className="space-y-2">
+          <p>
+            {typeCode === CatalogTypeCode.SAT_CODIGO_POSTAL
+              ? wizardCopy.csvHelp.satCp
+              : wizardCopy.csvHelp.satPrimary}
+          </p>
+          <p className="text-muted-foreground">
+            {wizardCopy.csvHelp.compatSecondary}
+          </p>
         </AlertDescription>
       </Alert>
+
+      <div className="flex justify-start">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={downloadTemplate.isPending}
+          onClick={() =>
+            downloadTemplate.mutate({
+              typeCode,
+              ...(authScope ? { authScope } : {}),
+            })
+          }
+        >
+          {downloadTemplate.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4 mr-2" />
+          )}
+          Descargar plantilla
+        </Button>
+      </div>
 
       {validationError && isErrorCode(validationError, "CATALOG_CSV_TYPE_MISMATCH") ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
-          <AlertDescription>{getErrorMessage(validationError)}</AlertDescription>
+          <AlertDescription>
+            {getErrorMessage(validationError)}{" "}
+            {wizardCopy.csvTypeMismatchHint}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -410,7 +459,9 @@ export function CatalogImportWizard({
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
-          <AlertDescription>{getErrorMessage(importError)}</AlertDescription>
+          <AlertDescription>
+            {getErrorMessage(importError)} {wizardCopy.csvTypeMismatchHint}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -449,6 +500,37 @@ export function CatalogImportWizard({
             registros válidos
           </AlertDescription>
         </Alert>
+
+        {validationResult.estimatedDeactivateCount != null ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Desactivación estimada</AlertTitle>
+            <AlertDescription>
+              Se desactivarían{" "}
+              <strong>{validationResult.estimatedDeactivateCount}</strong>{" "}
+              ítems activos si marcas «Desactivar registros que no estén en el
+              archivo» en el siguiente paso.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {validationResult.detectedProfile ||
+        validationResult.detectedDelimiter ? (
+          <p className="text-xs text-muted-foreground">
+            {[
+              validationResult.detectedProfile
+                ? wizardCopy.detected.profile(validationResult.detectedProfile)
+                : null,
+              validationResult.detectedDelimiter
+                ? wizardCopy.detected.delimiter(
+                    validationResult.detectedDelimiter,
+                  )
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        ) : null}
 
         {/* Errors */}
         {validationResult.errors.length > 0 && (
@@ -542,7 +624,7 @@ export function CatalogImportWizard({
       onSubmit={form.handleSubmit(
         (data) => {
           setShowValidationSummary(false);
-          handleImport(data);
+          requestImport(data);
         },
         () => setShowValidationSummary(true),
       )}
@@ -618,6 +700,11 @@ export function CatalogImportWizard({
       <div className="space-y-4">
         <p className="font-medium">Opciones de importación</p>
 
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>{wizardCopy.upsertHint}</AlertDescription>
+        </Alert>
+
         <div className="flex items-center space-x-2">
           <Checkbox
             id="skipErrors"
@@ -628,19 +715,6 @@ export function CatalogImportWizard({
           />
           <Label htmlFor="skipErrors" className="font-normal">
             Omitir registros con errores y continuar
-          </Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="updateExisting"
-            checked={updateExisting}
-            onCheckedChange={(checked) =>
-              form.setValue("updateExisting", checked === true)
-            }
-          />
-          <Label htmlFor="updateExisting" className="font-normal">
-            Actualizar registros existentes
           </Label>
         </div>
 
@@ -753,6 +827,34 @@ export function CatalogImportWizard({
           </div>
         </div>
 
+        {(importResult.deactivatedCount ?? 0) > 0 ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Ítems desactivados</AlertTitle>
+            <AlertDescription>
+              Se desactivaron{" "}
+              <strong>{importResult.deactivatedCount}</strong> registros que no
+              estaban en el archivo.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {isPlatformScope ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>{wizardCopy.auditHint.title}</AlertTitle>
+            <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <span>{wizardCopy.auditHint.description}</span>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/platform/audit" onClick={handleClose}>
+                  {wizardCopy.auditHint.link}
+                  <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {/* Errors detail */}
         {importResult.errors.length > 0 && (
           <div className="space-y-2">
@@ -806,35 +908,73 @@ export function CatalogImportWizard({
     result: 100,
   };
 
+  const estimated = validationResult?.estimatedDeactivateCount;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Importar catálogo: {typeName}
-          </DialogTitle>
-          <DialogDescription>{stepTitles[step]}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Importar catálogo: {typeName}
+            </DialogTitle>
+            <DialogDescription>{stepTitles[step]}</DialogDescription>
+          </DialogHeader>
 
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground" aria-live="polite">
-            <span>Paso {Object.keys(stepTitles).indexOf(step) + 1} de 4</span>
-            <span>{stepProgress[step]}%</span>
+          {/* Progress */}
+          <div className="space-y-2">
+            <div
+              className="flex justify-between text-xs text-muted-foreground"
+              aria-live="polite"
+            >
+              <span>
+                Paso {Object.keys(stepTitles).indexOf(step) + 1} de 4
+              </span>
+              <span>{stepProgress[step]}%</span>
+            </div>
+            <Progress value={stepProgress[step]} className="h-2" />
           </div>
-          <Progress value={stepProgress[step]} className="h-2" />
-        </div>
 
-        {/* Step content */}
-        <div className="py-4">
-          {step === "upload" && renderUploadStep()}
-          {step === "validate" && renderValidateStep()}
-          {step === "import" && renderImportStep()}
-          {step === "result" && renderResultStep()}
-        </div>
-      </DialogContent>
-    </Dialog>
+          {/* Step content */}
+          <div className="py-4">
+            {step === "upload" && renderUploadStep()}
+            {step === "validate" && renderValidateStep()}
+            {step === "import" && renderImportStep()}
+            {step === "result" && renderResultStep()}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={deactivateConfirmOpen}
+        onOpenChange={(next) => {
+          setDeactivateConfirmOpen(next);
+          if (!next) setPendingImport(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {wizardCopy.deactivateConfirm.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {estimated != null
+                ? wizardCopy.deactivateConfirm.description(estimated)
+                : wizardCopy.deactivateConfirm.descriptionUnknown}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {wizardCopy.deactivateConfirm.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeactivateImport}>
+              {wizardCopy.deactivateConfirm.confirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

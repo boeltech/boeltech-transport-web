@@ -35,6 +35,7 @@ export type {
   CatalogImportOptions,
   CatalogImportResult,
   CatalogValidationResult,
+  CatalogAuthScope,
   CatalogSearchParams,
   CatalogOptionsParams,
   CatalogFilterParams,

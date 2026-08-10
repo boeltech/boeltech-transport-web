@@ -22,10 +22,12 @@ export {
   useCatalogImport,
   useCatalogValidate,
   useCatalogImportWizard,
+  useDownloadCatalogTemplate,
 } from "./useCatalogImport";
 export type {
   ImportCatalogParams,
   ValidateCatalogParams,
+  DownloadCatalogTemplateParams,
 } from "./useCatalogImport";
 
 // Items

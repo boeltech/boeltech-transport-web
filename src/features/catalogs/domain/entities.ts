@@ -181,6 +181,8 @@ export interface CatalogImportResult {
   updatedCount: number;
   skippedCount: number;
   errorCount: number;
+  /** Ítems activos desactivados por `deactivate_missing` (API Fase 2+). */
+  deactivatedCount?: number;
   errors: Array<{ row: number; errors: string[] }>;
   duration: number;
 }
@@ -199,7 +201,14 @@ export interface CatalogValidationResult {
     description?: string | null;
     parentCode?: string | null;
   }>;
+  /** Estimate de desactivación si se marca deactivate_missing (API Fase 2+). */
+  estimatedDeactivateCount?: number;
+  detectedProfile?: string;
+  detectedDelimiter?: "," | ";" | string;
 }
+
+/** Scope JWT para queries compartidas tenant vs Platform hub. */
+export type CatalogAuthScope = "platform" | "tenant";
 
 // ============================================================================
 // QUERY TYPES
@@ -260,13 +269,20 @@ export interface CatalogFilterParams {
 export const catalogQueryKeys = {
   all: ["catalogs"] as const,
 
-  // Types
-  types: () => [...catalogQueryKeys.all, "types"] as const,
-  typesGrouped: () => [...catalogQueryKeys.all, "types", "grouped"] as const,
+  // Types (scope segment evita cache cruzado platform ↔ tenant)
+  types: (authScope?: CatalogAuthScope) =>
+    [...catalogQueryKeys.all, "types", authScope ?? "tenant"] as const,
+  typesGrouped: (authScope?: CatalogAuthScope) =>
+    [
+      ...catalogQueryKeys.all,
+      "types",
+      "grouped",
+      authScope ?? "tenant",
+    ] as const,
 
   // Tipo específico con versión actual
-  type: (typeCode: string) =>
-    [...catalogQueryKeys.all, "type", typeCode] as const,
+  type: (typeCode: string, authScope?: CatalogAuthScope) =>
+    [...catalogQueryKeys.all, "type", typeCode, authScope ?? "tenant"] as const,
 
   // Statistics
   statistics: () => [...catalogQueryKeys.all, "statistics"] as const,

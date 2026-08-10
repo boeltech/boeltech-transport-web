@@ -46,6 +46,11 @@ export interface ValidateCatalogParams {
   authScope?: "platform" | "tenant";
 }
 
+export interface DownloadCatalogTemplateParams {
+  typeCode: string;
+  authScope?: "platform" | "tenant";
+}
+
 // ============================================================================
 // IMPORT HOOK
 // ============================================================================
@@ -151,6 +156,48 @@ export function useCatalogValidate(
         title: isErrorCode(error, "CATALOG_CSV_TYPE_MISMATCH")
           ? "Tipo de catálogo incorrecto"
           : "Error en la validación",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+    ...options,
+  });
+}
+
+// ============================================================================
+// TEMPLATE DOWNLOAD
+// ============================================================================
+
+/**
+ * Descarga la plantilla CSV SAT del tipo (`GET …/import/template`).
+ * En hub Platform pasar `authScope: "platform"`.
+ */
+export function useDownloadCatalogTemplate(
+  options?: Omit<
+    UseMutationOptions<void, Error, DownloadCatalogTemplateParams>,
+    "mutationFn"
+  >,
+) {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      typeCode,
+      authScope,
+    }: DownloadCatalogTemplateParams) => {
+      return catalogRepository.downloadTemplate(typeCode, {
+        ...(authScope ? { authScope } : {}),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plantilla descargada",
+        description: "Se descargó el CSV de referencia para este catálogo.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al descargar plantilla",
         description: getErrorMessage(error),
         variant: "destructive",
       });

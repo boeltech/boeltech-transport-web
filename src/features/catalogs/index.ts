@@ -58,6 +58,7 @@ export type {
   CatalogImportOptions,
   CatalogImportResult,
   CatalogValidationResult,
+  CatalogAuthScope,
   CatalogSearchParams,
   CatalogFilterParams,
   // Repository
@@ -86,6 +87,7 @@ export {
   useCatalogImport,
   useCatalogValidate,
   useCatalogImportWizard,
+  useDownloadCatalogTemplate,
 
   // Items
   useCatalogItems,

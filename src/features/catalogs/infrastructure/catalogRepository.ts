@@ -72,17 +72,22 @@ export class CatalogRepository implements ICatalogRepository {
   // Catalog Types
   // ─────────────────────────────────────────────────────────────────────────
 
-  async findTypes(): Promise<CatalogType[]> {
+  async findTypes(
+    requestConfig?: AxiosRequestConfig,
+  ): Promise<CatalogType[]> {
     const response = await apiClient.get<{ data: ApiCatalogTypeResponse[] }>(
       `${CATALOGS_ENDPOINT}/types`,
+      requestConfig,
     );
     return mapCatalogTypes(response);
   }
 
-  async findTypesGrouped(): Promise<Record<string, CatalogType[]>> {
+  async findTypesGrouped(
+    requestConfig?: AxiosRequestConfig,
+  ): Promise<Record<string, CatalogType[]>> {
     const response = await apiClient.get<{
       data: Record<string, ApiCatalogTypeResponse[]>;
-    }>(`${CATALOGS_ENDPOINT}/types/grouped`);
+    }>(`${CATALOGS_ENDPOINT}/types/grouped`, requestConfig);
     return mapCatalogTypesGrouped(response);
   }
 
@@ -95,11 +100,12 @@ export class CatalogRepository implements ICatalogRepository {
    */
   async findTypeByCode(
     typeCode: string,
+    requestConfig?: AxiosRequestConfig,
   ): Promise<CatalogTypeWithVersion | null> {
     try {
       const response = await apiClient.get<{
         data: ApiCatalogTypeWithVersionResponse;
-      }>(`${CATALOGS_ENDPOINT}/types/${typeCode}`);
+      }>(`${CATALOGS_ENDPOINT}/types/${typeCode}`, requestConfig);
 
       return mapSingleCatalogTypeWithVersion(response);
     } catch {
@@ -111,10 +117,12 @@ export class CatalogRepository implements ICatalogRepository {
   // Statistics
   // ─────────────────────────────────────────────────────────────────────────
 
-  async getStatistics(): Promise<CatalogStatistics[]> {
+  async getStatistics(
+    requestConfig?: AxiosRequestConfig,
+  ): Promise<CatalogStatistics[]> {
     const response = await apiClient.get<{
       data: ApiCatalogStatisticsResponse[];
-    }>(`${CATALOGS_ENDPOINT}/statistics`);
+    }>(`${CATALOGS_ENDPOINT}/statistics`, requestConfig);
     return mapCatalogStatisticsArray(response);
   }
 
@@ -267,6 +275,22 @@ export class CatalogRepository implements ICatalogRepository {
     }>(`${CATALOGS_ENDPOINT}/${typeCode}/import/validate`, formData, requestConfig);
 
     return mapCatalogValidationResult(response.data);
+  }
+
+  /**
+   * Descarga CSV plantilla SAT para el tipo (GET …/import/template).
+   * Usar `authScope: "platform"` desde el hub Platform.
+   */
+  async downloadTemplate(
+    typeCode: string,
+    requestConfig?: AxiosRequestConfig,
+  ): Promise<void> {
+    const filename = `${typeCode}-template-v1.csv`;
+    await apiClient.downloadFile(
+      `${CATALOGS_ENDPOINT}/${typeCode}/import/template`,
+      filename,
+      requestConfig,
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -108,8 +108,11 @@ export interface ApiCatalogImportResultResponse {
   updated_count: number;
   skipped_count: number;
   error_count: number;
+  deactivated_count?: number;
   errors: Array<{ row: number; errors: string[] }>;
-  duration: number;
+  /** API Fase 2+ uses duration_ms; legacy duration kept for compat. */
+  duration_ms?: number;
+  duration?: number;
 }
 
 export interface ApiCatalogValidationResultResponse {
@@ -123,6 +126,9 @@ export interface ApiCatalogValidationResultResponse {
     description?: string | null;
     parent_code?: string | null;
   }>;
+  estimated_deactivate_count?: number;
+  detected_profile?: string;
+  detected_delimiter?: string;
 }
 
 export interface ApiCatalogSearchResponse {
@@ -247,8 +253,9 @@ export function mapCatalogImportResult(
     updatedCount: api.updated_count,
     skippedCount: api.skipped_count,
     errorCount: api.error_count,
+    deactivatedCount: api.deactivated_count,
     errors: api.errors,
-    duration: api.duration,
+    duration: api.duration_ms ?? api.duration ?? 0,
   };
 }
 
@@ -266,6 +273,9 @@ export function mapCatalogValidationResult(
       description: p.description,
       parentCode: p.parent_code,
     })),
+    estimatedDeactivateCount: api.estimated_deactivate_count,
+    detectedProfile: api.detected_profile,
+    detectedDelimiter: api.detected_delimiter,
   };
 }
 

@@ -7,31 +7,39 @@
  *
  * @example
  * const { data: stats, isLoading } = useCatalogStatistics();
+ * const { data: platformStats } = useCatalogStatistics({ authScope: "platform" });
  */
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { type CatalogStatistics, catalogQueryKeys } from "../../domain";
+import {
+  type CatalogAuthScope,
+  type CatalogStatistics,
+  catalogQueryKeys,
+} from "../../domain";
 import { catalogRepository } from "../../infrastructure";
 
-// ============================================================================
-// HOOK
-// ============================================================================
+export type UseCatalogStatisticsOptions = Omit<
+  UseQueryOptions<CatalogStatistics[], Error>,
+  "queryKey" | "queryFn"
+> & {
+  authScope?: CatalogAuthScope;
+};
 
 /**
  * Hook para obtener estadísticas de todos los catálogos
  */
-export function useCatalogStatistics(
-  options?: Omit<
-    UseQueryOptions<CatalogStatistics[], Error>,
-    "queryKey" | "queryFn"
-  >,
-) {
+export function useCatalogStatistics(options?: UseCatalogStatisticsOptions) {
+  const { authScope, ...queryOptions } = options ?? {};
+
   return useQuery({
-    queryKey: catalogQueryKeys.statistics(),
-    queryFn: () => catalogRepository.getStatistics(),
+    queryKey: [...catalogQueryKeys.statistics(), authScope ?? "tenant"] as const,
+    queryFn: () =>
+      catalogRepository.getStatistics(
+        authScope ? { authScope } : undefined,
+      ),
     staleTime: 1000 * 60 * 5, // 5 minutos
     gcTime: 1000 * 60 * 30, // 30 minutos en cache
-    ...options,
+    ...queryOptions,
   });
 }
 
@@ -39,10 +47,7 @@ export function useCatalogStatistics(
  * Hook para obtener estadísticas agrupadas por fuente
  */
 export function useCatalogStatisticsBySource(
-  options?: Omit<
-    UseQueryOptions<CatalogStatistics[], Error>,
-    "queryKey" | "queryFn"
-  >,
+  options?: UseCatalogStatisticsOptions,
 ) {
   const query = useCatalogStatistics(options);
 

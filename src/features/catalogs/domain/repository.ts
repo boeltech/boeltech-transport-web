@@ -9,6 +9,7 @@
 import type { MappedSingleResult } from "@shared/api";
 import type {
   CatalogType,
+  CatalogTypeWithVersion,
   CatalogItem,
   CatalogOption,
   CatalogVersion,
@@ -75,14 +76,18 @@ export interface ICatalogRepository {
   // Catalog Types
   // ─────────────────────────────────────────────────────────────────────────
 
-  findTypes(): Promise<CatalogType[]>;
-  findTypesGrouped(): Promise<Record<string, CatalogType[]>>;
+  findTypes(requestConfig?: unknown): Promise<CatalogType[]>;
+  findTypesGrouped(requestConfig?: unknown): Promise<Record<string, CatalogType[]>>;
+  findTypeByCode(
+    typeCode: string,
+    requestConfig?: unknown,
+  ): Promise<CatalogTypeWithVersion | null>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Statistics
   // ─────────────────────────────────────────────────────────────────────────
 
-  getStatistics(): Promise<CatalogStatistics[]>;
+  getStatistics(requestConfig?: unknown): Promise<CatalogStatistics[]>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Catalog Items - Read
@@ -119,19 +124,26 @@ export interface ICatalogRepository {
   delete(typeCode: string, code: string): Promise<void>;
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Import (admin/manager only)
+  // Import (platform_owner for globals; authScope via requestConfig)
   // ─────────────────────────────────────────────────────────────────────────
 
   importCatalog(
     typeCode: string,
     file: File,
     options: CatalogImportOptions,
+    requestConfig?: unknown,
   ): Promise<CatalogImportResult>;
 
   validateImport(
     typeCode: string,
     file: File,
+    requestConfig?: unknown,
   ): Promise<CatalogValidationResult>;
+
+  downloadTemplate(
+    typeCode: string,
+    requestConfig?: unknown,
+  ): Promise<void>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Versions

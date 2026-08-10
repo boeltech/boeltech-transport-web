@@ -6,45 +6,63 @@
  *
  * @example
  * const { data: types } = useCatalogTypes();
+ * const { data: platformTypes } = useCatalogTypes({ authScope: "platform" });
  */
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { type CatalogType, catalogQueryKeys } from "../../domain";
+import {
+  type CatalogAuthScope,
+  type CatalogType,
+  catalogQueryKeys,
+} from "../../domain";
 import { catalogRepository } from "../../infrastructure";
 
-// ============================================================================
-// HOOK
-// ============================================================================
+export type UseCatalogTypesOptions = Omit<
+  UseQueryOptions<CatalogType[], Error>,
+  "queryKey" | "queryFn"
+> & {
+  authScope?: CatalogAuthScope;
+};
 
 /**
  * Hook para obtener todos los tipos de catálogo
  */
-export function useCatalogTypes(
-  options?: Omit<UseQueryOptions<CatalogType[], Error>, "queryKey" | "queryFn">,
-) {
+export function useCatalogTypes(options?: UseCatalogTypesOptions) {
+  const { authScope, ...queryOptions } = options ?? {};
+
   return useQuery({
-    queryKey: catalogQueryKeys.types(),
-    queryFn: () => catalogRepository.findTypes(),
+    queryKey: catalogQueryKeys.types(authScope),
+    queryFn: () =>
+      catalogRepository.findTypes(authScope ? { authScope } : undefined),
     staleTime: 1000 * 60 * 60, // 1 hora - tipos de catálogo casi nunca cambian
     gcTime: 1000 * 60 * 60 * 24, // 24 horas en cache
-    ...options,
+    ...queryOptions,
   });
 }
+
+export type UseCatalogTypesGroupedOptions = Omit<
+  UseQueryOptions<Record<string, CatalogType[]>, Error>,
+  "queryKey" | "queryFn"
+> & {
+  authScope?: CatalogAuthScope;
+};
 
 /**
  * Hook para obtener tipos de catálogo agrupados por fuente
  */
 export function useCatalogTypesGrouped(
-  options?: Omit<
-    UseQueryOptions<Record<string, CatalogType[]>, Error>,
-    "queryKey" | "queryFn"
-  >,
+  options?: UseCatalogTypesGroupedOptions,
 ) {
+  const { authScope, ...queryOptions } = options ?? {};
+
   return useQuery({
-    queryKey: catalogQueryKeys.typesGrouped(),
-    queryFn: () => catalogRepository.findTypesGrouped(),
+    queryKey: catalogQueryKeys.typesGrouped(authScope),
+    queryFn: () =>
+      catalogRepository.findTypesGrouped(
+        authScope ? { authScope } : undefined,
+      ),
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
-    ...options,
+    ...queryOptions,
   });
 }

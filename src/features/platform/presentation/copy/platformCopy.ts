@@ -5,7 +5,7 @@ export const platformCopy = {
     name: BRAND.platformName,
     subtitle: BRAND.platformSubtitle,
     company: BRAND.companyName,
-    /** Producto tenant (Tlama); no usar como nombre de esta consola. */
+    /** Producto tenant (laTuno); no usar como nombre de esta consola. */
     tenantProduct: BRAND.productName,
   },
   shell: {
@@ -635,23 +635,47 @@ export const platformCopy = {
   catalogs: {
     title: "Catálogos globales",
     description:
-      "Actualiza las tablas oficiales que usan todas las empresas.",
+      "Actualiza las tablas oficiales SAT que usan todas las empresas (release kit).",
     entityLabelPlural: "catálogos",
     search: {
       placeholder: "Buscar por nombre o código…",
     },
+    groups: {
+      geography: {
+        title: "Geografía",
+        description:
+          "Carga en este orden: estados → municipios → localidades/colonias → códigos postales.",
+      },
+      cartaPorte: {
+        title: "Carta Porte",
+        description:
+          "Claves de mercancía, equipo y figuras para el complemento.",
+      },
+      cfdi: {
+        title: "CFDI",
+        description: "Formas de pago, usos CFDI, regímenes, monedas y afines.",
+      },
+      other: {
+        title: "Otros",
+        description: "Catálogos SAT que no encajan en los grupos anteriores.",
+      },
+    },
     table: {
       columns: {
         catalog: "Catálogo",
+        version: "Versión",
+        items: "Ítems",
         action: "Acción",
       },
+      versionEmpty: "—",
+      itemsEmpty: "—",
     },
     import: "Actualizar",
     readOnlyHint:
       "Tu rol es de soporte: puedes consultar catálogos, pero no actualizarlos.",
     readOnlyTitle: "Solo lectura",
     csvTypeMismatchHint:
-      "El archivo no coincide con el catálogo seleccionado. Verifica el archivo correcto.",
+      "El archivo no coincide con el catálogo seleccionado. Descarga la plantilla del tipo correcto o elige otro catálogo.",
     empty: {
       title: "Sin catálogos",
       description: "No hay catálogos disponibles para actualizar.",
