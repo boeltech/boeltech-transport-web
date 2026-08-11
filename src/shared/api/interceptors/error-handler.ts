@@ -224,6 +224,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   DRIVER_NOT_AVAILABLE:
     "El conductor no está disponible para iniciar o reservar el viaje.",
   TRIP_NOT_SCHEDULED: "Solo se puede iniciar un viaje en estado programado.",
+  V1_CARGO_PLACEHOLDER_CLIENT_MISSING:
+    "No se pudo completar la mercancía del viaje. Intenta de nuevo o contacta a soporte.",
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",
@@ -724,9 +726,18 @@ function getMessageForError(
     return BUSINESS_ERROR_MESSAGES[code];
   }
 
-  // 4. Mensaje del backend como último recurso (ej: 500 sin code conocido)
+  // 4. Mensaje del backend como último recurso (5xx).
+  //    No exponer jerga de migración/ops al operador.
   if (data?.error && typeof data.error === "string") {
-    return data.error;
+    const raw = data.error;
+    if (
+      /migraci[oó]n\s+\d+/i.test(raw) ||
+      /\b(ejecute|ejecutar)\b/i.test(raw) ||
+      /\bplaceholder\b/i.test(raw)
+    ) {
+      return HTTP_STATUS_MESSAGES[status] || "Ocurrió un error inesperado.";
+    }
+    return raw;
   }
 
   // 5. Genérico por status HTTP
