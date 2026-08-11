@@ -23,7 +23,7 @@ import { MoneyInput } from "@shared/ui/form/MoneyInput";
 import { Input } from "@shared/ui/input";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { ProductoServicioCPSearch, UnidadMedidaSearch } from "@features/catalogs";
+import { ProductoServicioSearch, UnidadMedidaSearch } from "@features/catalogs";
 import {
   useBillingServiceConcepts,
   useCreateBillingServiceConcept,
@@ -191,7 +191,7 @@ function BillingServiceConceptFormPanel({
           description={copy.form.claveProdServHint}
           errorMessage={fieldErrors.claveProdServ}
         >
-          <ProductoServicioCPSearch
+          <ProductoServicioSearch
             value={form.claveProdServ}
             onSelect={(item) => {
               setForm((prev) => ({ ...prev, claveProdServ: item.code }));

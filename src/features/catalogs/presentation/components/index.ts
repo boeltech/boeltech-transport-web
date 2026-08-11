@@ -17,12 +17,14 @@ export {
   type LocalidadSearchProps,
   type MaterialPeligrosoSearchProps,
   type ProductoServicioCPSearchProps,
+  type ProductoServicioSearchProps,
   type UnidadMedidaSearchProps,
   CatalogSearchInput,
   ColoniaSearch,
   LocalidadSearch,
   MaterialPeligrosoSearch,
   ProductoServicioCPSearch,
+  ProductoServicioSearch,
   UnidadMedidaSearch,
 } from "./CatalogSearchInput";
 

@@ -12,7 +12,8 @@
  * - sat_localidad (~45,000 items)
  * - sat_colonia (~145,000 items)
  * - sat_codigo_postal (~32,000 items)
- * - sat_clave_prod_serv_cp (~1,200 items)
+ * - sat_clave_prod_serv (~50,000 items — CFDI c_ClaveProdServ)
+ * - sat_clave_prod_serv_cp (~1,200 items — Carta Porte mercancía)
  * - sat_clave_unidad (~2,400 items)
  * - sat_material_peligroso (~3,800 items)
  *

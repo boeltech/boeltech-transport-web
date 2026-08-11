@@ -45,6 +45,7 @@ const GROUP_BY_CODE: Record<string, PlatformSatGroupId> = {
   [CatalogTypeCode.SAT_TIPO_CARRO]: "cartaPorte",
   [CatalogTypeCode.SAT_CONTENEDOR]: "cartaPorte",
 
+  [CatalogTypeCode.SAT_CLAVE_PROD_SERV]: "cfdi",
   [CatalogTypeCode.SAT_FORMA_PAGO]: "cfdi",
   [CatalogTypeCode.SAT_METODO_PAGO]: "cfdi",
   [CatalogTypeCode.SAT_USO_CFDI]: "cfdi",

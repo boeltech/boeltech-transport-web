@@ -37,7 +37,7 @@
     "test:smoke:imports": "vitest run src/smoke/imports-workflow.smoke.test.tsx src/features/imports"
   },
   "dependencies": {
-    "@boeltech/cfdi-domain": "0.17.1",
+    "@boeltech/cfdi-domain": "0.18.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

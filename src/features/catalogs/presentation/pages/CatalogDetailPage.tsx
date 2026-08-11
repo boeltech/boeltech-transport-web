@@ -58,6 +58,7 @@ const KNOWN_LARGE_CATALOGS = [
   "sat_localidad",
   "sat_colonia",
   "sat_codigo_postal",
+  "sat_clave_prod_serv",
   "sat_clave_prod_serv_cp",
   "sat_clave_unidad",
   "sat_material_peligroso",

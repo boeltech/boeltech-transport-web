@@ -28,7 +28,7 @@ import {
   UsoCfdiSelect,
   FormaPagoSelect,
   MetodoPagoSelect,
-  ProductoServicioCPSearch,
+  ProductoServicioSearch,
   UnidadMedidaSearch,
   useCatalogItem,
   type CatalogItem,
@@ -90,7 +90,7 @@ export const BillingDefaultsCard = memo(function BillingDefaultsCard({
           />
           <CatalogInfoRow
             label={copy.claveProductoServicio}
-            typeCode={"sat_clave_prod_serv_cp" as CatalogTypeCodeValue}
+            typeCode={"sat_clave_prod_serv" as CatalogTypeCodeValue}
             code={settings.claveProductoServicio}
           />
           <CatalogInfoRow
@@ -295,7 +295,7 @@ function BillingDefaultsForm({
           description={copy.claveProductoServicioHint}
           errorMessage={errors.claveProductoServicio?.message}
         >
-          <ProductoServicioCPSearch
+          <ProductoServicioSearch
             value={claveProductoServicio}
             onSelect={(item: CatalogItem) =>
               form.setValue("claveProductoServicio", item.code, {

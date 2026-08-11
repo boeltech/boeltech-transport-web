@@ -93,6 +93,15 @@ const catalogDirectory: Record<string, CatalogDirectoryEntry> = {
     purpose: "Monedas en las que puedes facturar.",
     examples: ["Peso mexicano", "Dólar estadounidense", "Euro"],
   },
+  [CatalogTypeCode.SAT_CLAVE_PROD_SERV]: {
+    theme: "billing",
+    purpose:
+      "Claves de producto o servicio CFDI para conceptos de factura y defaults de facturación.",
+    examples: [
+      "Transporte de carga por carretera",
+      "Servicios de manipulación de carga",
+    ],
+  },
 
   // Viajes y carta porte
   [CatalogTypeCode.SAT_CLAVE_PROD_SERV_CP]: {

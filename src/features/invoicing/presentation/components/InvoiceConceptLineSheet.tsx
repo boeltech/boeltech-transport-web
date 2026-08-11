@@ -9,7 +9,7 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ProductoServicioCPSearch, UnidadMedidaSearch } from "@features/catalogs";
+import { ProductoServicioSearch, UnidadMedidaSearch } from "@features/catalogs";
 import type { BillingServiceConcept } from "@features/settings/domain/billingServiceConcept.types";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -280,7 +280,7 @@ export function InvoiceConceptLineSheet({
                   required
                   errorMessage={fieldState.error?.message}
                 >
-                  <ProductoServicioCPSearch
+                  <ProductoServicioSearch
                     value={String(claveField.value ?? "")}
                     onSelect={(item) => {
                       claveField.onChange(item.code);

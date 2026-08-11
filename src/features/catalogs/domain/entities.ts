@@ -36,6 +36,7 @@ export const CatalogTypeCode = {
   SAT_CONTENEDOR: "sat_contenedor",
 
   // CFDI
+  SAT_CLAVE_PROD_SERV: "sat_clave_prod_serv",
   SAT_FORMA_PAGO: "sat_forma_pago",
   SAT_METODO_PAGO: "sat_metodo_pago",
   SAT_USO_CFDI: "sat_uso_cfdi",
@@ -338,6 +339,7 @@ export const CATALOG_TYPE_LABELS: Record<string, string> = {
   [CatalogTypeCode.SAT_COLONIA]: "Colonias",
   [CatalogTypeCode.SAT_CODIGO_POSTAL]: "Códigos Postales",
   [CatalogTypeCode.SAT_CLAVE_PROD_SERV_CP]: "Productos/Servicios CP",
+  [CatalogTypeCode.SAT_CLAVE_PROD_SERV]: "Productos/Servicios CFDI",
   [CatalogTypeCode.SAT_CLAVE_UNIDAD]: "Unidades de Medida",
   [CatalogTypeCode.SAT_CONFIG_AUTOTRANSPORTE]: "Configuración Vehicular",
   [CatalogTypeCode.SAT_TIPO_PERMISO]: "Tipos de Permiso SCT",
@@ -393,6 +395,7 @@ export const LARGE_CATALOGS: CatalogTypeCodeValue[] = [
   CatalogTypeCode.SAT_LOCALIDAD,
   CatalogTypeCode.SAT_COLONIA,
   CatalogTypeCode.SAT_CODIGO_POSTAL,
+  CatalogTypeCode.SAT_CLAVE_PROD_SERV,
   CatalogTypeCode.SAT_CLAVE_PROD_SERV_CP,
   CatalogTypeCode.SAT_CLAVE_UNIDAD,
   CatalogTypeCode.SAT_MATERIAL_PELIGROSO,

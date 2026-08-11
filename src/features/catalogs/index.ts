@@ -183,6 +183,7 @@ export {
 
   // Specialized Search components
   ProductoServicioCPSearch,
+  ProductoServicioSearch,
   UnidadMedidaSearch,
   MaterialPeligrosoSearch,
   ColoniaSearch,

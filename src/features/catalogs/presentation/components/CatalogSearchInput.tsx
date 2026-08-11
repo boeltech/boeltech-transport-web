@@ -340,7 +340,7 @@ export function CatalogSearchInput({
 // ============================================================================
 
 /**
- * Búsqueda de productos/servicios Carta Porte
+ * Búsqueda de productos/servicios Carta Porte (mercancía / BienesTransp)
  */
 export type ProductoServicioCPSearchProps = Omit<
   CatalogSearchInputProps,
@@ -351,7 +351,25 @@ export function ProductoServicioCPSearch(props: ProductoServicioCPSearchProps) {
   return (
     <CatalogSearchInput
       typeCode={"sat_clave_prod_serv_cp" as CatalogTypeCodeValue}
-      placeholder="Buscar producto o servicio (código o nombre)..."
+      placeholder="Buscar producto o servicio CP (código o nombre)..."
+      {...props}
+    />
+  );
+}
+
+/**
+ * Búsqueda de productos/servicios CFDI (conceptos de factura / billing)
+ */
+export type ProductoServicioSearchProps = Omit<
+  CatalogSearchInputProps,
+  "typeCode"
+>;
+
+export function ProductoServicioSearch(props: ProductoServicioSearchProps) {
+  return (
+    <CatalogSearchInput
+      typeCode={"sat_clave_prod_serv" as CatalogTypeCodeValue}
+      placeholder="Buscar concepto CFDI (código o nombre)..."
       {...props}
     />
   );
