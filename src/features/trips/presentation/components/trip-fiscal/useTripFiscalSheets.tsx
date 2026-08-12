@@ -7,16 +7,13 @@ import { createGetTripByIdUseCase } from "@features/trips/application";
 import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
 import { tripRepository } from "@features/trips/infrastructure";
 import { parseInvalidRfcAtStopDetails } from "@shared/api/errors/invalidRfcAtStopError";
-import {
-  getErrorMessage,
-  isApiError,
-} from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { buildOverlayErrorToastDescription } from "@shared/utils/overlayErrorFeedback";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { TripFiscalCorrectionSheet } from "./TripFiscalCorrectionSheet";
 import { PreflightBlockerSheet } from "./PreflightBlockerSheet";
 import { StopPickerSheet } from "./StopPickerSheet";
+import { describeStampApiError } from "./stampErrorDescription";
 import {
   collectStopsFromTrips,
   findStopInTrips,
@@ -37,17 +34,13 @@ type UseTripFiscalSheetsOptions = {
   getStampErrorDescription?: (error: unknown) => string;
 };
 
-function getStampErrorDescriptionDefault(error: unknown): string {
-  return isApiError(error) ? error.message : getErrorMessage(error);
-}
-
 export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const {
     trip,
     invoiceTripRefs = [],
     enableAutoRestamp = false,
     onStampSuccess,
-    getStampErrorDescription = getStampErrorDescriptionDefault,
+    getStampErrorDescription = describeStampApiError,
   } = options;
 
   const queryClient = useQueryClient();

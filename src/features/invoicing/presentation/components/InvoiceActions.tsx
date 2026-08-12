@@ -37,7 +37,7 @@ import {
 import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
-import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
   MoreHorizontal,
   Eye,
@@ -54,7 +54,10 @@ import {
 import { canRegisterPayment } from "@boeltech/cfdi-domain";
 import { useDeleteInvoice, useOpenInvoicePdf, downloadInvoiceXml } from "@features/invoicing/application";
 import { toInvoiceLike } from "@features/invoicing/domain";
-import { useTripFiscalSheets } from "@features/trips/presentation/components/trip-fiscal";
+import {
+  describeStampApiError,
+  useTripFiscalSheets,
+} from "@features/trips/presentation/components/trip-fiscal";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
@@ -89,96 +92,6 @@ interface InvoiceActionsProps {
   /** Callback tras acción exitosa en buttons mode */
   onActionComplete?: () => void;
 }
-
-type Cp31NumericDetail = {
-  code?: string;
-  path?: string;
-  message?: string;
-};
-
-function formatCp31Path(path: string): string {
-  const tripStop = /^trip\.([^.\s]+)\.stop\.(\d+)\.distance_from_previous_km$/.exec(path);
-  if (tripStop) {
-    return `Viaje ${tripStop[1]} · parada ${tripStop[2]}: distancia previa`;
-  }
-  const tripTotal = /^trip\.([^.\s]+)\.total_dist_rec$/.exec(path);
-  if (tripTotal) {
-    return `Viaje ${tripTotal[1]}: distancia total`;
-  }
-  const tripDistance = /^trip\.([^.\s]+)\.distancia_recorrida$/.exec(path);
-  if (tripDistance) {
-    return `Viaje ${tripDistance[1]}: distancia recorrida`;
-  }
-  const cargoWeight = /^cargo\.(\d+)\.weight_in_kg$/.exec(path);
-  if (cargoWeight) {
-    return `Carga ${Number(cargoWeight[1]) + 1}: peso (kg)`;
-  }
-  const cargoUnits = /^cargo\.(\d+)\.units$/.exec(path);
-  if (cargoUnits) {
-    return `Carga ${Number(cargoUnits[1]) + 1}: unidades`;
-  }
-  return path.replaceAll(".", " > ");
-}
-
-function getStampErrorDescription(error: unknown): string {
-  if (!isApiError(error)) {
-    return getErrorMessage(error);
-  }
-
-  if (
-    error.code === "STAMP_QUOTA_EXCEEDED" ||
-    error.code === "TRIAL_ENDED" ||
-    error.code === "SUBSCRIPTION_INACTIVE"
-  ) {
-    return error.message;
-  }
-
-  if (error.code === "CP31_INVALID_NUMERIC_DATA") {
-    const rawDetails = error.details;
-    const details = Array.isArray(rawDetails)
-      ? (rawDetails as Cp31NumericDetail[])
-      : [];
-    const invalids = details
-      .filter(
-        (d) => d.code === "CP31_INVALID_NUMERIC_DATA" && typeof d.path === "string",
-      )
-      .map((d) => `• ${formatCp31Path(d.path!)}`);
-    if (invalids.length === 0) {
-      return error.message;
-    }
-    const preview = invalids.slice(0, 4);
-    const more = invalids.length - preview.length;
-    return [
-      "Se detectaron valores numéricos inválidos en Carta Porte:",
-      ...preview,
-      ...(more > 0 ? [`• ...y ${more} campo(s) más`] : []),
-    ].join("\n");
-  }
-
-  const detailMessages = error.validationErrors
-    .map((entry) => entry.message.trim())
-    .filter((message) => message.length > 0);
-
-  if (detailMessages.length === 1) {
-    return detailMessages[0];
-  }
-
-  if (detailMessages.length > 1) {
-    const preview = detailMessages.slice(0, 4).map((message) => `• ${message}`);
-    const more = detailMessages.length - preview.length;
-    return [
-      error.message,
-      ...preview,
-      ...(more > 0 ? [`• ...y ${more} problema(s) más`] : []),
-    ].join("\n");
-  }
-
-  return error.message || getErrorMessage(error);
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export function InvoiceActions({
   variant = "dropdown",
@@ -223,7 +136,7 @@ export function InvoiceActions({
     invoiceTripRefs: fullInvoice?.trips ?? [],
     enableAutoRestamp: variant === "buttons",
     onStampSuccess: onActionComplete,
-    getStampErrorDescription,
+    getStampErrorDescription: describeStampApiError,
   });
 
   const { mutate: openPdf, isPending: openingPdf } = useOpenInvoicePdf({

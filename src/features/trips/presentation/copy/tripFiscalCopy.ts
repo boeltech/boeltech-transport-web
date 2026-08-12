@@ -111,6 +111,16 @@ export const tripFiscalCopy = {
       stopOrder != null
         ? `RFC inválido en parada #${stopOrder}.`
         : "RFC inválido en una parada del viaje.",
+    /**
+     * Pre-stamp CP3.1 por datos de Autotransporte / remolques / placas.
+     * `detail` suele ser el mensaje de `details[]` del API.
+     */
+    vehicleIncompleteDescription: (detail?: string) => {
+      const base =
+        detail?.trim() ||
+        "Datos del vehículo incompletos para Carta Porte 3.1.";
+      return `${base} Abra Vehículos, edite la unidad asignada al viaje y complete los datos de Carta Porte; luego vuelva a timbrar.`;
+    },
   },
   chip: {
     invalidRfc: "Domicilio inválido — Corregir",

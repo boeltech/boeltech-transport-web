@@ -21,6 +21,8 @@ vi.mock("@features/trips/presentation/components/trip-fiscal", () => ({
     isStamping: false,
     sheets: null,
   }),
+  describeStampApiError: (error: unknown) =>
+    error instanceof Error ? error.message : String(error),
 }));
 
 vi.mock("@features/invoicing/application", () => ({
