@@ -254,7 +254,7 @@ export function SummaryStep({
               />
             </div>
 
-            {startMileage != null && startMileage > 0 ? (
+            {startMileage != null ? (
               <InfoRow
                 variant="inline"
                 icon={<Gauge className="h-4 w-4" />}

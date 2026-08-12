@@ -85,6 +85,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
       scheduledArrival: trip.scheduledArrival,
       baseRate: trip.costs?.baseRate,
       cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",
+      startMileage: trip.mileage.start,
     });
 
     if (!readiness.ok) {

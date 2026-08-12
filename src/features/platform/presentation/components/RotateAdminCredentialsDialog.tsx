@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, Eye, EyeOff } from "lucide-react";
@@ -35,11 +35,31 @@ interface RotateAdminCredentialsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * Remount al abrir: estado fresco sin reset en useEffect
+ * (evita react-hooks/set-state-in-effect).
+ */
 export function RotateAdminCredentialsDialog({
   tenantId,
   open,
   onOpenChange,
 }: RotateAdminCredentialsDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open ? (
+        <RotateAdminCredentialsDialogContent
+          tenantId={tenantId}
+          onOpenChange={onOpenChange}
+        />
+      ) : null}
+    </Dialog>
+  );
+}
+
+function RotateAdminCredentialsDialogContent({
+  tenantId,
+  onOpenChange,
+}: Omit<RotateAdminCredentialsDialogProps, "open">) {
   const { toast } = useToast();
   const copy = platformCopy.tenants.detail.adminActivation.rotateDialog;
   const createCopy = platformCopy.tenants.create;
@@ -49,7 +69,6 @@ export function RotateAdminCredentialsDialog({
   const {
     register,
     handleSubmit,
-    reset,
     setValue,
     control,
     formState: { errors },
@@ -69,13 +88,6 @@ export function RotateAdminCredentialsDialog({
 
   const passwordValue = useWatch({ control, name: "password" }) ?? "";
   const resendActivation = useWatch({ control, name: "resendActivation" });
-
-  useEffect(() => {
-    if (!open) return;
-    reset({ password: "", resendActivation: true });
-    setShowPassword(false);
-    setInlineError(null);
-  }, [open, reset]);
 
   const rotateMutation = useRotatePlatformAdminCredentials({
     onSuccess: (_result, variables) => {
@@ -104,127 +116,125 @@ export function RotateAdminCredentialsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{copy.title}</DialogTitle>
-          <DialogDescription>{copy.description}</DialogDescription>
-        </DialogHeader>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>{copy.title}</DialogTitle>
+        <DialogDescription>{copy.description}</DialogDescription>
+      </DialogHeader>
 
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          {inlineError ? (
-            <Alert variant="destructive">
-              <AlertDescription>{inlineError}</AlertDescription>
-            </Alert>
-          ) : null}
+      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+        {inlineError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{inlineError}</AlertDescription>
+          </Alert>
+        ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="rotate-admin-password">{copy.passwordLabel}</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  id="rotate-admin-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  {...register("password")}
-                  {...getRegisterFieldErrorProps(
-                    "rotate-admin-password",
-                    errors.password?.message,
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={
-                    showPassword
-                      ? createCopy.passwordActions.hide
-                      : createCopy.passwordActions.show
-                  }
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+        <div className="space-y-2">
+          <Label htmlFor="rotate-admin-password">{copy.passwordLabel}</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                id="rotate-admin-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                {...register("password")}
+                {...getRegisterFieldErrorProps(
+                  "rotate-admin-password",
+                  errors.password?.message,
+                )}
+              />
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => {
-                  const next = generateSecurePassword(16);
-                  setValue("password", next, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  });
-                  setShowPassword(true);
-                }}
-              >
-                {createCopy.passwordActions.generate}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                disabled={!passwordValue.trim()}
-                aria-label={createCopy.passwordActions.copy}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(passwordValue);
-                    toast({
-                      title: createCopy.passwordActions.copied,
-                      variant: "success",
-                    });
-                  } catch {
-                    toast({
-                      title: createCopy.passwordActions.copyError,
-                      variant: "error",
-                    });
-                  }
-                }}
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={
+                  showPassword
+                    ? createCopy.passwordActions.hide
+                    : createCopy.passwordActions.show
+                }
               >
-                <Copy className="h-4 w-4" />
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </div>
-            <FieldInlineError
-              fieldId="rotate-admin-password"
-              message={errors.password?.message}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="rotate-resend-activation"
-              checked={Boolean(resendActivation)}
-              onCheckedChange={(checked) =>
-                setValue("resendActivation", checked === true, {
-                  shouldDirty: true,
-                })
-              }
-            />
-            <Label htmlFor="rotate-resend-activation" className="font-normal">
-              {copy.resendLabel}
-            </Label>
-          </div>
-
-          <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={rotateMutation.isPending}
+              onClick={() => {
+                const next = generateSecurePassword(16);
+                setValue("password", next, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+                setShowPassword(true);
+              }}
             >
-              {copy.cancel}
+              {createCopy.passwordActions.generate}
             </Button>
-            <Button type="submit" disabled={rotateMutation.isPending}>
-              {rotateMutation.isPending ? copy.submitting : copy.submit}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              disabled={!passwordValue.trim()}
+              aria-label={createCopy.passwordActions.copy}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(passwordValue);
+                  toast({
+                    title: createCopy.passwordActions.copied,
+                    variant: "success",
+                  });
+                } catch {
+                  toast({
+                    title: createCopy.passwordActions.copyError,
+                    variant: "error",
+                  });
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+          <FieldInlineError
+            fieldId="rotate-admin-password"
+            message={errors.password?.message}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="rotate-resend-activation"
+            checked={Boolean(resendActivation)}
+            onCheckedChange={(checked) =>
+              setValue("resendActivation", checked === true, {
+                shouldDirty: true,
+              })
+            }
+          />
+          <Label htmlFor="rotate-resend-activation" className="font-normal">
+            {copy.resendLabel}
+          </Label>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={rotateMutation.isPending}
+          >
+            {copy.cancel}
+          </Button>
+          <Button type="submit" disabled={rotateMutation.isPending}>
+            {rotateMutation.isPending ? copy.submitting : copy.submit}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }

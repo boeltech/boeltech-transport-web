@@ -704,6 +704,21 @@ export function validateCostsStep(
 // FULL WIZARD SCHEMA
 // ============================================================================
 
+/** Vacío / NaN → undefined para no convertir "" en 0 con coerce. */
+const startMileageRequiredSchema = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) return undefined;
+    if (typeof value === "number" && Number.isNaN(value)) return undefined;
+    return value;
+  },
+  z.number({
+    required_error: "Kilometraje inicial requerido",
+    invalid_type_error: "Kilometraje inicial requerido",
+  })
+    .int("Kilometraje inicial inválido")
+    .min(0, "El kilometraje no puede ser negativo"),
+);
+
 export const tripWizardSchema = z.object({
   // Paso 1: Información Básica
   vehicleId: z.string().min(1, "Unidad requerida"),
@@ -718,7 +733,7 @@ export const tripWizardSchema = z.object({
   scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
   // Derivado del estimatedArrival de la parada de destino (Paso 2)
   scheduledArrival: z.string().optional(),
-  startMileage: z.coerce.number().min(0).optional(),
+  startMileage: startMileageRequiredSchema,
   vehicleCurrentMileage: z.coerce.number().min(0).optional(),
 
   /** Resumen operativo (reserva ADR-0071; en alta completa suele derivarse de paradas). */
@@ -847,7 +862,7 @@ export const WIZARD_STEPS_RESERVE = [
     id: "asignar",
     title: shell.step.asignar.title,
     description: shell.step.asignar.description,
-    fields: ["vehicleId", "driverId", "baseRate"],
+    fields: ["vehicleId", "driverId", "baseRate", "startMileage"],
   },
 ];
 
@@ -873,7 +888,7 @@ export const tripReserveWizardSchema = z
     cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
     scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
     scheduledArrival: z.string().optional(),
-    startMileage: z.coerce.number().min(0).optional(),
+    startMileage: startMileageRequiredSchema,
     vehicleCurrentMileage: z.coerce.number().min(0).optional(),
     originCity: z
       .string()

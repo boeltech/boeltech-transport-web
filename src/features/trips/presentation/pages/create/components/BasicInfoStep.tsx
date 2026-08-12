@@ -793,6 +793,7 @@ export function BasicInfoStep({
                   <FormFieldShell
                     fieldId="startMileage"
                     label={copy.label.startMileage}
+                    required
                     errorMessage={fieldState.error?.message}
                     description={
                       vehicleCurrentMileage !== undefined

@@ -3,7 +3,7 @@
  * Flujo: archivo → revisión → confirmar → resultado (contrato API intacto).
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -76,8 +76,19 @@ type WizardStep = "upload" | "validate" | "options" | "result";
 
 const STEP_ORDER: WizardStep[] = ["upload", "validate", "options", "result"];
 
-export function MasterImportWizard({
-  open,
+/**
+ * Remount al abrir: estado fresco sin reset en useEffect
+ * (evita react-hooks/set-state-in-effect).
+ */
+export function MasterImportWizard(props: MasterImportWizardProps) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      {props.open ? <MasterImportWizardContent {...props} /> : null}
+    </Dialog>
+  );
+}
+
+function MasterImportWizardContent({
   onOpenChange,
   entityType: entityTypeProp,
   lockEntityType = false,
@@ -133,22 +144,6 @@ export function MasterImportWizard({
       setActionError(getErrorMessage(err) || importsCopy.errors.commitFailed);
     },
   });
-
-  useEffect(() => {
-    if (!open) {
-      setStep("upload");
-      setFile(null);
-      setDragActive(false);
-      setPreview(null);
-      setCommitResult(null);
-      setOptions(DEFAULT_IMPORT_OPTIONS);
-      setActionError(null);
-      setEntityType(entityTypeProp ?? "clients");
-      return;
-    }
-    setEntityType(entityTypeProp ?? "clients");
-    setActionError(null);
-  }, [open, entityTypeProp]);
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const progressValue = ((stepIndex + 1) / STEP_ORDER.length) * 100;
@@ -605,28 +600,26 @@ export function MasterImportWizard({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{copy.description}</DialogDescription>
-        </DialogHeader>
+    <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{copy.description}</DialogDescription>
+      </DialogHeader>
 
-        <div className="space-y-2" aria-live="polite">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>
-              {copy.steps[step]} ({stepIndex + 1}/{STEP_ORDER.length})
-              {isBusy ? "…" : ""}
-            </span>
-          </div>
-          <Progress value={progressValue} />
+      <div className="space-y-2" aria-live="polite">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>
+            {copy.steps[step]} ({stepIndex + 1}/{STEP_ORDER.length})
+            {isBusy ? "…" : ""}
+          </span>
         </div>
+        <Progress value={progressValue} />
+      </div>
 
-        {step === "upload" && renderUploadStep()}
-        {step === "validate" && renderValidateStep()}
-        {step === "options" && renderOptionsStep()}
-        {step === "result" && renderResultStep()}
-      </DialogContent>
-    </Dialog>
+      {step === "upload" && renderUploadStep()}
+      {step === "validate" && renderValidateStep()}
+      {step === "options" && renderOptionsStep()}
+      {step === "result" && renderResultStep()}
+    </DialogContent>
   );
 }

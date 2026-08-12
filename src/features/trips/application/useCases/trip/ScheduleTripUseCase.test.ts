@@ -64,6 +64,7 @@ describe("ScheduleTripUseCase route validation", () => {
       findById: vi.fn().mockResolvedValue({
         data: draftTrip({
           originCity: "",
+          mileage: { start: 10_000, end: null },
           costs: {
             baseRate: 35_000,
             fuelCost: 0,
@@ -88,6 +89,7 @@ describe("ScheduleTripUseCase route validation", () => {
   it("programa viaje con resumen de ruta válido", async () => {
     const scheduled = draftTrip({
       status: TripStatus.SCHEDULED,
+      mileage: { start: 12_000, end: null },
       costs: {
         baseRate: 35_000,
         fuelCost: 0,
@@ -99,6 +101,7 @@ describe("ScheduleTripUseCase route validation", () => {
     const repository = {
       findById: vi.fn().mockResolvedValue({
         data: draftTrip({
+          mileage: { start: 12_000, end: null },
           costs: {
             baseRate: 35_000,
             fuelCost: 0,
@@ -118,6 +121,33 @@ describe("ScheduleTripUseCase route validation", () => {
     expect(repository.updateStatus).toHaveBeenCalledWith("trip-1", {
       status: TripStatus.SCHEDULED,
     });
+  });
+
+  it("rechaza programar sin kilometraje inicial", async () => {
+    const repository = {
+      findById: vi.fn().mockResolvedValue({
+        data: draftTrip({
+          mileage: { start: null, end: null },
+          costs: {
+            baseRate: 35_000,
+            fuelCost: 0,
+            tollCost: 0,
+            otherCosts: 0,
+            totalCost: 35_000,
+          },
+        }),
+      }),
+      updateStatus: vi.fn(),
+    } as unknown as ITripRepository;
+    const useCase = new ScheduleTripUseCase(repository);
+
+    const result = await useCase.execute("trip-1");
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.code).toBe("SCHEDULE_NOT_READY");
+    expect(result.error.message).toMatch(/kilometraje inicial/i);
+    expect(repository.updateStatus).not.toHaveBeenCalled();
   });
 
   it("rechaza programar sin base_rate (ADR-0071)", async () => {
