@@ -147,7 +147,8 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
     satConfigAutotransporteCode:
       vehicle.cartaPorte.satConfigAutotransporteCode ?? "",
     pesoBrutoVehicular:
-      parsePesoBrutoVehicularFormInput(vehicle.cartaPorte.pesoBrutoVehicular),
+      parsePesoBrutoVehicularFormInput(vehicle.cartaPorte.pesoBrutoVehicular) ??
+      (undefined as unknown as number),
     insuranceCompany: vehicle.cartaPorte.insuranceCompany ?? "",
     aseguraMedioAmbiente: vehicle.cartaPorte.aseguraMedioAmbiente ?? "",
     polizaMedioAmbiente: vehicle.cartaPorte.polizaMedioAmbiente ?? "",
@@ -249,7 +250,7 @@ const defaultValues: CreateVehicleFormData = {
   // Carta Porte 3.1
   satTipoPermisoCode: "",
   satConfigAutotransporteCode: "",
-  pesoBrutoVehicular: undefined,
+  pesoBrutoVehicular: undefined as unknown as number,
   insuranceCompany: "",
   aseguraMedioAmbiente: "",
   polizaMedioAmbiente: "",
