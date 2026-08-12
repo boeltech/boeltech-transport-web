@@ -4,22 +4,22 @@
  *
  * Schemas Zod para validación de formularios de vehículos.
  *
- * Carta Porte 3.1 (SoT `@boeltech/cfdi-domain/validateVehicleForCartaPorteStamp`):
- * - Alta: los campos del nodo `Autotransporte` (PermSCT, NumPermisoSCT,
- *   ConfigVehicular, PesoBrutoVehicular, AseguraRespCivil, PolizaRespCivil)
- *   son **requeridos** para garantizar que cualquier vehículo nuevo sea
- *   timbrable. PlacaVM/AnioModeloVM ya son requeridos como datos básicos.
- * - Edición: los CP3.1 quedan opcionales para no bloquear ediciones puntuales
- *   sobre vehículos legacy sin estos datos (el pre-stamp API bloquea timbrado).
- * - Remolques: si `ConfigVehicular` exige remolques (catálogos `S\d`/`R\d`,
- *   regla del paquete `configVehicularLikelyRequiresRemolques`), se exige al
- *   menos uno.
+ * Carta Porte 3.1 (SoT `@boeltech/cfdi-domain` `validateVehicleForCartaPorteStamp`):
+ * - Alta y edición: campos Autotransporte requeridos (PermSCT, NumPermisoSCT,
+ *   ConfigVehicular, PesoBrutoVehicular, AseguraRespCivil, PolizaRespCivil).
+ * - PlacaVM: normalize + isValidCp31Placa (5–7 alfanuméricos).
+ * - Remolques: si ConfigVehicular exige remolques (`configVehicularLikelyRequiresRemolques`),
+ *   se exige al menos uno.
  *
  * Ubicación: src/features/vehicles/presentation/validation.ts
  */
 
 import { z } from "zod";
-import { configVehicularLikelyRequiresRemolques } from "@boeltech/cfdi-domain";
+import {
+  configVehicularLikelyRequiresRemolques,
+  isValidCp31Placa,
+  normalizeCp31Placa,
+} from "@boeltech/cfdi-domain";
 
 // ============================================
 // Enums (mirror backend)
@@ -47,11 +47,22 @@ const remolqueSchema = z.object({
     .max(10, "Máximo 10 caracteres"),
   licensePlate: z
     .string()
-    .regex(
-      /^[A-Za-z0-9]{5,7}$/,
+    .transform((val) => normalizeCp31Placa(val))
+    .refine(
+      (val) => isValidCp31Placa(val),
       "La placa del remolque debe tener 5 a 7 caracteres alfanuméricos",
     ),
 });
+
+const licensePlateCp31Schema = z
+  .string()
+  .min(1, "La placa es requerida")
+  .max(15, "Máximo 15 caracteres")
+  .transform((val) => normalizeCp31Placa(val))
+  .refine(
+    (val) => isValidCp31Placa(val),
+    "La placa debe tener 5 a 7 caracteres alfanuméricos (sin espacios ni guiones)",
+  );
 
 // ============================================
 // Helper: Optional positive number (handles string from HTML input)
@@ -120,17 +131,7 @@ function preprocessPesoBrutoVehicular(val: unknown): unknown {
   return undefined;
 }
 
-/** Peso bruto vehicular — versión opcional (modo edición/legacy). */
-const vehicleFormPesoBrutoSchema = z.preprocess(
-  preprocessPesoBrutoVehicular,
-  z
-    .number()
-    .positive("Debe ser mayor a 0")
-    .max(9999.999, "Máximo 9999.999 toneladas")
-    .optional(),
-);
-
-/** Peso bruto vehicular — versión requerida (alta CP3.1). */
+/** Peso bruto vehicular — versión requerida (alta/edición CP3.1). */
 const vehicleFormPesoBrutoRequiredSchema = z.preprocess(
   preprocessPesoBrutoVehicular,
   z
@@ -139,21 +140,22 @@ const vehicleFormPesoBrutoRequiredSchema = z.preprocess(
     .max(9999.999, "Máximo 9999.999 toneladas"),
 );
 
-const optionalPositiveNumber = z.preprocess(
-  (val) => {
-    // // null o undefined → undefined
-    // if (val === null || val === undefined) return undefined;
-    // // string vacío → undefined
-    // if (val === "") return undefined;
-
-    // string numérico o número → número
-    const parsed = typeof val === "string" ? parseFloat(val) : val;
-    // NaN → undefined
-    // if (typeof parsed === "number" && isNaN(parsed)) return undefined;
-    return parsed;
-  },
-  z.number().positive("Debe ser mayor a 0").optional().or(z.literal(undefined)),
-);
+/**
+ * Capacidades opcionales: el input numérico puede dejar `null` (emptyAs)
+ * o string vacío; normalizamos a `undefined` para no tumbar el submit
+ * con `invalid_union` silencioso.
+ */
+const optionalPositiveNumber = z.preprocess((val) => {
+  if (val === null || val === undefined || val === "") return undefined;
+  if (typeof val === "number") {
+    return Number.isNaN(val) ? undefined : val;
+  }
+  if (typeof val === "string") {
+    const parsed = parseFloat(val);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return val;
+}, z.number().positive("Debe ser mayor a 0").optional());
 
 // ============================================
 // Vehicle Form Schemas
@@ -164,7 +166,7 @@ const optionalPositiveNumber = z.preprocess(
  * documentación, seguros opcionales y remolques).
  * Los campos CP3.1 críticos (PermSCT, NumPermisoSCT, ConfigVehicular,
  * PesoBruto, AseguraRespCivil, PolizaRespCivil) se definen por separado
- * para tener variantes requeridas (alta) y opcionales (edición).
+ * y son requeridos tanto en alta como en edición.
  */
 const vehicleFormCommonShape = {
   // ── Identification ────────────────────────────────────────────────────────
@@ -172,10 +174,7 @@ const vehicleFormCommonShape = {
     .string()
     .min(1, "El número de unidad es requerido")
     .max(20, "Máximo 20 caracteres"),
-  licensePlate: z
-    .string()
-    .min(1, "La placa es requerida")
-    .max(15, "Máximo 15 caracteres"),
+  licensePlate: licensePlateCp31Schema,
   vin: z.string().max(50, "Máximo 50 caracteres").optional().or(z.literal("")),
 
   // ── Characteristics ───────────────────────────────────────────────────────
@@ -192,7 +191,8 @@ const vehicleFormCommonShape = {
       error: "El año es requerido",
     })
     .int("Debe ser un número entero")
-    .min(1900, "Año inválido")
+    // Piso alineado a validateVehicleForCartaPorteStamp (AnioModeloVM 1980–2100)
+    .min(1980, "El año del modelo debe ser 1980 o posterior")
     .max(new Date().getFullYear() + 1, "Año inválido"),
   type: vehicleTypeSchema.default("truck"),
   color: z.string().max(30).optional().or(z.literal("")),
@@ -314,47 +314,15 @@ export const createVehicleSchema = z
   .superRefine(applyRemolquesConditional);
 
 // ============================================
-// Edit Vehicle Form Schema — CP3.1 laxo (legacy-safe)
+// Edit Vehicle Form Schema — mismo set CP que alta
 // ============================================
 
 /**
- * Schema usado por el formulario en modo edición. Mantiene los CP3.1
- * opcionales para no bloquear ediciones sobre vehículos legacy sin estos
- * datos. El pre-stamp API (`validateVehicleForCartaPorteStamp`) sigue
- * bloqueando el timbrado si faltan; aquí sólo se permite editar otros
- * campos sin tener que completar todo el nodo Autotransporte.
+ * Schema de edición: mismos campos Autotransporte requeridos que el alta.
+ * Legacy incompleto se corrige al editar (API también exige stamp-ready
+ * si la unidad queda operable).
  */
-export const editVehicleFormSchema = z
-  .object({
-    ...vehicleFormCommonShape,
-    satTipoPermisoCode: z
-      .string()
-      .max(10, "Máximo 10 caracteres")
-      .optional()
-      .or(z.literal("")),
-    sctPermitNumber: z
-      .string()
-      .max(50, "Máximo 50 caracteres")
-      .optional()
-      .or(z.literal("")),
-    satConfigAutotransporteCode: z
-      .string()
-      .max(10, "Máximo 10 caracteres")
-      .optional()
-      .or(z.literal("")),
-    pesoBrutoVehicular: vehicleFormPesoBrutoSchema,
-    insuranceCompany: z
-      .string()
-      .max(50, "Máximo 50 caracteres")
-      .optional()
-      .or(z.literal("")),
-    insurancePolicy: z
-      .string()
-      .max(50, "Máximo 50 caracteres")
-      .optional()
-      .or(z.literal("")),
-  })
-  .superRefine(applyRemolquesConditional);
+export const editVehicleFormSchema = createVehicleSchema;
 
 // ============================================
 // Update Vehicle Schema
@@ -362,7 +330,7 @@ export const editVehicleFormSchema = z
 
 export const updateVehicleSchema = z.object({
   // Identification (unitNumber no se puede cambiar)
-  licensePlate: z.string().min(1).max(15).optional(),
+  licensePlate: licensePlateCp31Schema.optional(),
   vin: z.string().max(50).nullable().optional(),
 
   // Characteristics
@@ -417,13 +385,9 @@ export const updateVehicleSchema = z.object({
 
 /**
  * Tipo del formulario de vehículo (alta y edición).
- *
- * Se infiere del schema **laxo** (`editVehicleFormSchema`) para que el handler
- * de submit y los `defaultValues` sean compatibles con ambos modos. En alta,
- * `createVehicleSchema` los enforces como requeridos en runtime; en edición,
- * mantiene flexibilidad para vehículos legacy.
+ * Ambos modos usan el mismo schema estricto de Autotransporte.
  */
-export type CreateVehicleFormData = z.infer<typeof editVehicleFormSchema>;
+export type CreateVehicleFormData = z.infer<typeof createVehicleSchema>;
 export type UpdateVehicleFormData = z.infer<typeof updateVehicleSchema>;
 
 /** Campos por paso del wizard de alta (índices 0–2); el paso 3 es solo revisión. */

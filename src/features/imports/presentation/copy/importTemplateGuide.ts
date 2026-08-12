@@ -420,8 +420,8 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "license_plate",
         label: "Placas",
-        tip: "Deben ser únicas entre unidades.",
-        requirement: "recommended",
+        tip: "5 a 7 caracteres alfanuméricos (sin espacios ni guiones). Únicas entre unidades.",
+        requirement: "required",
       },
       {
         header: "brand",
@@ -439,7 +439,7 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
         header: "year",
         label: "Año",
         tip: "Año modelo.",
-        requirement: "optional",
+        requirement: "required",
       },
       {
         header: "type",
@@ -467,10 +467,16 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
         requirement: "optional",
       },
       {
+        header: "insurance_company",
+        label: "Aseguradora RC",
+        tip: "AseguraRespCivil — requerida para Carta Porte.",
+        requirement: "required",
+      },
+      {
         header: "insurance_policy",
-        label: "Póliza de seguro",
-        tip: "Número de póliza.",
-        requirement: "optional",
+        label: "Póliza de seguro RC",
+        tip: "PolizaRespCivil — requerida para Carta Porte.",
+        requirement: "required",
       },
       {
         header: "insurance_expiry",
@@ -481,8 +487,8 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "sct_permit_number",
         label: "Permiso SCT",
-        tip: "Número de permiso.",
-        requirement: "optional",
+        tip: "NumPermisoSCT — requerido para Carta Porte.",
+        requirement: "required",
       },
       {
         header: "sct_permit_expiry",
@@ -493,9 +499,46 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "sat_tipo_permiso_code",
         label: "Tipo de permiso (código)",
-        tip: "Código del catálogo de permisos.",
-        requirement: "optional",
+        tip: "PermSCT — catálogo c_TipoPermiso.",
+        requirement: "required",
         writeAs: "Ejemplo frecuente → TPAF01",
+      },
+      {
+        header: "sat_config_autotransporte_code",
+        label: "Configuración vehicular",
+        tip: "ConfigVehicular — catálogo c_ConfigAutotransporte. Códigos con S/R requieren remolque.",
+        requirement: "required",
+        writeAs: "Ej. C2, T3S2",
+      },
+      {
+        header: "peso_bruto_vehicular",
+        label: "Peso bruto (ton)",
+        tip: "PesoBrutoVehicular en toneladas (> 0).",
+        requirement: "required",
+      },
+      {
+        header: "remolque_1_sat_sub_tipo_rem_code",
+        label: "Remolque 1 — subtipo",
+        tip: "Obligatorio si ConfigVehicular es S/R. Catálogo SubTipoRem.",
+        requirement: "optional",
+      },
+      {
+        header: "remolque_1_license_plate",
+        label: "Remolque 1 — placa",
+        tip: "5–7 alfanuméricos. Junto con el subtipo del remolque 1.",
+        requirement: "optional",
+      },
+      {
+        header: "remolque_2_sat_sub_tipo_rem_code",
+        label: "Remolque 2 — subtipo",
+        tip: "Segundo remolque (máx. 2).",
+        requirement: "optional",
+      },
+      {
+        header: "remolque_2_license_plate",
+        label: "Remolque 2 — placa",
+        tip: "5–7 alfanuméricos.",
+        requirement: "optional",
       },
       {
         header: "branch_id",

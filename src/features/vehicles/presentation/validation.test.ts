@@ -2,14 +2,9 @@
  * Tests de los schemas de vehículos.
  *
  * Cubre:
- * - Alta (`createVehicleSchema`) exige campos CP3.1 (PermSCT,
- *   NumPermisoSCT, ConfigVehicular, PesoBruto, AseguraRespCivil,
- *   PolizaRespCivil) según SoT `validateVehicleForCartaPorteStamp`.
- * - Edición (`editVehicleFormSchema`) NO exige CP3.1 para no bloquear
- *   ediciones puntuales sobre vehículos legacy.
- * - Refine de remolques: cuando la `ConfigVehicular` SAT requiere remolques
- *   (regla del paquete `configVehicularLikelyRequiresRemolques`),
- *   se exige al menos uno.
+ * - Alta y edición exigen campos CP3.1 Autotransporte.
+ * - PlacaVM SAT 5–7 vía normalizeCp31Placa / isValidCp31Placa.
+ * - Refine de remolques cuando ConfigVehicular S/R.
  */
 
 import { describe, expect, it } from "vitest";
@@ -51,6 +46,44 @@ describe("createVehicleSchema — Carta Porte 3.1 (alta)", () => {
   it("acepta payload completo con todos los CP3.1", () => {
     const result = createVehicleSchema.safeParse(baseAlta);
     expect(result.success).toBe(true);
+  });
+
+  it("rechaza year anterior a 1980 (piso stamp AnioModeloVM)", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      year: 1979,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === "year")).toBe(true);
+    }
+  });
+
+  it("acepta year 1980 (piso stamp AnioModeloVM)", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      year: 1980,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("normaliza placa con guiones", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      licensePlate: "abc-123a",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.licensePlate).toBe("ABC123A");
+    }
+  });
+
+  it("rechaza placa fuera de 5–7 tras normalizar", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      licensePlate: "AB-1",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rechaza alta sin PermSCT (satTipoPermisoCode)", () => {
@@ -134,7 +167,6 @@ describe("createVehicleSchema — Carta Porte 3.1 (alta)", () => {
   });
 
   it("rechaza alta con ConfigVehicular tipo S/R y sin remolques", () => {
-    // T3S2 contiene S\d → requiere remolques (regla paquete)
     const result = createVehicleSchema.safeParse({
       ...baseAlta,
       satConfigAutotransporteCode: "T3S2",
@@ -170,15 +202,15 @@ describe("createVehicleSchema — Carta Porte 3.1 (alta)", () => {
   it("acepta alta con ConfigVehicular sin remolques cuando no es S/R", () => {
     const result = createVehicleSchema.safeParse({
       ...baseAlta,
-      satConfigAutotransporteCode: "C2", // C2 = chasis simple, no requiere remolques
+      satConfigAutotransporteCode: "C2",
       remolques: [],
     });
     expect(result.success).toBe(true);
   });
 });
 
-describe("editVehicleFormSchema — laxo para legacy", () => {
-  it("acepta edición de vehículo legacy sin CP3.1 capturados", () => {
+describe("editVehicleFormSchema — mismo set CP que alta", () => {
+  it("rechaza edición de vehículo legacy sin CP3.1", () => {
     const legacyData = {
       ...baseAlta,
       satTipoPermisoCode: "",
@@ -189,7 +221,22 @@ describe("editVehicleFormSchema — laxo para legacy", () => {
       insurancePolicy: "",
     };
     const result = editVehicleFormSchema.safeParse(legacyData);
+    expect(result.success).toBe(false);
+  });
+
+  it("acepta capacidades en null (input vacío) sin tumbar el submit", () => {
+    const result = editVehicleFormSchema.safeParse({
+      ...baseAlta,
+      loadCapacity: null,
+      volumeCapacity: null,
+      fuelTankCapacity: null,
+      expectedFuelEfficiency: null,
+    });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.loadCapacity).toBeUndefined();
+      expect(result.data.volumeCapacity).toBeUndefined();
+    }
   });
 
   it("rechaza edición con ConfigVehicular S/R sin remolques (refine aplica)", () => {

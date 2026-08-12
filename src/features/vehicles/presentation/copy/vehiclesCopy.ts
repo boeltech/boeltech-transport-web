@@ -237,7 +237,7 @@ export const vehiclesCopy = {
     },
     placeholder: {
       unitNumber: "Ej. U-001",
-      licensePlate: "Ej. ABC-123-A",
+      licensePlate: "Ej. ABC123A",
       vin: "Número de serie del vehículo",
       brand: "Ej. Kenworth",
       model: "Ej. T680",
@@ -270,7 +270,7 @@ export const vehiclesCopy = {
       cartaPorteCreate:
         "Los campos marcados con * son obligatorios para timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML.",
       cartaPorteEdit:
-        "Completa los campos vacíos para que la unidad sea timbrable. Placa y año se toman de la identificación.",
+        "Los campos Autotransporte con * son obligatorios para guardar una unidad operable y timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML.",
     },
     action: {
       cancel: "Cancelar",

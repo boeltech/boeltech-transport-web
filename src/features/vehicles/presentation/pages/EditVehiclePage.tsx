@@ -18,6 +18,10 @@ import {
 } from "@features/vehicles/domain";
 import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
 import { vehiclesCopy } from "../copy";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 
 const copy = vehiclesCopy.form;
 
@@ -39,11 +43,19 @@ export function EditVehiclePage() {
       navigate(`/vehicles/${vehicleId}`);
     },
     onError: (error) => {
-      toast({
-        title: copy.edit.toast.errorTitle,
-        description: error.message,
-        variant: "destructive",
-      });
+      if (isApiError(error)) {
+        toast({
+          title: copy.edit.toast.errorTitle,
+          description: error.getDetailedMessage(3),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: copy.edit.toast.errorTitle,
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      }
     },
   });
 

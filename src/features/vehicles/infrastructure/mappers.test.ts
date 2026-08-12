@@ -31,6 +31,50 @@ describe("vehicle mappers — branch fields", () => {
     expect(item.branchId).toBe("branch-1");
     expect(item.branchName).toBe("Matriz");
     expect(item.branchCode).toBe("MTZ");
+    expect(item.remolques).toEqual([]);
+    expect(item.pesoBrutoVehicular).toBeNull();
+    expect(item.insuranceCompany).toBeNull();
+  });
+
+  it("maps CP list fields and remolques", () => {
+    const item = mapVehicleListItem({
+      id: "v2",
+      unit_number: "U-02",
+      license_plate: "XYZ5678",
+      brand: "Volvo",
+      model: "VNL",
+      year: 2023,
+      type: "truck",
+      color: null,
+      status: "available",
+      current_mileage: 0,
+      is_active: true,
+      insurance_policy: "POL-1",
+      insurance_expiry: "2030-01-01",
+      sct_permit_number: "SCT-1",
+      sct_permit_expiry: "2030-01-01",
+      sat_tipo_permiso_code: "TPAF01",
+      sat_config_autotransporte_code: "T3S2",
+      peso_bruto_vehicular: 30,
+      insurance_company: "GNP",
+      remolques: [
+        {
+          position: 1,
+          sat_sub_tipo_rem_code: "CTR001",
+          license_plate: "REM1234",
+        },
+      ],
+    });
+
+    expect(item.pesoBrutoVehicular).toBe(30);
+    expect(item.insuranceCompany).toBe("GNP");
+    expect(item.remolques).toEqual([
+      {
+        position: 1,
+        satSubTipoRemCode: "CTR001",
+        licensePlate: "REM1234",
+      },
+    ]);
   });
 
   it("maps branch fields on detail and create payload", () => {

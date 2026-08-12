@@ -52,6 +52,9 @@ export interface ApiVehicleListItemResponse {
   // Carta Porte 3.1
   sat_tipo_permiso_code: string | null;
   sat_config_autotransporte_code: string | null;
+  peso_bruto_vehicular?: number | null;
+  insurance_company?: string | null;
+  remolques?: ApiVehicleRemolqueResponse[];
   branch_id?: string | null;
   branch_name?: string | null;
   branch_code?: string | null;
@@ -138,6 +141,13 @@ export function mapVehicleListItem(
     // Carta Porte 3.1
     satTipoPermisoCode: raw.sat_tipo_permiso_code,
     satConfigAutotransporteCode: raw.sat_config_autotransporte_code,
+    pesoBrutoVehicular: raw.peso_bruto_vehicular ?? null,
+    insuranceCompany: raw.insurance_company ?? null,
+    remolques: (raw.remolques ?? []).map((r) => ({
+      position: r.position as 1 | 2,
+      satSubTipoRemCode: r.sat_sub_tipo_rem_code,
+      licensePlate: r.license_plate,
+    })),
     branchId: raw.branch_id ?? null,
     branchName: raw.branch_name ?? null,
     branchCode: raw.branch_code ?? null,

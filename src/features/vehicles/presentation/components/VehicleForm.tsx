@@ -33,11 +33,10 @@ import {
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
-import { FormValidationSummary } from "@shared/ui/form";
+import { FieldInlineError, FormValidationSummary, getFieldErrorAriaProps } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
-import { getFieldErrorAriaProps } from "@shared/ui/form";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import {
   Select,
@@ -50,7 +49,6 @@ import { buildBranchSelectOptionsWithEligibility } from "@shared/utils/branchSel
 
 import {
   createVehicleSchema,
-  editVehicleFormSchema,
   parsePesoBrutoVehicularFormInput,
   VEHICLE_CREATE_WIZARD_STEP_FIELDS,
   type CreateVehicleFormData,
@@ -282,13 +280,11 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const ws = wizardStepIndex;
     const [showValidationSummary, setShowValidationSummary] = useState(false);
 
-    // CP3.1: alta exige PermSCT/NumPermisoSCT/ConfigVehicular/PesoBruto/AseguraRespCivil/PolizaRespCivil
-    // (SoT paquete `validateVehicleForCartaPorteStamp`). En edición usamos el
-    // schema laxo para no bloquear ediciones puntuales sobre vehículos legacy.
-    const requireCartaPorteFields = !isEditMode;
-    const activeSchema = requireCartaPorteFields
-      ? createVehicleSchema
-      : editVehicleFormSchema;
+    // CP3.1: alta (y edición) exigen PermSCT/NumPermisoSCT/ConfigVehicular/PesoBruto/
+    // AseguraRespCivil/PolizaRespCivil (SoT `validateVehicleForCartaPorteStamp`).
+    // AnioModeloVM: year ≥ 1980 (piso del paquete).
+    const requireCartaPorteFields = true;
+    const activeSchema = createVehicleSchema;
 
     const form = useForm<CreateVehicleFormData, unknown, CreateVehicleFormData>({
       resolver: zodResolver(activeSchema) as Resolver<CreateVehicleFormData>,
@@ -342,9 +338,14 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         vehicle?.branchId ?? "",
       );
 
+    const onInvalid = () => {
+      setShowValidationSummary(true);
+    };
+
     const handleSubmit = rhfHandleSubmit((data) => {
+      setShowValidationSummary(false);
       onSubmit(data);
-    });
+    }, onInvalid);
 
     useImperativeHandle(
       ref,
@@ -358,11 +359,21 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           return ok;
         },
         requestSubmit: () => {
-          void rhfHandleSubmit(onSubmit)();
+          void rhfHandleSubmit((data) => {
+            setShowValidationSummary(false);
+            onSubmit(data);
+          }, onInvalid)();
         },
       }),
       [trigger, rhfHandleSubmit, onSubmit],
     );
+
+    const remolquesErrorMessage =
+      typeof errors.remolques?.message === "string"
+        ? errors.remolques.message
+        : typeof errors.remolques?.root?.message === "string"
+          ? errors.remolques.root.message
+          : undefined;
 
     return (
       <FormProvider {...form}>
@@ -396,12 +407,39 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               placeholder={fc.placeholder.unitNumber}
               disabled={isEditMode}
             />
-            <VehicleGridInput
+            <Controller
               control={control}
               name="licensePlate"
-              label={fc.label.licensePlate}
-              required
-              placeholder={fc.placeholder.licensePlate}
+              render={({ field, fieldState }) => {
+                const fieldId = "licensePlate";
+                const errorMessage = fieldState.error?.message;
+                return (
+                  <VehicleGridField
+                    fieldId={fieldId}
+                    label={fc.label.licensePlate}
+                    required
+                    errorMessage={errorMessage}
+                  >
+                    <Input
+                      id={fieldId}
+                      placeholder={fc.placeholder.licensePlate}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9]/g, ""),
+                        )
+                      }
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(fieldId, errorMessage)}
+                    />
+                  </VehicleGridField>
+                );
+              }}
             />
             <VehicleGridInput
               control={control}
@@ -436,7 +474,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               name="year"
               label={fc.label.year}
               required
-              min={1900}
+              min={1980}
               max={new Date().getFullYear() + 1}
             />
             <VehicleGridSelect
@@ -532,7 +570,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               step="0.01"
               min={0}
               placeholder={fc.placeholder.loadCapacity}
-              emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
@@ -542,7 +579,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               step="0.01"
               min={0}
               placeholder={fc.placeholder.volumeCapacity}
-              emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
@@ -552,7 +588,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               step="0.01"
               min={0}
               placeholder={fc.placeholder.fuelTankCapacity}
-              emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
             <VehicleGridNumberInput
@@ -562,7 +597,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               step="0.01"
               min={0}
               placeholder={fc.placeholder.expectedFuelEfficiency}
-              emptyAs="null"
               parse={(val) => parseFloat(val)}
             />
         </FormSectionCard>
@@ -698,9 +732,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                {requireCartaPorteFields
-                  ? fc.alert.cartaPorteCreate
-                  : fc.alert.cartaPorteEdit}
+                {isEditMode
+                  ? fc.alert.cartaPorteEdit
+                  : fc.alert.cartaPorteCreate}
               </AlertDescription>
             </Alert>
 
@@ -774,9 +808,15 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               </div>
 
               {remolquesFieldArray.fields.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {fc.hint.noTrailers}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {fc.hint.noTrailers}
+                  </p>
+                  <FieldInlineError
+                    fieldId="remolques"
+                    message={remolquesErrorMessage}
+                  />
+                </div>
               ) : (
                 <div className="space-y-3">
                   {remolquesFieldArray.fields.map((field, index) => (

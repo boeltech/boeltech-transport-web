@@ -19,6 +19,7 @@ import {
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import { isVehicleStartableStatus } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
+import { validateVehicleForCartaPorteStamp } from "@boeltech/cfdi-domain";
 import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { vehiclesApi } from "../../infrastructure";
 import {
@@ -214,6 +215,35 @@ export function classifyVehicleForAssignment(
   }
 
   // Vigencia sin número en listado: se permite (API puede omitir `sct_permit_number`).
+
+  // ── Autotransporte CP stamp-ready (SoT paquete; sin vigencias) ──────────
+  const stampResult = validateVehicleForCartaPorteStamp({
+    tripId: vehicle.id,
+    sat_tipo_permiso_code: vehicle.satTipoPermisoCode,
+    sct_permit_number: vehicle.sctPermitNumber,
+    sat_config_autotransporte_code: vehicle.satConfigAutotransporteCode,
+    license_plate: vehicle.licensePlate,
+    insurance_company: vehicle.insuranceCompany,
+    insurance_policy: vehicle.insurancePolicy,
+    peso_bruto_vehicular: vehicle.pesoBrutoVehicular,
+    year: vehicle.year,
+    remolques: vehicle.remolques.map((r) => ({
+      position: r.position,
+      sat_sub_tipo_rem_code: r.satSubTipoRemCode,
+      license_plate: r.licensePlate,
+    })),
+  });
+
+  if (!stampResult.ok) {
+    const first = stampResult.error[0];
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason:
+        first?.message ??
+        "Datos Autotransporte incompletos para Carta Porte 3.1",
+    };
+  }
 
   return { ...vehicle, canBeAssigned: true };
 }

@@ -12,7 +12,7 @@ function vehicle(
     brand: "Freightliner",
     model: "Cascadia",
     year: 2022,
-    type: "tractor",
+    type: "truck",
     color: null,
     status: "available",
     currentMileage: 0,
@@ -21,13 +21,16 @@ function vehicle(
     insuranceExpiry: "2030-01-01",
     sctPermitNumber: "SCT-001",
     sctPermitExpiry: "2030-01-01",
-    satTipoPermisoCode: null,
-    satConfigAutotransporteCode: null,
+    satTipoPermisoCode: "TPAF01",
+    satConfigAutotransporteCode: "C2",
+    pesoBrutoVehicular: 25,
+    insuranceCompany: "GNP",
+    remolques: [],
     branchId: null,
     branchName: null,
     branchCode: null,
     ...overrides,
-  } as VehicleListItem;
+  };
 }
 
 describe("classifyVehicleForAssignment", () => {
@@ -82,5 +85,50 @@ describe("classifyVehicleForAssignment", () => {
     expect(
       "expiredDocsOverridable" in result ? result.expiredDocsOverridable : undefined,
     ).toBeUndefined();
+  });
+
+  it("allows assignment when stamp-ready and docs OK", () => {
+    const result = classifyVehicleForAssignment(vehicle({ id: "veh-ok" }));
+    expect(result.canBeAssigned).toBe(true);
+  });
+
+  it("blocks incomplete Autotransporte (missing config)", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({ id: "veh-5", satConfigAutotransporteCode: null }),
+    );
+    expect(result.canBeAssigned).toBe(false);
+    expect(result.blockReason).toBeTruthy();
+    expect(
+      "expiredDocsOverridable" in result ? result.expiredDocsOverridable : undefined,
+    ).toBeUndefined();
+  });
+
+  it("blocks Config S/R without remolques", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({
+        id: "veh-6",
+        satConfigAutotransporteCode: "T3S2",
+        remolques: [],
+      }),
+    );
+    expect(result.canBeAssigned).toBe(false);
+    expect(String(result.blockReason).toLowerCase()).toMatch(/remolque/);
+  });
+
+  it("allows Config S/R with remolque", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({
+        id: "veh-7",
+        satConfigAutotransporteCode: "T3S2",
+        remolques: [
+          {
+            position: 1,
+            satSubTipoRemCode: "CTR001",
+            licensePlate: "REM1234",
+          },
+        ],
+      }),
+    );
+    expect(result.canBeAssigned).toBe(true);
   });
 });

@@ -122,9 +122,12 @@ export interface VehicleListItem {
   readonly insuranceExpiry: string | null;
   readonly sctPermitNumber: string | null;
   readonly sctPermitExpiry: string | null;
-  // Carta Porte 3.1 (útil para filtros y validaciones)
+  // Carta Porte 3.1 (assignment classifier + filtros)
   readonly satTipoPermisoCode: string | null;
   readonly satConfigAutotransporteCode: string | null;
+  readonly pesoBrutoVehicular: number | null;
+  readonly insuranceCompany: string | null;
+  readonly remolques: VehicleRemolqueData[];
   readonly branchId: string | null;
   readonly branchName: string | null;
   readonly branchCode: string | null;

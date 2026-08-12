@@ -574,6 +574,11 @@ export const router = createBrowserRouter([
                 path: "/vehicles/new",
                 element: withSuspense(CreateVehiclePage),
               },
+            ],
+          },
+          {
+            element: <PermissionRoute module="vehicles" action="update" />,
+            children: [
               {
                 path: "/vehicles/:id/edit",
                 element: withSuspense(EditVehiclePage),
