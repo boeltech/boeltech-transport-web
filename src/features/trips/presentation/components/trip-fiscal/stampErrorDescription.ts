@@ -140,5 +140,21 @@ export function describeStampApiError(error: unknown): string {
     ].join("\n");
   }
 
+  // Defensa: si el mensaje quedó genérico pero el PAC envió hint (p. ej. CFDI40147).
+  const hint =
+    typeof error.details?.hint === "string" ? error.details.hint.trim() : "";
+  if (
+    hint &&
+    error.code === "PAC_VALIDATION_ERROR" &&
+    (error.message ===
+      "El PAC rechazó el CFDI por validación fiscal/XSD." ||
+      !error.message.includes(hint))
+  ) {
+    return error.message ===
+      "El PAC rechazó el CFDI por validación fiscal/XSD."
+      ? hint
+      : `${error.message} ${hint}`;
+  }
+
   return error.message || getErrorMessage(error);
 }

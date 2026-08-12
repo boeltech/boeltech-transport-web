@@ -151,4 +151,24 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).toContain("MERG881004A27");
     expect(error.message).not.toContain("ProFact");
   });
+
+  it("traduce PAC_VALIDATION_ERROR CFDI40147 a mensaje de CP fiscal del receptor", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+        code: "PAC_VALIDATION_ERROR",
+        details: {
+          pac_provider: "profact",
+          pac_code: "21001",
+          pac_rule: "CFDI40147",
+          xml_checks: { hasComplemento: true },
+        },
+      }),
+    );
+
+    expect(error.message).toContain("código postal fiscal");
+    expect(error.message).toContain("dirección de facturación");
+    expect(error.message).not.toContain("validación fiscal/XSD");
+    expect(error.message).not.toContain("CFDI40147");
+  });
 });

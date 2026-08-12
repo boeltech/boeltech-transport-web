@@ -56,4 +56,22 @@ describe("describeStampApiError", () => {
     expect(message).toContain("peso bruto vehicular");
     expect(message).toMatch(/Vehículos/i);
   });
+
+  it("usa details.hint cuando el mensaje PAC queda genérico (CFDI40147)", () => {
+    const error = new ApiError(
+      "El PAC rechazó el CFDI por validación fiscal/XSD.",
+      422,
+      "PAC_VALIDATION_ERROR",
+      {
+        pac_rule: "CFDI40147",
+        hint:
+          "El código postal fiscal del receptor no coincide con el registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
+      },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toContain("código postal fiscal");
+    expect(message).not.toContain("validación fiscal/XSD");
+  });
 });

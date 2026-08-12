@@ -260,6 +260,12 @@ const PAC_USER_MESSAGES: Record<string, string> = {
     "No se pudo timbrar: el RFC de remitente o destinatario en una parada del viaje no está registrado ante el SAT. Revise en Viajes → Ruta todas las paradas (origen, escalas y destino) y use un RFC real y vigente del cliente o ubicación.",
   PAC_ISSUED_AT_OUT_OF_RANGE:
     "No se pudo timbrar: la fecha de emisión del borrador supera las 72 horas que permite el SAT. Vuelve a intentar el timbrado; el sistema actualiza la fecha automáticamente al timbrar.",
+  CFDI40145:
+    "La razón social del receptor no coincide con la registrada ante el SAT para ese RFC. Corrija el nombre en el cliente según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
+  CFDI40147:
+    "El código postal fiscal del receptor no coincide con el registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
+  CFDI40148:
+    "El código postal fiscal del receptor no pertenece al domicilio registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
   CFDI40158:
     "El régimen fiscal del receptor no corresponde al tipo de persona (física o moral) del RFC indicado.",
 };
