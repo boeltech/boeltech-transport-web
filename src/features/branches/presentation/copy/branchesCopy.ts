@@ -338,7 +338,7 @@ export const branchesCopy = {
       },
       geolocation: {
         description:
-          "Opcional. Marca en el mapa el punto de la sucursal para rutas y seguimiento.",
+          "Opcional. Usa «Ubicar en el mapa» para confirmar el punto a partir del domicilio.",
       },
       notes: {
         title: "Notas",

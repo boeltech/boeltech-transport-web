@@ -11,6 +11,8 @@ interface AddressGeolocationMapProps {
   onCoordinatesChange: (coords: { latitude: number; longitude: number }) => void;
   disabled?: boolean;
   className?: string;
+  /** compact: sheets angostos; comfortable: páginas / wizard. */
+  density?: "compact" | "comfortable";
 }
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
@@ -38,7 +40,9 @@ export function AddressGeolocationMap({
   onCoordinatesChange,
   disabled = false,
   className,
+  density = "comfortable",
 }: AddressGeolocationMapProps) {
+  const hasCoordinates = latitude != null && longitude != null;
   const mapboxStyle = useMapboxStyle();
   const shellRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -220,11 +224,19 @@ export function AddressGeolocationMap({
     <div
       ref={shellRef}
       className={cn(
-        "relative h-52 w-full min-w-0 overflow-hidden rounded-md border bg-muted/30",
+        "relative w-full min-w-0 overflow-hidden rounded-md border bg-muted/30",
+        density === "compact" ? "h-40" : "h-52",
         className,
       )}
     >
       <div ref={containerRef} className="absolute inset-0 h-full w-full" />
+      {!hasCoordinates && !disabled ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background/80 to-transparent px-3 py-2">
+          <p className="text-center text-xs text-muted-foreground">
+            Sin pin. Usa «Ubicar en el mapa» o haz clic aquí.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -669,6 +669,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
                 setValue={setValue}
                 namePrefix="address"
                 layout="compact"
+                showLatLng={false}
                 showPrimaryToggle={false}
                 hideInformativeAlerts={false}
                 embedded

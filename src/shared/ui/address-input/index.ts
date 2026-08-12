@@ -34,3 +34,11 @@ export type {
 } from "./addressFormNoticeRules";
 export type { EntityAddressFormSection } from "./EntityAddressForm";
 export type { GeolocationPanelMode } from "./geolocationPanelMode";
+export type {
+  GeolocationDensity,
+  GeolocationUxStatus,
+} from "./geolocationUxStatus";
+export {
+  GEOLOCATION_UX_STATUS_LABEL,
+  resolveGeolocationUxStatus,
+} from "./geolocationUxStatus";

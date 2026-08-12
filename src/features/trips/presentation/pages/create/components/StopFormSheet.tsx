@@ -972,6 +972,7 @@ export function StopFormSheet({
       content: (
         <AddressGeocodingSectionContent
           required
+          density="compact"
           address={{
             locationName: displayStop.locationName,
             street: displayStop.street,
@@ -1021,6 +1022,7 @@ export function StopFormSheet({
           setValue={setValue}
           namePrefix=""
           layout="compact"
+          showLatLng={false}
           hideInformativeAlerts={hasAddressPrefill}
         />
       }

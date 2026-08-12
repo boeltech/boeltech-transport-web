@@ -5,14 +5,15 @@ import { FieldInlineError } from "@shared/ui/form";
 import { AddressGeolocationPanel } from "./AddressGeolocationPanel";
 import type { AddressGeolocationPanelProps } from "./AddressGeolocationPanel";
 import type { GeolocationPanelMode } from "./geolocationPanelMode";
+import type { GeolocationDensity } from "./geolocationUxStatus";
 
 export const GEOCODING_SECTION_ID = "geographic-confirmation";
 
 export const GEOCODING_OPTIONAL_HINT =
-  "Opcional. Confirma en el mapa o con latitud y longitud para ubicar el punto con precisión en rutas y seguimiento.";
+  "Opcional. Usa «Ubicar en el mapa» para confirmar el punto a partir del domicilio.";
 
 export const GEOCODING_REQUIRED_HINT =
-  "Ubica el punto en el mapa. Es necesario para calcular kilómetros entre paradas y el seguimiento del viaje.";
+  "Usa «Ubicar en el mapa» para confirmar el punto. Es necesario para kilómetros entre paradas y el seguimiento del viaje.";
 
 export type AddressGeocodingPanelAddress = AddressGeolocationPanelProps["address"];
 
@@ -44,6 +45,8 @@ export interface AddressGeocodingSectionContentProps {
   /** Override del hint; por defecto opcional u obligatorio según `required`. */
   required?: boolean;
   hint?: string;
+  /** compact en sheets angostos; comfortable en páginas. */
+  density?: GeolocationDensity;
 }
 
 export function AddressGeocodingSectionTitle({
@@ -77,6 +80,7 @@ export function AddressGeocodingSectionContent({
   onDistanceMetaChange,
   required = false,
   hint,
+  density = "comfortable",
 }: AddressGeocodingSectionContentProps) {
   const resolvedHint =
     hint ?? (required ? GEOCODING_REQUIRED_HINT : GEOCODING_OPTIONAL_HINT);
@@ -89,6 +93,7 @@ export function AddressGeocodingSectionContent({
       ) : null}
       <AddressGeolocationPanel
         embedded
+        density={density}
         address={address}
         latitude={latitude}
         longitude={longitude}

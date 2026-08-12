@@ -950,6 +950,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
                 setValue={form.setValue}
                 namePrefix="domicilio"
                 layout="compact"
+                showLatLng={false}
                 showPrimaryToggle={false}
                 hideInformativeAlerts
                 embedded

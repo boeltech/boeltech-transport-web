@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Loader2, MapPin, Navigation } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Loader2,
+  MapPin,
+  Navigation,
+} from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
@@ -12,6 +19,11 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Alert, AlertDescription } from "@shared/ui/alert";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { cn } from "@shared/lib/utils/cn";
 import { config } from "@shared/config";
 import {
@@ -28,6 +40,11 @@ import { CoordinatesPostalCodeWarningAlert } from "@shared/geolocation/Coordinat
 import { coordinatesPostalCodeWarningCopy } from "@shared/geolocation/coordinatesPostalCodeWarningCopy";
 import { useCoordinatesPostalCodeWarningValues } from "@shared/geolocation/useCoordinatesPostalCodeWarningValues";
 import { AddressGeolocationMap } from "./AddressGeolocationMap";
+import {
+  GEOLOCATION_UX_STATUS_LABEL,
+  resolveGeolocationUxStatus,
+  type GeolocationDensity,
+} from "./geolocationUxStatus";
 
 export interface AddressGeolocationPanelProps {
   readonly address: {
@@ -56,7 +73,7 @@ export interface AddressGeolocationPanelProps {
     provider: GeoProviderId;
     computedAt: string;
   }) => void;
-  /** Controla visibilidad de la búsqueda manual y selección de candidatos. */
+  /** Controla visibilidad de la búsqueda / CTA de ubicar. */
   readonly showSearchControls?: boolean;
   /** Controla visibilidad del bloque "Distancia del tramo". */
   readonly showDistanceSection?: boolean;
@@ -72,6 +89,8 @@ export interface AddressGeolocationPanelProps {
    * Sin borde/card propio: el título vive en la sección padre (`Confirmación Geográfica`).
    */
   readonly embedded?: boolean;
+  /** Densidad del mapa: compacta en sheets; cómoda en páginas. */
+  readonly density?: GeolocationDensity;
 }
 
 function buildGeocodingCandidateValue(
@@ -109,6 +128,7 @@ export function AddressGeolocationPanel({
   disabled = false,
   className,
   embedded = false,
+  density = "comfortable",
 }: AddressGeolocationPanelProps) {
   const mapAndCoordsDisabled = coordinatesDisabled ?? disabled;
   const segmentDistanceDisabled = distanceDisabled ?? disabled;
@@ -144,11 +164,25 @@ export function AddressGeolocationPanel({
   } | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const hasCoordinates = latitude != null && longitude != null;
   const hasPreviousCoordinates =
     previousPoint?.latitude != null && previousPoint?.longitude != null;
+
+  const uxStatus = resolveGeolocationUxStatus({
+    isGeocoding,
+    candidateCount: candidates.length,
+    selectedCandidateValue,
+    hasCoordinates,
+  });
+
+  const handleSelectCandidate = (candidate: GeocodingCandidate, index: number) => {
+    setSelectedCandidateValue(buildGeocodingCandidateValue(candidate, index));
+    onCoordinatesChange(candidate.position);
+    setGeocodeError(null);
+  };
 
   const handleSearch = async () => {
     setIsGeocoding(true);
@@ -167,21 +201,20 @@ export function AddressGeolocationPanel({
         setGeocodeError(outcome.error.message);
         return;
       }
-      setCandidates(outcome.data.candidates);
-      if (outcome.data.candidates.length === 0) {
+      const nextCandidates = outcome.data.candidates;
+      setCandidates(nextCandidates);
+      if (nextCandidates.length === 0) {
         setGeocodeError(
-          "No se encontraron coincidencias. Ajusta la dirección y vuelve a intentar.",
+          "No se encontraron coincidencias. Revisa el domicilio o usa opciones avanzadas.",
         );
+        return;
+      }
+      if (nextCandidates.length === 1) {
+        handleSelectCandidate(nextCandidates[0], 0);
       }
     } finally {
       setIsGeocoding(false);
     }
-  };
-
-  const handleSelectCandidate = (candidate: GeocodingCandidate, index: number) => {
-    setSelectedCandidateValue(buildGeocodingCandidateValue(candidate, index));
-    onCoordinatesChange(candidate.position);
-    setGeocodeError(null);
   };
 
   useEffect(() => {
@@ -263,54 +296,78 @@ export function AddressGeolocationPanel({
     }
   };
 
+  const applyManualCoordinate = (
+    nextLatitude: number | null,
+    nextLongitude: number | null,
+  ) => {
+    if (nextLatitude == null || nextLongitude == null) return;
+    if (
+      Number.isNaN(nextLatitude) ||
+      Number.isNaN(nextLongitude) ||
+      nextLatitude < -90 ||
+      nextLatitude > 90 ||
+      nextLongitude < -180 ||
+      nextLongitude > 180
+    ) {
+      return;
+    }
+    onCoordinatesChange({
+      latitude: Number(nextLatitude.toFixed(6)),
+      longitude: Number(nextLongitude.toFixed(6)),
+    });
+  };
+
+  const statusBadgeVariant =
+    uxStatus === "confirmed"
+      ? "success"
+      : uxStatus === "pick" || uxStatus === "searching"
+        ? "warning"
+        : "neutral";
+
   return (
     <div
       className={cn(
-        embedded ? "space-y-4" : "space-y-3 rounded-md border p-3",
+        embedded ? "space-y-3" : "space-y-3 rounded-md border p-3",
+        density === "compact" && "space-y-2.5",
         className,
       )}
     >
-      {embedded ? (
-        <p className="text-muted-foreground text-xs">
-          Proveedor de mapa:{" "}
-          <span className="font-medium text-foreground">
-            {providers.providerId.toUpperCase()}
-          </span>
-        </p>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Geolocalizacion</p>
-          </div>
-          <Badge variant="outline">{providers.providerId.toUpperCase()}</Badge>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {uxStatus === "confirmed" ? (
+          <CheckCircle2
+            className="h-4 w-4 text-success-soft-foreground"
+            aria-hidden
+          />
+        ) : (
+          <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden />
+        )}
+        <Badge variant={statusBadgeVariant} tone="soft">
+          {GEOLOCATION_UX_STATUS_LABEL[uxStatus]}
+        </Badge>
+      </div>
 
       {showSearchControls ? (
-        <div className="space-y-2">
-          <Label htmlFor="geo-manual-search">Búsqueda en mapa</Label>
-          <div className="flex gap-2">
-            <Input
-              id="geo-manual-search"
-              value={manualSearchText}
-              onChange={(event) => setManualSearchText(event.target.value)}
-              placeholder="Refinar texto de búsqueda (opcional)"
-              disabled={mapAndCoordsDisabled}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleSearch()}
-              disabled={mapAndCoordsDisabled || isGeocoding}
-            >
-              {isGeocoding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Buscar"
-              )}
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={hasCoordinates ? "outline" : "default"}
+            onClick={() => void handleSearch()}
+            disabled={mapAndCoordsDisabled || isGeocoding}
+          >
+            {isGeocoding ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Buscando…
+              </>
+            ) : hasCoordinates ? (
+              "Volver a ubicar"
+            ) : (
+              "Ubicar en el mapa"
+            )}
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            Usa el domicilio capturado. Luego puedes ajustar el pin en el mapa.
+          </p>
         </div>
       ) : null}
 
@@ -321,7 +378,7 @@ export function AddressGeolocationPanel({
         </Alert>
       ) : null}
 
-      {showSearchControls && candidates.length > 0 ? (
+      {showSearchControls && candidates.length > 1 ? (
         <div className="space-y-2">
           <Label htmlFor="geo-candidate-select">Coincidencias sugeridas</Label>
           <Select
@@ -337,19 +394,15 @@ export function AddressGeolocationPanel({
             disabled={mapAndCoordsDisabled}
           >
             <SelectTrigger id="geo-candidate-select" className="h-auto min-h-9 py-2">
-              <SelectValue placeholder="Selecciona una coincidencia para ubicar en el mapa" />
+              <SelectValue placeholder="Selecciona una coincidencia" />
             </SelectTrigger>
             <SelectContent className="max-h-60">
               {candidates.map((candidate, index) => {
                 const value = buildGeocodingCandidateValue(candidate, index);
                 return (
                   <SelectItem key={value} value={value} className="items-start py-2">
-                    <span className="flex flex-col gap-0.5 text-left">
-                      <span className="font-medium leading-snug">{candidate.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {candidate.position.latitude.toFixed(6)},{" "}
-                        {candidate.position.longitude.toFixed(6)}
-                      </span>
+                    <span className="text-left font-medium leading-snug">
+                      {candidate.label}
                     </span>
                   </SelectItem>
                 );
@@ -362,8 +415,8 @@ export function AddressGeolocationPanel({
       <div className="min-w-0 space-y-2">
         <p className="text-xs text-muted-foreground">
           {hasCoordinates
-            ? `Ubicación confirmada: ${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`
-            : "Haz clic en el mapa para colocar el pin o selecciona un candidato."}
+            ? "Puedes arrastrar el pin o hacer clic en el mapa para afinar."
+            : "Coloca el pin con «Ubicar en el mapa» o haz clic en el mapa."}
         </p>
         {mapboxToken ? (
           <AddressGeolocationMap
@@ -372,11 +425,12 @@ export function AddressGeolocationPanel({
             longitude={longitude}
             onCoordinatesChange={onCoordinatesChange}
             disabled={mapAndCoordsDisabled}
+            density={density}
           />
         ) : (
           <Alert variant="info">
             <AlertDescription>
-              Configura `VITE_MAPBOX_PUBLIC_TOKEN` para habilitar mapa interactivo.
+              Configura `VITE_MAPBOX_PUBLIC_TOKEN` para habilitar el mapa interactivo.
             </AlertDescription>
           </Alert>
         )}
@@ -387,6 +441,95 @@ export function AddressGeolocationPanel({
           />
         ) : null}
       </div>
+
+      {showSearchControls ? (
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <CollapsibleTrigger
+            type="button"
+            className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-muted/40"
+            disabled={mapAndCoordsDisabled}
+          >
+            <span className="font-medium">Opciones avanzadas</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                advancedOpen && "rotate-180",
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 pt-3">
+            <p className="text-muted-foreground text-xs">
+              Proveedor: {providers.providerId.toUpperCase()}
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="geo-manual-search">Refinar búsqueda</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="geo-manual-search"
+                  value={manualSearchText}
+                  onChange={(event) => setManualSearchText(event.target.value)}
+                  placeholder="Texto adicional (opcional)"
+                  disabled={mapAndCoordsDisabled}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleSearch()}
+                  disabled={mapAndCoordsDisabled || isGeocoding}
+                >
+                  {isGeocoding ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Buscar"
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="geo-advanced-latitude">Latitud</Label>
+                <Input
+                  id="geo-advanced-latitude"
+                  type="number"
+                  step="any"
+                  min={-90}
+                  max={90}
+                  inputMode="decimal"
+                  disabled={mapAndCoordsDisabled}
+                  value={latitude ?? ""}
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") return;
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) return;
+                    applyManualCoordinate(parsed, longitude ?? null);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="geo-advanced-longitude">Longitud</Label>
+                <Input
+                  id="geo-advanced-longitude"
+                  type="number"
+                  step="any"
+                  min={-180}
+                  max={180}
+                  inputMode="decimal"
+                  disabled={mapAndCoordsDisabled}
+                  value={longitude ?? ""}
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") return;
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) return;
+                    applyManualCoordinate(latitude ?? null, parsed);
+                  }}
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
 
       {onDistanceChange && (showDistanceSection ?? true) ? (
         <div className="space-y-2 rounded-md border border-dashed p-3">

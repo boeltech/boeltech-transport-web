@@ -191,6 +191,7 @@ function LocationAddressFields({
         setValue={setValue}
         namePrefix=""
         layout="compact"
+        showLatLng={false}
         showPrimaryToggle={false}
         hideInformativeAlerts
         disabled={disabled}
