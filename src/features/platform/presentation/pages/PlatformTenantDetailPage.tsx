@@ -38,6 +38,14 @@ import { platformCopy } from "../copy/platformCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import type { PlatformTenantStatusType } from "../../domain/entities";
 
+/**
+ * Sheet is modal={false}; opening it in the same tick as DropdownMenu dismiss
+ * treats the closing pointer event as an outside interact and closes the sheet.
+ */
+function openOverlayAfterMenuClose(open: () => void) {
+  window.setTimeout(open, 0);
+}
+
 export function PlatformTenantDetailPage() {
   const { id = "" } = useParams();
   const { user } = usePlatformAuth();
@@ -75,7 +83,11 @@ export function PlatformTenantDetailPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => setEntitlementsOpen(true)}>
+            <DropdownMenuItem
+              onSelect={() =>
+                openOverlayAfterMenuClose(() => setEntitlementsOpen(true))
+              }
+            >
               {copy.manageEntitlements}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -87,25 +99,33 @@ export function PlatformTenantDetailPage() {
             </DropdownMenuItem>
             {canMutate ? (
               <>
-                <DropdownMenuItem onClick={() => setStampPackOpen(true)}>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    openOverlayAfterMenuClose(() => setStampPackOpen(true))
+                  }
+                >
                   {copy.grantStampPack}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {tenant.status !== PlatformTenantStatus.SUSPENDED ? (
                   <DropdownMenuItem
-                    onClick={() => {
-                      setTargetStatus(PlatformTenantStatus.SUSPENDED);
-                      setStatusDialogOpen(true);
-                    }}
+                    onSelect={() =>
+                      openOverlayAfterMenuClose(() => {
+                        setTargetStatus(PlatformTenantStatus.SUSPENDED);
+                        setStatusDialogOpen(true);
+                      })
+                    }
                   >
                     {copy.suspend}
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
-                    onClick={() => {
-                      setTargetStatus(PlatformTenantStatus.ACTIVE);
-                      setStatusDialogOpen(true);
-                    }}
+                    onSelect={() =>
+                      openOverlayAfterMenuClose(() => {
+                        setTargetStatus(PlatformTenantStatus.ACTIVE);
+                        setStatusDialogOpen(true);
+                      })
+                    }
                   >
                     {copy.reactivate}
                   </DropdownMenuItem>
@@ -113,10 +133,12 @@ export function PlatformTenantDetailPage() {
                 {tenant.status !== PlatformTenantStatus.CANCELLED ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => {
-                      setTargetStatus(PlatformTenantStatus.CANCELLED);
-                      setStatusDialogOpen(true);
-                    }}
+                    onSelect={() =>
+                      openOverlayAfterMenuClose(() => {
+                        setTargetStatus(PlatformTenantStatus.CANCELLED);
+                        setStatusDialogOpen(true);
+                      })
+                    }
                   >
                     {copy.cancel}
                   </DropdownMenuItem>
