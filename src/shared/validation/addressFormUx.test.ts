@@ -62,6 +62,19 @@ describe("cp31AddressDomUxSchema (shared UX)", () => {
       longitude: null,
     });
     expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((i) => i.path[0] === "latitude")).toBe(
+      true,
+    );
+  });
+
+  it("accepts a finite lat/lng pair", () => {
+    const result = cp31AddressDomUxSchema.safeParse({
+      ...validCp31Base,
+      latitude: 22.105205,
+      longitude: -100.94651,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

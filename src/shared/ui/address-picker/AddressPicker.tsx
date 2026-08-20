@@ -56,6 +56,11 @@ export interface AddressPickerProps {
   error?: string;
   /** Filtro opcional de fuentes (default: todas las searchables). */
   defaultOwnerTypes?: SearchableOwnerType[];
+  /**
+   * Filtro en web sobre los resultados (p. ej. ocultar billing del cliente).
+   * No cambia el query del API `/addresses/search`.
+   */
+  filterItem?: (item: AddressSearchListItem) => boolean;
   addressType?: AddressSearchAddressType;
   onlyGeolocated?: boolean;
   /** Tamaño de página (máx. API 50). Default 50 para browse al abrir. */
@@ -123,6 +128,7 @@ export function AddressPicker({
   disabled = false,
   error,
   defaultOwnerTypes,
+  filterItem,
   addressType,
   onlyGeolocated,
   limit = 50,
@@ -181,10 +187,18 @@ export function AddressPicker({
 
   const allItems = useMemo(() => {
     const firstPage = data?.data ?? [];
-    if (extraItems.length === 0) return firstPage;
-    const seen = new Set(firstPage.map((item) => item.id));
-    return [...firstPage, ...extraItems.filter((item) => !seen.has(item.id))];
-  }, [data, extraItems]);
+    const merged =
+      extraItems.length === 0
+        ? firstPage
+        : (() => {
+            const seen = new Set(firstPage.map((item) => item.id));
+            return [
+              ...firstPage,
+              ...extraItems.filter((item) => !seen.has(item.id)),
+            ];
+          })();
+    return filterItem ? merged.filter(filterItem) : merged;
+  }, [data, extraItems, filterItem]);
 
   const nextCursor = pagination
     ? pagination.nextCursor

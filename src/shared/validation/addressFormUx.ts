@@ -80,11 +80,15 @@ export const cp31AddressDomUxFields = {
   longitude: z.number().min(-180).max(180).optional().nullable(),
 };
 
+function hasFiniteCoord(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export function withLatLngPairRefinement<T extends z.ZodTypeAny>(schema: T): T {
   return schema.superRefine((value, ctx) => {
-    const record = value as { latitude?: number | null; longitude?: number | null };
-    const hasLat = record.latitude != null;
-    const hasLng = record.longitude != null;
+    const record = value as { latitude?: unknown; longitude?: unknown };
+    const hasLat = hasFiniteCoord(record.latitude);
+    const hasLng = hasFiniteCoord(record.longitude);
     if (hasLat !== hasLng) {
       ctx.addIssue({
         code: "custom",

@@ -257,8 +257,9 @@ export const employeesCopy = {
         description: "Correo y teléfonos para comunicación operativa.",
       },
       address: {
-        title: "Domicilio",
-        infoMessage: "Captura el domicilio personal del empleado.",
+        title: "Domicilio personal (opcional)",
+        infoMessage:
+          "Uso interno de RRHH. No se usa en viajes ni en Carta Porte. Puedes dejarlo en blanco.",
       },
       emergency: {
         title: "Contacto de emergencia",

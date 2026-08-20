@@ -28,6 +28,7 @@ function emptyToUndef(value: string | null | undefined): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
+/** Campos núcleo del domicilio personal (sin exigir CP/estado al dejarlo vacío). */
 const employeePersonalDomShape = {
   id: z.string().optional(),
   addressType: z.literal("personal"),
@@ -35,9 +36,14 @@ const employeePersonalDomShape = {
   ...cp31AddressDomUxFields,
 };
 
-/** Schema UX del domicilio personal (sin `locationName`; SAT en paquete). */
+/** Schema UX del domicilio personal cuando el usuario sí captura datos. */
 export const employeePersonalAddressFormSchema = withLatLngPairRefinement(
   z.object(employeePersonalDomShape).extend(cp31RequiredSatLocationUxFields),
+);
+
+/** Schema laxo para el wizard: el domicilio es opcional (RRHH). */
+export const employeeDomicilioOptionalFormSchema = z.object(
+  employeePersonalDomShape,
 );
 
 export type EmployeePersonalAddressFormData = z.infer<
@@ -120,6 +126,22 @@ export function isEmployeeDomicilioDirty(
     return Object.values(dom).some(Boolean);
   }
   return false;
+}
+
+export function isEmployeeDomicilioBlank(
+  domicilio: EmployeePersonalAddressFormData,
+): boolean {
+  const has = (value: string | null | undefined) => Boolean(value?.trim());
+  return !(
+    has(domicilio.postalCode) ||
+    has(domicilio.satStateCode) ||
+    has(domicilio.street) ||
+    has(domicilio.exteriorNumber) ||
+    has(domicilio.satMunicipalityCode) ||
+    has(domicilio.neighborhoodName) ||
+    domicilio.latitude != null ||
+    domicilio.longitude != null
+  );
 }
 
 export function employeePersonalFormToCreateDto(

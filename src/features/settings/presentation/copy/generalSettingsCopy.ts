@@ -67,13 +67,13 @@ export const generalSettingsCopy = {
   },
   address: {
     title: "Domicilio",
-    description: "El domicilio que aparece en tus facturas.",
+    description: "El domicilio de representación que aparece en tus facturas.",
     editAction: "Editar domicilio",
     sheetTitle: "Editar domicilio",
     sheetDescription:
-      "El domicilio que aparece en tus facturas y desde el que se calculan tus rutas.",
+      "Así aparece tu empresa en las facturas. El código postal para timbrar se elige en el lugar de expedición.",
     notice:
-      "Domicilio de tu empresa. Se usa en facturación y en la operación diaria.",
+      "Domicilio de representación de tu empresa en facturas. El código postal para timbrar se define en el lugar de expedición.",
     emptyTitle: "Sin domicilio registrado",
     emptyDescription:
       "Captura el domicilio de tu empresa para poder facturar.",
@@ -89,10 +89,10 @@ export const generalSettingsCopy = {
     postalCodePrefix: "CP",
   },
   expedition: {
-    sectionTitle: "Desde dónde facturas",
-    hint: "Código postal que aparece en tus facturas como lugar de emisión. Normalmente es el mismo del domicilio.",
-    toggle: "Emito facturas desde otro código postal",
-    fieldLabel: "Código postal desde el que emites",
+    sectionTitle: "Lugar de expedición (timbrar)",
+    hint: "Código postal que el SAT usa al timbrar. Distinto del domicilio de representación si emites desde otro CP.",
+    toggle: "Timbrar desde otro código postal",
+    fieldLabel: "Código postal de expedición",
     fieldPlaceholder: "03100",
     sameAsAddress: "Se usará el código postal del domicilio:",
   },

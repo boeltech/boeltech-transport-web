@@ -152,7 +152,7 @@ export async function parseClientAddressFormUpdate(
 /** Parada inline del wizard (sin `addressId`). */
 export async function validateTripStopInlineAddress(
   stop: Record<string, unknown>,
-  options: { requireCoordinates?: boolean } = {},
+  options: { requireCoordinates?: boolean; requireFiscal?: boolean } = {},
 ): Promise<
   | { ok: true }
   | { ok: false; errors: ValidationError[]; fieldErrors: Record<string, string> }
@@ -168,6 +168,7 @@ export async function validateTripStopInlineAddress(
     mode: "carta_porte_31",
     provider,
     requireCoordinates: options.requireCoordinates ?? true,
+    requireFiscal: options.requireFiscal ?? true,
   });
 
   if (!result.ok) {

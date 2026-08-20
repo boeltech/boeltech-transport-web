@@ -26,6 +26,7 @@ import { Input } from "@shared/ui/input";
 import { Textarea } from "@shared/ui/text-area";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
+  DateField,
   FormFieldShell,
   FormValidationSummary,
   MoneyInput,
@@ -79,10 +80,12 @@ import {
   AddressInput,
   EntityAddressForm,
   buildGeocodingEntityFormSection,
+  setFormCoordinates,
 } from "@shared/ui/address-input";
 import {
   employeePersonalFormToCreateDto,
   employeePersonalFormToUpdateDto,
+  isEmployeeDomicilioBlank,
   isEmployeeDomicilioDirty,
   validateEmployeePersonalAddressFormComplete,
 } from "../validation/employeePersonalAddressSchema";
@@ -435,14 +438,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
   const onDomicilioCoordinatesChange = useCallback(
     (coords: { latitude: number; longitude: number }) => {
-      form.setValue("domicilio.latitude", coords.latitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      form.setValue("domicilio.longitude", coords.longitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
+      void setFormCoordinates(form.setValue, form.trigger, coords, "domicilio");
     },
     [form],
   );
@@ -566,14 +562,17 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
       }
 
       if (tab === "contact") {
-        const domicilioResult = await validateEmployeePersonalAddressFormComplete(
-          form.getValues("domicilio"),
-          { requireCoordinates: false },
-        );
-        if (!domicilioResult.ok) {
-          applyDomicilioFieldErrors(domicilioResult.fieldErrors);
-          setShowValidationSummary(true);
-          return false;
+        const domicilio = form.getValues("domicilio");
+        if (!isEmployeeDomicilioBlank(domicilio)) {
+          const domicilioResult = await validateEmployeePersonalAddressFormComplete(
+            domicilio,
+            { requireCoordinates: false },
+          );
+          if (!domicilioResult.ok) {
+            applyDomicilioFieldErrors(domicilioResult.fieldErrors);
+            setShowValidationSummary(true);
+            return false;
+          }
         }
       }
 
@@ -642,8 +641,10 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     }
 
     const domicilioDirty = isEmployeeDomicilioDirty(dirtyFields);
+    const domicilioBlank = isEmployeeDomicilioBlank(domicilio);
     const shouldPersistDomicilio =
-      !isEditing || domicilioDirty || !existing?.personalAddress?.id;
+      !domicilioBlank &&
+      (!isEditing || domicilioDirty || !existing?.personalAddress?.id);
 
     if (shouldPersistDomicilio) {
       const domicilioResult = await validateEmployeePersonalAddressFormComplete(domicilio, {
@@ -818,9 +819,29 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
               />
             </FormField>
 
-            <FormField label={fc.label.birthDate}>
-              <Input type="date" {...form.register("birth_date")} />
-            </FormField>
+            <FormFieldShell
+              fieldId="birth_date"
+              label={fc.label.birthDate}
+              errorMessage={form.formState.errors.birth_date?.message}
+            >
+              <Controller
+                control={form.control}
+                name="birth_date"
+                render={({ field, fieldState }) => (
+                  <DateField
+                    id="birth_date"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "birth_date",
+                      fieldState.error?.message,
+                    )}
+                  />
+                )}
+              />
+            </FormFieldShell>
             <FormField label={fc.label.gender}>
               <RHFSelect control={form.control} name="gender" options={GENDER_OPTIONS} />
             </FormField>
@@ -999,13 +1020,30 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             icon={<Briefcase className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
-            <FormField
+            <FormFieldShell
+              fieldId="hire_date"
               label={fc.label.hireDate}
               required
-              error={form.formState.errors.hire_date?.message}
+              errorMessage={form.formState.errors.hire_date?.message}
             >
-              <Input type="date" {...form.register("hire_date")} />
-            </FormField>
+              <Controller
+                control={form.control}
+                name="hire_date"
+                render={({ field, fieldState }) => (
+                  <DateField
+                    id="hire_date"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "hire_date",
+                      fieldState.error?.message,
+                    )}
+                  />
+                )}
+              />
+            </FormFieldShell>
             <FormField label={fc.label.employmentType} required>
               <RHFSelect
                 control={form.control}

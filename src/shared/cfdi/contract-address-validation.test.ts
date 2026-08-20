@@ -286,6 +286,38 @@ describe("contract address validation (web ↔ cfdi-domain)", () => {
     }
   });
 
+  it("validateTripStopAddressComplete: keepBillingCollapsed skips fiscal, still requires coords", async () => {
+    const withoutFiscal = await validateTripStopAddressComplete(
+      {
+        stopCategory: "origin",
+        stopType: ["origin", "pickup"],
+        addressType: "trip_stop",
+        locationName: "Origen",
+        postalCode: "44100",
+        satCountryCode: "MEX",
+        satStateCode: "JAL",
+        latitude: 20.67,
+        longitude: -103.34,
+      },
+      { requireCoordinates: true, requireFiscal: false },
+    );
+    expect(withoutFiscal.ok).toBe(true);
+
+    const withoutCoords = await validateTripStopAddressComplete(
+      {
+        stopCategory: "origin",
+        stopType: ["origin", "pickup"],
+        addressType: "trip_stop",
+        locationName: "Origen",
+        postalCode: "44100",
+        satCountryCode: "MEX",
+        satStateCode: "JAL",
+      },
+      { requireCoordinates: true, requireFiscal: false },
+    );
+    expect(withoutCoords.ok).toBe(false);
+  });
+
   // ADR-ADDR P4 — Matriz §7 (PATCH)
   it("validateClientAddressFormComplete intent=update: shipping legacy sin street pasa", async () => {
     const result = await validateClientAddressFormComplete(

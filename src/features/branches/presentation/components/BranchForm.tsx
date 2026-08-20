@@ -34,6 +34,7 @@ import {
   AddressGeocodingSectionContent,
   AddressGeocodingSectionTitle,
 } from "@shared/ui/address-input/AddressGeocodingFormSection";
+import { setFormCoordinates } from "@shared/ui/address-input/setFormCoordinates";
 import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
 import type { LatLng } from "@shared/geolocation";
 import { useToast } from "@shared/hooks";
@@ -227,22 +228,16 @@ function BranchAddressGeocodingSection({
   const {
     control,
     setValue,
+    trigger,
     formState: { errors },
   } = useFormContext<BranchFormData>();
   const address = useWatch({ control, name: "address" });
 
   const onCoordinatesChange = useCallback(
     (coords: LatLng) => {
-      setValue("address.latitude", coords.latitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      setValue("address.longitude", coords.longitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
+      void setFormCoordinates(setValue, trigger, coords, "address");
     },
-    [setValue],
+    [setValue, trigger],
   );
 
   const content = (

@@ -26,6 +26,7 @@ import {
   AddressInput,
   EntityAddressForm,
   buildGeocodingEntityFormSection,
+  setFormCoordinates,
 } from "@shared/ui/address-input";
 import { FormValidationSummary } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
@@ -106,7 +107,8 @@ export const CompanyFiscalAddressSheet = memo(
       mode: "onChange",
     });
 
-    const { control, formState, handleSubmit, register, reset, setValue } = form;
+    const { control, formState, handleSubmit, register, reset, setValue, trigger } =
+      form;
     const isSaving = updateMutation.isPending || formState.isSubmitting;
 
     useEffect(() => {
@@ -245,31 +247,6 @@ export const CompanyFiscalAddressSheet = memo(
                   />
                 }
                 postAddressSections={[
-                  buildGeocodingEntityFormSection({
-                    address: {
-                      street: fiscalAddress?.street,
-                      exteriorNumber: fiscalAddress?.exteriorNumber,
-                      interiorNumber: fiscalAddress?.interiorNumber,
-                      postalCode: fiscalAddress?.postalCode,
-                      satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
-                      satStateCode: fiscalAddress?.satStateCode,
-                      satCountryCode: fiscalAddress?.satCountryCode,
-                    },
-                    latitude: fiscalAddress?.latitude,
-                    longitude: fiscalAddress?.longitude,
-                    latitudeError: formState.errors.fiscal?.latitude?.message,
-                    onCoordinatesChange: (coords) => {
-                      setValue("fiscal.latitude", coords.latitude, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      setValue("fiscal.longitude", coords.longitude, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    },
-                    disabled: isSaving,
-                  }),
                   buildLugarExpedicionEntityFormSection({
                     expideDesdeOtroCp: Boolean(expideDesdeOtroCp),
                     fiscalPostalCode,
@@ -292,6 +269,29 @@ export const CompanyFiscalAddressSheet = memo(
                       }
                     },
                     lugarExpedicionRegister: register("lugarExpedicion"),
+                  }),
+                  buildGeocodingEntityFormSection({
+                    address: {
+                      street: fiscalAddress?.street,
+                      exteriorNumber: fiscalAddress?.exteriorNumber,
+                      interiorNumber: fiscalAddress?.interiorNumber,
+                      postalCode: fiscalAddress?.postalCode,
+                      satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
+                      satStateCode: fiscalAddress?.satStateCode,
+                      satCountryCode: fiscalAddress?.satCountryCode,
+                    },
+                    latitude: fiscalAddress?.latitude,
+                    longitude: fiscalAddress?.longitude,
+                    latitudeError: formState.errors.fiscal?.latitude?.message,
+                    onCoordinatesChange: (coords) => {
+                      void setFormCoordinates(
+                        setValue,
+                        trigger,
+                        coords,
+                        "fiscal",
+                      );
+                    },
+                    disabled: isSaving,
                   }),
                 ]}
               />

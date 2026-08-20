@@ -7,7 +7,8 @@
  * Ubicación: src/features/settings/ui/routes.tsx
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { PermissionGuard, usePermissions } from "@shared/permissions";
@@ -16,31 +17,31 @@ import { PermissionGuard, usePermissions } from "@shared/permissions";
 // LAZY LOADED PAGES - Settings
 // ============================================================================
 
-const GeneralSettingsPage = lazy(() =>
+const GeneralSettingsPage = lazyWithRetry(() =>
   import("./pages/GeneralSettingsPage").then((m) => ({
     default: m.GeneralSettingsPage,
   })),
 );
 
-const TenantLocationsPage = lazy(() =>
+const TenantLocationsPage = lazyWithRetry(() =>
   import("./pages/TenantLocationsPage").then((m) => ({
     default: m.TenantLocationsPage,
   })),
 );
 
-const BillingSettingsPage = lazy(() =>
+const BillingSettingsPage = lazyWithRetry(() =>
   import("./pages/BillingSettingsPage").then((m) => ({
     default: m.BillingSettingsPage,
   })),
 );
 
-const BillingServiceConceptsPage = lazy(() =>
+const BillingServiceConceptsPage = lazyWithRetry(() =>
   import("./pages/BillingServiceConceptsPage").then((m) => ({
     default: m.BillingServiceConceptsPage,
   })),
 );
 
-const BillingSubscriptionPage = lazy(() =>
+const BillingSubscriptionPage = lazyWithRetry(() =>
   import("@features/billing/presentation/pages/BillingSubscriptionPage").then(
     (m) => ({
       default: m.BillingSubscriptionPage,
@@ -48,19 +49,19 @@ const BillingSubscriptionPage = lazy(() =>
   ),
 );
 
-const NotificationsSettingsPage = lazy(() =>
+const NotificationsSettingsPage = lazyWithRetry(() =>
   import("./pages/NotificationsSettingsPage").then((m) => ({
     default: m.NotificationsSettingsPage,
   })),
 );
 
-const IntegrationsSettingsPage = lazy(() =>
+const IntegrationsSettingsPage = lazyWithRetry(() =>
   import("./pages/IntegrationsSettingsPage").then((m) => ({
     default: m.IntegrationsSettingsPage,
   })),
 );
 
-const DashboardLayoutsSettingsPage = lazy(() =>
+const DashboardLayoutsSettingsPage = lazyWithRetry(() =>
   import("./pages/DashboardLayoutsSettingsPage").then((m) => ({
     default: m.DashboardLayoutsSettingsPage,
   })),
@@ -70,13 +71,13 @@ const DashboardLayoutsSettingsPage = lazy(() =>
 // LAZY LOADED PAGES - Catalogs (from catalogs feature)
 // ============================================================================
 
-const CatalogsPage = lazy(() =>
+const CatalogsPage = lazyWithRetry(() =>
   import("@features/catalogs/presentation/pages/CatalogsPage").then((m) => ({
     default: m.CatalogsPage,
   })),
 );
 
-const CatalogDetailPage = lazy(() =>
+const CatalogDetailPage = lazyWithRetry(() =>
   import("@features/catalogs/presentation/pages/CatalogDetailPage").then(
     (m) => ({
       default: m.CatalogDetailPage,
@@ -84,7 +85,7 @@ const CatalogDetailPage = lazy(() =>
   ),
 );
 
-const ImportsHubPage = lazy(() =>
+const ImportsHubPage = lazyWithRetry(() =>
   import("@features/imports/presentation/pages/ImportsHubPage").then((m) => ({
     default: m.ImportsHubPage,
   })),

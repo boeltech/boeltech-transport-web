@@ -145,8 +145,44 @@ describe("AddressPicker", () => {
       expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
     });
     expect(
-      screen.queryByText(/no hay direcciones guardadas/i),
+      screen.queryByText(/no hay lugares reutilizables/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides client billing when filterItem is provided", async () => {
+    const user = userEvent.setup();
+    const billingItem: AddressSearchListItem = {
+      ...clientItem,
+      id: "44444444-4444-4444-8444-444444444444",
+      addressType: "billing",
+      locationName: "Fiscal Alpha",
+    };
+    vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
+      data: [clientItem, billingItem, tenantItem],
+      pagination: { limit: 50, nextCursor: null, hasMore: false },
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AddressPicker
+          onSelect={vi.fn()}
+          filterItem={(item) =>
+            item.ownerType !== "client" || item.addressType !== "billing"
+          }
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("combobox"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Bodega Alpha")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Fiscal Alpha")).not.toBeInTheDocument();
+    expect(screen.getByText("Bodega Beta")).toBeInTheDocument();
   });
 
   it("shows RFC and Sin RFC badges based on remitente metadata", async () => {

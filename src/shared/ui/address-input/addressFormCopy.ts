@@ -15,7 +15,7 @@ export const ADDRESS_FORM_COPY: Record<AddressFormUiContext, AddressFormCopy> = 
   billingOnCreate: {
     locationNamePlaceholder: "Ej: Oficina fiscal, Matriz administrativa",
     globalInfoMessage:
-      "Esta dirección se usará como domicilio fiscal del cliente en facturación y operación.",
+      "Domicilio fiscal del receptor para facturar. El código postal basta para el alta; bodegas y puntos de viaje se capturan después en Direcciones.",
   },
   additional: {
     locationNamePlaceholder: "Ej: Bodega principal, Sucursal norte",
@@ -25,12 +25,12 @@ export const ADDRESS_FORM_COPY: Record<AddressFormUiContext, AddressFormCopy> = 
   companyFiscal: {
     locationNamePlaceholder: "Ej: Matriz fiscal, Oficinas centrales",
     globalInfoMessage:
-      "Domicilio de tu empresa. Se usa en facturación y en la operación diaria.",
+      "Domicilio de representación de tu empresa en facturas. El código postal para timbrar se define en el lugar de expedición.",
   },
   employeePersonal: {
     locationNamePlaceholder: "",
     globalInfoMessage:
-      "Domicilio personal del empleado. País, estado y código postal son obligatorios; municipio, calle y número son opcionales.",
+      "Domicilio personal opcional de RRHH. No se usa en viajes ni en Carta Porte.",
   },
   tripStop: {
     locationNamePlaceholder: "Ej: Bodega Central, CEDIS Norte, Planta Monterrey",

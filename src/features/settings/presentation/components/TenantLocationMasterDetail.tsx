@@ -229,6 +229,8 @@ export function TenantLocationMasterDetail() {
               <ClientAddressForm
                 ref={formRef}
                 formContext="additional"
+                hidePrimarySwitch
+                infoMessage={tenantLocationsCopy.form.hint}
                 defaultValues={{
                   ...defaultTenantLocationFormValues,
                   isPrimary: false,
@@ -262,6 +264,8 @@ export function TenantLocationMasterDetail() {
                 ref={formRef}
                 key={selectedId}
                 formContext="additional"
+                hidePrimarySwitch
+                infoMessage={tenantLocationsCopy.form.hint}
                 defaultValues={
                   detailQuery.data
                     ? addressToFormData(detailQuery.data)

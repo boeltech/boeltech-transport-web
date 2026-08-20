@@ -162,8 +162,8 @@ describe("address-picker substitution smoke", () => {
       data: [
         {
           ...partnerItem,
-          addressType: "billing" as const,
-          locationName: "Domicilio fiscal",
+          addressType: "warehouse" as const,
+          locationName: "Bodega con RFC",
           remitenteRfc: "AAA010101AAA",
           remitenteName: "Cliente Demo SA",
         },
@@ -176,14 +176,14 @@ describe("address-picker substitution smoke", () => {
     await user.click(screen.getByRole("combobox"));
     await user.type(
       screen.getByPlaceholderText(/nombre, calle o código postal/i),
-      "fiscal",
+      "bodega",
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Domicilio fiscal")).toBeInTheDocument();
+      expect(screen.getByText("Bodega con RFC")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText("Domicilio fiscal"));
+    await user.click(screen.getByText("Bodega con RFC"));
     await user.type(
       screen.getByLabelText(/Motivo del cambio/i),
       "Corregir domicilio fiscal origen",

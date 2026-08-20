@@ -56,7 +56,8 @@ export const settingsNavItems: SettingsNavItem[] = [
   {
     id: SettingsSection.LOCATIONS,
     label: "Directorio",
-    description: "Bodegas y ubicaciones reutilizables para paradas",
+    description:
+      "Bodegas de la empresa que no son de un cliente ni de una sucursal",
     path: "/settings/locations",
     icon: MapPin,
     permission: { module: "settings", action: "update" },

@@ -54,6 +54,7 @@ import { cn } from "@shared/lib/utils/cn";
 import {
   FormFieldShell,
   FormValidationSummary,
+  RHFDateField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
@@ -435,23 +436,13 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               </Select>
             </FormFieldShell>
 
-            <FormFieldShell
-              label={fc.label.licenseExpiry}
+            <RHFDateField
+              control={control}
+              name="licenseExpiry"
               fieldId="licenseExpiry"
+              label={fc.label.licenseExpiry}
               required
-              errorMessage={errors.licenseExpiry?.message}
-            >
-              <Input
-                id="licenseExpiry"
-                type="date"
-                {...register("licenseExpiry")}
-                error={Boolean(errors.licenseExpiry)}
-                {...getFieldErrorAriaProps(
-                  "licenseExpiry",
-                  errors.licenseExpiry?.message,
-                )}
-              />
-            </FormFieldShell>
+            />
 
             <FormFieldShell
               label={fc.label.licenseState}
@@ -515,22 +506,12 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               />
             </FormFieldShell>
 
-            <FormFieldShell
-              label={fc.label.medicalExpiry}
+            <RHFDateField
+              control={control}
+              name="medicalCertificateExpiry"
               fieldId="medicalCertificateExpiry"
-              errorMessage={errors.medicalCertificateExpiry?.message}
-            >
-              <Input
-                id="medicalCertificateExpiry"
-                type="date"
-                {...register("medicalCertificateExpiry")}
-                error={Boolean(errors.medicalCertificateExpiry)}
-                {...getFieldErrorAriaProps(
-                  "medicalCertificateExpiry",
-                  errors.medicalCertificateExpiry?.message,
-                )}
-              />
-            </FormFieldShell>
+              label={fc.label.medicalExpiry}
+            />
 
             <FormFieldShell
               label={fc.label.medicalIssuer}
@@ -568,22 +549,12 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         contentClassName="space-y-4"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormFieldShell
-              label={fc.label.psychometricDate}
+            <RHFDateField
+              control={control}
+              name="psychometricTestDate"
               fieldId="psychometricTestDate"
-              errorMessage={errors.psychometricTestDate?.message}
-            >
-              <Input
-                id="psychometricTestDate"
-                type="date"
-                {...register("psychometricTestDate")}
-                error={Boolean(errors.psychometricTestDate)}
-                {...getFieldErrorAriaProps(
-                  "psychometricTestDate",
-                  errors.psychometricTestDate?.message,
-                )}
-              />
-            </FormFieldShell>
+              label={fc.label.psychometricDate}
+            />
 
             <FormFieldShell
               label={fc.label.psychometricResult}
@@ -630,22 +601,12 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         contentClassName="space-y-4"
       >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormFieldShell
-              label={fc.label.drugTestDate}
+            <RHFDateField
+              control={control}
+              name="lastDrugTestDate"
               fieldId="lastDrugTestDate"
-              errorMessage={errors.lastDrugTestDate?.message}
-            >
-              <Input
-                id="lastDrugTestDate"
-                type="date"
-                {...register("lastDrugTestDate")}
-                error={Boolean(errors.lastDrugTestDate)}
-                {...getFieldErrorAriaProps(
-                  "lastDrugTestDate",
-                  errors.lastDrugTestDate?.message,
-                )}
-              />
-            </FormFieldShell>
+              label={fc.label.drugTestDate}
+            />
 
             <FormFieldShell
               label={fc.label.drugTestResult}

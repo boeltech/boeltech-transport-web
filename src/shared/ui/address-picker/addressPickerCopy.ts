@@ -1,7 +1,8 @@
 export const ADDRESS_PICKER_COPY = {
   placeholder: "Buscar por nombre, calle o código postal…",
-  emptyBrowse: "No hay direcciones guardadas en este catálogo",
-  emptyResults: "No se encontraron direcciones",
+  emptyBrowse:
+    "No hay lugares reutilizables en este catálogo. Un administrador puede capturar bodegas o puntos de carga del cliente.",
+  emptyResults: "No se encontraron lugares reutilizables",
   loading: "Cargando direcciones…",
   filtering: "Filtrando…",
   loadMore: "Cargar más resultados",

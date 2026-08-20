@@ -15,7 +15,7 @@
 import { z } from "zod";
 import {
   defaultEmployeePersonalAddressValues,
-  employeePersonalAddressFormSchema,
+  employeeDomicilioOptionalFormSchema,
   type EmployeePersonalAddressFormData,
 } from "./employeePersonalAddressSchema";
 
@@ -73,7 +73,7 @@ const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const digits11Regex = /^\d{11}$/;
 const digits18Regex = /^\d{18}$/;
 
-const employeeDomicilioSchema = employeePersonalAddressFormSchema;
+const employeeDomicilioSchema = employeeDomicilioOptionalFormSchema;
 
 export const employeeSchema = z.object({
   // ========================================

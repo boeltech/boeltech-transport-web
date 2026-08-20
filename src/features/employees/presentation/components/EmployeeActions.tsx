@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { Label } from "@shared/ui/label";
-import { Input } from "@shared/ui/input";
+import { DateField } from "@shared/ui/form";
 import { Textarea } from "@shared/ui/text-area";
 import {
   DropdownMenu,
@@ -293,11 +293,10 @@ function TerminateDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="termination-date">Fecha de baja *</Label>
-            <Input
+            <DateField
               id="termination-date"
-              type="date"
               value={date}
-              onChange={(e) => onDateChange(e.target.value)}
+              onChange={onDateChange}
             />
           </div>
           <div className="space-y-1.5">
