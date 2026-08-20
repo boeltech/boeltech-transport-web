@@ -9,6 +9,7 @@ export {
   GEOCODING_SECTION_ID,
 } from "./AddressGeocodingFormSection";
 export { buildGeocodingEntityFormSection } from "./buildGeocodingEntityFormSection";
+export { setFormCoordinates } from "./setFormCoordinates";
 export type { AddressGeocodingSectionContentProps } from "./AddressGeocodingFormSection";
 export { AddressPreview } from "./AddressPreview";
 export { AddressFormNotice } from "./AddressFormNotice";

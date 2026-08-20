@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Calendar, Filter, X } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
+import { DateField, preventCloseIfDateCalendar } from "@shared/ui/form";
 import { Label } from "@shared/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 import {
@@ -116,7 +116,12 @@ export function ListingDateRangeFilter({
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[24rem] p-4" align="start">
+      <PopoverContent
+        className="w-[24rem] p-4"
+        align="start"
+        onPointerDownOutside={preventCloseIfDateCalendar}
+        onFocusOutside={preventCloseIfDateCalendar}
+      >
         <div className="space-y-4">
           <div className="flex items-center gap-2 font-medium">
             <Filter className="h-4 w-4" />
@@ -127,30 +132,28 @@ export function ListingDateRangeFilter({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor={`${idPrefix}-from`}>Desde</Label>
-                <Input
+                <DateField
                   id={`${idPrefix}-from`}
-                  type="date"
                   value={dateDraft.fromDate}
                   max={dateDraft.toDate || undefined}
-                  onChange={(event) =>
+                  onChange={(fromDate) =>
                     setDateDraft((draft) => ({
                       ...draft,
-                      fromDate: event.target.value,
+                      fromDate,
                     }))
                   }
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor={`${idPrefix}-to`}>Hasta</Label>
-                <Input
+                <DateField
                   id={`${idPrefix}-to`}
-                  type="date"
                   value={dateDraft.toDate}
                   min={dateDraft.fromDate || undefined}
-                  onChange={(event) =>
+                  onChange={(toDate) =>
                     setDateDraft((draft) => ({
                       ...draft,
-                      toDate: event.target.value,
+                      toDate,
                     }))
                   }
                 />

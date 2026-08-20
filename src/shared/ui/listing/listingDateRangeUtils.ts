@@ -1,4 +1,5 @@
-import { formatDate } from "@shared/utils/dateUtils";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
+import { addCalendarDays } from "../form/dateFieldUtils";
 
 const DEFAULT_PLACEHOLDER = "Filtrar por fecha";
 
@@ -20,39 +21,35 @@ export function formatListingDateRangeLabel(
   return `Hasta ${formatDate(toDate)}`;
 }
 
-export function toIsoDateString(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
 export const LISTING_DATE_RANGE_QUICK_PRESETS = {
   today: (): { fromDate: string; toDate: string } => {
-    const today = toIsoDateString(new Date());
+    const today = getTodayString();
     return { fromDate: today, toDate: today };
   },
   lastWeek: (): { fromDate: string; toDate: string } => {
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(today.getDate() - 7);
+    const today = getTodayString();
     return {
-      fromDate: toIsoDateString(weekAgo),
-      toDate: toIsoDateString(today),
+      fromDate: addCalendarDays(today, -7),
+      toDate: today,
     };
   },
   lastMonth: (): { fromDate: string; toDate: string } => {
-    const today = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setMonth(today.getMonth() - 1);
+    const today = getTodayString();
+    const year = Number(today.slice(0, 4));
+    const month = Number(today.slice(5, 7));
+    const day = Number(today.slice(8, 10));
+    const previous = new Date(Date.UTC(year, month - 2, day));
+    const fromDate = `${previous.getUTCFullYear()}-${String(previous.getUTCMonth() + 1).padStart(2, "0")}-${String(previous.getUTCDate()).padStart(2, "0")}`;
     return {
-      fromDate: toIsoDateString(monthAgo),
-      toDate: toIsoDateString(today),
+      fromDate,
+      toDate: today,
     };
   },
   thisMonth: (): { fromDate: string; toDate: string } => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const today = getTodayString();
     return {
-      fromDate: toIsoDateString(firstDay),
-      toDate: toIsoDateString(today),
+      fromDate: `${today.slice(0, 8)}01`,
+      toDate: today,
     };
   },
 } as const;

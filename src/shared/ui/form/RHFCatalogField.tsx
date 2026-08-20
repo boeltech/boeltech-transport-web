@@ -4,8 +4,22 @@ import {
   type Control,
   type FieldPath,
   type FieldValues,
+  type RefCallBack,
 } from "react-hook-form";
 import { FormFieldShell } from "./FormFieldShell";
+
+export type RHFCatalogFieldRenderProps = {
+  field: {
+    value: string;
+    onChange: (v: string) => void;
+    onBlur: () => void;
+    name: string;
+    ref: RefCallBack;
+  };
+  fieldState: { error?: { message?: string } };
+  resolvedId: string;
+  errorMessage?: string;
+};
 
 export function RHFCatalogField<T extends FieldValues>({
   control,
@@ -24,12 +38,7 @@ export function RHFCatalogField<T extends FieldValues>({
   fieldId?: string;
   description?: ReactNode;
   className?: string;
-  children: (ctx: {
-    field: { value: string; onChange: (v: string) => void };
-    fieldState: { error?: { message?: string } };
-    resolvedId: string;
-    errorMessage?: string;
-  }) => ReactNode;
+  children: (ctx: RHFCatalogFieldRenderProps) => ReactNode;
 }) {
   const resolvedId = fieldId ?? String(name);
 
@@ -50,6 +59,9 @@ export function RHFCatalogField<T extends FieldValues>({
             field: {
               value: String(field.value ?? ""),
               onChange: field.onChange,
+              onBlur: field.onBlur,
+              name: field.name,
+              ref: field.ref,
             },
             fieldState,
             resolvedId,
