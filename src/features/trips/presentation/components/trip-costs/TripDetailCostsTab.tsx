@@ -19,6 +19,8 @@ import {
   TripStatus,
   type ExpensesSummary,
   type TripExpense,
+  type TripInvoiceStatus,
+  type TripOperationalOutcomeType,
   type TripStop,
 } from "@features/trips/domain";
 import { useVehicle } from "@features/vehicles/application";
@@ -29,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { TripBaseRateCard } from "./TripBaseRateCard";
 import { Skeleton } from "@shared/ui/skeleton";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
 import {
   getSheetKindForCategory,
@@ -41,7 +44,10 @@ import {
 } from "../trip-financial";
 import type { TripExpenseFormValues } from "../../pages/create/components/validation";
 import { TripCostsCategoryBreakdown } from "./TripCostsCategoryBreakdown";
-import { TripExpenseEditableList } from "./TripExpenseEditableList";
+import {
+  TripExpenseEditableList,
+  type TripExpenseListItem,
+} from "./TripExpenseEditableList";
 import {
   formValuesToCreateExpenseInput,
   formValuesToUpdateExpenseInput,
@@ -69,13 +75,32 @@ export interface TripDetailCostsTabProps {
   onRetry: () => void;
   /** Tarifa base: solo draft/scheduled + permiso. */
   canEditBaseRate: boolean;
-  /** Gastos/costos: draft/scheduled/in_progress + permiso. */
-  canManageExpenses: boolean;
+  /** Alta de gastos (pre-cierre o post-cierre en ventana). */
+  canCreateExpenses: boolean;
+  /** Editar gastos (en completed solo pending). */
+  canUpdatePendingExpenses: boolean;
+  /** Eliminar gastos (en completed solo pending). */
+  canDeletePendingExpenses: boolean;
+  /**
+   * Compat / banners: alguna mutación habilitada.
+   * @deprecated Prefer canCreateExpenses / canUpdatePendingExpenses.
+   */
+  canManageExpenses?: boolean;
+  /** Viaje completed con ventana post-cierre abierta. */
+  expenseWindowOpen?: boolean;
+  /** Viaje completed con ventana cerrada. */
+  expenseWindowClosed?: boolean;
+  /** Límite de la ventana post-cierre. */
+  expenseWindowClosesAt?: Date | null;
   /** Aprobar/rechazar gastos pendientes (roles con permiso de aprobaciones). */
   canApproveExpenses: boolean;
   pendingExpenseCount?: number;
   /** Código visible del viaje (para deep link a bandeja de aprobaciones). */
   tripCode?: string;
+  /** PD7: vacío read-only tras declarar viaje en falso. */
+  operationalOutcome?: TripOperationalOutcomeType;
+  /** Estado de factura primaria (chip Facturado vs Tarifa en completed). */
+  invoiceStatus?: TripInvoiceStatus | null;
 }
 
 function CostsTabSkeleton() {
@@ -107,6 +132,15 @@ function CostsTabError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+function formatWindowHint(
+  template: string,
+  closesAt: Date | null | undefined,
+): string {
+  const deadline =
+    closesAt != null ? formatDateTime(closesAt.toISOString()) : "—";
+  return template.replace("{deadline}", deadline);
+}
+
 export function TripDetailCostsTab({
   tripId,
   tripStatus,
@@ -121,10 +155,18 @@ export function TripDetailCostsTab({
   isError,
   onRetry,
   canEditBaseRate,
+  canCreateExpenses,
+  canUpdatePendingExpenses,
+  canDeletePendingExpenses,
   canManageExpenses,
+  expenseWindowOpen = false,
+  expenseWindowClosed = false,
+  expenseWindowClosesAt = null,
   canApproveExpenses,
   pendingExpenseCount = 0,
   tripCode,
+  operationalOutcome,
+  invoiceStatus = null,
 }: TripDetailCostsTabProps) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -194,10 +236,29 @@ export function TripDetailCostsTab({
     [indirectItems],
   );
 
+  const isCompleted = tripStatus === TripStatus.COMPLETED;
   const financialSnapshot = useMemo(
-    () => buildTripWizardFinancialSnapshot(baseRate, expenseLines),
-    [baseRate, expenseLines],
+    () =>
+      buildTripWizardFinancialSnapshot(baseRate, expenseLines, {
+        // PD-D: en completed el margen primario = solo approved (paridad Finanzas).
+        costBasis: isCompleted ? "approved" : "all",
+      }),
+    [baseRate, expenseLines, isCompleted],
   );
+
+  const incomeSourceLabel = useMemo(() => {
+    if (!isCompleted) return null;
+    const invoiced =
+      invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending";
+    return invoiced
+      ? copy.incomeSource.invoiced
+      : copy.incomeSource.rateUnstamped;
+  }, [invoiceStatus, isCompleted]);
+
+  const queuedCostsHint =
+    isCompleted && financialSnapshot.queuedCostsTotal > 0
+      ? copy.financialSummary.hint.queuedMayLower
+      : null;
 
   const categoryEntries = useMemo(() => {
     if (expensesSummary && Object.keys(expensesSummary.byCategory).length > 0) {
@@ -206,8 +267,29 @@ export function TripDetailCostsTab({
     return null;
   }, [expensesSummary]);
 
-  const expensesReadOnly = !canManageExpenses;
+  const showAddButtons = canCreateExpenses;
+  const showExpenseSheet = canCreateExpenses || canUpdatePendingExpenses;
+  const listReadOnly =
+    !canUpdatePendingExpenses && !canDeletePendingExpenses && !canCreateExpenses;
+  const emptyEditable = canCreateExpenses;
+  const emptyReadOnlyDescription =
+    operationalOutcome === "false_trip"
+      ? copy.state.emptyAfterFalseTrip
+      : expenseWindowClosed
+        ? formatWindowHint(copy.hint.postCloseWindowClosed, expenseWindowClosesAt)
+        : undefined;
   const baseRateReadOnly = !canEditBaseRate;
+
+  const canEditItem = (item: TripExpenseListItem) => {
+    if (!canUpdatePendingExpenses) return false;
+    if (!isCompleted) return true;
+    return item.status === "pending";
+  };
+  const canRemoveItem = (item: TripExpenseListItem) => {
+    if (!canDeletePendingExpenses) return false;
+    if (!isCompleted) return true;
+    return item.status === "pending";
+  };
 
   const approveHandlers = canApproveExpenses
     ? {
@@ -269,6 +351,7 @@ export function TripDetailCostsTab({
   const handleOpenEdit = (expenseId: string) => {
     const expense = expenses.find((item) => item.id === expenseId);
     if (!expense) return;
+    if (isCompleted && expense.status !== "pending") return;
     setSheetKind(getSheetKindForCategory(expense.category));
     setEditingExpenseId(expenseId);
     setInitialExpense(tripExpenseToFormValues(expense));
@@ -321,15 +404,50 @@ export function TripDetailCostsTab({
   }
 
   const { financial } = financialSnapshot;
+  const manageHint =
+    canManageExpenses ??
+    (canCreateExpenses || canUpdatePendingExpenses || canDeletePendingExpenses);
 
   return (
     <div className="space-y-6">
-      {tripStatus === TripStatus.IN_PROGRESS && canManageExpenses ? (
+      {tripStatus === TripStatus.IN_PROGRESS && manageHint ? (
         <DetailAlertCard
           severity="info"
           icon={<CircleDollarSign className="h-4 w-4" />}
           title={copy.alert.inProgressTitle}
           items={[{ text: copy.hint.inProgress }]}
+        />
+      ) : null}
+
+      {expenseWindowOpen ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<CircleDollarSign className="h-4 w-4" />}
+          title={copy.alert.postCloseWindowTitle}
+          items={[
+            {
+              text: formatWindowHint(
+                copy.hint.postCloseWindow,
+                expenseWindowClosesAt,
+              ),
+            },
+          ]}
+        />
+      ) : null}
+
+      {expenseWindowClosed ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<CircleDollarSign className="h-4 w-4" />}
+          title={copy.alert.postCloseWindowClosedTitle}
+          items={[
+            {
+              text: formatWindowHint(
+                copy.hint.postCloseWindowClosed,
+                expenseWindowClosesAt,
+              ),
+            },
+          ]}
         />
       ) : null}
 
@@ -371,6 +489,7 @@ export function TripDetailCostsTab({
             clientId={clientId}
             expenseLines={expenseLines}
             readOnly={baseRateReadOnly}
+            incomeSourceLabel={incomeSourceLabel}
           />
 
           <Card>
@@ -379,7 +498,7 @@ export function TripDetailCostsTab({
                 <CircleDollarSign className="h-5 w-5 shrink-0" />
                 {copy.section.operational}
               </CardTitle>
-              {!expensesReadOnly ? (
+              {showAddButtons ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -395,15 +514,18 @@ export function TripDetailCostsTab({
               <TripExpenseEditableList
                 items={operationalListItems}
                 showDetailMeta
-                readOnly={expensesReadOnly}
+                readOnly={listReadOnly}
                 emptyTitle={copy.state.emptyOperationalTitle}
                 emptyDescription={
-                  expensesReadOnly
-                    ? copy.state.emptyOperationalReadOnly
-                    : copy.state.emptyOperationalEditable
+                  emptyEditable
+                    ? copy.state.emptyOperationalEditable
+                    : (emptyReadOnlyDescription ??
+                      copy.state.emptyOperationalReadOnly)
                 }
-                onEdit={expensesReadOnly ? undefined : handleOpenEdit}
-                onRemove={expensesReadOnly ? undefined : handleRemove}
+                canEditItem={canEditItem}
+                canRemoveItem={canRemoveItem}
+                onEdit={canUpdatePendingExpenses ? handleOpenEdit : undefined}
+                onRemove={canDeletePendingExpenses ? handleRemove : undefined}
                 onApprove={approveHandlers.onApprove}
                 onReject={approveHandlers.onReject}
               />
@@ -416,7 +538,7 @@ export function TripDetailCostsTab({
                 <Receipt className="h-5 w-5 shrink-0" />
                 {copy.section.indirect}
               </CardTitle>
-              {!expensesReadOnly ? (
+              {showAddButtons ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -432,15 +554,18 @@ export function TripDetailCostsTab({
               <TripExpenseEditableList
                 items={indirectListItems}
                 showDetailMeta
-                readOnly={expensesReadOnly}
+                readOnly={listReadOnly}
                 emptyTitle={copy.state.emptyIndirectTitle}
                 emptyDescription={
-                  expensesReadOnly
-                    ? copy.state.emptyIndirectReadOnly
-                    : copy.state.emptyIndirectEditable
+                  emptyEditable
+                    ? copy.state.emptyIndirectEditable
+                    : (emptyReadOnlyDescription ??
+                      copy.state.emptyIndirectReadOnly)
                 }
-                onEdit={expensesReadOnly ? undefined : handleOpenEdit}
-                onRemove={expensesReadOnly ? undefined : handleRemove}
+                canEditItem={canEditItem}
+                canRemoveItem={canRemoveItem}
+                onEdit={canUpdatePendingExpenses ? handleOpenEdit : undefined}
+                onRemove={canDeletePendingExpenses ? handleRemove : undefined}
                 onApprove={approveHandlers.onApprove}
                 onReject={approveHandlers.onReject}
               />
@@ -452,6 +577,18 @@ export function TripDetailCostsTab({
           <TripWizardFinancialSummary
             className="h-fit"
             snapshot={financialSnapshot}
+            title={
+              isCompleted
+                ? copy.financialSummary.section.title
+                : copy.financialSummary.section.titleEstimated
+            }
+            incomeSourceLabel={incomeSourceLabel}
+            queuedCostsHint={queuedCostsHint}
+            marginLabel={
+              isCompleted
+                ? copy.financialSummary.label.marginApproved
+                : undefined
+            }
           />
           {categoryEntries ? (
             <TripCostsCategoryBreakdown entries={categoryEntries} />
@@ -468,7 +605,7 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      {!expensesReadOnly ? (
+      {showExpenseSheet ? (
         <TripExpenseSheet
           open={sheetOpen}
           onOpenChange={setSheetOpen}

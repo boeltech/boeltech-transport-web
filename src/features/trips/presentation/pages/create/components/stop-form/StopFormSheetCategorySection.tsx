@@ -27,7 +27,7 @@ export interface StopFormSheetCategorySectionProps {
 
 /**
  * Solo para escalas: pregunta operativa «¿Qué se hace aquí?».
- * Origen/destino comunican contexto en el encabezado del sheet (D1).
+ * Origen/destino comunican contexto en el encabezado del sheet.
  */
 export function StopFormSheetCategorySection({
   displayStop,
@@ -44,40 +44,34 @@ export function StopFormSheetCategorySection({
       icon={<MapPin className="h-4 w-4" />}
       contentClassName="space-y-4"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3" role="group" aria-label={copy.waypointQuestion}>
         {getAvailableOperations().map((option) => {
           const OpIcon = option.icon;
+          const operation = option.value as TripStopFormValues["stopType"][number];
           const isChecked =
-            displayStop.stopType?.includes(
-              option.value as TripStopFormValues["stopType"][number],
-            ) ?? false;
+            displayStop.stopType?.includes(operation) ?? false;
+          const fieldId = `operation-${option.value}`;
 
           return (
-            <div
+            <label
               key={option.value}
+              htmlFor={fieldId}
               className={cn(
-                "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors",
+                "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
                 isChecked && "border-primary bg-primary/5",
               )}
-              onClick={() =>
-                onOperationToggle(
-                  option.value as TripStopFormValues["stopType"][number],
-                )
-              }
             >
               <Checkbox
-                id={`operation-${option.value}`}
+                id={fieldId}
                 checked={isChecked}
-                onCheckedChange={() => {}}
+                aria-label={option.label}
+                onCheckedChange={() => onOperationToggle(operation)}
               />
-              <label
-                htmlFor={`operation-${option.value}`}
-                className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
-              >
-                <OpIcon className={cn("h-4 w-4", option.color)} />
+              <span className="flex items-center gap-2 text-sm font-medium leading-none" aria-hidden>
+                <OpIcon className={cn("h-4 w-4", option.color)} aria-hidden />
                 {option.label}
-              </label>
-            </div>
+              </span>
+            </label>
           );
         })}
       </div>

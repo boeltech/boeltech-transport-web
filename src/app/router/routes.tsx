@@ -13,7 +13,8 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { lazy, Suspense, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
 
 // ============================================
 // Error Boundary
@@ -36,7 +37,7 @@ import {
 // ============================================
 import { AppLayout } from "@widgets/layout";
 import { SettingsRoutes } from "@features/settings";
-const AuthLayout = lazy(() => import("@widgets/layout/ui/AuthLayout"));
+const AuthLayout = lazyWithRetry(() => import("@widgets/layout/ui/AuthLayout"));
 
 // ============================================
 // Loading Fallback
@@ -82,297 +83,324 @@ function withSuspense(
 // ============================================
 
 // Root & Landing
-const RootRedirect = lazy(() => import("@/pages/root"));
-const LandingPage = lazy(() => import("@/pages/landing"));
-const TermsPage = lazy(() => import("@/pages/legal/TermsPage"));
-const PrivacyPage = lazy(() => import("@/pages/legal/PrivacyPage"));
+const RootRedirect = lazyWithRetry(() => import("@/pages/root"));
+const LandingPage = lazyWithRetry(() => import("@/pages/landing"));
+const TermsPage = lazyWithRetry(() => import("@/pages/legal/TermsPage"));
+const PrivacyPage = lazyWithRetry(() => import("@/pages/legal/PrivacyPage"));
 
 // Auth
-const LoginPage = lazy(() => import("@/pages/auth/login"));
-const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
-const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
-const VerifyEmailPage = lazy(() => import("@/pages/auth/verify-email"));
-const RegisterPage = lazy(() => import("@/pages/auth/register"));
-const AcceptInvitationPage = lazy(() =>
+const LoginPage = lazyWithRetry(() => import("@/pages/auth/login"));
+const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-password"));
+const ResetPasswordPage = lazyWithRetry(() => import("@/pages/auth/reset-password"));
+const VerifyEmailPage = lazyWithRetry(() => import("@/pages/auth/verify-email"));
+const RegisterPage = lazyWithRetry(() => import("@/pages/auth/register"));
+const AcceptInvitationPage = lazyWithRetry(() =>
   import("@features/invitations").then((m) => ({
     default: m.AcceptInvitationPage,
   })),
 );
-const ActivateTenantPage = lazy(() =>
+const ActivateTenantPage = lazyWithRetry(() =>
   import("@features/tenant-activations").then((m) => ({
     default: m.ActivateTenantPage,
   })),
 );
 
-const BillingSubscriptionPage = lazy(() =>
+const BillingSubscriptionPage = lazyWithRetry(() =>
   import("@features/billing").then((m) => ({
     default: m.BillingSubscriptionPage,
   })),
 );
 
 // Dashboard
-const DashboardPage = lazy(
+const DashboardPage = lazyWithRetry(
   () => import("@features/dashboard/presentation/DashboardPage"),
 );
 
 // Trips
-const TripFormPage = lazy(() =>
-  import("@features/trips/presentation/pages/create/TripFormPage").then(
+const TripCanvasPage = lazyWithRetry(() =>
+  import("@features/trips/presentation/pages/create/TripCanvasPage").then(
     (m) => ({
-      default: m.TripFormPage,
+      default: m.TripCanvasPage,
     }),
   ),
 );
-const FinishTripRedirect = lazy(() =>
+const FinishTripRedirect = lazyWithRetry(() =>
   import("@features/trips/presentation/pages/FinishTripRedirect").then((m) => ({
     default: m.FinishTripRedirect,
   })),
 );
-const TripDetailPage = lazy(() =>
+const TripDetailPage = lazyWithRetry(() =>
   import("@features/trips/presentation/pages/TripDetailPage").then((m) => ({
     default: m.TripDetailPage,
   })),
 );
-const TripsListPage = lazy(() =>
+const TripEditRedirect = lazyWithRetry(() =>
+  import("@features/trips/presentation/pages/TripEditRedirect").then((m) => ({
+    default: m.TripEditRedirect,
+  })),
+);
+const TripsListPage = lazyWithRetry(() =>
   import("@features/trips/presentation/pages/TripsListPage").then((m) => ({
     default: m.TripsListPage,
   })),
 );
-// NOTE: Trip edit reuses TripFormPage — it detects edit mode via :id param
-// const TripEditPage = lazy(() => import("@/pages/trips/edit"));
+// NOTE: /trips/:id/edit redirects to detail (ADR-0078). TripFormPage remains in repo.
+// const TripEditPage = lazyWithRetry(() => import("@/pages/trips/edit"));
 
 // Vehicles
-const VehicleListPage = lazy(() =>
+const VehicleListPage = lazyWithRetry(() =>
   import("@features/vehicles/presentation/pages/VehicleListPage").then((m) => ({
     default: m.VehicleListPage,
   })),
 );
-const VehicleDetailPage = lazy(() =>
+const VehicleDetailPage = lazyWithRetry(() =>
   import("@features/vehicles/presentation/pages/VehicleDetailPage").then(
     (m) => ({
       default: m.VehicleDetailPage,
     }),
   ),
 );
-const CreateVehiclePage = lazy(() =>
+const CreateVehiclePage = lazyWithRetry(() =>
   import("@features/vehicles/presentation/pages/CreateVehiclePage").then(
     (m) => ({
       default: m.CreateVehiclePage,
     }),
   ),
 );
-const EditVehiclePage = lazy(() =>
+const EditVehiclePage = lazyWithRetry(() =>
   import("@features/vehicles/presentation/pages/EditVehiclePage").then((m) => ({
     default: m.EditVehiclePage,
   })),
 );
 
+// Trailers (ADR-0077)
+const TrailerListPage = lazyWithRetry(() =>
+  import("@features/trailers").then((m) => ({
+    default: m.TrailerListPage,
+  })),
+);
+const TrailerDetailPage = lazyWithRetry(() =>
+  import("@features/trailers").then((m) => ({
+    default: m.TrailerDetailPage,
+  })),
+);
+const CreateTrailerPage = lazyWithRetry(() =>
+  import("@features/trailers").then((m) => ({
+    default: m.CreateTrailerPage,
+  })),
+);
+const EditTrailerPage = lazyWithRetry(() =>
+  import("@features/trailers").then((m) => ({
+    default: m.EditTrailerPage,
+  })),
+);
+
 // Drivers
-const DriversListPage = lazy(() =>
+const DriversListPage = lazyWithRetry(() =>
   import("@features/drivers").then((m) => ({
     default: m.DriversListPage,
   })),
 );
-const DriverDetailPage = lazy(() =>
+const DriverDetailPage = lazyWithRetry(() =>
   import("@features/drivers/presentation").then((m) => ({
     default: m.DriverDetailPage,
   })),
 );
-const DriverCreatePage = lazy(() =>
+const DriverCreatePage = lazyWithRetry(() =>
   import("@features/drivers/presentation").then((m) => ({
     default: m.DriverCreatePage,
   })),
 );
-const DriverEditPage = lazy(() =>
+const DriverEditPage = lazyWithRetry(() =>
   import("@features/drivers/presentation").then((m) => ({
     default: m.DriverEditPage,
   })),
 );
 
 // Employees
-const EmployeesListPage = lazy(() =>
+const EmployeesListPage = lazyWithRetry(() =>
   import("@features/employees").then((m) => ({
     default: m.EmployeesListPage,
   })),
 );
-const EmployeeDetailPage = lazy(() =>
+const EmployeeDetailPage = lazyWithRetry(() =>
   import("@features/employees").then((m) => ({
     default: m.EmployeeDetailPage,
   })),
 );
-const EmployeeFormPage = lazy(() =>
+const EmployeeFormPage = lazyWithRetry(() =>
   import("@features/employees").then((m) => ({
     default: m.EmployeeFormPage,
   })),
 );
-const EmployeeEditPage = lazy(() =>
+const EmployeeEditPage = lazyWithRetry(() =>
   import("@features/employees").then((m) => ({
     default: m.EmployeeEditPage,
   })),
 );
 
 // Clients
-const ClientsListPage = lazy(() =>
+const ClientsListPage = lazyWithRetry(() =>
   import("@features/clients").then((m) => ({
     default: m.ClientsListPage,
   })),
 );
-const ClientDetailPage = lazy(() =>
+const ClientDetailPage = lazyWithRetry(() =>
   import("@features/clients").then((m) => ({ default: m.ClientDetailPage })),
 );
-const ClientCreatePage = lazy(() =>
+const ClientCreatePage = lazyWithRetry(() =>
   import("@features/clients").then((m) => ({ default: m.ClientCreatePage })),
 );
-const ClientEditPage = lazy(() =>
+const ClientEditPage = lazyWithRetry(() =>
   import("@features/clients").then((m) => ({ default: m.ClientEditPage })),
 );
 
 // Branches
-const BranchesListPage = lazy(() =>
+const BranchesListPage = lazyWithRetry(() =>
   import("@features/branches").then((m) => ({ default: m.BranchesListPage })),
 );
-const BranchDetailPage = lazy(() =>
+const BranchDetailPage = lazyWithRetry(() =>
   import("@features/branches").then((m) => ({ default: m.BranchDetailPage })),
 );
-const BranchCreatePage = lazy(() =>
+const BranchCreatePage = lazyWithRetry(() =>
   import("@features/branches").then((m) => ({ default: m.BranchCreatePage })),
 );
-const BranchEditPage = lazy(() =>
+const BranchEditPage = lazyWithRetry(() =>
   import("@features/branches").then((m) => ({ default: m.BranchEditPage })),
 );
 
 // Maintenance
-// const MaintenanceListPage = lazy(() => import("@/pages/maintenance"));
-// const MaintenanceCreatePage = lazy(() => import("@/pages/maintenance/create"));
+// const MaintenanceListPage = lazyWithRetry(() => import("@/pages/maintenance"));
+// const MaintenanceCreatePage = lazyWithRetry(() => import("@/pages/maintenance/create"));
 
 // Fuel
-// const FuelListPage = lazy(() => import("@/pages/fuel"));
-// const FuelCreatePage = lazy(() => import("@/pages/fuel/create"));
+// const FuelListPage = lazyWithRetry(() => import("@/pages/fuel"));
+// const FuelCreatePage = lazyWithRetry(() => import("@/pages/fuel/create"));
 
 // Finance / Invoices
-const FinancePage = lazy(() =>
+const FinancePage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinancePage })),
 );
-const InvoiceDetailPage = lazy(() =>
+const InvoiceDetailPage = lazyWithRetry(() =>
   import("@features/invoicing").then((m) => ({ default: m.InvoiceDetailPage })),
 );
-const CreateInvoicePage = lazy(() =>
+const CreateInvoicePage = lazyWithRetry(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
 );
 
 // Reports
-const ReportsPage = lazy(() =>
+const ReportsPage = lazyWithRetry(() =>
   import("@features/reports").then((m) => ({ default: m.ReportsPage })),
 );
 
 // Users (Admin)
-const UsersListPage = lazy(() =>
+const UsersListPage = lazyWithRetry(() =>
   import("@features/users").then((m) => ({ default: m.UsersListPage })),
 );
-const UserDetailPage = lazy(() =>
+const UserDetailPage = lazyWithRetry(() =>
   import("@features/users").then((m) => ({ default: m.UserDetailPage })),
 );
-const UserManagementActivityPage = lazy(() =>
+const UserManagementActivityPage = lazyWithRetry(() =>
   import("@features/users").then((m) => ({
     default: m.UserManagementActivityPage,
   })),
 );
-const UserCreatePage = lazy(() =>
+const UserCreatePage = lazyWithRetry(() =>
   import("@features/users").then((m) => ({ default: m.UserCreatePage })),
 );
-const UserEditPage = lazy(() =>
+const UserEditPage = lazyWithRetry(() =>
   import("@features/users").then((m) => ({ default: m.UserEditPage })),
 );
 
 // Settings (Admin)
-// const SettingsPage = lazy(() => import("@/pages/settings"));
+// const SettingsPage = lazyWithRetry(() => import("@/pages/settings"));
 
 // Mi cuenta (autoservicio — todos los autenticados)
-const AccountShell = lazy(() =>
+const AccountShell = lazyWithRetry(() =>
   import("@/pages/account").then((m) => ({ default: m.AccountShell })),
 );
-const AccountProfilePage = lazy(() =>
+const AccountProfilePage = lazyWithRetry(() =>
   import("@/pages/account").then((m) => ({ default: m.AccountProfilePage })),
 );
-const AccountSecurityPage = lazy(() =>
+const AccountSecurityPage = lazyWithRetry(() =>
   import("@/pages/account").then((m) => ({ default: m.AccountSecurityPage })),
 );
 
-const NotificationsInboxPage = lazy(() =>
+const NotificationsInboxPage = lazyWithRetry(() =>
   import("@features/notifications").then((m) => ({
     default: m.NotificationsInboxPage,
   })),
 );
 
 // Design System (gated a admin)
-const DesignSystemPage = lazy(() => import("@/pages/design-system"));
+const DesignSystemPage = lazyWithRetry(() => import("@/pages/design-system"));
 
 // Onboarding guiado (post-invite / primera sesión heurística)
-const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
+const OnboardingPage = lazyWithRetry(() => import("@/pages/onboarding/OnboardingPage"));
 
-const PlatformLoginPage = lazy(() =>
+const PlatformLoginPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformLoginPage,
   })),
 );
-const PlatformShell = lazy(() =>
+const PlatformShell = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformShell,
   })),
 );
-const PlatformDashboardPage = lazy(() =>
+const PlatformDashboardPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformDashboardPage,
   })),
 );
-const PlatformTenantsListPage = lazy(() =>
+const PlatformTenantsListPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformTenantsListPage,
   })),
 );
-const PlatformTenantCreatePage = lazy(() =>
+const PlatformTenantCreatePage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformTenantCreatePage,
   })),
 );
-const PlatformTenantDetailPage = lazy(() =>
+const PlatformTenantDetailPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformTenantDetailPage,
   })),
 );
-const PlatformGlobalCatalogsPage = lazy(() =>
+const PlatformGlobalCatalogsPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformGlobalCatalogsPage,
   })),
 );
-const PlatformAuditLogPage = lazy(() =>
+const PlatformAuditLogPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformAuditLogPage,
   })),
 );
-const PlatformArLedgerPage = lazy(() =>
+const PlatformArLedgerPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformArLedgerPage,
   })),
 );
-const PlatformSecurityPage = lazy(() =>
+const PlatformSecurityPage = lazyWithRetry(() =>
   import("@features/platform").then((module) => ({
     default: module.PlatformSecurityPage,
   })),
 );
 
 // Errors
-const NotFoundPage = lazy(() => import("@/pages/errors/not-found"));
-const ForbiddenPage = lazy(() => import("@/pages/errors/forbidden"));
-const ServerErrorPage = lazy(() => import("@/pages/errors/server-error"));
-const MaintenancePage = lazy(() => import("@/pages/errors/maintenance"));
+const NotFoundPage = lazyWithRetry(() => import("@/pages/errors/not-found"));
+const ForbiddenPage = lazyWithRetry(() => import("@/pages/errors/forbidden"));
+const ServerErrorPage = lazyWithRetry(() => import("@/pages/errors/server-error"));
+const MaintenancePage = lazyWithRetry(() => import("@/pages/errors/maintenance"));
 
 /** Routes backed by gitignored `src/pages/dev/` — only registered in Vite dev */
 const devOnlyAppChildRoutes = import.meta.env.DEV
   ? ([
       {
         path: "/dev/address-input",
-        element: withSuspense(lazy(() => import("@/pages/dev/address-input"))),
+        element: withSuspense(lazyWithRetry(() => import("@/pages/dev/address-input"))),
       },
     ] as const)
   : [];
@@ -515,6 +543,10 @@ export const router = createBrowserRouter([
                 element: withSuspense(TripDetailPage),
               },
               {
+                path: "/trips/:id/edit",
+                element: withSuspense(TripEditRedirect),
+              },
+              {
                 path: "/trips",
                 element: withSuspense(TripsListPage),
               },
@@ -526,27 +558,17 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/trips/new",
-                element: withSuspense(TripFormPage),
+                element: withSuspense(TripCanvasPage),
               },
             ],
           },
-          // Trips - Finish / Edit (requiere permiso)
+          // Trips - Finish (requiere permiso)
           {
             element: <PermissionRoute module="trips" action="update" />,
             children: [
               {
                 path: "/trips/:id/finish",
                 element: withSuspense(FinishTripRedirect),
-              },
-            ],
-          },
-          // Trips - Edit (requiere permiso)
-          {
-            element: <PermissionRoute module="trips" action="update" />,
-            children: [
-              {
-                path: "/trips/:id/edit",
-                element: withSuspense(TripFormPage),
               },
             ],
           },
@@ -582,6 +604,41 @@ export const router = createBrowserRouter([
               {
                 path: "/vehicles/:id/edit",
                 element: withSuspense(EditVehiclePage),
+              },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Trailers (Remolques) — ADR-0077
+          // ========================================
+          {
+            element: <ModuleRoute module="trailers" />,
+            children: [
+              {
+                path: "/trailers",
+                element: withSuspense(TrailerListPage),
+              },
+              {
+                path: "/trailers/:id",
+                element: withSuspense(TrailerDetailPage), // redirect → /trailers
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="trailers" action="create" />,
+            children: [
+              {
+                path: "/trailers/new",
+                element: withSuspense(CreateTrailerPage),
+              },
+            ],
+          },
+          {
+            element: <PermissionRoute module="trailers" action="update" />,
+            children: [
+              {
+                path: "/trailers/:id/edit",
+                element: withSuspense(EditTrailerPage),
               },
             ],
           },

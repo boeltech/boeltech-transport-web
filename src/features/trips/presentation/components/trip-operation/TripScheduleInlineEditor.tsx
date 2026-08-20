@@ -4,11 +4,18 @@ import { useUpdateTrip } from "@features/trips/application";
 import type { Trip } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { FieldInlineError, FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
-import { Input } from "@shared/ui/input";
+import {
+  DateTimeField,
+  FieldInlineError,
+  FormFieldShell,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import { InfoRow } from "@shared/ui/data-display";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
+
+import { operationCopy } from "../../copy";
+import { tripScheduleDateTimeFieldProps } from "../../scheduleDateTimeField";
 
 import { buildScheduleUpdateInput, type TripScheduleFormValues } from "../trip-detail-patch";
 import {
@@ -44,14 +51,15 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
   const { toast } = useToast();
   const [draft, setDraft] = useState<TripScheduleFormValues>(persisted);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const scheduleFieldProps = tripScheduleDateTimeFieldProps(operationCopy.preset);
 
   const updateTrip = useUpdateTrip({
     onSuccess: () => {
-      toast({ title: "Programación actualizada", variant: "success" });
+      toast({ title: operationCopy.toast.scheduleUpdated, variant: "success" });
     },
     onError: (error) => {
       toast({
-        title: "No se pudo guardar la programación",
+        title: operationCopy.toast.scheduleUpdateError,
         description: error.message,
         variant: "destructive",
       });
@@ -65,7 +73,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
   const handleSave = async () => {
     setFieldError(null);
     if (!draft.scheduledDeparture.trim()) {
-      setFieldError("La salida programada es obligatoria.");
+      setFieldError(operationCopy.error.departureRequired);
       return;
     }
 
@@ -92,31 +100,34 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
     <div className="space-y-4">
       <FormFieldShell
         fieldId="trip-schedule-departure"
-        label="Salida programada"
+        label={operationCopy.label.scheduledDeparture}
         required
         errorMessage={fieldError ?? undefined}
       >
-        <Input
+        <DateTimeField
           id="trip-schedule-departure"
-          type="datetime-local"
           value={draft.scheduledDeparture}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, scheduledDeparture: event.target.value }))
+          onChange={(scheduledDeparture) =>
+            setDraft((prev) => ({ ...prev, scheduledDeparture }))
           }
           disabled={updateTrip.isPending}
           error={Boolean(fieldError)}
+          {...scheduleFieldProps}
           {...getFieldErrorAriaProps("trip-schedule-departure", fieldError ?? undefined)}
         />
       </FormFieldShell>
-      <FormFieldShell fieldId="trip-schedule-arrival" label="Llegada estimada">
-        <Input
+      <FormFieldShell
+        fieldId="trip-schedule-arrival"
+        label={operationCopy.label.scheduledArrival}
+      >
+        <DateTimeField
           id="trip-schedule-arrival"
-          type="datetime-local"
           value={draft.scheduledArrival}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, scheduledArrival: event.target.value }))
+          onChange={(scheduledArrival) =>
+            setDraft((prev) => ({ ...prev, scheduledArrival }))
           }
           disabled={updateTrip.isPending}
+          {...scheduleFieldProps}
         />
       </FormFieldShell>
       {fieldError ? (
@@ -130,7 +141,9 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             onClick={() => void handleSave()}
             disabled={updateTrip.isPending}
           >
-            {updateTrip.isPending ? "Guardando…" : "Guardar programación"}
+            {updateTrip.isPending
+              ? operationCopy.action.savingSchedule
+              : operationCopy.action.saveSchedule}
           </Button>
           <Button
             type="button"
@@ -139,7 +152,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             onClick={handleCancel}
             disabled={updateTrip.isPending}
           >
-            Cancelar
+            {operationCopy.action.cancelSchedule}
           </Button>
         </div>
       ) : null}
@@ -158,12 +171,12 @@ export function TripScheduleInlineEditor({
       <>
         <InfoRow
           variant="inline"
-          label="Salida"
+          label={operationCopy.label.scheduledDepartureReadOnly}
           value={formatDateTime(scheduledDeparture.toISOString())}
         />
         <InfoRow
           variant="inline"
-          label="Llegada estimada"
+          label={operationCopy.label.scheduledArrival}
           value={formatDateTime(scheduledArrival?.toISOString())}
         />
       </>

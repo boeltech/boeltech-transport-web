@@ -2,7 +2,7 @@
  * Construye el mismo `CreateTripInput` que envía el wizard al crear un viaje,
  * para validarlo con `createTripSchema` del paquete (ADR-0043 WS-D).
  */
-import type { CreateTripInput } from "@features/trips/domain";
+import type { CreateStopInput, CreateTripInput } from "@features/trips/domain";
 import type { CurrencyType } from "@features/trips/domain";
 import type { TripWizardFormValues } from "./components/validation";
 import { buildTripEndpointSummary, mapWizardStopsToCreateInput } from "./wizardStopPayload";
@@ -13,9 +13,24 @@ import {
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 import { deriveAllowExpiredDocs } from "./tripAssignmentExpiredDocs";
 
+function mapWizardTrailers(
+  data: TripWizardFormValues,
+): CreateTripInput["trailers"] {
+  const list = (data.trailers ?? [])
+    .filter((t) => !!t.trailerId)
+    .map((t) => ({
+      trailerId: t.trailerId,
+      position: t.position,
+    }))
+    .sort((a, b) => a.position - b.position);
+  return list.length > 0 ? list : undefined;
+}
+
 export type BuildCreateTripInputOptions = {
   /** ADR-0071: hold comercial sin stops/cargos. */
   createIntent?: "reserve" | "full";
+  /** ADR-0078: paradas clonadas del corredor en reserve. */
+  clonedStops?: CreateStopInput[];
 };
 
 export function buildCreateTripInputFromWizardValues(
@@ -30,11 +45,17 @@ export function buildCreateTripInputFromWizardValues(
   const allowExpiredDocs = assignmentContext
     ? deriveAllowExpiredDocs(assignmentContext.vehicle, assignmentContext.driver)
     : undefined;
+  const trailers = mapWizardTrailers(data);
+  const satConfigAutotransporteCode =
+    data.satConfigAutotransporteCode?.trim() || undefined;
 
   if (createIntent === "reserve") {
+    const clonedStops = buildOptions?.clonedStops;
     return {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
+      trailers,
+      satConfigAutotransporteCode,
       clientId: data.clientId,
       originBranchId: data.originBranchId?.trim() || undefined,
       cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
@@ -42,12 +63,14 @@ export function buildCreateTripInputFromWizardValues(
       scheduledArrival: data.scheduledArrival
         ? localInputToUtcIso(data.scheduledArrival)
         : undefined,
+      ...(data.startMileage != null ? { startMileage: data.startMileage } : {}),
       originCity: data.originCity?.trim() || "",
       destinationCity: data.destinationCity?.trim() || "",
       baseRate: data.baseRate,
       notes: data.notes || undefined,
       options: { createIntent: "reserve" },
       allowExpiredDocs,
+      ...(clonedStops && clonedStops.length > 0 ? { stops: clonedStops } : {}),
     };
   }
 
@@ -62,6 +85,8 @@ export function buildCreateTripInputFromWizardValues(
   return {
     vehicleId: data.vehicleId,
     driverId: data.driverId,
+    trailers,
+    satConfigAutotransporteCode,
     clientId: data.clientId,
     originBranchId: data.originBranchId?.trim() || undefined,
     cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",

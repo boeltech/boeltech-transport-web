@@ -1,5 +1,6 @@
 import { Calculator } from "lucide-react";
 
+import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
 import { Separator } from "@shared/ui/separator";
@@ -21,17 +22,32 @@ export interface TripWizardFinancialSummaryProps {
    * `totals`: solo totales y margen — paso Costos (sin eco de líneas).
    */
   variant?: "lines" | "totals";
+  /** Override del título del card (detalle viaje). */
+  title?: string;
+  /** Chip de origen del ingreso (Facturado / Tarifa). */
+  incomeSourceLabel?: string | null;
+  /** Microcopy bajo el margen cuando hay gastos en cola. */
+  queuedCostsHint?: string | null;
+  /** Etiqueta del margen primario (p. ej. Utilidad (aprobados)). */
+  marginLabel?: string;
 }
 
 function TripWizardFinancialSummaryBody({
   snapshot,
   variant,
+  incomeSourceLabel,
+  queuedCostsHint,
+  marginLabel,
 }: {
   snapshot: TripWizardFinancialSnapshot;
   variant: "lines" | "totals";
+  incomeSourceLabel?: string | null;
+  queuedCostsHint?: string | null;
+  marginLabel?: string;
 }) {
   const { operationalCosts, indirectExpenses, financial, marginToneClass } =
     snapshot;
+  const resolvedMarginLabel = marginLabel ?? copy.label.margin;
 
   if (variant === "totals") {
     return (
@@ -39,7 +55,16 @@ function TripWizardFinancialSummaryBody({
         <InfoRow
           variant="inline"
           label={copy.label.income}
-          value={formatMxCurrency(financial.baseRate)}
+          value={
+            <span className="inline-flex flex-wrap items-center justify-end gap-2">
+              {incomeSourceLabel ? (
+                <Badge variant="neutral" tone="soft" className="text-xs">
+                  {incomeSourceLabel}
+                </Badge>
+              ) : null}
+              <span>{formatMxCurrency(financial.baseRate)}</span>
+            </span>
+          }
         />
         <InfoRow
           variant="inline"
@@ -54,7 +79,7 @@ function TripWizardFinancialSummaryBody({
         <Separator />
         <InfoRow
           variant="inline"
-          label={copy.label.margin}
+          label={resolvedMarginLabel}
           value={
             <span className={cn("font-semibold", marginToneClass)}>
               {formatMxCurrency(financial.margin)}
@@ -70,6 +95,9 @@ function TripWizardFinancialSummaryBody({
               : `${financial.marginPct.toFixed(1)} %`
           }
         />
+        {queuedCostsHint ? (
+          <p className="text-xs text-warning-foreground">{queuedCostsHint}</p>
+        ) : null}
       </div>
     );
   }
@@ -78,7 +106,14 @@ function TripWizardFinancialSummaryBody({
     <div className="space-y-4">
       <div className="rounded-md border border-success/30 bg-success-soft/70">
         <div className="border-b border-success/30 px-3 py-2 text-xs font-semibold text-success-soft-foreground">
-          {copy.section.income}
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {copy.section.income}
+            {incomeSourceLabel ? (
+              <Badge variant="neutral" tone="soft" className="text-xs font-medium">
+                {incomeSourceLabel}
+              </Badge>
+            ) : null}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
           <div>
@@ -156,7 +191,7 @@ function TripWizardFinancialSummaryBody({
       <Separator />
       <InfoRow
         variant="inline"
-        label={copy.label.margin}
+        label={resolvedMarginLabel}
         value={
           <span className={cn("font-semibold", marginToneClass)}>
             {formatMxCurrency(financial.margin)}
@@ -172,6 +207,9 @@ function TripWizardFinancialSummaryBody({
             : `${financial.marginPct.toFixed(1)}%`
         }
       />
+      {queuedCostsHint ? (
+        <p className="text-xs text-warning-foreground">{queuedCostsHint}</p>
+      ) : null}
     </div>
   );
 }
@@ -181,11 +219,21 @@ export function TripWizardFinancialSummary({
   className,
   showCard = true,
   variant = "lines",
+  title,
+  incomeSourceLabel,
+  queuedCostsHint,
+  marginLabel,
 }: TripWizardFinancialSummaryProps) {
   if (!showCard) {
     return (
       <div className={className}>
-        <TripWizardFinancialSummaryBody snapshot={snapshot} variant={variant} />
+        <TripWizardFinancialSummaryBody
+          snapshot={snapshot}
+          variant={variant}
+          incomeSourceLabel={incomeSourceLabel}
+          queuedCostsHint={queuedCostsHint}
+          marginLabel={marginLabel}
+        />
       </div>
     );
   }
@@ -195,11 +243,17 @@ export function TripWizardFinancialSummary({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Calculator className="h-4 w-4" />
-          {copy.section.title}
+          {title ?? copy.section.title}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <TripWizardFinancialSummaryBody snapshot={snapshot} variant={variant} />
+        <TripWizardFinancialSummaryBody
+          snapshot={snapshot}
+          variant={variant}
+          incomeSourceLabel={incomeSourceLabel}
+          queuedCostsHint={queuedCostsHint}
+          marginLabel={marginLabel}
+        />
       </CardContent>
     </Card>
   );

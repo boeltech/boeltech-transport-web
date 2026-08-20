@@ -65,13 +65,35 @@ describe("describeStampApiError", () => {
       {
         pac_rule: "CFDI40147",
         hint:
-          "El código postal fiscal del receptor no coincide con el registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
+          "El código postal fiscal 01210 no coincide con el registrado ante el SAT para el RFC HAÑ930228SM9. Si la factura ya muestra ese código, no lo cambie en el cliente: confírmelo en la constancia de situación fiscal del receptor y, si es el mismo, pida apoyo a soporte.",
       },
     );
 
     const message = describeStampApiError(error);
 
+    expect(message).toContain("01210");
+    expect(message).toContain("HAÑ930228SM9");
     expect(message).toContain("código postal fiscal");
     expect(message).not.toContain("validación fiscal/XSD");
+  });
+
+  it("incluye hint de PAC_ISSUED_AT_OUT_OF_RANGE cuando aporta reintento", () => {
+    const hint =
+      "Vuelve a intentar el timbrado; al timbrar se actualiza la fecha de emisión. Si el error persiste: (1) si Comprobante.Fecha va adelantada vs el reloj ProFact, ajusta PROFACT_FECHA_CLOCK_OFFSET_MINUTES (sandbox suele necesitar -60); (2) verifica la hora del servidor API.";
+    const error = new ApiError(
+      "No se pudo timbrar: la fecha de emisión está fuera de la ventana de 72 horas del PAC (a veces adelantada respecto al reloj ProFact). Reintenta; si persiste, revisa la hora del servidor API o el ajuste PROFACT_FECHA_CLOCK_OFFSET_MINUTES en sandbox.",
+      422,
+      "PAC_ISSUED_AT_OUT_OF_RANGE",
+      {
+        pac_provider: "profact",
+        pac_code: "401",
+        hint,
+      },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toContain("72 horas");
+    expect(message).toContain("PROFACT_FECHA_CLOCK_OFFSET_MINUTES");
   });
 });

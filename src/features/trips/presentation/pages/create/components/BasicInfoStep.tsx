@@ -15,11 +15,11 @@
  * Ubicación: src/features/trips/presentation/pages/create/components/steps/BasicInfoStep.tsx
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
 import {
   Select,
   SelectContent,
@@ -72,11 +72,13 @@ import { useVehicle } from "@features/vehicles/application";
 import { useEmployees } from "@features/employees";
 import type { EmployeeListItem } from "@features/employees";
 import { wizardCopy } from "../../../copy";
+import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 import { TripAssignmentResourceFields } from "./TripAssignmentResourceFields";
 import { OriginBranchField } from "./OriginBranchField";
 
 const copy = wizardCopy.basicInfo;
 const shellValidation = wizardCopy.shell.validation;
+const scheduleFieldProps = tripScheduleDateTimeFieldProps(copy.preset);
 
 // ============================================================================
 // TYPES
@@ -230,14 +232,23 @@ export function BasicInfoStep({
   }, [supportStaffEmployeeIds, selectedDriverEmployeeId]);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // EFFECT: Precargar kilometraje cuando se selecciona un vehículo
+  // EFFECT: Precargar kilometraje cuando se selecciona un vehículo.
+  // - Primera carga en edición: conserva startMileage persistido.
+  // - Cambio de unidad o valor vacío: sugiere odómetro actual del vehículo.
   // ══════════════════════════════════════════════════════════════════════════
+  const previousVehicleIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (vehicleDetail) {
-      form.setValue("vehicleCurrentMileage", vehicleDetail.currentMileage);
+    if (!vehicleDetail || !selectedVehicleId) return;
+    form.setValue("vehicleCurrentMileage", vehicleDetail.currentMileage);
+    const vehicleChanged =
+      previousVehicleIdRef.current !== undefined &&
+      previousVehicleIdRef.current !== selectedVehicleId;
+    previousVehicleIdRef.current = selectedVehicleId;
+    const currentStart = form.getValues("startMileage");
+    if (currentStart == null || vehicleChanged) {
       form.setValue("startMileage", vehicleDetail.currentMileage);
     }
-  }, [vehicleDetail, form]);
+  }, [vehicleDetail, selectedVehicleId, form]);
 
   const draftEmployeeSelectValue =
     draftEmployeeId.trim() !== "" &&
@@ -739,11 +750,14 @@ export function BasicInfoStep({
                   required
                   errorMessage={fieldState.error?.message}
                 >
-                  <Input
+                  <DateTimeField
                     id="scheduledDeparture"
-                    type="datetime-local"
-                    {...field}
+                    name={field.name}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
                     error={Boolean(fieldState.error)}
+                    {...scheduleFieldProps}
                     {...getFieldErrorAriaProps(
                       "scheduledDeparture",
                       fieldState.error?.message,
@@ -769,12 +783,14 @@ export function BasicInfoStep({
                   }
                   errorMessage={fieldState.error?.message}
                 >
-                  <Input
+                  <DateTimeField
                     id="scheduledArrival"
-                    type="datetime-local"
-                    {...field}
+                    name={field.name}
                     value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
                     error={Boolean(fieldState.error)}
+                    {...scheduleFieldProps}
                     {...getFieldErrorAriaProps(
                       "scheduledArrival",
                       fieldState.error?.message,

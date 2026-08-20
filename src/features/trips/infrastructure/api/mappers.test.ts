@@ -69,6 +69,47 @@ describe("mapApiTripListItem invoicing (ADR-0068)", () => {
     });
   });
 
+  it("maps false_trip outcome and can_generate_false_trip_invoice (ADR-0079)", () => {
+    const item = mapApiTripListItem({
+      ...baseListItem({
+        has_active_invoice: false,
+        has_active_primary_invoice: false,
+        has_active_principal_invoice: false,
+        can_generate_invoice: false,
+        can_generate_accessory_invoice: false,
+        can_generate_false_trip_invoice: true,
+      }),
+      operational_outcome: "false_trip",
+      false_trip_declared_at: "2026-08-15T18:40:00.000Z",
+      false_trip_declared_by: "Ana Dispatcher",
+    });
+
+    expect(item.invoicing.canGenerateFalseTripInvoice).toBe(true);
+    expect(item.invoicing.canGenerateInvoice).toBe(false);
+    expect(item.invoicing.canGenerateAccessoryInvoice).toBe(false);
+    expect(item.invoicing.hasActivePrincipalInvoice).toBe(false);
+    expect(item.operationalOutcome).toBe("false_trip");
+    expect(item.falseTripDeclaredAt?.toISOString()).toBe(
+      "2026-08-15T18:40:00.000Z",
+    );
+    expect(item.falseTripDeclaredBy).toBe("Ana Dispatcher");
+  });
+
+  it("defaults operational_outcome to standard and false-trip flag to false", () => {
+    const item = mapApiTripListItem(
+      baseListItem({
+        has_active_invoice: false,
+        can_generate_invoice: true,
+      }),
+    );
+
+    expect(item.operationalOutcome).toBe("standard");
+    expect(item.falseTripDeclaredAt).toBeNull();
+    expect(item.falseTripDeclaredBy).toBeNull();
+    expect(item.invoicing.canGenerateFalseTripInvoice).toBe(false);
+    expect(item.invoicing.hasActivePrincipalInvoice).toBe(false);
+  });
+
   it("falls back has_active_primary_invoice from has_active_invoice", () => {
     const item = mapApiTripListItem(
       baseListItem({

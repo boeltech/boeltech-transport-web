@@ -7,11 +7,36 @@ import { Link } from "react-router-dom";
 import { ExternalLink, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import type { Trip } from "@features/trips/domain";
-import { getTripInvoicingBadgeConfig } from "../uiHelpers";
+import { TripStatus, type Trip } from "@features/trips/domain";
+import {
+  getTripInvoicingBadgeConfig,
+  getTripInvoicingBlockReason,
+  toDetailInvoicingBadge,
+} from "../uiHelpers";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 
 const sectionCopy = tripFiscalCopy.invoicesSection;
+
+export function shouldShowTripFiscalBand(
+  trip: Pick<
+    Trip,
+    "status" | "requiresFiscalAttention" | "operationalOutcome" | "invoicing"
+  >,
+  hasPostCancelFiscal: boolean,
+): boolean {
+  if (hasPostCancelFiscal) return true;
+  if (trip.requiresFiscalAttention) return true;
+  if (
+    trip.operationalOutcome === "false_trip" &&
+    trip.invoicing.canGenerateFalseTripInvoice
+  ) {
+    return true;
+  }
+  const billableStatus =
+    trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELLED;
+  if (!billableStatus || !trip.invoicing.blockReason) return false;
+  return getTripInvoicingBlockReason(trip.invoicing) != null;
+}
 
 export interface TripFiscalSectionProps {
   trip: Trip;
@@ -33,10 +58,12 @@ function blockReasonNeedsCargoLink(reason: string): boolean {
 
 export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionProps) {
   const invoicing = trip.invoicing;
-  const badge = getTripInvoicingBadgeConfig({
-    status: trip.status,
-    invoicing,
-  });
+  const badge = toDetailInvoicingBadge(
+    getTripInvoicingBadgeConfig({
+      status: trip.status,
+      invoicing,
+    }),
+  );
 
   const accessoryInvoices = invoicing.accessoryInvoices ?? [];
   const hasPrimaryInvoice = !!invoicing.invoiceId;

@@ -6,7 +6,7 @@ describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
   it("usa descripción de arranque sin itinerario futuro", () => {
     expect(trackingCopy.sheet.startDescription).toMatch(/En curso/i);
     expect(trackingCopy.sheet.startDescription).not.toMatch(
-      /origen|carga|salida de origen/i,
+      /origen|carga|salida de origen|mercanc/i,
     );
     expect(trackingCopy.sheet.startDescription).not.toMatch(/despach|od[oó]metro/i);
   });
@@ -74,5 +74,51 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.label.endMileage).toBe("Kilometraje final");
     expect(trackingCopy.toast.endMileageRequired).not.toMatch(/od[oó]metro/i);
     expect(trackingCopy.action.close).toBe("Finalizar viaje");
+  });
+});
+
+describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
+  it("describe cobro operativo sin CFDI ni Carta Porte", () => {
+    expect(trackingCopy.sheet.declareFalseTripDescription).toMatch(/facturar/i);
+    expect(trackingCopy.sheet.declareFalseTripEffectInvoice).toMatch(/facturar/i);
+    expect(trackingCopy.sheet.declareFalseTripEffectInvoice).not.toMatch(
+      /CFDI|Carta Porte|timbrar|SAT/i,
+    );
+    expect(trackingCopy.action.declareFalseTrip).toBe("Declarar viaje en falso");
+  });
+});
+
+function flattenCopy(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "function") {
+    try {
+      return String((value as (arg: never) => unknown)(2 as never));
+    } catch {
+      return "";
+    }
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).map(flattenCopy).join("\n");
+  }
+  return "";
+}
+
+describe("trackingCopy — léxico operativo (Capa 1 D8)", () => {
+  const visible = flattenCopy(trackingCopy);
+
+  it("no usa SAT, RFC, CFDI, UUID, Carta Porte ni timbrar en superficie", () => {
+    expect(visible).not.toMatch(/\bSAT\b/);
+    expect(visible).not.toMatch(/\bRFC\b/);
+    expect(visible).not.toMatch(/\bCFDI\b/);
+    expect(visible).not.toMatch(/\bUUID\b/i);
+    expect(visible).not.toMatch(/Carta Porte/i);
+    expect(visible).not.toMatch(/timbrar/i);
+    expect(visible).not.toMatch(/SubTipoRem/i);
+  });
+
+  it("nombra la carga operativa sin mercancía/Arribo", () => {
+    expect(trackingCopy.label.hazardous).toBe("Peligroso");
+    expect(trackingCopy.hint.stopRoleOrigin).not.toMatch(/arribo/i);
+    expect(trackingCopy.format.cargoFacts(120, 10)).toBe("120 kg · 10 uds");
   });
 });

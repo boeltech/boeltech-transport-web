@@ -1,10 +1,21 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { StopRfcPreflightResult } from "@boeltech/cfdi-domain";
 import { useStampInvoice } from "@features/invoicing/application";
 import type { InvoiceTripRef } from "@features/invoicing/domain";
 import { createGetTripByIdUseCase } from "@features/trips/application";
-import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
+import {
+  tripQueryKeys,
+  type PatchTripStopFiscalResult,
+  type Trip,
+  type TripStop,
+} from "@features/trips/domain";
 import { tripRepository } from "@features/trips/infrastructure";
 import { parseInvalidRfcAtStopDetails } from "@shared/api/errors/invalidRfcAtStopError";
 import { useToast } from "@shared/hooks";
@@ -16,12 +27,18 @@ import { StopPickerSheet } from "./StopPickerSheet";
 import { describeStampApiError } from "./stampErrorDescription";
 import {
   collectStopsFromTrips,
+  finalizeTripsForStampLoad,
   findStopInTrips,
   isStopRfcInvalidForStamp,
+  mergePatchedStopIntoTrip,
+  resolveIsStampBusy,
+  resolvePostFiscalFixStampMode,
   resolveTripIdForStop,
   runTripStopsPreflight,
+  shouldBlockConcurrentStampRequest,
   shouldShowFiscalWarningChip,
   shouldShowFiscalCorrectionChip,
+  toFiscalStopDisplayOrder,
 } from "./tripFiscalHelpers";
 
 const stampCopy = tripFiscalCopy.stamp;
@@ -64,14 +81,23 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const [stampOverlayError, setStampOverlayError] = useState<string | null>(
     null,
   );
+  const [isPreparingStamp, setIsPreparingStamp] = useState(false);
+  const preparingStampRef = useRef(false);
+
+  const releasePreparingStamp = useCallback(() => {
+    preparingStampRef.current = false;
+    setIsPreparingStamp(false);
+  }, []);
 
   const { mutate: stamp, isPending: isStamping } = useStampInvoice({
     onSuccess: () => {
       setPendingStampInvoiceId(null);
+      releasePreparingStamp();
       toast({ variant: "success", title: "Factura timbrada exitosamente" });
       onStampSuccess?.();
     },
     onError: (error, invoiceId) => {
+      releasePreparingStamp();
       handleStampError(error, invoiceId);
     },
   });
@@ -131,33 +157,76 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     [contextTrips, invoiceTripRefs, trip],
   );
 
-  const fetchTripsForStamp = useCallback(async (): Promise<Trip[]> => {
-    if (trip) return [trip];
+  const fetchTripsForStamp = useCallback(
+    async (options?: {
+      forceRefresh?: boolean;
+    }): Promise<ReturnType<typeof finalizeTripsForStampLoad>> => {
+      const forceRefresh = options?.forceRefresh === true;
 
-    const tripIds =
-      invoiceTripRefs.length > 0
-        ? invoiceTripRefs.map((item) => item.tripId)
-        : [];
-
-    const fetched: Trip[] = [];
-    for (const tripId of tripIds) {
-      const cached = queryClient.getQueryData<Trip>(tripQueryKeys.detail(tripId));
-      if (cached) {
-        fetched.push(cached);
-        continue;
+      if (trip && !forceRefresh) {
+        return finalizeTripsForStampLoad([trip.id], [trip]);
       }
 
-      const result = await getTripById.execute(tripId);
-      if (result.success) {
-        fetched.push(result.data);
-        queryClient.setQueryData(tripQueryKeys.detail(tripId), result.data);
+      const tripIds =
+        trip != null
+          ? [trip.id]
+          : invoiceTripRefs.length > 0
+            ? invoiceTripRefs.map((item) => item.tripId)
+            : [];
+
+      const fetched: Trip[] = [];
+      for (const tripId of tripIds) {
+        if (!forceRefresh) {
+          const cached = queryClient.getQueryData<Trip>(
+            tripQueryKeys.detail(tripId),
+          );
+          if (cached) {
+            fetched.push(cached);
+            continue;
+          }
+        }
+
+        const result = await getTripById.execute(tripId);
+        if (result.success) {
+          fetched.push(result.data);
+          queryClient.setQueryData(tripQueryKeys.detail(tripId), result.data);
+        }
       }
-    }
 
-    setLoadedTrips(fetched);
-    return fetched;
-  }, [getTripById, invoiceTripRefs, queryClient, trip]);
+      const finalized = finalizeTripsForStampLoad(tripIds, fetched);
+      if (finalized.status === "ok") {
+        setLoadedTrips(finalized.trips);
+      }
+      return finalized;
+    },
+    [getTripById, invoiceTripRefs, queryClient, trip],
+  );
 
+  const applyPatchedStopToLocalTrips = useCallback(
+    (result: PatchTripStopFiscalResult) => {
+      const patchedStop = result.stop;
+      const tripId =
+        patchedStop.tripId ||
+        resolveTripForStop(patchedStop.id)?.id ||
+        null;
+      if (!tripId) return;
+
+      queryClient.setQueryData<Trip>(tripQueryKeys.detail(tripId), (previous) =>
+        previous ? mergePatchedStopIntoTrip(previous, patchedStop) : previous,
+      );
+
+      setLoadedTrips((previous) => {
+        const exists = previous.some((item) => item.id === tripId);
+        if (!exists) return previous;
+        return previous.map((item) =>
+          item.id === tripId
+            ? mergePatchedStopIntoTrip(item, patchedStop)
+            : item,
+        );
+      });
+    },
+    [queryClient, resolveTripForStop],
+  );
   const openFixSheet = useCallback(
     (
       stopId: string,
@@ -188,7 +257,11 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
           toast({
             variant: "destructive",
             title: stampCopy.errorTitle,
-            description: stampCopy.invalidRfcDescription(parsed.stopOrder),
+            description: stampCopy.invalidRfcDescription(
+              parsed.stopOrder != null
+                ? toFiscalStopDisplayOrder(parsed.stopOrder)
+                : null,
+            ),
             duration: 8000,
             action: {
               label: stampCopy.fixAction,
@@ -206,16 +279,21 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       }
 
       const message = getStampErrorDescription(error);
-      if (fixStopId) {
+      const hasInlineOverlay = Boolean(fixStopId);
+      if (hasInlineOverlay) {
         setStampOverlayError(message);
       }
       toast({
         variant: "error",
         title: stampCopy.errorTitle,
-        description: buildOverlayErrorToastDescription(
-          message,
-          tripFiscalCopy.overlayErrorSeeInline,
-        ),
+        // Sin sheet abierto no hay «formulario» inline: mostrar el mensaje completo.
+        description: hasInlineOverlay
+          ? buildOverlayErrorToastDescription(
+              message,
+              tripFiscalCopy.overlayErrorSeeInline,
+            )
+          : message,
+        duration: message.length > 120 ? 10000 : undefined,
       });
     },
     [
@@ -228,29 +306,86 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   );
 
   const requestStamp = useCallback(
-    async (invoiceId: string) => {
-      const tripsForPreflight = await fetchTripsForStamp();
-      const preflight = runTripStopsPreflight(collectStopsFromTrips(tripsForPreflight));
-
-      if (!preflight.ready) {
-        setPreflightResult(preflight);
-        setPendingStampInvoiceId(invoiceId);
-        setPreflightOpen(true);
+    async (
+      invoiceId: string,
+      options?: {
+        forceRefresh?: boolean;
+      },
+    ) => {
+      if (
+        shouldBlockConcurrentStampRequest({
+          preparing: preparingStampRef.current,
+          stamping: isStamping,
+        })
+      ) {
         return;
       }
+      preparingStampRef.current = true;
+      setIsPreparingStamp(true);
 
-      setPendingStampInvoiceId(invoiceId);
-      stamp(invoiceId);
+      let handedOffToStamp = false;
+      try {
+        const loadResult = await fetchTripsForStamp({
+          forceRefresh: options?.forceRefresh,
+        });
+        if (loadResult.status === "incomplete") {
+          toast({
+            variant: "error",
+            title: stampCopy.errorTitle,
+            description: stampCopy.tripLoadFailed,
+          });
+          return;
+        }
+
+        const tripsForPreflight = loadResult.trips;
+        const preflight = runTripStopsPreflight(
+          collectStopsFromTrips(tripsForPreflight),
+        );
+
+        if (!preflight.ready) {
+          setPreflightResult(preflight);
+          setPendingStampInvoiceId(invoiceId);
+          setPreflightOpen(true);
+          return;
+        }
+
+        setPreflightOpen(false);
+        setPreflightResult(null);
+        setPendingStampInvoiceId(invoiceId);
+        handedOffToStamp = true;
+        stamp(invoiceId);
+      } finally {
+        if (!handedOffToStamp) {
+          releasePreparingStamp();
+        }
+      }
     },
-    [fetchTripsForStamp, stamp],
+    [fetchTripsForStamp, isStamping, releasePreparingStamp, stamp, toast],
   );
 
-  const handleFiscalFixSuccess = useCallback(() => {
-    if (enableAutoRestamp && pendingStampInvoiceId) {
-      stamp(pendingStampInvoiceId);
-    }
-  }, [enableAutoRestamp, pendingStampInvoiceId, stamp]);
+  const handleFiscalFixSuccess = useCallback(
+    (result: PatchTripStopFiscalResult) => {
+      // El toast de éxito implica PATCH OK; hay que refrescar paradas antes del
+      // preflight o se reabre «Revisa el RFC…» con cache vieja (RFC aún vacío).
+      applyPatchedStopToLocalTrips(result);
 
+      if (
+        resolvePostFiscalFixStampMode({
+          enableAutoRestamp,
+          pendingStampInvoiceId,
+        }) === "requestStamp" &&
+        pendingStampInvoiceId
+      ) {
+        void requestStamp(pendingStampInvoiceId, { forceRefresh: true });
+      }
+    },
+    [
+      applyPatchedStopToLocalTrips,
+      enableAutoRestamp,
+      pendingStampInvoiceId,
+      requestStamp,
+    ],
+  );
   const activeFixStop = fixStopId ? stopsById.get(fixStopId) : undefined;
   const activeFixTrip = fixStopId ? resolveTripForStop(fixStopId) : null;
 
@@ -305,9 +440,16 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     </>
   );
 
+  const isStampBusy = resolveIsStampBusy({
+    isPreparingStamp,
+    isStamping,
+    preflightOpen,
+  });
+
   return {
     sheets,
     isStamping,
+    isStampBusy,
     requestStamp,
     openFixSheet,
     handleStampError,

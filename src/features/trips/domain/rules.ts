@@ -14,11 +14,17 @@ import {
   canTransitionTo as canTransitionToShared,
   canEditTrip as canEditTripShared,
   canManageTripExpenses as canManageTripExpensesShared,
+  canCreateTripExpense as canCreateTripExpenseShared,
+  canMutatePendingTripExpense as canMutatePendingTripExpenseShared,
+  isTripExpensePostCloseWindowOpen as isTripExpensePostCloseWindowOpenShared,
+  TRIP_EXPENSE_POST_CLOSE_WINDOW_DAYS,
   canDeleteTrip as canDeleteTripShared,
   canStartTrip as canStartTripShared,
   getAvailableTransitions as getAvailableTransitionsShared,
   isTerminalStatus as isTerminalStatusShared,
   calculateTotalCost as calculateTotalCostShared,
+  type TripExpenseAccessInput,
+  type TripExpenseMutateAccessInput,
 } from "@boeltech/cfdi-domain";
 import {
   StopStatus,
@@ -83,11 +89,31 @@ export function canEditTrip(status: TripStatusType): boolean {
 }
 
 /**
- * Verifica si se pueden registrar o modificar gastos/costos del viaje.
- * Incluye `in_progress` para captura operativa; excluye estados terminales.
+ * Verifica si se pueden registrar o modificar gastos/costos del viaje en estados abiertos.
+ * Incluye `in_progress` para captura operativa; excluye terminales.
+ * Post-cierre: usar `canCreateTripExpense` / `canMutatePendingTripExpense`.
  */
 export function canManageTripExpenses(status: TripStatusType): boolean {
   return canManageTripExpensesShared(status);
+}
+
+export { TRIP_EXPENSE_POST_CLOSE_WINDOW_DAYS };
+
+export function isTripExpensePostCloseWindowOpen(
+  closedAt: Date | string | null | undefined,
+  now?: Date | string,
+): boolean {
+  return isTripExpensePostCloseWindowOpenShared(closedAt, now);
+}
+
+export function canCreateTripExpense(input: TripExpenseAccessInput): boolean {
+  return canCreateTripExpenseShared(input);
+}
+
+export function canMutatePendingTripExpense(
+  input: TripExpenseMutateAccessInput,
+): boolean {
+  return canMutatePendingTripExpenseShared(input);
 }
 
 /**

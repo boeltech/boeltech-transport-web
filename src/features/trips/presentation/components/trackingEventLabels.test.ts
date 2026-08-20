@@ -11,7 +11,7 @@ describe("formatTrackingEventLabel", () => {
     expect(formatTrackingEventLabel("trip_dispatched")).toBe("Viaje despachado");
   });
 
-  it("etiqueta salida fiscal de origen", () => {
+  it("etiqueta salida de origen", () => {
     expect(formatTrackingEventLabel("trip_departed")).toBe("Salida de origen");
   });
 

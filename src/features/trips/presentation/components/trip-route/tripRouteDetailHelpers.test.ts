@@ -6,6 +6,7 @@ import { progressCopy } from "../../copy/tripDetail/progressCopy";
 
 import {
   countOperativelyCompleteStops,
+  countFillableMissingSegmentDistances,
   countStopsMissingFiscalRfc,
   countStopsMissingSegmentDistance,
   formatDistanceSourceLabel,
@@ -17,7 +18,12 @@ import {
   getStopTimeFieldsVisibility,
   groupStopsForRouteDetail,
   hasStopType,
+  isStopDomicilioComplete,
   isStopOperativelyComplete,
+  buildRouteMasterRows,
+  resolveRouteMasterRowId,
+  ROUTE_SLOT_DESTINATION_ID,
+  ROUTE_SLOT_ORIGIN_ID,
   shouldShowTrackingHint,
   stopRequiresFiscalRfc,
   stopUsesSavedAddress,
@@ -171,6 +177,64 @@ describe("tripRouteDetailHelpers", () => {
     expect(missing).toBe(1);
   });
 
+  it("does not treat 1-based origin as a missing segment", () => {
+    const origin = stop({
+      id: "s-origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      distanceFromPreviousKm: null,
+    });
+    const destination = stop({
+      id: "s-dest",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      distanceFromPreviousKm: null,
+    });
+
+    expect(countStopsMissingSegmentDistance([origin, destination])).toBe(1);
+    expect(countFillableMissingSegmentDistances([origin, destination])).toBe(0);
+    expect(sumRouteSegmentDistanceKm([origin, destination])).toBeNull();
+    expect(
+      sumRouteSegmentDistanceKm([
+        origin,
+        { ...destination, distanceFromPreviousKm: 420.5 },
+      ]),
+    ).toBe(420.5);
+  });
+
+  it("counts fillable missing segments only when consecutive stops have coordinates", () => {
+    const origin = stop({
+      id: "s-origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      latitude: 19.357,
+      longitude: -99.259,
+      distanceFromPreviousKm: null,
+    });
+    const destination = stop({
+      id: "s-dest",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION],
+      latitude: 20.784,
+      longitude: -105.518,
+      distanceFromPreviousKm: null,
+    });
+
+    expect(countFillableMissingSegmentDistances([origin, destination])).toBe(1);
+    expect(
+      countFillableMissingSegmentDistances([
+        origin,
+        { ...destination, latitude: null, longitude: null },
+      ]),
+    ).toBe(0);
+    expect(
+      countFillableMissingSegmentDistances([
+        origin,
+        { ...destination, distanceFromPreviousKm: 420.5 },
+      ]),
+    ).toBe(0);
+  });
+
   it("requires fiscal RFC only for fiscal-relevant stop types", () => {
     expect(stopRequiresFiscalRfc(stop({ stopType: [StopType.ORIGIN] }))).toBe(true);
     expect(stopRequiresFiscalRfc(stop({ stopType: [StopType.PICKUP] }))).toBe(true);
@@ -194,7 +258,7 @@ describe("tripRouteDetailHelpers", () => {
 
   it("maps distance source labels for UI", () => {
     expect(formatDistanceSourceLabel("manual")).toBe(routeCopy.label.distanceManual);
-    expect(formatDistanceSourceLabel("mapbox_matrix")).toBe(routeCopy.label.distanceMapbox);
+    expect(formatDistanceSourceLabel("mapbox_matrix")).toBe(routeCopy.label.distanceMap);
     expect(formatDistanceSourceLabel("haversine_fallback")).toBe(
       routeCopy.label.distanceEstimated,
     );
@@ -293,6 +357,17 @@ describe("tripRouteDetailHelpers", () => {
       progressCopy.label.stopAtDestination,
     );
 
+    const destSkipped = stop({
+      stopType: [StopType.DESTINATION],
+      status: StopStatus.SKIPPED,
+    });
+    expect(getStopOperationalVisitState(destSkipped, "destination")).toBe(
+      "skipped",
+    );
+    expect(getStopOperationalVisitLabel("skipped", "destination")).toBe(
+      progressCopy.label.stopSkippedNotVisited,
+    );
+
     const completed = [
       stop({
         id: "o",
@@ -319,5 +394,68 @@ describe("tripRouteDetailHelpers", () => {
     expect(hasStopType([StopType.ORIGIN, StopType.PICKUP], StopType.PICKUP)).toBe(
       true,
     );
+  });
+
+  it("marks domicilio complete with SAT codes + geo, without RFC", () => {
+    expect(
+      isStopDomicilioComplete(
+        stop({
+          satCountryCode: "MEX",
+          satEstadoCode: "JAL",
+          postalCode: "44100",
+          latitude: 20.67,
+          longitude: -103.35,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isStopDomicilioComplete(
+        stop({
+          satCountryCode: "MEX",
+          satEstadoCode: "JAL",
+          postalCode: "44100",
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isStopDomicilioComplete(
+        stop({
+          rfcRemitenteDestinatario: "XAXX010101000",
+          latitude: 20.67,
+          longitude: -103.35,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("builds origin and destination master rows without trip_stop", () => {
+    const rows = buildRouteMasterRows({
+      waypoints: [],
+      originCityHint: "Guadalajara",
+      destinationCityHint: "Monterrey",
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.id).toBe(ROUTE_SLOT_ORIGIN_ID);
+    expect(rows[0]?.cityHint).toBe("Guadalajara");
+    expect(rows[1]?.id).toBe(ROUTE_SLOT_DESTINATION_ID);
+    expect(rows[1]?.cityHint).toBe("Monterrey");
+  });
+
+  it("resolves selection to the first row when the id is missing", () => {
+    const rows = buildRouteMasterRows({ waypoints: [] });
+    expect(resolveRouteMasterRowId(rows, null)).toBe(ROUTE_SLOT_ORIGIN_ID);
+    expect(resolveRouteMasterRowId(rows, "gone")).toBe(ROUTE_SLOT_ORIGIN_ID);
+    expect(resolveRouteMasterRowId(rows, ROUTE_SLOT_DESTINATION_ID)).toBe(
+      ROUTE_SLOT_DESTINATION_ID,
+    );
+  });
+
+  it("keeps origin selected after the slot becomes a persisted stop", () => {
+    const origin = stop({
+      id: "stop-origin",
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+    });
+    const rows = buildRouteMasterRows({ origin, waypoints: [] });
+    expect(resolveRouteMasterRowId(rows, ROUTE_SLOT_ORIGIN_ID)).toBe("stop-origin");
   });
 });

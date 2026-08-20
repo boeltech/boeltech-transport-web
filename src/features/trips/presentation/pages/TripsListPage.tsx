@@ -31,13 +31,13 @@ import {
   DialogFooter,
 } from "@shared/ui/dialog";
 import { Textarea } from "@shared/ui/text-area";
-import { HintIcon, SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   isClientPortalRole,
   isDriverPortalRole,
 } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
-import { Plus, Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
+import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 
 import {
   useTrips,
@@ -294,7 +294,7 @@ export function TripsListPage() {
   }, [overdueOnly, setSearchParams]);
 
   const goCreateReserve = useCallback(() => {
-    navigate("/trips/new?intent=reserve");
+    navigate("/trips/new");
   }, [navigate]);
 
   const activeFilterChips: ActiveFilterChip[] = [
@@ -436,26 +436,6 @@ export function TripsListPage() {
           ),
           extraActions: (
             <>
-              {canCreate ? (
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("/trips/new")}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {copy.actions.createFull}
-                  </Button>
-                  <HintIcon
-                    label={copy.createFullHint.label}
-                    side="bottom"
-                    className="shrink-0"
-                  >
-                    {copy.createFullHint.body}
-                  </HintIcon>
-                </div>
-              ) : null}
               {!isLeanTripPortal ? (
                 <>
                   <Button

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
+  Ban,
   CheckCircle2,
   ListOrdered,
   MapPin,
@@ -20,7 +21,7 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -54,6 +55,7 @@ import {
   canOperateCargoAtStop,
   getCargoBlockAtStop,
 } from "../../utils/trackingCargoGating";
+import { tripStartRouteBlockReason } from "../../utils/tripStartRouteGating";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { CargoActionInline } from "./CargoActionInline";
@@ -72,8 +74,11 @@ import {
   type InlineStopAction,
   type TrackingItineraryRow,
 } from "./trackingOperationalHelpers";
+import { isCargoHazmat } from "../trip-cargos/tripCargoDetailHelpers";
 import { isOriginStop } from "../trackingStopEligibility";
 import { trackingCopy } from "./trackingCopy";
+import { canDeclareFalseTrip } from "./canDeclareFalseTrip";
+import { STOP_TRANSITION_COPY } from "./transitionCopy";
 import type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
 import {
   TrackingStopStatusBadgeRow,
@@ -101,12 +106,14 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   onDepart?: () => void;
   onDepartOrigin?: () => void;
   onCloseTrip?: () => void;
+  /** PD1: CTA secundario «El cliente canceló la carga» → sheet de declaración. */
+  onDeclareFalseTrip?: () => void;
   /** Evidencia contextual: el padre abre sheets con esta parada como referencia GPS. */
   onRegisterNote?: (stop: TripStop) => void;
   onRegisterIncident?: (stop: TripStop) => void;
   canRegisterEvidence?: boolean;
   /**
-   * RBAC: `trips.update` | `trips.updateStatus`.
+   * RBAC: `trips.update` | `trips.updateStatus` | `trips.execute`.
    * Sin permiso no se muestran CTAs de parada ni evidencia.
    */
   canOperateTracking?: boolean;
@@ -382,6 +389,10 @@ function TripTrackingStopOperationDetail({
                 stopActive,
               );
               const terminal = isCargoTerminal(link.cargo.status);
+              const cargoFacts = trackingCopy.format.cargoFacts(
+                link.cargo.weightInKg ?? link.cargo.weight,
+                link.cargo.units,
+              );
 
               return (
                 <li
@@ -421,10 +432,15 @@ function TripTrackingStopOperationDetail({
                             : cargoCopy.label.deliveryCompleted}
                         </Badge>
                       ) : null}
+                      {isCargoHazmat(link.cargo) ? (
+                        <Badge variant="warning" tone="soft" className="text-[10px] font-normal">
+                          {trackingCopy.label.hazardous}
+                        </Badge>
+                      ) : null}
                     </div>
-                    {link.cargo.weight != null ? (
+                    {cargoFacts ? (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {link.cargo.weight.toLocaleString("es-MX")} kg
+                        {cargoFacts}
                       </p>
                     ) : null}
                   </div>
@@ -495,6 +511,7 @@ export function TripTrackingStopsCargosMasterDetail({
   onDepart,
   onDepartOrigin,
   onCloseTrip,
+  onDeclareFalseTrip,
   onRegisterNote,
   onRegisterIncident,
   canRegisterEvidence = tripStatus === TripStatus.IN_PROGRESS,
@@ -629,10 +646,25 @@ export function TripTrackingStopsCargosMasterDetail({
   const HubIcon = hubActionIcon(primary.kind);
   const isTerminal =
     tripStatus === TripStatus.COMPLETED || tripStatus === TripStatus.CANCELLED;
-  const showsOperableCta =
+  const showsDispatchCta =
+    canOperateTracking &&
+    tripStatus === TripStatus.SCHEDULED &&
+    primary.kind === "dispatch" &&
+    onStartTrip != null;
+  const startRouteBlockReason = showsDispatchCta
+    ? tripStartRouteBlockReason(tripStatus, stops)
+    : null;
+  const showsStopCta =
     hubInlineAction != null &&
     hubActionLabel != null &&
-    OPERABLE_HUB_KINDS.has(primary.kind);
+    OPERABLE_HUB_KINDS.has(primary.kind) &&
+    primary.kind !== "dispatch";
+  const showsOperableCta = showsDispatchCta || showsStopCta;
+  const declareFalseTripHintId = useId();
+  const showsDeclareFalseTripCta =
+    canOperateTracking &&
+    onDeclareFalseTrip != null &&
+    canDeclareFalseTrip(tripStatus, stops, cargos);
 
   const handleSelect = (stopId: string) => {
     setUserSelectedId(stopId);
@@ -666,7 +698,6 @@ export function TripTrackingStopsCargosMasterDetail({
           <ListOrdered className="h-4 w-4 text-primary" />
           {trackingCopy.section.stopsAndCargos}
         </CardTitle>
-        <CardDescription>{trackingCopy.hint.stopsAndCargos}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div
@@ -715,7 +746,21 @@ export function TripTrackingStopsCargosMasterDetail({
                   {primary.transitionText}
                 </p>
               ) : null}
-              {showsOperableCta ? (
+              {showsDispatchCta ? (
+                <StopActionInline
+                  label={trackingCopy.action.start}
+                  action="dispatch"
+                  variant="default"
+                  size="lg"
+                  showTransition={false}
+                  disabled={Boolean(startRouteBlockReason)}
+                  disabledReason={startRouteBlockReason ?? undefined}
+                  onClick={() => {
+                    if (startRouteBlockReason) return;
+                    onStartTrip?.();
+                  }}
+                />
+              ) : showsStopCta ? (
                 <StopActionInline
                   label={hubActionLabel!}
                   action={hubInlineAction!.action}
@@ -732,6 +777,29 @@ export function TripTrackingStopsCargosMasterDetail({
                     })
                   }
                 />
+              ) : null}
+              {showsDeclareFalseTripCta ? (
+                <div className="space-y-0.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto"
+                    onClick={() => onDeclareFalseTrip?.()}
+                    aria-describedby={declareFalseTripHintId}
+                  >
+                    <Ban className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="font-medium">
+                      {trackingCopy.action.clientCancelledCargo}
+                    </span>
+                  </Button>
+                  <p
+                    id={declareFalseTripHintId}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {STOP_TRANSITION_COPY.declareFalseTrip}
+                  </p>
+                </div>
               ) : null}
               {primary.kind === "cargo_blocked" &&
               primary.stop &&
@@ -766,7 +834,7 @@ export function TripTrackingStopsCargosMasterDetail({
 
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {trackingCopy.state.noStops}.
+            {trackingCopy.state.noStops}
           </p>
         ) : (
           <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:gap-0">

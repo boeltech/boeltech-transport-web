@@ -3,12 +3,15 @@
  * Clean Architecture - Presentation Layer (Components)
  *
  * Encapsula la lógica visual de "Facturación" en el header del detalle de viaje.
- * La habilitación de "Generar factura" sigue `trip.invoicing.canGenerateInvoice`
+ * La habilitación de "Facturar" sigue `trip.invoicing.canGenerateInvoice`
  * del API (status invoiceable + ruta CP-ready + ≥1 carga; ver handoff
  * cerrar-cta-factura-operacion-sat).
  *
  * ADR-0068: «Facturar servicios adicionales» cuando `canGenerateAccessoryInvoice`
  * (primaria activa + ruta CP-ready).
+ *
+ * ADR-0079: si `operationalOutcome=false_trip`, no se ofrece CTA de flete+CP;
+ * el ingreso sin CP usa `?scope=false_trip` cuando `canGenerateFalseTripInvoice`.
  *
  * Ubicación: src/features/trips/presentation/components/TripInvoiceActions.tsx
  */
@@ -27,7 +30,7 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
 import type { Trip } from "@features/trips/domain";
-import { getTripInvoicingBadgeConfig } from "@features/trips";
+import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/trips";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 
 const copy = tripFiscalCopy.invoiceActions;
@@ -57,11 +60,20 @@ export function TripInvoiceActions({
   const canViewLinkedInvoice =
     (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
 
+  const isFalseTripOutcome = trip.operationalOutcome === "false_trip";
+
   const canShowCreateInvoiceAction =
-    canCreateInvoices && trip.invoicing.canGenerateInvoice;
+    canCreateInvoices &&
+    trip.invoicing.canGenerateInvoice &&
+    !isFalseTripOutcome;
+
+  const canShowFalseTripInvoiceAction =
+    canCreateInvoices && trip.invoicing.canGenerateFalseTripInvoice;
 
   const canShowAccessoryInvoiceAction =
-    canCreateInvoices && trip.invoicing.canGenerateAccessoryInvoice;
+    canCreateInvoices &&
+    trip.invoicing.canGenerateAccessoryInvoice &&
+    !isFalseTripOutcome;
 
   const accessoryInvoices = trip.invoicing.accessoryInvoices ?? [];
   const canViewAccessories =
@@ -76,11 +88,13 @@ export function TripInvoiceActions({
 
   const canShowLinkedInvoiceState =
     !trip.invoicing.canGenerateInvoice &&
+    !canShowFalseTripInvoiceAction &&
     (hasInvoiceEvidence || canShowAccessoryInvoiceAction) &&
     (canViewLinkedInvoice || canCreateInvoices || canShowAccessoryInvoiceAction);
 
   if (
     !canShowCreateInvoiceAction &&
+    !canShowFalseTripInvoiceAction &&
     !canShowLinkedInvoiceState &&
     !canShowAccessoryInvoiceAction
   ) {
@@ -88,9 +102,13 @@ export function TripInvoiceActions({
   }
 
   const createPrimaryHref = `/invoices/new?trip_id=${trip.id}`;
+  const createFalseTripHref = `/invoices/new?trip_id=${trip.id}&scope=false_trip`;
   const createAccessoryHref = `/invoices/new?trip_id=${trip.id}&scope=accessory`;
 
-  if (canShowCreateInvoiceAction) {
+  if (canShowCreateInvoiceAction || canShowFalseTripInvoiceAction) {
+    const createHref = canShowFalseTripInvoiceAction
+      ? createFalseTripHref
+      : createPrimaryHref;
     if (presentation === "headerMenu") {
       return (
         <DropdownMenu>
@@ -102,9 +120,11 @@ export function TripInvoiceActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onSelect={() => navigate(createPrimaryHref)}>
+            <DropdownMenuItem onSelect={() => navigate(createHref)}>
               <Receipt className="mr-2 h-4 w-4" />
-              {copy.generatePrimary}
+              {canShowFalseTripInvoiceAction
+                ? copy.generateFalseTrip
+                : copy.generatePrimary}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -113,11 +133,13 @@ export function TripInvoiceActions({
     return (
       <Button
         variant="outline"
-        onClick={() => navigate(createPrimaryHref)}
+        onClick={() => navigate(createHref)}
         className={className}
       >
         <Receipt className="h-4 w-4 mr-2" />
-        {copy.generatePrimary}
+        {canShowFalseTripInvoiceAction
+          ? copy.generateFalseTrip
+          : copy.generatePrimary}
       </Button>
     );
   }
@@ -142,7 +164,7 @@ export function TripInvoiceActions({
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={tripInvoicingConfig.variant}>
-                  {tripInvoicingConfig.label}
+                  {toDetailInvoicingBadge(tripInvoicingConfig).label}
                 </Badge>
                 {trip.invoicing.invoiceFolio ? (
                   <span className="text-xs text-muted-foreground">

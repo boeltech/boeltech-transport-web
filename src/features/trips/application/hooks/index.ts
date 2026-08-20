@@ -26,7 +26,10 @@ export { useRegisterTrackingEvent } from "./tracking/useRegisterTrackingEvent";
 export { useTripTimeline } from "./tracking/useTripTimeline";
 
 export { useCancelTrip } from "./trip/useCancelTrip";
+export { useClientCorridors } from "./trip/useClientCorridors";
 export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";
+export { useReplaceTripStops } from "./trip/useReplaceTripStops";
+export { useRouteEstimate } from "./trip/useRouteEstimate";
 
 export { useDeleteTrip } from "./trip/useDeleteTrip";
 export { TripActionError, useScheduleTrip } from "./trip/useScheduleTrip";

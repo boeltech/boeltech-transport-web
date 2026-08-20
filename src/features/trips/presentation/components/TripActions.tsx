@@ -15,7 +15,7 @@
  */
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ import {
 } from "@shared/ui/dialog";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   DropdownMenu,
@@ -48,7 +49,6 @@ import {
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
-  useScheduleTrip,
   useCancelTrip,
   useDeleteTrip,
 } from "../../application";
@@ -58,16 +58,16 @@ import {
   type Trip,
   type TripStatusType,
 } from "../../domain";
+import { tripsListCopy } from "../copy/listCopy";
+import { tripDetailCopy } from "../copy";
 import {
   MoreHorizontal,
   Eye,
   Pencil,
   Trash2,
   XCircle,
-  Calendar,
   Loader2,
   ChevronDown,
-  Truck,
 } from "lucide-react";
 
 // ============================================================================
@@ -98,8 +98,11 @@ interface TripIndividualProps {
  * Props comunes
  */
 interface CommonProps {
-  /** Variante de visualización: dropdown (tabla), buttons (legacy), detailMenu (detalle con disparador «Operación»). */
+  /** Variante de visualización: dropdown (tabla), buttons (legacy), detailMenu (detalle con disparador «Más»). */
   variant?: "dropdown" | "buttons" | "detailMenu";
+  /** PD3: aviso en Cancelar si hay llegada y no hay carga entregada. */
+  hasRealArrival?: boolean;
+  hasDeliveredCargo?: boolean;
   /** Callback para ver detalles (solo en modo dropdown desde tabla) */
   onView?: (id: string) => void;
   /** Callback para editar (solo en modo dropdown desde tabla) */
@@ -143,9 +146,10 @@ export function TripActions(props: TripActionsProps) {
     onView,
     onEdit,
     onDelete,
-    onSchedule,
     onCancel,
     onActionComplete,
+    hasRealArrival = false,
+    hasDeliveredCargo = false,
   } = props;
 
   // Extraer valores del trip o de props individuales
@@ -162,7 +166,7 @@ export function TripActions(props: TripActionsProps) {
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    action: "schedule" | "delete" | null;
+    action: "delete" | null;
     title: string;
     description: string;
   }>({
@@ -183,24 +187,6 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
   // MUTATIONS (variant "buttons" y "detailMenu")
   // ---------------------------------------------------------------------------
-
-  const scheduleMutation = useScheduleTrip({
-    onSuccess: (trip) => {
-      toast({
-        title: "Viaje programado",
-        description: `${code} está listo para iniciar`,
-        variant: "success",
-      });
-      onActionComplete?.(trip);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al programar",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const cancelMutation = useCancelTrip({
     onSuccess: (trip) => {
@@ -235,7 +221,6 @@ export function TripActions(props: TripActionsProps) {
   });
 
   const isLoading =
-    scheduleMutation.isPending ||
     cancelMutation.isPending ||
     deleteMutation.isPending;
 
@@ -248,8 +233,12 @@ export function TripActions(props: TripActionsProps) {
 
   const validTransitions = VALID_TRANSITIONS[currentStatus] || [];
 
-  const canSchedule = validTransitions.includes("schedule") && canUpdate;
   const canCancelTrip = validTransitions.includes("cancel") && canUpdate;
+  const showFalseTripCancelHint =
+    canCancelTrip &&
+    currentStatus === TripStatus.IN_PROGRESS &&
+    hasRealArrival &&
+    !hasDeliveredCargo;
   const canEditTrip = EDITABLE_STATUSES.includes(currentStatus) && canUpdate;
   const canDeleteTrip = validTransitions.includes("delete") && canDelete;
 
@@ -258,13 +247,8 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
 
   const handleConfirm = () => {
-    switch (confirmDialog.action) {
-      case "schedule":
-        scheduleMutation.mutate(id);
-        break;
-      case "delete":
-        deleteMutation.mutate(id);
-        break;
+    if (confirmDialog.action === "delete") {
+      deleteMutation.mutate(id);
     }
     setConfirmDialog({ ...confirmDialog, open: false });
   };
@@ -278,7 +262,7 @@ export function TripActions(props: TripActionsProps) {
   };
 
   const hasNoActions =
-    !canSchedule && !canCancelTrip && !canEditTrip && !canDeleteTrip;
+    !canCancelTrip && !canEditTrip && !canDeleteTrip;
 
   const tripActionDialogs = (
     <>
@@ -334,7 +318,23 @@ export function TripActions(props: TripActionsProps) {
               Cancelación permanente del viaje.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="space-y-4 py-4">
+            {showFalseTripCancelHint ? (
+              <AlertWithIcon
+                variant="warning"
+                title={tripsListCopy.dialog.falseTripInsteadTitle}
+              >
+                <p>{tripsListCopy.dialog.falseTripInsteadBody}</p>
+                <Link
+                  to={`/trips/${id}?tab=tracking`}
+                  className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
+                  onClick={() => setCancelDialog({ open: false, reason: "" })}
+                >
+                  {tripsListCopy.dialog.falseTripInsteadCta}
+                </Link>
+              </AlertWithIcon>
+            ) : null}
+            <div>
             <Label htmlFor="cancel-reason">
               Motivo de cancelación (opcional)
             </Label>
@@ -347,6 +347,7 @@ export function TripActions(props: TripActionsProps) {
               }
               className="mt-2"
             />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -379,7 +380,6 @@ export function TripActions(props: TripActionsProps) {
   if (variant === "dropdown") {
     const hasMutationMenuItems =
       (canEditTrip && Boolean(onEdit)) ||
-      (canSchedule && Boolean(onSchedule)) ||
       (canCancelTrip && Boolean(onCancel)) ||
       (canDeleteTrip && Boolean(onDelete));
 
@@ -388,8 +388,7 @@ export function TripActions(props: TripActionsProps) {
       return null;
     }
 
-    const hasStateActions =
-      (canSchedule && onSchedule) || (canCancelTrip && onCancel);
+    const hasStateActions = Boolean(canCancelTrip && onCancel);
 
     return (
       <DropdownMenu>
@@ -417,13 +416,6 @@ export function TripActions(props: TripActionsProps) {
           {hasStateActions && (
             <>
               <DropdownMenuSeparator />
-
-              {canSchedule && onSchedule && (
-                <DropdownMenuItem onClick={() => onSchedule(id)}>
-                  <Calendar className="mr-2 h-4 w-4 text-info" />
-                  Confirmar reserva
-                </DropdownMenuItem>
-              )}
 
               {canCancelTrip && onCancel && (
                 <DropdownMenuItem
@@ -455,11 +447,11 @@ export function TripActions(props: TripActionsProps) {
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: DETAIL HEADER MENU (Facturación + Operación en detalle de viaje)
+  // RENDER: DETAIL HEADER MENU (Facturación + Más en detalle de viaje)
   // ---------------------------------------------------------------------------
 
   if (variant === "detailMenu") {
-    const hasMenuContent = !hasNoActions;
+    const hasMenuContent = canCancelTrip || canDeleteTrip;
     if (!hasMenuContent) {
       return null;
     }
@@ -469,45 +461,12 @@ export function TripActions(props: TripActionsProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1 shrink-0" disabled={isLoading}>
-              <Truck className="h-4 w-4 shrink-0" />
-              <span className="mx-0.5">Operación</span>
+              <MoreHorizontal className="h-4 w-4 shrink-0" />
+              <span className="mx-0.5">{tripDetailCopy.shell.action.more}</span>
               <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {canEditTrip ? (
-              <DropdownMenuItem
-                onSelect={() => navigate(`/trips/${id}/edit`)}
-                disabled={isLoading}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Edición completa
-              </DropdownMenuItem>
-            ) : null}
-
-            {canEditTrip &&
-            (canSchedule || canCancelTrip || canDeleteTrip) ? (
-              <DropdownMenuSeparator />
-            ) : null}
-
-            {canSchedule ? (
-              <DropdownMenuItem
-                onSelect={() =>
-                  setConfirmDialog({
-                    open: true,
-                    action: "schedule",
-                    title: "¿Confirmar esta reserva?",
-                    description:
-                      "El viaje pasará a Programado y se reservará la unidad y el conductor. Debe tener tarifa y llegada estimada.",
-                  })
-                }
-                disabled={isLoading}
-              >
-                <Calendar className="mr-2 h-4 w-4 text-info" />
-                Confirmar reserva
-              </DropdownMenuItem>
-            ) : null}
-
             {canCancelTrip ? (
               <DropdownMenuItem
                 onSelect={() => setCancelDialog({ open: true, reason: "" })}
@@ -558,30 +517,6 @@ export function TripActions(props: TripActionsProps) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {/* Programar */}
-        {canSchedule && (
-          <Button
-            size="sm"
-            onClick={() =>
-              setConfirmDialog({
-                open: true,
-                action: "schedule",
-                title: "¿Confirmar esta reserva?",
-                description:
-                  "El viaje pasará a Programado y se reservará la unidad y el conductor. Debe tener tarifa y llegada estimada.",
-              })
-            }
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Calendar className="mr-2 h-4 w-4" />
-            )}
-            Confirmar reserva
-          </Button>
-        )}
-
         {/* Editar */}
         {canEditTrip && (
           <Button

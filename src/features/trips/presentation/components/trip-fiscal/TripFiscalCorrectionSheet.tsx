@@ -26,6 +26,7 @@ import {
 } from "./tripFiscalHelpers";
 import {
   FiscalCorrectionRfcFields,
+  FISCAL_CORRECTION_RFC_ID_PREFIX,
   useFiscalCorrectionRfcValidation,
 } from "./sections/FiscalCorrectionRfcFields";
 import {
@@ -47,6 +48,11 @@ import {
 const copy = tripFiscalCopy.fixSheet;
 const sheetCopy = tripFiscalCopy.correctionSheet;
 
+/**
+ * Excepción RHF+Zod (auditoría formularios): la pestaña RFC usa estado controlado
+ * (`useState` + `isValidSatRfc` del paquete) compartido entre apply-now y defer.
+ * No migrar a zodResolver sin unificar también domicilio / defer en el mismo schema.
+ */
 export type TripFiscalCorrectionKind = "rfc" | "address";
 
 export interface TripFiscalCorrectionSheetProps {
@@ -280,7 +286,7 @@ function useFiscalCorrectionFieldState(stop: TripStop, correctionKind: TripFisca
   const [rfcTouched, setRfcTouched] = useState(false);
   const [reasonError, setReasonError] = useState<string | null>(null);
 
-  const { normalizedRfc, canSubmit } = useFiscalCorrectionRfcValidation(
+  const { normalizedRfc, rfcValid, canSubmit } = useFiscalCorrectionRfcValidation(
     rfc,
     reason,
     rfcTouched,
@@ -302,8 +308,28 @@ function useFiscalCorrectionFieldState(stop: TripStop, correctionKind: TripFisca
     reasonError,
     setReasonError,
     normalizedRfc,
+    rfcValid,
     canSubmit,
   };
+}
+
+function focusFirstInvalidRfcField(rfcValid: boolean) {
+  const fieldId = rfcValid
+    ? `${FISCAL_CORRECTION_RFC_ID_PREFIX}-reason`
+    : `${FISCAL_CORRECTION_RFC_ID_PREFIX}-rfc`;
+  queueMicrotask(() => {
+    document.getElementById(fieldId)?.focus();
+  });
+}
+
+function markRfcSubmitInvalid(
+  fields: ReturnType<typeof useFiscalCorrectionFieldState>,
+) {
+  if (!isFiscalCorrectionReasonValid(fields.reason)) {
+    fields.setReasonError(copy.reasonTooShort);
+  }
+  fields.setRfcTouched(true);
+  focusFirstInvalidRfcField(fields.rfcValid);
 }
 
 function TripFiscalCorrectionDeferForm({
@@ -329,10 +355,7 @@ function TripFiscalCorrectionDeferForm({
 
   const handleRfcSubmit = () => {
     if (!fields.canSubmit) {
-      if (!isFiscalCorrectionReasonValid(fields.reason)) {
-        fields.setReasonError(copy.reasonTooShort);
-      }
-      fields.setRfcTouched(true);
+      markRfcSubmitInvalid(fields);
       return;
     }
     fields.setReasonError(null);
@@ -448,10 +471,7 @@ function TripFiscalCorrectionApplyNowForm({
 
   const handleRfcSubmit = () => {
     if (!fields.canSubmit) {
-      if (!isFiscalCorrectionReasonValid(fields.reason)) {
-        fields.setReasonError(copy.reasonTooShort);
-      }
-      fields.setRfcTouched(true);
+      markRfcSubmitInvalid(fields);
       return;
     }
     fields.setReasonError(null);

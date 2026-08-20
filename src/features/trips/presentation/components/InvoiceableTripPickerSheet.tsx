@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTrips } from "@features/trips/application";
 import type { TripListItem } from "@features/trips/domain";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Sheet,
@@ -22,7 +23,7 @@ const PAGE_SIZE = 10;
 export interface InvoiceableTripPickerSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (tripId: string) => void;
+  onSelect: (trip: TripListItem) => void;
 }
 
 function TripPickerRow({
@@ -30,12 +31,19 @@ function TripPickerRow({
   onSelect,
 }: {
   trip: TripListItem;
-  onSelect: (tripId: string) => void;
+  onSelect: (trip: TripListItem) => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0 space-y-1">
-        <p className="font-mono text-sm font-medium">{trip.tripCode}</p>
+        <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium">
+          <span>{trip.tripCode}</span>
+          {trip.operationalOutcome === "false_trip" ? (
+            <Badge variant="warning" tone="soft" className="font-sans text-xs">
+              {copy.falseTripChip}
+            </Badge>
+          ) : null}
+        </p>
         <p className="text-xs text-muted-foreground">
           {formatRoute(trip.originCity, trip.destinationCity)}
         </p>
@@ -51,7 +59,7 @@ function TripPickerRow({
       <Button
         type="button"
         size="sm"
-        onClick={() => onSelect(trip.id)}
+        onClick={() => onSelect(trip)}
       >
         {copy.selectAction}
       </Button>
@@ -109,8 +117,8 @@ export function InvoiceableTripPickerSheet({
   const trips = data?.data ?? [];
   const pagination = data?.pagination;
 
-  const handleSelect = (tripId: string) => {
-    onSelect(tripId);
+  const handleSelect = (trip: TripListItem) => {
+    onSelect(trip);
     handleOpenChange(false);
   };
 

@@ -248,44 +248,33 @@ export function buildTrackingItineraryRows(
 }
 
 /**
- * Alertas de alcance del tab: solo lectura o incidente abierto (D6).
- * No repite el mensaje de «Iniciar viaje» cuando el viaje está programado.
+ * Alertas de alcance del tab: incidente abierto.
+ * El hub «Qué sigue» ya cubre solo lectura; no duplicar esa banda.
  */
 export function getTrackingScopeAlertItems(
-  tripStatus: TripStatusType,
+  _tripStatus: TripStatusType,
   hasOpenIncident: boolean,
 ): { label?: string; text: string }[] {
-  const items: { label?: string; text: string }[] = [];
+  if (!hasOpenIncident) return [];
 
-  if (
-    tripStatus !== "scheduled" &&
-    tripStatus !== "in_progress"
-  ) {
-    items.push({
-      text: "Seguimiento en solo lectura para este estado.",
-    });
-  }
-
-  if (hasOpenIncident) {
-    items.push({
-      label: "Incidente",
+  return [
+    {
+      label: trackingCopy.hint.incidentLabel,
       text: trackingCopy.hint.openIncident,
-    });
-  }
-
-  return items;
+    },
+  ];
 }
 
 /** Etiqueta corta del rol de la parada en el itinerario de seguimiento. */
 export function getTrackingStopRoleHint(stop: TripStop): string | null {
   if (isOriginStop(stop)) {
-    return "Arribo, carga y salida de origen";
+    return trackingCopy.hint.stopRoleOrigin;
   }
   if (isManualArrivalStop(stop) && isTrackingEscalaStop(stop)) {
-    return "Llegada y salida manual";
+    return trackingCopy.hint.stopRoleWaypoint;
   }
   if (isManualArrivalStop(stop)) {
-    return "Llegada manual y cierre en destino";
+    return trackingCopy.hint.stopRoleDestination;
   }
   return null;
 }

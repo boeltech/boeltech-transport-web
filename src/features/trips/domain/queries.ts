@@ -9,6 +9,7 @@
 
 import type { TripStatusType } from "./enums";
 import type { TripInvoiceStatus } from "./entities";
+import type { RouteEstimateParams } from "./canvas";
 
 // ============================================================================
 // FILTER TYPES
@@ -124,6 +125,12 @@ export const tripQueryKeys = {
     [...tripQueryKeys.detail(tripId), "status-history"] as const,
   timeline: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "timeline"] as const,
+
+  // Canvas intake (ADR-0078)
+  corridors: (clientId: string) =>
+    [...tripQueryKeys.all, "corridors", clientId] as const,
+  routeEstimate: (params: RouteEstimateParams) =>
+    [...tripQueryKeys.all, "route-estimate", params] as const,
 } as const;
 
 /**

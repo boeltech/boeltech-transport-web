@@ -7,6 +7,7 @@ export type TrackingEventType =
   | "stop_arrived"
   | "stop_departed"
   | "trip_arrived"
+  | "false_trip_declared"
   | "incident"
   | "note"
   | "cargo_picked_up"

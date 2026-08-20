@@ -36,8 +36,10 @@ import {
   RegisterTrackingNoteSheet,
   StartTripSheet,
   DepartOriginSheet,
+  DeclareFalseTripSheet,
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
+  getFalseTripDeclaredTimelineMeta,
   TripTrackingStopsCargosMasterDetail,
   trackingCopy,
 } from "./trip-tracking";
@@ -60,6 +62,8 @@ interface TripTrackingTabProps {
   status: TripStatusType;
   /** Cargas del page-level `useTripCargos` (misma query key; no duplicar observer). */
   cargos?: readonly TripCargo[];
+  /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
+  falseTripDeclaredBy?: string | null;
   onCargosChanged?: () => void;
 }
 
@@ -71,12 +75,15 @@ export function TripTrackingTab({
   tripStartMileage,
   status,
   cargos: cargosProp = [],
+  falseTripDeclaredBy = null,
   onCargosChanged,
 }: TripTrackingTabProps) {
   const { hasPermission } = usePermissions();
   const canUpdateTrip = hasPermission("trips", "update");
   const canOperateTracking =
-    canUpdateTrip || hasPermission("trips", "updateStatus");
+    canUpdateTrip ||
+    hasPermission("trips", "updateStatus") ||
+    hasPermission("trips", "execute");
   /** Mutaciones de carga requieren `trips.update` (API); no inventar ACL. */
   const canMutateCargo = canUpdateTrip;
   const [startSheetOpen, setStartSheetOpen] = useState(false);
@@ -84,6 +91,7 @@ export function TripTrackingTab({
   const [arrivalSheetOpen, setArrivalSheetOpen] = useState(false);
   const [departureSheetOpen, setDepartureSheetOpen] = useState(false);
   const [departOriginSheetOpen, setDepartOriginSheetOpen] = useState(false);
+  const [falseTripSheetOpen, setFalseTripSheetOpen] = useState(false);
   const [noteSheetOpen, setNoteSheetOpen] = useState(false);
   const [incidentSheetOpen, setIncidentSheetOpen] = useState(false);
   /** Parada elegida al abrir evidencia desde el detail; null = fallback operativo. */
@@ -277,14 +285,14 @@ export function TripTrackingTab({
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-sm text-muted-foreground">
-            No se pudo cargar la informacion de seguimiento.
+            {trackingCopy.state.loadError}
           </p>
           <Button
             variant="outline"
             className="mt-4"
             onClick={() => timelineQuery.refetch()}
           >
-            Reintentar
+            {trackingCopy.action.retry}
           </Button>
         </CardContent>
       </Card>
@@ -329,7 +337,7 @@ export function TripTrackingTab({
             </Badge>
           ) : null}
           {updatedAgoLabel ? (
-            <span>Actualizado {updatedAgoLabel}</span>
+            <span>{trackingCopy.hint.updatedAgo(updatedAgoLabel)}</span>
           ) : null}
         </div>
         <Button
@@ -384,6 +392,9 @@ export function TripTrackingTab({
         onCloseTrip={
           canOperateTracking ? () => setTripArrivalSheetOpen(true) : undefined
         }
+        onDeclareFalseTrip={
+          canOperateTracking ? () => setFalseTripSheetOpen(true) : undefined
+        }
         onRegisterNote={canOperateTracking ? openNoteSheet : undefined}
         onRegisterIncident={
           canOperateTracking ? openIncidentSheet : undefined
@@ -400,18 +411,18 @@ export function TripTrackingTab({
             </CardTitle>
             {timeline.events.length === 0 ? (
               <CardDescription>
-                {trackingCopy.state.noEvents} operativos registrados.
+                {trackingCopy.state.noEvents}
               </CardDescription>
             ) : (
               <CardDescription>
-                Registro de operaciones del viaje.
+                {trackingCopy.hint.timelineHasEvents}
               </CardDescription>
             )}
           </CardHeader>
           <CardContent>
             {timeline.events.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Todavía no hay eventos para este viaje.
+                {trackingCopy.state.timelineEmpty}
               </p>
             ) : (
               <DetailTimeline
@@ -425,12 +436,17 @@ export function TripTrackingTab({
                     event.eventType === "incident"
                       ? getTrackingIncidentTimelineMeta(event)
                       : [];
+                  const falseTripMeta =
+                    event.eventType === "false_trip_declared"
+                      ? getFalseTripDeclaredTimelineMeta(event, falseTripDeclaredBy)
+                      : [];
                   return {
                     id: event.id,
                     icon: <EventIcon className="h-4 w-4" />,
                     completed:
                       event.eventType === "trip_arrived" ||
-                      event.eventType === "stop_departed",
+                      event.eventType === "stop_departed" ||
+                      event.eventType === "false_trip_declared",
                     content: (
                       <div className="rounded-md border p-3">
                         <div className="flex items-center justify-between gap-2">
@@ -444,6 +460,13 @@ export function TripTrackingTab({
                             {formatDateTime(event.occurredAt.toISOString())}
                           </p>
                         </div>
+                        {falseTripMeta.length > 0 ? (
+                          <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                            {falseTripMeta.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                         {timelineBody ||
                         incidentMeta.length > 0 ||
                         event.stopId ||
@@ -451,7 +474,7 @@ export function TripTrackingTab({
                         (event.latitude != null && event.longitude != null) ? (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-xs text-muted-foreground">
-                              Ver más
+                              {trackingCopy.action.timelineMore}
                             </summary>
                             {typeof event.payload?.cargo_description === "string" ? (
                               <p className="mt-1 text-sm text-muted-foreground">
@@ -556,6 +579,15 @@ export function TripTrackingTab({
             orderedStops={orderedStops}
             open={departOriginSheetOpen}
             onOpenChange={setDepartOriginSheetOpen}
+          />
+          <DeclareFalseTripSheet
+            tripId={tripId}
+            tripCode={tripCode}
+            vehicleId={vehicleId}
+            tripStartMileage={tripStartMileage}
+            open={falseTripSheetOpen}
+            onOpenChange={setFalseTripSheetOpen}
+            onSuccess={onCargosChanged}
           />
           <RegisterTrackingNoteSheet
             tripId={tripId}

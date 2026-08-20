@@ -34,6 +34,9 @@ const trip: TripListItem = {
   scheduledDeparture: new Date("2026-05-10T12:00:00.000Z"),
   scheduledArrival: new Date("2026-05-11T08:00:00.000Z"),
   status: "completed",
+  operationalOutcome: "standard",
+  falseTripDeclaredAt: null,
+  falseTripDeclaredBy: null,
   cargoDescription: "Carga general",
   baseRate: 15000,
   totalCost: 8000,
@@ -116,7 +119,28 @@ describe("InvoiceableTripPickerSheet", () => {
 
     await user.click(screen.getByRole("button", { name: "Facturar" }));
 
-    expect(onSelect).toHaveBeenCalledWith("trip-1");
+    expect(onSelect).toHaveBeenCalledWith(trip);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows Viaje en falso chip for false_trip outcome", () => {
+    mockUseTrips.mockReturnValue({
+      data: {
+        data: [{ ...trip, operationalOutcome: "false_trip" as const }],
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <InvoiceableTripPickerSheet
+        open
+        onOpenChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Viaje en falso")).toBeInTheDocument();
   });
 });

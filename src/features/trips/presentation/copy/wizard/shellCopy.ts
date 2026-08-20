@@ -12,6 +12,9 @@ export const shellCopy = {
     editSubtitle: (tripCode: string) =>
       tripCode ? `Editando ${tripCode}` : "Editando",
     backLabel: "Volver",
+    retiredBannerTitle: "Pantalla retirada del router (ADR-0078)",
+    retiredBannerBody:
+      "Usa Reservar viaje en el listado. Esta vista ya no tiene ruta.",
   },
   step: {
     basic: { title: "Información", description: "Asignaciones y programación" },
@@ -84,7 +87,7 @@ export const shellCopy = {
   reserve: {
     section: {
       routeApprox: "Ruta aproximada",
-      schedule: "Fecha y notas",
+      schedule: "Fecha de salida",
     },
     label: {
       client: "Cliente",
@@ -102,6 +105,8 @@ export const shellCopy = {
     hint: {
       notes: "Cómo lo pidieron y cualquier detalle útil para la operación.",
       baseRate: "Si ya la acordaron; si no, la capturas al confirmar.",
+      startMileage:
+        "Captura el odómetro al salir; se usa al confirmar e iniciar el viaje.",
       newClient: "Si el cliente no aparece en la lista,",
       arrival: "Opcional; puedes completarla al confirmar.",
       client: "Quién solicita el viaje.",

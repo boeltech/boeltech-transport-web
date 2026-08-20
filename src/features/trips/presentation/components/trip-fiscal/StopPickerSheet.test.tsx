@@ -70,7 +70,7 @@ describe("StopPickerSheet", () => {
         "El PAC rechazó el timbrado por RFC inválido. Elige la parada que debes corregir.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("Parada #2")).toBeInTheDocument();
+    expect(screen.getByText("Parada #3")).toBeInTheDocument();
   });
 
   it("uses fallback copy and lists all stops when listMode is all-stops-fallback", async () => {

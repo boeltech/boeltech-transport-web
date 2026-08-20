@@ -188,6 +188,7 @@ export const cargoCopy = {
       notes: "Notas",
       specialInstructions: "Instrucciones especiales",
       expiryDate: "Fecha de caducidad",
+      pickupStop: "Parada de recogida",
       deliveryStop: "Parada de entrega",
       deliveryWeight: "Peso a entregar (kg)",
       deliveryUnits: "Cantidad a entregar",
@@ -201,6 +202,7 @@ export const cargoCopy = {
       packagingType: "Seleccione el tipo de embalaje",
       packagingDescription: "Ej.: bidones de 20 L, tanque de 1000 L…",
       description: "Se completa al elegir el producto; puede ajustarla",
+      pickupStop: "Seleccione la parada de recogida…",
       deliveryStop: "Seleccione la parada…",
       notes: "Observaciones sobre esta mercancía…",
       specialInstructions: "Manejo especial, temperatura, fragilidad…",
@@ -213,11 +215,15 @@ export const cargoCopy = {
       insurance:
         "Capture la aseguradora y la póliza que cubren esta mercancía en el viaje.",
       hazmatRequired: "El producto elegido obliga a declararla así.",
+      pickupStop:
+        "Elige en qué parada de recogida sale esta mercancía cuando el viaje tiene más de una.",
       requirements: "El producto elegido exige estos datos.",
       requirementsOptional:
         "Estos datos no son obligatorios para el producto elegido.",
       deliveries:
         "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto.",
+      deliveriesReadOnly:
+        "Las entregas de esta mercancía no se pueden cambiar aquí. Defínalas al dar de alta la carga.",
       pendingFields: "Datos pendientes:",
     },
     state: {
@@ -235,6 +241,7 @@ export const cargoCopy = {
     },
     validation: {
       missingRequiredTitle: "Faltan datos para guardar la mercancía",
+      deliveryStopRequired: "Selecciona la parada de cada entrega agregada",
     },
     toast: {
       hazmatRequiredTitle: "No se puede desmarcar",
@@ -243,6 +250,8 @@ export const cargoCopy = {
       addedTitle: "Mercancía agregada",
       addedBody: (description: string) =>
         `«${description}» quedó registrada en esta parada.`,
+      saveErrorTitle: "No se pudo guardar la mercancía",
+      saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     },
     format: {
       deliveryStopOption: (

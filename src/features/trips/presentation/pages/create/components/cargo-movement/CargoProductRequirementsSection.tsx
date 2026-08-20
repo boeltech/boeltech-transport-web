@@ -77,40 +77,55 @@ export function CargoProductRequirementsSection({
           <Controller
             control={control}
             name="hazardousMaterialCode"
-            render={({ field, fieldState }) => (
+            render={({ field, fieldState }) => {
+              const errorMessage = fieldState.error?.message;
+              return (
               <FormFieldShell
                 fieldId="cargo-hazmat-code"
                 label={sheet.label.hazmatCode}
                 required
-                errorMessage={fieldState.error?.message}
+                errorMessage={errorMessage}
               >
                 <MaterialPeligrosoSearch
+                  id="cargo-hazmat-code"
                   value={field.value || null}
+                  error={Boolean(fieldState.error)}
+                  {...getFieldErrorAriaProps("cargo-hazmat-code", errorMessage)}
                   onSelect={(item) => field.onChange(item.code)}
                   onClear={() => field.onChange("")}
                 />
               </FormFieldShell>
-            )}
+              );
+            }}
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Controller
               control={control}
               name="packagingType"
-              render={({ field, fieldState }) => (
+              render={({ field, fieldState }) => {
+                const errorMessage = fieldState.error?.message;
+                return (
                 <FormFieldShell
                   fieldId="cargo-packaging-type"
                   label={sheet.label.packagingType}
                   required
-                  errorMessage={fieldState.error?.message}
+                  errorMessage={errorMessage}
                 >
                   <TipoEmbalajeSelect
+                    triggerId="cargo-packaging-type"
                     value={field.value || ""}
                     onValueChange={(value) => field.onChange(value)}
                     placeholder={sheet.placeholder.packagingType}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "cargo-packaging-type",
+                      errorMessage,
+                    )}
                   />
                 </FormFieldShell>
-              )}
+                );
+              }}
             />
 
             <RHFTextField

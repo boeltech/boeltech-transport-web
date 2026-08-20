@@ -11,6 +11,10 @@ export const costsCopy = {
   hint: {
     inProgress:
       "Registre costos y gastos reales en curso. Replanifique ruta, cargas o tarifa en edición completa.",
+    postCloseWindow:
+      "Puede registrar gastos tardíos hasta el {deadline}. Solo conceptos Pendiente se pueden editar o eliminar; los Aprobados son de solo lectura.",
+    postCloseWindowClosed:
+      "La ventana de 30 días para capturar gastos en este viaje ya cerró ({deadline}). Los conceptos aprobados siguen visibles en solo lectura.",
     breakdown: "Distribución de costos y gastos registrados.",
     baseRateTraslado: "Opcional en viajes solo de traslado.",
     baseRateIngresoRequired: "Obligatoria para viajes con factura de servicio y cliente.",
@@ -20,6 +24,8 @@ export const costsCopy = {
     loadErrorTitle: "No se pudieron cargar los costos",
     loadErrorBody: "Intente de nuevo o vuelva más tarde.",
     inProgressTitle: "Gastos durante el viaje",
+    postCloseWindowTitle: "Ventana de gastos post-cierre",
+    postCloseWindowClosedTitle: "Ventana de gastos cerrada",
     marginCriticalTitle: "Rentabilidad comprometida",
     marginCriticalBody:
       "El margen estimado está por debajo del 10%. Revise tarifa o conceptos registrados.",
@@ -51,6 +57,7 @@ export const costsCopy = {
     emptyOperationalEditable:
       'Use "Agregar costo" para combustible, casetas y otros costos directos.',
     emptyOperationalReadOnly: "No hay costos operativos en este viaje.",
+    emptyAfterFalseTrip: "Los gastos se capturan antes de declarar.",
     emptyIndirectTitle: "Sin gastos registrados",
     emptyIndirectEditable:
       'Use "Agregar gasto" para viáticos, hospedaje y otros conceptos indirectos.',
@@ -76,9 +83,14 @@ export const costsCopy = {
   error: {
     invalidBaseRate: "Tarifa inválida",
   },
+  incomeSource: {
+    invoiced: "Facturado",
+    rateUnstamped: "Tarifa (sin timbrar)",
+  },
   financialSummary: {
     section: {
-      title: "Resumen financiero estimado",
+      title: "Resumen financiero",
+      titleEstimated: "Resumen financiero estimado",
       income: "INGRESOS (1)",
       operational: (count: number) => `COSTOS OPERATIVOS (${count})`,
       indirect: (count: number) => `GASTOS (${count})`,
@@ -91,6 +103,12 @@ export const costsCopy = {
       expenses: "Gastos",
       margin: "Utilidad",
       marginPct: "Margen",
+      marginApproved: "Utilidad (aprobados)",
+    },
+    hint: {
+      approvedOnly:
+        "El margen primario usa solo costos aprobados (paridad Finanzas).",
+      queuedMayLower: "Hay gastos en cola; el margen puede bajar al aprobarlos.",
     },
     state: {
       emptyLines: "Sin conceptos",

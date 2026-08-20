@@ -27,6 +27,7 @@ import {
 } from "../domain";
 import { composeStopLocalityLine } from "./stopLocalityDisplay";
 import { tripsListCopy } from "./copy/listCopy";
+import { tripFiscalCopy } from "./copy/tripFiscalCopy";
 import { formatMxCurrencyOrDash } from "@shared/utils/formatMxCurrency";
 
 // ============================================================================
@@ -426,6 +427,21 @@ export function getTripInvoicingBadgeConfig(
   }
 
   return { label: labels.unavailable, variant: "outline" };
+}
+
+/** Detalle de viaje: evita «Disponible / No disponible» (Capa 1 D10). */
+export function toDetailInvoicingBadge(
+  config: InvoicingBadgeConfig,
+): InvoicingBadgeConfig {
+  const list = tripsListCopy.invoicingBadge;
+  const detail = tripFiscalCopy.detailBadge;
+  if (config.label === list.available) {
+    return { ...config, label: detail.readyToBill };
+  }
+  if (config.label === list.unavailable) {
+    return { ...config, label: detail.pending };
+  }
+  return config;
 }
 
 export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | null {

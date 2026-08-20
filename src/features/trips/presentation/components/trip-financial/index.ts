@@ -6,6 +6,8 @@ export {
   buildTripWizardFinancialSnapshot,
   type TripWizardExpenseLine,
   type TripWizardFinancialSnapshot,
+  type TripWizardCostBasis,
+  type BuildTripWizardFinancialSnapshotOptions,
 } from "./tripWizardFinancialSnapshot";
 export {
   EXPENSE_CATEGORY_MAP,

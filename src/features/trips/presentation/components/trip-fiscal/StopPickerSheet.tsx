@@ -8,7 +8,11 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
-import { formatStopLocation, getEffectiveStopRfc } from "./tripFiscalHelpers";
+import {
+  formatStopLocation,
+  getEffectiveStopRfc,
+  toFiscalStopDisplayOrder,
+} from "./tripFiscalHelpers";
 
 const copy = tripFiscalCopy.pickerSheet;
 
@@ -52,7 +56,7 @@ export function StopPickerSheet({
               >
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-medium">
-                    Parada #{stop.sequenceOrder}
+                    Parada #{toFiscalStopDisplayOrder(stop.sequenceOrder)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatStopLocation(stop)}

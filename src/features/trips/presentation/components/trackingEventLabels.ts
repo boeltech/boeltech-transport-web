@@ -45,6 +45,8 @@ export function formatTrackingEventLabel(
       return role ? `Salida — ${role}` : "Salida de parada";
     case "trip_arrived":
       return "Viaje finalizado";
+    case "false_trip_declared":
+      return "Viaje en falso declarado";
     case "incident":
       return "Incidente reportado";
     case "note":

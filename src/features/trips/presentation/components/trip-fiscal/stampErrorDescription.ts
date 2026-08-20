@@ -156,5 +156,11 @@ export function describeStampApiError(error: unknown): string {
       : `${error.message} ${hint}`;
   }
 
+  if (error.code === "PAC_ISSUED_AT_OUT_OF_RANGE" && hint) {
+    if (!error.message.includes(hint)) {
+      return `${error.message} ${hint}`;
+    }
+  }
+
   return error.message || getErrorMessage(error);
 }

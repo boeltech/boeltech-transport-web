@@ -16,6 +16,7 @@
 import { z } from "zod";
 
 import { isUnifiedAddressId } from "@features/trips/domain";
+import { configVehicularLikelyRequiresRemolques } from "@boeltech/cfdi-domain";
 import { LOCATION_CAPTURE_LABELS } from "../../../copy/wizard/routeCopy";
 import { wizardCopy } from "../../../copy";
 
@@ -731,12 +732,71 @@ function requireStartMileage(
   }
 }
 
+const tripTrailerAssignmentFormSchema = z.object({
+  trailerId: z.string().uuid("Remolque inválido"),
+  position: z.union([z.literal(1), z.literal(2)]),
+});
+
+function refineTrailersForConfig(
+  data: {
+    trailers?: Array<{ trailerId: string; position: 1 | 2 }>;
+    satConfigAutotransporteCode?: string;
+  },
+  ctx: z.RefinementCtx,
+) {
+  const config = (data.satConfigAutotransporteCode ?? "").trim();
+  const trailers = data.trailers ?? [];
+  if (!config) return;
+
+  if (configVehicularLikelyRequiresRemolques(config)) {
+    if (trailers.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["trailers"],
+        message:
+          "La configuración vehicular S/R requiere al menos un remolque asignado",
+      });
+    }
+  } else if (trailers.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["trailers"],
+      message: "Esta unidad no admite remolques; quita la asignación",
+    });
+  }
+
+  const seenPos = new Set<number>();
+  const seenIds = new Set<string>();
+  trailers.forEach((t, index) => {
+    if (seenPos.has(t.position)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["trailers", index, "position"],
+        message: "Las posiciones de remolque no pueden repetirse",
+      });
+    }
+    seenPos.add(t.position);
+    if (seenIds.has(t.trailerId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["trailers", index, "trailerId"],
+        message: "El mismo remolque no puede asignarse dos veces",
+      });
+    }
+    seenIds.add(t.trailerId);
+  });
+}
+
 export const tripWizardSchema = z.object({
   // Paso 1: Información Básica
   vehicleId: z.string().min(1, "Unidad requerida"),
   driverId: z.string().min(1, "Conductor requerido"),
   clientId: z.string().optional(),
   originBranchId: z.string().uuid().optional().or(z.literal("")),
+  /** Remolques del pool (ADR-0077). Condicional a Config S/R. */
+  trailers: z.array(tripTrailerAssignmentFormSchema).max(2).default([]),
+  /** Contexto UX (no se envía al API): ConfigVehicular de la unidad. */
+  satConfigAutotransporteCode: z.string().optional().or(z.literal("")),
   /**
    * Intención del comprobante fiscal asociado al viaje (orientación UX y futuro timbrado).
    * No sustituye la decisión del PAC; Profact valida RFC en timbrado.
@@ -767,6 +827,7 @@ export const tripWizardSchema = z.object({
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   requireStartMileage(data, ctx);
+  refineTrailersForConfig(data, ctx);
 
   const assigned = new Set<string>();
 
@@ -824,6 +885,7 @@ export const WIZARD_STEPS = [
       "originBranchId",
       "vehicleId",
       "driverId",
+      "trailers",
       "clientId",
       "cfdiDocumentIntent",
       "scheduledDeparture",
@@ -876,7 +938,7 @@ export const WIZARD_STEPS_RESERVE = [
     id: "asignar",
     title: shell.step.asignar.title,
     description: shell.step.asignar.description,
-    fields: ["vehicleId", "driverId", "baseRate", "startMileage"],
+    fields: ["vehicleId", "driverId", "trailers", "baseRate", "startMileage"],
   },
 ];
 
@@ -892,6 +954,8 @@ export const tripReserveWizardSchema = z
   .object({
     vehicleId: z.string().min(1, "Unidad requerida"),
     driverId: z.string().min(1, "Conductor requerido"),
+    trailers: z.array(tripTrailerAssignmentFormSchema).max(2).default([]),
+    satConfigAutotransporteCode: z.string().optional().or(z.literal("")),
     clientId: z
       .string()
       .min(1, shell.validation.selectClient)
@@ -922,7 +986,7 @@ export const tripReserveWizardSchema = z
     notes: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    requireStartMileage(data, ctx);
+    refineTrailersForConfig(data, ctx);
 
     if (
       data.scheduledArrival &&
@@ -944,6 +1008,8 @@ export const tripReserveWizardSchema = z
 export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   vehicleId: "",
   driverId: "",
+  trailers: [],
+  satConfigAutotransporteCode: "",
   clientId: "",
   originBranchId: "",
   cfdiDocumentIntent: "ingreso",

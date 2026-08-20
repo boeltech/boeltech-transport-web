@@ -4,6 +4,7 @@
 
 import type { ClientAddress } from "@features/clients/domain/entities";
 import type { UpdateClientAddressDTO } from "@features/clients/domain";
+import { isClientTripAddressType } from "@features/clients/presentation/config/clientAddressPurpose";
 import {
   CLIENT_ADDRESS_TYPES,
   type ClientAddressFormData,
@@ -179,6 +180,18 @@ export function resolveClientAddressFormContextForCatalog(
   catalog: ClientAddress,
 ): ClientAddressFormContext {
   return resolveClientAddressFormContext(catalog.addressType);
+}
+
+/**
+ * Write-back al maestro solo desde Completar domicilio, fuente operativa
+ * (shipping / pickup / warehouse) y rol con clients.update (PD7).
+ */
+export function canOfferClientAddressWriteBack(
+  catalog: ClientAddress | undefined,
+  canUpdateClient: boolean,
+): boolean {
+  if (!canUpdateClient || catalog == null) return false;
+  return isClientTripAddressType(catalog.addressType);
 }
 
 /** Quita vínculo al catálogo: la parada viaja con domicilio inline en el wizard. */

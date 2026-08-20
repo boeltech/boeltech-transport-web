@@ -13,6 +13,7 @@ import { VEHICLE_STATUS_LABELS } from "@features/vehicles/domain";
 import type { Trip, TripStop } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
@@ -31,6 +32,7 @@ import {
 } from "../startTripMileage";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
   TRACKING_SHEET_BODY_CLASS,
   TRACKING_SHEET_CONTENT_CLASS,
@@ -80,6 +82,7 @@ function StartTripSheetBody({
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
+  const [mileageError, setMileageError] = useState<string | null>(null);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
@@ -138,7 +141,7 @@ function StartTripSheetBody({
       toast({
         title: copy.toast.startFailed,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -146,21 +149,23 @@ function StartTripSheetBody({
   const handleConfirm = () => {
     if (!resourceStartCheck.canStart) return;
 
+    let hasError = false;
     const parsed = mileageField.parseValue();
     if (parsed === null) {
-      toast({
-        title: copy.toast.startMileageRequired,
-        description: copy.toast.startMileageRequiredDescription,
-        variant: "destructive",
-      });
-      return;
+      setMileageError(copy.toast.startMileageRequiredDescription);
+      hasError = true;
+    } else {
+      setMileageError(null);
     }
 
     if (!occurredAt.trim()) {
       setTimeError(copy.validation.departureRequired);
-      return;
+      hasError = true;
+    } else {
+      setTimeError(null);
     }
-    setTimeError(null);
+
+    if (hasError || parsed === null) return;
 
     const gpsFields = trackingGpsToEventFields(gps);
     startMutation.mutate({
@@ -240,34 +245,18 @@ function StartTripSheetBody({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="start-occurred-at">
-            {copy.label.occurredAtDeparture}
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="start-occurred-at"
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={isPending}
-              aria-invalid={timeError ? true : undefined}
-              className="min-w-[220px] flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-              disabled={isPending}
-            >
-              {copy.action.now}
-            </Button>
-          </div>
-          {timeError ? (
-            <p className="text-xs text-destructive">{timeError}</p>
-          ) : null}
-        </div>
+        <TrackingOccurredAtField
+          id="start-occurred-at"
+          label={copy.label.occurredAtDeparture}
+          value={occurredAt}
+          onChange={(next) => {
+            setOccurredAt(next);
+            if (timeError) setTimeError(null);
+          }}
+          disabled={isPending}
+          error={Boolean(timeError)}
+          errorMessage={timeError}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="start-mileage">{copy.label.startMileage}</Label>
@@ -278,8 +267,17 @@ function StartTripSheetBody({
             inputMode="numeric"
             placeholder={copy.sheet.startMileagePlaceholder}
             value={mileageField.value}
-            onChange={(e) => mileageField.onValueChange(e.target.value)}
+            onChange={(e) => {
+              mileageField.onValueChange(e.target.value);
+              if (mileageError) setMileageError(null);
+            }}
             disabled={isPending}
+            error={Boolean(mileageError)}
+            {...getFieldErrorAriaProps("start-mileage", mileageError ?? undefined)}
+          />
+          <FieldInlineError
+            fieldId="start-mileage"
+            message={mileageError ?? undefined}
           />
           {isLoadingVehicle ? (
             <p className="text-xs text-muted-foreground">

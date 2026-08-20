@@ -23,6 +23,8 @@ export type StopActionInlineProps = {
    * En el hub lean (D2) va en `false`: título + CTA bastan.
    */
   showTransition?: boolean;
+  /** Visible + title/aria cuando el CTA está deshabilitado. */
+  disabledReason?: string;
   className?: string;
 };
 
@@ -35,11 +37,21 @@ export function StopActionInline({
   variant = "outline",
   size = "sm",
   showTransition = true,
+  disabledReason,
   className,
 }: StopActionInlineProps) {
   const transitionId = useId();
+  const reasonId = useId();
   const transitionText = STOP_TRANSITION_COPY[action];
   const isProminent = size === "lg" || size === "default";
+  const isDisabled = disabled || pending;
+  const showReason = isDisabled && Boolean(disabledReason);
+  const describedBy = [
+    showTransition ? transitionId : null,
+    showReason ? reasonId : null,
+  ]
+    .filter(Boolean)
+    .join(" ") || undefined;
 
   return (
     <div className={cn("space-y-0.5", className)}>
@@ -53,9 +65,13 @@ export function StopActionInline({
             ? "h-auto min-h-10 py-2.5 text-sm"
             : "h-auto min-h-8 py-1.5 text-xs",
         )}
-        disabled={disabled || pending}
+        disabled={isDisabled}
         onClick={onClick}
-        aria-describedby={showTransition ? transitionId : undefined}
+        title={showReason ? disabledReason : undefined}
+        aria-label={
+          showReason ? `${label}. ${disabledReason}` : undefined
+        }
+        aria-describedby={describedBy}
       >
         {pending ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -65,6 +81,11 @@ export function StopActionInline({
       {showTransition ? (
         <p id={transitionId} className="text-xs text-muted-foreground">
           {transitionText}
+        </p>
+      ) : null}
+      {showReason ? (
+        <p id={reasonId} className="text-xs text-muted-foreground">
+          {disabledReason}
         </p>
       ) : null}
     </div>

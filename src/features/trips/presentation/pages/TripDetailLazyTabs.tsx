@@ -1,20 +1,19 @@
-import { lazy } from "react";
-
 import { Skeleton } from "@shared/ui/skeleton";
+import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
 
-export const TripTrackingTabLazy = lazy(() =>
+export const TripTrackingTabLazy = lazyWithRetry(() =>
   import("../components/TripTrackingTab").then((m) => ({
     default: m.TripTrackingTab,
   })),
 );
 
-export const TripDetailCargoTabLazy = lazy(() =>
+export const TripDetailCargoTabLazy = lazyWithRetry(() =>
   import("../components/trip-cargos").then((m) => ({
     default: m.TripDetailCargoTab,
   })),
 );
 
-export const TripDetailCostsTabLazy = lazy(() =>
+export const TripDetailCostsTabLazy = lazyWithRetry(() =>
   import("../components/trip-costs").then((m) => ({
     default: m.TripDetailCostsTab,
   })),

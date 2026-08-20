@@ -1,8 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import { isValidSatRfc } from "@boeltech/cfdi-domain";
 import type { TripStop } from "@features/trips/domain";
+import { usePermissions } from "@shared/permissions";
 import { Checkbox } from "@shared/ui/checkbox";
 import { FieldInlineError } from "@shared/ui/form/FieldInlineError";
+import { getFieldErrorAriaProps } from "@shared/ui/form/fieldErrorAria";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { tripFiscalCopy } from "../../../copy/tripFiscalCopy";
@@ -13,6 +15,9 @@ import {
 
 const copy = tripFiscalCopy.fixSheet;
 const MAX_NOMBRE_LENGTH = 300;
+
+/** Prefijo de ids de control (focus post-validación en el sheet). */
+export const FISCAL_CORRECTION_RFC_ID_PREFIX = "fiscal-correction";
 
 export interface FiscalCorrectionRfcFieldsProps {
   stop: TripStop;
@@ -59,7 +64,7 @@ export function FiscalCorrectionRfcFields({
   propagate,
   rfcTouched,
   reasonError,
-  idPrefix = "fiscal-correction",
+  idPrefix = FISCAL_CORRECTION_RFC_ID_PREFIX,
   disabled = false,
   onRfcChange,
   onNombreChange,
@@ -70,11 +75,14 @@ export function FiscalCorrectionRfcFields({
   onReasonErrorChange,
 }: FiscalCorrectionRfcFieldsProps) {
   const { showRfcError } = useFiscalCorrectionRfcValidation(rfc, reason, rfcTouched);
+  const { hasPermission } = usePermissions();
+  const canPropagateToClient = hasPermission("clients", "update");
 
   const rfcId = `${idPrefix}-rfc`;
   const nombreId = `${idPrefix}-nombre`;
   const reasonId = `${idPrefix}-reason`;
   const propagateId = `${idPrefix}-propagate`;
+  const rfcErrorMessage = showRfcError ? copy.rfcInvalid : undefined;
 
   return (
     <div className="space-y-4">
@@ -85,8 +93,9 @@ export function FiscalCorrectionRfcFields({
           value={rfc}
           maxLength={13}
           disabled={disabled}
+          error={showRfcError}
           className="font-mono uppercase"
-          aria-invalid={showRfcError}
+          {...getFieldErrorAriaProps(rfcId, rfcErrorMessage)}
           onChange={(event) => onRfcChange(event.target.value.toUpperCase())}
           onBlur={onRfcBlur}
         />
@@ -123,7 +132,7 @@ export function FiscalCorrectionRfcFields({
         }}
       />
 
-      {stop.clientAddressId ? (
+      {canPropagateToClient && stop.clientAddressId ? (
         <div className="flex items-start gap-3 rounded-lg border p-3">
           <Checkbox
             id={propagateId}

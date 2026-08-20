@@ -1,13 +1,13 @@
 /**
  * Paso 1 del wizard de reserva (ADR-0071): pedido operativo mínimo.
  */
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { Building2, ExternalLink, Loader2 } from "lucide-react";
 
-import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,11 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { Textarea } from "@shared/ui/text-area";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 import type { TripWizardFormValues } from "./validation";
 import { wizardCopy } from "../../../copy";
+import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 
 const shell = wizardCopy.shell;
 const basic = wizardCopy.basicInfo;
@@ -30,17 +30,21 @@ interface ReservePedidoStepProps {
   form: UseFormReturn<TripWizardFormValues, any, any>;
   clients: Array<{ id: string; legalName: string }>;
   isLoadingClients: boolean;
+  /** Slot tras el cliente (picker de corredor en el canvas ADR-0078). */
+  afterClient?: ReactNode;
 }
 
 export function ReservePedidoStep({
   form,
   clients,
   isLoadingClients,
+  afterClient,
 }: ReservePedidoStepProps) {
   const { control } = form;
+  const scheduleFieldProps = tripScheduleDateTimeFieldProps(basic.preset);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <section className="space-y-4" aria-labelledby="reserve-client-heading">
         <h2 id="reserve-client-heading" className="sr-only">
           {reserve.label.client}
@@ -107,6 +111,7 @@ export function ReservePedidoStep({
             </Link>
           </p>
         </div>
+        {afterClient}
       </section>
 
       <section className="space-y-4" aria-labelledby="reserve-route-heading">
@@ -177,97 +182,31 @@ export function ReservePedidoStep({
         >
           {reserve.section.schedule}
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Controller
-            control={control}
-            name="scheduledDeparture"
-            render={({ field, fieldState }) => (
-              <FormFieldShell
-                fieldId="scheduledDeparture"
-                label={basic.label.scheduledDeparture}
-                required
-                errorMessage={fieldState.error?.message}
-              >
-                <Input
-                  id="scheduledDeparture"
-                  type="datetime-local"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={Boolean(fieldState.error)}
-                  {...getFieldErrorAriaProps(
-                    "scheduledDeparture",
-                    fieldState.error?.message,
-                  )}
-                />
-              </FormFieldShell>
-            )}
-          />
-          <Controller
-            control={control}
-            name="scheduledArrival"
-            render={({ field, fieldState }) => (
-              <FormFieldShell
-                fieldId="scheduledArrival"
-                label={
-                  <SectionHeadingWithHint
-                    noTitleWrap
-                    title={basic.label.scheduledArrival}
-                    hintLabel={basic.hintLabel.scheduledArrival}
-                    hint={<>{reserve.hint.arrival}</>}
-                  />
-                }
-                errorMessage={fieldState.error?.message}
-              >
-                <Input
-                  id="scheduledArrival"
-                  type="datetime-local"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={Boolean(fieldState.error)}
-                  {...getFieldErrorAriaProps(
-                    "scheduledArrival",
-                    fieldState.error?.message,
-                  )}
-                />
-              </FormFieldShell>
-            )}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">{reserve.label.notes}</Label>
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field, fieldState }) => (
-              <>
-                <Textarea
-                  id="notes"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  placeholder={reserve.placeholder.notes}
-                  rows={3}
-                  {...getFieldErrorAriaProps(
-                    "notes",
-                    fieldState.error?.message,
-                  )}
-                />
-                {fieldState.error?.message ? (
-                  <p className="text-xs text-destructive">
-                    {fieldState.error.message}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {reserve.hint.notes}
-                  </p>
+        <Controller
+          control={control}
+          name="scheduledDeparture"
+          render={({ field, fieldState }) => (
+            <FormFieldShell
+              fieldId="scheduledDeparture"
+              label={basic.label.scheduledDeparture}
+              required
+              errorMessage={fieldState.error?.message}
+            >
+              <DateTimeField
+                id="scheduledDeparture"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={Boolean(fieldState.error)}
+                {...scheduleFieldProps}
+                {...getFieldErrorAriaProps(
+                  "scheduledDeparture",
+                  fieldState.error?.message,
                 )}
-              </>
-            )}
-          />
-        </div>
+              />
+            </FormFieldShell>
+          )}
+        />
       </section>
     </div>
   );

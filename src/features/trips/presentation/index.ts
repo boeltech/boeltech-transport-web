@@ -47,7 +47,9 @@ export {
   // tripWizardFormSchema,
 } from "./pages/create/components";
 export { FinishTripRedirect } from "./pages/FinishTripRedirect";
+export { TripEditRedirect } from "./pages/TripEditRedirect";
 export { TripDetailPage } from "./pages/TripDetailPage";
+export { TripCanvasPage } from "./pages/create/TripCanvasPage";
 export { TripsListPage } from "./pages/TripsListPage";
 
 // Copy (ACC)
@@ -62,6 +64,7 @@ export {
   historyCopy,
   shellCopy,
   wizardCopy,
+  canvasCopy,
   expenseCopy,
   fiscalCopy,
   summaryCopy,

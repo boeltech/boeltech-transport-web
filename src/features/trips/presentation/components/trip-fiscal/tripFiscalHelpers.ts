@@ -115,6 +115,86 @@ export function buildFixSheetInitialValues(stop: TripStop): {
   };
 }
 
+/** `sequence_order` API es 0-based; UI operativa muestra Parada 1, 2, … */
+export function toFiscalStopDisplayOrder(sequenceOrder: number): number {
+  return sequenceOrder + 1;
+}
+
+/** Sustituye la parada en el viaje en memoria (cache / loadedTrips) tras PATCH fiscal. */
+export function mergePatchedStopIntoTrip(trip: Trip, stop: TripStop): Trip {
+  const stops = trip.stops ?? [];
+  const index = stops.findIndex((item) => item.id === stop.id);
+  if (index < 0) {
+    return { ...trip, stops: [...stops, stop] };
+  }
+  const next = [...stops];
+  next[index] = stop;
+  return { ...trip, stops: next };
+}
+
+export type TripsForStampLoadResult =
+  | { status: "ok"; trips: Trip[] }
+  | { status: "incomplete"; expectedCount: number; loadedCount: number };
+
+/**
+ * Si la factura declara viajes (`expectedTripIds`), todos deben cargarse antes
+ * del preflight. Lista vacía / incompleta no cuenta como «listo para timbrar».
+ */
+export function finalizeTripsForStampLoad(
+  expectedTripIds: readonly string[],
+  fetched: readonly Trip[],
+): TripsForStampLoadResult {
+  if (expectedTripIds.length === 0) {
+    return { status: "ok", trips: [...fetched] };
+  }
+
+  const missing = expectedTripIds.filter(
+    (id) => !fetched.some((trip) => trip.id === id),
+  );
+  if (missing.length > 0) {
+    return {
+      status: "incomplete",
+      expectedCount: expectedTripIds.length,
+      loadedCount: fetched.length,
+    };
+  }
+
+  return { status: "ok", trips: [...fetched] };
+}
+
+/**
+ * Tras corrección fiscal apply-now en detalle de factura: re-entrar al stamp
+ * con preflight (`requestStamp`), nunca `stamp()` directo (N paradas inválidas).
+ */
+export function resolvePostFiscalFixStampMode(options: {
+  enableAutoRestamp: boolean;
+  pendingStampInvoiceId: string | null;
+}): "requestStamp" | "none" {
+  if (options.enableAutoRestamp && options.pendingStampInvoiceId) {
+    return "requestStamp";
+  }
+  return "none";
+}
+
+/** Guard against double-click / re-entry while trips load or stamp mutates. */
+export function shouldBlockConcurrentStampRequest(options: {
+  preparing: boolean;
+  stamping: boolean;
+}): boolean {
+  return options.preparing || options.stamping;
+}
+
+/** CTA / poll busy while preparing, mutating, or preflight sheet is open. */
+export function resolveIsStampBusy(options: {
+  isPreparingStamp: boolean;
+  isStamping: boolean;
+  preflightOpen: boolean;
+}): boolean {
+  return (
+    options.isPreparingStamp || options.isStamping || options.preflightOpen
+  );
+}
+
 export function runTripStopsPreflight(
   stops: readonly TripStop[],
 ): StopRfcPreflightResult {

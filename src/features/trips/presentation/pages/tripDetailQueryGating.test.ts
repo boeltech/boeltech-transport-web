@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { TripStatus } from "@features/trips/domain";
 import {
+  parseTripDetailTab,
+  resolveDefaultTripDetailTab,
   resolveTripDetailTab,
   shouldFetchTripCargos,
   shouldFetchTripExpenses,
@@ -15,6 +17,75 @@ describe("tripDetailQueryGating", () => {
     expect(resolveTripDetailTab("cargo")).toBe("cargo");
     expect(resolveTripDetailTab(null)).toBe("overview");
     expect(resolveTripDetailTab("invalid")).toBe("overview");
+    expect(resolveTripDetailTab("history")).toBe("overview");
+    expect(parseTripDetailTab("history")).toBeNull();
+    expect(parseTripDetailTab("tracking")).toBe("tracking");
+  });
+
+  it("picks default tab from status and completeness (D2)", () => {
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.DRAFT,
+        routeReady: false,
+        cargoCount: 0,
+        hasPendingCobro: false,
+        canShowCosts: true,
+      }),
+    ).toBe("route");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.DRAFT,
+        routeReady: true,
+        cargoCount: 0,
+        hasPendingCobro: false,
+        canShowCosts: true,
+      }),
+    ).toBe("cargo");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.DRAFT,
+        routeReady: true,
+        cargoCount: undefined,
+        hasPendingCobro: false,
+        canShowCosts: true,
+      }),
+    ).toBe("overview");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.SCHEDULED,
+        routeReady: true,
+        cargoCount: 1,
+        hasPendingCobro: false,
+        canShowCosts: true,
+      }),
+    ).toBe("tracking");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.IN_PROGRESS,
+        routeReady: true,
+        cargoCount: 1,
+        hasPendingCobro: false,
+        canShowCosts: true,
+      }),
+    ).toBe("tracking");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.COMPLETED,
+        routeReady: true,
+        cargoCount: 1,
+        hasPendingCobro: true,
+        canShowCosts: true,
+      }),
+    ).toBe("costs");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.COMPLETED,
+        routeReady: true,
+        cargoCount: 1,
+        hasPendingCobro: true,
+        canShowCosts: false,
+      }),
+    ).toBe("overview");
   });
 
   it("gates cargo query to cargo tab or operational tracking", () => {

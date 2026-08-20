@@ -1,7 +1,7 @@
 import { Controller, type Control, type UseFormGetValues, type UseFormSetValue } from "react-hook-form";
 import { Package } from "lucide-react";
 
-import { FormFieldShell, RHFTextField } from "@shared/ui/form";
+import { FormFieldShell, RHFTextField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   ProductoServicioCPSearch,
@@ -45,7 +45,10 @@ export function CargoMovementSheetProductSection({
               errorMessage={errorMessage}
             >
               <ProductoServicioCPSearch
+                id="cargo-sat-product"
                 value={field.value || null}
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps("cargo-sat-product", errorMessage)}
                 onSelect={(item) => {
                   const flags = extractCargoRegulatoryFlags(item.metadata);
                   setValue("satProductCode", item.code, { shouldDirty: true });
@@ -103,7 +106,10 @@ export function CargoMovementSheetProductSection({
               errorMessage={errorMessage}
             >
               <UnidadMedidaSearch
+                id="cargo-sat-unit"
                 value={field.value || null}
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps("cargo-sat-unit", errorMessage)}
                 onSelect={(item) => {
                   setValue("satUnitCode", item.code, { shouldDirty: true });
                   setValue("satUnitName", item.name, { shouldDirty: true });

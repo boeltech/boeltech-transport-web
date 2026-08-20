@@ -73,6 +73,7 @@ export const basicInfoCopy = {
     noBranches: "No hay sucursales activas",
     noVehicles: "No hay unidades disponibles",
     noDrivers: "No hay conductores disponibles",
+    noTrailers: "No hay remolques disponibles",
     noDriversOutsideSupportStaff:
       "No hay conductores fuera del equipo de apoyo. Quita colaboradores de apoyo para poder asignarlos como conductor principal.",
     noEmployeesForPosition: "No hay empleados con este puesto",
@@ -121,7 +122,13 @@ export const basicInfoCopy = {
   format: {
     vehicleOption: (unitNumber: string, licensePlate: string) =>
       `${unitNumber} — ${licensePlate}`,
+    trailerOption: (licensePlate: string, satSubTipoRemCode: string) =>
+      `${licensePlate} · ${satSubTipoRemCode}`,
     currentMileage: (km: number) =>
       `Kilometraje actual: ${km.toLocaleString()} km`,
+  },
+  preset: {
+    todayAtEight: "Hoy 08:00",
+    tomorrowAtEight: "Mañana 08:00",
   },
 } as const;

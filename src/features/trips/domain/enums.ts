@@ -27,8 +27,17 @@ export const TripStatus = {
 
 export type TripStatusType = (typeof TripStatus)[keyof typeof TripStatus];
 
+/** ADR-0079: desenlace operativo del viaje (independiente de `status`). */
+export const TripOperationalOutcome = {
+  STANDARD: "standard",
+  FALSE_TRIP: "false_trip",
+} as const;
+
+export type TripOperationalOutcomeType =
+  (typeof TripOperationalOutcome)[keyof typeof TripOperationalOutcome];
+
 export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
-  [TripStatus.DRAFT]: "Borrador",
+  [TripStatus.DRAFT]: "Reserva",
   [TripStatus.SCHEDULED]: "Programado",
   [TripStatus.IN_PROGRESS]: "En Curso",
   [TripStatus.COMPLETED]: "Completado",

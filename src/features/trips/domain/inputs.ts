@@ -54,6 +54,8 @@ export interface CargoSectorRequirementsInput {
  * Input para crear un movimiento de carga
  */
 export interface CreateCargoMovementInput {
+  /** UUID de parada persistida; requerido por POST /trips/:id/cargos. */
+  stopId?: string;
   stopIndex: number;
   movementType: CargoMovementTypeValue;
   weight?: number;
@@ -484,6 +486,18 @@ export interface CreateTripInput {
   clientId?: string;
   originBranchId?: string;
 
+  /**
+   * Remolques del pool (ADR-0077). Obligatorios vía API/paquete cuando Config S/R.
+   * Forma canónica: `{ trailerId, position }` con position 1|2; máx 2.
+   */
+  trailers?: Array<{ trailerId: string; position: 1 | 2 }>;
+
+  /**
+   * Solo para refine S/R en schemas del paquete (no persistido en BD).
+   * El API lo puede ignorar; se envía al validar create/update.
+   */
+  satConfigAutotransporteCode?: string;
+
   /** Intención CFDI (Ingreso vs Traslado) — UX y futuro timbrado. */
   cfdiDocumentIntent?: "ingreso" | "traslado";
 
@@ -555,11 +569,22 @@ export interface UpdateTripInput {
   clientId?: string | null;
   originBranchId?: string | null;
 
+  /**
+   * Remolques del pool (ADR-0077). En update parcial: omitir la clave no exige remolques.
+   */
+  trailers?: Array<{ trailerId: string; position: 1 | 2 }>;
+
+  /** Solo refine S/R (no persistido). */
+  satConfigAutotransporteCode?: string;
+
   cfdiDocumentIntent?: "ingreso" | "traslado";
 
   // Fechas programadas
   scheduledDeparture?: string;
   scheduledArrival?: string | null;
+
+  // Kilometraje inicial (odómetro al salir; requerido para confirmar reserva)
+  startMileage?: number;
 
   // Origen
   originCity?: string;
@@ -634,6 +659,7 @@ export interface CreateTripWarning {
   message: string;
   vehicleId?: string;
   driverId?: string;
+  trailerId?: string;
   conflictingTripId?: string;
   conflictingTripCode?: string;
 }

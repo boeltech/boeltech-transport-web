@@ -62,19 +62,14 @@ export function resolveTrackingPrimaryAction(
 
   if (tripStatus === TripStatus.SCHEDULED) {
     const origin = ordered.find((stop) => isOriginStop(stop));
-    if (origin) {
-      return {
-        kind: "dispatch",
-        title: trackingCopy.action.start,
-        transitionText: STOP_TRANSITION_COPY.dispatch,
-        stop: origin,
-        displayOrder: resolveStopDisplayOrder(ordered, origin.id),
-      };
-    }
     return {
-      kind: "none",
-      title: trackingCopy.hint.nextStepFallback,
-      transitionText: null,
+      kind: "dispatch",
+      title: trackingCopy.action.start,
+      transitionText: STOP_TRANSITION_COPY.dispatch,
+      stop: origin,
+      displayOrder: origin
+        ? resolveStopDisplayOrder(ordered, origin.id)
+        : undefined,
     };
   }
 

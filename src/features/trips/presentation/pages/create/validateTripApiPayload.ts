@@ -60,8 +60,9 @@
  * ## `UpdateTripInput`
  *
  * `buildUpdateTripInputFromWizardValues` copia los mismos campos de negocio que create
- * (mismos builders de paradas/cargos/gastos). Campos solo-update (p. ej. `totalDistRec`)
- * no los setea el wizard; el backend puede seguir siendo la fuente de verdad.
+ * (mismos builders de paradas/cargos/gastos), incluido `startMileage`. Campos solo-update
+ * (p. ej. `totalDistRec`) no los setea el wizard; el backend puede seguir siendo la fuente
+ * de verdad.
  *
  * @see `wizardToCreateTripInput.ts` — ensamblado del body de alta
  * @see `wizardToUpdateTripInput.ts` — ensamblado del body de edición

@@ -47,6 +47,7 @@ export function FiscalCorrectionReasonField({
         id={id}
         value={value}
         disabled={disabled}
+        error={Boolean(error)}
         placeholder={placeholder}
         aria-describedby={describedBy}
         aria-invalid={Boolean(error)}

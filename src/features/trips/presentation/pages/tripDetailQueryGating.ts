@@ -6,15 +6,60 @@ export const TRIP_DETAIL_TAB_VALUES = [
   "tracking",
   "cargo",
   "costs",
-  "history",
 ] as const;
 
 export type TripDetailTabValue = (typeof TRIP_DETAIL_TAB_VALUES)[number];
 
-export function resolveTripDetailTab(raw: string | null): TripDetailTabValue {
+export function parseTripDetailTab(raw: string | null): TripDetailTabValue | null {
   if (raw && TRIP_DETAIL_TAB_VALUES.includes(raw as TripDetailTabValue)) {
     return raw as TripDetailTabValue;
   }
+  return null;
+}
+
+export function resolveTripDetailTab(
+  raw: string | null,
+  fallback: TripDetailTabValue = "overview",
+): TripDetailTabValue {
+  return parseTripDetailTab(raw) ?? fallback;
+}
+
+export interface DefaultTripDetailTabInput {
+  status: TripStatusType;
+  routeReady: boolean;
+  cargoCount: number | undefined;
+  hasPendingCobro: boolean;
+  canShowCosts: boolean;
+}
+
+/**
+ * Tab inicial cuando no hay `?tab=` (Capa 1 D2).
+ * `cargoCount` undefined = aún no sabemos; no saltar a Cargas.
+ */
+export function resolveDefaultTripDetailTab(
+  input: DefaultTripDetailTabInput,
+): TripDetailTabValue {
+  const { status, routeReady, cargoCount, hasPendingCobro, canShowCosts } =
+    input;
+
+  if (status === TripStatus.DRAFT) {
+    if (!routeReady) return "route";
+    if (cargoCount === 0) return "cargo";
+    return "overview";
+  }
+
+  if (status === TripStatus.SCHEDULED || status === TripStatus.IN_PROGRESS) {
+    return "tracking";
+  }
+
+  if (
+    (status === TripStatus.COMPLETED || status === TripStatus.CANCELLED) &&
+    hasPendingCobro &&
+    canShowCosts
+  ) {
+    return "costs";
+  }
+
   return "overview";
 }
 

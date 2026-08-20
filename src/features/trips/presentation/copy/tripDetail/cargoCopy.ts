@@ -1,42 +1,60 @@
 /**
  * Namespace: trips.copy.tripDetail.cargo.*
+ * Léxico operativo (handoff Capa 1 D10) — superficie de lectura: carga / recogida / entrega.
+ * Sin TI («vincular», «pickup») ni ruido SAT en lectura del tab.
  */
 export const cargoCopy = {
   section: {
-    summary: "Resumen de cargas",
     list: "Cargas del viaje",
-    byStatus: "Por estado",
-    atStop: "Mercancía en esta parada",
-    cargoTimeline: "Hitos de mercancía",
+    detail: "Detalle de la carga",
+    route: "Dónde va",
+    pickup: "Recogida",
+    delivery: "Entrega",
+    insurance: "Seguro",
+    notes: "Notas",
+    /** Usado en Seguimiento (cargas en parada). */
+    atStop: "Cargas en esta parada",
+    cargoTimeline: "Hitos de carga",
   },
   hint: {
-    summary: "Totales consolidados de piezas, peso y valor declarado.",
-    list: "Detalle por mercancía, movimientos y estado.",
-    byStatus: "Cantidad de cargas según su estado operativo.",
-    manageInTracking:
-      "Para recoger, entregar o registrar movimientos, usa el tab Seguimiento.",
+    list: "Planeación de cargas. La recogida y la entrega se registran en Seguimiento.",
+    selectCargo: "Selecciona una carga de la lista.",
+    manageInTracking: "Recogida y entrega se registran en Seguimiento.",
     trackingManageCargo:
-      "Registra recogida, tránsito, entrega o incidencias de cada mercancía.",
-    trackingViewCargo:
-      "Estado actual de las mercancías del viaje.",
-    reviewPlanning:
-      "Revise la planeación de mercancías en edición completa para mantener consistencia operativa.",
+      "Registra recogida, tránsito, entrega o incidencias de cada carga.",
+    trackingViewCargo: "Estado actual de las cargas del viaje.",
+    reviewPlanning: "Revisa la planeación de cargas.",
+    cargoTimeline: "Estado y hitos de las cargas del viaje.",
     pendingBeforeDeparture:
-      "Opera las mercancías pendientes en esta parada antes de registrar salida o cierre del viaje.",
+      "Opera las cargas pendientes en esta parada antes de registrar salida o cierre del viaje.",
+    mobileDetailSheet: "Carga",
   },
   alert: {
-    noPickupTitle: "Cargas sin parada de carga",
+    noPickupTitle: "Cargas sin parada de recogida",
     noPickupBody: (count: number) =>
-      `${count} carga(s) no tienen movimiento de pickup asociado.`,
-    reviewTitle: "Revisión operativa recomendada",
+      count === 1
+        ? "1 carga no tiene parada de recogida."
+        : `${count} cargas no tienen parada de recogida.`,
+    reviewTitle: "Revisa la planeación",
     noDeliveryBody: (count: number) =>
-      `${count} carga(s) no tienen entrega planificada.`,
+      count === 1
+        ? "1 carga no tiene entrega planificada."
+        : `${count} cargas no tienen entrega planificada.`,
     unresolvedMovementBody: (count: number) =>
-      `${count} movimiento(s) no se pudieron vincular con una parada del viaje.`,
+      count === 1
+        ? "1 carga no coincide con una parada de la ruta."
+        : `${count} cargas no coinciden con una parada de la ruta.`,
   },
   action: {
-    openFullEdit: "Abrir edición completa",
-    addInFullEdit: "Agregar carga en edición completa",
+    addCargo: "Agregar carga",
+    editCargo: "Editar carga",
+    removeCargo: "Eliminar carga",
+    confirmRemoveTitle: "¿Eliminar esta carga?",
+    confirmRemoveBody:
+      "Se quitará de la planeación del viaje. Esta acción no se puede deshacer.",
+    confirmRemove: "Eliminar",
+    keepCargo: "Conservar",
+    goToRoute: "Ir a Ruta",
     retry: "Reintentar",
     actionDisabledNotAtStop: "Registra llegada en esta parada para operar",
     deliver: "Entregar",
@@ -48,32 +66,45 @@ export const cargoCopy = {
   },
   state: {
     emptyTitle: "Sin cargas registradas",
-    emptyDescription: "Aún no hay mercancía asociada a este viaje.",
+    emptyDescription:
+      "Agrega la carga que saldrá de la parada de recogida. No bloquea confirmar ni iniciar.",
+    emptyNoPickupTitle: "Falta una parada de recogida",
+    emptyNoPickupDescription:
+      "Agrega una parada de recogida en Ruta antes de registrar cargas.",
     loadError: "No se pudieron cargar las cargas del viaje.",
-    noPickupStops: "No hay paradas con operación de carga en este viaje.",
+    noPickupStops: "No hay paradas con operación de recogida en este viaje.",
     emptyAtStopTitle: "Sin cargas en esta parada",
     emptyAtStopHint:
-      "La planeación de cargas se gestiona en edición completa.",
+      "Agrega cargas desde el tab Cargas cuando haya una parada de recogida.",
     emptyDeliveryAtStopTitle: "Sin cargas pendientes de entrega",
     emptyDeliveryAtStopHint:
       "Las cargas en tránsito aparecerán aquí para registrar entrega.",
+    missingPickup: "Sin recogida",
+    missingDelivery: "Sin entrega",
   },
   label: {
-    totalCargos: "Total cargas",
-    totalWeight: "Peso total",
-    declaredValue: "Valor declarado",
+    totalWeight: "Peso",
+    insuranceValue: "Valor del seguro",
+    insurer: "Aseguradora",
+    policy: "Póliza",
     origin: "Origen",
     destination: "Destino",
     waypoint: "Escala",
-    pickupOperation: "Carga",
-    noMerchandise: "Sin mercancías",
-    hazmat: "Mat. peligroso",
+    pickupStop: "Parada de recogida",
+    deliveryStop: "Parada de entrega",
+    noMerchandise: "Sin cargas",
+    hazardous: "Peligroso",
     defaultUnits: "uds",
-    movementDone: "Movimiento hecho",
     pickupCompleted: "Recogida registrada",
     deliveryCompleted: "Entrega registrada",
     pickedUpAt: "Recogida",
     deliveredAt: "Entregada",
+    weight: "Peso",
+    units: "Unidades",
+    volume: "Volumen",
+    notes: "Notas",
+    specialInstructions: "Instrucciones",
+    status: "Estado",
   },
   toast: {
     delivered: "Carga marcada como entregada",
@@ -84,29 +115,35 @@ export const cargoCopy = {
     returnError: "No se pudo registrar la devolución",
     cancelled: "Carga cancelada",
     cancelError: "No se pudo cancelar la carga",
-    movementCompleted: "Movimiento registrado en parada",
-    movementError: "No se pudo completar el movimiento",
+    cargoAdded: "Carga agregada",
+    cargoAddError: "No se pudo agregar la carga",
+    cargoStopUnresolved:
+      "No se pudo asociar la carga a una parada del viaje. Revisa la ruta e intenta de nuevo.",
+    cargoUpdated: "Carga actualizada",
+    cargoUpdateError: "No se pudo actualizar la carga",
+    cargoRemoved: "Carga eliminada",
+    cargoRemoveError: "No se pudo eliminar la carga",
+    saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
+    movementCompleted: "Operación registrada en parada",
+    movementError: "No se pudo completar la operación",
   },
   format: {
     cargoCount: (count: number) =>
       `${count} ${count === 1 ? "carga" : "cargas"}`,
+    metaLine: (count: number, weightKg: number) => {
+      const countPart = `${count} ${count === 1 ? "carga" : "cargas"}`;
+      if (weightKg <= 0) return countPart;
+      return `${countPart} · ${weightKg.toLocaleString("es-MX")} kg`;
+    },
     stopNumber: (displayOrder: number) => `Parada #${displayOrder}`,
-    merchandiseCount: (count: number) =>
-      `${count} ${count === 1 ? "mercancía" : "mercancías"}`,
     stopLabelFallback: (stopIndex: number) => `Parada #${stopIndex + 1}`,
-    satProductCode: (code: string) => `Producto ${code}`,
-    volume: (volume: string | number) => `Volumen: ${volume} m³`,
-    declaredValueInline: (formatted: string) => `Valor: ${formatted}`,
-    insurance: (name: string) => `Seguro: ${name}`,
-    policy: (policyNumber: string) => `Póliza: ${policyNumber}`,
-    pickupAtStop: (stopLabel: string, weightSuffix?: string) =>
-      `Recoger: ${stopLabel}${weightSuffix ?? ""}`,
-    deliveryAtStop: (
-      stopLabel: string,
-      weightSuffix?: string,
-      unitsSuffix?: string,
-    ) => `Entrega: ${stopLabel}${weightSuffix ?? ""}${unitsSuffix ?? ""}`,
-    weightSuffix: (kg: number) => ` · ${kg} kg`,
-    unitsSuffix: (units: number) => ` · ${units} uds`,
+    volume: (volume: string | number) => `${volume} m³`,
+    routeSummary: (pickupLabel: string, deliveryLabel: string) =>
+      `${pickupLabel} → ${deliveryLabel}`,
+    pickupAtStop: (stopLabel: string) => `Recoge: ${stopLabel}`,
+    deliveryAtStop: (stopLabel: string) => `Entrega: ${stopLabel}`,
+    weightKg: (kg: number) => `${kg.toLocaleString("es-MX")} kg`,
+    unitsCount: (units: number) => `${units} uds`,
+    quantitiesLine: (parts: readonly string[]) => parts.join(" · "),
   },
 } as const;

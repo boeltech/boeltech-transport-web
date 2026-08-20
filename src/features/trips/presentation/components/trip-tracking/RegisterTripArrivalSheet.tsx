@@ -7,6 +7,7 @@ import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
+import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
@@ -31,6 +32,7 @@ import {
 } from "../startTripMileage";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -115,6 +117,8 @@ function RegisterTripArrivalSheetBody({
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
+  const [mileageError, setMileageError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [closureNotes, setClosureNotes] = useState("");
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
@@ -146,54 +150,49 @@ function RegisterTripArrivalSheetBody({
       toast({
         title: copy.toast.tripCloseFailed,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
 
   const handleConfirm = () => {
+    let hasError = false;
     const parsed = mileageField.parseValue();
     if (parsed === null) {
-      toast({
-        title: copy.toast.endMileageRequired,
-        description: copy.toast.endMileageRequiredDescription,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (
+      setMileageError(copy.toast.endMileageRequiredDescription);
+      hasError = true;
+    } else if (
       tripStartMileage != null &&
       Number.isFinite(tripStartMileage) &&
       parsed < tripStartMileage
     ) {
-      toast({
-        title: copy.toast.endMileageInvalid,
-        description: copy.toast.endMileageBelowStart(
-          tripStartMileage.toLocaleString("es-MX"),
-        ),
-        variant: "destructive",
-      });
-      return;
+      setMileageError(
+        copy.toast.endMileageBelowStart(tripStartMileage.toLocaleString("es-MX")),
+      );
+      hasError = true;
+    } else {
+      setMileageError(null);
     }
 
     if (!occurredAt.trim()) {
       setTimeError(copy.validation.arrivalAtDestinationRequired);
-      return;
-    }
-
-    const occurredAtIso = localInputToUtcIso(occurredAt);
-    if (earliestClosure && new Date(occurredAtIso) < earliestClosure) {
-      const floorLabel = actualDeparture
-        ? copy.validation.closureFloorActualDeparture
-        : copy.validation.closureFloorScheduledDeparture;
-      setTimeError(
-        copy.validation.closureBeforeDeparture(
-          floorLabel,
-          formatDateTime(earliestClosure.toISOString()),
-        ),
-      );
-      return;
+      hasError = true;
+    } else {
+      const occurredAtIso = localInputToUtcIso(occurredAt);
+      if (earliestClosure && new Date(occurredAtIso) < earliestClosure) {
+        const floorLabel = actualDeparture
+          ? copy.validation.closureFloorActualDeparture
+          : copy.validation.closureFloorScheduledDeparture;
+        setTimeError(
+          copy.validation.closureBeforeDeparture(
+            floorLabel,
+            formatDateTime(earliestClosure.toISOString()),
+          ),
+        );
+        hasError = true;
+      } else {
+        setTimeError(null);
+      }
     }
 
     if (destinationStop && cargos.length > 0 && orderedStops.length > 0) {
@@ -203,13 +202,18 @@ function RegisterTripArrivalSheetBody({
         orderedStops,
       );
       if (cargoError) {
-        setTimeError(cargoError);
-        return;
+        setFormError(cargoError);
+        hasError = true;
+      } else {
+        setFormError(null);
       }
+    } else {
+      setFormError(null);
     }
 
-    setTimeError(null);
+    if (hasError || parsed === null) return;
 
+    const occurredAtIso = localInputToUtcIso(occurredAt);
     const trimmedNotes = closureNotes.trim();
     registerMutation.mutate({
       tripId,
@@ -236,34 +240,24 @@ function RegisterTripArrivalSheetBody({
           </p>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="trip-arrival-occurred-at">
-            {copy.label.occurredAtArrival}
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="trip-arrival-occurred-at"
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={pending}
-              aria-invalid={timeError ? true : undefined}
-              className="min-w-[220px] flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-              disabled={pending}
-            >
-              {copy.action.now}
-            </Button>
-          </div>
-          {timeError ? (
-            <p className="text-xs text-destructive">{timeError}</p>
-          ) : null}
-        </div>
+        {formError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {formError}
+          </p>
+        ) : null}
+
+        <TrackingOccurredAtField
+          id="trip-arrival-occurred-at"
+          label={copy.label.occurredAtArrival}
+          value={occurredAt}
+          onChange={(next) => {
+            setOccurredAt(next);
+            if (timeError) setTimeError(null);
+          }}
+          disabled={pending}
+          error={Boolean(timeError)}
+          errorMessage={timeError}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="trip-arrival-mileage">{copy.label.endMileage}</Label>
@@ -274,8 +268,20 @@ function RegisterTripArrivalSheetBody({
             inputMode="numeric"
             placeholder={copy.sheet.startMileagePlaceholder}
             value={mileageField.value}
-            onChange={(e) => mileageField.onValueChange(e.target.value)}
+            onChange={(e) => {
+              mileageField.onValueChange(e.target.value);
+              if (mileageError) setMileageError(null);
+            }}
             disabled={pending}
+            error={Boolean(mileageError)}
+            {...getFieldErrorAriaProps(
+              "trip-arrival-mileage",
+              mileageError ?? undefined,
+            )}
+          />
+          <FieldInlineError
+            fieldId="trip-arrival-mileage"
+            message={mileageError ?? undefined}
           />
           {isLoadingVehicle ? (
             <p className="text-xs text-muted-foreground">

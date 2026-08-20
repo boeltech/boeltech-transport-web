@@ -5,7 +5,6 @@ import { tripsListCopy } from "./listCopy";
 describe("tripsListCopy", () => {
   it("usa copy operativo en CTAs y filtros del listado", () => {
     expect(tripsListCopy.actions.create).toBe("Reservar viaje");
-    expect(tripsListCopy.actions.createFull).toBe("Alta completa");
     expect(tripsListCopy.actions.viewDrafts).toBe("Ver reservas");
     expect(tripsListCopy.filter.overdue).toBe("Con retraso");
     expect(tripsListCopy.filter.fiscalLabel).toBe("Atención de factura");
@@ -30,13 +29,16 @@ describe("tripsListCopy", () => {
     expect(tripsListCopy.page.descriptionDriver).not.toMatch(/flota/i);
     expect(tripsListCopy.page.descriptionDriver).not.toMatch(/factura/i);
     expect(tripsListCopy.empty.noDataDescriptionDriver).toMatch(/asignen/i);
+    expect(tripsListCopy.empty.noDataDescription).toMatch(/reservando/i);
     expect(tripsListCopy.filter.searchPlaceholderDriver).toBeDefined();
   });
 
   it("no promete motor de cotizaciones en CTAs del listado", () => {
     const ctaCopy = JSON.stringify({
-      actions: tripsListCopy.actions,
-      createFullHint: tripsListCopy.createFullHint,
+      actions: {
+        create: tripsListCopy.actions.create,
+        viewDrafts: tripsListCopy.actions.viewDrafts,
+      },
       reserve: tripsListCopy.reserve,
     });
     expect(ctaCopy).not.toMatch(/cotizaci[oó]n/i);
@@ -51,7 +53,6 @@ describe("tripsListCopy", () => {
       badge: tripsListCopy.badge,
       invoicingBadge: tripsListCopy.invoicingBadge,
       banner: tripsListCopy.banner,
-      createFullHint: tripsListCopy.createFullHint,
     });
     expect(visible).not.toMatch(/Sin finalizar/);
     expect(visible).not.toMatch(/Situación fiscal/);
@@ -59,6 +60,7 @@ describe("tripsListCopy", () => {
     expect(visible).not.toMatch(/Pend\. cancelación SAT/);
     expect(visible).not.toMatch(/"Fiscal"/);
     expect(visible).not.toMatch(/Alta con cotización/);
+    expect(visible).not.toMatch(/Alta completa/);
   });
 
   it("incluye cliente en el placeholder porque el API search lo cubre", () => {

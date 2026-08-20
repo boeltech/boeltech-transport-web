@@ -8,10 +8,12 @@ import {
 } from "@features/trips/domain";
 
 import { progressCopy } from "../../copy/tripDetail/progressCopy";
+import { trackingCopy } from "../../copy";
 
 import {
   buildTrackingItineraryRows,
   getTrackingNextActionLabel,
+  getTrackingScopeAlertItems,
   resolveTrackingNextAction,
 } from "./trackingOperationalHelpers";
 
@@ -163,5 +165,13 @@ describe("trackingOperationalHelpers", () => {
         [pendingCargo],
       ),
     ).toBe("resolve_cargo_at_stop");
+  });
+
+  it("only alerts an open incident — read-only lives in Qué sigue", () => {
+    expect(getTrackingScopeAlertItems("completed", false)).toEqual([]);
+    const items = getTrackingScopeAlertItems("in_progress", true);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.label).toBe(trackingCopy.hint.incidentLabel);
+    expect(items[0]?.text).toBe(trackingCopy.hint.openIncident);
   });
 });

@@ -39,6 +39,8 @@ export {
   // Trip Status
   TripStatus,
   type TripStatusType,
+  TripOperationalOutcome,
+  type TripOperationalOutcomeType,
   TRIP_STATUS_LABELS,
   VALID_STATUS_TRANSITIONS,
 
@@ -113,6 +115,7 @@ export type {
   // Reference Entities
   VehicleRef,
   DriverRef,
+  TripTrailerRef,
   ClientRef,
   TripInternalStaff,
   TripInvoiceStatus,
@@ -136,6 +139,15 @@ export type {
   ExpensesSummary,
   CargosSummary,
 } from "./entities";
+
+export type {
+  ClientCorridor,
+  CorridorStopSnapshot,
+  RouteEstimate,
+  RouteEstimateParams,
+  ClonedStopInput,
+} from "./canvas";
+export { mapSnapshotToCreateStops } from "./canvas";
 
 export type {
   CreateTrackingEventInput,
@@ -274,6 +286,10 @@ export {
   canDeleteTrip,
   canEditTrip,
   canManageTripExpenses,
+  canCreateTripExpense,
+  canMutatePendingTripExpense,
+  isTripExpensePostCloseWindowOpen,
+  TRIP_EXPENSE_POST_CLOSE_WINDOW_DAYS,
   canModifyStops,
   canStartTrip,
   canTransitionTo,

@@ -5,6 +5,7 @@
  * - Ruta física: `src/features/<feature>/presentation/copy/`
  * - Namespace lógico: `<feature>.copy.<surface>.*`
  * - Detalle de viaje: `trips.copy.tripDetail.<tab>.*` vía `tripDetailCopy`
+ * - Canvas alta: `trips.copy.canvas.*` vía `canvasCopy`
  * - Wizard alta: `trips.copy.wizard.*` vía `wizardCopy`
  */
 export { formatAccLine } from "./formatAccLine";
@@ -42,3 +43,4 @@ export {
 } from "./wizard";
 export type { CfdiDocumentIntent, StopFiscalUiContext } from "./wizard";
 export { tripsListCopy } from "./listCopy";
+export { canvasCopy } from "./canvasCopy";

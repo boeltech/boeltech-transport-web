@@ -155,7 +155,7 @@ export const routeCopy = {
         fallback: "2. Quién entrega o recibe",
       },
       contactPlanning: "3. Contacto y horario",
-      billingDetails: "Datos para facturar",
+      billingDetails: "RFC de esta parada",
     },
     label: {
       locationName: "Nombre del lugar",
@@ -178,6 +178,10 @@ export const routeCopy = {
     hint: {
       waypointArrivalInterpolation:
         "Se calculará automáticamente si no la capturas.",
+      billingOptional:
+        "Opcional al armar la ruta. Se pide al timbrar o iniciar.",
+      billingCollapsedErrors:
+        "Faltan RFC o razón social de esta parada. Ábrelos para completarlos.",
     },
     alert: {
       missingGeolocationTitle: "Falta ubicar esta dirección en el mapa",
@@ -213,11 +217,13 @@ export const routeCopy = {
         "Revisa los campos del domicilio antes de guardar en el catálogo.",
       persistErrorTitle: "Error al actualizar la dirección",
       persistErrorBody: "La parada no se guardó. Intenta de nuevo.",
+      saveErrorTitle: "No se pudo guardar la parada",
+      saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     },
     persistDialog: {
       title: "¿Actualizar la dirección del cliente?",
       description:
-        "Modificaste el domicilio precargado del cliente. Puedes guardar los cambios en el catálogo del cliente o usar esta versión solo para esta parada del viaje.",
+        "Modificaste el domicilio operativo precargado del cliente. Puedes guardar los cambios en el catálogo o usarlos solo en esta parada. El domicilio fiscal de facturación no se actualiza desde aquí.",
       updateClient: "Actualizar en el cliente",
       stopOnly: "Solo en esta parada",
       backToForm: "Volver al formulario",
@@ -226,7 +232,7 @@ export const routeCopy = {
     addressOrigin: {
       title: "Dirección guardada",
       description:
-        "Se listan las direcciones del catálogo (cliente, sucursal en origen o directorio de la empresa). Escribe para filtrar; al seleccionar se copia a esta parada sin modificar la fuente.",
+        "Se listan lugares de viaje del cliente (bodega, entrega o recolección), sucursal en origen y directorio. El domicilio fiscal de facturación no aparece aquí.",
       pickerLabel: "Buscar dirección existente",
       pickerPlaceholder: "Nombre, calle o código postal…",
     },

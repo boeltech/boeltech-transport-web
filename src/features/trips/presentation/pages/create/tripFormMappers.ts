@@ -137,6 +137,11 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
   return {
     vehicleId: trip.vehicleId,
     driverId: trip.driverId,
+    trailers: (trip.trailers ?? []).map((t) => ({
+      trailerId: t.trailerId,
+      position: t.position,
+    })),
+    satConfigAutotransporteCode: "",
     clientId: trip.clientId || "",
     originBranchId: trip.originBranchId ?? "",
     cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",

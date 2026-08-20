@@ -16,6 +16,7 @@ import {
   createStatusBadgeComponent,
   StatusBadge,
 } from "@shared/components/StatusBadge";
+import { trackingCopy } from "../../copy";
 
 export const TRACKING_STOP_STATUS_CONFIG = {
   [StopStatus.PENDING]: createStatusConfig("neutral", {
@@ -34,9 +35,9 @@ export const TRACKING_STOP_STATUS_CONFIG = {
     description: "Parada completada",
   }),
   [StopStatus.SKIPPED]: createStatusConfig("warning", {
-    label: STOP_STATUS_LABELS[StopStatus.SKIPPED],
+    label: trackingCopy.state.skippedNotVisited,
     icon: SkipForward,
-    description: "Parada omitida",
+    description: "Parada omitida — no se visitó",
   }),
 } as const;
 

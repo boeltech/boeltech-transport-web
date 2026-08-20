@@ -13,15 +13,9 @@ export const tripsListCopy = {
 
   actions: {
     create: "Reservar viaje",
-    createFull: "Alta completa",
     viewDrafts: "Ver reservas",
     viewMore: "Ver más",
     clearFilters: "Limpiar filtros",
-  },
-
-  createFullHint: {
-    label: "Alta completa",
-    body: "Captura ruta, paradas, carga y costos en un solo alta. Para anotar un pedido por llamada o mensaje, usa Reservar viaje.",
   },
 
   reserve: {
@@ -109,11 +103,12 @@ export const tripsListCopy = {
   invoiceablePicker: {
     title: "Seleccionar viaje facturable",
     description:
-      "Elige un viaje elegible para generar la factura. Solo se muestran viajes sin factura activa.",
+      "Elige un viaje elegible para generar la factura. Incluye flete y viajes en falso sin factura activa.",
     searchPlaceholder: "Buscar por código, origen o destino…",
     empty: "No hay viajes facturables en este momento.",
     loadError: "No se pudo cargar la lista de viajes.",
     selectAction: "Facturar",
+    falseTripChip: "Viaje en falso",
     columns: {
       code: "Código",
       route: "Ruta",
@@ -128,7 +123,7 @@ export const tripsListCopy = {
     titleClient: "No se encontraron envíos",
     titleDriver: "No se encontraron viajes",
     filteredDescription: "Prueba ajustando los filtros de búsqueda",
-    noDataDescription: "Empieza creando tu primer viaje",
+    noDataDescription: "Empieza reservando tu primer viaje",
     noDataDescriptionClient:
       "Cuando tengas envíos registrados, aparecerán aquí.",
     noDataDescriptionDriver:
@@ -163,6 +158,11 @@ export const tripsListCopy = {
       "Ej.: el cliente pidió cancelarlo, clima adverso…",
     cancelBack: "Volver",
     cancelConfirm: "Cancelar viaje",
+    falseTripInsteadTitle:
+      "Si el cliente canceló en sitio y vas a cobrar el viaje, no canceles.",
+    falseTripInsteadBody:
+      "Declara viaje en falso en Seguimiento. Cancelar deja el viaje como pérdida y no se factura.",
+    falseTripInsteadCta: "Ir a Seguimiento",
   },
 
   entityLabelPlural: "viajes",

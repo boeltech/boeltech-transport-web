@@ -6,7 +6,6 @@ import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
 import { useDepartOrigin } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import {
@@ -22,6 +21,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -83,7 +83,8 @@ function DepartOriginSheetBody({
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [notes, setNotes] = useState("");
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [occurredAtError, setOccurredAtError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const departMutation = useDepartOrigin({
@@ -98,15 +99,18 @@ function DepartOriginSheetBody({
       toast({
         title: copy.toast.originDepartFailed,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
 
   const handleConfirm = () => {
+    let hasError = false;
     if (!occurredAt.trim()) {
-      setFieldError(copy.validation.departureRequired);
-      return;
+      setOccurredAtError(copy.validation.departureRequired);
+      hasError = true;
+    } else {
+      setOccurredAtError(null);
     }
 
     if (cargos.length > 0 && orderedStops.length > 0) {
@@ -116,12 +120,16 @@ function DepartOriginSheetBody({
         orderedStops,
       );
       if (cargoError) {
-        setFieldError(cargoError);
-        return;
+        setFormError(cargoError);
+        hasError = true;
+      } else {
+        setFormError(null);
       }
+    } else {
+      setFormError(null);
     }
 
-    setFieldError(null);
+    if (hasError) return;
 
     const gpsFields = trackingGpsToEventFields(gps);
     departMutation.mutate({
@@ -143,34 +151,24 @@ function DepartOriginSheetBody({
           {formatStopContextLine(originStop, displayOrder ?? 1)}
         </p>
 
-        <div className="space-y-2">
-          <Label htmlFor="depart-origin-occurred-at">
-            {copy.label.occurredAtDeparture}
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="depart-origin-occurred-at"
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={isPending}
-              aria-invalid={fieldError ? true : undefined}
-              className="min-w-[220px] flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-              disabled={isPending}
-            >
-              {copy.action.now}
-            </Button>
-          </div>
-          {fieldError ? (
-            <p className="text-xs text-destructive">{fieldError}</p>
-          ) : null}
-        </div>
+        {formError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {formError}
+          </p>
+        ) : null}
+
+        <TrackingOccurredAtField
+          id="depart-origin-occurred-at"
+          label={copy.label.occurredAtDeparture}
+          value={occurredAt}
+          onChange={(next) => {
+            setOccurredAt(next);
+            if (occurredAtError) setOccurredAtError(null);
+          }}
+          disabled={isPending}
+          error={Boolean(occurredAtError)}
+          errorMessage={occurredAtError}
+        />
 
         <TrackingGpsCaptureSection
           stop={originStop}

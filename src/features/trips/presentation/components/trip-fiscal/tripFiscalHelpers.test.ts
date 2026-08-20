@@ -4,9 +4,15 @@ import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture"
 import {
   buildFixSheetInitialValues,
   canApplyStopFiscalCorrection,
+  finalizeTripsForStampLoad,
   getEffectiveStopRfc,
+  mergePatchedStopIntoTrip,
+  resolvePostFiscalFixStampMode,
+  resolveIsStampBusy,
+  shouldBlockConcurrentStampRequest,
   shouldShowFiscalCorrectionChip,
   shouldShowFiscalWarningChip,
+  toFiscalStopDisplayOrder,
 } from "./tripFiscalHelpers";
 
 function makeStop(overrides: Partial<TripStop> = {}): TripStop {
@@ -160,5 +166,101 @@ describe("tripFiscalHelpers", () => {
 
     expect(canApplyStopFiscalCorrection(trip)).toBe(false);
     expect(shouldShowFiscalCorrectionChip(trip, validStop)).toBe(false);
+  });
+
+  it("toFiscalStopDisplayOrder maps 0-based sequence to Parada 1..N", () => {
+    expect(toFiscalStopDisplayOrder(0)).toBe(1);
+    expect(toFiscalStopDisplayOrder(2)).toBe(3);
+  });
+
+  it("finalizeTripsForStampLoad aborts when expected trips are missing (F1)", () => {
+    const incomplete = finalizeTripsForStampLoad(
+      ["trip-a", "trip-b"],
+      [makeTrip({ id: "trip-a" })],
+    );
+    expect(incomplete).toEqual({
+      status: "incomplete",
+      expectedCount: 2,
+      loadedCount: 1,
+    });
+
+    const emptyExpected = finalizeTripsForStampLoad([], []);
+    expect(emptyExpected).toEqual({ status: "ok", trips: [] });
+
+    const ok = finalizeTripsForStampLoad(
+      ["trip-a"],
+      [makeTrip({ id: "trip-a" })],
+    );
+    expect(ok.status).toBe("ok");
+    if (ok.status === "ok") {
+      expect(ok.trips).toHaveLength(1);
+    }
+  });
+
+  it("mergePatchedStopIntoTrip updates RFC so preflight can pass after fix", () => {
+    const trip = makeTrip({
+      stops: [
+        makeStop({
+          id: "stop-1",
+          rfcRemitenteDestinatario: null,
+        }),
+      ],
+    });
+    const patched = makeStop({
+      id: "stop-1",
+      rfcRemitenteDestinatario: "EKU9003173C9",
+    });
+
+    const merged = mergePatchedStopIntoTrip(trip, patched);
+    expect(merged.stops?.[0]?.rfcRemitenteDestinatario).toBe("EKU9003173C9");
+    expect(trip.stops?.[0]?.rfcRemitenteDestinatario).toBeNull();
+  });
+
+  it("resolvePostFiscalFixStampMode uses requestStamp not raw stamp (F2)", () => {
+    expect(
+      resolvePostFiscalFixStampMode({
+        enableAutoRestamp: true,
+        pendingStampInvoiceId: "inv-1",
+      }),
+    ).toBe("requestStamp");
+    expect(
+      resolvePostFiscalFixStampMode({
+        enableAutoRestamp: false,
+        pendingStampInvoiceId: "inv-1",
+      }),
+    ).toBe("none");
+    expect(
+      resolvePostFiscalFixStampMode({
+        enableAutoRestamp: true,
+        pendingStampInvoiceId: null,
+      }),
+    ).toBe("none");
+  });
+
+  it("shouldBlockConcurrentStampRequest and resolveIsStampBusy cover stamp races", () => {
+    expect(
+      shouldBlockConcurrentStampRequest({ preparing: true, stamping: false }),
+    ).toBe(true);
+    expect(
+      shouldBlockConcurrentStampRequest({ preparing: false, stamping: true }),
+    ).toBe(true);
+    expect(
+      shouldBlockConcurrentStampRequest({ preparing: false, stamping: false }),
+    ).toBe(false);
+
+    expect(
+      resolveIsStampBusy({
+        isPreparingStamp: false,
+        isStamping: false,
+        preflightOpen: true,
+      }),
+    ).toBe(true);
+    expect(
+      resolveIsStampBusy({
+        isPreparingStamp: false,
+        isStamping: false,
+        preflightOpen: false,
+      }),
+    ).toBe(false);
   });
 });

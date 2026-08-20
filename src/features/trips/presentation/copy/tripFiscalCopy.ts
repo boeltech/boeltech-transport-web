@@ -32,7 +32,7 @@ export const tripFiscalCopy = {
     address: {
       swapLabel: "Buscar dirección existente",
       swapDescription:
-        "Reutiliza un domicilio del catálogo del cliente o del tenant. Se copia a la parada sin modificar la fuente.",
+        "Reutiliza un domicilio operativo del cliente (bodega, entrega o recolección) o del directorio. Se copia a la parada; no modifica el catálogo ni el domicilio fiscal de facturación.",
       inlineLabel: "Capturar domicilio corregido",
       locationNameLabel: "Nombre del lugar",
       locationNamePlaceholder:
@@ -107,10 +107,13 @@ export const tripFiscalCopy = {
   stamp: {
     errorTitle: "Error al timbrar",
     fixAction: "Corregir RFC",
-    invalidRfcDescription: (stopOrder: number | null) =>
-      stopOrder != null
-        ? `RFC inválido en parada #${stopOrder}.`
+    /** `displayOrder` ya es 1-based (usar `toFiscalStopDisplayOrder`). */
+    invalidRfcDescription: (displayOrder: number | null) =>
+      displayOrder != null
+        ? `RFC inválido en parada #${displayOrder}.`
         : "RFC inválido en una parada del viaje.",
+    tripLoadFailed:
+      "No se pudieron cargar los datos del viaje para validar el RFC. Reintenta timbrar.",
     /**
      * Pre-stamp CP3.1 por datos de Autotransporte / remolques / placas.
      * `detail` suele ser el mensaje de `details[]` del API.
@@ -128,11 +131,12 @@ export const tripFiscalCopy = {
   },
   invoiceActions: {
     menuLabel: "Facturación",
-    generatePrimary: "Generar factura",
+    generatePrimary: "Facturar",
+    generateFalseTrip: "Facturar viaje en falso",
     generateAccessory: "Facturar servicios adicionales",
-    viewPrimary: "Ver factura de flete",
+    viewPrimary: "Ver factura",
     viewAccessory: (folio: string) =>
-      folio ? `Ver accesoria (${folio})` : "Ver factura accesoria",
+      folio ? `Ver factura (${folio})` : "Ver factura adicional",
   },
   invoicesSection: {
     title: "Facturas del viaje",
@@ -145,6 +149,10 @@ export const tripFiscalCopy = {
     compactTitle: "Facturación",
     openMenuHint: "Gestionar en el menú Facturación",
     goToRouteTab: "Ir a Ruta",
-    goToCargoTab: "Ir a Carga",
+    goToCargoTab: "Ir a Cargas",
+  },
+  detailBadge: {
+    readyToBill: "Listo para facturar",
+    pending: "Pendiente",
   },
 } as const;

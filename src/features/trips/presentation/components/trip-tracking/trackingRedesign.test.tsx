@@ -131,6 +131,13 @@ describe("trackingNextAction", () => {
     expect(action.transitionText).toBe(STOP_TRANSITION_COPY.dispatch);
   });
 
+  it("sigue en dispatch programado aunque no haya parada origen", () => {
+    const action = resolveTrackingPrimaryAction(TripStatus.SCHEDULED, []);
+    expect(action.kind).toBe("dispatch");
+    expect(action.title).toBe(trackingCopy.action.start);
+    expect(action.stop).toBeUndefined();
+  });
+
   it("prioriza llegada a origen tras dispatch", () => {
     const action = resolveTrackingPrimaryAction(TripStatus.IN_PROGRESS, [
       origin,
@@ -319,6 +326,42 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(screen.getByText("Paradas y cargas")).toBeInTheDocument();
     expect(screen.getAllByText("1 carga").length).toBeGreaterThan(0);
     expect(screen.getByText("Zapatos")).toBeInTheDocument();
+    expect(screen.getByText("120 kg · 10 uds")).toBeInTheDocument();
+    expect(screen.queryByText(/Producto/)).not.toBeInTheDocument();
+  });
+
+  it("muestra peligroso en la carga del hub sin clave SAT", () => {
+    const cargos = [
+      cargo({
+        id: "c1",
+        requiresHazmat: true,
+        satProductCode: "10101500",
+        movements: [
+          {
+            id: "m1",
+            movementType: "pickup",
+            stopId: "s1",
+            stopIndex: 1,
+            completedAt: null,
+            weight: null,
+            units: null,
+            notes: null,
+          },
+        ],
+      }),
+    ];
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={cargos}
+      />,
+    );
+
+    expect(screen.getByText(trackingCopy.label.hazardous)).toBeInTheDocument();
+    expect(screen.queryByText("10101500")).not.toBeInTheDocument();
   });
 
   it("preselecciona la parada objetivo y muestra acción de llegada en la cabecera del hub", () => {
@@ -339,6 +382,95 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(
       screen.queryByText(STOP_TRANSITION_COPY.arrive),
     ).not.toBeInTheDocument();
+  });
+
+  it("tras llegada en origen muestra CTA secundario de viaje en falso y conserva Salida de origen", async () => {
+    const onDeclareFalseTrip = vi.fn();
+    const user = userEvent.setup();
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[originArrived, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking
+        onDepartOrigin={vi.fn()}
+        onDeclareFalseTrip={onDeclareFalseTrip}
+      />,
+    );
+
+    expect(screen.getByText("Qué sigue")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: new RegExp(trackingCopy.action.departOrigin) }),
+    ).toBeInTheDocument();
+    const declareCta = screen.getByRole("button", {
+      name: trackingCopy.action.clientCancelledCargo,
+    });
+    expect(declareCta).toBeInTheDocument();
+    expect(
+      screen.getByText(STOP_TRANSITION_COPY.declareFalseTrip),
+    ).toBeInTheDocument();
+
+    await user.click(declareCta);
+    expect(onDeclareFalseTrip).toHaveBeenCalledOnce();
+  });
+
+  it("en programado muestra Iniciar viaje deshabilitado si no hay paradas", async () => {
+    const user = userEvent.setup();
+    const onStartTrip = vi.fn();
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        canOperateTracking
+        onStartTrip={onStartTrip}
+      />,
+    );
+
+    const startButton = screen.getByRole("button", {
+      name: /Iniciar viaje/i,
+    });
+    expect(startButton).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Se requieren paradas de origen y destino para iniciar el viaje.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(trackingCopy.state.readOnly),
+    ).not.toBeInTheDocument();
+    await user.click(startButton);
+    expect(onStartTrip).not.toHaveBeenCalled();
+  });
+
+  it("en programado no oculta Iniciar por ausencia de cargas", async () => {
+    const user = userEvent.setup();
+    const onStartTrip = vi.fn();
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        canOperateTracking
+        onStartTrip={onStartTrip}
+      />,
+    );
+
+    const startButton = screen.getByRole("button", {
+      name: trackingCopy.action.start,
+    });
+    expect(startButton).toBeEnabled();
+    await user.click(startButton);
+    expect(onStartTrip).toHaveBeenCalledOnce();
   });
 
   it("expone un solo CTA de parada en la cabecera (no en el panel)", () => {

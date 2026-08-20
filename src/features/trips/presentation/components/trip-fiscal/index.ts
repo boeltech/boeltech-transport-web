@@ -7,8 +7,12 @@ export { describeStampApiError } from "./stampErrorDescription";
 export {
   buildFixSheetInitialValues,
   canApplyStopFiscalCorrection,
+  finalizeTripsForStampLoad,
   getEffectiveStopRfc,
   isStopRfcInvalidForStamp,
+  mergePatchedStopIntoTrip,
+  resolvePostFiscalFixStampMode,
   shouldShowFiscalCorrectionChip,
   shouldShowFiscalWarningChip,
+  toFiscalStopDisplayOrder,
 } from "./tripFiscalHelpers";

@@ -22,9 +22,9 @@ import { TripStatus, type TripStatusType } from "../../domain";
 
 export const TRIP_STATUS_CONFIG: Record<TripStatusType, StatusConfig> = {
   [TripStatus.DRAFT]: createStatusConfig("neutral", {
-    label: "Borrador",
+    label: "Reserva",
     icon: FileEdit,
-    description: "Viaje en proceso de creación, aún no programado",
+    description: "Pedido anotado; pendiente de programar",
   }),
 
   [TripStatus.SCHEDULED]: createStatusConfig("info", {

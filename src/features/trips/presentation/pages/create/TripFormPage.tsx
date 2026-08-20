@@ -36,6 +36,7 @@ import {
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { Skeleton } from "@shared/ui/skeleton";
 import { FormValidationSummary } from "@shared/ui/form";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 // Feature hooks
@@ -1142,38 +1143,47 @@ export function TripFormPage() {
   }
 
   return (
-    <WizardPageShell
-      steps={shellSteps}
-      formRef={formRef}
-      header={shellHeader}
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel={
-        isEditMode
-          ? shell.submit.save
-          : isReserveIntent
-            ? shell.submit.reserve
-            : shell.submit.create
-      }
-      submittingLabel={
-        isEditMode
-          ? shell.submit.saving
-          : isReserveIntent
-            ? shell.submit.reserving
-            : shell.submit.creating
-      }
-      stepsAriaLabel={shell.submit.stepsAriaLabel}
-      onCancel={() => navigate(-1)}
-      onHeaderBack={() => navigate(-1)}
-      headerBackMode="exit"
-      className="pb-8"
-      resolveContainerClassName={(step) =>
-        !isReserveIntent && step === WIZARD_STEPS.length - 1
-          ? "max-w-6xl"
-          : undefined
-      }
-      initialStep={wizardInitialStep}
-    />
+    <>
+      <AlertWithIcon
+        variant="warning"
+        title={shell.page.retiredBannerTitle}
+        className="mb-4"
+      >
+        {shell.page.retiredBannerBody}
+      </AlertWithIcon>
+      <WizardPageShell
+        steps={shellSteps}
+        formRef={formRef}
+        header={shellHeader}
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel={
+          isEditMode
+            ? shell.submit.save
+            : isReserveIntent
+              ? shell.submit.reserve
+              : shell.submit.create
+        }
+        submittingLabel={
+          isEditMode
+            ? shell.submit.saving
+            : isReserveIntent
+              ? shell.submit.reserving
+              : shell.submit.creating
+        }
+        stepsAriaLabel={shell.submit.stepsAriaLabel}
+        onCancel={() => navigate(-1)}
+        onHeaderBack={() => navigate(-1)}
+        headerBackMode="exit"
+        className="pb-8"
+        resolveContainerClassName={(step) =>
+          !isReserveIntent && step === WIZARD_STEPS.length - 1
+            ? "max-w-6xl"
+            : undefined
+        }
+        initialStep={wizardInitialStep}
+      />
+    </>
   );
 }
 

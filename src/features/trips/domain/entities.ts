@@ -19,6 +19,7 @@ import type {
   CargoStatusType,
   CargoMovementTypeValue,
   CurrencyType,
+  TripOperationalOutcomeType,
 } from "./enums";
 
 // ============================================================================
@@ -90,6 +91,18 @@ export interface DriverRef {
   readonly fullName: string;
 }
 
+/**
+ * Remolque asignado al viaje con snapshot CP (ADR-0077).
+ * Fuente: `trip_trailers` / respuesta `trailers[]`.
+ */
+export interface TripTrailerRef {
+  readonly trailerId: string;
+  readonly position: 1 | 2;
+  readonly satSubTipoRemCode: string;
+  readonly licensePlate: string;
+  readonly snapshotAt: string;
+}
+
 export interface ClientRef {
   readonly id: string;
   readonly legalName: string;
@@ -138,8 +151,12 @@ export interface TripInvoicing {
   /** BC: equivale a hasActivePrimaryInvoice (ADR-0068). */
   readonly hasActiveInvoice: boolean;
   readonly hasActivePrimaryInvoice: boolean;
+  /** Primaria o `false_trip` no cancelada (ADR-0079). */
+  readonly hasActivePrincipalInvoice: boolean;
   readonly canGenerateInvoice: boolean;
   readonly canGenerateAccessoryInvoice: boolean;
+  /** Outcome falso + completed + sin principal activa (ADR-0079). */
+  readonly canGenerateFalseTripInvoice: boolean;
   readonly invoiceId: string | null;
   readonly invoiceFolio: string | null;
   /** UUID del CFDI timbrado (solo lectura / operación fiscal). */
@@ -493,6 +510,11 @@ export interface Trip {
 
   // Estado
   readonly status: TripStatusType;
+  /** ADR-0079: `standard` | `false_trip`. Default `standard`. */
+  readonly operationalOutcome: TripOperationalOutcomeType;
+  readonly falseTripDeclaredAt: Date | null;
+  /** ADR-0079: UUID del usuario que declaró el falso, si el API lo envía. */
+  readonly falseTripDeclaredBy: string | null;
   readonly notes: string | null;
   readonly cancellationReason: string | null;
   readonly invoicing: TripInvoicing;
@@ -526,6 +548,8 @@ export interface Trip {
   readonly vehicle?: VehicleRef;
   readonly driver?: DriverRef;
   readonly client?: ClientRef;
+  /** Remolques asignados + snapshot (ADR-0077). */
+  readonly trailers?: TripTrailerRef[];
   readonly internalStaff?: TripInternalStaff[];
   readonly stops?: TripStop[];
   readonly cargos?: TripCargo[];
@@ -550,6 +574,9 @@ export interface TripListItem {
   readonly scheduledDeparture: Date;
   readonly scheduledArrival: Date | null;
   readonly status: TripStatusType;
+  readonly operationalOutcome: TripOperationalOutcomeType;
+  readonly falseTripDeclaredAt: Date | null;
+  readonly falseTripDeclaredBy: string | null;
   readonly cargoDescription: string | null;
   readonly baseRate: number;
   readonly totalCost: number;
@@ -571,6 +598,7 @@ export interface TripDetail extends Trip {
   readonly vehicle: VehicleRef;
   readonly driver: DriverRef;
   readonly client: ClientRef | undefined;
+  readonly trailers: TripTrailerRef[];
   readonly stops: TripStop[];
   readonly cargos: TripCargo[];
   readonly expenses: TripExpense[];

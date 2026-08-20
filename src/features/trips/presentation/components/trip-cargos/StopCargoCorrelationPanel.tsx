@@ -87,7 +87,9 @@ export function StopCargoCorrelationPanel({
                   </Badge>
                   {isCompleted ? (
                     <Badge variant="outline" className="text-[10px] font-normal">
-                      {copy.label.movementDone}
+                      {link.movementType === "pickup"
+                        ? copy.label.pickupCompleted
+                        : copy.label.deliveryCompleted}
                     </Badge>
                   ) : null}
                 </div>

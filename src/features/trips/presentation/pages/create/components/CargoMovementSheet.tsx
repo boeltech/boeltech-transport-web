@@ -42,12 +42,15 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import {
+  FieldInlineError,
   FormFieldShell,
   FormValidationSummary,
+  RHFMoneyField,
   RHFTextField,
   RHFTextareaField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   AlertTriangle,
   MessageSquare,
@@ -63,7 +66,7 @@ import {
   CargoOptionalSection,
   CargoProductRequirementsSection,
 } from "./cargo-movement";
-import { useToast } from "@shared/hooks";
+import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
 
 import {
   getMissingSectorRequiredFields,
@@ -110,6 +113,13 @@ export interface CargoMovementSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Parada `pickup` desde la que se abrió el sheet; `null` mientras está cerrado. */
   pickupStop: CargoSheetPickupStop | null;
+  /**
+   * Paradas de recogida elegibles en alta (detalle con varios pickups).
+   * Si hay más de una y se pasa `onPickupStopChange`, el sheet muestra selector.
+   */
+  availablePickupStops?: CargoSheetPickupStop[];
+  /** Cambia la parada de recogida en alta sin cerrar el sheet. */
+  onPickupStopChange?: (stop: CargoSheetPickupStop) => void;
   /** Paradas `delivery` posteriores donde puede asignarse esta mercancía. */
   availableDeliveryStops: CargoSheetDeliveryStop[];
   /** Si es edición, los valores iniciales; si es alta, `null`. */
@@ -122,12 +132,22 @@ export interface CargoMovementSheetProps {
   baselineWeightKg: number;
   /** Mercancías ya registradas en la parada activa. */
   stopCargoCount: number;
-  /** Se llama con los valores validados Zod. */
+  /**
+   * Cuando es true, la sección de entregas es solo lectura (p. ej. edit en
+   * detalle de viaje: `UpdateCargoInput` no reescribe movements).
+   */
+  deliveriesReadOnly?: boolean;
+  /**
+   * Título del toast/alert cuando `onSubmit` rechaza (API).
+   * Por defecto usa el copy del sheet de wizard.
+   */
+  submitErrorTitle?: string;
+  /** Se llama con los valores validados Zod. Puede ser async (detalle → API). */
   onSubmit: (
     values: TripCargoFormValues,
     editingIndex: number | null,
     options?: { keepOpen?: boolean },
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 // ============================================================================
@@ -241,16 +261,41 @@ function initialDeliveryAssignments(
 function CargoMovementSheetSession({
   onOpenChange,
   pickupStop,
+  availablePickupStops,
+  onPickupStopChange,
   availableDeliveryStops,
   initialValues,
   editingIndex,
   vehicleCapacityKg,
   baselineWeightKg,
   stopCargoCount,
+  deliveriesReadOnly = false,
+  submitErrorTitle,
   onSubmit,
-}: Omit<CargoMovementSheetProps, "open">) {
-  const { error: showErrorToast, success: showSuccessToast } = useToast();
+  onSubmittingChange,
+}: Omit<CargoMovementSheetProps, "open"> & {
+  onSubmittingChange: (submitting: boolean) => void;
+}) {
+  const { error: showErrorToast, toast } = useToast();
+  const { submissionError, showOverlayError, clearOverlayError } =
+    useOverlayMutationFeedback({
+      errorTitle: submitErrorTitle ?? sheet.toast.saveErrorTitle,
+      seeInlineCopy: sheet.toast.saveErrorSeeInline,
+      toast,
+    });
   const catalogHydrateKeyRef = useRef<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryStopError, setDeliveryStopError] = useState<string | null>(
+    null,
+  );
+
+  const setSubmitting = useCallback(
+    (next: boolean) => {
+      setIsSubmitting(next);
+      onSubmittingChange(next);
+    },
+    [onSubmittingChange],
+  );
 
   const defaultValues = useMemo<TripCargoFormValues>(() => {
     if (initialValues) return buildEditDefaults(initialValues);
@@ -264,16 +309,30 @@ function CargoMovementSheetSession({
     // práctica recomendada por `@hookform/resolvers/zod` en ese escenario.
     resolver: zodResolver(tripCargoSchema) as Resolver<TripCargoFormValues>,
     defaultValues,
-    mode: "onSubmit",
+    mode: "onChange",
     shouldUnregister: false,
   });
   const { control, handleSubmit, setValue, getValues, reset, formState } = form;
+
+  const pickupStopIndex = pickupStop?.index ?? 0;
 
   // Estado fuera del schema: entregas posteriores
   const [deliveryAssignments, setDeliveryAssignments] = useState(
     () => initialDeliveryAssignments(initialValues),
   );
   const [showSummary, setShowSummary] = useState(false);
+
+  // Al cambiar pickup en alta, descarta entregas que ya no son posteriores.
+  useEffect(() => {
+    if (deliveriesReadOnly) return;
+    setDeliveryAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.stopIndex >= 0 && assignment.stopIndex <= pickupStopIndex
+          ? { ...assignment, stopIndex: -1 }
+          : assignment,
+      ),
+    );
+  }, [deliveriesReadOnly, pickupStopIndex]);
 
   // ============================================================================
   // Watchers
@@ -507,6 +566,9 @@ function CargoMovementSheetSession({
     setDeliveryAssignments((prev) =>
       prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)),
     );
+    if (field === "stopIndex" && typeof value === "number" && value >= 0) {
+      setDeliveryStopError(null);
+    }
   };
 
   const handleRemoveDelivery = (index: number) => {
@@ -536,7 +598,12 @@ function CargoMovementSheetSession({
   // Submit
   // ============================================================================
 
-  const pickupStopIndex = pickupStop?.index ?? 0;
+  const hasIncompleteDeliveries = useCallback(
+    () =>
+      !deliveriesReadOnly &&
+      deliveryAssignments.some((assignment) => assignment.stopIndex < 0),
+    [deliveriesReadOnly, deliveryAssignments],
+  );
 
   const buildResult = useCallback(
     (values: TripCargoFormValues): TripCargoFormValues => {
@@ -576,12 +643,67 @@ function CargoMovementSheetSession({
     [deliveryAssignments, pickupStopIndex],
   );
 
+  const runValidatedSubmit = useCallback(
+    async (
+      values: TripCargoFormValues,
+      options?: { keepOpen?: boolean },
+    ) => {
+      if (isSubmitting) return;
+      if (hasIncompleteDeliveries()) {
+        setDeliveryStopError(sheet.validation.deliveryStopRequired);
+        setShowSummary(true);
+        return;
+      }
+      setDeliveryStopError(null);
+      clearOverlayError();
+      setSubmitting(true);
+      try {
+        await onSubmit(
+          buildResult(values),
+          options?.keepOpen ? null : editingIndex,
+          options,
+        );
+        if (options?.keepOpen) {
+          reset(buildEmptyCargo(pickupStopIndex));
+          setDeliveryAssignments([]);
+          setShowSummary(false);
+          catalogHydrateKeyRef.current = null;
+        } else {
+          onOpenChange(false);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : sheet.toast.saveErrorTitle;
+        showOverlayError(message);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [
+      buildResult,
+      clearOverlayError,
+      editingIndex,
+      hasIncompleteDeliveries,
+      isSubmitting,
+      onOpenChange,
+      onSubmit,
+      pickupStopIndex,
+      reset,
+      setSubmitting,
+      showOverlayError,
+    ],
+  );
+
   const submitSheet = handleSubmit(
-    (values) => {
-      onSubmit(buildResult(values), editingIndex);
-      onOpenChange(false);
+    async (values) => {
+      await runValidatedSubmit(values);
     },
     () => {
+      if (hasIncompleteDeliveries()) {
+        setDeliveryStopError(sheet.validation.deliveryStopRequired);
+      }
       setShowSummary(true);
     },
   );
@@ -589,29 +711,29 @@ function CargoMovementSheetSession({
   /** Guarda la mercancía y deja el sheet listo para la siguiente de la misma parada. */
   const handleAddAnother = () => {
     void handleSubmit(
-      (values) => {
-        const result = buildResult(values);
-        onSubmit(result, null, { keepOpen: true });
-        reset(buildEmptyCargo(pickupStopIndex));
-        setDeliveryAssignments([]);
-        setShowSummary(false);
-        catalogHydrateKeyRef.current = null;
-        showSuccessToast(
-          sheet.toast.addedTitle,
-          sheet.toast.addedBody(result.description),
-        );
+      async (values) => {
+        await runValidatedSubmit(values, { keepOpen: true });
       },
       () => {
+        if (hasIncompleteDeliveries()) {
+          setDeliveryStopError(sheet.validation.deliveryStopRequired);
+        }
         setShowSummary(true);
       },
     )();
   };
 
-  const summaryMessages = useMemo(
-    () => collectFormErrorMessages(formState.errors as Record<string, { message?: string }>),
-    [formState.errors],
-  );
+  const summaryMessages = useMemo(() => {
+    const zodMessages = collectFormErrorMessages(
+      formState.errors as Record<string, { message?: string } | undefined>,
+    );
+    if (!deliveryStopError) return zodMessages;
+    if (zodMessages.includes(deliveryStopError)) return zodMessages;
+    return [...zodMessages, deliveryStopError];
+  }, [deliveryStopError, formState.errors]);
   const isSummaryVisible = showSummary && summaryMessages.length > 0;
+
+  const hazmatErrorMessage = formState.errors.hazardousMaterial?.message;
 
   const hasNotes =
     Boolean(notesValue?.trim()) || Boolean(specialInstructionsValue?.trim());
@@ -634,6 +756,12 @@ function CargoMovementSheetSession({
           </SheetDescription>
           <CargoMovementSheetPickupContext
             pickupStop={pickupStop}
+            availablePickupStops={
+              editingIndex === null ? availablePickupStops : undefined
+            }
+            onPickupStopChange={
+              editingIndex === null ? onPickupStopChange : undefined
+            }
             stopCargoCount={stopCargoCount}
             availableKg={availableKg}
           />
@@ -658,25 +786,35 @@ function CargoMovementSheetSession({
           />
 
           {/* Marca manual de material peligroso; el catálogo puede volverla obligatoria. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3">
-            <Checkbox
-              id="cargo-hazmat-checkbox"
-              checked={!!hazardousMaterial}
-              disabled={hazmatRequiredByCatalog}
-              onCheckedChange={(checked) => handleHazmatChange(!!checked)}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3">
+              <Checkbox
+                id="cargo-hazmat-checkbox"
+                checked={!!hazardousMaterial}
+                disabled={hazmatRequiredByCatalog}
+                onCheckedChange={(checked) => handleHazmatChange(!!checked)}
+                aria-invalid={Boolean(hazmatErrorMessage) || undefined}
+                aria-describedby={
+                  hazmatErrorMessage ? "cargo-hazmat-checkbox-error" : undefined
+                }
+              />
+              <Label
+                htmlFor="cargo-hazmat-checkbox"
+                className="flex cursor-pointer items-center gap-2"
+              >
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                {sheet.label.isHazmat}
+              </Label>
+              {hazmatRequiredByCatalog && (
+                <span className="text-xs text-muted-foreground">
+                  {sheet.hint.hazmatRequired}
+                </span>
+              )}
+            </div>
+            <FieldInlineError
+              fieldId="cargo-hazmat-checkbox"
+              message={hazmatErrorMessage}
             />
-            <Label
-              htmlFor="cargo-hazmat-checkbox"
-              className="flex cursor-pointer items-center gap-2"
-            >
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              {sheet.label.isHazmat}
-            </Label>
-            {hazmatRequiredByCatalog && (
-              <span className="text-xs text-muted-foreground">
-                {sheet.hint.hazmatRequired}
-              </span>
-            )}
           </div>
 
           {showRequirementsSection && (
@@ -726,40 +864,13 @@ function CargoMovementSheetSession({
 
             {isInsured && (
               <div className="space-y-3">
-                <Controller
+                <RHFMoneyField
                   control={control}
                   name="declaredValue"
-                  render={({ field, fieldState }) => {
-                    const errorMessage = fieldState.error?.message;
-                    return (
-                      <FormFieldShell
-                        fieldId="cargo-declared-value"
-                        label={sheet.label.declaredValue}
-                        required
-                        errorMessage={errorMessage}
-                      >
-                        <Input
-                          id="cargo-declared-value"
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          placeholder={sheet.placeholder.declaredValue}
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value ? Number(e.target.value) : undefined,
-                            )
-                          }
-                          onBlur={field.onBlur}
-                          error={Boolean(fieldState.error)}
-                          {...getFieldErrorAriaProps(
-                            "cargo-declared-value",
-                            errorMessage,
-                          )}
-                        />
-                      </FormFieldShell>
-                    );
-                  }}
+                  fieldId="cargo-declared-value"
+                  label={sheet.label.declaredValue}
+                  required
+                  placeholder={sheet.placeholder.declaredValue}
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <RHFTextField
@@ -798,27 +909,74 @@ function CargoMovementSheetSession({
                     )
                   : sheet.sectionSummary.deliveriesNone
               }
-              defaultOpen={initialDeliveryAssignments(initialValues).length > 0}
+              defaultOpen={
+                deliveriesReadOnly ||
+                initialDeliveryAssignments(initialValues).length > 0
+              }
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="text-xs text-muted-foreground sm:max-w-md">
-                  {sheet.hint.deliveries}
+                  {deliveriesReadOnly
+                    ? sheet.hint.deliveriesReadOnly
+                    : sheet.hint.deliveries}
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddDelivery}
-                >
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  {sheet.action.addDelivery}
-                </Button>
+                {!deliveriesReadOnly ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isSubmitting}
+                    onClick={handleAddDelivery}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    {sheet.action.addDelivery}
+                  </Button>
+                ) : null}
               </div>
 
               {deliveryAssignments.length === 0 ? (
                 <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">
                   {sheet.state.noDeliveries}
                 </div>
+              ) : deliveriesReadOnly ? (
+                <ul className="space-y-2">
+                  {deliveryAssignments.map((delivery, idx) => {
+                    const stop = availableDeliveryStops.find(
+                      (s) => s.index === delivery.stopIndex,
+                    );
+                    const stopLabel = stop
+                      ? sheet.format.deliveryStopOption(
+                          stop.index,
+                          stop.locationName || "",
+                          stop.address,
+                          stop.city,
+                        )
+                      : sheet.placeholder.deliveryStop;
+                    const facts = [
+                      delivery.weight != null && delivery.weight > 0
+                        ? formatWeight(delivery.weight)
+                        : null,
+                      delivery.units != null && delivery.units > 0
+                        ? `${delivery.units} uds`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
+                    return (
+                      <li
+                        key={`${delivery.stopIndex}-${idx}`}
+                        className="rounded-lg border bg-muted/20 px-3 py-2 text-sm"
+                      >
+                        <p className="font-medium leading-snug">{stopLabel}</p>
+                        {facts ? (
+                          <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                            {facts}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
                 <div className="space-y-2">
                   {deliveryAssignments.map((delivery, idx) => (
@@ -830,24 +988,56 @@ function CargoMovementSheetSession({
                         <FormFieldShell
                           fieldId={`cargo-delivery-stop-${idx}`}
                           label={sheet.label.deliveryStop}
+                          errorMessage={
+                            delivery.stopIndex < 0 && deliveryStopError
+                              ? deliveryStopError
+                              : undefined
+                          }
                         >
                           <Select
                             value={
-                              delivery.stopIndex >= 0 ? String(delivery.stopIndex) : ""
+                              delivery.stopIndex >= 0
+                                ? String(delivery.stopIndex)
+                                : ""
                             }
                             onValueChange={(val) =>
-                              handleUpdateDelivery(idx, "stopIndex", Number(val))
+                              handleUpdateDelivery(
+                                idx,
+                                "stopIndex",
+                                Number(val),
+                              )
                             }
+                            disabled={isSubmitting}
                           >
                             <SelectTrigger
                               id={`cargo-delivery-stop-${idx}`}
                               className="h-9"
+                              error={
+                                delivery.stopIndex < 0 &&
+                                Boolean(deliveryStopError)
+                              }
+                              aria-invalid={
+                                delivery.stopIndex < 0 &&
+                                Boolean(deliveryStopError)
+                                  ? true
+                                  : undefined
+                              }
+                              aria-describedby={
+                                delivery.stopIndex < 0 && deliveryStopError
+                                  ? `cargo-delivery-stop-${idx}-error`
+                                  : undefined
+                              }
                             >
-                              <SelectValue placeholder={sheet.placeholder.deliveryStop} />
+                              <SelectValue
+                                placeholder={sheet.placeholder.deliveryStop}
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {availableDeliveryStops.map((s) => (
-                                <SelectItem key={s.index} value={String(s.index)}>
+                                <SelectItem
+                                  key={s.index}
+                                  value={String(s.index)}
+                                >
                                   {sheet.format.deliveryStopOption(
                                     s.index,
                                     s.locationName || "",
@@ -869,12 +1059,15 @@ function CargoMovementSheetSession({
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isSubmitting}
                               value={delivery.weight ?? ""}
                               onChange={(e) =>
                                 handleUpdateDelivery(
                                   idx,
                                   "weight",
-                                  e.target.value ? Number(e.target.value) : undefined,
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined,
                                 )
                               }
                             />
@@ -887,12 +1080,15 @@ function CargoMovementSheetSession({
                               id={`cargo-delivery-units-${idx}`}
                               type="number"
                               min="0"
+                              disabled={isSubmitting}
                               value={delivery.units ?? ""}
                               onChange={(e) =>
                                 handleUpdateDelivery(
                                   idx,
                                   "units",
-                                  e.target.value ? Number(e.target.value) : undefined,
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined,
                                 )
                               }
                             />
@@ -903,6 +1099,7 @@ function CargoMovementSheetSession({
                         type="button"
                         variant="ghost"
                         size="icon"
+                        disabled={isSubmitting}
                         className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
                         onClick={() => handleRemoveDelivery(idx)}
                       >
@@ -952,12 +1149,23 @@ function CargoMovementSheetSession({
               messages={summaryMessages}
             />
           )}
+          {submissionError ? (
+            <Alert variant="destructive">
+              <AlertTitle>
+                {submitErrorTitle ?? sheet.toast.saveErrorTitle}
+              </AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {submissionError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
         </div>
 
         <SheetFooter className="shrink-0 gap-2 border-t bg-background px-6 py-4">
           <Button
             type="button"
             variant="outline"
+            disabled={isSubmitting}
             onClick={() => onOpenChange(false)}
           >
             {sheet.action.cancel}
@@ -966,12 +1174,17 @@ function CargoMovementSheetSession({
             <Button
               type="button"
               variant="secondary"
+              disabled={isSubmitting}
               onClick={handleAddAnother}
             >
               {sheet.action.addAnother}
             </Button>
           )}
-          <Button type="button" onClick={() => void submitSheet()}>
+          <Button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => void submitSheet()}
+          >
             {editingIndex !== null ? sheet.action.save : sheet.action.add}
           </Button>
         </SheetFooter>
@@ -987,17 +1200,28 @@ export function CargoMovementSheet({
   editingIndex,
   ...rest
 }: CargoMovementSheetProps) {
-  const sessionKey = `${editingIndex ?? "new"}-${pickupStop?.index ?? 0}-${initialValues?.satProductCode ?? ""}`;
+  // Remount al cambiar entidad (edit id) o al abrir alta; no al cambiar pickup en el selector.
+  const sessionKey = `${editingIndex ?? "new"}-${initialValues?.id ?? "draft"}`;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOpenChange = useCallback(
+    (next: boolean) => {
+      if (!next && isSubmitting) return;
+      onOpenChange(next);
+    },
+    [isSubmitting, onOpenChange],
+  );
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       {open ? (
         <CargoMovementSheetSession
           key={sessionKey}
-          onOpenChange={onOpenChange}
+          onOpenChange={handleOpenChange}
           pickupStop={pickupStop}
           initialValues={initialValues}
           editingIndex={editingIndex}
+          onSubmittingChange={setIsSubmitting}
           {...rest}
         />
       ) : null}

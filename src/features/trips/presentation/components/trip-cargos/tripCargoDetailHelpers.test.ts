@@ -1,75 +1,121 @@
 import { describe, expect, it } from "vitest";
 
-import type { TripCargo, TripStop } from "@features/trips/domain";
-import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
-import {
-  getStopDisplayOrder,
-  getStopLabelForCargo,
-} from "./tripCargoDetailHelpers";
+import type {
+  CreateCargoInput,
+  TripCargo,
+  TripStop,
+} from "@features/trips/domain";
 
-function stop(partial: Partial<TripStop> & { id: string; sequenceOrder: number }): TripStop {
+import {
+  attachStopIdsToCreateCargoMovements,
+  formatCargoRouteLine,
+  getCargoPlanningStops,
+} from "./tripCargoDetailHelpers";
+import { tripDetailCopy } from "../../copy";
+
+const copy = tripDetailCopy.cargo;
+
+function stop(id: string, sequenceOrder: number, locationName?: string): TripStop {
   return {
-    locationName: partial.locationName ?? `Stop ${partial.sequenceOrder}`,
-    city: partial.city ?? "CDMX",
-    stopType: partial.stopType ?? ["waypoint"],
-    ...partial,
+    id,
+    stopType: ["pickup"],
+    address: "Calle",
+    city: "Monterrey",
+    locationName,
+    sequenceOrder,
   } as TripStop;
 }
 
-describe("trip cargo detail stop display", () => {
-  it("shows Parada #1 for origin with sequenceOrder 0", () => {
-    const origin = stop({
-      id: "s-origin",
-      sequenceOrder: 0,
-      stopType: ["origin", "pickup"],
-      locationName: "Corporativo Tabasco",
-    });
-    const destination = stop({
-      id: "s-dest",
-      sequenceOrder: 1,
-      stopType: ["destination", "delivery"],
-      locationName: "Bodega",
-    });
-    const ordered = [origin, destination];
+function cargoWithMovements(
+  movements: CreateCargoInput["movements"],
+): CreateCargoInput {
+  return {
+    clientId: "client-1",
+    description: "Harina",
+    movements,
+  };
+}
 
-    expect(getStopDisplayOrder(origin, ordered)).toBe(1);
-    expect(getStopLabelForCargo(0, ordered)).toBe("#1 Corporativo Tabasco");
+describe("attachStopIdsToCreateCargoMovements", () => {
+  it("attaches stopId from orderedStops by stopIndex", () => {
+    const orderedStops = [stop("st-1", 0), stop("st-2", 1)];
+    const result = attachStopIdsToCreateCargoMovements(
+      cargoWithMovements([
+        { stopIndex: 0, movementType: "pickup" },
+        { stopIndex: 1, movementType: "delivery", weight: 10, units: 1 },
+      ]),
+      orderedStops,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.cargo.movements).toEqual([
+      { stopIndex: 0, movementType: "pickup", stopId: "st-1" },
+      {
+        stopIndex: 1,
+        movementType: "delivery",
+        weight: 10,
+        units: 1,
+        stopId: "st-2",
+      },
+    ]);
   });
 
-  it("groups pickup by 0-based stopIndex via resolveStopForMovement", () => {
-    const origin = stop({
-      id: "s-origin",
-      sequenceOrder: 0,
-      stopType: ["origin", "pickup"],
-    });
-    const destination = stop({
-      id: "s-dest",
-      sequenceOrder: 1,
-      stopType: ["destination", "delivery"],
-    });
-    const ordered = [origin, destination];
+  it("returns unresolved indexes when stopIndex is out of range", () => {
+    const result = attachStopIdsToCreateCargoMovements(
+      cargoWithMovements([{ stopIndex: 5, movementType: "pickup" }]),
+      [stop("st-1", 0)],
+    );
 
+    expect(result).toEqual({
+      ok: false,
+      unresolvedStopIndexes: [5],
+    });
+  });
+
+  it("passes through cargo without movements", () => {
+    const cargo = cargoWithMovements(undefined);
+    const result = attachStopIdsToCreateCargoMovements(cargo, [
+      stop("st-1", 0),
+    ]);
+
+    expect(result).toEqual({ ok: true, cargo });
+  });
+});
+
+describe("getCargoPlanningStops / formatCargoRouteLine", () => {
+  it("builds pickup → delivery labels from movements", () => {
+    const orderedStops = [
+      stop("st-1", 0, "Bodega"),
+      stop("st-2", 1, "Cliente"),
+    ];
     const cargo = {
       id: "c1",
+      description: "Harina",
       movements: [
-        { movementType: "pickup", stopIndex: 0 },
-        { movementType: "delivery", stopIndex: 1 },
+        { stopIndex: 0, movementType: "pickup", stopId: "st-1" },
+        { stopIndex: 1, movementType: "delivery", stopId: "st-2" },
       ],
+    } as TripCargo;
+
+    const planning = getCargoPlanningStops(cargo, orderedStops);
+    expect(planning.pickupLabel).toContain("Bodega");
+    expect(planning.deliveryLabels[0]).toContain("Cliente");
+    expect(formatCargoRouteLine(cargo, orderedStops)).toContain("→");
+  });
+
+  it("uses missing labels when movements are absent", () => {
+    const cargo = {
+      id: "c1",
+      description: "Harina",
+      movements: [],
     } as unknown as TripCargo;
 
-    const pickup = cargo.movements!.find((m) => m.movementType === "pickup")!;
-    expect(resolveStopForMovement(pickup, ordered)?.id).toBe("s-origin");
-
-    const pickupGroups = [origin].map((s) => ({
-      stop: s,
-      items: [cargo].filter((c) =>
-        c.movements?.some((movement) => {
-          if (movement.movementType !== "pickup") return false;
-          return resolveStopForMovement(movement, ordered)?.id === s.id;
-        }),
+    expect(formatCargoRouteLine(cargo, [])).toBe(
+      copy.format.routeSummary(
+        copy.state.missingPickup,
+        copy.state.missingDelivery,
       ),
-    }));
-
-    expect(pickupGroups[0]?.items).toHaveLength(1);
+    );
   });
 });

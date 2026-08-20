@@ -6,7 +6,6 @@ import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import {
@@ -22,6 +21,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 import { trackingCopy } from "../../copy";
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -105,7 +105,8 @@ function RegisterStopTrackingEventSheetBody({
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
   const [notes, setNotes] = useState("");
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [occurredAtError, setOccurredAtError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const copy = trackingCopy;
 
   const registerMutation = useRegisterTrackingEvent({
@@ -124,15 +125,18 @@ function RegisterStopTrackingEventSheetBody({
       toast({
         title: copy.toast.registerFailed,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
 
   const handleSubmit = () => {
+    let hasError = false;
     if (!occurredAt.trim()) {
-      setFieldError(copy.validation.occurredAtRequired);
-      return;
+      setOccurredAtError(copy.validation.occurredAtRequired);
+      hasError = true;
+    } else {
+      setOccurredAtError(null);
     }
 
     if (mode === "departure" && cargos.length > 0 && orderedStops.length > 0) {
@@ -142,12 +146,16 @@ function RegisterStopTrackingEventSheetBody({
         orderedStops,
       );
       if (cargoError) {
-        setFieldError(cargoError);
-        return;
+        setFormError(cargoError);
+        hasError = true;
+      } else {
+        setFormError(null);
       }
+    } else {
+      setFormError(null);
     }
 
-    setFieldError(null);
+    if (hasError) return;
     registerMutation.mutate({
       tripId,
       event: {
@@ -180,32 +188,24 @@ function RegisterStopTrackingEventSheetBody({
           {formatStopContextLine(stop, displayOrder)}
         </p>
 
-        <div className="space-y-2">
-          <Label htmlFor="tracking-event-occurred-at">{occurredAtLabel}</Label>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="tracking-event-occurred-at"
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={pending}
-              aria-invalid={fieldError ? true : undefined}
-              className="min-w-[220px] flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-              disabled={pending}
-            >
-              {copy.action.now}
-            </Button>
-          </div>
-          {fieldError ? (
-            <p className="text-xs text-destructive">{fieldError}</p>
-          ) : null}
-        </div>
+        {formError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {formError}
+          </p>
+        ) : null}
+
+        <TrackingOccurredAtField
+          id="tracking-event-occurred-at"
+          label={occurredAtLabel}
+          value={occurredAt}
+          onChange={(next) => {
+            setOccurredAt(next);
+            if (occurredAtError) setOccurredAtError(null);
+          }}
+          disabled={pending}
+          error={Boolean(occurredAtError)}
+          errorMessage={occurredAtError}
+        />
 
         <TrackingGpsCaptureSection
           stop={stop}

@@ -36,6 +36,15 @@ export interface ApiDriverRefResponse {
   full_name: string;
 }
 
+/** Asignación remolque + snapshot CP (ADR-0077). */
+export interface ApiTripTrailerResponse {
+  trailer_id: string;
+  position: number;
+  sat_sub_tipo_rem_code: string;
+  license_plate: string;
+  snapshot_at: string;
+}
+
 export interface ApiClientRefResponse {
   id: string;
   legal_name: string;
@@ -58,8 +67,10 @@ export interface ApiTripAccessoryInvoice {
 export interface ApiTripInvoicingResponse {
   has_active_invoice?: boolean;
   has_active_primary_invoice?: boolean;
+  has_active_principal_invoice?: boolean;
   can_generate_invoice?: boolean;
   can_generate_accessory_invoice?: boolean;
+  can_generate_false_trip_invoice?: boolean;
   invoice_id?: string | null;
   invoice_folio?: string | null;
   invoice_cfdi_uuid?: string | null;
@@ -399,6 +410,9 @@ export interface ApiTripResponse {
 
   // Estado
   status: TripStatusType;
+  operational_outcome?: "standard" | "false_trip";
+  false_trip_declared_at?: string | null;
+  false_trip_declared_by?: string | null;
   notes: string | null;
   cancellation_reason: string | null;
   invoicing?: ApiTripInvoicingResponse;
@@ -424,6 +438,8 @@ export interface ApiTripResponse {
   vehicle?: ApiVehicleRefResponse;
   driver?: ApiDriverRefResponse;
   client?: ApiClientRefResponse | null;
+  /** Asignación remolques + snapshot (ADR-0077). API puede enviar `trailers`. */
+  trailers?: ApiTripTrailerResponse[];
   internal_staff?: ApiTripInternalStaffResponse[];
   stops?: ApiStopResponse[];
   cargos?: ApiCargoResponse[];
@@ -452,6 +468,9 @@ export interface ApiTripListItemResponse {
   scheduled_departure: string;
   scheduled_arrival: string | null;
   status: TripStatusType;
+  operational_outcome?: "standard" | "false_trip";
+  false_trip_declared_at?: string | null;
+  false_trip_declared_by?: string | null;
   cargo_description: string | null;
   base_rate: string | number;
   total_cost: string | number;
@@ -475,6 +494,7 @@ export interface ApiCreateTripWarning {
   message: string;
   vehicle_id?: string;
   driver_id?: string;
+  trailer_id?: string;
   conflicting_trip_id?: string;
   conflicting_trip_code?: string;
 }

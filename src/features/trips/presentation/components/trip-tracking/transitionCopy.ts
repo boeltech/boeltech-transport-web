@@ -10,6 +10,8 @@ export const STOP_TRANSITION_COPY = {
   departOrigin: "El viaje queda en tránsito",
   depart: "La parada queda completada",
   close: "La parada queda completada y el viaje se cierra",
+  declareFalseTrip:
+    "El viaje queda completado. Se puede facturar el desplazamiento.",
 } as const;
 
 export type StopTransitionAction = keyof typeof STOP_TRANSITION_COPY;

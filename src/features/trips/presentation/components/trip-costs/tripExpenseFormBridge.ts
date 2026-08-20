@@ -66,6 +66,7 @@ export function tripExpensesToWizardLines(
   description: string;
   amount: number;
   vendorName?: string;
+  status: string;
 }> {
   return expenses.map((expense) => ({
     id: expense.id,
@@ -73,5 +74,6 @@ export function tripExpensesToWizardLines(
     description: expense.description,
     amount: expense.amount,
     vendorName: expense.vendorName ?? undefined,
+    status: expense.status,
   }));
 }

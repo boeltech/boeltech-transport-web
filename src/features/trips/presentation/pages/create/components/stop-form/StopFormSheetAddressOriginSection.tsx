@@ -7,6 +7,7 @@ import type {
 } from "@shared/ui/address-picker/types";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 
+import { isAllowedRoutePickerItem } from "@features/trips/presentation/components/trip-route/routeAddressPickerOwnerTypes";
 import { wizardCopy } from "../../../../copy";
 
 const copy = wizardCopy.route.stopForm.addressOrigin;
@@ -41,6 +42,7 @@ export function StopFormSheetAddressOriginSection({
         placeholder={copy.pickerPlaceholder}
         disabled={disabled}
         defaultOwnerTypes={defaultOwnerTypes}
+        filterItem={isAllowedRoutePickerItem}
       />
     </FormSectionCard>
   );

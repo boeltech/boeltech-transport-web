@@ -48,6 +48,7 @@ import {
   shouldClearVehicleSelection,
 } from "../tripAssignmentSelectability";
 import type { TripWizardFormValues } from "./validation";
+import { TripTrailerAssignmentFields } from "./TripTrailerAssignmentFields";
 
 const copy = wizardCopy.basicInfo;
 const reserveCopy = wizardCopy.shell.reserve;
@@ -588,12 +589,22 @@ export function TripAssignmentResourceFields({
       {isReserveDensity ? (
         <>
           {assignmentFields}
+          <TripTrailerAssignmentFields
+            form={form}
+            vehicles={vehicles}
+            idPrefix={idPrefix}
+          />
           {fleetOptionsPanel}
         </>
       ) : (
         <>
           {fleetOptionsPanel}
           {assignmentFields}
+          <TripTrailerAssignmentFields
+            form={form}
+            vehicles={vehicles}
+            idPrefix={idPrefix}
+          />
         </>
       )}
 

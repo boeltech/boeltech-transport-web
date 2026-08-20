@@ -2,12 +2,17 @@
  * StopFormSheet - Sheet lateral para agregar/editar paradas
  * Clean Architecture - Presentation Layer
  *
- * Fase C: ubicación capturada con `AddressInput` + validación `tripStopSchema` / paquete SAT
- * y mapeo a `TripStopFormValues` del wizard.
+ * Validación (excepción documentada vs form-validation-ux «zodResolver»):
+ * - No usa `zodResolver`/`tripStopSchema` en el Sheet del detalle.
+ * - Gate UX: `getMissingRequiredFields` + errores manuales RHF.
+ * - SoT al guardar: `validateTripStopAddressComplete` → bridge
+ *   `validateTripStopInlineAddress` + fiscal del paquete
+ *   (`requireFiscal: false` cuando `keepBillingCollapsed`, ADR-0078).
+ * - `tripStopSchema` sigue siendo el contrato del wizard/RouteStep; no
+ *   duplicar reglas SAT aquí.
  *
- * Patrón UI: Sheet lateral derecho con secciones en `FormSectionCard` (alineado con
- * `ClientAddressForm` / `EmployeeFormInner`). Reemplaza al antiguo `StopFormDialog`,
- * que estaba acotado por el tamaño máximo de un Dialog.
+ * Patrón UI: Sheet lateral derecho con secciones en `FormSectionCard`.
+ * Tab Ruta: siempre `variant="sheet"`.
  *
  * Ubicación: src/features/trips/presentation/pages/create/components/StopFormSheet.tsx
  */
@@ -19,7 +24,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { useForm, useWatch, Controller } from "react-hook-form";
+import { useForm, useFormState, useWatch, Controller } from "react-hook-form";
 import {
   Sheet,
   SheetContent,
@@ -38,6 +43,7 @@ import {
   EntityAddressForm,
   GEOCODING_SECTION_ID,
   resolveGeolocationPanelMode,
+  setFormCoordinates,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
 import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
@@ -54,7 +60,9 @@ import {
   FormValidationSummary,
   RHFTextField,
   RHFTextareaField,
+  DateTimeField,
   getFieldErrorAriaProps,
+  TRIP_SCHEDULE_DEFAULT_TIME,
 } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { DetailAlertCard } from "@shared/ui/data-display/DetailAlertCard";
@@ -77,15 +85,15 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import AddressInput from "@shared/ui/address-input/AddressInput";
-import { useToast } from "@shared/hooks";
+import { useToast, useOverlayMutationFeedback } from "@shared/hooks";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { usePermissions } from "@shared/permissions";
 
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
 import { useClientAddress } from "@features/clients/application/hooks/useClientAddresses";
 import { useUpdateClientAddress } from "@features/clients/application/hooks/useUpdateClientAddress";
-import type {
-  AddressSearchListItem,
-  SearchableOwnerType,
-} from "@shared/ui/address-picker/types";
+import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import { ownerTypesForRouteSlot } from "@features/trips/presentation/components/trip-route/routeAddressPickerOwnerTypes";
 
 import type { TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
@@ -105,6 +113,7 @@ import {
 } from "./stopDialogAddressMapper";
 import {
   detachStopFromClientCatalog,
+  canOfferClientAddressWriteBack,
   resolveClientAddressFormContextForCatalog,
   stopDialogDiffersFromClientCatalog,
   stopDialogToClientAddressFormData,
@@ -112,7 +121,9 @@ import {
 } from "./stopClientAddressWriteBack";
 import { validateClientAddressFormComplete } from "@features/clients/presentation/validation/clientAddressSchema";
 import {
+  fiscalMissingLabelToFieldName,
   getTripStopFiscalMissingLabels,
+  shouldExpandStopBillingOnValidation,
   validateTripStopAddressComplete,
 } from "../validation/tripStopAddressValidation";
 import { LOCATION_CAPTURE_LABELS } from "./wizardCopy";
@@ -143,7 +154,7 @@ export type {
 export interface StopFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: StopFormData) => void;
+  onSubmit: (data: StopFormData) => void | Promise<void>;
   initialData?: StopFormData;
   mode?: "create" | "edit";
   /** Intención CFDI elegida en el paso 1 — orienta copy de esta parada. */
@@ -152,6 +163,19 @@ export interface StopFormSheetProps {
   tripContractingClientId?: string;
   /** Sucursal de origen operativa del viaje — aviso si difiere de la sucursal precargada. */
   originBranchId?: string;
+  /** Detalle ADR-0078: deja el bloque de empresa colapsado aunque falten datos SAT. */
+  keepBillingCollapsed?: boolean;
+  /** Título del sheet (detalle: Completar domicilio). */
+  heading?: string;
+  /** Descripción del sheet; si falta, se usa copy del wizard por categoría. */
+  description?: string;
+  /**
+   * Superficie del formulario. Tab Ruta (detalle) y wizard: `"sheet"`.
+   * `"inline"` queda solo por compatibilidad; no usarlo en tab Ruta.
+   */
+  variant?: "sheet" | "inline";
+  /** True mientras el caller persiste (p. ej. replace-stops); deshabilita Guardar. */
+  isPending?: boolean;
 }
 
 const STOP_OPERATION_OPTIONS = [
@@ -190,16 +214,8 @@ function missingLabelToFieldName(
       return "latitude";
     case stopForm.validation.estimatedArrival:
       return "estimatedArrival";
-    case "RFC remitente/destinatario":
-      return "rfcRemitenteDestinatario";
-    case "Nombre remitente/destinatario":
-      return "nombreRemitenteDestinatario";
-    case "RFC destinatario (descarga)":
-      return "deliveryRfcRemitenteDestinatario";
-    case "Nombre destinatario (descarga)":
-      return "deliveryNombreRemitenteDestinatario";
     default:
-      return null;
+      return fiscalMissingLabelToFieldName(missing);
   }
 }
 
@@ -232,6 +248,11 @@ export function StopFormSheet({
   cfdiDocumentIntent = "ingreso",
   tripContractingClientId,
   originBranchId,
+  keepBillingCollapsed = false,
+  heading,
+  description,
+  variant = "sheet",
+  isPending = false,
 }: StopFormSheetProps) {
   const [attemptedSubmitValidation, setAttemptedSubmitValidation] = useState(false);
   const validationAlertRef = useRef<HTMLDivElement | null>(null);
@@ -249,6 +270,14 @@ export function StopFormSheet({
   } | null>(null);
   const [isPersistingClientAddress, setIsPersistingClientAddress] = useState(false);
   const { toast } = useToast();
+  const { submissionError, showOverlayError, clearOverlayError } =
+    useOverlayMutationFeedback({
+      errorTitle: stopForm.toast.saveErrorTitle,
+      seeInlineCopy: stopForm.toast.saveErrorSeeInline,
+      toast,
+    });
+  const { hasPermission } = usePermissions();
+  const canUpdateClientAddress = hasPermission("clients", "update");
   const hasInitializedFiscalModeRef = useRef(false);
   const wasDialogOpenRef = useRef(false);
   const lastSyncedCatalogIdRef = useRef<string | null>(null);
@@ -258,8 +287,11 @@ export function StopFormSheet({
     mode: "onChange",
   });
 
-  const { control, reset, setValue, getValues, handleSubmit, setError, clearErrors } =
+  const { control, reset, setValue, getValues, handleSubmit, setError, clearErrors, trigger } =
     form;
+  const { errors, isSubmitting } = useFormState({ control });
+  const fiscalRequired = !keepBillingCollapsed;
+  const saveDisabled = isPending || isSubmitting;
 
   const clientId = useWatch({ control, name: "clientId" }) ?? "";
   const clientAddressId = useWatch({ control, name: "clientAddressId" }) ?? "";
@@ -306,12 +338,10 @@ export function StopFormSheet({
     useWatch({ control, name: "stopCategory" }) ??
     initialData?.stopCategory;
 
-  const defaultOwnerTypes = useMemo((): SearchableOwnerType[] => {
-    if (stopCategory === "origin") {
-      return ["client", "branch", "tenant"];
-    }
-    return ["client", "tenant"];
-  }, [stopCategory]);
+  const defaultOwnerTypes = useMemo(
+    () => ownerTypesForRouteSlot(stopCategory ?? "waypoint"),
+    [stopCategory],
+  );
 
   // Al abrir el diálogo: hidratar desde initialData (cada apertura, no solo el primer mount)
   useEffect(() => {
@@ -335,10 +365,11 @@ export function StopFormSheet({
       setSelectedPrefillItem(null);
       setPrefillCatalogRef(null);
       setUseAddressFiscalData(true);
+      clearOverlayError();
     });
     hasInitializedFiscalModeRef.current = false;
     lastSyncedCatalogIdRef.current = null;
-  }, [open, initialData, reset]);
+  }, [open, initialData, reset, clearOverlayError]);
 
   // En modo edición, si la parada ya tenía override manual de RFC/Nombre
   useEffect(() => {
@@ -553,11 +584,17 @@ export function StopFormSheet({
   );
 
   const completeStopSubmit = useCallback(
-    (payload: StopFormData) => {
-      onSubmit(payload);
-      closeDialog();
+    async (payload: StopFormData) => {
+      clearOverlayError();
+      try {
+        await onSubmit(payload);
+        closeDialog();
+      } catch (error) {
+        showOverlayError(getErrorMessage(error));
+        throw error;
+      }
     },
-    [closeDialog, onSubmit],
+    [clearOverlayError, closeDialog, onSubmit, showOverlayError],
   );
 
   const submitDialog = handleSubmit(async (values) => {
@@ -571,7 +608,7 @@ export function StopFormSheet({
 
     const validation = await validateTripStopAddressComplete(
       merged as unknown as Record<string, unknown>,
-      { requireCoordinates: true },
+      { requireCoordinates: true, requireFiscal: !keepBillingCollapsed },
     );
     if (!validation.ok) {
       applyStopFieldErrors(validation.fieldErrors);
@@ -608,13 +645,20 @@ export function StopFormSheet({
       selectedAddress != null &&
       stopDialogDiffersFromClientCatalog(values, selectedAddress);
 
-    if (shouldAskSnapshotPersistChoice || shouldAskLegacyPersistChoice) {
+    if (
+      (shouldAskSnapshotPersistChoice || shouldAskLegacyPersistChoice) &&
+      canOfferClientAddressWriteBack(selectedAddress, canUpdateClientAddress)
+    ) {
       setPendingStopSubmit({ merged, formValues: values });
       setClientAddressPersistDialogOpen(true);
       return;
     }
 
-    completeStopSubmit(merged);
+    try {
+      await completeStopSubmit(merged);
+    } catch {
+      // Feedback: Alert inline + toast breve (useOverlayMutationFeedback).
+    }
   });
 
   const resetClientAddressPersistDialog = useCallback(() => {
@@ -661,8 +705,13 @@ export function StopFormSheet({
         ),
       });
 
-      completeStopSubmit(pendingStopSubmit.merged);
+      const payload = pendingStopSubmit.merged;
       resetClientAddressPersistDialog();
+      try {
+        await completeStopSubmit(payload);
+      } catch {
+        // Feedback: Alert inline + toast breve (useOverlayMutationFeedback).
+      }
     } catch {
       toast({
         title: stopForm.toast.persistErrorTitle,
@@ -684,7 +733,11 @@ export function StopFormSheet({
 
   const handleUseAddressForStopOnly = useCallback(() => {
     if (!pendingStopSubmit) return;
-    completeStopSubmit(detachStopFromClientCatalog(pendingStopSubmit.merged));
+    void completeStopSubmit(
+      detachStopFromClientCatalog(pendingStopSubmit.merged),
+    ).catch(() => {
+      // Feedback: Alert inline + toast breve (useOverlayMutationFeedback).
+    });
     resetClientAddressPersistDialog();
   }, [completeStopSubmit, pendingStopSubmit, resetClientAddressPersistDialog]);
 
@@ -733,10 +786,12 @@ export function StopFormSheet({
       missing.push(stopForm.validation.geolocation);
     }
 
-    missing.push(...getTripStopFiscalMissingLabels(d));
+    if (!keepBillingCollapsed) {
+      missing.push(...getTripStopFiscalMissingLabels(d));
+    }
 
     return missing;
-  }, [displayStop]);
+  }, [displayStop, keepBillingCollapsed]);
 
   const missingRequiredFields = useMemo(
     () => getMissingRequiredFields(),
@@ -746,8 +801,20 @@ export function StopFormSheet({
   const validationActive =
     attemptedSubmitValidation && missingRequiredFields.length > 0;
 
+  const expandBillingForErrors = shouldExpandStopBillingOnValidation({
+    attemptedSubmit: attemptedSubmitValidation,
+    missingLabels: missingRequiredFields,
+    hasFiscalFieldError: Boolean(
+      errors.rfcRemitenteDestinatario ||
+        errors.nombreRemitenteDestinatario ||
+        errors.deliveryRfcRemitenteDestinatario ||
+        errors.deliveryNombreRemitenteDestinatario,
+    ),
+  });
+
   const handlePrimaryFooterAction = useCallback(() => {
     clearErrors(STOP_MANAGED_FIELD_ERRORS as unknown as Parameters<typeof clearErrors>[0]);
+    clearOverlayError();
 
     const missing = getMissingRequiredFields();
     if (missing.length > 0) {
@@ -769,6 +836,7 @@ export function StopFormSheet({
     void submitDialog();
   }, [
     clearErrors,
+    clearOverlayError,
     getMissingRequiredFields,
     setError,
     submitDialog,
@@ -828,6 +896,7 @@ export function StopFormSheet({
   );
 
   const sheetTitle = useMemo(() => {
+    if (heading) return heading;
     const cat = displayStop.stopCategory;
     if (cat === "origin") {
       return mode === "edit" ? stopForm.title.originEdit : stopForm.title.originCreate;
@@ -843,15 +912,16 @@ export function StopFormSheet({
         : stopForm.title.waypointCreate;
     }
     return mode === "edit" ? stopForm.title.edit : stopForm.title.create;
-  }, [displayStop.stopCategory, mode]);
+  }, [displayStop.stopCategory, heading, mode]);
 
   const sheetDescription = useMemo(() => {
+    if (description) return description;
     const cat = displayStop.stopCategory;
     if (cat === "origin") return stopForm.description.origin;
     if (cat === "destination") return stopForm.description.destination;
     if (cat === "waypoint") return stopForm.description.waypoint;
     return stopForm.description.fallback;
-  }, [displayStop.stopCategory]);
+  }, [description, displayStop.stopCategory]);
 
   const counterpartySectionTitle = useMemo(() => {
     switch (fiscalUiContext) {
@@ -870,18 +940,33 @@ export function StopFormSheet({
     }
   }, [fiscalUiContext]);
 
-  const fiscalMissingLabels = useMemo(
-    () => getTripStopFiscalMissingLabels(displayStop),
-    [displayStop],
-  );
-
   const [billingOpen, setBillingOpen] = useState(false);
+  const billingTriggerClassName = cn(
+    "h-auto w-full justify-between px-0 text-sm font-medium",
+    expandBillingForErrors && "text-destructive",
+  );
+  const billingCollapsedHint =
+    !billingOpen && expandBillingForErrors ? (
+      <p className="text-xs text-destructive">
+        {stopForm.hint.billingCollapsedErrors}
+      </p>
+    ) : keepBillingCollapsed && !billingOpen ? (
+      <p className="text-xs text-muted-foreground">
+        {stopForm.hint.billingOptional}
+      </p>
+    ) : null;
 
   useEffect(() => {
-    if (fiscalMissingLabels.length > 0 || validationActive) {
+    if (open) {
+      setBillingOpen(!keepBillingCollapsed);
+    }
+  }, [open, initialData?.id, keepBillingCollapsed]);
+
+  useEffect(() => {
+    if (expandBillingForErrors) {
       setBillingOpen(true);
     }
-  }, [fiscalMissingLabels.length, validationActive]);
+  }, [expandBillingForErrors]);
 
   const primaryFiscalCopy = useMemo(
     () => getPrimaryFiscalSectionCopy(fiscalUiContext, cfdiDocumentIntent),
@@ -986,14 +1071,7 @@ export function StopFormSheet({
           latitude={displayStop.latitude}
           longitude={displayStop.longitude}
           onCoordinatesChange={(coords) => {
-            setValue("latitude", coords.latitude, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            setValue("longitude", coords.longitude, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
+            void setFormCoordinates(setValue, trigger, coords);
           }}
           panelMode={geolocationPanelMode}
         />
@@ -1030,19 +1108,8 @@ export function StopFormSheet({
     />
   );
 
-  return (
+  const formBody = (
     <>
-    <Sheet open={open} onOpenChange={handleDialogOpenChange}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
-      >
-        <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4">
-          <SheetTitle className="pr-8">{sheetTitle}</SheetTitle>
-          <SheetDescription>{sheetDescription}</SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
           <StopFormSheetCategorySection
             displayStop={displayStop}
             getAvailableOperations={getAvailableOperations}
@@ -1144,7 +1211,7 @@ export function StopFormSheet({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-auto w-full justify-between px-0 text-sm font-medium"
+                      className={billingTriggerClassName}
                     >
                       {stopForm.section.billingDetails}
                       <ChevronDown
@@ -1155,6 +1222,7 @@ export function StopFormSheet({
                       />
                     </Button>
                   </CollapsibleTrigger>
+                  {billingCollapsedHint}
                   <CollapsibleContent className="space-y-4 pt-2">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Controller
@@ -1167,7 +1235,7 @@ export function StopFormSheet({
                             <FormFieldShell
                               fieldId={fieldId}
                               label={primaryFiscalCopy.rfcLabel}
-                              required
+                              required={fiscalRequired}
                               errorMessage={errorMessage}
                             >
                               <Input
@@ -1193,7 +1261,7 @@ export function StopFormSheet({
                         name="nombreRemitenteDestinatario"
                         fieldId="stop-nombreRemitenteDestinatario"
                         label={stopForm.label.legalName}
-                        required
+                        required={fiscalRequired}
                         placeholder={primaryFiscalCopy.nombrePlaceholder}
                         disabled={isFiscalDataLocked}
                       />
@@ -1274,7 +1342,7 @@ export function StopFormSheet({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-auto w-full justify-between px-0 text-sm font-medium"
+                      className={billingTriggerClassName}
                     >
                       {stopForm.section.billingDetails}
                       <ChevronDown
@@ -1285,6 +1353,7 @@ export function StopFormSheet({
                       />
                     </Button>
                   </CollapsibleTrigger>
+                  {billingCollapsedHint}
                   <CollapsibleContent className="space-y-4 pt-2">
                     {waypointHasPickup ? (
                       <div className="grid gap-4 sm:grid-cols-2">
@@ -1298,7 +1367,7 @@ export function StopFormSheet({
                               <FormFieldShell
                                 fieldId={fieldId}
                                 label={primaryFiscalCopy.rfcLabel}
-                                required
+                                required={fiscalRequired}
                                 errorMessage={errorMessage}
                               >
                                 <Input
@@ -1324,7 +1393,7 @@ export function StopFormSheet({
                           name="nombreRemitenteDestinatario"
                           fieldId="stop-nombreRemitenteDestinatario"
                           label={stopForm.label.legalName}
-                          required
+                          required={fiscalRequired}
                           placeholder={primaryFiscalCopy.nombrePlaceholder}
                           disabled={isFiscalDataLocked}
                         />
@@ -1369,7 +1438,7 @@ export function StopFormSheet({
                                     <FormFieldShell
                                       fieldId={rfcFieldId}
                                       label={rfcLabel}
-                                      required
+                                      required={fiscalRequired}
                                       errorMessage={errorMessage}
                                     >
                                       <Input
@@ -1400,7 +1469,7 @@ export function StopFormSheet({
                                 name={nombreName}
                                 fieldId={nombreFieldId}
                                 label={nombreLabel}
-                                required
+                                required={fiscalRequired}
                                 placeholder={nombrePlaceholder}
                                 disabled={fieldsDisabled}
                               />
@@ -1471,19 +1540,16 @@ export function StopFormSheet({
                             : undefined
                         }
                       >
-                        <Input
+                        <DateTimeField
                           id={fieldId}
-                          type="datetime-local"
                           value={field.value ? field.value.slice(0, 16) : ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value ? `${e.target.value}:00` : undefined,
-                            )
+                          onChange={(next) =>
+                            field.onChange(next ? `${next}:00` : undefined)
                           }
                           onBlur={field.onBlur}
                           name={field.name}
-                          ref={field.ref}
                           error={Boolean(fieldState.error)}
+                          defaultTimeOnDateSelect={TRIP_SCHEDULE_DEFAULT_TIME}
                           {...getFieldErrorAriaProps(fieldId, errorMessage)}
                         />
                       </FormFieldShell>
@@ -1492,10 +1558,23 @@ export function StopFormSheet({
                 />
           ) : null}
           </FormSectionCard>
+    </>
+  );
 
+  const formFooter = (
+    <>
+          {submissionError ? (
+            <Alert variant="destructive" className="mb-0 w-full">
+              <AlertTitle>{stopForm.toast.saveErrorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {submissionError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {validationActive || inlineSatError ? (
-            <div ref={validationAlertRef}>
+            <div ref={validationAlertRef} className="w-full">
               <FormValidationSummary
+                className="mb-0"
                 title={
                   validationActive
                     ? stopForm.validation.missingRequiredTitle
@@ -1510,26 +1589,67 @@ export function StopFormSheet({
                 }
               />
             </div>
-          ) : null}
-        </div>
-
-        <SheetFooter className="shrink-0 flex-col gap-3 border-t bg-background px-6 py-4 sm:flex-col">
-          <p className="w-full text-xs text-muted-foreground">
-            {missingRequiredFields.length === 0
-              ? wizardCopy.route.format.allReady
-              : wizardCopy.route.format.missingCount(missingRequiredFields.length)}
-          </p>
+          ) : (
+            <p className="w-full text-xs text-muted-foreground">
+              {missingRequiredFields.length === 0
+                ? wizardCopy.route.format.allReady
+                : wizardCopy.route.format.missingCount(missingRequiredFields.length)}
+            </p>
+          )}
           <div className="flex w-full flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => closeDialog()}>
               {stopForm.action.cancel}
             </Button>
-            <Button type="button" onClick={() => handlePrimaryFooterAction()}>
+            <Button
+              type="button"
+              disabled={saveDisabled}
+              onClick={() => handlePrimaryFooterAction()}
+            >
               {stopForm.action.save}
             </Button>
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+    </>
+  );
+
+  const formChrome =
+    variant === "inline" ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <header className="mb-4 shrink-0 border-b pb-3">
+          <h3 className="text-base font-semibold">{sheetTitle}</h3>
+          {sheetDescription ? (
+            <p className="text-sm text-muted-foreground">{sheetDescription}</p>
+          ) : null}
+        </header>
+        <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto">
+          {formBody}
+        </div>
+        <footer className="mt-4 flex shrink-0 flex-col gap-3 border-t pt-3">
+          {formFooter}
+        </footer>
+      </div>
+    ) : (
+      <Sheet open={open} onOpenChange={handleDialogOpenChange}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+        >
+          <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4">
+            <SheetTitle className="pr-8">{sheetTitle}</SheetTitle>
+            <SheetDescription>{sheetDescription}</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+            {formBody}
+          </div>
+          <SheetFooter className="shrink-0 flex-col gap-3 border-t bg-background px-6 py-4 sm:flex-col">
+            {formFooter}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    );
+
+  return (
+    <>
+      {formChrome}
 
       <AlertDialog
         open={clientAddressPersistDialogOpen}

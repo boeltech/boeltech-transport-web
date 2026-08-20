@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fiscalMissingLabelToFieldName,
   getTripStopFiscalMissingLabels,
+  shouldExpandStopBillingOnValidation,
   validateTripStopFiscalFieldErrors,
 } from "./tripStopAddressValidation";
 
@@ -49,5 +51,50 @@ describe("validateTripStopFiscalFieldErrors", () => {
       nombreRemitenteDestinatario: "Nombre",
     });
     expect(labels).toContain("RFC de quien entrega o recibe");
+    expect(fiscalMissingLabelToFieldName(labels[0]!)).toBe(
+      "rfcRemitenteDestinatario",
+    );
+  });
+});
+
+describe("shouldExpandStopBillingOnValidation", () => {
+  it("stays closed until the user tries to save", () => {
+    expect(
+      shouldExpandStopBillingOnValidation({
+        attemptedSubmit: false,
+        missingLabels: ["RFC de quien entrega o recibe"],
+        hasFiscalFieldError: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("opens when save failed because fiscal labels are missing", () => {
+    expect(
+      shouldExpandStopBillingOnValidation({
+        attemptedSubmit: true,
+        missingLabels: ["RFC de quien entrega o recibe"],
+        hasFiscalFieldError: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("opens when save attached a fiscal field error", () => {
+    expect(
+      shouldExpandStopBillingOnValidation({
+        attemptedSubmit: true,
+        missingLabels: ["Ubicación en el mapa"],
+        hasFiscalFieldError: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("stays closed when the failed save is not fiscal", () => {
+    expect(
+      shouldExpandStopBillingOnValidation({
+        attemptedSubmit: true,
+        missingLabels: ["Ubicación en el mapa"],
+        hasFiscalFieldError: false,
+      }),
+    ).toBe(false);
   });
 });

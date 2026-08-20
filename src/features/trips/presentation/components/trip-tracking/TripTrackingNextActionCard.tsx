@@ -85,7 +85,6 @@ export function TripTrackingNextActionCard({
   const terminal = isTerminalTripStatus(tripStatus);
   const isReadOnlyGuide =
     terminal || primary.kind === "none" || primary.kind === "idle";
-  const showsOperableHint = OPERABLE_GUIDE_KINDS.has(primary.kind);
   const showsCargoNavigate = primary.kind === "cargo_blocked";
   const description = resolveGuideDescription(primary.kind, primary.title);
 
@@ -151,11 +150,6 @@ export function TripTrackingNextActionCard({
             {primary.transitionText ? (
               <p className="text-xs text-muted-foreground">
                 {primary.transitionText}
-              </p>
-            ) : null}
-            {showsOperableHint ? (
-              <p className="text-xs text-muted-foreground">
-                {trackingCopy.hint.objectiveGuide}
               </p>
             ) : null}
             {showsCargoNavigate ? (

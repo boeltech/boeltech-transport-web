@@ -33,6 +33,7 @@ export {
   type TripStop,
   type VehicleRef,
   type DriverRef,
+  type TripTrailerRef,
   type ClientRef,
   type TripFilters,
   type TripQueryParams,
@@ -40,8 +41,10 @@ export {
   // Enums
   TripStatus,
   TRIP_STATUS_LABELS,
+  TripOperationalOutcome,
   StopType,
   type TripStatusType,
+  type TripOperationalOutcomeType,
   type StopTypeValue,
 } from "./domain";
 
@@ -53,6 +56,10 @@ export {
   getAvailableTransitions,
   canEditTrip,
   canManageTripExpenses,
+  canCreateTripExpense,
+  canMutatePendingTripExpense,
+  isTripExpensePostCloseWindowOpen,
+  TRIP_EXPENSE_POST_CLOSE_WINDOW_DAYS,
   canDeleteTrip,
   canStartTrip,
   canCancelTrip,
@@ -78,6 +85,9 @@ export {
   useTripExpenses,
   useTripExpensesSummary,
   useUpdateCargo,
+  useClientCorridors,
+  useRouteEstimate,
+  useReplaceTripStops,
   TripCreationError,
 } from "./application";
 
@@ -88,7 +98,9 @@ export {
 //Pages
 export {
   FinishTripRedirect,
+  TripCanvasPage,
   TripDetailPage,
+  TripEditRedirect,
   TripFormPage,
   TripsListPage,
 } from "./presentation";
@@ -148,6 +160,7 @@ export {
   getStopTypeConfig,
   getTripInvoicingBadgeConfig,
   getTripInvoicingBlockReason,
+  toDetailInvoicingBadge,
   getTripStatusConfig,
   getTripStatusLabel,
   tripCargoSchema,

@@ -24,6 +24,7 @@ import type {
   TripStatusHistory,
   ExpensesSummary,
   TripFiscalActionRequired,
+  TripTrailerRef,
   //   TripStatusType,
   CurrencyType,
 } from "@features/trips/domain";
@@ -33,6 +34,7 @@ import type {
   ApiTripInvoicingResponse,
   ApiTripFiscalActionRequiredResponse,
   ApiTripInternalStaffResponse,
+  ApiTripTrailerResponse,
   ApiStopResponse,
   ApiCargoResponse,
   ApiCargoMovementResponse,
@@ -108,6 +110,8 @@ function mapApiTripInvoicing(
   const hasActivePrimaryInvoice =
     api?.has_active_primary_invoice ?? api?.has_active_invoice ?? false;
   const hasActiveInvoice = hasActivePrimaryInvoice;
+  const hasActivePrincipalInvoice =
+    api?.has_active_principal_invoice ?? hasActivePrimaryInvoice;
   const hasLinkedInvoiceEvidence =
     !!invoiceId ||
     !!invoiceFolio ||
@@ -118,6 +122,8 @@ function mapApiTripInvoicing(
     (tripStatus === "completed" && !hasActiveInvoice && !hasLinkedInvoiceEvidence);
   const canGenerateAccessoryInvoice =
     api?.can_generate_accessory_invoice ?? hasActivePrimaryInvoice;
+  const canGenerateFalseTripInvoice =
+    api?.can_generate_false_trip_invoice ?? false;
   const accessoryInvoices = (api?.accessory_invoices ?? []).map((item) => ({
     id: item.id,
     folio: item.folio,
@@ -128,8 +134,10 @@ function mapApiTripInvoicing(
   return {
     hasActiveInvoice,
     hasActivePrimaryInvoice,
+    hasActivePrincipalInvoice,
     canGenerateInvoice,
     canGenerateAccessoryInvoice,
+    canGenerateFalseTripInvoice,
     invoiceId,
     invoiceFolio,
     invoiceCfdiUuid,
@@ -168,6 +176,19 @@ function mapApiTripInternalStaff(
     paymentNotes: api.payment_notes,
     createdAt: toDate(api.created_at),
     updatedAt: toDate(api.updated_at),
+  };
+}
+
+export function mapApiTripTrailer(
+  api: ApiTripTrailerResponse,
+): TripTrailerRef {
+  const position = api.position === 2 ? 2 : 1;
+  return {
+    trailerId: api.trailer_id,
+    position,
+    satSubTipoRemCode: api.sat_sub_tipo_rem_code,
+    licensePlate: api.license_plate,
+    snapshotAt: api.snapshot_at,
   };
 }
 
@@ -529,6 +550,10 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
 
     // Estado
     status: api.status,
+    operationalOutcome:
+      api.operational_outcome === "false_trip" ? "false_trip" : "standard",
+    falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
+    falseTripDeclaredBy: api.false_trip_declared_by ?? null,
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
@@ -569,6 +594,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
           legalName: api.client.legal_name,
         }
       : undefined,
+    trailers: (api.trailers ?? []).map(mapApiTripTrailer),
     internalStaff: api.internal_staff?.map(mapApiTripInternalStaff) ?? [],
     stops: api.stops?.map(mapApiStop),
     cargos: api.cargos?.map(mapApiCargo),
@@ -610,6 +636,10 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     scheduledDeparture: toDate(api.scheduled_departure),
     scheduledArrival: toDateOrNull(api.scheduled_arrival),
     status: api.status,
+    operationalOutcome:
+      api.operational_outcome === "false_trip" ? "false_trip" : "standard",
+    falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
+    falseTripDeclaredBy: api.false_trip_declared_by ?? null,
     cargoDescription: api.cargo_description,
     baseRate: toNumberOrDefault(api.base_rate),
     totalCost: toNumberOrDefault(api.total_cost),
@@ -781,6 +811,7 @@ export function mapCreateTripResponse(response: ApiCreateTripResponse): {
     message: string;
     vehicleId?: string;
     driverId?: string;
+    trailerId?: string;
     conflictingTripId?: string;
     conflictingTripCode?: string;
   }>;
@@ -790,6 +821,7 @@ export function mapCreateTripResponse(response: ApiCreateTripResponse): {
     message: warning.message,
     vehicleId: warning.vehicle_id,
     driverId: warning.driver_id,
+    trailerId: warning.trailer_id,
     conflictingTripId: warning.conflicting_trip_id,
     conflictingTripCode: warning.conflicting_trip_code,
   }));

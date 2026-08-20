@@ -11,10 +11,10 @@ export const progressCopy = {
     stopAtWaypoint: "En escala",
     stopAtDestination: "En destino",
     stopPending: "Pendiente",
+    stopSkippedNotVisited: "Omitido — no se visitó",
   },
   hint: {
-    percent:
-      "Porcentaje de paradas con estado completado (misma métrica en Ruta y Seguimiento).",
+    percent: "Paradas completadas sobre el total del itinerario.",
     completedStops: (completed: number, total: number) =>
       `${completed} / ${total} paradas completadas`,
   },

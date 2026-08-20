@@ -120,5 +120,20 @@ export function mapStopToCreateStopInput(
     distanceComputedAt: source.distanceComputedAt?.toISOString() ?? undefined,
     clientId: source.clientId ?? undefined,
     clientAddressId: source.clientAddressId ?? undefined,
+    sourceAddressId: source.sourceAddressId ?? undefined,
   };
+}
+
+/**
+ * Payload para `PUT /trips/:id/stops`: no reenviar `addressId` del snapshot
+ * owned por la parada (el replace borra stops y esas addresses dejan de existir).
+ * Usa snapshot inline + `sourceAddressId` de catálogo (ADR-0055).
+ */
+export function mapStopToReplaceStopInput(
+  source: NonNullable<Trip["stops"]>[number],
+  edited?: TripStopOperationalValues,
+): CreateStopInput {
+  const mapped = mapStopToCreateStopInput(source, edited);
+  const { addressId: _omit, ...rest } = mapped;
+  return rest;
 }

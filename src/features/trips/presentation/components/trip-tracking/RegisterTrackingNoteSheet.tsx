@@ -4,7 +4,6 @@ import { StickyNote } from "lucide-react";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import {
@@ -19,6 +18,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 import type { TripStop } from "@features/trips/domain";
 
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
+import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -100,30 +100,14 @@ function RegisterTrackingNoteSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
-          <div className="space-y-2">
-            <Label htmlFor="tracking-note-occurred-at">Fecha y hora</Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id="tracking-note-occurred-at"
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-                disabled={registerMutation.isPending}
-                aria-invalid={fieldError?.includes("fecha") ? true : undefined}
-                className="min-w-[220px] flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOccurredAt(defaultOccurredAtLocal())}
-                disabled={registerMutation.isPending}
-              >
-                Ahora
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">Hora civil México.</p>
-          </div>
+          <TrackingOccurredAtField
+            id="tracking-note-occurred-at"
+            label="Fecha y hora"
+            value={occurredAt}
+            onChange={setOccurredAt}
+            disabled={registerMutation.isPending}
+            error={Boolean(fieldError?.includes("fecha"))}
+          />
 
           <TrackingGpsCaptureSection
             stop={referenceStop}

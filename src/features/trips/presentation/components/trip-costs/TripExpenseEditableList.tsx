@@ -38,6 +38,9 @@ export interface TripExpenseEditableListProps {
   onRemove?: (id: string) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  /** Si se omite, edit/remove siguen `readOnly` + presencia de handlers. */
+  canEditItem?: (item: TripExpenseListItem) => boolean;
+  canRemoveItem?: (item: TripExpenseListItem) => boolean;
   readOnly?: boolean;
   showDetailMeta?: boolean;
 }
@@ -59,7 +62,8 @@ function getExpenseStatusVariant(
 const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
   expense,
   showDetailMeta,
-  readOnly,
+  canEdit,
+  canRemove,
   onEdit,
   onRemove,
   onApprove,
@@ -67,7 +71,8 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
 }: {
   expense: TripExpenseListItem;
   showDetailMeta: boolean;
-  readOnly: boolean;
+  canEdit: boolean;
+  canRemove: boolean;
   onEdit?: (id: string) => void;
   onRemove?: (id: string) => void;
   onApprove?: (id: string) => void;
@@ -146,9 +151,9 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
           </Button>
         </div>
       ) : null}
-      {!readOnly && (onEdit || onRemove) ? (
+      {canEdit || canRemove ? (
         <div className="flex shrink-0 gap-1">
-          {onEdit ? (
+          {canEdit && onEdit ? (
             <Button
               type="button"
               variant="ghost"
@@ -160,7 +165,7 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
               <Edit2 className="h-3.5 w-3.5" />
             </Button>
           ) : null}
-          {onRemove ? (
+          {canRemove && onRemove ? (
             <Button
               type="button"
               variant="ghost"
@@ -186,6 +191,8 @@ export function TripExpenseEditableList({
   onRemove,
   onApprove,
   onReject,
+  canEditItem,
+  canRemoveItem,
   readOnly = false,
   showDetailMeta = false,
 }: TripExpenseEditableListProps) {
@@ -202,18 +209,29 @@ export function TripExpenseEditableList({
 
   return (
     <div className="divide-y rounded-lg border px-4">
-      {items.map((expense) => (
-        <TripExpenseEditableListItem
-          key={expense.id}
-          expense={expense}
-          showDetailMeta={showDetailMeta}
-          readOnly={readOnly}
-          onEdit={onEdit}
-          onRemove={onRemove}
-          onApprove={onApprove}
-          onReject={onReject}
-        />
-      ))}
+      {items.map((expense) => {
+        const canEdit =
+          !readOnly &&
+          onEdit != null &&
+          (canEditItem ? canEditItem(expense) : true);
+        const canRemove =
+          !readOnly &&
+          onRemove != null &&
+          (canRemoveItem ? canRemoveItem(expense) : true);
+        return (
+          <TripExpenseEditableListItem
+            key={expense.id}
+            expense={expense}
+            showDetailMeta={showDetailMeta}
+            canEdit={canEdit}
+            canRemove={canRemove}
+            onEdit={onEdit}
+            onRemove={onRemove}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
+        );
+      })}
     </div>
   );
 }

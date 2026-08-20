@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ClientAddress } from "@features/clients/domain/entities";
 
 import {
+  canOfferClientAddressWriteBack,
   detachStopFromClientCatalog,
   stopDialogDiffersFromClientCatalog,
 } from "./stopClientAddressWriteBack";
@@ -155,5 +156,17 @@ describe("stopClientAddressWriteBack", () => {
       clientAddressId: undefined,
       clientId: "c1",
     });
+  });
+
+  it("ofrece write-back solo con clients.update y tipo operativo", () => {
+    expect(canOfferClientAddressWriteBack(baseCatalog(), true)).toBe(true);
+    expect(canOfferClientAddressWriteBack(baseCatalog(), false)).toBe(false);
+    expect(
+      canOfferClientAddressWriteBack(baseCatalog({ addressType: "billing" }), true),
+    ).toBe(false);
+    expect(
+      canOfferClientAddressWriteBack(baseCatalog({ addressType: "office" }), true),
+    ).toBe(false);
+    expect(canOfferClientAddressWriteBack(undefined, true)).toBe(false);
   });
 });

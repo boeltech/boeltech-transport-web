@@ -13,14 +13,15 @@ describe("resolveSuggestedStartMileage", () => {
     expect(resolveSuggestedStartMileage(undefined, 120_000)).toBe(120_000);
   });
 
-  it("retorna undefined sin fuentes validas", () => {
-    expect(resolveSuggestedStartMileage(undefined, null)).toBeUndefined();
+  it("acepta 0 km del vehículo como sugerencia", () => {
+    expect(resolveSuggestedStartMileage(0, null)).toBe(0);
   });
 });
 
 describe("parseStartMileageInput", () => {
   it("parsea enteros no negativos", () => {
     expect(parseStartMileageInput("150000")).toBe(150_000);
+    expect(parseStartMileageInput("0")).toBe(0);
   });
 
   it("rechaza vacio o invalido", () => {

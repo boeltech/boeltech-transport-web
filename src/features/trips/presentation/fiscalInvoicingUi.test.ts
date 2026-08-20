@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TripStatus } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
-import { getTripInvoicingBadgeConfig, getTripInvoicingBlockReason } from "./uiHelpers";
+import { getTripInvoicingBadgeConfig, getTripInvoicingBlockReason, toDetailInvoicingBadge } from "./uiHelpers";
 
 describe("getTripInvoicingBadgeConfig", () => {
   it("muestra borrador en viaje programado cuando hay factura ligada (pre-stamp)", () => {
@@ -39,6 +39,21 @@ describe("getTripInvoicingBadgeConfig", () => {
       }),
     });
     expect(cfg.label).toBe("Disponible");
+  });
+});
+
+describe("toDetailInvoicingBadge", () => {
+  it("replaces Disponible / No disponible in the trip detail", () => {
+    expect(
+      toDetailInvoicingBadge({ label: "Disponible", variant: "outline" }).label,
+    ).toBe("Listo para facturar");
+    expect(
+      toDetailInvoicingBadge({ label: "No disponible", variant: "outline" })
+        .label,
+    ).toBe("Pendiente");
+    expect(
+      toDetailInvoicingBadge({ label: "Facturado", variant: "default" }).label,
+    ).toBe("Facturado");
   });
 });
 

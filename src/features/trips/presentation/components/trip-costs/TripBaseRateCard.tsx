@@ -3,6 +3,7 @@ import { DollarSign } from "lucide-react";
 
 import { useUpdateTrip } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
+import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
@@ -24,6 +25,8 @@ export interface TripBaseRateCardProps {
   clientId?: string;
   expenseLines: TripWizardExpenseLine[];
   readOnly: boolean;
+  /** PD-D: Facturado vs Tarifa (sin timbrar) en completed. */
+  incomeSourceLabel?: string | null;
 }
 
 function TripBaseRateCardEditor({
@@ -158,13 +161,19 @@ export function TripBaseRateCard({
   clientId,
   expenseLines,
   readOnly,
+  incomeSourceLabel,
 }: TripBaseRateCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
           <DollarSign className="h-5 w-5 shrink-0" />
           {copy.section.baseRate}
+          {incomeSourceLabel ? (
+            <Badge variant="neutral" tone="soft" className="text-xs font-medium">
+              {incomeSourceLabel}
+            </Badge>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent>

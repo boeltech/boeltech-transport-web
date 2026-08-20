@@ -27,6 +27,8 @@ export function resolveTrackingEventIcon(
       return Navigation;
     case "trip_arrived":
       return CheckCircle2;
+    case "false_trip_declared":
+      return Ban;
     case "stop_departed":
       return Navigation;
     case "cargo_picked_up":

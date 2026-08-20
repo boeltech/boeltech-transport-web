@@ -1,4 +1,8 @@
 import {
+  isCartaPorteListBadgeReady,
+  validateOperationalReadiness,
+} from "@boeltech/cfdi-domain";
+import {
   StopStatus,
   StopType,
   isUnifiedAddressId,
@@ -36,9 +40,9 @@ export function groupStopsForRouteDetail(stops: readonly TripStop[]) {
 }
 
 export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | null {
-  const segments = stops.filter(
+  const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  const segments = ordered.slice(1).filter(
     (stop) =>
-      stop.sequenceOrder > 0 &&
       stop.distanceFromPreviousKm != null &&
       stop.distanceFromPreviousKm > 0,
   );
@@ -50,11 +54,36 @@ export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | 
 }
 
 export function countStopsMissingSegmentDistance(stops: readonly TripStop[]): number {
-  return stops.filter(
+  const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  return ordered.slice(1).filter(
     (stop) =>
-      stop.sequenceOrder > 0 &&
-      (stop.distanceFromPreviousKm == null || stop.distanceFromPreviousKm <= 0),
+      stop.distanceFromPreviousKm == null || stop.distanceFromPreviousKm <= 0,
   ).length;
+}
+
+function hasStopCoordinates(
+  stop: Pick<TripStop, "latitude" | "longitude"> | undefined,
+): boolean {
+  return stop?.latitude != null && stop?.longitude != null;
+}
+
+function isSegmentDistanceMissing(stop: Pick<TripStop, "distanceFromPreviousKm">): boolean {
+  return stop.distanceFromPreviousKm == null || stop.distanceFromPreviousKm <= 0;
+}
+
+/** Tramos vacíos cuyo par consecutivo tiene lat/lng (Haversine puede rellenarlos). */
+export function countFillableMissingSegmentDistances(
+  stops: readonly TripStop[],
+): number {
+  const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  return ordered.slice(1).filter((stop, index) => {
+    const previous = ordered[index];
+    return (
+      isSegmentDistanceMissing(stop) &&
+      hasStopCoordinates(previous) &&
+      hasStopCoordinates(stop)
+    );
+  }).length;
 }
 
 export function stopRequiresFiscalRfc(stop: TripStop): boolean {
@@ -74,12 +103,16 @@ export function countStopsMissingFiscalRfc(stops: readonly TripStop[]): number {
   ).length;
 }
 
+export function countStopsMissingDomicilio(stops: readonly TripStop[]): number {
+  return stops.filter((stop) => !isStopDomicilioComplete(stop)).length;
+}
+
 export function formatDistanceSourceLabel(
   source: TripStop["distanceSource"],
 ): string | null {
   if (!source) return null;
   if (source === "manual") return copy.label.distanceManual;
-  if (source === "mapbox_matrix") return copy.label.distanceMapbox;
+  if (source === "mapbox_matrix") return copy.label.distanceMap;
   if (source === "haversine_fallback") return copy.label.distanceEstimated;
   return copy.label.distanceFallback;
 }
@@ -215,13 +248,21 @@ export function getStopTimeDisplayRows(
   ];
 }
 
-export type StopOperationalVisitState = "pending" | "at_stop" | "visited";
+export type StopOperationalVisitState =
+  | "pending"
+  | "at_stop"
+  | "visited"
+  | "skipped";
 
 export function getStopOperationalVisitState(
   stop: TripStop,
   category: RouteStopCategory,
   tripTimes?: TripScheduleTimes,
 ): StopOperationalVisitState {
+  if (stop.status === StopStatus.SKIPPED) {
+    return "skipped";
+  }
+
   if (stop.status === StopStatus.COMPLETED) {
     return "visited";
   }
@@ -242,6 +283,7 @@ export function getStopOperationalVisitLabel(
   state: StopOperationalVisitState,
   category?: RouteStopCategory,
 ): string {
+  if (state === "skipped") return stopBadgeCopy.stopSkippedNotVisited;
   if (state === "visited") return stopBadgeCopy.stopCompleted;
   if (state === "at_stop") {
     return category === "destination"
@@ -249,6 +291,23 @@ export function getStopOperationalVisitLabel(
       : stopBadgeCopy.stopAtWaypoint;
   }
   return stopBadgeCopy.stopPending;
+}
+
+/** Domicilio SAT listo para CP31 (códigos + geo). RFC no entra: D6 / E-D8. */
+export function isStopDomicilioComplete(stop: TripStop): boolean {
+  const satReady = isCartaPorteListBadgeReady({
+    sat_country_code: stop.satCountryCode,
+    sat_state_code: stop.satEstadoCode,
+    postal_code: stop.postalCode,
+  });
+  const geo = validateOperationalReadiness(
+    {
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+    },
+    { requireCoordinates: true },
+  );
+  return satReady && geo.ok;
 }
 
 /** Parada con tramo cerrado en tracking (`status === completed`). */
@@ -287,4 +346,104 @@ export function getStopOperationalEditTimeFields(
     return { showEstimatedArrival: true, showEstimatedDeparture: false };
   }
   return { showEstimatedArrival: true, showEstimatedDeparture: true };
+}
+
+/** IDs estables de slots sin `trip_stop` (composer = master). */
+export const ROUTE_SLOT_ORIGIN_ID = "slot:origin";
+export const ROUTE_SLOT_DESTINATION_ID = "slot:destination";
+export const ROUTE_SLOT_WAYPOINT_PREFIX = "slot:waypoint:";
+
+export function isDraftWaypointSlotId(id: string): boolean {
+  return id.startsWith(ROUTE_SLOT_WAYPOINT_PREFIX);
+}
+
+export type RouteMasterRow = {
+  id: string;
+  category: RouteStopCategory;
+  stop?: TripStop;
+  draftLabel?: string | null;
+  cityHint?: string | null;
+  displayOrder: number;
+};
+
+export function buildRouteMasterRows(params: {
+  origin?: TripStop;
+  destination?: TripStop;
+  waypoints: readonly TripStop[];
+  originDraftLabel?: string | null;
+  destinationDraftLabel?: string | null;
+  originCityHint?: string | null;
+  destinationCityHint?: string | null;
+  waypointDraftIds?: readonly string[];
+}): RouteMasterRow[] {
+  const {
+    origin,
+    destination,
+    waypoints,
+    originDraftLabel,
+    destinationDraftLabel,
+    originCityHint,
+    destinationCityHint,
+    waypointDraftIds = [],
+  } = params;
+
+  const rows: RouteMasterRow[] = [];
+  let order = 1;
+
+  rows.push({
+    id: origin?.id ?? ROUTE_SLOT_ORIGIN_ID,
+    category: "origin",
+    stop: origin,
+    draftLabel: origin ? null : (originDraftLabel ?? null),
+    cityHint: origin ? null : (originCityHint ?? null),
+    displayOrder: order++,
+  });
+
+  for (const stop of waypoints) {
+    rows.push({
+      id: stop.id,
+      category: "waypoint",
+      stop,
+      displayOrder: order++,
+    });
+  }
+
+  for (const draftId of waypointDraftIds) {
+    rows.push({
+      id: draftId,
+      category: "waypoint",
+      displayOrder: order++,
+    });
+  }
+
+  rows.push({
+    id: destination?.id ?? ROUTE_SLOT_DESTINATION_ID,
+    category: "destination",
+    stop: destination,
+    draftLabel: destination ? null : (destinationDraftLabel ?? null),
+    cityHint: destination ? null : (destinationCityHint ?? null),
+    displayOrder: order++,
+  });
+
+  return rows;
+}
+
+/** Selección de fila master: id explícito o primer ítem; sin `useEffect`. */
+export function resolveRouteMasterRowId(
+  rows: readonly RouteMasterRow[],
+  selectedId: string | null,
+): string | null {
+  if (rows.length === 0) return null;
+  if (selectedId != null && rows.some((row) => row.id === selectedId)) {
+    return selectedId;
+  }
+  if (selectedId === ROUTE_SLOT_ORIGIN_ID) {
+    const origin = rows.find((row) => row.category === "origin");
+    if (origin) return origin.id;
+  }
+  if (selectedId === ROUTE_SLOT_DESTINATION_ID) {
+    const destination = rows.find((row) => row.category === "destination");
+    if (destination) return destination.id;
+  }
+  return rows[0]?.id ?? null;
 }

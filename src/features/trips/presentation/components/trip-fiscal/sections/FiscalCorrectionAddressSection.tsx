@@ -9,7 +9,6 @@ import {
   AddressPicker,
   addressSearchItemToTripStopAddress,
   type AddressSearchListItem,
-  type SearchableOwnerType,
 } from "@shared/ui/address-picker";
 import AddressInput from "@shared/ui/address-input/AddressInput";
 import { Alert, AlertDescription } from "@shared/ui/alert";
@@ -35,9 +34,10 @@ import {
   isFiscalCorrectionReasonValid,
 } from "./FiscalCorrectionReasonField";
 
+import { ROUTE_STOP_OWNER_TYPES, isAllowedRoutePickerItem } from "../../trip-route/routeAddressPickerOwnerTypes";
+
 const defaultCopy = tripFiscalCopy.correctionSheet.address;
 const defaultSavingLabel = tripFiscalCopy.correctionSheet.saving;
-const DEFAULT_OWNER_TYPES: SearchableOwnerType[] = ["client", "tenant"];
 
 type AddressMode = "swap" | "inline";
 
@@ -292,7 +292,8 @@ export const FiscalCorrectionAddressSection = forwardRef<
             label={copy.pickerLabel}
             placeholder={copy.pickerPlaceholder}
             disabled={disabled || swapRequiresClient}
-            defaultOwnerTypes={DEFAULT_OWNER_TYPES}
+            defaultOwnerTypes={[...ROUTE_STOP_OWNER_TYPES]}
+            filterItem={isAllowedRoutePickerItem}
           />
           {addressError ? (
             <FieldInlineError fieldId={`${idPrefix}-picker`} message={addressError} />

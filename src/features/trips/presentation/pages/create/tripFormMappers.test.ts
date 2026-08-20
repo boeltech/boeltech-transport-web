@@ -25,6 +25,9 @@ const baseTrip = {
   detailedCosts: null,
   profitability: null,
   status: TripStatus.SCHEDULED,
+  operationalOutcome: "standard",
+  falseTripDeclaredAt: null,
+  falseTripDeclaredBy: null,
   notes: "Notas del viaje",
   cancellationReason: null,
   invoicing: tripInvoicingFixture({

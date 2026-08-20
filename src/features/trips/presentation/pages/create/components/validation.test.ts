@@ -556,6 +556,22 @@ describe("WIZARD_STEPS_RESERVE / tripReserveWizardSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts reserve without startMileage, arrival or baseRate", () => {
+    const result = tripReserveWizardSchema.safeParse({
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("rejects reserve without client", () => {
     const result = tripReserveWizardSchema.safeParse({
       vehicleId: "11111111-1111-4111-8111-111111111111",

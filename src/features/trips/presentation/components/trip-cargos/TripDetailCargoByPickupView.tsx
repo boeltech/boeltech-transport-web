@@ -28,6 +28,8 @@ export interface TripDetailCargoByPickupViewProps {
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
+  onEditCargo?: (cargoId: string) => void;
+  onRemoveCargo?: (cargoId: string) => void;
 }
 
 type PickupCategory = "origin" | "waypoint" | "destination";
@@ -87,6 +89,8 @@ export function TripDetailCargoByPickupView({
   orderedStops,
   formatCurrency,
   getCargoStatusVariant,
+  onEditCargo,
+  onRemoveCargo,
 }: TripDetailCargoByPickupViewProps) {
   if (groups.length === 0) {
     return (
@@ -139,7 +143,7 @@ export function TripDetailCargoByPickupView({
                       {categoryLabel(category)}
                     </span>
                     <span className="rounded bg-info-soft px-2 py-0.5 text-xs font-medium text-info-soft-foreground">
-                      {copy.label.pickupOperation}
+                      {copy.section.pickup}
                     </span>
                     {hasMissing ? (
                       <span className="rounded bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-soft-foreground">
@@ -156,7 +160,7 @@ export function TripDetailCargoByPickupView({
                   </p>
                 </div>
                 <Badge variant="secondary" className="shrink-0 text-xs">
-                  {copy.format.merchandiseCount(items.length)}
+                  {copy.format.cargoCount(items.length)}
                 </Badge>
               </div>
             </CardHeader>
@@ -177,6 +181,8 @@ export function TripDetailCargoByPickupView({
                       orderedStops={orderedStops}
                       formatCurrency={formatCurrency}
                       getCargoStatusVariant={getCargoStatusVariant}
+                      onEdit={onEditCargo}
+                      onRemove={onRemoveCargo}
                     />
                   ))}
                 </div>

@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 
-import type { ClientRef, Trip } from "@features/trips/domain";
+import type { ClientRef, Trip, TripStatusHistory } from "@features/trips/domain";
 import { formatMileage } from "@features/trips";
 import { useInternalStaffEntitlement } from "@features/billing";
 import { cn } from "@shared/lib/utils/cn";
@@ -20,6 +20,7 @@ import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { Separator } from "@shared/ui/separator";
 
 import { TripScheduleInlineEditor } from "./TripScheduleInlineEditor";
+import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.operation;
@@ -30,8 +31,9 @@ export interface TripDetailOperationTabProps {
   canEditStructural: boolean;
   /** Portal cliente: sin enlace al módulo Clientes. */
   showClientLink?: boolean;
-  /** Portal cliente: sin odómetro inicial/final. */
+  /** Portal cliente: sin kilometraje inicial/final. */
   showMileage?: boolean;
+  statusHistory?: readonly TripStatusHistory[];
 }
 
 function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
@@ -40,12 +42,10 @@ function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
 
 function ClientContractCard({
   client,
-  clientId,
   cfdiDocumentIntent,
   showClientLink,
 }: {
   client?: ClientRef;
-  clientId: string | null;
   cfdiDocumentIntent: Trip["cfdiDocumentIntent"];
   showClientLink: boolean;
 }) {
@@ -77,9 +77,7 @@ function ClientContractCard({
           <InfoRow variant="inline" label={copy.label.legalName} value={client.legalName} />
         ) : (
           <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-            {clientId
-              ? copy.format.clientUnavailableId(clientId)
-              : copy.state.clientUnavailable}
+            {copy.state.clientUnavailable}
           </div>
         )}
         <InfoRow
@@ -97,6 +95,7 @@ export function TripDetailOperationTab({
   canEditStructural,
   showClientLink = true,
   showMileage = true,
+  statusHistory,
 }: TripDetailOperationTabProps) {
   const {
     hasModule: hasInternalStaffModule,
@@ -111,7 +110,6 @@ export function TripDetailOperationTab({
     <div className="space-y-6">
       <ClientContractCard
         client={trip.client}
-        clientId={trip.clientId}
         cfdiDocumentIntent={trip.cfdiDocumentIntent}
         showClientLink={showClientLink}
       />
@@ -183,20 +181,49 @@ export function TripDetailOperationTab({
               </div>
             )}
 
+            <Separator className="my-3" />
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {copy.hint.trailersSection}
+              </div>
+              {trip.trailers && trip.trailers.length > 0 ? (
+                trip.trailers
+                  .slice()
+                  .sort((a, b) => a.position - b.position)
+                  .map((trailer) => (
+                    <div
+                      key={`${trailer.trailerId}-${trailer.position}`}
+                      className="rounded-lg border bg-muted/20 px-3 py-2 text-xs"
+                    >
+                      <p className="font-medium">
+                        {copy.format.trailerLine(
+                          trailer.position,
+                          trailer.licensePlate,
+                        )}
+                      </p>
+                    </div>
+                  ))
+              ) : (
+                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                  {copy.state.noTrailers}
+                </div>
+              )}
+            </div>
+
             {trip.internalStaff && trip.internalStaff.length > 0 ? (
               <>
                 {showInternalStaffEntitlementWarning ? (
                   <DetailAlertCard
                     severity="warning"
-                    title="Módulo no activo"
+                    title={copy.alert.staffModuleInactiveTitle}
                     className="my-3"
                   >
                     <p className="text-sm text-muted-foreground">
-                      Este viaje incluye equipo de apoyo, pero el add-on ya no
-                      está activo en tu cuenta. Los datos se muestran solo lectura.
+                      {copy.alert.staffModuleInactiveBody}
                     </p>
                     <Button variant="link" className="mt-2 h-auto p-0" asChild>
-                      <Link to="/settings/subscription">Ver Tu plan</Link>
+                      <Link to="/settings/subscription">{copy.action.viewPlan}</Link>
                     </Button>
                   </DetailAlertCard>
                 ) : null}
@@ -261,6 +288,8 @@ export function TripDetailOperationTab({
           </CardContent>
         </Card>
       ) : null}
+
+      <TripDetailStatusHistory entries={statusHistory ?? trip.statusHistory} />
     </div>
   );
 }

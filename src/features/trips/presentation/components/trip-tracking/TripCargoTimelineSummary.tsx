@@ -33,7 +33,7 @@ export function TripCargoTimelineSummary({
           <Package className="h-4 w-4 text-primary" />
           {copy.section.cargoTimeline}
         </CardTitle>
-        <CardDescription>{copy.hint.byStatus}</CardDescription>
+          <CardDescription>{copy.hint.cargoTimeline}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {cargos.map((cargo) => (

@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
+import { toFiscalStopDisplayOrder } from "./tripFiscalHelpers";
 
 const copy = tripFiscalCopy.preflightSheet;
 
@@ -50,7 +51,7 @@ export function PreflightBlockerSheet({
               >
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-medium">
-                    Parada #{item.stopOrder}
+                    Parada #{toFiscalStopDisplayOrder(item.stopOrder)}
                   </p>
                   <p className="text-xs text-muted-foreground">{reasonLabel}</p>
                   {item.rfc ? (

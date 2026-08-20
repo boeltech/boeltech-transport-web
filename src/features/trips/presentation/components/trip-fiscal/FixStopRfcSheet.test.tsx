@@ -5,6 +5,7 @@ import type { TripStop } from "@features/trips/domain";
 import { FixStopRfcSheet } from "./FixStopRfcSheet";
 
 const mutate = vi.fn();
+const hasPermissionMock = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock("@features/trips/application/hooks/usePatchStopFiscal", () => ({
   usePatchStopFiscal: () => ({
@@ -15,7 +16,7 @@ vi.mock("@features/trips/application/hooks/usePatchStopFiscal", () => ({
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
-    hasPermission: () => true,
+    hasPermission: hasPermissionMock,
   }),
 }));
 
@@ -84,6 +85,8 @@ const stop: TripStop = {
 describe("FixStopRfcSheet", () => {
   beforeEach(() => {
     mutate.mockClear();
+    hasPermissionMock.mockReset();
+    hasPermissionMock.mockReturnValue(true);
   });
 
   it("keeps submit enabled and shows validation when RFC or reason is incomplete", async () => {
@@ -108,11 +111,21 @@ describe("FixStopRfcSheet", () => {
       screen.getByText("El motivo debe tener al menos 5 caracteres"),
     ).toBeInTheDocument();
 
+    const reasonInput = screen.getByLabelText("Motivo del cambio");
+    expect(reasonInput).toHaveAttribute("aria-invalid", "true");
+    expect(reasonInput).toHaveClass("border-destructive");
+
     const rfcInput = screen.getByLabelText("RFC remitente/destinatario");
     await user.clear(rfcInput);
     await user.type(rfcInput, "INVALID");
     await user.click(submitButton);
     expect(screen.getByText("Formato SAT inválido")).toBeInTheDocument();
+    expect(rfcInput).toHaveAttribute("aria-invalid", "true");
+    expect(rfcInput).toHaveAttribute(
+      "aria-describedby",
+      "fiscal-correction-rfc-error",
+    );
+    expect(rfcInput).toHaveClass("border-destructive");
 
     await user.clear(rfcInput);
     await user.type(rfcInput, "EKU9003173C9");
@@ -140,6 +153,28 @@ describe("FixStopRfcSheet", () => {
       <FixStopRfcSheet
         tripId="trip-1"
         stop={{ ...stop, clientAddressId: null }}
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText(
+        "También actualizar el RFC en la dirección guardada del cliente",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides propagation checkbox without clients.update", () => {
+    hasPermissionMock.mockImplementation(
+      (module: string, action: string) =>
+        !(module === "clients" && action === "update"),
+    );
+
+    render(
+      <FixStopRfcSheet
+        tripId="trip-1"
+        stop={stop}
         open
         onOpenChange={vi.fn()}
       />,
