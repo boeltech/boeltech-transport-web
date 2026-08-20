@@ -26,6 +26,9 @@ npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + 
 npm run test:smoke:branches      # smoke sucursales: listado → detalle (mapa geo) → export → baja/restaurar + wizard alta
 npm run test:smoke:branch-kpis   # smoke SUC-M12 widget dashboard compare + tarjeta KPI detalle sucursal
 npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria (CTA/scope/badge)
+npm run test:smoke:trip-false-trip # smoke ADR-0079 viaje en falso (CTA/scope/badge, sin PAC)
+npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cutover /trailers
+npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
 npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → validate → commit)
 ```
 
@@ -36,6 +39,10 @@ npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → valid
 **Billing SaaS v1 (ADR-0064):** `@features/billing` read-only en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención) · consola platform (suscripción, entitlements, export conciliación CSV) · paywall `internal_staff_compensation` en wizard viajes. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md`.
 
 **Multifactura por viaje (ADR-0068):** factura de flete (primaria + Carta Porte) y N facturas accesorias (solo servicios, sin CP) ligadas al mismo viaje · UI `?scope=accessory` · smoke `npm run test:smoke:trip-multi-invoice`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\facturas-accesorias-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\trip-multi-invoice\sdd.md`.
+
+**Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. Capa 1 job UX en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
+
+**Alta de viaje canvas (ADR-0078, Aceptado · F0–F4 cerradas):** un CTA Reservar; `/trips/new` = canvas una pantalla (`FormPageShell`); completar Ruta/Cargas en el detalle (riel + Confirmar reserva); `/trips/:id/edit` redirige al detalle. Hold ADR-0071 intacto. Smoke: `npm run test:smoke:trip-canvas`. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · [addendum composer](D:/cowork/boeltech/erp-transport/design/adr/0078-addendum-composer-esqueleto-ruta.md) (**Aceptado** — Capa 3 E1 web; **sin API**) · SDD `design/sdd/trip-canvas-intake/`. Post-v1: D10 catálogo de rutas.
 
 **Sucursales:** detalle `/branches/:id` muestra mapa read-only Mapbox si hay `latitude`/`longitude` (`VITE_MAPBOX_PUBLIC_TOKEN`) y card **Historial de cambios** (`GET /branches/:id/activity`); captura/edición geo en alta y `/branches/:id/edit` vía `AddressInput`. **Sobrecupo de plan:** `meta.over_quota` en listado + wizard `POST /branches/reconcile-plan` + filtro de asignación en empleados. **SUC-M8a (ADR-0065):** `trips.origin_branch_id`, `vehicles.branch_id`, sucursal conductor heredada del empleado, filtro suave de flota; **cross-dock** en parada origen vía `AddressPicker` (`owner_type=branch`) + aviso en sheet de parada (sin checkbox en RouteStep). **SUC-M12 (ADR-0067):** widget `branch_kpis` en dashboard (comparar ≤3 sucursales) + `BranchOperationalKpiCard` en detalle; API `GET /dashboard/branch-kpis`; drill-down `GET /trips?origin_branch_id=`. Guía: `D:\cowork\boeltech\erp-transport\docs\sucursales\dashboard-kpis-usuario.md`. **Documentación vencida (ADR-0066):** toggle «Permitir documentación vencida» en paso 1 del wizard (seguro/SCT/licencia) + `allow_expired_docs` transitorio en create/update trip.
 
@@ -117,6 +124,8 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Landing + login (look / motion / assets) | `.cursor/prompts/landing-visual-polish.md` |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
+| Viajes — canvas de alta (ADR-0078, Aceptado · F0–F4) | `...\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · addendum composer **Aceptado** (E1 web, sin API) · SDD `...\design\sdd\trip-canvas-intake\` |
+| Viajes — falso ingreso sin CP (ADR-0079, Aceptado · F0–F3 código) | `...\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · addendum 0068 · SDD `...\design\sdd\trip-false-trip\` · guía `...\docs\facturacion\viaje-en-falso-usuario.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |
 | ADR-0043 | `...\docs\adr-0043\` |
 | Carta Porte 3.1 | `...\docs\carta-porte-3.1\` |
