@@ -2,13 +2,11 @@ import type { LucideIcon } from "lucide-react";
 import {
   CheckCircle2,
   Clock,
-  DollarSign,
   XCircle,
 } from "lucide-react";
 import { StatCard, type StatCardTone } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import type { FinanceInvoiceStatus } from "@features/finance/domain";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
 
 const kpiCopy = financeCopy.invoices.kpi;
@@ -27,7 +25,6 @@ interface Props {
   draft: number;
   cancellationPending: number;
   cancelled: number;
-  totalReceivable: number;
   isLoading?: boolean;
   activeStatus?: string;
   onFilterStatus: (status: FinanceInvoiceStatus) => void;
@@ -38,7 +35,6 @@ export function FinanceInvoicesSummaryCards({
   draft,
   cancellationPending,
   cancelled,
-  totalReceivable,
   isLoading,
   activeStatus,
   onFilterStatus,
@@ -61,14 +57,6 @@ export function FinanceInvoicesSummaryCards({
       filterStatus: "draft",
     },
     {
-      label: kpiCopy.receivable.label,
-      value: formatMxCurrency(totalReceivable),
-      description: kpiCopy.receivable.description,
-      icon: DollarSign,
-      tone: "warning",
-      filterStatus: "stamped",
-    },
-    {
       label: kpiCopy.cancellationPending.label,
       value: cancellationPending,
       description: kpiCopy.cancellationPending.description,
@@ -87,7 +75,7 @@ export function FinanceInvoicesSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
         const isActive = activeStatus === card.filterStatus;

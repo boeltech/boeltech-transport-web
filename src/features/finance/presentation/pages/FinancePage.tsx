@@ -7,11 +7,13 @@ import { isClientPortalRole } from "@shared/constants/roles";
 import {
   buildFinanceTabSearchParams,
   isFinanceAnalysisView,
+  isFinanceAnalyticsEnabled,
+  isFinanceCobrosTabEnabled,
   resolveFinanceLegacyTab,
   type FinanceAnalysisView,
   type FinanceHubTab,
 } from "@features/finance/application";
-import { canAccessFinanceSummaryRoute, usePermissions } from "@shared/permissions";
+import { usePermissions } from "@shared/permissions";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { FinanceCobranzaTab } from "./FinanceCobranzaTab";
 import { FinanceAnalysisTab } from "./FinanceAnalysisTab";
@@ -30,8 +32,8 @@ const ANALYTICS_TABS: FinanceHubTab[] = [
   "approvals",
 ];
 
-/** Staff sin analytics (p. ej. dispatcher): facturas + cobros. */
-const LIMITED_TABS: FinanceHubTab[] = ["invoices", "cobros"];
+/** Staff sin analytics (p. ej. dispatcher): solo facturas. */
+const LIMITED_TABS: FinanceHubTab[] = ["invoices"];
 
 /** Portal client: solo consulta de facturas (D4). */
 const CLIENT_PORTAL_TABS: FinanceHubTab[] = ["invoices"];
@@ -42,12 +44,16 @@ export function FinancePage() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const isClientPortal = isClientPortalRole(user?.role);
-  const canAnalytics = useMemo(
-    () => canAccessFinanceSummaryRoute(user?.role),
-    [user?.role],
-  );
+  const canAnalytics = isFinanceAnalyticsEnabled({
+    isClientPortal,
+    hasFinanceRead: hasPermission("finance", "read"),
+  });
   const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
   const canApprove = hasPermission("finance_approvals", "read");
+  const canFinanceCobros = isFinanceCobrosTabEnabled({
+    isClientPortal,
+    hasFinanceCreate: hasPermission("finance", "create"),
+  });
 
   const [searchParams, setSearchParams] = useSearchParams();
   const enabledTabs = useMemo<FinanceHubTab[]>(() => {
@@ -59,9 +65,10 @@ export function FinancePage() {
     return base.filter(
       (tab) =>
         (tab !== "invoiceable" || canInvoiceFromTrip) &&
-        (tab !== APPROVALS_TAB_VALUE || canApprove),
+        (tab !== APPROVALS_TAB_VALUE || canApprove) &&
+        (tab !== "cobros" || canFinanceCobros),
     );
-  }, [canAnalytics, canApprove, canInvoiceFromTrip, isClientPortal]);
+  }, [canAnalytics, canApprove, canFinanceCobros, canInvoiceFromTrip, isClientPortal]);
 
   useEffect(() => {
     const requested = searchParams.get("tab");
@@ -164,7 +171,7 @@ export function FinancePage() {
           />
         ),
       },
-      !isClientPortal
+      canFinanceCobros
         ? {
             value: "cobros",
             label: financeCopy.page.tabs.cobros,
@@ -199,6 +206,7 @@ export function FinancePage() {
     analysisView,
     canAnalytics,
     canApprove,
+    canFinanceCobros,
     canInvoiceFromTrip,
     handleAnalysisViewChange,
     isClientPortal,

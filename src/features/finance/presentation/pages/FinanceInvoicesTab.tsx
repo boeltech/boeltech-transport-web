@@ -32,6 +32,7 @@ import { financeCopy } from "../copy";
 import {
   canShowInvoiceFromTripCta,
 } from "../utils/financeInvoiceFromTripCta";
+import { buildInvoiceCreatePathFromTrip } from "@features/invoicing";
 
 interface FinanceInvoicesTabProps {
   showFinanceSummaryMetrics: boolean;
@@ -114,8 +115,8 @@ export function FinanceInvoicesTab({
   );
 
   const handleTripSelected = useCallback(
-    (tripId: string) => {
-      navigate(`/invoices/new?trip_id=${tripId}`, {
+    (trip: { id: string; operationalOutcome?: string | null }) => {
+      navigate(buildInvoiceCreatePathFromTrip(trip), {
         state: { from: "/finance?tab=invoices" },
       });
     },
@@ -129,7 +130,6 @@ export function FinanceInvoicesTab({
         draft={summary?.invoicesByStatus.draft ?? 0}
         cancellationPending={summary?.invoicesByStatus.cancellationPending ?? 0}
         cancelled={summary?.invoicesByStatus.cancelled ?? 0}
-        totalReceivable={summary?.totalReceivable ?? 0}
         isLoading={summaryLoading}
         activeStatus={statusFilter}
         onFilterStatus={handleKpiStatus}

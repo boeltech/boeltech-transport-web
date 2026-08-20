@@ -28,4 +28,9 @@ export type {
   IncomeByMonthFilters,
   InvoicesByStatusMonth,
   InvoicesByStatusMonthFilters,
+  FinanceRepExceptionStatus,
+  FinanceRepDeadlineStatus,
+  FinanceRepExceptionAllocation,
+  FinanceRepExceptionItem,
+  PaginatedFinanceRepExceptions,
 } from "./entities";

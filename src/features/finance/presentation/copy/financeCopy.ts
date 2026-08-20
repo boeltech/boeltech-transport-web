@@ -3,6 +3,8 @@ const exportCopy = {
   toasts: {
     exportedTitle: "Archivo exportado",
     profitability: "Margen por viaje (CSV).",
+    profitabilityTruncated: (exported: number, total: number) =>
+      `Muestra de ${exported} de ${total} viajes (CSV).`,
     aging: "Antigüedad de saldos por cliente (CSV).",
     expenses: "Gastos por cliente (CSV).",
   },
@@ -14,71 +16,117 @@ const exportCopy = {
 } as const;
 
 const cobrosCopy = {
-  searchCard: {
-    title: "Buscar facturas abiertas",
-    description:
-      "Captura el RFC del cliente para ver facturas a crédito con saldo pendiente.",
-  },
+  taskTitle: "Registrar un cobro",
+  taskDescription:
+    "Busca al cliente por RFC y elige las facturas que cubre el mismo depósito. Aquí cada factura se cobra por el saldo completo. Un cobro parcial de una sola factura se registra en su detalle.",
   receiverRfcLabel: "RFC del cliente",
+  rfcPlaceholder: "XAXX010101000",
   search: "Buscar",
-  loadingTitle: "Consultando facturas",
-  loading: "Cargando facturas abiertas…",
+  changeRfc: "Cambiar RFC",
+  rfcChip: (rfc: string) => `RFC ${rfc}`,
+  summaryLink:
+    "Si no tienes el RFC, ábrelo desde Resumen → estado de cuenta → Cobrar.",
+  summaryLinkCta: "Ir a Resumen",
+  retry: "Reintentar",
   loadErrorTitle: "No se pudo consultar",
   loadError: "No se pudieron cargar las facturas.",
   emptyTitle: "Sin facturas abiertas",
   empty: "No hay facturas a crédito con saldo pendiente para este RFC.",
-  initialState: {
-    title: "Empieza con el RFC del cliente",
-    description:
-      "Busca, selecciona las facturas que cubre el mismo cobro y regístralo. El complemento de pago se genera en segundo plano.",
-  },
   metrics: {
     openInvoices: "Facturas abiertas",
-    openBalance: "Saldo abierto",
-    selectedInvoices: "Seleccionadas",
-    selectedTotal: "Total a cobrar",
-    forRfc: (rfc: string) => `RFC ${rfc}`,
+    openBalance: "Por cobrar",
     pendingCredit: "A crédito con saldo pendiente",
-    readyToApply: "Listas para aplicar pago",
-    paymentBaseHint: "Base del complemento de pago",
+    thisPage: "En esta página",
   },
   tableTitle: "Facturas abiertas a crédito",
   tableDescription:
-    "Selecciona las facturas que cubre el mismo pago. Se aplicará el saldo completo de cada una.",
-  tableBadge: (count: number) => `${count} factura${count === 1 ? "" : "s"}`,
+    "Selecciona las facturas que cubre el mismo cobro. Se aplicará el por cobrar completo de cada una (no una parcialidad).",
+  selectAllAria: "Seleccionar todas las facturas de esta página",
   register: "Registrar cobro",
+  registerCta: (count: number, total: string) =>
+    `Registrar cobro · ${count} factura${count === 1 ? "" : "s"} · ${total}`,
+  selectedHint:
+    "El cobro aplicará el por cobrar completo de cada factura seleccionada. Para una parcialidad, abre el detalle de esa factura.",
+  entityLabelPlural: "facturas",
   sheetTitle: "Confirmar cobro",
   sheetDescription:
-    "Se registrará un pago por el total seleccionado y se asignará a las facturas listadas.",
+    "Se registrará un cobro por el total y se aplicará el por cobrar completo de cada factura. No es un cobro parcial.",
   sheetTotal: "Total a cobrar",
+  sheetClient: "Cliente",
+  sheetPaymentDate: "Fecha del cobro",
+  sheetPaymentTime: "Hora",
+  sheetPaymentTimeValue: "12:00",
+  sheetPaymentForm: "Forma de pago",
   sheetInvoicesTitle: "Facturas incluidas",
-  sheetNoticeTitle: "Complemento de pago",
+  sheetBalanceFull: "Saldo completo",
+  sheetNoticeTitle: "Comprobante de pago",
   sheetNoticeDescription:
-    "El complemento de pago (REP) se timbra en segundo plano. Si hace falta reparar parcialidades ya timbradas, el sistema te pedirá confirmarlo.",
-  chainRepair: {
-    title: "Reparar cadena de parcialidades",
+    "El comprobante de pago se genera en segundo plano. Si hay que actualizar comprobantes anteriores, el sistema te pedirá confirmarlo.",
+  sheetReference: "Referencia (opcional)",
+  sheetReferencePlaceholder: "Número de transferencia…",
+  confirm: (total: string) => `Registrar cobro de ${total}`,
+  cancel: "Cancelar",
+  submitting: "Guardando…",
+  toastSuccessTitle: "Cobro registrado",
+  toastSuccessDescription: (total: string) =>
+    `Cobro de ${total} registrado. El comprobante de pago se genera en segundo plano.`,
+  followThrough: {
+    title: "Cobro registrado",
+    description: (total: string) =>
+      `Cobro de ${total}. Revisa el estado del comprobante y abre cada factura si hace falta.`,
+    invoicesTitle: "Facturas del cobro",
+    openInvoice: (folio: string) => `Abrir factura ${folio}`,
+    repStatusLabel: "Comprobante de pago",
+    hint: "Si el sello falla o se acerca el plazo, el cobro aparece abajo en Comprobantes por atender.",
+  },
+  exceptions: {
+    title: "Comprobantes por atender",
     description:
-      "Este pago altera el orden de parcialidades del complemento de pago ya timbradas. Se cancelarán y volverán a timbrar los complementos afectados.",
+      "Pagos con comprobante pendiente, fallido, en reparación o con plazo por vencer. El reintento del sello se hace en el detalle de la factura.",
+    emptyTitle: "Sin comprobantes por atender",
+    empty: "No hay comprobantes de pago pendientes de sello para este alcance.",
+    loadErrorTitle: "No se pudieron cargar los comprobantes",
+    loadError: "Intenta de nuevo. Si persiste, abre el detalle de la factura.",
+    retry: "Reintentar",
+    entityLabelPlural: "comprobantes",
+    openInvoice: (folio: string) => `Abrir factura ${folio}`,
+    amount: "Importe",
+    client: "Cliente",
+    date: "Fecha del cobro",
+    status: "Estado",
+    deadline: "Plazo",
+    invoices: "Facturas",
+    deadlineOk: "En plazo",
+    deadlineApproaching: "Por vencer",
+    deadlineOverdue: "Plazo vencido",
+    daysUntil: (days: number) =>
+      days === 1 ? "1 día" : `${days} días`,
+    daysOverdue: (days: number) =>
+      days === 1 ? "vencido hace 1 día" : `vencido hace ${days} días`,
+    statusLabels: {
+      pending: "Pendiente de sello",
+      failed: "Sello fallido",
+      restamp_pending: "Reparando sello",
+      cancelling: "Cancelando comprobante",
+    },
+  },
+  toastError: "No se pudo registrar el cobro",
+  overlayErrorSeeInline: "Revisa el mensaje detallado en el diálogo.",
+  chainRepair: {
+    title: "Actualizar comprobantes de pago anteriores",
+    description:
+      "Este cobro cambia el orden de pagos ya sellados. Se cancelarán y volverán a sellar los comprobantes de pago afectados.",
+    affectedTitle: "Comprobantes afectados",
     confirm: "Confirmar y registrar",
     cancel: "Volver",
   },
-  confirm: "Confirmar y registrar",
-  cancel: "Cancelar",
-  submitting: "Guardando…",
-  toastSuccess:
-    "Cobro registrado; el complemento de pago se timbrará en segundo plano.",
-  toastError: "No se pudo registrar el cobro",
-  selectedSummary: (count: number, total: string) =>
-    `${count} factura${count === 1 ? "" : "s"} seleccionada${count === 1 ? "" : "s"} · Total ${total}`,
-  selectedHint:
-    "El cobro aplicará el saldo completo de cada factura seleccionada.",
   selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
   columns: {
     invoice: "Factura",
-    client: "Cliente",
     issuedAt: "Emisión",
+    trips: "Viajes",
     total: "Total",
-    balance: "Saldo",
+    balance: "Por cobrar",
   },
 } as const;
 
@@ -116,7 +164,10 @@ export const financeCopy = {
     },
     accountStatement: {
       description:
-        "Saldos consolidados por cliente con facturas timbradas y pagos registrados.",
+        "Por cobrar es el pendiente de cartera (mismo criterio que Cobros y el detalle). Pagado es facturado menos por cobrar; en PUE liquidada coincide con el total.",
+      collectAction: "Cobrar",
+      collectActionAria: (clientName: string) =>
+        `Cobrar a ${clientName}`,
     },
     dsoTitle: "Días promedio de cobro (30 días)",
     daysSuffix: "días",
@@ -138,16 +189,17 @@ export const financeCopy = {
     empty: {
       title: "Sin datos de cobro",
       description:
-        "Aún no hay facturas timbradas con saldo para mostrar por cliente.",
+        "Aún no hay facturas emitidas con saldo para mostrar por cliente.",
     },
     table: {
       client: "Cliente",
       rfc: "RFC",
       invoiced: "Facturado",
       paid: "Pagado",
-      balance: "Saldo",
+      balance: "Por cobrar",
       overdue: "Vencido",
       invoices: "Facturas",
+      actions: "Acciones",
     },
     charts: {
       empty: {
@@ -155,8 +207,8 @@ export const financeCopy = {
       },
       agingBuckets: {
         title: "Antigüedad de saldos",
-        description: "Saldo pendiente por rango de días vencidos",
-        balanceLabel: "Saldo",
+        description: "Por cobrar pendiente por rango de días vencidos",
+        balanceLabel: "Por cobrar",
         footer: (totalReceivable: string) =>
           `Cartera total por antigüedad: ${totalReceivable}`,
       },
@@ -213,22 +265,22 @@ export const financeCopy = {
     },
     entityLabelPlural: "facturas",
     kpi: {
-      stamped: { label: "Timbradas", description: "facturas" },
+      stamped: { label: "Emitidas", description: "facturas" },
       draft: { label: "Borradores", description: "facturas" },
-      receivable: { label: "Por cobrar", description: "Saldo pendiente" },
       cancellationPending: {
-        label: "Cancelación pendiente",
+        label: "Cancelación en proceso",
         description: "facturas",
       },
       cancelled: { label: "Canceladas", description: "facturas" },
     },
+    /** Labels operativos staff (alineados al portal; D7). */
     statusLabels: {
       draft: "Borrador",
-      stamped: "Timbrada",
-      cancellation_pending: "Cancelación pendiente",
+      stamped: "Emitida",
+      cancellation_pending: "Cancelación en proceso",
       cancelled: "Cancelada",
     },
-    /** Labels entendibles para portal client (sin jerga de timbrado). */
+    /** Labels del portal client (consulta). */
     statusLabelsClient: {
       draft: "Borrador",
       stamped: "Facturado",
@@ -239,9 +291,11 @@ export const financeCopy = {
       folio: "Folio",
       client: "Cliente",
       date: "Fecha",
-      method: "Método",
+      method: "Cómo se cobra",
       total: "Total",
-      balance: "Saldo",
+      balance: "Por cobrar",
+      settled: "Pagado",
+      settledPue: "Liquidada",
       trips: "Viajes",
       tripsClient: "Envíos",
       status: "Estado",
@@ -265,7 +319,7 @@ export const financeCopy = {
   invoiceable: {
     title: "Viajes por facturar",
     description:
-      "Viajes con facturación disponible que aún no tienen factura emitida.",
+      "Viajes listos para facturar que aún no tienen factura emitida.",
     searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
@@ -277,6 +331,7 @@ export const financeCopy = {
       departure: "Salida programada",
       baseRate: "Importe del viaje",
       empty: "No hay viajes por facturar.",
+      falseTripChip: "Viaje en falso",
     },
     empty: {
       title: "Nada por facturar",
@@ -327,10 +382,15 @@ export const financeCopy = {
         "Ranking de los cinco grupos con mayor métrica según el alcance activo.",
       emptyDescription: "No hay agregados para mostrar ranking.",
     },
+    chartsSection: {
+      title: "Gráficas",
+      show: "Ver gráficas",
+      hide: "Ocultar gráficas",
+    },
     metrics: {
       totalRevenue: "Ingreso",
       totalRevenueHint:
-        "Subtotal de factura timbrada o tarifa base del viaje (sin IVA).",
+        "Importe de factura emitida o tarifa del viaje (sin impuestos).",
       projectedRevenue: "Ingreso estimado",
       cancellationLoss: "Pérdida por cancelación",
       tripCount: "Viajes",
@@ -427,7 +487,7 @@ export const financeCopy = {
         emptyDescription: "No hay viajes en la muestra para los filtros actuales.",
       },
     },
-    exportCsv: "Exportar margen (CSV)",
+    exportCsv: "Exportar muestra (CSV)",
   },
   expenses: {
     alert: {
@@ -518,10 +578,14 @@ export const financeCopy = {
     exportCsv: "Exportar gastos (CSV)",
   },
   exports: exportCopy,
+  paymentMethods: {
+    ppd: "A crédito",
+    pue: "De contado",
+  },
   kpis: {
     totalReceivable: {
       title: "Por cobrar",
-      description: "Facturas a crédito con saldo pendiente",
+      description: "Total con saldo pendiente de cobro",
     },
     collectedThisMonth: {
       title: "Cobrado este mes",
@@ -529,11 +593,11 @@ export const financeCopy = {
     },
     totalOverdue: {
       title: "Vencido",
-      description: "Facturas a crédito con pago pendiente",
+      description: "Parte del saldo que ya pasó la fecha de pago",
     },
     expensesThisMonth: {
       title: "Gastos del mes",
-      description: "Gastos operativos registrados",
+      description: "Gastos operativos aprobados",
     },
   },
 } as const;

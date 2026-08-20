@@ -1,5 +1,6 @@
 import { Receipt } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Card,
@@ -20,16 +21,22 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { AccountStatementItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
+import { getAccountStatementDisplayPaid } from "../utils/accountStatementDisplayPaid";
 
 interface FinanceAccountStatementSectionProps {
   rows: AccountStatementItem[];
   isLoading?: boolean;
+  /** Navega a Cobros con RFC precargado (D2). */
+  onCollectClient?: (clientRfc: string) => void;
 }
 
 export function FinanceAccountStatementSection({
   rows,
   isLoading = false,
+  onCollectClient,
 }: FinanceAccountStatementSectionProps) {
+  const showCollect = typeof onCollectClient === "function";
+
   return (
     <Card>
       <CardHeader>
@@ -73,6 +80,11 @@ export function FinanceAccountStatementSection({
                   <TableHead className="text-right">
                     {financeCopy.summary.table.invoices}
                   </TableHead>
+                  {showCollect ? (
+                    <TableHead className="text-right">
+                      {financeCopy.summary.table.actions}
+                    </TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -86,7 +98,7 @@ export function FinanceAccountStatementSection({
                       {formatMxCurrency(row.totalInvoiced)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-success">
-                      {formatMxCurrency(row.totalPaid)}
+                      {formatMxCurrency(getAccountStatementDisplayPaid(row))}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {row.balanceDue > 0 ? (
@@ -111,6 +123,25 @@ export function FinanceAccountStatementSection({
                     <TableCell className="text-right">
                       <Badge variant="secondary">{row.invoiceCount}</Badge>
                     </TableCell>
+                    {showCollect ? (
+                      <TableCell className="text-right">
+                        {row.balanceDue > 0 ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            aria-label={financeCopy.summary.accountStatement.collectActionAria(
+                              row.clientName,
+                            )}
+                            onClick={() => onCollectClient(row.clientRfc)}
+                          >
+                            {financeCopy.summary.accountStatement.collectAction}
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))}
               </TableBody>

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileClock } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { useFinanceListingFilters } from "@features/finance/application";
 import { useTrips, formatRoute } from "@features/trips";
 import type { TripListItem } from "@features/trips/domain";
+import { buildInvoiceCreatePathFromTrip } from "@features/invoicing";
 import { financeCopy } from "../copy";
 
 const copy = financeCopy.invoiceable;
@@ -89,7 +91,7 @@ function InvoiceableTripsTable({
 }: {
   trips: TripListItem[];
   isLoading: boolean;
-  onInvoice: (tripId: string) => void;
+  onInvoice: (trip: TripListItem) => void;
 }) {
   return (
     <div className="rounded-md border">
@@ -113,7 +115,14 @@ function InvoiceableTripsTable({
             {trips.map((trip) => (
               <TableRow key={trip.id}>
                 <TableCell className="font-mono font-medium">
-                  {trip.tripCode}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{trip.tripCode}</span>
+                    {trip.operationalOutcome === "false_trip" ? (
+                      <Badge variant="warning" tone="soft" className="text-xs">
+                        {copy.table.falseTripChip}
+                      </Badge>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell className="text-sm">
                   {trip.client?.legalName ?? copy.noClient}
@@ -130,7 +139,7 @@ function InvoiceableTripsTable({
                   {formatMxCurrency(trip.baseRate)}
                 </TableCell>
                 <TableCell>
-                  <Button size="sm" onClick={() => onInvoice(trip.id)}>
+                  <Button size="sm" onClick={() => onInvoice(trip)}>
                     {copy.invoiceAction}
                   </Button>
                 </TableCell>
@@ -181,8 +190,8 @@ export function FinanceInvoiceableTripsTab({
   }, [refetch]);
 
   const handleInvoice = useCallback(
-    (tripId: string) => {
-      navigate(`/invoices/new?trip_id=${tripId}`, {
+    (trip: TripListItem) => {
+      navigate(buildInvoiceCreatePathFromTrip(trip), {
         state: { from: TAB_PATH },
       });
     },

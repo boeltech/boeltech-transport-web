@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mapProfitabilityTripsResponse } from "./mappers";
+import {
+  mapAgingSummary,
+  mapAccountStatementItem,
+  mapFinanceSummary,
+  mapProfitabilityTripsResponse,
+} from "./mappers";
+import { getAccountStatementDisplayPaid } from "../presentation/utils/accountStatementDisplayPaid";
 
 describe("mapProfitabilityTripsResponse", () => {
   it("maps scope aggregates and trip bucket fields", () => {
@@ -55,5 +61,61 @@ describe("mapProfitabilityTripsResponse", () => {
     expect(result.data[0]?.financialBucket).toBe("in_progress");
     expect(result.data[0]?.grossMargin).toBeNull();
     expect(result.data[0]?.profitabilityStatus).toBeNull();
+  });
+});
+
+describe("mapFinanceSummary", () => {
+  it("maps total_receivable as Por cobrar (allocations ancla)", () => {
+    const summary = mapFinanceSummary({
+      total_receivable: 1160,
+      collected_this_month: 500,
+      total_overdue: 200,
+      expenses_this_month: 80,
+      invoices_by_status: {
+        draft: 1,
+        stamped: 4,
+        cancellation_pending: 0,
+        cancelled: 2,
+      },
+    });
+    expect(summary.totalReceivable).toBe(1160);
+    expect(summary.collectedThisMonth).toBe(500);
+    expect(summary.totalOverdue).toBe(200);
+  });
+});
+
+describe("mapAccountStatementItem", () => {
+  it("maps balance_due as cartera remaining; Pagado is invoiced minus due, not total_paid", () => {
+    const row = mapAccountStatementItem({
+      client_rfc: "XAXX010101000",
+      client_name: "PUBLICO EN GENERAL",
+      total_invoiced: 31920,
+      total_paid: 0,
+      balance_due: 0,
+      invoice_count: 2,
+      overdue_amount: 0,
+    });
+    expect(row.balanceDue).toBe(0);
+    expect(row.totalPaid).toBe(0);
+    expect(getAccountStatementDisplayPaid(row)).toBe(31920);
+    expect(getAccountStatementDisplayPaid(row)).not.toBe(row.totalPaid);
+  });
+});
+
+describe("mapAgingSummary", () => {
+  it("maps total_receivable from aging (same ancla as Por cobrar)", () => {
+    const aging = mapAgingSummary({
+      total_receivable: 2320,
+      dso_30d: 18,
+      buckets: {
+        "0-30": { invoice_count: 1, total_balance: 1160 },
+        "31-60": { invoice_count: 1, total_balance: 1160 },
+        "61-90": { invoice_count: 0, total_balance: 0 },
+        "90+": { invoice_count: 0, total_balance: 0 },
+      },
+    });
+    expect(aging.totalReceivable).toBe(2320);
+    expect(aging.dso30d).toBe(18);
+    expect(aging.buckets["0-30"].totalBalance).toBe(1160);
   });
 });

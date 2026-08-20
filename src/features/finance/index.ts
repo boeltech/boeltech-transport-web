@@ -16,6 +16,8 @@ export type {
   ProfitabilityAggregateFilters,
   ExpensesByCategoryFilters,
   ExpensesByDimensionFilters,
+  FinanceRepExceptionItem,
+  PaginatedFinanceRepExceptions,
 } from "./domain";
 
 export {

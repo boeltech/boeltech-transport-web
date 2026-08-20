@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import {
+  parseProfitabilityDimension,
+  parseProfitabilityScope,
+  parseProfitabilityStatus,
   useFinanceListingFilters,
   useProfitabilityAggregate,
   useProfitabilityTrips,
@@ -8,10 +11,15 @@ import {
 import type {
   ProfitabilityDimension,
   ProfitabilityScope,
-  ProfitabilityStatus,
 } from "@features/finance/domain";
 import { Button } from "@shared/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 import {
   FinanceTabFiltersBar,
   ProfitabilityCharts,
@@ -32,6 +40,7 @@ const DEFAULT_DIMENSION: ProfitabilityDimension = "client";
 export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
   const { toast } = useToast();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [chartsOpen, setChartsOpen] = useState(false);
 
   const filters = useFinanceListingFilters<"scope" | "dimension" | "status">({
     filters: {
@@ -52,10 +61,12 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
     },
   });
 
-  const scope = (filters.filters.scope || DEFAULT_SCOPE) as ProfitabilityScope;
-  const dimension = (filters.filters.dimension ||
-    DEFAULT_DIMENSION) as ProfitabilityDimension;
-  const status = filters.filters.status || "all";
+  const scope = parseProfitabilityScope(filters.filters.scope);
+  const dimension = parseProfitabilityDimension(filters.filters.dimension);
+  const profitabilityStatusFilter = parseProfitabilityStatus(
+    filters.filters.status,
+  );
+  const status = profitabilityStatusFilter ?? "all";
 
   const handleScopeChange = useCallback(
     (value: ProfitabilityScope) => {
@@ -91,12 +102,13 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
       limit: 100,
       page: 1,
       scope,
-      profitabilityStatus:
-        status === "all" ? undefined : [status as ProfitabilityStatus],
+      profitabilityStatus: profitabilityStatusFilter
+        ? [profitabilityStatusFilter]
+        : undefined,
       sortBy: "grossMarginPct" as const,
       sortOrder: "desc" as const,
     }),
-    [scope, status],
+    [profitabilityStatusFilter, scope],
   );
 
   const { data: trips, isLoading: tripsLoading } = useProfitabilityTrips(
@@ -128,11 +140,7 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
       { enabled: queriesEnabled },
     );
 
-  const profitabilityStatusFilter = useMemo(
-    () =>
-      status === "all" ? undefined : [status as ProfitabilityStatus],
-    [status],
-  );
+  const chartsCopy = financeCopy.profitability.chartsSection;
 
   return (
     <div className="space-y-6">
@@ -144,10 +152,18 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
           variant="outline"
           disabled={!trips?.data.length}
           onClick={() => {
-            exportProfitabilityTripsCsv(trips?.data ?? []);
+            const rows = trips?.data ?? [];
+            exportProfitabilityTripsCsv(rows);
+            const total = trips?.pagination.total ?? rows.length;
             toast({
               title: financeCopy.exports.toasts.exportedTitle,
-              description: financeCopy.exports.toasts.profitability,
+              description:
+                total > rows.length
+                  ? financeCopy.exports.toasts.profitabilityTruncated(
+                      rows.length,
+                      total,
+                    )
+                  : financeCopy.exports.toasts.profitability,
             });
           }}
         >
@@ -169,15 +185,6 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
         isLoading={tripsLoading || monthAggregateLoading}
       />
 
-      <ProfitabilityCharts
-        scope={scope}
-        trips={trips}
-        monthAggregate={monthAggregate}
-        tripsLoading={tripsLoading}
-        monthLoading={monthAggregateLoading}
-        showStatusDistribution={false}
-      />
-
       <ProfitabilityMasterDetailTable
         scope={scope}
         dimension={dimension}
@@ -186,11 +193,40 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
         onStatusChange={handleStatusChange}
         aggregate={aggregate}
         aggregateLoading={aggregateLoading}
-        profitabilityStatus={profitabilityStatusFilter}
+        profitabilityStatus={
+          profitabilityStatusFilter ? [profitabilityStatusFilter] : undefined
+        }
         expandedKey={expandedKey}
         onExpandedKeyChange={setExpandedKey}
         queriesEnabled={queriesEnabled}
       />
+
+      <Collapsible open={chartsOpen} onOpenChange={setChartsOpen}>
+        <CollapsibleTrigger
+          type="button"
+          className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/40 sm:w-auto sm:min-w-[12rem]"
+          aria-expanded={chartsOpen}
+        >
+          <span>{chartsOpen ? chartsCopy.hide : chartsCopy.show}</span>
+          <ChevronDown
+            className={cn(
+              "ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              chartsOpen && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4">
+          <ProfitabilityCharts
+            scope={scope}
+            trips={trips}
+            monthAggregate={monthAggregate}
+            tripsLoading={tripsLoading}
+            monthLoading={monthAggregateLoading}
+            showStatusDistribution={false}
+          />
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

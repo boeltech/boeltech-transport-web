@@ -15,5 +15,6 @@ export { ProfitabilityBucketBar } from "./ProfitabilityBucketBar";
 export { ProfitabilityDimensionBarList } from "./ProfitabilityDimensionBarList";
 export { FinanceInvoicesSummaryCards } from "./FinanceInvoicesSummaryCards";
 export { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
+export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
 export { FinanceTabFiltersBar } from "./FinanceTabFiltersBar";
 

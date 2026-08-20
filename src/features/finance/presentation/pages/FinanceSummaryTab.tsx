@@ -1,9 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Download } from "lucide-react";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { Button } from "@shared/ui/button";
 import {
+  buildFinanceTabSearchParams,
   useAccountStatement,
   useAgingByClient,
   useAgingSummary,
@@ -23,6 +25,7 @@ interface FinanceSummaryTabProps {
 
 export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     data: summary,
     isLoading,
@@ -74,6 +77,19 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
 
   const rows = statement ?? [];
 
+  const handleCollectClient = useCallback(
+    (clientRfc: string) => {
+      setSearchParams(
+        buildFinanceTabSearchParams("cobros", {
+          rfc: clientRfc,
+          preserveFrom: searchParams,
+        }),
+        { replace: false },
+      );
+    },
+    [searchParams, setSearchParams],
+  );
+
   const agingExportAction = useMemo(() => {
     if (!agingByClient?.length) return undefined;
     return (
@@ -105,7 +121,11 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
         exportAction={agingExportAction}
       />
 
-      <FinanceAccountStatementSection rows={rows} isLoading={stmtLoading} />
+      <FinanceAccountStatementSection
+        rows={rows}
+        isLoading={stmtLoading}
+        onCollectClient={handleCollectClient}
+      />
     </div>
   );
 }

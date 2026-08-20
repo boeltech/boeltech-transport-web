@@ -18,9 +18,25 @@ import type {
   FinanceInvoiceListItem,
   FinanceInvoiceStatus,
 } from "@features/finance/domain";
+import { getDisplayAmountsFromInvoiceFields } from "@features/invoicing";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
 import { financeCopy } from "../copy";
+import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMethod";
+
+/** Saldo mostrado: PUE timbrada = liquidada (igual que detalle de factura). */
+function getListDisplayAmounts(invoice: FinanceInvoiceListItem) {
+  const recordedPaid = Math.max(
+    0,
+    Number((invoice.total - invoice.balanceDue).toFixed(2)),
+  );
+  return getDisplayAmountsFromInvoiceFields({
+    status: invoice.status,
+    paymentMethod: invoice.paymentMethod,
+    total: invoice.total,
+    totalPaid: recordedPaid,
+  });
+}
 
 const copy = financeCopy.invoices;
 
@@ -167,22 +183,28 @@ export function FinanceInvoiceListTable({
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="text-xs">
-                  {invoice.paymentMethod}
+                  {formatFinancePaymentMethodLabel(invoice.paymentMethod)}
                 </Badge>
               </TableCell>
               <TableCell className="text-right font-medium">
                 {formatMxCurrency(invoice.total)}
               </TableCell>
               <TableCell className="text-right">
-                {invoice.balanceDue > 0 ? (
-                  <span className="font-medium text-destructive">
-                    {formatMxCurrency(invoice.balanceDue)}
-                  </span>
-                ) : (
-                  <span className="text-sm text-success">
-                    {copy.table.paid}
-                  </span>
-                )}
+                {(() => {
+                  const { balanceDue, isPueSettled } = getListDisplayAmounts(invoice);
+                  if (balanceDue > 0) {
+                    return (
+                      <span className="font-medium text-destructive">
+                        {formatMxCurrency(balanceDue)}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="text-sm text-success">
+                      {isPueSettled ? copy.table.settledPue : copy.table.paid}
+                    </span>
+                  );
+                })()}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">

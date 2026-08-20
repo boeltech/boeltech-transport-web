@@ -21,17 +21,17 @@ export const FINANCE_INVOICE_STATUS_CONFIG: Record<
   draft: createStatusConfig("neutral", {
     label: labels.draft,
     icon: FileEdit,
-    description: "Borrador sin timbrar",
+    description: "Borrador pendiente de emitir",
   }),
   stamped: createStatusConfig("success", {
     label: labels.stamped,
     icon: CheckCircle2,
-    description: "CFDI timbrado ante el SAT",
+    description: "Factura emitida",
   }),
   cancellation_pending: createStatusConfig("warning", {
     label: labels.cancellation_pending,
     icon: Clock,
-    description: "Cancelación en proceso ante el PAC",
+    description: "Cancelación en proceso",
   }),
   cancelled: createStatusConfig("destructive", {
     label: labels.cancelled,

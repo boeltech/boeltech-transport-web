@@ -1,7 +1,7 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Link, useSearchParams, type SetURLSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
 import {
-  CheckCircle2,
   CircleDollarSign,
   FileText,
   ReceiptText,
@@ -9,193 +9,253 @@ import {
   Send,
 } from "lucide-react";
 import {
+  FINANCE_COBROS_RFC_PARAM,
+  OPEN_PPD_INVOICES_PAGE_SIZE,
+  buildFinanceTabSearchParams,
   useOpenPpdInvoices,
   useRegisterFinancePayment,
-} from "@features/finance/application/hooks/useFinancePayments";
-import type { FinanceInvoiceListItem } from "@features/finance/domain";
+} from "@features/finance/application";
+import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
 import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { Input } from "@shared/ui/input";
-import { Checkbox } from "@shared/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@shared/ui/dialog";
+import { StatCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@shared/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
+import { ListingPagination, ListingResultsSummary } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { FinanceChainRepairConfirmDialog } from "../components/FinanceChainRepairConfirmDialog";
+import { FinanceCobrosConfirmSheet } from "../components/FinanceCobrosConfirmSheet";
+import { FinanceCobrosFollowThroughAlert } from "../components/FinanceCobrosFollowThroughAlert";
+import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTable";
+import { FinanceRepExceptionsSection } from "../components/FinanceRepExceptionsSection";
+import {
+  COBROS_PAYMENT_FORM,
+  COBROS_PAYMENT_TIME,
+} from "../config/financeCobrosConfig";
 import { financeCopy } from "../copy";
+import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
+import {
+  buildCobrosFollowThrough,
+  readCobrosFollowThrough,
+  writeCobrosFollowThrough,
+  type CobrosFollowThrough,
+} from "../utils/cobrosFollowThrough";
 
-function MetricCard({
-  icon,
-  label,
-  value,
-  hint,
+const copy = financeCopy.cobros;
+
+function CobrosRegisterBar({
+  count,
+  total,
+  onRegister,
 }: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  hint: string;
+  count: number;
+  total: string;
+  onRegister: () => void;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-start gap-3 p-4">
-        <div className="rounded-md bg-primary/10 p-2 text-primary">{icon}</div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold tabular-nums">{value}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FinanceChainRepairConfirmDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  isPending = false,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  isPending?: boolean;
-}) {
-  const copy = financeCopy.cobros.chainRepair;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{copy.title}</DialogTitle>
-          <DialogDescription>{copy.description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            {copy.cancel}
-          </Button>
-          <Button type="button" disabled={isPending} onClick={onConfirm}>
-            {isPending ? financeCopy.cobros.submitting : copy.confirm}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-muted-foreground">{copy.selectedHint}</p>
+      <Button type="button" onClick={onRegister}>
+        <Send className="mr-2 h-4 w-4" aria-hidden />
+        {copy.registerCta(count, total)}
+      </Button>
+    </div>
   );
 }
 
 export function FinanceCobranzaTab() {
-  const copy = financeCopy.cobros;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rfcFromUrl = (searchParams.get(FINANCE_COBROS_RFC_PARAM) ?? "")
+    .trim()
+    .toUpperCase();
+  const [followThrough, setFollowThrough] = useState<CobrosFollowThrough | null>(
+    () => readCobrosFollowThrough(),
+  );
+
+  const handlePaymentRegistered = (next: CobrosFollowThrough) => {
+    writeCobrosFollowThrough(next);
+    setFollowThrough(next);
+  };
+
+  return (
+    <div className="space-y-6">
+      {followThrough ? (
+        <FinanceCobrosFollowThroughAlert followThrough={followThrough} />
+      ) : null}
+      <FinanceCobrosSession
+        key={`session-${rfcFromUrl || "empty"}`}
+        rfcFromUrl={rfcFromUrl}
+        searchParams={searchParams}
+        setSearchParams={setSearchParams}
+        onPaymentRegistered={handlePaymentRegistered}
+      />
+      <FinanceRepExceptionsSection
+        key={`exceptions-${rfcFromUrl || "all"}`}
+        receiverRfc={rfcFromUrl || null}
+      />
+    </div>
+  );
+}
+
+function FinanceCobrosSession({
+  rfcFromUrl,
+  searchParams,
+  setSearchParams,
+  onPaymentRegistered,
+}: {
+  rfcFromUrl: string;
+  searchParams: URLSearchParams;
+  setSearchParams: SetURLSearchParams;
+  onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
+}) {
   const { toast } = useToast();
-  const [receiverRfc, setReceiverRfc] = useState("");
-  const [searchRfc, setSearchRfc] = useState<string | null>(null);
+  const { hasPermission } = usePermissions();
+  const canRegisterPayment = hasPermission("finance", "create");
+  const searchRfc = rfcFromUrl || null;
+
+  const [rfcDraft, setRfcDraft] = useState(rfcFromUrl);
+  const [isEditingRfc, setIsEditingRfc] = useState(!rfcFromUrl);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [reference, setReference] = useState("");
   const [chainRepairOpen, setChainRepairOpen] = useState(false);
+  const [chainRepairLabels, setChainRepairLabels] = useState<string[]>([]);
+  const [chainRepairError, setChainRepairError] = useState<string | null>(null);
   const [pendingPayload, setPendingPayload] =
     useState<RegisterFinancePaymentPayload | null>(null);
+  const loteSnapshotRef = useRef<FinanceInvoiceListItem[]>([]);
 
-  const { data, isLoading, isError } = useOpenPpdInvoices(searchRfc);
+  const { data, isLoading, isError, refetch } = useOpenPpdInvoices(searchRfc, {
+    page,
+    limit: OPEN_PPD_INVOICES_PAGE_SIZE,
+  });
   const invoices = useMemo(() => data?.data ?? [], [data]);
+  const pagination = data?.pagination;
 
   const selectedInvoices = useMemo(
-    () => invoices.filter((inv) => selected[inv.id]),
+    () => invoices.filter((invoice) => selected[invoice.id]),
     [invoices, selected],
   );
 
   const selectedTotal = useMemo(
     () =>
       selectedInvoices.reduce(
-        (sum, inv) => sum + Number(inv.balanceDue.toFixed(2)),
+        (sum, invoice) => sum + Number(invoice.balanceDue.toFixed(2)),
         0,
       ),
     [selectedInvoices],
   );
 
-  const openBalance = useMemo(
-    () => invoices.reduce((sum, inv) => sum + Number(inv.balanceDue.toFixed(2)), 0),
+  const pageBalance = useMemo(
+    () =>
+      invoices.reduce(
+        (sum, invoice) => sum + Number(invoice.balanceDue.toFixed(2)),
+        0,
+      ),
     [invoices],
   );
 
+  const formattedSelectedTotal = formatMxCurrency(selectedTotal);
+  const paymentDate = getTodayMexicoDateString();
+  const clientName = invoices[0]?.receiverName?.trim();
+  const showSearchForm = !searchRfc || isEditingRfc;
+  const showRegisterBar =
+    canRegisterPayment && selectedInvoices.length > 0 && invoices.length > 0;
+
   const { mutate, isPending } = useRegisterFinancePayment({
-    onSuccess: () => {
-      toast({ title: copy.toastSuccess });
-      setSheetOpen(false);
-      setChainRepairOpen(false);
-      setPendingPayload(null);
-      setSelected({});
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
-        setChainRepairOpen(true);
-        return;
+    onSuccess: (data: FinancePayment, variables) => {
+      const snapshot = loteSnapshotRef.current;
+      if (snapshot.length > 0) {
+        onPaymentRegistered(buildCobrosFollowThrough(data, variables, snapshot));
       }
       toast({
-        variant: "destructive",
-        title: copy.toastError,
-        description: getErrorMessage(err),
+        title: copy.toastSuccessTitle,
+        description: copy.toastSuccessDescription(
+          formatMxCurrency(variables.amount),
+        ),
       });
+      setSheetOpen(false);
+      setChainRepairOpen(false);
+      setChainRepairError(null);
+      setPendingPayload(null);
+      setSelected({});
+      setReference("");
     },
   });
 
+  const handleMutationError = (err: Error, fromChainDialog: boolean) => {
+    if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
+      setChainRepairLabels(getChainRepairAffectedLabels(err.details));
+      setChainRepairError(null);
+      setChainRepairOpen(true);
+      return;
+    }
+    const message = getErrorMessage(err);
+    if (fromChainDialog) {
+      setChainRepairError(message);
+      return;
+    }
+    toast({
+      variant: "error",
+      title: copy.toastError,
+      description: message,
+    });
+  };
+
   const toggleInvoice = (invoice: FinanceInvoiceListItem, checked: boolean) => {
     setSelected((prev) => ({ ...prev, [invoice.id]: checked }));
+  };
+
+  const togglePage = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      for (const invoice of invoices) {
+        next[invoice.id] = checked;
+      }
+      return next;
+    });
   };
 
   const buildPayload = (
     confirmChainRepair?: boolean,
   ): RegisterFinancePaymentPayload | null => {
     if (!searchRfc || selectedInvoices.length === 0) return null;
-    const allocations = selectedInvoices.map((inv) => ({
-      ingressInvoiceId: inv.id,
-      amount: Number(inv.balanceDue.toFixed(2)),
+    const allocations = selectedInvoices.map((invoice) => ({
+      ingressInvoiceId: invoice.id,
+      amount: Number(invoice.balanceDue.toFixed(2)),
     }));
-    const amount = allocations.reduce((sum, a) => sum + a.amount, 0);
+    const amount = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
     return {
       receiverRfc: searchRfc,
       amount,
       currency: "MXN",
       exchangeRate: 1,
-      paymentDate: getTodayMexicoDateString(),
-      paymentTime: "12:00:00",
-      paymentForm: "03",
+      paymentDate,
+      paymentTime: COBROS_PAYMENT_TIME,
+      paymentForm: COBROS_PAYMENT_FORM,
+      reference: reference.trim() || undefined,
       allocations,
       confirmChainRepair,
     };
   };
 
-  const submitPayload = (payload: RegisterFinancePaymentPayload) => {
+  const submitPayload = (
+    payload: RegisterFinancePaymentPayload,
+    fromChainDialog = false,
+  ) => {
+    loteSnapshotRef.current = selectedInvoices;
     setPendingPayload(payload);
-    mutate(payload);
+    mutate(payload, {
+      onError: (err) => handleMutationError(err, fromChainDialog),
+    });
   };
 
   const handleRegister = () => {
@@ -205,286 +265,237 @@ export function FinanceCobranzaTab() {
   };
 
   const handleSearch = () => {
+    const nextRfc = rfcDraft.trim().toUpperCase();
+    if (!nextRfc) return;
     setSelected({});
-    setSearchRfc(receiverRfc.trim() || null);
+    setPage(1);
+    setIsEditingRfc(false);
+    setSearchParams(
+      buildFinanceTabSearchParams("cobros", {
+        rfc: nextRfc,
+        preserveFrom: searchParams,
+      }),
+      { replace: true },
+    );
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setSelected({});
+    setPage(nextPage);
   };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Search className="h-4 w-4" aria-hidden />
-            {copy.searchCard.title}
-          </CardTitle>
-          <CardDescription>{copy.searchCard.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1 space-y-1">
-              <label className="text-sm font-medium" htmlFor="receiver-rfc">
-                {copy.receiverRfcLabel}
-              </label>
-              <Input
-                id="receiver-rfc"
-                value={receiverRfc}
-                onChange={(e) => setReceiverRfc(e.target.value.toUpperCase())}
-                placeholder="XAXX010101000"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && receiverRfc.trim()) {
-                    handleSearch();
+      {showSearchForm ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Search className="h-4 w-4" aria-hidden />
+              {copy.taskTitle}
+            </CardTitle>
+            <CardDescription>{copy.taskDescription}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Label htmlFor="receiver-rfc">{copy.receiverRfcLabel}</Label>
+                <Input
+                  id="receiver-rfc"
+                  className="font-mono"
+                  value={rfcDraft}
+                  onChange={(event) =>
+                    setRfcDraft(event.target.value.toUpperCase())
                   }
-                }}
-              />
+                  placeholder={copy.rfcPlaceholder}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && rfcDraft.trim()) {
+                      handleSearch();
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleSearch}
+                disabled={!rfcDraft.trim()}
+                className="sm:w-auto"
+              >
+                {copy.search}
+              </Button>
             </div>
-            <Button
-              type="button"
-              onClick={handleSearch}
-              disabled={!receiverRfc.trim()}
-              className="sm:w-auto"
-            >
-              {copy.search}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!searchRfc ? (
-        <AlertWithIcon variant="info" title={copy.initialState.title}>
-          {copy.initialState.description}
-        </AlertWithIcon>
-      ) : null}
+            {!searchRfc ? (
+              <p className="text-sm text-muted-foreground">
+                {copy.summaryLink}{" "}
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link to="/finance?tab=summary">{copy.summaryLinkCta}</Link>
+                </Button>
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="font-mono">
+            {copy.rfcChip(searchRfc)}
+          </Badge>
+          {clientName ? (
+            <span className="text-sm font-medium">{clientName}</span>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditingRfc(true)}
+          >
+            {copy.changeRfc}
+          </Button>
+        </div>
+      )}
 
       {searchRfc ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            icon={<FileText className="h-4 w-4" aria-hidden />}
-            label={copy.metrics.openInvoices}
-            value={String(invoices.length)}
-            hint={copy.metrics.forRfc(searchRfc)}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <StatCard
+            icon={<FileText className="h-5 w-5" aria-hidden />}
+            title={copy.metrics.openInvoices}
+            value={String(pagination?.total ?? invoices.length)}
+            description={copy.metrics.pendingCredit}
+            isLoading={isLoading && !pagination}
           />
-          <MetricCard
-            icon={<CircleDollarSign className="h-4 w-4" aria-hidden />}
-            label={copy.metrics.openBalance}
-            value={formatMxCurrency(openBalance)}
-            hint={copy.metrics.pendingCredit}
-          />
-          <MetricCard
-            icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
-            label={copy.metrics.selectedInvoices}
-            value={String(selectedInvoices.length)}
-            hint={copy.metrics.readyToApply}
-          />
-          <MetricCard
-            icon={<ReceiptText className="h-4 w-4" aria-hidden />}
-            label={copy.metrics.selectedTotal}
-            value={formatMxCurrency(selectedTotal)}
-            hint={copy.metrics.paymentBaseHint}
+          <StatCard
+            icon={<CircleDollarSign className="h-5 w-5" aria-hidden />}
+            title={copy.metrics.openBalance}
+            value={formatMxCurrency(pageBalance)}
+            description={
+              pagination && pagination.totalPages > 1
+                ? copy.metrics.thisPage
+                : copy.metrics.pendingCredit
+            }
+            isLoading={isLoading && invoices.length === 0}
           />
         </div>
       ) : null}
 
-      {isLoading ? (
-        <AlertWithIcon variant="info" title={copy.loadingTitle}>
-          {copy.loading}
-        </AlertWithIcon>
-      ) : null}
       {isError ? (
         <AlertWithIcon variant="destructive" title={copy.loadErrorTitle}>
-          {copy.loadError}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{copy.loadError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+              {copy.retry}
+            </Button>
+          </div>
         </AlertWithIcon>
       ) : null}
 
-      {searchRfc && !isLoading && invoices.length === 0 ? (
+      {searchRfc && !isLoading && !isError && invoices.length === 0 ? (
         <EmptyState
           icon={<ReceiptText className="h-8 w-8 text-muted-foreground" />}
           title={copy.emptyTitle}
           description={copy.empty}
           size="md"
+          cta={{
+            label: copy.changeRfc,
+            onClick: () => setIsEditingRfc(true),
+            variant: "outline",
+          }}
         />
       ) : null}
 
-      {invoices.length > 0 ? (
+      {searchRfc && (isLoading || invoices.length > 0) && !isError ? (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3">
               <div>
                 <CardTitle className="text-base">{copy.tableTitle}</CardTitle>
                 <CardDescription>{copy.tableDescription}</CardDescription>
               </div>
-              <Badge variant="secondary">{copy.tableBadge(invoices.length)}</Badge>
+              {showRegisterBar ? (
+                <CobrosRegisterBar
+                  count={selectedInvoices.length}
+                  total={formattedSelectedTotal}
+                  onRegister={() => setSheetOpen(true)}
+                />
+              ) : null}
+              {pagination && pagination.total > 0 ? (
+                <ListingResultsSummary
+                  entityLabelPlural={copy.entityLabelPlural}
+                  total={pagination.total}
+                  page={pagination.page}
+                  limit={pagination.limit}
+                />
+              ) : null}
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10" />
-                    <TableHead>{copy.columns.invoice}</TableHead>
-                    <TableHead>{copy.columns.client}</TableHead>
-                    <TableHead>{copy.columns.issuedAt}</TableHead>
-                    <TableHead className="text-right">{copy.columns.total}</TableHead>
-                    <TableHead className="text-right">{copy.columns.balance}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={Boolean(selected[inv.id])}
-                          onCheckedChange={(checked) =>
-                            toggleInvoice(inv, checked === true)
-                          }
-                          aria-label={copy.selectInvoice(`${inv.serie}-${inv.folio}`)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {inv.serie}-{inv.folio}
-                        <p className="text-xs text-muted-foreground">{inv.paymentMethod}</p>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{inv.receiverName}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {inv.receiverRfc}
-                        </p>
-                      </TableCell>
-                      <TableCell>{formatDate(inv.issuedAt)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(inv.total)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {formatMxCurrency(inv.balanceDue)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="divide-y md:hidden">
-              {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-start gap-3 py-3">
-                  <div className="pt-1">
-                    <Checkbox
-                      checked={Boolean(selected[inv.id])}
-                      onCheckedChange={(checked) =>
-                        toggleInvoice(inv, checked === true)
-                      }
-                      aria-label={copy.selectInvoice(`${inv.serie}-${inv.folio}`)}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">
-                        {inv.serie}-{inv.folio}
-                      </p>
-                      <Badge variant="outline">{inv.paymentMethod}</Badge>
-                    </div>
-                    <p className="truncate text-sm">{inv.receiverName}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{inv.receiverRfc}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.columns.issuedAt}: {formatDate(inv.issuedAt)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs text-muted-foreground">{copy.columns.balance}</p>
-                    <p className="font-semibold tabular-nums">
-                      {formatMxCurrency(inv.balanceDue)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="space-y-4">
+            <FinanceCobrosInvoiceTable
+              invoices={invoices}
+              selected={selected}
+              isLoading={isLoading && invoices.length === 0}
+              onToggle={toggleInvoice}
+              onTogglePage={togglePage}
+            />
+            {pagination ? (
+              <ListingPagination
+                page={page}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
+            ) : null}
+            {showRegisterBar ? (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4">
+                  <CobrosRegisterBar
+                    count={selectedInvoices.length}
+                    total={formattedSelectedTotal}
+                    onRegister={() => setSheetOpen(true)}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
 
-      {selectedInvoices.length > 0 ? (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">
-                {copy.selectedSummary(selectedInvoices.length, formatMxCurrency(selectedTotal))}
-              </p>
-              <p className="text-xs text-muted-foreground">{copy.selectedHint}</p>
-            </div>
-            <Button type="button" onClick={() => setSheetOpen(true)}>
-              <Send className="mr-2 h-4 w-4" aria-hidden />
-              {copy.register}
-            </Button>
-          </CardContent>
-        </Card>
+      {canRegisterPayment ? (
+        <FinanceCobrosConfirmSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          invoices={selectedInvoices}
+          total={selectedTotal}
+          receiverRfc={searchRfc ?? ""}
+          paymentDate={paymentDate}
+          reference={reference}
+          onReferenceChange={setReference}
+          isPending={isPending}
+          onConfirm={handleRegister}
+        />
       ) : null}
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>{copy.sheetTitle}</SheetTitle>
-            <SheetDescription>{copy.sheetDescription}</SheetDescription>
-          </SheetHeader>
-          <div className="space-y-4 py-4 text-sm">
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                {copy.sheetTotal}
-              </p>
-              <p className="text-xl font-semibold tabular-nums">
-                {formatMxCurrency(selectedTotal)}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-medium">{copy.sheetInvoicesTitle}</p>
-              {selectedInvoices.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2"
-                >
-                  <span className="font-medium">
-                    {inv.serie}-{inv.folio}
-                  </span>
-                  <span className="tabular-nums">{formatMxCurrency(inv.balanceDue)}</span>
-                </div>
-              ))}
-            </div>
-
-            <AlertWithIcon variant="info" title={copy.sheetNoticeTitle}>
-              {copy.sheetNoticeDescription}
-            </AlertWithIcon>
-          </div>
-          <SheetFooter className="gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSheetOpen(false)}
-            >
-              {copy.cancel}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleRegister}
-              disabled={isPending || selectedTotal <= 0}
-            >
-              {isPending ? copy.submitting : copy.confirm}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      <FinanceChainRepairConfirmDialog
-        open={chainRepairOpen}
-        onOpenChange={setChainRepairOpen}
-        isPending={isPending}
-        onConfirm={() => {
-          if (!pendingPayload) {
-            const payload = buildPayload(true);
-            if (payload) submitPayload(payload);
-            return;
-          }
-          mutate({ ...pendingPayload, confirmChainRepair: true });
-        }}
-      />
+      {canRegisterPayment ? (
+        <FinanceChainRepairConfirmDialog
+          open={chainRepairOpen}
+          onOpenChange={(open) => {
+            setChainRepairOpen(open);
+            if (!open) setChainRepairError(null);
+          }}
+          isPending={isPending}
+          affectedLabels={chainRepairLabels}
+          errorMessage={chainRepairError}
+          onConfirm={() => {
+            setChainRepairError(null);
+            if (!pendingPayload) {
+              const payload = buildPayload(true);
+              if (payload) submitPayload(payload, true);
+              return;
+            }
+            mutate(
+              { ...pendingPayload, confirmChainRepair: true },
+              {
+                onError: (err) => handleMutationError(err, true),
+              },
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }

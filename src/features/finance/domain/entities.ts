@@ -277,3 +277,40 @@ export interface IncomeByMonthFilters {
 export interface InvoicesByStatusMonthFilters {
   months?: number;
 }
+
+export type FinanceRepExceptionStatus =
+  | "pending"
+  | "failed"
+  | "restamp_pending"
+  | "cancelling";
+
+export type FinanceRepDeadlineStatus = "ok" | "approaching" | "overdue";
+
+export interface FinanceRepExceptionAllocation {
+  readonly ingressInvoiceId: string;
+  readonly amount: number;
+  readonly serie: string;
+  readonly folio: number;
+}
+
+export interface FinanceRepExceptionItem {
+  readonly paymentId: string;
+  readonly paymentDate: string;
+  readonly amount: number;
+  readonly amountMxn: number;
+  readonly paymentForm: string;
+  readonly receiverRfc: string;
+  readonly receiverName: string;
+  readonly repStatus: FinanceRepExceptionStatus;
+  readonly repCfdiUuid: string | null;
+  readonly repLastError: string | null;
+  readonly allocations: FinanceRepExceptionAllocation[];
+  readonly deadlineDate: string;
+  readonly deadlineStatus: FinanceRepDeadlineStatus;
+  readonly daysUntilDeadline: number;
+}
+
+export interface PaginatedFinanceRepExceptions {
+  readonly data: FinanceRepExceptionItem[];
+  readonly pagination: FinanceInvoicePagination;
+}

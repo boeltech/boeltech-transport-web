@@ -6,6 +6,8 @@ import { Button } from "@shared/ui/button";
 import { ListingDateRangeFilter } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
 import {
+  parseExpenseDimension,
+  parseExpenseGranularity,
   useExpensesByCategory,
   useExpensesByDimension,
   useFinanceListingFilters,
@@ -52,10 +54,8 @@ export function ExpenseAnalysisTab({ queriesEnabled }: ExpenseAnalysisTabProps) 
     },
   });
 
-  const dimension = (filters.filters.dimension ||
-    DEFAULT_DIMENSION) as "vehicle" | "driver" | "client" | "route";
-  const granularity = (filters.filters.granularity ||
-    DEFAULT_GRANULARITY) as "day" | "week" | "month";
+  const dimension = parseExpenseDimension(filters.filters.dimension);
+  const granularity = parseExpenseGranularity(filters.filters.granularity);
   const from = filters.filters.from;
   const to = filters.filters.to;
   const vehicleId = filters.filters.vehicleId;

@@ -33,6 +33,12 @@ export const financeQueryKeys = {
     [...financeQueryKeys.all, "income-by-month", filters] as const,
   invoicesByStatusMonth: (filters: InvoicesByStatusMonthFilters) =>
     [...financeQueryKeys.all, "invoices-by-status-month", filters] as const,
+  repExceptions: (
+    receiverRfc: string | null,
+    page: number,
+    limit: number,
+  ) =>
+    [...financeQueryKeys.all, "rep-exceptions", receiverRfc, page, limit] as const,
 };
 
 export const useFinanceSummary = (options?: { enabled?: boolean }) =>
@@ -97,7 +103,6 @@ export const useProfitabilityTrips = (
     queryFn: () => financeApi.getProfitabilityTrips(filters),
     enabled: options?.enabled ?? true,
     staleTime: 15_000,
-    placeholderData: (prev) => prev,
   });
 
 export const useProfitabilityAggregate = (

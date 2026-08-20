@@ -1,9 +1,14 @@
 import { apiClient } from "@shared/api";
 import type {
   FinanceInvoiceListItem,
+  FinanceInvoicePagination,
   FinancePayment,
+  FinanceRepExceptionItem,
   PaginatedFinanceInvoices,
+  PaginatedFinanceRepExceptions,
 } from "@features/finance/domain";
+
+export const OPEN_PPD_INVOICES_PAGE_SIZE = 50;
 
 export interface FinancePaymentAllocationPayload {
   ingressInvoiceId: string;
@@ -22,6 +27,27 @@ export interface RegisterFinancePaymentPayload {
   notes?: string;
   confirmChainRepair?: boolean;
   allocations: FinancePaymentAllocationPayload[];
+}
+
+function asFiniteNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function mapOpenPpdPagination(
+  raw: Record<string, unknown> | undefined,
+): FinanceInvoicePagination {
+  const page = Math.max(1, asFiniteNumber(raw?.page, 1));
+  const limit = Math.max(
+    1,
+    asFiniteNumber(raw?.limit, OPEN_PPD_INVOICES_PAGE_SIZE),
+  );
+  const total = Math.max(0, asFiniteNumber(raw?.total, 0));
+  const totalPages = Math.max(
+    1,
+    asFiniteNumber(raw?.totalPages ?? raw?.total_pages, Math.ceil(total / limit) || 1),
+  );
+  return { page, limit, total, totalPages };
 }
 
 function mapOpenPpdItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
@@ -85,11 +111,52 @@ function mapFinancePayment(raw: unknown): FinancePayment {
   };
 }
 
+function mapRepExceptionAllocation(
+  raw: Record<string, unknown>,
+): FinanceRepExceptionItem["allocations"][number] {
+  return {
+    ingressInvoiceId: String(raw.ingress_invoice_id ?? ""),
+    amount: Number(raw.amount ?? 0),
+    serie: String(raw.serie ?? ""),
+    folio: Number(raw.folio ?? 0),
+  };
+}
+
+export function mapRepExceptionItem(
+  raw: Record<string, unknown>,
+): FinanceRepExceptionItem {
+  const allocations = Array.isArray(raw.allocations)
+    ? raw.allocations.map((item) =>
+        mapRepExceptionAllocation(item as Record<string, unknown>),
+      )
+    : [];
+  return {
+    paymentId: String(raw.payment_id ?? ""),
+    paymentDate: String(raw.payment_date ?? ""),
+    amount: Number(raw.amount ?? 0),
+    amountMxn: Number(raw.amount_mxn ?? raw.amount ?? 0),
+    paymentForm: String(raw.payment_form ?? ""),
+    receiverRfc: String(raw.receiver_rfc ?? ""),
+    receiverName: String(raw.receiver_name ?? ""),
+    repStatus: String(
+      raw.rep_status ?? "pending",
+    ) as FinanceRepExceptionItem["repStatus"],
+    repCfdiUuid: raw.rep_cfdi_uuid == null ? null : String(raw.rep_cfdi_uuid),
+    repLastError: raw.rep_last_error == null ? null : String(raw.rep_last_error),
+    allocations,
+    deadlineDate: String(raw.deadline_date ?? ""),
+    deadlineStatus: String(
+      raw.deadline_status ?? "ok",
+    ) as FinanceRepExceptionItem["deadlineStatus"],
+    daysUntilDeadline: Number(raw.days_until_deadline ?? 0),
+  };
+}
+
 export const financePaymentsApi = {
   getOpenPpdInvoices: async (
     receiverRfc: string,
     page = 1,
-    limit = 50,
+    limit = OPEN_PPD_INVOICES_PAGE_SIZE,
   ): Promise<PaginatedFinanceInvoices> => {
     const params = new URLSearchParams({
       receiver_rfc: receiverRfc,
@@ -98,13 +165,43 @@ export const financePaymentsApi = {
     });
     const response = await apiClient.get<{
       data: unknown[];
-      pagination: PaginatedFinanceInvoices["pagination"];
+      pagination: Record<string, unknown>;
     }>(`/finance/open-ppd-invoices?${params.toString()}`);
     return {
       data: (response.data as unknown[]).map((item) =>
         mapOpenPpdItem(item as Record<string, unknown>),
       ),
-      pagination: response.pagination,
+      pagination: mapOpenPpdPagination(
+        response.pagination as Record<string, unknown> | undefined,
+      ),
+    };
+  },
+
+  getRepExceptions: async (options?: {
+    page?: number;
+    limit?: number;
+    receiverRfc?: string | null;
+  }): Promise<PaginatedFinanceRepExceptions> => {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 25;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (options?.receiverRfc) {
+      params.set("receiver_rfc", options.receiverRfc);
+    }
+    const response = await apiClient.get<{
+      data: unknown[];
+      pagination: Record<string, unknown>;
+    }>(`/finance/payments/rep-exceptions?${params.toString()}`);
+    return {
+      data: (response.data as unknown[]).map((item) =>
+        mapRepExceptionItem(item as Record<string, unknown>),
+      ),
+      pagination: mapOpenPpdPagination(
+        response.pagination as Record<string, unknown> | undefined,
+      ),
     };
   },
 
