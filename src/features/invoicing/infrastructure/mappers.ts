@@ -5,18 +5,19 @@
  * Convierte respuestas API (snake_case) a entidades del dominio (camelCase).
  */
 
-import type {
-  Invoice,
-  InvoiceListItem,
-  InvoiceTripRef,
-  Payment,
-  InvoicePrefill,
-  InvoiceConcept,
-  CreateInvoicePayload,
-  UpdateInvoicePayload,
-  CancelInvoicePayload,
-  CreatePaymentPayload,
-  SubstituteStampedInvoicePayload,
+import {
+  parseInvoiceBillingScope,
+  type Invoice,
+  type InvoiceListItem,
+  type InvoiceTripRef,
+  type Payment,
+  type InvoicePrefill,
+  type InvoiceConcept,
+  type CreateInvoicePayload,
+  type UpdateInvoicePayload,
+  type CancelInvoicePayload,
+  type CreatePaymentPayload,
+  type SubstituteStampedInvoicePayload,
 } from "@features/invoicing/domain";
 
 // ============================================================================
@@ -274,8 +275,7 @@ function mapTripRef(raw: ApiTripRef): InvoiceTripRef {
     destinationCity: raw.destination_city,
     destinationState: raw.destination_state,
     baseRate: raw.base_rate,
-    billingScope:
-      raw.billing_scope === "accessory" ? "accessory" : "primary_transport",
+    billingScope: parseInvoiceBillingScope(raw.billing_scope),
   };
 }
 

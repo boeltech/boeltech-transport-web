@@ -25,6 +25,8 @@ interface InvoicePaymentRepRowProps {
   invoiceId: string;
   invoiceSerieFolio: string;
   canExportFiles: boolean;
+  /** invoices.execute — API POST …/retry-rep */
+  canRetryRep: boolean;
   onRetry: (paymentId: string) => void;
   retryingPaymentId: string | null;
 }
@@ -82,6 +84,7 @@ export function InvoicePaymentRepRow({
   invoiceId,
   invoiceSerieFolio,
   canExportFiles,
+  canRetryRep,
   onRetry,
   retryingPaymentId,
 }: InvoicePaymentRepRowProps) {
@@ -240,7 +243,7 @@ export function InvoicePaymentRepRow({
             {payment.createdByName}
           </span>
         )}
-        {payment.repStatus === "failed" && (
+        {canRetryRep && payment.repStatus === "failed" && (
           <Button
             type="button"
             size="sm"

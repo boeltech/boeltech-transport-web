@@ -6,7 +6,6 @@ import { useRegimenFiscalLabel } from "@features/catalogs";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { cn } from "@shared/lib/utils/cn";
 
 import { invoicingCopy } from "../copy/invoicingCopy";
 
@@ -157,6 +156,7 @@ function CreateContextLine({
   issuerName,
   issuerRfc,
 }: CreateContextLineProps) {
+  /** Panel izquierdo ancho: grid horizontal en md+. */
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 md:p-5">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center md:gap-6">
@@ -164,7 +164,9 @@ function CreateContextLine({
           <p className="text-xs font-medium text-muted-foreground">
             {ctxCopy.receiverHeading}
           </p>
-          <p className="truncate text-base font-semibold">{receiverName || "—"}</p>
+          <p className="truncate text-base font-semibold">
+            {receiverName || "—"}
+          </p>
           {receiverRfc ? (
             <p className="font-mono text-xs text-muted-foreground">{receiverRfc}</p>
           ) : null}
@@ -176,7 +178,10 @@ function CreateContextLine({
               {ctxCopy.tripLabel}
             </p>
             <Button variant="link" className="h-auto p-0" asChild>
-              <Link to={`/trips/${tripId ?? ""}`} className="inline-flex items-center gap-1.5">
+              <Link
+                to={`/trips/${tripId ?? ""}`}
+                className="inline-flex items-center gap-1.5"
+              >
                 <Badge variant="secondary" className="font-mono">
                   {tripCode}
                 </Badge>
@@ -269,11 +274,7 @@ export function InvoiceCreateContextCards({
   if (!issuer && trips.length === 0 && !prefill) return null;
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-muted/30 p-4 md:p-5",
-      )}
-    >
+    <div className="rounded-lg border border-border bg-muted/30 p-4 md:p-5">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:items-start md:gap-6">
         {issuer ? <IssuerContextColumn issuer={issuer} /> : null}
         <TripContextColumn

@@ -22,6 +22,7 @@ import { Button } from "@shared/ui/button";
 import {
   FormValidationSummary,
   RHFCatalogField,
+  RHFDateField,
   RHFMoneyField,
   RHFTextField,
   getFieldErrorAriaProps,
@@ -300,12 +301,11 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
             required
             disabled={!hasPendingBalance}
           />
-          <RHFTextField
+          <RHFDateField
             control={form.control}
             name="payment_date"
             label={formCopy.paymentDate}
             required
-            type="date"
             disabled={!hasPendingBalance}
           />
         </div>

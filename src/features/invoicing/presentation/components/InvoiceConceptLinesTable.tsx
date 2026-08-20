@@ -12,7 +12,10 @@ import {
 } from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { InvoiceBillingScope } from "@features/invoicing/domain";
+import {
+  isServiceOnlyBillingScope,
+  type InvoiceBillingScope,
+} from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import type { InvoiceConceptFormLine } from "../validation/invoiceFormSchema";
 
@@ -36,7 +39,7 @@ export function InvoiceConceptLinesTable({
   errorIndices,
   billingScope = "primary_transport",
 }: InvoiceConceptLinesTableProps) {
-  const isAccessory = billingScope === "accessory";
+  const isServiceOnly = isServiceOnlyBillingScope(billingScope);
 
   if (lines.length === 0) {
     return (
@@ -44,7 +47,11 @@ export function InvoiceConceptLinesTable({
         icon={<Receipt className="h-8 w-8 text-muted-foreground" />}
         title={copy.emptyTitle}
         description={
-          isAccessory ? copy.table.emptyDescriptionAccessory : copy.table.emptyDescription
+          billingScope === "false_trip"
+            ? copy.table.emptyDescriptionFalseTrip
+            : isServiceOnly
+              ? copy.table.emptyDescriptionAccessory
+              : copy.table.emptyDescription
         }
         size="sm"
       />

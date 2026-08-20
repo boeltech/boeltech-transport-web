@@ -17,11 +17,17 @@ export type {
   SubstituteStampedInvoiceResult,
   InvoiceFilters,
 } from "./domain";
-export { InvoiceStatusLabels } from "./domain";
+export {
+  InvoiceStatusLabels,
+  parseInvoiceBillingScope,
+  isServiceOnlyBillingScope,
+  getDisplayAmountsFromInvoiceFields,
+} from "./domain";
 
 // Application
 export {
   invoiceQueryKeys,
+  evictInvoicePrefillQueries,
   useInvoices,
   useInvoice,
   useInvoicePayments,
@@ -51,3 +57,5 @@ export {
   INVOICE_STATUS_CONFIG,
   getInvoiceStatusConfig,
 } from "./presentation/components";
+
+export { buildInvoiceCreatePathFromTrip } from "./presentation/financeInvoiceFromTripCta";

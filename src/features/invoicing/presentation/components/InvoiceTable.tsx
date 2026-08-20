@@ -25,6 +25,7 @@ import {
 } from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { InvoiceActions } from "./InvoiceActions";
+import { invoicingCopy } from "../copy/invoicingCopy";
 
 // ============================================================================
 // TYPES
@@ -47,7 +48,7 @@ const TABLE_HEADERS = [
   { key: "date", label: "Fecha" },
   { key: "method", label: "Método" },
   { key: "total", label: "Total", className: "text-right" },
-  { key: "balance", label: "Saldo", className: "text-right" },
+  { key: "balance", label: invoicingCopy.detail.label.balance, className: "text-right" },
   { key: "trips", label: "Viajes" },
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
@@ -199,16 +200,21 @@ export function InvoiceTable({
                 {formatMxCurrency(inv.total)}
               </TableCell>
 
-              {/* Saldo */}
+              {/* Por cobrar */}
               <TableCell className="text-right">
                 {(() => {
-                  const { balanceDue } = getInvoiceListItemDisplayAmounts(inv);
+                  const { balanceDue, isPueSettled } =
+                    getInvoiceListItemDisplayAmounts(inv);
                   return balanceDue > 0 ? (
                     <span className="text-destructive font-medium">
                       {formatMxCurrency(balanceDue)}
                     </span>
                   ) : (
-                    <span className="text-success text-sm">Pagado</span>
+                    <span className="text-success text-sm">
+                      {isPueSettled
+                        ? invoicingCopy.detail.label.listSettledPue
+                        : invoicingCopy.detail.label.listSettled}
+                    </span>
                   );
                 })()}
               </TableCell>

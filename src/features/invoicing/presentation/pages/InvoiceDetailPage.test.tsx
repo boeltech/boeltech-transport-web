@@ -19,6 +19,16 @@ vi.mock("@features/invoicing/application", () => ({
   }),
 }));
 
+const mockHasPermission = vi.fn(() => false);
+const mockUseRole = vi.fn(() => "accountant");
+
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({
+    hasPermission: mockHasPermission,
+  }),
+  useRole: () => mockUseRole(),
+}));
+
 vi.mock("../components/InvoiceActions", () => ({
   InvoiceActions: () => <div data-testid="invoice-actions" />,
 }));
@@ -142,6 +152,8 @@ function renderPage(
 describe("InvoiceDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasPermission.mockReturnValue(false);
+    mockUseRole.mockReturnValue("accountant");
     refetchMock.mockResolvedValue(undefined);
     useInvoiceMock.mockReturnValue({
       data: buildInvoice(),
@@ -149,6 +161,14 @@ describe("InvoiceDetailPage", () => {
       isError: false,
       error: null,
       refetch: refetchMock,
+    });
+  });
+
+  it("passes pausePolling option to useInvoice", () => {
+    renderPage();
+
+    expect(useInvoiceMock).toHaveBeenCalledWith("inv-1", {
+      pausePolling: false,
     });
   });
 
@@ -170,7 +190,7 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getByTestId("fiscal-dossier")).toBeInTheDocument();
   });
 
-  it("shows Cobro del viaje badge for primary billing scope", () => {
+  it("shows Flete badge for primary billing scope", () => {
     useInvoiceMock.mockReturnValue({
       data: buildInvoice({
         trips: [
@@ -196,7 +216,7 @@ describe("InvoiceDetailPage", () => {
 
     renderPage();
 
-    expect(screen.getAllByText("Cobro del viaje").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Flete").length).toBeGreaterThan(0);
   });
 
   it("shows substitution alert for active substitute with parentInvoiceId", () => {

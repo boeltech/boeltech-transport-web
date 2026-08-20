@@ -60,10 +60,12 @@ export function InvoiceDetailPage() {
   const canExportFiles =
     hasPermission("invoices", "export") ||
     (isClientPortal && hasPermission("invoices", "read"));
+  const canRetryRep = hasPermission("invoices", "execute");
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
     null,
   );
+  const [interactionBusy, setInteractionBusy] = useState(false);
 
   const {
     data: invoice,
@@ -71,7 +73,7 @@ export function InvoiceDetailPage() {
     isError,
     error,
     refetch,
-  } = useInvoice(id ?? "");
+  } = useInvoice(id ?? "", { pausePolling: interactionBusy });
 
   const { mutate: retryRep } = useRetryRepStamp(invoice?.id ?? "", {
     onMutate: (paymentId) => setRetryingPaymentId(paymentId),
@@ -283,6 +285,7 @@ export function InvoiceDetailPage() {
             invoiceFolio={invoice.folio}
             invoiceStatus={invoice.status}
             fullInvoice={invoice}
+            onBusyChange={setInteractionBusy}
           />
         ),
       }}
@@ -331,6 +334,7 @@ export function InvoiceDetailPage() {
                   invoiceId={invoice.id}
                   invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
                   canExportFiles={canExportFiles}
+                  canRetryRep={canRetryRep}
                   onRetry={retryRep}
                   retryingPaymentId={retryingPaymentId}
                 />

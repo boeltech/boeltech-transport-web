@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useLocation,
   useNavigate,
@@ -19,10 +19,13 @@ import { InvoiceCreateContextCards } from "../components/InvoiceCreateContextCar
 import { InvoiceFiscalComprobanteCard } from "../components/InvoiceFiscalComprobanteCard";
 import { InvoiceReceiverEditSheet } from "../components/InvoiceReceiverEditSheet";
 import { InvoiceBillingScopeBadge } from "../components/InvoiceBillingScopeBadge";
+import { InvoiceBillingScopeBanner } from "../components/InvoiceBillingScopeBanner";
+import { InvoiceCreateReadinessChecklist } from "../components/InvoiceCreateReadinessChecklist";
 import {
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
 } from "../financeInvoiceFromTripCta";
+import { getInvoiceCreateReadiness } from "../invoiceCreateReadiness";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   defaultInvoiceFormValues,
@@ -30,10 +33,10 @@ import {
   mapFormConceptToPayload,
   mapInvoiceConceptToFormInput,
   defaultFleteConceptFormLine,
-  parseCreateInvoicePayload,
   parseDraftInvoicePayload,
   inferRetentionRequired,
   INVOICE_RECEIVER_FIELD_NAMES,
+  safeParseCreateInvoicePayload,
   type InvoiceFormValues,
   type InvoiceReceiverFormValues,
 } from "../validation/invoiceFormSchema";
@@ -56,6 +59,14 @@ import {
   useUpdateInvoice,
 } from "@features/invoicing/application";
 import { useTrip } from "@features/trips";
+import {
+  isServiceOnlyBillingScope,
+  parseInvoiceBillingScope,
+} from "@features/invoicing/domain";
+import {
+  invoiceCreateHydrationKey,
+  shouldHydrateInvoiceCreate,
+} from "./invoiceCreateHydration";
 
 const copy = invoicingCopy;
 
@@ -83,9 +94,10 @@ export function CreateInvoicePage() {
   const tripId = searchParams.get("trip_id") ?? "";
   /** Pantalla de origen; la envía quien navega aquí (hub, detalle de viaje). */
   const fromState = location.state?.from as string | undefined;
-  const billingScope =
-    searchParams.get("scope") === "accessory" ? "accessory" : "primary_transport";
+  const billingScope = parseInvoiceBillingScope(searchParams.get("scope"));
   const isAccessoryScope = billingScope === "accessory";
+  const isFalseTripScope = billingScope === "false_trip";
+  const isServiceOnlyScope = isServiceOnlyBillingScope(billingScope);
   const hasTripContext = Boolean(tripId);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -99,12 +111,15 @@ export function CreateInvoicePage() {
 
   const shellTitle = isEditMode
     ? copy.edit.title
-    : isAccessoryScope
-      ? copy.create.titleAccessory
-      : copy.create.title;
+    : isFalseTripScope
+      ? copy.create.titleFalseTrip
+      : isAccessoryScope
+        ? copy.create.titleAccessory
+        : copy.create.title;
 
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiErrorMessages, setApiErrorMessages] = useState<string[]>([]);
+  const hydratedPrefillKeyRef = useRef<string | null>(null);
 
   const {
     data: prefill,
@@ -134,7 +149,7 @@ export function CreateInvoicePage() {
   const prefillErrorCode = isApiError(prefillError) ? prefillError.code : undefined;
   const isAlreadyInvoicedByError =
     !isEditMode &&
-    !isAccessoryScope &&
+    !isServiceOnlyScope &&
     prefillIsError &&
     (prefillErrorCode === "TRIP_ALREADY_INVOICED" ||
       /ya\s+(est[aá]\s+)?(vinculad[oa]|facturad[oa])|factura\s+activa\s+vinculad[oa]|trip_already_invoiced|already\s+invoiced/i.test(
@@ -148,24 +163,38 @@ export function CreateInvoicePage() {
       /factura\s+primaria|primary\s+invoice\s+required|trip_primary_invoice_required/i.test(
         prefillErrorMessage,
       ));
+  const isFalseTripBlockedByError =
+    !isEditMode &&
+    isFalseTripScope &&
+    prefillIsError &&
+    (prefillErrorCode === "FALSE_TRIP_OUTCOME_REQUIRED" ||
+      prefillErrorCode === "TRIP_ALREADY_HAS_PRIMARY_INVOICE" ||
+      /false_trip_outcome_required|trip_already_has_primary_invoice|desenlace\s+falso|principal\s+activa/i.test(
+        prefillErrorMessage,
+      ));
   const isBlockedByTripContext =
     !isEditMode &&
     !!tripContext &&
-    (isAccessoryScope
-      ? !tripContext.invoicing.canGenerateAccessoryInvoice
-      : !tripContext.invoicing.canGenerateInvoice);
+    (isFalseTripScope
+      ? !tripContext.invoicing.canGenerateFalseTripInvoice
+      : isAccessoryScope
+        ? !tripContext.invoicing.canGenerateAccessoryInvoice
+        : !tripContext.invoicing.canGenerateInvoice);
   const linkedInvoiceId = tripContext?.invoicing.invoiceId ?? null;
   const linkedInvoiceFolio = tripContext?.invoicing.invoiceFolio ?? null;
   const blockedReason =
     tripContext?.invoicing.blockReason ??
-    (isAlreadyInvoicedByError || isAccessoryBlockedByError
+    (isAlreadyInvoicedByError || isAccessoryBlockedByError || isFalseTripBlockedByError
       ? prefillErrorMessage
       : null) ??
     (isAccessoryScope
       ? "Este viaje no tiene factura de flete activa; primero genera la factura principal."
       : "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.");
   const isCreateBlocked =
-    isBlockedByTripContext || isAlreadyInvoicedByError || isAccessoryBlockedByError;
+    isBlockedByTripContext ||
+    isAlreadyInvoicedByError ||
+    isAccessoryBlockedByError ||
+    isFalseTripBlockedByError;
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema as never) as Resolver<InvoiceFormValues>,
@@ -179,7 +208,34 @@ export function CreateInvoicePage() {
   const receiverRfc = useWatch({ control: form.control, name: "receiver_rfc" });
   const total = useWatch({ control: form.control, name: "total" }) ?? 0;
   const retentionRequired = useWatch({ control: form.control, name: "retention_required" }) ?? false;
+  const watchedConcepts = useWatch({ control: form.control, name: "concepts" });
+  const watchedReceiverTaxRegime = useWatch({
+    control: form.control,
+    name: "receiver_tax_regime",
+  });
+  const watchedReceiverPostalCode = useWatch({
+    control: form.control,
+    name: "receiver_postal_code",
+  });
+  const watchedCfdiUsage = useWatch({ control: form.control, name: "cfdi_usage" });
+  const watchedPaymentForm = useWatch({ control: form.control, name: "payment_form" });
+  const watchedPaymentMethod = useWatch({
+    control: form.control,
+    name: "payment_method",
+  });
   const taxRate = prefill?.taxRate ?? 0.16;
+
+  const readiness = getInvoiceCreateReadiness({
+    receiver_name: receiverName ?? "",
+    receiver_rfc: receiverRfc ?? "",
+    receiver_tax_regime: watchedReceiverTaxRegime ?? "",
+    receiver_postal_code: watchedReceiverPostalCode ?? "",
+    cfdi_usage: watchedCfdiUsage ?? "",
+    payment_form: watchedPaymentForm ?? "",
+    payment_method: watchedPaymentMethod ?? "PUE",
+    concepts: watchedConcepts ?? [],
+    total,
+  });
 
   const [receiverSheetOpen, setReceiverSheetOpen] = useState(false);
   const [receiverSheetFocus, setReceiverSheetFocus] =
@@ -207,6 +263,18 @@ export function CreateInvoicePage() {
     form.setValue("cfdi_usage", values.cfdi_usage, options);
     form.setValue("payment_form", values.payment_form, options);
     form.setValue("payment_method", values.payment_method, options);
+
+    const clientTypeForRetention = isEditMode
+      ? receiverClientType
+      : (prefill?.clientType ?? null);
+    const nextRetentionRequired = inferRetentionRequired({
+      clientType: clientTypeForRetention,
+      receiverRfc: values.receiver_rfc,
+      retainedTax: form.getValues("retained_tax"),
+      concepts: form.getValues("concepts"),
+    });
+    form.setValue("retention_required", nextRetentionRequired, options);
+    form.setValue("apply_retained_tax", nextRetentionRequired, options);
   };
 
   /** Lleva al usuario al primer campo inválido, incluso si vive en el sheet fiscal. */
@@ -236,14 +304,14 @@ export function CreateInvoicePage() {
   };
 
   useEffect(() => {
-    if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError && !isAccessoryBlockedByError) {
+    if (!isEditMode && prefillIsError && prefillError && !isAlreadyInvoicedByError && !isAccessoryBlockedByError && !isFalseTripBlockedByError) {
       toast({
         variant: "destructive",
         title: copy.create.prefillErrorToast,
         description: getErrorMessage(prefillError),
       });
     }
-  }, [prefillIsError, prefillError, isEditMode, isAlreadyInvoicedByError, isAccessoryBlockedByError]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prefillIsError, prefillError, isEditMode, isAlreadyInvoicedByError, isAccessoryBlockedByError, isFalseTripBlockedByError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isEditMode && isEditableInvoiceError && editableInvoiceError) {
@@ -263,6 +331,20 @@ export function CreateInvoicePage() {
 
   useEffect(() => {
     if (!isEditMode && prefill) {
+      if (
+        !shouldHydrateInvoiceCreate(
+          hydratedPrefillKeyRef.current,
+          tripId,
+          billingScope,
+          { formIsDirty: form.formState.isDirty },
+        )
+      ) {
+        return;
+      }
+      hydratedPrefillKeyRef.current = invoiceCreateHydrationKey(
+        tripId,
+        billingScope,
+      );
       const personaMoral = prefill.clientType === "company";
       const resolvedTaxRate = prefill.taxRate ?? 0.16;
       const suggested =
@@ -284,7 +366,7 @@ export function CreateInvoicePage() {
         apply_retained_tax: personaMoral,
         retention_required: personaMoral,
         concepts:
-          isAccessoryScope
+          isServiceOnlyScope
             ? suggested
             : suggested.length > 0
               ? suggested
@@ -300,7 +382,7 @@ export function CreateInvoicePage() {
         notes: "",
       });
     }
-  }, [prefill, form, isEditMode, tripId, isAccessoryScope]);
+  }, [prefill, form, isEditMode, tripId, isServiceOnlyScope, billingScope]);
 
   useEffect(() => {
     if (!isEditMode || !editableInvoice) return;
@@ -422,18 +504,26 @@ export function CreateInvoicePage() {
       return;
     }
 
-    let payload;
-    try {
-      payload = parseCreateInvoicePayload(values, tripId, billingScope);
-    } catch {
+    const parsed = safeParseCreateInvoicePayload(values, tripId, billingScope);
+    if (!parsed.success) {
+      const messages = parsed.error.issues.map((issue) => issue.message);
+      setApiErrorMessages(messages);
       setShowValidationSummary(true);
+      const tripIdsMissing = parsed.error.issues.some((issue) =>
+        issue.path.includes("trip_ids"),
+      );
       toast({
         variant: "destructive",
-        title: copy.create.tripRequiredToast,
-        description: copy.create.tripRequiredDescription,
+        title: tripIdsMissing
+          ? copy.create.tripRequiredToast
+          : copy.validation.formSummary,
+        description:
+          messages[0] ??
+          (tripIdsMissing ? copy.create.tripRequiredDescription : undefined),
       });
       return;
     }
+    const payload = parsed.data;
 
     mutate({
       tripIds: payload.trip_ids,
@@ -554,22 +644,28 @@ export function CreateInvoicePage() {
     const blockedByOperationSat =
       isBlockedByTripContext &&
       !isAlreadyInvoicedByError &&
+      !isAccessoryBlockedByError &&
+      !isFalseTripBlockedByError &&
       !linkedInvoiceId &&
       !!tripContext?.invoicing.blockReason;
-    const blockedTitle = isAccessoryScope
-      ? copy.blocked.titleAccessory
-      : blockedByOperationSat
-        ? copy.blocked.titleNotReady
-        : copy.blocked.title;
+    const blockedTitle = isFalseTripScope
+      ? copy.blocked.titleFalseTrip
+      : isAccessoryScope
+        ? copy.blocked.titleAccessory
+        : blockedByOperationSat
+          ? copy.blocked.titleNotReady
+          : copy.blocked.title;
 
     return (
       <InvoiceFormPageShell
         backHref={shellBackHref}
         title={shellTitle}
         subtitle={
-          isAccessoryScope
-            ? copy.create.blockedSubtitleAccessory
-            : copy.create.blockedSubtitle
+          isFalseTripScope
+            ? copy.create.blockedSubtitleFalseTrip
+            : isAccessoryScope
+              ? copy.create.blockedSubtitleAccessory
+              : copy.create.blockedSubtitle
         }
       >
         <Card>
@@ -623,11 +719,7 @@ export function CreateInvoicePage() {
       backHref={shellBackHref}
       title={shellTitle}
       subtitle={shellSubtitle}
-      trailing={
-        formBillingScope === "accessory" ? (
-          <InvoiceBillingScopeBadge scope="accessory" />
-        ) : null
-      }
+      trailing={<InvoiceBillingScopeBadge scope={formBillingScope} />}
     >
       <form
         onSubmit={form.handleSubmit(
@@ -640,69 +732,134 @@ export function CreateInvoicePage() {
         )}
         className="space-y-6"
       >
-        <InvoiceCreateContextCards
-          mode={isEditMode ? "edit" : "create"}
-          prefill={prefill}
-          tripId={tripId}
-          invoice={editableInvoice}
-          receiverName={receiverName}
-          receiverRfc={receiverRfc}
-          total={total}
-        />
+        <InvoiceBillingScopeBanner scope={formBillingScope} />
 
-        <InvoiceFiscalComprobanteCard
-          control={control}
-          onEdit={() => openReceiverSheet()}
-        />
-
-        <FormSectionCard
-          title={copy.section.concepts}
-          description={
-            formBillingScope === "accessory"
-              ? copy.concepts.sectionDescriptionAccessory
-              : copy.concepts.sectionDescription
-          }
-          icon={<ClipboardList className="h-4 w-4" />}
-          contentClassName="pt-0"
-        >
-          <div id={CONCEPTS_SECTION_ID}>
-            <InvoiceConceptsEditor
-              control={control}
-              setValue={form.setValue}
-              taxRate={taxRate}
-              tripBaseRate={
-                formBillingScope === "accessory"
-                  ? undefined
-                  : (tripContext?.costs?.baseRate ?? prefill?.subtotal)
-              }
-              retentionRequired={retentionRequired}
-              billingScope={formBillingScope}
-              showDiscount
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:items-start">
+          <div className="order-2 space-y-6 lg:order-1">
+            <InvoiceCreateContextCards
+              mode={isEditMode ? "edit" : "create"}
+              prefill={prefill}
+              tripId={tripId}
+              invoice={editableInvoice}
+              receiverName={receiverName}
+              receiverRfc={receiverRfc}
+              total={total}
             />
+
+            <FormSectionCard
+              title={copy.section.concepts}
+              description={
+                formBillingScope === "false_trip"
+                  ? copy.concepts.sectionDescriptionFalseTrip
+                  : isServiceOnlyBillingScope(formBillingScope)
+                    ? copy.concepts.sectionDescriptionAccessory
+                    : copy.concepts.sectionDescription
+              }
+              icon={<ClipboardList className="h-4 w-4" />}
+              contentClassName="pt-0"
+            >
+              <div id={CONCEPTS_SECTION_ID}>
+                <InvoiceConceptsEditor
+                  control={control}
+                  setValue={form.setValue}
+                  taxRate={taxRate}
+                  tripBaseRate={
+                    isServiceOnlyBillingScope(formBillingScope)
+                      ? undefined
+                      : (tripContext?.costs?.baseRate ?? prefill?.subtotal)
+                  }
+                  retentionRequired={retentionRequired}
+                  billingScope={formBillingScope}
+                  showDiscount
+                />
+              </div>
+            </FormSectionCard>
+
+            <InvoiceFiscalComprobanteCard
+              control={control}
+              onEdit={() => openReceiverSheet()}
+            />
+
+            <FormSectionCard
+              title={copy.section.notes}
+              description={copy.label.notesDescription}
+              icon={<StickyNote className="h-4 w-4" />}
+              contentClassName="pt-0"
+            >
+              <RHFTextField
+                control={control}
+                name="notes"
+                label={copy.label.notesField}
+                placeholder={copy.label.notesPlaceholder}
+              />
+            </FormSectionCard>
           </div>
-        </FormSectionCard>
 
-        <InvoiceAmountsSummaryPanel
-          control={control}
-          className="w-full md:ml-auto md:max-w-md"
-        />
+          <aside className="order-1 space-y-4 lg:sticky lg:top-20 lg:order-2 lg:self-start">
+            <InvoiceCreateReadinessChecklist
+              readiness={readiness}
+              onFixReceiver={() => openReceiverSheet()}
+              onFixConcepts={() => {
+                document.getElementById(CONCEPTS_SECTION_ID)?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+              }}
+            />
 
-        <FormSectionCard
-          title={copy.section.notes}
-          description={copy.label.notesDescription}
-          icon={<StickyNote className="h-4 w-4" />}
-          contentClassName="pt-0"
-        >
-          <RHFTextField
-            control={control}
-            name="notes"
-            label={copy.label.notesField}
-            placeholder={copy.label.notesPlaceholder}
-          />
-        </FormSectionCard>
+            <InvoiceAmountsSummaryPanel control={control} className="w-full" />
 
-        {/* Barra de acción: el total y la consecuencia siempre a la vista. */}
-        <div className="sticky bottom-0 z-10 space-y-3 rounded-lg border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
+            {/* CTA en rail (desktop): totales y consecuencia siempre a la vista. */}
+            <div className="hidden space-y-3 rounded-lg border bg-card p-4 shadow-sm lg:block">
+              {showValidationSummary && validationSummaryMessages.length > 0 ? (
+                <FormValidationSummary
+                  title={validationSummaryTitle}
+                  messages={validationSummaryMessages}
+                  className="mb-0 max-h-40 overflow-y-auto"
+                />
+              ) : null}
+
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  {copy.amountsPanel.totalLabel}{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatMxCurrency(total)}
+                  </span>
+                </p>
+                {!isEditMode ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.create.submitConsequence}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.create.stageHint}
+                    </p>
+                  </>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button type="submit" disabled={isPending || isUpdating}>
+                  {isPending || isUpdating
+                    ? copy.label.saving
+                    : isEditMode
+                      ? copy.edit.submit
+                      : copy.create.submit}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(shellBackHref)}
+                >
+                  {copy.label.cancel}
+                </Button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        {/* CTA sticky (móvil): el rail queda arriba; aquí se confirma al final. */}
+        <div className="sticky bottom-0 z-10 space-y-3 rounded-lg border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 lg:hidden">
           {showValidationSummary && validationSummaryMessages.length > 0 ? (
             <FormValidationSummary
               title={validationSummaryTitle}

@@ -9,7 +9,10 @@ import {
 } from "react-hook-form";
 import { recomputeInvoiceAmountsFromConcepts, PERSONA_MORAL_RETAINED_IVA_RATE } from "@boeltech/cfdi-domain";
 import { useBillingServiceConcepts } from "@features/settings/application/hooks/useBillingServiceConcepts";
-import type { InvoiceBillingScope } from "@features/invoicing/domain";
+import {
+  isServiceOnlyBillingScope,
+  type InvoiceBillingScope,
+} from "@features/invoicing/domain";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { RHFMoneyField } from "@shared/ui/form";
@@ -48,7 +51,7 @@ export function InvoiceConceptsEditor({
   billingScope = "primary_transport",
   showDiscount = false,
 }: InvoiceConceptsEditorProps) {
-  const isAccessory = billingScope === "accessory";
+  const isServiceOnly = isServiceOnlyBillingScope(billingScope);
   const conceptsControl = control as unknown as Control<ConceptsFormSlice>;
   const { data: catalogServices = [] } = useBillingServiceConcepts({
     isActive: true,
@@ -103,7 +106,7 @@ export function InvoiceConceptsEditor({
   const fleteLine = concepts.find((line) => line.concept_type === "flete");
   const fleteAmount = fleteLine?.amount ?? 0;
   const fleteMismatch =
-    !isAccessory &&
+    !isServiceOnly &&
     tripBaseRate != null &&
     tripBaseRate > 0 &&
     Math.abs(fleteAmount - tripBaseRate) >= 0.01;

@@ -20,6 +20,7 @@ import type {
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
   InvoiceFilters,
+  InvoiceBillingScope,
 } from "@features/invoicing/domain";
 import {
   mapInvoice,
@@ -283,10 +284,10 @@ export const invoicingApi = {
 
   getPrefillFromTrip: async (
     tripId: string,
-    scope: "primary_transport" | "accessory" = "primary_transport",
+    scope: InvoiceBillingScope = "primary_transport",
   ): Promise<InvoicePrefill> => {
     const qs =
-      scope === "accessory" ? "?scope=accessory" : "";
+      scope === "primary_transport" ? "" : `?scope=${scope}`;
     const response = await apiClient.get<{ data: unknown }>(
       `${FINANCE}/prefill/${tripId}${qs}`,
     );

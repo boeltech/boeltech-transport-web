@@ -25,6 +25,7 @@ import {
 } from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { InvoiceActions } from "./InvoiceActions";
+import { invoicingCopy } from "../copy/invoicingCopy";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
@@ -140,13 +141,19 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
             <div className="text-right">
               <p className="font-semibold text-sm">{formatMxCurrency(invoice.total)}</p>
               {(() => {
-                const { balanceDue } = getInvoiceListItemDisplayAmounts(invoice);
+                const { balanceDue, isPueSettled } =
+                  getInvoiceListItemDisplayAmounts(invoice);
                 return balanceDue > 0 ? (
                   <p className="text-xs text-destructive">
-                    Saldo: {formatMxCurrency(balanceDue)}
+                    {invoicingCopy.detail.label.balance}:{" "}
+                    {formatMxCurrency(balanceDue)}
                   </p>
                 ) : (
-                  <p className="text-xs text-success">Pagado</p>
+                  <p className="text-xs text-success">
+                    {isPueSettled
+                      ? invoicingCopy.detail.label.listSettledPue
+                      : invoicingCopy.detail.label.listSettled}
+                  </p>
                 );
               })()}
             </div>

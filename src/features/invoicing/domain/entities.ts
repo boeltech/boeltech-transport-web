@@ -127,7 +127,26 @@ export interface InvoiceListItem {
   readonly createdByName: string | null;
 }
 
-export type InvoiceBillingScope = "primary_transport" | "accessory";
+export type InvoiceBillingScope =
+  | "primary_transport"
+  | "accessory"
+  | "false_trip";
+
+/** ADR-0079: accesoria y falso no llevan flete ni Carta Porte. */
+export function isServiceOnlyBillingScope(
+  scope: InvoiceBillingScope | null | undefined,
+): boolean {
+  return scope === "accessory" || scope === "false_trip";
+}
+
+export function parseInvoiceBillingScope(
+  raw: string | null | undefined,
+): InvoiceBillingScope {
+  if (raw === "accessory" || raw === "false_trip") {
+    return raw;
+  }
+  return "primary_transport";
+}
 
 export interface InvoiceTripRef {
   readonly tripId: string;

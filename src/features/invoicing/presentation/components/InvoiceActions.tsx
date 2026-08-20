@@ -14,9 +14,14 @@
  * Ubicación: src/features/invoicing/presentation/components/InvoiceActions.tsx
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@shared/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { usePermissions, useRole } from "@shared/permissions";
-import { isClientPortalRole } from "@shared/constants/roles";
+import { isClientPortalRole, ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
@@ -53,7 +58,8 @@ import {
 } from "lucide-react";
 import { canRegisterPayment } from "@boeltech/cfdi-domain";
 import { useDeleteInvoice, useOpenInvoicePdf, downloadInvoiceXml } from "@features/invoicing/application";
-import { toInvoiceLike } from "@features/invoicing/domain";
+import { parseInvoiceBillingScope, toInvoiceLike } from "@features/invoicing/domain";
+import { useTrip } from "@features/trips/application";
 import {
   describeStampApiError,
   useTripFiscalSheets,
@@ -91,6 +97,10 @@ interface InvoiceActionsProps {
   onDelete?: (id: string) => void;
   /** Callback tras acción exitosa en buttons mode */
   onActionComplete?: () => void;
+  /**
+   * Notifica cuando hay overlay o flujo de timbrado activo (pausar poll del detalle).
+   */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export function InvoiceActions({
@@ -103,6 +113,7 @@ export function InvoiceActions({
   onView,
   onDelete,
   onActionComplete,
+  onBusyChange,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -116,6 +127,9 @@ export function InvoiceActions({
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
+  /** Snapshot frozen while payment/cancel/substitute overlays are open. */
+  const [overlayInvoice, setOverlayInvoice] = useState<Invoice | null>(null);
+  const lastBusyRef = useRef(false);
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -148,7 +162,8 @@ export function InvoiceActions({
       }),
   });
 
-  const isLoading = deleting || fiscal.isStamping || openingPdf;
+  const isLoading =
+    deleting || fiscal.isStampBusy || openingPdf;
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -159,6 +174,8 @@ export function InvoiceActions({
   const canExport =
     hasPermission("invoices", "export") ||
     (isClientPortal && hasPermission("invoices", "read"));
+  const canAdminManagerFiscal =
+    role === ROLES.ADMIN || role === ROLES.MANAGER;
 
   const isDraft = invoiceStatus === "draft";
   const isStamped = invoiceStatus === "stamped";
@@ -167,21 +184,92 @@ export function InvoiceActions({
 
   const canShowRegisterPayment =
     Boolean(fullInvoice) &&
-    canCreate &&
+    canExecute &&
     canRegisterPayment(toInvoiceLike(fullInvoice!));
+
+  const linkedTripId = fullInvoice?.trips[0]?.tripId;
+  const isPrimaryFreightInvoice =
+    parseInvoiceBillingScope(fullInvoice?.trips[0]?.billingScope) ===
+    "primary_transport";
+  const { data: linkedTrip } = useTrip(linkedTripId ?? "", {
+    enabled: Boolean(isStamped && isPrimaryFreightInvoice && linkedTripId),
+  });
+  const hideSubstituteForFalseTrip =
+    linkedTrip?.operationalOutcome === "false_trip";
 
   const canShowSubstitute =
     isStamped &&
     Boolean(fullInvoice?.canSubstituteInvoice) &&
-    canExecute;
+    canExecute &&
+    canAdminManagerFiscal &&
+    !hideSubstituteForFalseTrip;
 
-  const canShowCancel = isStamped && canExecute;
+  const hasRegisteredCobros =
+    Boolean(fullInvoice) &&
+    ((fullInvoice!.totalPaid ?? 0) > 0 || (fullInvoice!.payments?.length ?? 0) > 0);
+
+  const showBlockedSubstitute =
+    isStamped &&
+    canExecute &&
+    canAdminManagerFiscal &&
+    !hideSubstituteForFalseTrip &&
+    Boolean(fullInvoice) &&
+    !fullInvoice!.canSubstituteInvoice &&
+    hasRegisteredCobros;
+
+  const canShowCancel =
+    isStamped && canExecute && canAdminManagerFiscal;
 
   const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
+  const openOverlayWithSnapshot = (
+    invoice: Invoice,
+    kind: "payment" | "cancel" | "substitute",
+  ) => {
+    setOverlayInvoice(invoice);
+    if (kind === "payment") setPaymentDialogOpen(true);
+    if (kind === "cancel") setCancelDialogOpen(true);
+    if (kind === "substitute") setSubstituteSheetOpen(true);
+  };
+
+  const handleOverlayOpenChange = (
+    kind: "payment" | "cancel" | "substitute",
+    open: boolean,
+  ) => {
+    if (kind === "payment") setPaymentDialogOpen(open);
+    if (kind === "cancel") setCancelDialogOpen(open);
+    if (kind === "substitute") setSubstituteSheetOpen(open);
+    if (!open) {
+      setOverlayInvoice(null);
+      onActionComplete?.();
+    }
+  };
+
+  useEffect(() => {
+    if (variant !== "buttons" || !onBusyChange) return;
+    const busy =
+      paymentDialogOpen ||
+      cancelDialogOpen ||
+      substituteSheetOpen ||
+      fiscal.isStampBusy;
+    if (lastBusyRef.current === busy) return;
+    lastBusyRef.current = busy;
+    onBusyChange(busy);
+  }, [
+    variant,
+    onBusyChange,
+    paymentDialogOpen,
+    cancelDialogOpen,
+    substituteSheetOpen,
+    fiscal.isStampBusy,
+  ]);
+
   const hasStampedActions =
     isStamped &&
-    (canShowRegisterPayment || canShowCancel || canShowSubstitute);
+    (canShowRegisterPayment ||
+      canShowCancel ||
+      canShowSubstitute ||
+      showBlockedSubstitute);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 
@@ -279,12 +367,13 @@ export function InvoiceActions({
   const hasWorkflowActions =
     (isDraft && (canDelete || canCreate || canUpdate)) ||
     canShowRegisterPayment ||
-    canShowSubstitute;
+    canShowSubstitute ||
+    showBlockedSubstitute;
 
   const hasSecondaryActions =
     canShowExport || canShowCancel;
 
-  const primaryIsStamp = isDraft && canCreate;
+  const primaryIsStamp = isDraft && canCreate && canExecute;
   const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
 
   return (
@@ -300,7 +389,7 @@ export function InvoiceActions({
                 onClick={() => void fiscal.requestStamp(invoiceId)}
                 disabled={isLoading}
               >
-                {fiscal.isStamping ? (
+                {fiscal.isStampBusy ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Stamp className="mr-2 h-4 w-4" />
@@ -313,7 +402,7 @@ export function InvoiceActions({
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => setPaymentDialogOpen(true)}
+                onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
                 disabled={isLoading}
               >
                 <DollarSign className="mr-2 h-4 w-4" />
@@ -378,11 +467,34 @@ export function InvoiceActions({
               </>
             ) : null}
 
+            {showBlockedSubstitute ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      aria-label={actionsCopy.substituteBlockedTitle}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      {actionsCopy.substitute}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-left">
+                  {actionsCopy.substituteBlocked}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+
             {canShowSubstitute && fullInvoice ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSubstituteSheetOpen(true)}
+                onClick={() =>
+                  openOverlayWithSnapshot(fullInvoice, "substitute")
+                }
                 disabled={isLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -411,7 +523,11 @@ export function InvoiceActions({
                 variant="outline"
                 size="sm"
                 className={cancelButtonClassName}
-                onClick={() => setCancelDialogOpen(true)}
+                onClick={() => {
+                  if (fullInvoice) {
+                    openOverlayWithSnapshot(fullInvoice, "cancel");
+                  }
+                }}
                 disabled={isLoading}
               >
                 <XCircle className="mr-2 h-4 w-4" />
@@ -452,38 +568,33 @@ export function InvoiceActions({
       </AlertDialog>
 
       {/* Payment dialog */}
-      {fullInvoice && paymentDialogOpen && (
+      {overlayInvoice && paymentDialogOpen && (
         <PaymentFormDialog
-          invoice={fullInvoice}
+          invoice={overlayInvoice}
           open={paymentDialogOpen}
-          onOpenChange={(open) => {
-            setPaymentDialogOpen(open);
-            if (!open) onActionComplete?.();
-          }}
+          onOpenChange={(open) => handleOverlayOpenChange("payment", open)}
         />
       )}
 
       {/* Cancel dialog */}
-      {cancelDialogOpen && (
+      {overlayInvoice && cancelDialogOpen && (
         <CancelInvoiceDialog
           invoiceId={invoiceId}
           open={cancelDialogOpen}
-          onOpenChange={(open) => {
-            setCancelDialogOpen(open);
-            if (!open) onActionComplete?.();
-          }}
+          defaultCancellationCode={
+            hideSubstituteForFalseTrip ? "03" : undefined
+          }
+          hasRegisteredPayments={hasRegisteredCobros}
+          onOpenChange={(open) => handleOverlayOpenChange("cancel", open)}
         />
       )}
 
       {/* Substitute stamped invoice (SAT 01) */}
-      {fullInvoice && substituteSheetOpen && (
+      {overlayInvoice && substituteSheetOpen && (
         <SubstituteInvoiceSheet
-          invoice={fullInvoice}
+          invoice={overlayInvoice}
           open={substituteSheetOpen}
-          onOpenChange={(open) => {
-            setSubstituteSheetOpen(open);
-            if (!open) onActionComplete?.();
-          }}
+          onOpenChange={(open) => handleOverlayOpenChange("substitute", open)}
         />
       )}
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInvoiceCreatePathFromTrip,
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
 } from "./financeInvoiceFromTripCta";
@@ -25,5 +26,22 @@ describe("canShowInvoiceFromTripCta", () => {
     expect(FINANCE_INVOICE_FROM_TRIP_CTA.invoiceablePath).toBe(
       "/finance?tab=invoiceable",
     );
+  });
+});
+
+describe("buildInvoiceCreatePathFromTrip", () => {
+  it("abre flete+CP para un viaje standard", () => {
+    expect(buildInvoiceCreatePathFromTrip({ id: "trip-1" })).toBe(
+      "/invoices/new?trip_id=trip-1",
+    );
+  });
+
+  it("abre scope=false_trip cuando el viaje es falso", () => {
+    expect(
+      buildInvoiceCreatePathFromTrip({
+        id: "trip-1",
+        operationalOutcome: "false_trip",
+      }),
+    ).toBe("/invoices/new?trip_id=trip-1&scope=false_trip");
   });
 });

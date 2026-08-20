@@ -22,7 +22,11 @@ export type {
   InvoiceFilters,
 } from "./entities";
 
-export { InvoiceStatusLabels } from "./entities";
+export {
+  InvoiceStatusLabels,
+  isServiceOnlyBillingScope,
+  parseInvoiceBillingScope,
+} from "./entities";
 export { toInvoiceLike, toInvoiceLikeFromListItem } from "./invoiceLike";
 export {
   getDisplayAmountsFromInvoiceFields,

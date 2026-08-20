@@ -4,11 +4,14 @@
 export const invoicingCopy = {
   create: {
     title: "Nueva factura",
-    titleAccessory: "Factura de servicios adicionales",
+    titleAccessory: "Nueva factura accesoria",
+    titleFalseTrip: "Nueva factura de viaje en falso",
     submit: "Guardar borrador",
     /** Consecuencia del CTA: el borrador no es una factura válida todavía. */
     submitConsequence:
       "Se guarda como borrador. En el siguiente paso lo revisas y lo timbras.",
+    /** Indicador de etapa: alta = paso 1; timbrar vive en el detalle. */
+    stageHint: "Paso 1 de 2: guardar borrador. Después lo timbras en el detalle.",
     successToast: "Factura creada exitosamente",
     errorToast: "Error al crear factura",
     tripRequiredToast: "Viaje requerido",
@@ -18,6 +21,8 @@ export const invoicingCopy = {
     blockedSubtitle: "No se puede crear otra factura para este viaje",
     blockedSubtitleAccessory:
       "No se pueden facturar servicios adicionales para este viaje",
+    blockedSubtitleFalseTrip:
+      "No se puede emitir la factura de viaje en falso para este viaje",
   },
   edit: {
     title: "Editar factura",
@@ -42,6 +47,7 @@ export const invoicingCopy = {
     title: "Este viaje ya está facturado",
     titleNotReady: "Faltan datos del viaje para poder facturar",
     titleAccessory: "Servicios adicionales no disponibles",
+    titleFalseTrip: "Factura de viaje en falso no disponible",
     backToTrip: "Volver al viaje",
     goToRouteTab: "Ir a Ruta",
     goToCargoTab: "Ir a Carga",
@@ -50,8 +56,40 @@ export const invoicingCopy = {
     goFinance: "Ir a finanzas",
   },
   billingScope: {
-    primary: "Cobro del viaje",
-    accessory: "Cobro adicional",
+    /** Glosario alineado a guías ADR-0068 / 0079. */
+    primary: "Flete",
+    accessory: "Accesoria",
+    falseTrip: "Viaje en falso",
+  },
+  /** Banner de alcance en /invoices/new — identidad del documento above-the-fold. */
+  scopeBanner: {
+    primary: {
+      title: "Factura de flete",
+      body: "Cobro del transporte de este viaje. Al timbrar incluirá Carta Porte.",
+      notThis: "No es solo maniobras/estadías ni un viaje en falso.",
+    },
+    accessory: {
+      title: "Factura accesoria",
+      body: "Solo servicios adicionales (maniobras, estadías, resguardo). El flete ya va en otra factura.",
+      notThis: "No incluye flete ni Carta Porte.",
+    },
+    falseTrip: {
+      title: "Factura de viaje en falso",
+      body: "Cobro del desplazamiento cuando no hubo carga entregada.",
+      notThis: "Sin flete de mercancía y sin Carta Porte.",
+    },
+  },
+  checklist: {
+    title: "Antes de guardar",
+    receiver: "Receptor",
+    receiverDone: "Datos fiscales listos",
+    receiverPending: "Revisa o corrige los datos fiscales",
+    concepts: "Conceptos",
+    conceptsDone: "Hay conceptos de cobro",
+    conceptsPending: "Agrega al menos un concepto",
+    total: "Total",
+    totalDone: "Total mayor a cero",
+    totalPending: "El total debe ser mayor a cero",
   },
   section: {
     issuer: "Emisor",
@@ -95,11 +133,30 @@ export const invoicingCopy = {
       apply: "Aplicar cambios",
       close: "Cancelar",
       validationSummary: "Revisa los datos fiscales",
+      validation: {
+        taxRegimeRequired: "Selecciona el régimen del receptor",
+        cfdiUsageRequired: "Selecciona para qué se usa la factura",
+        paymentFormRequired: "Selecciona con qué medio se paga",
+        paymentMethodRequired: "Selecciona cómo se cobra",
+      },
     },
     rfcPlaceholder: "RFC del receptor (12 o 13 caracteres)",
     receiverNamePlaceholder: "Razón social o nombre completo",
     postalCodePlaceholder: "5 dígitos",
     selectPlaceholder: "Selecciona una opción",
+  },
+  /** Labels operativos + ancla SAT (copy dual para contadores y no contadores). */
+  labelDual: {
+    taxRegime: "Régimen del receptor",
+    taxRegimeSat: "Régimen fiscal",
+    cfdiUsage: "Para qué se usa la factura",
+    cfdiUsageSat: "Uso CFDI",
+    paymentMethod: "Cómo se cobra",
+    paymentMethodSat: "Método de pago",
+    paymentForm: "Con qué medio se paga",
+    paymentFormSat: "Forma de pago",
+    postalCode: "Código postal fiscal",
+    postalCodeSat: "Domicilio fiscal",
   },
   hint: {
     issuer:
@@ -119,12 +176,12 @@ export const invoicingCopy = {
     tripClient: "Cliente del viaje",
     viewTrip: "Ver detalle del viaje",
     rfc: "RFC",
-    postalCode: "Código postal (domicilio fiscal)",
+    postalCode: "Código postal fiscal",
     receiverName: "Nombre / razón social",
-    taxRegime: "Régimen fiscal",
-    cfdiUsage: "Uso CFDI",
-    paymentForm: "Forma de pago",
-    paymentMethod: "Método de pago",
+    taxRegime: "Régimen del receptor",
+    cfdiUsage: "Para qué se usa la factura",
+    paymentForm: "Con qué medio se paga",
+    paymentMethod: "Cómo se cobra",
     currency: "Moneda",
     subtotal: "Subtotal",
     discount: "Descuento",
@@ -183,6 +240,8 @@ export const invoicingCopy = {
       total: "Total",
       paid: "Cobrado",
       balance: "Por cobrar",
+      listSettled: "Pagado",
+      listSettledPue: "Liquidada",
       tripBaseRate: "Tarifa base",
       viewTrip: "Ver detalle del viaje",
       satStatus: "Estado ante el SAT",
@@ -250,7 +309,7 @@ export const invoicingCopy = {
     paymentForm: {
       title: "Registrar pago",
       ppdHint:
-        "Factura a crédito. Al registrar el cobro se generará un comprobante de pago (REP).",
+        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Cobros.",
       ppdHintLabel: "Más sobre factura a crédito",
       contextLine: (serie: string, folio: number, clientName: string) =>
         `${serie}-${folio} · ${clientName}`,
@@ -498,8 +557,28 @@ export const invoicingCopy = {
       deleteDraft: "Eliminar borrador",
       registerPayment: "Registrar pago",
       substitute: "Sustituir factura",
+      substituteBlockedTitle: "No se puede sustituir con cobros",
+      substituteBlocked:
+        "Ya tiene cobros o complementos de pago. No hay asistente para migrar REP.",
       cancel: "Cancelar",
       pdfError: "No se pudo abrir el PDF",
+    },
+    cancelDialog: {
+      title: "Cancelar factura",
+      description:
+        "Esta acción cancelará la factura. Por regulación del SAT, debes indicar el motivo.",
+      paymentsNoticeTitle: "Los cobros no se migran",
+      paymentsNotice:
+        "Los cobros y comprobantes de pago (REP) de esta factura no pasan a otra. Cancelar no abre un asistente para reasignarlos.",
+      satMotive: "Motivo SAT",
+      satMotivePlaceholder: "Selecciona motivo",
+      reason: "Descripción",
+      reasonPlaceholder: "Describe el motivo de cancelación…",
+      replacementUuid: "UUID de CFDI sustitución",
+      validationSummary: "Revisa los datos de cancelación",
+      back: "Volver",
+      confirm: "Confirmar cancelación",
+      submitting: "Cancelando…",
     },
     header: {
       title: "Factura",
@@ -525,6 +604,8 @@ export const invoicingCopy = {
       "El flete toma la tarifa del viaje. Agrega los servicios que apliquen: maniobras, estadías, resguardo.",
     sectionDescriptionAccessory:
       "Esta factura incluye solo servicios (maniobras, estadías, resguardo). No lleva flete.",
+    sectionDescriptionFalseTrip:
+      "Un servicio por el desplazamiento. Sin flete y sin Carta Porte. Confirma la clave SAT del catálogo.",
     fleteHint: "Concepto principal, ligado a la tarifa del viaje.",
     serviceHint: "Concepto de servicio. Puedes tomarlo de tu catálogo o capturarlo.",
     fleteRowTitle: "Flete",
@@ -541,6 +622,9 @@ export const invoicingCopy = {
     catalogEmptyLink: "Configurar en ajustes",
     claveProdServ: "Clave producto/servicio",
     claveUnidad: "Clave unidad",
+    satDetailsTrigger: "Detalle fiscal SAT",
+    satDetailsHint:
+      "Claves que van en el CFDI. Si elegiste del catálogo, casi nunca hace falta tocarlas.",
     description: "Descripción",
     quantity: "Cantidad",
     unitPrice: "Precio unitario",
@@ -568,6 +652,8 @@ export const invoicingCopy = {
       emptyDescription: "Agrega el flete del viaje y los servicios que apliquen.",
       emptyDescriptionAccessory:
         "Agrega al menos un servicio (maniobras, estadías) para esta factura.",
+      emptyDescriptionFalseTrip:
+        "Agrega el servicio del desplazamiento. Sin flete y sin Carta Porte.",
     },
     sheet: {
       createTitle: "Nuevo concepto",
@@ -584,13 +670,18 @@ export const invoicingCopy = {
         "Retención IVA 4% obligatoria sobre el flete para persona moral (autotransporte de carga).",
       validation: {
         claveProdServRequired: "Selecciona o captura la clave producto/servicio SAT.",
+        claveProdServMin:
+          "La clave producto/servicio SAT debe tener al menos 5 caracteres.",
         claveUnidadRequired: "Selecciona o captura la clave de unidad SAT.",
         unidadRequired: "Indica la unidad de medida.",
         descriptionRequired: "Indica la descripción que aparecerá en el CFDI.",
         quantityPositive: "La cantidad debe ser mayor a cero.",
         unitPriceMin: "El precio unitario no puede ser negativo.",
         unitPriceRequired: "Indica el precio unitario del concepto.",
+        fleteRetentionRequired:
+          "El flete gravado debe incluir retención IVA del 4% para persona moral.",
       },
+      unidadReadonlyLabel: "Unidad",
     },
   },
   amountsPanel: {

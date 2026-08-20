@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -55,9 +55,19 @@ interface Props {
   invoiceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** PD5: camino falso → motivo SAT 03. */
+  defaultCancellationCode?: "01" | "02" | "03" | "04";
+  /** D5: cobros/REP no migran al cancelar. */
+  hasRegisteredPayments?: boolean;
 }
 
-export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
+export function CancelInvoiceDialog({
+  invoiceId,
+  open,
+  onOpenChange,
+  defaultCancellationCode = "02",
+  hasRegisteredPayments = false,
+}: Props) {
   const { toast } = useToast();
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
@@ -71,11 +81,21 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       cancellation_reason: "",
-      cancellation_code: "02",
+      cancellation_code: defaultCancellationCode,
       replacement_cfdi_uuid: undefined,
     },
     mode: "onChange",
   });
+
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      cancellation_reason: "",
+      cancellation_code: defaultCancellationCode,
+      replacement_cfdi_uuid: undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset al abrir, no en cada tecla
+  }, [open, defaultCancellationCode]);
 
   const { control } = form;
 
@@ -125,13 +145,19 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cancelar Factura</DialogTitle>
+          <DialogTitle>{copy.cancelDialog.title}</DialogTitle>
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
-          Esta acción cancelará la factura. Por regulación del SAT, debes
-          proporcionar el motivo de cancelación.
+          {copy.cancelDialog.description}
         </p>
+
+        {hasRegisteredPayments ? (
+          <Alert variant="warning">
+            <AlertTitle>{copy.cancelDialog.paymentsNoticeTitle}</AlertTitle>
+            <AlertDescription>{copy.cancelDialog.paymentsNotice}</AlertDescription>
+          </Alert>
+        ) : null}
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
           {submissionError ? (
@@ -146,25 +172,25 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
           <RHFSelectField
             control={control}
             name="cancellation_code"
-            label="Motivo SAT"
+            label={copy.cancelDialog.satMotive}
             required
-            placeholder="Selecciona motivo"
+            placeholder={copy.cancelDialog.satMotivePlaceholder}
             options={MOTIVOS}
           />
 
           <RHFTextField
             control={control}
             name="cancellation_reason"
-            label="Descripción"
+            label={copy.cancelDialog.reason}
             required
-            placeholder="Describe el motivo de cancelación..."
+            placeholder={copy.cancelDialog.reasonPlaceholder}
           />
 
           {cancellationCode === "01" ? (
             <RHFTextField
               control={control}
               name="replacement_cfdi_uuid"
-              label="UUID de CFDI sustitución"
+              label={copy.cancelDialog.replacementUuid}
               required
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             />
@@ -172,7 +198,7 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
 
           {showValidationSummary && validationMessages.length > 0 ? (
             <FormValidationSummary
-              title="Revisa los datos de cancelación"
+              title={copy.cancelDialog.validationSummary}
               messages={validationMessages}
             />
           ) : null}
@@ -183,14 +209,14 @@ export function CancelInvoiceDialog({ invoiceId, open, onOpenChange }: Props) {
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Volver
+              {copy.cancelDialog.back}
             </Button>
             <Button
               type="submit"
               variant="destructive"
               disabled={isPending}
             >
-              {isPending ? "Cancelando..." : "Confirmar cancelación"}
+              {isPending ? copy.cancelDialog.submitting : copy.cancelDialog.confirm}
             </Button>
           </DialogFooter>
         </form>

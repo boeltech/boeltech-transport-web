@@ -9,10 +9,12 @@ import {
 import { Button } from "@shared/ui/button";
 import { InfoRow } from "@shared/ui/data-display";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import { cn } from "@shared/lib/utils/cn";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import type { InvoiceFormValues } from "../validation/invoiceFormSchema";
+import { InvoiceDualLabel } from "./InvoiceDualLabel";
 
-const copy = invoicingCopy;
+const dual = invoicingCopy.labelDual;
 const comprobanteCopy = invoicingCopy.comprobante;
 
 /** Nombre humano del código SAT; si el catálogo no responde, se muestra el código. */
@@ -36,9 +38,26 @@ export interface InvoiceFiscalComprobanteCardProps {
   onEdit: () => void;
 }
 
+function displayFiscalValue(value: string | undefined, mono?: boolean) {
+  const trimmed = value?.trim() ?? "";
+  const isEmpty = trimmed.length === 0;
+  return (
+    <span
+      className={cn(
+        "break-words hyphens-none",
+        mono && "font-mono",
+        isEmpty && "italic text-muted-foreground",
+      )}
+    >
+      {isEmpty ? "—" : trimmed}
+    </span>
+  );
+}
+
 /**
  * Resumen legible de los datos fiscales del receptor.
- * Se edita por excepción en sheet: el prefill del viaje suele ser correcto.
+ * Grid 2 cols + InfoRow stacked: el label dual y el nombre SAT no compiten
+ * en la misma fila (inline recorta valores largos en el panel del alta).
  */
 export function InvoiceFiscalComprobanteCard({
   control,
@@ -79,30 +98,48 @@ export function InvoiceFiscalComprobanteCard({
       icon={<FileText className="h-4 w-4" />}
       action={
         <Button type="button" variant="outline" size="sm" onClick={onEdit}>
-          <Pencil className="mr-2 h-4 w-4" aria-hidden />
+          <Pencil className="mr-2 h-4 w-4 shrink-0" aria-hidden />
           {comprobanteCopy.edit}
         </Button>
       }
       contentClassName="pt-0"
     >
-      <div className="grid gap-x-8 sm:grid-cols-2">
-        <div>
-          <InfoRow variant="inline" label={copy.label.taxRegime} value={taxRegimeName} />
-          <InfoRow
-            variant="inline"
-            label={copy.label.postalCode}
-            value={postalCode}
-            mono
-          />
-        </div>
-        <div>
-          <InfoRow variant="inline" label={copy.label.cfdiUsage} value={cfdiUsageName} />
-          <InfoRow
-            variant="inline"
-            label={comprobanteCopy.subsectionPayment}
-            value={paymentSummary}
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+        <InfoRow
+          className="min-w-0"
+          label={
+            <InvoiceDualLabel
+              primary={dual.taxRegime}
+              sat={dual.taxRegimeSat}
+            />
+          }
+          value={displayFiscalValue(taxRegimeName)}
+        />
+        <InfoRow
+          className="min-w-0"
+          label={
+            <InvoiceDualLabel
+              primary={dual.cfdiUsage}
+              sat={dual.cfdiUsageSat}
+            />
+          }
+          value={displayFiscalValue(cfdiUsageName)}
+        />
+        <InfoRow
+          className="min-w-0"
+          label={
+            <InvoiceDualLabel
+              primary={dual.postalCode}
+              sat={dual.postalCodeSat}
+            />
+          }
+          value={displayFiscalValue(postalCode, true)}
+        />
+        <InfoRow
+          className="min-w-0"
+          label={comprobanteCopy.subsectionPayment}
+          value={displayFiscalValue(paymentSummary)}
+        />
       </div>
     </FormSectionCard>
   );

@@ -1,8 +1,8 @@
-import { createInvoiceSchema } from "@boeltech/cfdi-domain/validadores/invoice";
+import { createInvoiceSchema, invoiceConceptSchema } from "@boeltech/cfdi-domain/validadores/invoice";
 import {
   PERSONA_MORAL_RETAINED_IVA_RATE,
 } from "@boeltech/cfdi-domain";
-import type { InvoiceConcept } from "@features/invoicing/domain";
+import type { InvoiceBillingScope, InvoiceConcept } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { z } from "zod";
 
@@ -18,26 +18,42 @@ const retainedTaxUx = z.object({
 
 export const RETAINED_TAX_RATE = PERSONA_MORAL_RETAINED_IVA_RATE;
 
+/** Cotas lockstep con `invoiceConceptSchema` del paquete; copy UX en español. */
+const pkgConcept = invoiceConceptSchema.shape;
+
 export const invoiceConceptFormSchema = z.object({
-  concept_type: z.enum(["flete", "service"]),
-  service_concept_id: z.string().uuid().optional(),
+  concept_type: pkgConcept.concept_type,
+  service_concept_id: pkgConcept.service_concept_id,
   clave_prod_serv: z
     .string()
-    .min(1, conceptLineValidation.claveProdServRequired),
-  clave_unidad: z.string().min(1, conceptLineValidation.claveUnidadRequired),
-  unidad: z.string().min(1, conceptLineValidation.unidadRequired),
-  description: z.string().min(1, conceptLineValidation.descriptionRequired),
+    .min(1, conceptLineValidation.claveProdServRequired)
+    .min(5, conceptLineValidation.claveProdServMin)
+    .max(20),
+  clave_unidad: z
+    .string()
+    .min(1, conceptLineValidation.claveUnidadRequired)
+    .max(10),
+  unidad: z
+    .string()
+    .min(1, conceptLineValidation.unidadRequired)
+    .max(40),
+  description: z
+    .string()
+    .min(1, conceptLineValidation.descriptionRequired)
+    .max(1000),
   quantity: z.number().positive(conceptLineValidation.quantityPositive),
   unit_price: z.number().min(0, conceptLineValidation.unitPriceMin),
   amount: z.number().min(0),
   object_imp: z.enum(["01", "02", "03", "04"]),
-  iva_rate: z.number().min(0).max(1).optional(),
-  retained_iva_rate: z.number().min(0).max(1).optional(),
+  iva_rate: pkgConcept.iva_rate,
+  retained_iva_rate: pkgConcept.retained_iva_rate,
 });
 
-/** Validación al aplicar partida en sheet (precio unitario > 0). */
-export const invoiceConceptSheetSchema = invoiceConceptFormSchema.superRefine(
-  (line, ctx) => {
+/** Validación al aplicar partida en sheet (precio unitario > 0; retención flete opcional). */
+export function createInvoiceConceptSheetSchema(options?: {
+  retentionRequired?: boolean;
+}) {
+  return invoiceConceptFormSchema.superRefine((line, ctx) => {
     if (line.unit_price <= 0) {
       ctx.addIssue({
         code: "custom",
@@ -45,8 +61,25 @@ export const invoiceConceptSheetSchema = invoiceConceptFormSchema.superRefine(
         path: ["unit_price"],
       });
     }
-  },
-);
+
+    if (
+      options?.retentionRequired &&
+      line.concept_type === "flete" &&
+      line.object_imp === "02" &&
+      line.amount > 0 &&
+      (line.retained_iva_rate ?? 0) !== PERSONA_MORAL_RETAINED_IVA_RATE
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: conceptLineValidation.fleteRetentionRequired,
+        path: ["retained_iva_rate"],
+      });
+    }
+  });
+}
+
+/** Schema sheet sin retención forzada (servicios / flete sin PM). */
+export const invoiceConceptSheetSchema = createInvoiceConceptSheetSchema();
 
 export type InvoiceConceptFormLine = z.infer<typeof invoiceConceptFormSchema>;
 
@@ -128,18 +161,32 @@ export const invoiceFormSchema = invoiceFormBase.superRefine((values, ctx) => {
   refinePersonaMoralRetention(values, ctx);
 });
 
+const receiverSheetValidation = invoicingCopy.comprobante.sheet.validation;
+
 /**
  * Campos que se editan en el sheet «Corregir datos fiscales».
- * Derivado del mismo schema base: no duplica reglas del paquete (RFC, CP, etc.).
+ * Cotas lockstep con `createInvoiceSchema` del paquete; mensajes UX en español
+ * donde el paquete deja defaults Zod en inglés (catálogos / enum).
  */
-export const invoiceReceiverFormSchema = invoiceFormBase.pick({
-  receiver_rfc: true,
-  receiver_name: true,
-  receiver_tax_regime: true,
-  receiver_postal_code: true,
-  cfdi_usage: true,
-  payment_form: true,
-  payment_method: true,
+export const invoiceReceiverFormSchema = z.object({
+  receiver_rfc: invoiceFormBase.shape.receiver_rfc,
+  receiver_name: invoiceFormBase.shape.receiver_name,
+  receiver_postal_code: invoiceFormBase.shape.receiver_postal_code,
+  receiver_tax_regime: z
+    .string()
+    .min(1, receiverSheetValidation.taxRegimeRequired)
+    .max(10),
+  cfdi_usage: z
+    .string()
+    .min(1, receiverSheetValidation.cfdiUsageRequired)
+    .max(10),
+  payment_form: z
+    .string()
+    .min(1, receiverSheetValidation.paymentFormRequired)
+    .max(5),
+  payment_method: z.enum(["PUE", "PPD"], {
+    message: receiverSheetValidation.paymentMethodRequired,
+  }),
 });
 
 export type InvoiceReceiverFormValues = z.infer<typeof invoiceReceiverFormSchema>;
@@ -325,12 +372,24 @@ export function mapFormConceptToPayload(
 export function parseCreateInvoicePayload(
   values: InvoiceFormValues,
   tripId: string,
-  billingScope: "primary_transport" | "accessory" = "primary_transport",
+  billingScope: InvoiceBillingScope = "primary_transport",
+) {
+  const parsed = safeParseCreateInvoicePayload(values, tripId, billingScope);
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  return parsed.data;
+}
+
+export function safeParseCreateInvoicePayload(
+  values: InvoiceFormValues,
+  tripId: string,
+  billingScope: InvoiceBillingScope = "primary_transport",
 ) {
   const { apply_retained_tax: _apply, retention_required: _retention, ...rest } = values;
   void _apply;
   void _retention;
-  return createInvoiceSchema.parse({
+  return createInvoiceSchema.safeParse({
     ...rest,
     trip_ids: tripId ? [tripId] : values.trip_ids ?? [],
     billing_scope: billingScope,

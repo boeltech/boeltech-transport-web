@@ -17,6 +17,7 @@ import type {
   Invoice,
   Payment,
   InvoiceFilters,
+  InvoiceBillingScope,
   CreateInvoicePayload,
   UpdateInvoicePayload,
   CancelInvoicePayload,
@@ -40,10 +41,25 @@ export const invoiceQueryKeys = {
   detail: (id: string) => [...invoiceQueryKeys.details(), id] as const,
   payments: (id: string) =>
     [...invoiceQueryKeys.detail(id), "payments"] as const,
-  prefill: (tripId: string, scope: "primary_transport" | "accessory" = "primary_transport") =>
-    [...invoiceQueryKeys.all, "prefill", tripId, scope] as const,
+  prefills: () => [...invoiceQueryKeys.all, "prefill"] as const,
+  prefill: (
+    tripId: string,
+    scope: InvoiceBillingScope = "primary_transport",
+  ) => [...invoiceQueryKeys.prefills(), tripId, scope] as const,
 };
-const invoicePrefillQueriesKey = [...invoiceQueryKeys.all, "prefill"] as const;
+
+/** Prefix for every trip+scope prefill. Client fiscal edits must evict this. */
+const invoicePrefillQueriesKey = invoiceQueryKeys.prefills();
+
+/**
+ * Drops cached invoice prefill (RFC, régimen, CP fiscal) after client edits.
+ */
+export function evictInvoicePrefillQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+): void {
+  queryClient.removeQueries({ queryKey: invoicePrefillQueriesKey });
+}
+
 /** Cross-feature invalidation key (finance module owns queries under this root). */
 const financeQueryRoot = ["finance"] as const;
 
@@ -146,23 +162,31 @@ export const useInvoices = (filters?: InvoiceFilters) => {
   });
 };
 
-export const useInvoice = (id: string) => {
+export type UseInvoiceOptions = {
+  /** When true, skip REP status polling (e.g. while an overlay is open). */
+  pausePolling?: boolean;
+};
+
+export const useInvoice = (id: string, options?: UseInvoiceOptions) => {
+  const pausePolling = options?.pausePolling === true;
   return useQuery({
     queryKey: invoiceQueryKeys.detail(id),
     queryFn: () => invoicingApi.getById(id),
     enabled: !!id,
     staleTime: 30_000,
-    refetchInterval: devRefetchIntervalFn((query: Query<Invoice, Error>) => {
-      const invoice = query.state.data;
-      const hasPendingRep = invoice?.payments.some(
-        (p: Payment) =>
-          p.repStatus === "pending" ||
-          p.repStatus === "failed" ||
-          p.repStatus === "restamp_pending" ||
-          p.repStatus === "cancelling",
-      );
-      return hasPendingRep ? 5_000 : false;
-    }),
+    refetchInterval: pausePolling
+      ? false
+      : devRefetchIntervalFn((query: Query<Invoice, Error>) => {
+          const invoice = query.state.data;
+          const hasPendingRep = invoice?.payments.some(
+            (p: Payment) =>
+              p.repStatus === "pending" ||
+              p.repStatus === "failed" ||
+              p.repStatus === "restamp_pending" ||
+              p.repStatus === "cancelling",
+          );
+          return hasPendingRep ? 5_000 : false;
+        }),
   });
 };
 
@@ -177,13 +201,13 @@ export const useInvoicePayments = (invoiceId: string) => {
 
 export const useInvoicePrefill = (
   tripId: string,
-  scope: "primary_transport" | "accessory" = "primary_transport",
+  scope: InvoiceBillingScope = "primary_transport",
 ) => {
   return useQuery({
     queryKey: invoiceQueryKeys.prefill(tripId, scope),
     queryFn: () => invoicingApi.getPrefillFromTrip(tripId, scope),
     enabled: !!tripId,
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
   });
 };
 
