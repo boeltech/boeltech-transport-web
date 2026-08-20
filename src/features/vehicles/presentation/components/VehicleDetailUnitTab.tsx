@@ -158,52 +158,9 @@ export function VehicleDetailUnitTab({ vehicle }: VehicleDetailUnitTabProps) {
                   value={fmtPeso(cartaPorte.pesoBrutoVehicular)}
                 />
               </div>
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {copy.section.permitConfig.groupTrailers}
+              <p className="mt-3 text-xs text-muted-foreground">
+                {copy.hint.trailerAssignedOnTrip}
               </p>
-              {cartaPorte.remolques.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {cartaPorte.remolques.map((remolque) => (
-                    <div
-                      key={`${remolque.position}-${remolque.licensePlate}`}
-                      className="rounded-lg border bg-muted/30 p-3"
-                    >
-                      <p className="mb-2 text-sm font-medium">
-                        {copy.label.trailerPosition(remolque.position)}
-                      </p>
-                      <InfoRow
-                        variant="inline"
-                        label={copy.label.trailerSubtype}
-                        value={
-                          <CatalogLabelValue
-                            isLoading={labels.isLoading}
-                            label={labels.subTipoRemLabel(
-                              remolque.satSubTipoRemCode,
-                            )}
-                          />
-                        }
-                      />
-                      <InfoRow
-                        variant="inline"
-                        label={copy.label.trailerPlate}
-                        value={remolque.licensePlate}
-                        copyable
-                        copyValue={remolque.licensePlate}
-                        mono
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {copy.hint.noTrailers}
-                </p>
-              )}
             </div>
 
             <Separator />

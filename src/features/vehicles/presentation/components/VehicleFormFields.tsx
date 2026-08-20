@@ -16,6 +16,7 @@ import {
 } from "@shared/ui/select";
 import {
   FieldInlineError,
+  DateField,
   getFieldErrorAriaProps,
   normalizeRequiredFieldLabel,
 } from "@shared/ui/form";
@@ -108,6 +109,53 @@ export function VehicleGridInput<T extends FieldValues>({
               error={Boolean(fieldState.error)}
               {...getFieldErrorAriaProps(resolvedId, errorMessage)}
               {...inputProps}
+            />
+          </VehicleGridField>
+        );
+      }}
+    />
+  );
+}
+
+export function VehicleGridDateField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  required,
+  fieldId,
+  className,
+}: {
+  control: Control<T>;
+  name: FieldPath<T>;
+  label: ReactNode;
+  required?: boolean;
+  fieldId?: string;
+  className?: string;
+}) {
+  const resolvedId = fieldId ?? String(name);
+
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const errorMessage = fieldState.error?.message;
+        return (
+          <VehicleGridField
+            fieldId={resolvedId}
+            label={label}
+            required={required}
+            errorMessage={errorMessage}
+            className={className}
+          >
+            <DateField
+              id={resolvedId}
+              name={field.name}
+              value={field.value == null ? "" : String(field.value)}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={Boolean(fieldState.error)}
+              {...getFieldErrorAriaProps(resolvedId, errorMessage)}
             />
           </VehicleGridField>
         );

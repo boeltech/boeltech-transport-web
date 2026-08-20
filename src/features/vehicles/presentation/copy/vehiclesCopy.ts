@@ -67,7 +67,6 @@ export const vehiclesCopy = {
         description:
           "Datos base de la unidad para operación en ruta; pueden ajustarse por viaje.",
         groupPermit: "Permiso y configuración",
-        groupTrailers: "Remolques",
         groupOptionalInsurance: "Seguros adicionales",
         optionalInsuranceHint:
           "Valores predeterminados de la unidad; pueden variar por viaje.",
@@ -90,9 +89,6 @@ export const vehiclesCopy = {
       tipoPermiso: "Tipo de permiso SCT",
       configVehicular: "Configuración vehicular",
       pesoBruto: "Peso bruto vehicular",
-      trailerSubtype: "Tipo de remolque",
-      trailerPlate: "Placa",
-      trailerPosition: (position: number) => `Remolque ${position}`,
       insuranceCompany: "Aseguradora RC",
       insurancePolicy: "Póliza RC",
       sctPermitNumber: "Número de permiso SCT",
@@ -102,8 +98,9 @@ export const vehiclesCopy = {
     hint: {
       empty: "Sin registrar",
       emptyOptional: "No especificado",
-      noTrailers: "Sin remolques registrados.",
       catalogLoading: "Cargando descripción…",
+      trailerAssignedOnTrip:
+        "Si esta configuración usa remolque, se elige al crear el viaje.",
     },
     format: {
       headerSubtitle: (typeLabel: string, licensePlate: string) =>
@@ -185,7 +182,6 @@ export const vehiclesCopy = {
         description:
           "Datos SAT base del autotransporte; la operación puede ajustarlos por viaje.",
         groupVehicleId: "Identificación vehicular",
-        groupTrailers: "Remolques (máx. 2)",
         groupOptionalInsurance:
           "Seguros adicionales predeterminados (opcionales)",
         optionalInsuranceHint:
@@ -222,8 +218,6 @@ export const vehiclesCopy = {
       sctPermitExpiry: "Vencimiento del permiso",
       satConfig: "Configuración vehicular",
       pesoBruto: "Peso bruto vehicular (t)",
-      trailerSubtipo: (index: number) => `Subtipo remolque ${index}`,
-      trailerPlate: (index: number) => `Placa remolque ${index}`,
       aseguraMedioAmbiente: "Aseguradora medio ambiente",
       polizaMedioAmbiente: "Póliza medio ambiente",
       line: "Línea",
@@ -233,7 +227,6 @@ export const vehiclesCopy = {
       reviewType: "Tipo",
       reviewMileage: "Odómetro actual",
       reviewSct: "Permiso SCT / número",
-      reviewTrailers: "Remolques",
     },
     placeholder: {
       unitNumber: "Ej. U-001",
@@ -253,8 +246,6 @@ export const vehiclesCopy = {
       selectType: "Seleccionar tipo",
       selectPermiso: "Seleccionar tipo de permiso",
       selectConfig: "Seleccionar configuración",
-      selectSubtipoRem: "Seleccionar subtipo",
-      trailerPlate: "Ej. REM1234",
       selectBranch: "Seleccionar sucursal",
       optionalInsurer: "Aseguradora por defecto",
       optionalPolicy: "Póliza por defecto",
@@ -262,7 +253,10 @@ export const vehiclesCopy = {
     hint: {
       reviewEmpty: "Sin registrar",
       reviewMileageDefault: "Sin captura (se registrará 0 km)",
-      noTrailers: "Sin remolques registrados para esta unidad.",
+      trailerAssignedOnTrip:
+        "Si esta configuración usa remolque, se elige al crear el viaje.",
+      trailerCatalogPrefix: "Alta en ",
+      trailerCatalogLink: "Flota → Remolques",
       noBranches:
         "No hay sucursales activas. Crea una sucursal para asignar la unidad a una base operativa.",
     },
@@ -276,8 +270,6 @@ export const vehiclesCopy = {
       cancel: "Cancelar",
       save: "Guardar cambios",
       saving: "Guardando…",
-      addTrailer: "Agregar remolque",
-      removeTrailer: "Quitar remolque",
       createBranch: "Crear sucursal",
     },
     validation: {

@@ -81,6 +81,7 @@ export function CreateVehiclePage() {
     (data: CreateVehicleFormData) => {
       const payload: CreateVehiclePayload = {
         ...data,
+        remolques: [],
         currentMileage: data.currentMileage ?? 0,
       };
       createVehicle.mutate(payload);

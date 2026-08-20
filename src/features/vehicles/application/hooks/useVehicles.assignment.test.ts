@@ -103,7 +103,7 @@ describe("classifyVehicleForAssignment", () => {
     ).toBeUndefined();
   });
 
-  it("blocks Config S/R without remolques", () => {
+  it("allows Config S/R without embedded remolques (ADR-0077 pool)", () => {
     const result = classifyVehicleForAssignment(
       vehicle({
         id: "veh-6",
@@ -111,11 +111,10 @@ describe("classifyVehicleForAssignment", () => {
         remolques: [],
       }),
     );
-    expect(result.canBeAssigned).toBe(false);
-    expect(String(result.blockReason).toLowerCase()).toMatch(/remolque/);
+    expect(result.canBeAssigned).toBe(true);
   });
 
-  it("allows Config S/R with remolque", () => {
+  it("allows Config S/R regardless of legacy embedded remolques", () => {
     const result = classifyVehicleForAssignment(
       vehicle({
         id: "veh-7",

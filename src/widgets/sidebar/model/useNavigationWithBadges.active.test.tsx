@@ -52,9 +52,20 @@ describe("useNavigationWithBadges", () => {
     const { result } = renderNavigation("/finance?tab=approvals");
     const hub = itemById(result.current.navigation, "finance-hub");
     const invoiceable = itemById(result.current.navigation, "finance-invoiceable");
+    const cobros = itemById(result.current.navigation, "finance-cobros");
 
     expect(result.current.isItemActive(hub!)).toBe(false);
     expect(result.current.isItemActive(invoiceable!)).toBe(false);
+    expect(result.current.isItemActive(cobros!)).toBe(false);
+  });
+
+  it("marks cobros as the active finance job when that tab is open", () => {
+    const { result } = renderNavigation("/finance?tab=cobros&rfc=XAXX010101000");
+    const cobros = itemById(result.current.navigation, "finance-cobros");
+    const hub = itemById(result.current.navigation, "finance-hub");
+
+    expect(result.current.isItemActive(cobros!)).toBe(true);
+    expect(result.current.isItemActive(hub!)).toBe(false);
   });
 
   it("keeps the hub active when no tab is requested", () => {

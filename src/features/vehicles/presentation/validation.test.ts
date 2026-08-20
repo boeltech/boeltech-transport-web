@@ -4,7 +4,7 @@
  * Cubre:
  * - Alta y edición exigen campos CP3.1 Autotransporte.
  * - PlacaVM SAT 5–7 vía normalizeCp31Placa / isValidCp31Placa.
- * - Refine de remolques cuando ConfigVehicular S/R.
+ * - Remolques embebidos deprecados (ADR-0077): S/R ya no exige remolques en maestro.
  */
 
 import { describe, expect, it } from "vitest";
@@ -166,26 +166,16 @@ describe("createVehicleSchema — Carta Porte 3.1 (alta)", () => {
     }
   });
 
-  it("rechaza alta con ConfigVehicular tipo S/R y sin remolques", () => {
+  it("acepta alta con ConfigVehicular tipo S/R sin remolques embebidos (ADR-0077)", () => {
     const result = createVehicleSchema.safeParse({
       ...baseAlta,
       satConfigAutotransporteCode: "T3S2",
       remolques: [],
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) =>
-            i.path[0] === "remolques" &&
-            typeof i.message === "string" &&
-            i.message.toLowerCase().includes("remolque"),
-        ),
-      ).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 
-  it("acepta alta con ConfigVehicular tipo S y un remolque válido", () => {
+  it("acepta alta con ConfigVehicular tipo S aunque traiga remolques legacy", () => {
     const result = createVehicleSchema.safeParse({
       ...baseAlta,
       satConfigAutotransporteCode: "T3S2",
@@ -239,17 +229,12 @@ describe("editVehicleFormSchema — mismo set CP que alta", () => {
     }
   });
 
-  it("rechaza edición con ConfigVehicular S/R sin remolques (refine aplica)", () => {
+  it("acepta edición con ConfigVehicular S/R sin remolques embebidos (ADR-0077)", () => {
     const result = editVehicleFormSchema.safeParse({
       ...baseAlta,
       satConfigAutotransporteCode: "T3R3",
       remolques: [],
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.path[0] === "remolques"),
-      ).toBe(true);
-    }
+    expect(result.success).toBe(true);
   });
 });

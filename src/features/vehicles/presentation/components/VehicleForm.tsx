@@ -12,7 +12,6 @@ import { Link } from "react-router-dom";
 import {
   Controller,
   FormProvider,
-  useFieldArray,
   useForm,
   useFormContext,
   type Resolver,
@@ -33,7 +32,7 @@ import {
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
-import { FieldInlineError, FormValidationSummary, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FormValidationSummary, getFieldErrorAriaProps } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
@@ -64,12 +63,12 @@ import {
 import {
   TipoPermisoSelect,
   ConfigAutotransporteSelect,
-  SubTipoRemSelect,
 } from "@features/catalogs";
 import { cn } from "@shared/lib/utils/cn";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import {
   VehicleGridCatalogSlot,
+  VehicleGridDateField,
   VehicleGridField,
   VehicleGridInput,
   VehicleGridNumberInput,
@@ -154,10 +153,7 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
     polizaMedioAmbiente: vehicle.cartaPorte.polizaMedioAmbiente ?? "",
     aseguraCarga: vehicle.cartaPorte.aseguraCarga ?? "",
     polizaCarga: vehicle.cartaPorte.polizaCarga ?? "",
-    remolques: vehicle.cartaPorte.remolques.map((remolque) => ({
-      satSubTipoRemCode: remolque.satSubTipoRemCode,
-      licensePlate: remolque.licensePlate,
-    })),
+    remolques: [],
     branchId: vehicle.branchId ?? undefined,
   };
 }
@@ -210,19 +206,6 @@ function VehicleCreateWizardSummary() {
           <p className="font-medium">
             {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
               fc.hint.reviewEmpty}
-          </p>
-        </div>
-        <div className="sm:col-span-2">
-          <p className="text-muted-foreground">{fc.label.reviewTrailers}</p>
-          <p className="font-medium">
-            {v.remolques.length > 0
-              ? v.remolques
-                  .map(
-                    (r, idx) =>
-                      `#${idx + 1}: ${r.satSubTipoRemCode || fc.hint.reviewEmpty} · ${r.licensePlate || fc.hint.reviewEmpty}`,
-                  )
-                  .join(" | ")
-              : fc.hint.noTrailers}
           </p>
         </div>
     </FormSectionCard>
@@ -298,13 +281,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const { control, handleSubmit: rhfHandleSubmit, trigger, formState } = form;
     const { errors, isDirty } = formState;
     const validationMessages = collectFieldErrorMessages(errors);
-    const shouldShowValidationSummary =
-      showValidationSummary && validationMessages.length > 0;
-
-    const remolquesFieldArray = useFieldArray({
-      control,
-      name: "remolques",
-    });
 
     const { data: branchesResult } = useBranches({
       page: 1,
@@ -369,12 +345,8 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       [trigger, rhfHandleSubmit, onSubmit],
     );
 
-    const remolquesErrorMessage =
-      typeof errors.remolques?.message === "string"
-        ? errors.remolques.message
-        : typeof errors.remolques?.root?.message === "string"
-          ? errors.remolques.root.message
-          : undefined;
+    const shouldShowValidationSummary =
+      showValidationSummary && validationMessages.length > 0;
 
     return (
       <FormProvider {...form}>
@@ -638,7 +610,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 placeholder={fc.placeholder.insurancePolicy}
                 required={requireCartaPorteFields}
               />
-              <VehicleGridInput
+              <VehicleGridDateField
                 control={control}
                 name="insuranceExpiry"
                 label={
@@ -647,7 +619,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                     showSatCode={false}
                   />
                 }
-                type="date"
               />
             </div>
 
@@ -691,7 +662,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 placeholder={fc.placeholder.sctPermitNumber}
                 required={requireCartaPorteFields}
               />
-              <VehicleGridInput
+              <VehicleGridDateField
                 control={control}
                 name="sctPermitExpiry"
                 label={
@@ -700,7 +671,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                     showSatCode={false}
                   />
                 }
-                type="date"
               />
             </div>
         </FormSectionCard>
@@ -744,29 +714,42 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 {fc.section.cartaPorte.groupVehicleId}
               </p>
               <div className="grid items-start gap-4 sm:grid-cols-2">
-                <VehicleGridCatalogSlot
-                  control={control}
-                  name="satConfigAutotransporteCode"
-                  label={
-                    <SatFieldLabel
-                      label={fc.label.satConfig}
-                      satCode="ConfigVehicular"
-                      showSatCode={false}
-                    />
-                  }
-                  required={requireCartaPorteFields}
-                >
-                  {({ field, fieldState, resolvedId, errorMessage }) => (
-                    <ConfigAutotransporteSelect
-                      triggerId={resolvedId}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder={fc.placeholder.selectConfig}
-                      error={Boolean(fieldState.error)}
-                      {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                    />
-                  )}
-                </VehicleGridCatalogSlot>
+                <div className="space-y-2">
+                  <VehicleGridCatalogSlot
+                    control={control}
+                    name="satConfigAutotransporteCode"
+                    label={
+                      <SatFieldLabel
+                        label={fc.label.satConfig}
+                        satCode="ConfigVehicular"
+                        showSatCode={false}
+                      />
+                    }
+                    required={requireCartaPorteFields}
+                  >
+                    {({ field, fieldState, resolvedId, errorMessage }) => (
+                      <ConfigAutotransporteSelect
+                        triggerId={resolvedId}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder={fc.placeholder.selectConfig}
+                        error={Boolean(fieldState.error)}
+                        {...getFieldErrorAriaProps(resolvedId, errorMessage)}
+                      />
+                    )}
+                  </VehicleGridCatalogSlot>
+                  <p className="text-xs text-muted-foreground">
+                    {fc.hint.trailerAssignedOnTrip}{" "}
+                    {fc.hint.trailerCatalogPrefix}
+                    <Link
+                      to="/trailers"
+                      className="font-medium underline underline-offset-2"
+                    >
+                      {fc.hint.trailerCatalogLink}
+                    </Link>
+                    .
+                  </p>
+                </div>
                 <VehicleGridNumberInput
                   control={control}
                   name="pesoBrutoVehicular"
@@ -785,122 +768,6 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                   required={requireCartaPorteFields}
                 />
               </div>
-            </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">
-                  {fc.section.cartaPorte.groupTrailers}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    remolquesFieldArray.append({
-                      satSubTipoRemCode: "",
-                      licensePlate: "",
-                    })
-                  }
-                  disabled={remolquesFieldArray.fields.length >= 2}
-                >
-                  {fc.action.addTrailer}
-                </Button>
-              </div>
-
-              {remolquesFieldArray.fields.length === 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    {fc.hint.noTrailers}
-                  </p>
-                  <FieldInlineError
-                    fieldId="remolques"
-                    message={remolquesErrorMessage}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {remolquesFieldArray.fields.map((field, index) => (
-                    <div
-                      key={field.id}
-                      className="grid items-start gap-4 rounded-md border p-3 sm:grid-cols-2"
-                    >
-                      <VehicleGridCatalogSlot
-                        control={control}
-                        name={`remolques.${index}.satSubTipoRemCode`}
-                        label={
-                          <SatFieldLabel
-                            label={fc.label.trailerSubtipo(index + 1)}
-                            satCode="SubTipoRem"
-                            showSatCode={false}
-                          />
-                        }
-                      >
-                        {({ field, fieldState, resolvedId, errorMessage }) => (
-                          <SubTipoRemSelect
-                            triggerId={resolvedId}
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            placeholder={fc.placeholder.selectSubtipoRem}
-                            error={Boolean(fieldState.error)}
-                            {...getFieldErrorAriaProps(resolvedId, errorMessage)}
-                          />
-                        )}
-                      </VehicleGridCatalogSlot>
-                      <Controller
-                        control={control}
-                        name={`remolques.${index}.licensePlate`}
-                        render={({ field, fieldState }) => {
-                          const fieldId = `remolques.${index}.licensePlate`;
-                          const errorMessage = fieldState.error?.message;
-                          return (
-                            <VehicleGridField
-                              fieldId={fieldId}
-                              label={
-                                <SatFieldLabel
-                                  label={fc.label.trailerPlate(index + 1)}
-                                  satCode="Placa"
-                                  showSatCode={false}
-                                />
-                              }
-                              errorMessage={errorMessage}
-                            >
-                              <Input
-                                id={fieldId}
-                                placeholder={fc.placeholder.trailerPlate}
-                                value={field.value ?? ""}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      .toUpperCase()
-                                      .replace(/[^A-Z0-9]/g, ""),
-                                  )
-                                }
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
-                                error={Boolean(fieldState.error)}
-                                {...getFieldErrorAriaProps(fieldId, errorMessage)}
-                              />
-                            </VehicleGridField>
-                          );
-                        }}
-                      />
-
-                      <div className="sm:col-span-2 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => remolquesFieldArray.remove(index)}
-                        >
-                          {fc.action.removeTrailer}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div>

@@ -15,6 +15,12 @@ const invoiceable: NavItem = {
   path: "/finance?tab=invoiceable",
   icon: Circle,
 };
+const cobros: NavItem = {
+  id: "finance-cobros",
+  label: "Cobros",
+  path: "/finance?tab=cobros",
+  icon: Circle,
+};
 const approvals: NavItem = {
   id: "finance-approvals",
   label: "Aprobaciones",
@@ -43,6 +49,13 @@ describe("findActiveNavItem", () => {
     );
 
     expect(active?.id).toBe("finance-invoiceable");
+  });
+
+  it("prefers cobros when that tab is in the query", () => {
+    expect(
+      findActiveNavItem("/finance", [hub, invoiceable, cobros], "?tab=cobros")
+        ?.id,
+    ).toBe("finance-cobros");
   });
 
   it("keeps the hub active when the tab does not match", () => {

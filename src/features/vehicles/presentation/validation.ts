@@ -8,15 +8,13 @@
  * - Alta y edición: campos Autotransporte requeridos (PermSCT, NumPermisoSCT,
  *   ConfigVehicular, PesoBrutoVehicular, AseguraRespCivil, PolizaRespCivil).
  * - PlacaVM: normalize + isValidCp31Placa (5–7 alfanuméricos).
- * - Remolques: si ConfigVehicular exige remolques (`configVehicularLikelyRequiresRemolques`),
- *   se exige al menos uno.
+ * - Remolques: pool en `/trailers` (ADR-0077); ya no se capturan en el maestro.
  *
  * Ubicación: src/features/vehicles/presentation/validation.ts
  */
 
 import { z } from "zod";
 import {
-  configVehicularLikelyRequiresRemolques,
   isValidCp31Placa,
   normalizeCp31Placa,
 } from "@boeltech/cfdi-domain";
@@ -233,36 +231,9 @@ const vehicleFormCommonShape = {
     .optional()
     .or(z.literal("")),
 
-  // Remolques (cardinalidad CP3.1: máx. 2)
+  // Remolques embebidos deprecados (ADR-0077): el pool vive en `/trailers`.
   remolques: z.array(remolqueSchema).max(2, "Máximo 2 remolques").default([]),
 } as const;
-
-/**
- * Refinement compartido: si la `ConfigVehicular` SAT requiere remolques
- * (patrones `S\d`/`R\d` según `configVehicularLikelyRequiresRemolques`),
- * se exige al menos uno.
- */
-function applyRemolquesConditional(
-  data: {
-    satConfigAutotransporteCode?: string | null;
-    remolques: Array<{ satSubTipoRemCode: string; licensePlate: string }>;
-  },
-  ctx: z.RefinementCtx,
-) {
-  const config = (data.satConfigAutotransporteCode ?? "").trim();
-  if (!config) return;
-  if (
-    configVehicularLikelyRequiresRemolques(config) &&
-    data.remolques.length === 0
-  ) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["remolques"],
-      message:
-        "La configuración vehicular SAT seleccionada requiere capturar al menos un remolque (SubTipoRem + Placa).",
-    });
-  }
-}
 
 // ============================================
 // Create Vehicle Schema — CP3.1 estricto
@@ -271,47 +242,46 @@ function applyRemolquesConditional(
 /**
  * Schema de alta de vehículo. Los campos del nodo `Autotransporte` son
  * requeridos para que cualquier vehículo nuevo sea timbrable en CP3.1.
+ * Remolques: se asignan al viaje (ADR-0077), no en el maestro de unidad.
  */
-export const createVehicleSchema = z
-  .object({
-    ...vehicleFormCommonShape,
+export const createVehicleSchema = z.object({
+  ...vehicleFormCommonShape,
 
-    // ── Carta Porte 3.1 — Autotransporte (REQUERIDOS) ───────────────────────
-    // PermSCT — catálogo SAT c_TipoPermiso
-    satTipoPermisoCode: z
-      .string()
-      .min(1, "Selecciona el tipo de permiso SCT (PermSCT)")
-      .max(10, "Máximo 10 caracteres"),
-    // NumPermisoSCT
-    sctPermitNumber: z
-      .string()
-      .min(1, "El número de permiso SCT es requerido para Carta Porte")
-      .max(50, "Máximo 50 caracteres"),
-    // ConfigVehicular — catálogo SAT c_ConfigAutotransporte
-    satConfigAutotransporteCode: z
-      .string()
-      .min(1, "Selecciona la configuración vehicular SAT (ConfigVehicular)")
-      .max(10, "Máximo 10 caracteres"),
-    // PesoBrutoVehicular (toneladas)
-    pesoBrutoVehicular: vehicleFormPesoBrutoRequiredSchema,
-    // AseguraRespCivil
-    insuranceCompany: z
-      .string()
-      .min(
-        1,
-        "La aseguradora de responsabilidad civil es requerida para Carta Porte",
-      )
-      .max(50, "Máximo 50 caracteres"),
-    // PolizaRespCivil
-    insurancePolicy: z
-      .string()
-      .min(
-        1,
-        "La póliza de responsabilidad civil es requerida para Carta Porte",
-      )
-      .max(50, "Máximo 50 caracteres"),
-  })
-  .superRefine(applyRemolquesConditional);
+  // ── Carta Porte 3.1 — Autotransporte (REQUERIDOS) ───────────────────────
+  // PermSCT — catálogo SAT c_TipoPermiso
+  satTipoPermisoCode: z
+    .string()
+    .min(1, "Selecciona el tipo de permiso SCT (PermSCT)")
+    .max(10, "Máximo 10 caracteres"),
+  // NumPermisoSCT
+  sctPermitNumber: z
+    .string()
+    .min(1, "El número de permiso SCT es requerido para Carta Porte")
+    .max(50, "Máximo 50 caracteres"),
+  // ConfigVehicular — catálogo SAT c_ConfigAutotransporte
+  satConfigAutotransporteCode: z
+    .string()
+    .min(1, "Selecciona la configuración vehicular SAT (ConfigVehicular)")
+    .max(10, "Máximo 10 caracteres"),
+  // PesoBrutoVehicular (toneladas)
+  pesoBrutoVehicular: vehicleFormPesoBrutoRequiredSchema,
+  // AseguraRespCivil
+  insuranceCompany: z
+    .string()
+    .min(
+      1,
+      "La aseguradora de responsabilidad civil es requerida para Carta Porte",
+    )
+    .max(50, "Máximo 50 caracteres"),
+  // PolizaRespCivil
+  insurancePolicy: z
+    .string()
+    .min(
+      1,
+      "La póliza de responsabilidad civil es requerida para Carta Porte",
+    )
+    .max(50, "Máximo 50 caracteres"),
+});
 
 // ============================================
 // Edit Vehicle Form Schema — mismo set CP que alta
@@ -423,6 +393,5 @@ export const VEHICLE_CREATE_WIZARD_STEP_FIELDS: (keyof CreateVehicleFormData)[][
     "polizaMedioAmbiente",
     "aseguraCarga",
     "polizaCarga",
-    "remolques",
   ],
 ];

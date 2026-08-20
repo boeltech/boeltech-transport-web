@@ -25,10 +25,8 @@ export function useVehicleCatalogLabels() {
   const configVehicular = useCatalogOptions(
     CatalogTypeCode.SAT_CONFIG_AUTOTRANSPORTE,
   );
-  const subTipoRem = useCatalogOptions(CatalogTypeCode.SAT_SUB_TIPO_REM);
 
-  const isLoading =
-    tipoPermiso.isLoading || configVehicular.isLoading || subTipoRem.isLoading;
+  const isLoading = tipoPermiso.isLoading || configVehicular.isLoading;
 
   return useMemo(
     () => ({
@@ -37,9 +35,7 @@ export function useVehicleCatalogLabels() {
         resolveCatalogOptionLabel(tipoPermiso.data, code),
       configVehicularLabel: (code: string | null | undefined) =>
         resolveCatalogOptionLabel(configVehicular.data, code),
-      subTipoRemLabel: (code: string | null | undefined) =>
-        resolveCatalogOptionLabel(subTipoRem.data, code),
     }),
-    [isLoading, tipoPermiso.data, configVehicular.data, subTipoRem.data],
+    [isLoading, tipoPermiso.data, configVehicular.data],
   );
 }

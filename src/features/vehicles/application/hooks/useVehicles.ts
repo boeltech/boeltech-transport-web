@@ -216,7 +216,7 @@ export function classifyVehicleForAssignment(
 
   // Vigencia sin número en listado: se permite (API puede omitir `sct_permit_number`).
 
-  // ── Autotransporte CP stamp-ready (SoT paquete; sin vigencias) ──────────
+  // ── Autotransporte CP stamp-ready (SoT paquete; remolques = viaje ADR-0077) ─
   const stampResult = validateVehicleForCartaPorteStamp({
     tripId: vehicle.id,
     sat_tipo_permiso_code: vehicle.satTipoPermisoCode,
@@ -227,22 +227,32 @@ export function classifyVehicleForAssignment(
     insurance_policy: vehicle.insurancePolicy,
     peso_bruto_vehicular: vehicle.pesoBrutoVehicular,
     year: vehicle.year,
-    remolques: vehicle.remolques.map((r) => ({
-      position: r.position,
-      sat_sub_tipo_rem_code: r.satSubTipoRemCode,
-      license_plate: r.licensePlate,
-    })),
+    // Remolques se validan en la asignación al viaje, no en el maestro.
+    remolques: [],
   });
 
   if (!stampResult.ok) {
-    const first = stampResult.error[0];
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason:
-        first?.message ??
-        "Datos Autotransporte incompletos para Carta Porte 3.1",
-    };
+    const REMOLQUE_CODES = new Set([
+      "CP31_REMOLQUES_REQUIRED",
+      "CP31_REMOLQUE_POSITION_INVALID",
+      "CP31_REMOLQUE_SUBTIPO_REQUIRED",
+      "CP31_REMOLQUE_PLATE_INVALID",
+      "CP31_REMOLQUES_LIMIT_EXCEEDED",
+      "CP31_REMOLQUES_POSITION_DUPLICATE",
+    ]);
+    const nonRemolqueErrors = stampResult.error.filter(
+      (e) => !REMOLQUE_CODES.has(e.code),
+    );
+    if (nonRemolqueErrors.length > 0) {
+      const first = nonRemolqueErrors[0];
+      return {
+        ...vehicle,
+        canBeAssigned: false,
+        blockReason:
+          first?.message ??
+          "Datos Autotransporte incompletos para Carta Porte 3.1",
+      };
+    }
   }
 
   return { ...vehicle, canBeAssigned: true };

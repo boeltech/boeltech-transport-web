@@ -50,6 +50,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.update",
       "trips.delete",
       "trips.updateStatus",
+      "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
       "trips.approve",
       "trips.export",
       "trips_stops_fiscal.execute",
@@ -61,6 +62,14 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "vehicles.update",
       "vehicles.delete",
       "vehicles.export",
+
+      // Remolques - espejo vehicles (ADR-0077 D2)
+      "trailers.read",
+      "trailers.create",
+      "trailers.update",
+      "trailers.delete",
+      "trailers.export",
+      "trailers.execute",
 
       // Conductores - Control total
       "drivers.read",
@@ -106,14 +115,21 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "fuel.approve",
       "fuel.export",
 
-      // Gastos - Lectura y aprobación
+      // Gastos - CRUD + aprobación (lockstep API expenses.*)
       "expenses.read",
+      "expenses.create",
+      "expenses.update",
+      "expenses.delete",
       "expenses.approve",
       "expenses.export",
 
       // Aprobaciones centralizadas (hub /finance/approvals)
       "finance_approvals.read",
       "finance_approvals.update",
+
+      // Finanzas — Cobros tab (lockstep API finance.read/create)
+      "finance.read",
+      "finance.create",
 
       // Facturas - Lectura
       "invoices.read",
@@ -190,6 +206,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "finance_approvals.read",
       "finance_approvals.update",
 
+      // Finanzas — Cobros tab (lockstep API finance.read/create)
+      "finance.read",
+      "finance.create",
+
       // Facturas - Control total
       "invoices.read",
       "invoices.create",
@@ -248,11 +268,16 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.create",
       "trips.update",
       "trips.updateStatus",
+      "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
       "trips.assign",
       "trips.export",
 
       // Vehículos - Lectura y disponibilidad
       "vehicles.read",
+
+      // Remolques - Lectura (+ status vía execute en API)
+      "trailers.read",
+      "trailers.execute",
 
       // Conductores - Lectura, asignación y estado
       "drivers.read",
@@ -289,10 +314,15 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.create",
       "trips.update",
       "trips.updateStatus",
+      "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
       "trips.export",
 
       // Vehículos - Lectura
       "vehicles.read",
+
+      // Remolques - Lectura (+ status)
+      "trailers.read",
+      "trailers.execute",
 
       // Conductores - Lectura + cambio de estado
       "drivers.read",
@@ -343,9 +373,13 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Viajes - Solo lectura y actualización de estado de sus viajes
       "trips.read",
       "trips.updateStatus", // Iniciar y completar su propio viaje
+      "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
 
       // Vehículos - Lectura del vehículo asignado
       "vehicles.read",
+
+      // Remolques - Lectura (pool de flota)
+      "trailers.read",
 
       // Reportes - Historial de sus propios viajes
       "reports.read",

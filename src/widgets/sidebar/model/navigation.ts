@@ -18,10 +18,12 @@ import { FINANCE_SUMMARY_ROUTE_ROLES } from "@shared/permissions";
 import {
   LayoutDashboard,
   Truck,
+  Container,
   Users,
   Route,
   FileText,
   FileClock,
+  Wallet,
   UserCog,
   BarChart3,
   Settings,
@@ -91,6 +93,13 @@ export const navigationConfig: NavGroup[] = [
         module: "vehicles",
       },
       {
+        id: "trailers",
+        label: copy.item.trailers,
+        path: "/trailers",
+        icon: Container,
+        module: "trailers",
+      },
+      {
         id: "drivers",
         label: copy.item.drivers,
         path: "/drivers",
@@ -136,6 +145,14 @@ export const navigationConfig: NavGroup[] = [
         path: "/finance?tab=invoiceable",
         icon: FileClock,
         module: "invoices",
+        action: "create",
+      },
+      {
+        id: "finance-cobros",
+        label: copy.item.financeCobros,
+        path: "/finance?tab=cobros",
+        icon: Wallet,
+        module: "finance",
         action: "create",
       },
       {

@@ -15,12 +15,15 @@ export const navigationCopy = {
     trips: "Viajes",
     branches: "Sucursales",
     vehicles: "Vehículos",
+    trailers: "Remolques",
     drivers: "Conductores",
     employees: "Empleados",
     clientsList: "Clientes",
     financeHub: "Finanzas",
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
+    /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */
+    financeCobros: "Cobros",
     financeApprovals: "Aprobaciones",
     /** Deep-link al tab Facturas del hub (no es un módulo aparte). */
     financeInvoices: "Facturas",

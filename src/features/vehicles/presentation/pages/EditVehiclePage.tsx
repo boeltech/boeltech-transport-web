@@ -62,6 +62,7 @@ export function EditVehiclePage() {
   const handleSubmit = (data: CreateVehicleFormData) => {
     const rest = { ...data } as Record<string, unknown>;
     delete rest.unitNumber;
+    rest.remolques = [];
     const payload: UpdateVehiclePayload = {};
 
     for (const [key, value] of Object.entries(rest)) {
