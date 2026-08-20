@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
+import { DateField, preventCloseIfDateCalendar } from "@shared/ui/form";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
   UserStatus,
@@ -358,7 +358,12 @@ export function UsersListPage() {
                     ) : null}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[24rem] p-4" align="start">
+                <PopoverContent
+                  className="w-[24rem] p-4"
+                  align="start"
+                  onPointerDownOutside={preventCloseIfDateCalendar}
+                  onFocusOutside={preventCloseIfDateCalendar}
+                >
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 font-medium">
                       <Filter className="h-4 w-4" />
@@ -374,15 +379,14 @@ export function UsersListPage() {
                           <Label htmlFor="users-created-from">
                             {copy.filters.from}
                           </Label>
-                          <Input
+                          <DateField
                             id="users-created-from"
-                            type="date"
                             value={dateDraft.createdFrom}
                             max={dateDraft.createdTo || undefined}
-                            onChange={(e) =>
+                            onChange={(createdFrom) =>
                               setDateDraft((d) => ({
                                 ...d,
-                                createdFrom: e.target.value,
+                                createdFrom,
                               }))
                             }
                           />
@@ -391,15 +395,14 @@ export function UsersListPage() {
                           <Label htmlFor="users-created-to">
                             {copy.filters.to}
                           </Label>
-                          <Input
+                          <DateField
                             id="users-created-to"
-                            type="date"
                             value={dateDraft.createdTo}
                             min={dateDraft.createdFrom || undefined}
-                            onChange={(e) =>
+                            onChange={(createdTo) =>
                               setDateDraft((d) => ({
                                 ...d,
-                                createdTo: e.target.value,
+                                createdTo,
                               }))
                             }
                           />
@@ -416,15 +419,14 @@ export function UsersListPage() {
                           <Label htmlFor="users-login-from">
                             {copy.filters.from}
                           </Label>
-                          <Input
+                          <DateField
                             id="users-login-from"
-                            type="date"
                             value={dateDraft.lastLoginFrom}
                             max={dateDraft.lastLoginTo || undefined}
-                            onChange={(e) =>
+                            onChange={(lastLoginFrom) =>
                               setDateDraft((d) => ({
                                 ...d,
-                                lastLoginFrom: e.target.value,
+                                lastLoginFrom,
                               }))
                             }
                           />
@@ -433,15 +435,14 @@ export function UsersListPage() {
                           <Label htmlFor="users-login-to">
                             {copy.filters.to}
                           </Label>
-                          <Input
+                          <DateField
                             id="users-login-to"
-                            type="date"
                             value={dateDraft.lastLoginTo}
                             min={dateDraft.lastLoginFrom || undefined}
-                            onChange={(e) =>
+                            onChange={(lastLoginTo) =>
                               setDateDraft((d) => ({
                                 ...d,
-                                lastLoginTo: e.target.value,
+                                lastLoginTo,
                               }))
                             }
                           />

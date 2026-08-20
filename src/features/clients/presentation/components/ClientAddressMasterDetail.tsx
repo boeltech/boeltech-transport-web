@@ -72,6 +72,10 @@ import {
   validateClientAddressFormComplete,
   type ClientAddressFormData,
 } from "../validation/clientAddressSchema";
+import { groupClientAddressesByPurpose } from "../config/clientAddressPurpose";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
+
+const copy = clientDetailCopy.address;
 
 // ============================================================================
 // TYPES
@@ -126,6 +130,10 @@ export function ClientAddressMasterDetail({
   const sorted = useMemo(
     () => (addresses ? sortAddresses(addresses) : []),
     [addresses],
+  );
+  const grouped = useMemo(
+    () => groupClientAddressesByPurpose(sorted),
+    [sorted],
   );
 
   // ── Estado del master-detail ─────────────────────────────────────────────
@@ -371,7 +379,7 @@ export function ClientAddressMasterDetail({
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-base font-semibold">
-            Direcciones
+            {copy.masterTitle}
             {sorted.length > 0 ? (
               <span className="ml-1 text-muted-foreground font-normal">
                 ({sorted.length})
@@ -386,7 +394,7 @@ export function ClientAddressMasterDetail({
             disabled={isPending || effectiveMode === "create"}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Nueva dirección
+            {copy.newAddress}
           </Button>
         ) : null}
       </div>
@@ -402,17 +410,15 @@ export function ClientAddressMasterDetail({
         <div className="rounded-md border">
           <EmptyState
             icon={<MapPin />}
-            title="No hay direcciones registradas"
+            title={copy.emptyTitle}
             description={
-              readOnly
-                ? "Puedes agregar direcciones desde la pantalla Editar cliente."
-                : "Agrega al menos una dirección fiscal o de entrega para este cliente."
+              readOnly ? copy.emptyDescriptionReadOnly : copy.emptyDescription
             }
             cta={
               readOnly
                 ? undefined
                 : {
-                    label: "Agregar primera dirección",
+                    label: copy.emptyCta,
                     icon: <Plus className="h-4 w-4" />,
                     onClick: handleStartCreate,
                   }
@@ -421,9 +427,9 @@ export function ClientAddressMasterDetail({
           />
           <div className="border-t bg-muted/30 px-6 py-3">
             <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              <li>Define una dirección principal para uso operativo.</li>
-              <li>Registra al menos una de facturación para CFDI.</li>
-              <li>Incluye contacto y referencia para facilitar entregas.</li>
+              <li>{copy.emptyHints.fiscal}</li>
+              <li>{copy.emptyHints.trips}</li>
+              <li>{copy.emptyHints.other}</li>
             </ul>
           </div>
         </div>
@@ -436,35 +442,49 @@ export function ClientAddressMasterDetail({
           <div className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2">
             {effectiveMode === "create" && !readOnly ? (
               <div className="rounded-md border-2 border-dashed border-primary/40 bg-primary/5 p-3 text-xs text-primary">
-                <p className="font-medium">Nueva dirección</p>
-                <p className="text-primary/70">
-                  Completa el formulario a la derecha para guardarla.
-                </p>
+                <p className="font-medium">{copy.creatingHintTitle}</p>
+                <p className="text-primary/70">{copy.creatingHintBody}</p>
               </div>
             ) : null}
 
-            {sorted.map((address) => (
-              <ClientAddressListRow
-                key={address.id}
-                address={address}
-                selected={
-                  listHighlightId === address.id && effectiveMode !== "create"
-                }
-                onClick={() => handleSelect(address.id)}
-              />
-            ))}
+            {(
+              [
+                ["fiscal", grouped.fiscal],
+                ["forTrips", grouped.forTrips],
+                ["other", grouped.other],
+              ] as const
+            ).map(([groupKey, groupItems]) =>
+              groupItems.length === 0 ? null : (
+                <div key={groupKey} className="space-y-1.5">
+                  <p className="px-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {copy.groups[groupKey]}
+                  </p>
+                  {groupItems.map((address) => (
+                    <ClientAddressListRow
+                      key={address.id}
+                      address={address}
+                      selected={
+                        listHighlightId === address.id &&
+                        effectiveMode !== "create"
+                      }
+                      onClick={() => handleSelect(address.id)}
+                    />
+                  ))}
+                </div>
+              ),
+            )}
           </div>
 
           {/* ─── Detail: vista o formulario ──────────────────────────────── */}
           <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
             {!readOnly && effectiveMode === "create" && !isMobile ? (
               <FormPanel
-                title="Nueva dirección"
-                description="Captura los datos. Se guardará al confirmar."
+                title={copy.createTitle}
+                description={copy.createDescription}
                 isPending={isPending}
                 onCancel={handleCancelForm}
                 onSubmit={handleSubmitForm}
-                submitLabel="Crear dirección"
+                submitLabel={copy.createSubmit}
               >
                 <ClientAddressForm
                   ref={formRef}
@@ -482,12 +502,12 @@ export function ClientAddressMasterDetail({
                 </div>
               ) : (
                 <FormPanel
-                  title="Editar dirección"
-                  description="Los cambios se guardan al confirmar."
+                  title={copy.editTitle}
+                  description={copy.editDescription}
                   isPending={isPending}
                   onCancel={handleCancelForm}
                   onSubmit={handleSubmitForm}
-                  submitLabel="Guardar cambios"
+                  submitLabel={copy.updateSubmit}
                 >
                   <ClientAddressForm
                     key={selectedId ?? resolvedViewId ?? "edit"}
@@ -527,11 +547,11 @@ export function ClientAddressMasterDetail({
               )
             ) : !readOnly && (effectiveMode === "create" || effectiveMode === "edit") && isMobile ? (
               <div className="flex items-center justify-center rounded-md border border-dashed py-12 text-sm text-muted-foreground">
-                Formulario abierto en panel inferior.
+                {copy.mobileFormOpen}
               </div>
             ) : (
               <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                Selecciona una dirección de la lista o crea una nueva.
+                {copy.selectPrompt}
               </div>
             )}
           </div>
@@ -551,10 +571,10 @@ export function ClientAddressMasterDetail({
         <SheetContent side="bottom" className="h-[92vh] overflow-hidden p-0">
           <SheetHeader className="border-b px-5 py-4">
             <SheetTitle>
-              {effectiveMode === "create" ? "Nueva dirección" : "Editar dirección"}
+              {effectiveMode === "create" ? copy.createTitle : copy.editTitle}
             </SheetTitle>
             <SheetDescription>
-              Los cambios se guardan al confirmar esta acción.
+              {copy.sheetDescription}
             </SheetDescription>
           </SheetHeader>
           <div className="h-[calc(92vh-132px)] overflow-y-auto px-5 py-4">
@@ -586,18 +606,18 @@ export function ClientAddressMasterDetail({
           </div>
           <SheetFooter className="border-t bg-background px-5 py-4">
             <Button variant="outline" onClick={handleCancelForm} disabled={isPending}>
-              Cancelar
+              {copy.cancel}
             </Button>
             <Button onClick={handleSubmitForm} disabled={isPending}>
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
+                  {copy.saving}
                 </>
               ) : effectiveMode === "create" ? (
-                "Crear dirección"
+                copy.createSubmit
               ) : (
-                "Guardar cambios"
+                copy.updateSubmit
               )}
             </Button>
           </SheetFooter>
@@ -683,13 +703,13 @@ function FormPanel({
       <div className="min-h-0 flex-1 overflow-y-auto min-w-0">{children}</div>
       <footer className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t pt-3">
         <Button variant="outline" onClick={onCancel} disabled={isPending}>
-          Cancelar
+          {copy.cancel}
         </Button>
         <Button onClick={onSubmit} disabled={isPending}>
           {isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Guardando...
+              {copy.saving}
             </>
           ) : (
             submitLabel

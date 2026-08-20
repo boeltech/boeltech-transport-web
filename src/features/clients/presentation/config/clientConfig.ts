@@ -334,9 +334,9 @@ export function formatCreditDays(days: number): string {
 // ============================================================================
 
 export const CLIENT_ADDRESS_FISCAL_COPY = {
-  sectionTitle: "Datos fiscales operativos",
+  sectionTitle: "RFC de esta ubicación",
   hint:
-    "RFC y nombre del remitente o destinatario en esta ubicación. Se usan al timbrar Carta Porte en viajes que referencien esta dirección.",
+    "RFC y nombre del remitente o destinatario en este lugar de viaje. Se copian al snapshot de la parada al timbrar Carta Porte. No sustituyen el RFC del cliente receptor.",
   rfcLabel: "RFC remitente/destinatario",
   rfcPlaceholder: "Ej. XAXX010101000",
   nombreLabel: "Nombre o razón social",

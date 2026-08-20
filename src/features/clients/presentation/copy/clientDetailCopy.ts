@@ -35,9 +35,14 @@ export const clientDetailCopy = {
     trips: "Viajes",
   },
   alerts: {
-    noAddresses: {
-      title: "Sin direcciones registradas",
-      text: "Agrega al menos una dirección en la pestaña Direcciones.",
+    missingBillingCp: {
+      title: "Falta código postal para facturar",
+      text: "Agrega un domicilio fiscal con código postal. Se usa como receptor del CFDI, no como parada de viaje.",
+      goToAddresses: "Ir a Direcciones",
+    },
+    noTripPlaces: {
+      title: "No hay lugares para viajes",
+      text: "Captura bodegas, puntos de entrega o recolección para reutilizarlos al armar la ruta.",
       goToAddresses: "Ir a Direcciones",
     },
     rfcSuspicious: {
@@ -94,6 +99,30 @@ export const clientDetailCopy = {
     viewInContacts: "Ver en Contactos",
   },
   address: {
+    groups: {
+      fiscal: "Fiscal",
+      forTrips: "Para viajes",
+      other: "Otros",
+    },
+    masterTitle: "Direcciones",
+    newAddress: "Nueva dirección",
+    createTitle: "Nueva dirección",
+    createDescription: "Captura los datos. Se guardará al confirmar.",
+    editTitle: "Editar dirección",
+    editDescription: "Los cambios se guardan al confirmar.",
+    emptyTitle: "No hay direcciones registradas",
+    emptyDescriptionReadOnly:
+      "Puedes agregar direcciones desde la pantalla Editar cliente.",
+    emptyDescription:
+      "Agrega el domicilio fiscal para facturar y, si aplica, bodegas o puntos de viaje.",
+    emptyCta: "Agregar primera dirección",
+    emptyHints: {
+      fiscal: "Registra al menos un domicilio fiscal con código postal para CFDI.",
+      trips: "Bodegas, entrega y recolección se reutilizan al armar viajes.",
+      other: "Oficina u otros quedan en este tab; no salen en el picker de paradas.",
+    },
+    creatingHintTitle: "Nueva dirección",
+    creatingHintBody: "Completa el formulario a la derecha para guardarla.",
     locationTitle: "Ubicación",
     street: "Calle",
     neighborhoodPostal: "Colonia / CP",
@@ -113,6 +142,8 @@ export const clientDetailCopy = {
     notes: "Notas",
     readyForTrip: "Listo para viaje",
     missingTripData: "Faltan datos de ubicación",
+    fiscalReady: "Con código postal",
+    fiscalMissingCp: "Falta código postal",
     geoPending: "Ubicación en mapa pendiente",
     setPrimary: "Marcar principal",
     edit: "Editar",
@@ -120,6 +151,13 @@ export const clientDetailCopy = {
     primary: "Principal",
     inactive: "Inactiva",
     catalogLoading: "Cargando…",
+    createSubmit: "Crear dirección",
+    updateSubmit: "Guardar cambios",
+    cancel: "Cancelar",
+    selectPrompt: "Selecciona una dirección de la lista o crea una nueva.",
+    mobileFormOpen: "Formulario abierto en panel inferior.",
+    sheetDescription: "Los cambios se guardan al confirmar esta acción.",
+    saving: "Guardando…",
   },
   history: {
     tab: "Viajes",

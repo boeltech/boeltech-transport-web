@@ -1,4 +1,5 @@
 import type { useNavigate } from "react-router-dom";
+import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
@@ -14,6 +15,9 @@ interface DashboardMetricTrendCardsProps {
   financeSummary?: ReturnType<typeof useFinanceSummary>["data"];
 }
 
+const APPROVALS_PENDING_HREF =
+  "/finance?tab=approvals&status=pending&type=trip_expense";
+
 function ScorecardCell({
   title,
   subtitle,
@@ -21,6 +25,9 @@ function ScorecardCell({
   isLoading,
   onClick,
   tone = "default",
+  chip,
+  hint,
+  ariaLabel,
   className,
 }: {
   title: string;
@@ -29,6 +36,9 @@ function ScorecardCell({
   isLoading?: boolean;
   onClick?: () => void;
   tone?: "default" | "warning";
+  chip?: string;
+  hint?: string;
+  ariaLabel?: string;
   className?: string;
 }) {
   const valueClass =
@@ -38,7 +48,14 @@ function ScorecardCell({
 
   const body = (
     <div className={cn("flex h-full flex-col gap-1 p-5 sm:p-6", className)}>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        {chip && !isLoading ? (
+          <Badge variant="warning" tone="soft" className="text-xs">
+            {chip}
+          </Badge>
+        ) : null}
+      </div>
       {subtitle ? (
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       ) : null}
@@ -54,6 +71,9 @@ function ScorecardCell({
           {value}
         </p>
       )}
+      {hint && !isLoading ? (
+        <p className="text-xs text-warning-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 
@@ -64,6 +84,7 @@ function ScorecardCell({
       type="button"
       className="w-full rounded-none text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       onClick={onClick}
+      aria-label={ariaLabel}
     >
       {body}
     </button>
@@ -71,7 +92,7 @@ function ScorecardCell({
 }
 
 /**
- * Month scorecard (PD1): Margen · Cobrado · Por cobrar · Vencido.
+ * Month scorecard (PD-A/B): Margen operativo · Cobrado · Por cobrar · Vencido.
  * Only mounted for roles with showFinance (widget gate).
  */
 export function DashboardMetricTrendCards({
@@ -84,6 +105,8 @@ export function DashboardMetricTrendCards({
   const financialMonth = data?.stats.financial_month;
   const overdue = financeSummary?.totalOverdue ?? 0;
   const hasOverdue = overdue > 0;
+  const isProvisional =
+    (financialMonth?.trips_with_pending_expenses ?? 0) > 0;
 
   const cells: {
     key: string;
@@ -93,6 +116,9 @@ export function DashboardMetricTrendCards({
     loading: boolean;
     onClick: () => void;
     tone?: "default" | "warning";
+    chip?: string;
+    hint?: string;
+    ariaLabel?: string;
   }[] = [
     {
       key: "margin",
@@ -102,7 +128,22 @@ export function DashboardMetricTrendCards({
         ? formatMxCurrencyWhole(financialMonth.actual_margin)
         : "—",
       loading: isLoading,
-      onClick: () => navigate("/finance?tab=analysis&view=margin"),
+      onClick: () =>
+        navigate(
+          isProvisional
+            ? APPROVALS_PENDING_HREF
+            : "/finance?tab=analysis&view=margin",
+        ),
+      tone: isProvisional ? "warning" : "default",
+      chip: isProvisional
+        ? dashboardCopy.scorecard.margin.provisionalChip
+        : undefined,
+      hint: isProvisional
+        ? dashboardCopy.scorecard.margin.provisionalHint
+        : undefined,
+      ariaLabel: isProvisional
+        ? dashboardCopy.scorecard.margin.provisionalAriaLabel
+        : undefined,
     },
     {
       key: "collected",
@@ -158,6 +199,9 @@ export function DashboardMetricTrendCards({
             isLoading={cell.loading}
             onClick={cell.onClick}
             tone={cell.tone}
+            chip={cell.chip}
+            hint={cell.hint}
+            ariaLabel={cell.ariaLabel}
             className={cn(
               index % 2 === 0 && "sm:border-r sm:border-border",
               index < 2 && "sm:border-b sm:border-border lg:border-b-0",

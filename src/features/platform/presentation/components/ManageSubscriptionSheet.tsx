@@ -11,7 +11,6 @@ import {
 } from "@shared/ui/sheet";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
-import { Input } from "@shared/ui/input";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import {
   Select,
@@ -23,10 +22,12 @@ import {
 import {
   FieldInlineError,
   FormValidationSummary,
+  RHFDateTimeField,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import type { PlatformTenantListItem } from "../../domain/entities";
 import {
   usePlatformTenantSubscription,
@@ -65,10 +66,8 @@ const BILLING_CYCLE_OPTIONS = ["monthly", "annual"] as const;
 
 function defaultTrialEndsAtLocal(): string {
   const end = new Date();
-  end.setDate(end.getDate() + 14);
-  return new Date(end.getTime() - end.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
+  end.setUTCDate(end.getUTCDate() + 14);
+  return utcIsoToLocalInput(end.toISOString());
 }
 
 export function ManageSubscriptionSheet({
@@ -118,7 +117,7 @@ export function ManageSubscriptionSheet({
         (subscription?.billingCycle as ManagePlatformSubscriptionFormData["billingCycle"]) ??
         "monthly",
       trialEndsAt: subscription?.trialEndsAt
-        ? subscription.trialEndsAt.slice(0, 16)
+        ? utcIsoToLocalInput(subscription.trialEndsAt)
         : "",
       notes: subscription?.notes ?? "",
     });
@@ -130,7 +129,7 @@ export function ManageSubscriptionSheet({
     if (!tenant) return;
     const trialEndsAt =
       values.status === "trialing" && values.trialEndsAt
-        ? new Date(values.trialEndsAt).toISOString()
+        ? localInputToUtcIso(values.trialEndsAt)
         : null;
     await upsertMutation.mutateAsync({
       tenantId: tenant.id,
@@ -269,18 +268,12 @@ export function ManageSubscriptionSheet({
             </div>
 
             {status === "trialing" ? (
-              <div className="space-y-2">
-                <Label htmlFor="sub-trial">{copy.fields.trial}</Label>
-                <Input
-                  id="sub-trial"
-                  type="datetime-local"
-                  {...form.register("trialEndsAt")}
-                />
-                <FieldInlineError
-                  fieldId="sub-trial"
-                  message={form.formState.errors.trialEndsAt?.message}
-                />
-              </div>
+              <RHFDateTimeField
+                control={form.control}
+                name="trialEndsAt"
+                fieldId="sub-trial"
+                label={copy.fields.trial}
+              />
             ) : null}
           </div>
 

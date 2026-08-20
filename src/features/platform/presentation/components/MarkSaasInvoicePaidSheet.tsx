@@ -21,12 +21,12 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import {
-  FieldInlineError,
+  RHFDateTimeField,
   FormValidationSummary,
-  getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import type { PlatformSaasInvoice } from "../../domain/entities";
 import { useMarkSaasInvoicePaid } from "../../application/hooks/usePlatformSaasAr";
 import { platformCopy } from "../copy/platformCopy";
@@ -45,14 +45,8 @@ interface MarkSaasInvoicePaidSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function fromDatetimeLocalValue(value: string): string {
-  const d = new Date(value);
-  return d.toISOString();
+function defaultPaidAtLocal(): string {
+  return utcIsoToLocalInput(new Date().toISOString());
 }
 
 export function MarkSaasInvoicePaidSheet({
@@ -66,7 +60,7 @@ export function MarkSaasInvoicePaidSheet({
   const form = useForm<MarkSaasInvoicePaidFormData>({
     resolver: zodResolver(markSaasInvoicePaidSchema),
     defaultValues: {
-      paidAt: toDatetimeLocalValue(new Date()),
+      paidAt: defaultPaidAtLocal(),
       method: "spei",
       reference: "",
       notes: "",
@@ -90,7 +84,7 @@ export function MarkSaasInvoicePaidSheet({
   useEffect(() => {
     if (!open) return;
     form.reset({
-      paidAt: toDatetimeLocalValue(new Date()),
+      paidAt: defaultPaidAtLocal(),
       method: "spei",
       reference: "",
       notes: "",
@@ -103,7 +97,7 @@ export function MarkSaasInvoicePaidSheet({
       tenantId: invoice.tenantId,
       invoiceId: invoice.id,
       payload: {
-        paidAt: fromDatetimeLocalValue(values.paidAt),
+        paidAt: localInputToUtcIso(values.paidAt),
         method: values.method,
         reference: values.reference?.trim() || null,
         notes: values.notes?.trim() || null,
@@ -135,22 +129,13 @@ export function MarkSaasInvoicePaidSheet({
             <FormValidationSummary messages={summaryErrors} />
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="paidAt">{copy.paidAt}</Label>
-            <Input
-              id="paidAt"
-              type="datetime-local"
-              {...form.register("paidAt")}
-              {...getRegisterFieldErrorProps(
-                "paidAt",
-                form.formState.errors.paidAt?.message,
-              )}
-            />
-            <FieldInlineError
-              fieldId="paidAt"
-              message={form.formState.errors.paidAt?.message}
-            />
-          </div>
+          <RHFDateTimeField
+            control={form.control}
+            name="paidAt"
+            fieldId="paidAt"
+            label={copy.paidAt}
+            required
+          />
 
           <div className="space-y-2">
             <Label>{copy.method}</Label>

@@ -106,6 +106,7 @@ describe("clientContactMappers", () => {
     const summary = mapClientCreditSummary({ data: raw });
     expect(summary.clientId).toBe("client-1");
     expect(summary.breakdown.pendingDraft).toBe(3000);
+    expect(summary.breakdown.invoiced).toBe(45000);
     expect(summary.utilizationPct).toBe(0.6);
     expect(summary.status).toBe("ok");
     expect(summary.nextInvoiceDueAt).toBe("2026-07-15");

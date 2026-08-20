@@ -460,7 +460,7 @@ export const CLIENT_WIZARD_STEPS: {
   {
     id: "address",
     title: "Dirección Fiscal",
-    description: "Dirección fiscal con campos Carta Porte 3.1",
+    description: "Código postal y domicilio del receptor para CFDI",
   },
 ];
 

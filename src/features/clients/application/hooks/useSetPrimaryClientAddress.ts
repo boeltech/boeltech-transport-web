@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks";
 import { clientAddressRepository } from "../../infrastructure";
 import { clientQueryKeys } from "../../domain";
+import { evictInvoicePrefillQueries } from "@features/invoicing/application";
 
 interface SetPrimaryAddressParams {
   clientId: string;
@@ -27,6 +28,7 @@ export function useSetPrimaryClientAddress(
       queryClient.invalidateQueries({
         queryKey: clientQueryKeys.addresses(clientId),
       });
+      evictInvoicePrefillQueries(queryClient);
 
       if (!silent) {
         toast({

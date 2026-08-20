@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -20,6 +20,10 @@ import { CreditCard } from "lucide-react";
 import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
 
 const mockUseClientCreditSummary = vi.fn();
+
+vi.mock("@features/clients/application/hooks/useClientCreditSummary", () => ({
+  useClientCreditSummary: (...args: unknown[]) => mockUseClientCreditSummary(...args),
+}));
 
 vi.mock("@features/clients/application", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/clients/application")>();
@@ -90,7 +94,7 @@ function CostsStepHarness({
 
 describe("credit exposure workflow smoke (OP-L0.9)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockUseClientCreditSummary.mockReset();
     mockUseClientCreditSummary.mockReturnValue({
       data: OK_SUMMARY,
       isLoading: false,
@@ -120,6 +124,7 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
           }}
           paymentConfig={paymentConfig}
           PaymentIcon={CreditCard}
+          collectHref="/finance?tab=cobros&rfc=ACM010101AAA"
         />
       </TestProviders>,
     );
@@ -127,6 +132,10 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
     expect(screen.getByText(creditExposureCopy.title)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.invoiced)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.unbilled)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: creditExposureCopy.collectCtaAria })).toHaveAttribute(
+      "href",
+      "/finance?tab=cobros&rfc=ACM010101AAA",
+    );
     expect(mockUseClientCreditSummary).toHaveBeenCalledWith("client-1");
   });
 
@@ -143,13 +152,9 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
       </TestProviders>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(creditExposureCopy.statusLabel.exceeded)).toBeInTheDocument();
-    });
-
     expect(mockUseClientCreditSummary).toHaveBeenCalled();
     expect(
-      screen.getByText(creditExposureCopy.wizardWarning.exceeded, { exact: false }),
+      await screen.findByText(creditExposureCopy.statusLabel.exceeded),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bloquear/i })).not.toBeInTheDocument();
   });

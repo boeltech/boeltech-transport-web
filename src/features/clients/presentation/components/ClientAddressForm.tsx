@@ -45,6 +45,7 @@ import {
   AddressInput,
   ADDRESS_FORM_COPY,
   buildGeocodingEntityFormSection,
+  setFormCoordinates,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
 import { FileText, MapPin } from "lucide-react";
@@ -69,6 +70,7 @@ import {
   ADDRESS_TYPE_CONFIG,
   CLIENT_ADDRESS_FISCAL_COPY,
 } from "../config/clientConfig";
+import { showsClientUbicacionFields } from "../config/clientAddressPurpose";
 
 const fiscalCopy = CLIENT_ADDRESS_FISCAL_COPY;
 
@@ -103,6 +105,10 @@ export interface ClientAddressFormProps {
   className?: string;
   /** Restringe tipos en el select (p. ej. directorio del tenant). */
   addressTypeOptions?: readonly ClientAddressTypeValue[];
+  /** Oculta el switch de dirección principal (directorio del tenant). */
+  hidePrimarySwitch?: boolean;
+  /** Sustituye el aviso informativo del formulario. */
+  infoMessage?: string;
 }
 
 /**
@@ -121,7 +127,9 @@ function clientAddressOuterPropsAreEqual(
     prev.clientName === next.clientName &&
     prev.onSubmit === next.onSubmit &&
     prev.onChange === next.onChange &&
-    prev.className === next.className
+    prev.className === next.className &&
+    prev.hidePrimarySwitch === next.hidePrimarySwitch &&
+    prev.infoMessage === next.infoMessage
   );
 }
 
@@ -219,6 +227,8 @@ const ClientAddressFormRoot = forwardRef<
     disabled = false,
     className,
     addressTypeOptions,
+    hidePrimarySwitch = false,
+    infoMessage,
   },
   ref,
 ) {
@@ -350,6 +360,8 @@ const ClientAddressFormRoot = forwardRef<
 
   // Pre-llenar remitente/destinatario desde el cliente si el formulario viene vacío.
   useEffect(() => {
+    if (isBillingContext) return;
+    if (!showsClientUbicacionFields(formValues.addressType)) return;
     if (!clientRfc && !clientName) return;
     const currentRfc = (formValues.rfcRemitenteDestinatario ?? "").trim();
     const currentName = (formValues.nombreRemitenteDestinatario ?? "").trim();
@@ -366,8 +378,10 @@ const ClientAddressFormRoot = forwardRef<
   }, [
     clientName,
     clientRfc,
+    formValues.addressType,
     formValues.nombreRemitenteDestinatario,
     formValues.rfcRemitenteDestinatario,
+    isBillingContext,
     setValue,
   ]);
 
@@ -459,6 +473,7 @@ const ClientAddressFormRoot = forwardRef<
               />
             </div>
           </div>
+          {hidePrimarySwitch ? null : (
           <div className="flex items-center gap-2">
             <Controller
               name="isPrimary"
@@ -476,6 +491,7 @@ const ClientAddressFormRoot = forwardRef<
               Dirección principal
             </Label>
           </div>
+          )}
         </>
       ),
     });
@@ -607,19 +623,17 @@ const ClientAddressFormRoot = forwardRef<
     longitude: formValues.longitude,
     latitudeError: errors.latitude?.message,
     onCoordinatesChange: (coords) => {
-      setValue("latitude", coords.latitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      setValue("longitude", coords.longitude, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
+      void setFormCoordinates(setValue, trigger, coords);
     },
     disabled,
   });
 
-  const postAddressSections = [geocodingSection, fiscalOperativoSection];
+  const showUbicacionFields =
+    !isBillingContext && showsClientUbicacionFields(formValues.addressType);
+
+  const postAddressSections = showUbicacionFields
+    ? [geocodingSection, fiscalOperativoSection]
+    : [];
 
   return (
     <EntityAddressForm
@@ -628,7 +642,7 @@ const ClientAddressFormRoot = forwardRef<
       formContext={formContext}
       addressVariant="carta-porte"
       addressType={formValues.addressType}
-      infoMessage={copy.globalInfoMessage}
+      infoMessage={infoMessage ?? copy.globalInfoMessage}
       satStateCode={satStateCode}
       satMunicipalityCode={satMunicipalityCode}
       postalCode={postalCode}

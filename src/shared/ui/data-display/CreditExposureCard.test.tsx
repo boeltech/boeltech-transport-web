@@ -92,4 +92,38 @@ describe("CreditExposureCard", () => {
     expect(screen.getByText(creditExposureCopy.breakdown.pendingDraft)).toBeInTheDocument();
     expect(screen.queryByText(/\(\d+%\)/)).not.toBeInTheDocument();
   });
+
+  it("shows Cobrar when collectHref is set and invoiced breakdown is positive", () => {
+    render(
+      <MemoryRouter>
+        <CreditExposureCard
+          summary={buildSummary("ok")}
+          showBreakdown
+          collectHref="/finance?tab=cobros&rfc=XAXX010101000"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: creditExposureCopy.collectCtaAria }),
+    ).toHaveAttribute("href", "/finance?tab=cobros&rfc=XAXX010101000");
+  });
+
+  it("hides Cobrar when invoiced breakdown is zero", () => {
+    render(
+      <MemoryRouter>
+        <CreditExposureCard
+          summary={buildSummary("ok", {
+            breakdown: { invoiced: 0, unbilled: 12_000, pendingDraft: 3_000 },
+          })}
+          showBreakdown
+          collectHref="/finance?tab=cobros&rfc=XAXX010101000"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: creditExposureCopy.collectCtaAria }),
+    ).not.toBeInTheDocument();
+  });
 });

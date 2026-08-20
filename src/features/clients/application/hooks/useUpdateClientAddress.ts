@@ -22,6 +22,7 @@ import {
   type ClientAddress,
   type UpdateClientAddressDTO,
 } from "../../domain";
+import { evictInvoicePrefillQueries } from "@features/invoicing/application";
 
 // ============================================================================
 // TYPES
@@ -64,6 +65,7 @@ export function useUpdateClientAddress(options: UseUpdateClientAddressOptions = 
       queryClient.invalidateQueries({
         queryKey: clientQueryKeys.addresses(clientId),
       });
+      evictInvoicePrefillQueries(queryClient);
 
       // Notificar éxito
       if (!silent) {

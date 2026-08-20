@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react";
 import config from "@shared/config/env";
+import { isChunkLoadError } from "@shared/lib/lazyWithRetry";
 import { scrubSentryEvent } from "./sentry-scrub";
 
 export interface WebExceptionContext {
@@ -75,6 +76,12 @@ export function captureWebException(
     }
     if (context?.errorCode) {
       scope.setTag("error_code", context.errorCode);
+    }
+
+    if (isChunkLoadError(error)) {
+      scope.setTag("error_type", "chunk_load");
+      scope.setFingerprint(["chunk-load"]);
+      scope.setLevel("warning");
     }
 
     if (error instanceof Error) {

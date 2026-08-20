@@ -5,7 +5,7 @@ import { PlatformPageShell } from "../layout/PlatformPageShell";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
+import { DateField } from "@shared/ui/form";
 import { Label } from "@shared/ui/label";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
@@ -262,14 +262,13 @@ export function PlatformAuditLogPage() {
                 <Label htmlFor="audit-date-from" className="text-xs">
                   {copy.filters.dateFrom}
                 </Label>
-                <Input
+                <DateField
                   id="audit-date-from"
-                  type="date"
                   value={dateDraft.from}
-                  onChange={(event) =>
+                  onChange={(from) =>
                     setDateDraft((draft) => ({
                       ...draft,
-                      from: event.target.value,
+                      from,
                     }))
                   }
                   className="w-[160px]"
@@ -280,15 +279,14 @@ export function PlatformAuditLogPage() {
                 <Label htmlFor="audit-date-to" className="text-xs">
                   {copy.filters.dateTo}
                 </Label>
-                <Input
+                <DateField
                   id="audit-date-to"
-                  type="date"
                   min={dateDraft.from || undefined}
                   value={dateDraft.to}
-                  onChange={(event) =>
+                  onChange={(to) =>
                     setDateDraft((draft) => ({
                       ...draft,
-                      to: event.target.value,
+                      to,
                     }))
                   }
                   className="w-[160px]"

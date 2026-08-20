@@ -23,6 +23,7 @@ import {
   type ClientAddress,
   type CreateClientAddressDTO,
 } from "../../domain";
+import { evictInvoicePrefillQueries } from "@features/invoicing/application";
 
 // ============================================================================
 // TYPES
@@ -53,6 +54,7 @@ export function useCreateClientAddress() {
       queryClient.invalidateQueries({
         queryKey: clientQueryKeys.addresses(clientId),
       });
+      evictInvoicePrefillQueries(queryClient);
 
       // Notificar éxito
       const typeLabel = ADDRESS_TYPE_LABELS[address.addressType];

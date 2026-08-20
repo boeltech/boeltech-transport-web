@@ -61,6 +61,8 @@ export interface CreditExposureCardProps {
   isError?: boolean;
   variant?: "full" | "compact";
   showBreakdown?: boolean;
+  /** When set and invoiced breakdown > 0, shows CTA to Cobros. */
+  collectHref?: string;
   className?: string;
 }
 
@@ -70,6 +72,7 @@ export function CreditExposureCard({
   isError = false,
   variant = "full",
   showBreakdown = false,
+  collectHref,
   className,
 }: CreditExposureCardProps) {
   const copy = creditExposureCopy;
@@ -216,6 +219,14 @@ export function CreditExposureCard({
               />
             ))}
           </div>
+        ) : null}
+
+        {collectHref && summary.breakdown.invoiced > 0 ? (
+          <Button type="button" size="sm" asChild>
+            <Link to={collectHref} aria-label={copy.collectCtaAria}>
+              {copy.collectCta}
+            </Link>
+          </Button>
         ) : null}
 
         {summary.nextInvoiceDueAt ? (

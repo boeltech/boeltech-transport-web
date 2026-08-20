@@ -6,13 +6,14 @@
  * Se monta bajo /configuracion/catalogos
  */
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Skeleton } from "@shared/ui/skeleton";
 
 // Lazy load pages
-const CatalogsPage = lazy(() => import("./pages/CatalogsPage"));
-const CatalogDetailPage = lazy(() => import("./pages/CatalogDetailPage"));
+const CatalogsPage = lazyWithRetry(() => import("./pages/CatalogsPage"));
+const CatalogDetailPage = lazyWithRetry(() => import("./pages/CatalogDetailPage"));
 
 // ============================================================================
 // LOADING FALLBACK

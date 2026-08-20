@@ -22,6 +22,7 @@ import {
   type Client,
   type UpdateClientDTO,
 } from "../../domain";
+import { evictInvoicePrefillQueries } from "@features/invoicing/application";
 
 // ============================================================================
 // TYPES
@@ -53,6 +54,7 @@ export function useUpdateClient() {
       // Invalidar listados (en background, sin bloquear)
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
+      evictInvoicePrefillQueries(queryClient);
 
       // Notificar éxito
       toast({

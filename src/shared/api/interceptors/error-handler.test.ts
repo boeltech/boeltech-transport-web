@@ -86,8 +86,8 @@ describe("ApiError.fromAxiosError", () => {
     );
 
     expect(error.message).toContain("72 horas");
-    expect(error.message).toContain("actualiza la fecha automáticamente");
-    expect(error.message).not.toContain("ProFact");
+    expect(error.message).toContain("ProFact");
+    expect(error.message).toContain("servidor API");
     expect(error.message).not.toContain("Comprobante.Fecha");
   });
 
@@ -104,7 +104,7 @@ describe("ApiError.fromAxiosError", () => {
     );
 
     expect(error.message).toContain("72 horas");
-    expect(error.message).toContain("actualiza la fecha automáticamente");
+    expect(error.message).toContain("PROFACT_FECHA_CLOCK_OFFSET_MINUTES");
     expect(error.message).not.toContain("Comprobante.Fecha");
   });
 
@@ -152,7 +152,7 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).not.toContain("ProFact");
   });
 
-  it("traduce PAC_VALIDATION_ERROR CFDI40147 a mensaje de CP fiscal del receptor", () => {
+  it("traduce PAC_VALIDATION_ERROR CFDI40147 con RFC+CP del XML prestamp", () => {
     const error = ApiError.fromAxiosError(
       buildAxiosError({
         error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
@@ -161,14 +161,83 @@ describe("ApiError.fromAxiosError", () => {
           pac_provider: "profact",
           pac_code: "21001",
           pac_rule: "CFDI40147",
-          xml_checks: { hasComplemento: true },
+          hint: "El código postal fiscal 01210 no coincide con el registrado ante el SAT para el RFC HAÑ930228SM9. Si la factura ya muestra ese código, no lo cambie en el cliente: confírmelo en la constancia de situación fiscal del receptor y, si es el mismo, pida apoyo a soporte.",
+          xml_checks: {
+            receptorRfc: "HAÑ930228SM9",
+            receptorPostalCode: "01210",
+            lugarExpedicion: "63901",
+          },
         },
       }),
     );
 
+    expect(error.message).toContain("HAÑ930228SM9");
+    expect(error.message).toContain("01210");
     expect(error.message).toContain("código postal fiscal");
-    expect(error.message).toContain("dirección de facturación");
+    expect(error.message).not.toContain("XML");
+    expect(error.message).not.toContain("DomicilioFiscalReceptor");
+    expect(error.message).not.toContain("dirección de facturación");
     expect(error.message).not.toContain("validación fiscal/XSD");
     expect(error.message).not.toContain("CFDI40147");
+  });
+
+  it("CFDI40147 sin hint usa RFC+CP de xml_checks", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+        code: "PAC_VALIDATION_ERROR",
+        details: {
+          pac_provider: "profact",
+          pac_code: "21001",
+          pac_rule: "CFDI40147",
+          xml_checks: {
+            receptorRfc: "HAÑ930228SM9",
+            receptorPostalCode: "01210",
+            lugarExpedicion: "63901",
+          },
+        },
+      }),
+    );
+
+    expect(error.message).toContain("HAÑ930228SM9");
+    expect(error.message).toContain("01210");
+    expect(error.message).toContain("código postal fiscal");
+    expect(error.message).not.toContain("PAC");
+    expect(error.message).not.toContain("DomicilioFiscalReceptor");
+    expect(error.message).not.toContain("dirección de facturación");
+  });
+
+  it("prefers dictionary for PAC_NOT_IMPLEMENTED even if data.error is technical", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error:
+          "PAC Finkok no está disponible. Configura pac_provider='profact' en Configuración → Facturación.",
+        code: "PAC_NOT_IMPLEMENTED",
+      }),
+    );
+
+    expect(error.message).toBe(
+      "El PAC configurado no está disponible. Ve a Configuración → Datos para facturar.",
+    );
+    expect(error.message).not.toContain("Finkok");
+    expect(error.message).not.toContain("profact");
+    expect(error.message).not.toContain("pac_provider");
+    expect(error.code).toBe("PAC_NOT_IMPLEMENTED");
+  });
+
+  it("prefers dictionary for PAC_CONFIG_ERROR without env jargon", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "Falta la variable de entorno PROFACT_TOKEN para usar el PAC ProFact.",
+        code: "PAC_CONFIG_ERROR",
+      }),
+    );
+
+    expect(error.message).toBe(
+      "El servicio de timbrado no está configurado correctamente en el servidor. Contacta a soporte.",
+    );
+    expect(error.message).not.toContain("PROFACT_");
+    expect(error.message).not.toContain("variable de entorno");
+    expect(error.code).toBe("PAC_CONFIG_ERROR");
   });
 });

@@ -30,6 +30,13 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
+import { useAuth } from "@features/auth";
+import {
+  FINANCE_COBROS_RFC_PARAM,
+  isFinanceCobrosTabEnabled,
+} from "@features/finance/application";
+import { isClientPortalRole } from "@shared/constants/roles";
+import { usePermissions } from "@shared/permissions";
 
 import {
   useClient,
@@ -52,6 +59,7 @@ import {
   getClientTypeConfig,
   getPaymentTermsConfig,
 } from "../config/clientConfig";
+import { clientAddressAlertFlags } from "../config/clientAddressPurpose";
 import {
   ClientStatusBadge,
   operationalStatusFromClient,
@@ -146,6 +154,12 @@ function buildClientStats(
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const clientId = id ?? "";
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canCollect = isFinanceCobrosTabEnabled({
+    isClientPortal: isClientPortalRole(user?.role),
+    hasFinanceCreate: hasPermission("finance", "create"),
+  });
 
   const {
     data: client,
@@ -188,19 +202,20 @@ export function ClientDetailPage() {
     const creditSummary = creditSummaryQuery.data;
 
     const addressesReady =
-      addressQuery.isSuccess &&
-      addressQuery.data !== undefined &&
-      addressQuery.data.length === 0;
+      addressQuery.isSuccess && addressQuery.data !== undefined;
+    const alertFlags = addressesReady
+      ? clientAddressAlertFlags(addressQuery.data)
+      : null;
 
-    if (addressesReady) {
+    if (alertFlags?.missingBillingCp) {
       cards.push(
         <DetailAlertCard
-          key="no-addresses"
+          key="missing-billing-cp"
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
-          title={copy.alerts.noAddresses.title}
+          title={copy.alerts.missingBillingCp.title}
         >
-          <p>{copy.alerts.noAddresses.text}</p>
+          <p>{copy.alerts.missingBillingCp.text}</p>
           <div className="mt-2">
             <Button
               type="button"
@@ -208,7 +223,30 @@ export function ClientDetailPage() {
               variant="outline"
               onClick={() => setActiveTab(TAB.addresses)}
             >
-              {copy.alerts.noAddresses.goToAddresses}
+              {copy.alerts.missingBillingCp.goToAddresses}
+            </Button>
+          </div>
+        </DetailAlertCard>,
+      );
+    }
+
+    if (alertFlags?.noTripPlaces) {
+      cards.push(
+        <DetailAlertCard
+          key="no-trip-places"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title={copy.alerts.noTripPlaces.title}
+        >
+          <p>{copy.alerts.noTripPlaces.text}</p>
+          <div className="mt-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab(TAB.addresses)}
+            >
+              {copy.alerts.noTripPlaces.goToAddresses}
             </Button>
           </div>
         </DetailAlertCard>,
@@ -307,6 +345,11 @@ export function ClientDetailPage() {
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
   const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
+  const rfc = client.taxId.trim().toUpperCase();
+  const collectHref =
+    canCollect && rfc
+      ? `/finance?tab=cobros&${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfc)}`
+      : undefined;
 
   return (
     <DetailPageShell
@@ -353,6 +396,7 @@ export function ClientDetailPage() {
                     client={client}
                     paymentConfig={paymentConfig}
                     PaymentIcon={PaymentIcon}
+                    collectHref={collectHref}
                   />
                 }
               />

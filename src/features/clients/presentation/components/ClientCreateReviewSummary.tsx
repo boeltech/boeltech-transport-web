@@ -12,12 +12,7 @@ import {
 import { Badge } from "@shared/ui/badge";
 import { InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
-import {
-  CLIENT_TYPE_LABELS,
-  getCartaPorteMissingFields,
-  isCartaPorteReady,
-} from "../../domain";
-import type { ClientAddress } from "../../domain";
+import { CLIENT_TYPE_LABELS } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
 import type { ClientFormData } from "../validation/clientSchema";
 import type { ClientAddressFormData } from "../validation/clientAddressSchema";
@@ -34,37 +29,10 @@ function displayValue(value: string | null | undefined): string {
   return trimmed || EMPTY_VALUE;
 }
 
-function formatCoordinates(lat?: number | null, lng?: number | null): string | null {
-  if (lat == null || lng == null) return null;
-  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-}
-
-function formDataAsCartaPorteCheck(data: ClientAddressFormData): ClientAddress {
-  return {
-    id: "",
-    tenantId: "",
-    clientId: "",
-    addressType: data.addressType,
-    isPrimary: data.isPrimary,
-    isActive: true,
-    satCountryCode: data.satCountryCode,
-    satStateCode: data.satStateCode,
-    postalCode: data.postalCode,
-    createdAt: "",
-    updatedAt: "",
-  };
-}
-
 function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
   const typeConfig = getAddressTypeConfig(data.addressType);
   const TypeIcon = typeConfig.icon;
-  const cartaPorteCheck = formDataAsCartaPorteCheck(data);
-  const cartaPorteReady = isCartaPorteReady(cartaPorteCheck);
-  const satMinMissing = cartaPorteReady
-    ? []
-    : getCartaPorteMissingFields(cartaPorteCheck);
-  const hasGeo = data.latitude != null && data.longitude != null;
-  const coordinates = formatCoordinates(data.latitude, data.longitude);
+  const hasBillingCp = Boolean(data.postalCode?.trim());
 
   const streetLine = [
     data.street,
@@ -80,19 +48,6 @@ function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
   ]
     .filter(Boolean)
     .join(" · ");
-
-  const hasFiscalOps =
-    Boolean(data.rfcRemitenteDestinatario?.trim()) ||
-    Boolean(data.nombreRemitenteDestinatario?.trim());
-
-  const hasContact =
-    Boolean(data.contactName?.trim()) ||
-    Boolean(data.contactPhone?.trim()) ||
-    Boolean(data.contactEmail?.trim()) ||
-    Boolean(data.businessHours?.trim());
-
-  const hasNotes =
-    Boolean(data.notes?.trim()) || Boolean(data.specialInstructions?.trim());
 
   return (
     <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
@@ -120,13 +75,13 @@ function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
                 Principal
               </Badge>
             ) : null}
-            {hasGeo ? (
+            {hasBillingCp ? (
               <Badge
                 variant="outline"
                 className="gap-1 border-success/40 text-success-soft-foreground"
               >
                 <CheckCircle2 className="h-3 w-3" />
-                Ubicación confirmada
+                Código postal para facturar
               </Badge>
             ) : (
               <Badge
@@ -134,29 +89,7 @@ function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
                 className="gap-1 border-warning/40 text-warning-soft-foreground"
               >
                 <AlertCircle className="h-3 w-3" />
-                Geo pendiente
-              </Badge>
-            )}
-            {cartaPorteReady ? (
-              <Badge
-                variant="outline"
-                className="gap-1 border-success/40 text-success-soft-foreground"
-              >
-                <CheckCircle2 className="h-3 w-3" />
-                Carta Porte 3.1
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="gap-1 border-warning/40 text-warning-soft-foreground"
-                title={
-                  satMinMissing.length > 0
-                    ? `Falta mínimo SAT: ${satMinMissing.join(", ")}`
-                    : undefined
-                }
-              >
-                <AlertCircle className="h-3 w-3" />
-                Mínimo SAT incompleto
+                Falta código postal
               </Badge>
             )}
           </div>
@@ -215,89 +148,8 @@ function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
           {data.reference?.trim() ? (
             <InfoRow variant="inline" label="Referencia" value={data.reference} />
           ) : null}
-          {coordinates ? (
-            <InfoRow
-              variant="inline"
-              label="Lat / Lng"
-              value={coordinates}
-              mono
-            />
-          ) : null}
         </div>
       </section>
-
-      {hasFiscalOps ? (
-        <section className="rounded-md border bg-card">
-          <div className="px-4 py-3 border-b">
-            <h4 className="text-sm font-medium">Datos fiscales operativos</h4>
-          </div>
-          <div className="px-4 py-2">
-            <InfoRow
-              variant="inline"
-              label="RFC remitente/dest."
-              value={displayValue(data.rfcRemitenteDestinatario)}
-              mono
-            />
-            <InfoRow
-              variant="inline"
-              label="Nombre"
-              value={displayValue(data.nombreRemitenteDestinatario)}
-            />
-          </div>
-        </section>
-      ) : null}
-
-      {hasContact ? (
-        <section className="rounded-md border bg-card">
-          <div className="px-4 py-3 border-b">
-            <h4 className="text-sm font-medium">
-              Contacto en esta ubicación
-            </h4>
-          </div>
-          <div className="px-4 py-2">
-            {data.contactName?.trim() ? (
-              <InfoRow variant="inline" label="Nombre" value={data.contactName} />
-            ) : null}
-            {data.contactPhone?.trim() ? (
-              <InfoRow
-                variant="inline"
-                label="Teléfono"
-                value={data.contactPhone}
-              />
-            ) : null}
-            {data.contactEmail?.trim() ? (
-              <InfoRow variant="inline" label="Correo" value={data.contactEmail} />
-            ) : null}
-            {data.businessHours?.trim() ? (
-              <InfoRow
-                variant="inline"
-                label="Horario"
-                value={data.businessHours}
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {hasNotes ? (
-        <section className="rounded-md border bg-card">
-          <div className="px-4 py-3 border-b">
-            <h4 className="text-sm font-medium">Notas</h4>
-          </div>
-          <div className="px-4 py-2">
-            {data.notes?.trim() ? (
-              <InfoRow variant="inline" label="Notas" value={data.notes} />
-            ) : null}
-            {data.specialInstructions?.trim() ? (
-              <InfoRow
-                variant="inline"
-                label="Instrucciones"
-                value={data.specialInstructions}
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

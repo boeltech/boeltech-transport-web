@@ -1,11 +1,21 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import {
   // useNavigate,
   useRouteError,
   isRouteErrorResponse,
 } from "react-router-dom";
 import { captureWebException } from "@shared/observability/sentry";
+import {
+  claimChunkReload,
+  isChunkLoadError,
+} from "@shared/lib/lazyWithRetry";
 
 // ============================================
 // Tipos
@@ -67,11 +77,19 @@ export class ErrorBoundary extends Component<
   }
 
   handleReset = (): void => {
+    if (isChunkLoadError(this.state.error)) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 
   render(): ReactNode {
     if (this.state.hasError) {
+      if (isChunkLoadError(this.state.error)) {
+        return <ChunkLoadFallback />;
+      }
+
       // Si hay fallback personalizado, usarlo
       if (this.props.fallback) {
         return this.props.fallback;
@@ -88,6 +106,67 @@ export class ErrorBoundary extends Component<
 
     return this.props.children;
   }
+}
+
+// ============================================
+// Fallback de chunk / import dinámico
+// ============================================
+
+const CHUNK_FALLBACK_RELOAD_MS = 2_000;
+
+function ChunkLoadFallback() {
+  const [willAutoReload] = useState(() => claimChunkReload());
+
+  useEffect(() => {
+    if (!willAutoReload) return undefined;
+    const timerId = window.setTimeout(() => {
+      window.location.reload();
+    }, CHUNK_FALLBACK_RELOAD_MS);
+    return () => window.clearTimeout(timerId);
+  }, [willAutoReload]);
+
+  const handleReload = () => {
+    window.location.reload();
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+      <div className="mb-8 flex h-32 w-32 items-center justify-center rounded-full bg-primary/10">
+        <svg
+          className="h-16 w-16 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+      </div>
+
+      <div className="mb-8 text-center">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight">
+          Hay una nueva versión disponible
+        </h1>
+        <p className="max-w-md text-muted-foreground">
+          {willAutoReload
+            ? "La página se recargará automáticamente."
+            : "Recarga la página para continuar."}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleReload}
+        className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+      >
+        Recargar ahora
+      </button>
+    </div>
+  );
 }
 
 // ============================================
@@ -258,6 +337,9 @@ export const RouteErrorBoundary = () => {
   // Error de JavaScript
   if (error instanceof Error) {
     captureWebException(error);
+    if (isChunkLoadError(error)) {
+      return <ChunkLoadFallback />;
+    }
     return (
       <DefaultErrorFallback
         error={error}

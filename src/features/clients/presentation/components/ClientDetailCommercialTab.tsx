@@ -19,6 +19,8 @@ export interface ClientDetailCommercialTabProps {
   client: Client;
   paymentConfig: PaymentTermsConfig;
   PaymentIcon: ComponentType<{ className?: string }>;
+  /** Deep-link a Cobros cuando el usuario puede cobrar (D7). */
+  collectHref?: string;
 }
 
 const copy = clientDetailCopy.commercial;
@@ -27,6 +29,7 @@ export function ClientDetailCommercialTab({
   client,
   paymentConfig,
   PaymentIcon,
+  collectHref,
 }: ClientDetailCommercialTabProps) {
   const creditSummaryQuery = useClientCreditSummary(client.id);
 
@@ -70,6 +73,7 @@ export function ClientDetailCommercialTab({
         summary={creditSummaryQuery.data}
         isLoading={creditSummaryQuery.isLoading}
         isError={creditSummaryQuery.isError}
+        collectHref={collectHref}
         className="flex-1"
       />
     </div>

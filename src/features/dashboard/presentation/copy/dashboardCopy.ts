@@ -1,6 +1,6 @@
 export const dashboardCopy = {
   page: {
-    subtitle: "Scorecard del mes: margen, cobranza y operación",
+    subtitle: "Scorecard del mes: margen operativo, cobranza y operación",
     subtitleClient: "Resumen de tus envíos recientes",
     subtitleDriver: "Tus viajes recientes y por día",
     refresh: "Actualizar",
@@ -26,11 +26,16 @@ export const dashboardCopy = {
   },
   scorecard: {
     title: "Scorecard del mes",
-    description: "Margen y cobranza del mes en curso",
+    description:
+      "Margen operativo (viajes completados · costos aprobados) y cobranza (cobrado, por cobrar y vencido)",
     ariaLabel: "Scorecard financiero del mes",
     margin: {
-      title: "Margen actual",
-      subtitle: "Viajes completados del mes",
+      title: "Margen operativo",
+      subtitle: "Completados · costos aprobados",
+      provisionalChip: "Provisional",
+      provisionalHint: "Puede bajar",
+      provisionalAriaLabel:
+        "Margen operativo provisional: ir a aprobaciones de gastos en cola",
     },
     collected: {
       title: "Cobrado este mes",
@@ -175,15 +180,15 @@ export const dashboardCopy = {
         "Cuando cierres viajes del mes actual, aquí verás la comparativa de plan vs real.",
     },
     pendingExpensesAlert:
-      "Hay gastos pendientes de aprobación; el costo real puede aumentar.",
-    pendingExpensesLinkAriaLabel: "Ir a aprobaciones de gastos pendientes",
+      "Hay gastos en cola de aprobación; el costo real y el margen operativo pueden bajar.",
+    pendingExpensesLinkAriaLabel: "Ir a aprobaciones de gastos en cola",
     viewProfitability: "Ver rentabilidad",
     footer: (tripCount: number) =>
       `Basado en ${tripCount} viaje${tripCount === 1 ? "" : "s"} completado${tripCount === 1 ? "" : "s"} del mes`,
     miniKpis: {
       revenueVariance: "Variación ingreso",
       costVariance: "Variación costo",
-      actualMargin: "Margen real",
+      actualMargin: "Margen operativo",
     },
     tooltip: {
       variance: "Variación",

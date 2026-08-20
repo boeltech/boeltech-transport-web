@@ -49,7 +49,7 @@ describe("DashboardFinancialComparisonChart", () => {
     );
 
     const link = screen.getByRole("link", {
-      name: "Ir a aprobaciones de gastos pendientes",
+      name: "Ir a aprobaciones de gastos en cola",
     });
     expect(link).toHaveAttribute(
       "href",
@@ -69,7 +69,7 @@ describe("DashboardFinancialComparisonChart", () => {
 
     expect(
       screen.queryByRole("link", {
-        name: "Ir a aprobaciones de gastos pendientes",
+        name: "Ir a aprobaciones de gastos en cola",
       }),
     ).not.toBeInTheDocument();
   });

@@ -6,6 +6,7 @@ import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { DateField } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
@@ -117,21 +118,19 @@ export function ReportsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="trip-export-date-from">{reportsCopy.trips.filters.dateFrom}</Label>
-                <Input
+                <DateField
                   id="trip-export-date-from"
-                  type="date"
                   value={dateFrom}
-                  onChange={(event) => setDateFrom(event.target.value)}
+                  onChange={setDateFrom}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="trip-export-date-to">{reportsCopy.trips.filters.dateTo}</Label>
-                <Input
+                <DateField
                   id="trip-export-date-to"
-                  type="date"
                   value={dateTo}
-                  onChange={(event) => setDateTo(event.target.value)}
+                  onChange={setDateTo}
                 />
               </div>
             </div>

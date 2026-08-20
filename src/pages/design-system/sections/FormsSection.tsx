@@ -22,11 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { DateField, DateTimeField } from "@shared/ui/form";
 
 export function FormsSection() {
   const [checked, setChecked] = useState<boolean | "indeterminate">(true);
   const [switchOn, setSwitchOn] = useState(true);
   const [selectValue, setSelectValue] = useState("scheduled");
+  const [civilDate, setCivilDate] = useState("2026-03-10");
+  const [instant, setInstant] = useState("2026-03-10T08:00");
 
   return (
     <div className="space-y-8">
@@ -197,6 +200,39 @@ export function FormsSection() {
                 </div>
                 <Switch disabled />
               </div>
+            </div>
+          </FormRow>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Fecha y hora</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <FormRow label="Solo fecha">
+            <div className="space-y-1.5">
+              <Label htmlFor="ds-date-field">Vencimiento</Label>
+              <DateField
+                id="ds-date-field"
+                value={civilDate}
+                onChange={setCivilDate}
+              />
+            </div>
+          </FormRow>
+          <FormRow label="Fecha y hora">
+            <div className="space-y-1.5">
+              <Label htmlFor="ds-datetime-field">Salida programada</Label>
+              <DateTimeField
+                id="ds-datetime-field"
+                value={instant}
+                onChange={setInstant}
+                defaultTimeOnDateSelect="08:00"
+                presets={[
+                  { label: "Hoy 08:00", value: "2026-03-10T08:00" },
+                  { label: "Mañana 08:00", value: "2026-03-11T08:00" },
+                ]}
+              />
             </div>
           </FormRow>
         </CardContent>

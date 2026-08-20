@@ -16,6 +16,7 @@ import { cn } from "@shared/lib/utils/cn";
 import type { ClientAddress } from "../../domain";
 import { isCartaPorteReady } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
+import { showsClientUbicacionFields } from "../config/clientAddressPurpose";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
 import { useClientAddressLocationLabels } from "../hooks/useClientAddressLocationLabels";
 
@@ -55,7 +56,9 @@ export function ClientAddressDetailView({
 }: ClientAddressDetailViewProps) {
   const typeConfig = getAddressTypeConfig(address.addressType);
   const TypeIcon = typeConfig.icon;
+  const showUbicacion = showsClientUbicacionFields(address.addressType);
   const tripReady = address.isCartaPorteReady ?? isCartaPorteReady(address);
+  const hasBillingCp = Boolean(address.postalCode?.trim());
   const locationLabels = useClientAddressLocationLabels({
     satStateCode: address.satStateCode,
     satMunicipalityCode: address.satMunicipalityCode,
@@ -112,7 +115,7 @@ export function ClientAddressDetailView({
               {!address.isActive ? (
                 <Badge variant="secondary">{copy.inactive}</Badge>
               ) : null}
-              {address.geolocationPending ? (
+              {showUbicacion && address.geolocationPending ? (
                 <Badge
                   variant="outline"
                   className="gap-1 border-warning/40 text-warning-soft-foreground"
@@ -121,7 +124,8 @@ export function ClientAddressDetailView({
                   {copy.geoPending}
                 </Badge>
               ) : null}
-              {tripReady ? (
+              {showUbicacion ? (
+                tripReady ? (
                 <Badge
                   variant="outline"
                   className="gap-1 border-success/40 text-success-soft-foreground"
@@ -129,7 +133,7 @@ export function ClientAddressDetailView({
                   <CheckCircle2 className="h-3 w-3" />
                   {copy.readyForTrip}
                 </Badge>
-              ) : (
+                ) : (
                 <Badge
                   variant="outline"
                   className="gap-1 border-warning/40 text-warning-soft-foreground"
@@ -137,7 +141,26 @@ export function ClientAddressDetailView({
                   <AlertCircle className="h-3 w-3" />
                   {copy.missingTripData}
                 </Badge>
-              )}
+                )
+              ) : address.addressType === "billing" ? (
+                hasBillingCp ? (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-success/40 text-success-soft-foreground"
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    {copy.fiscalReady}
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-warning/40 text-warning-soft-foreground"
+                  >
+                    <AlertCircle className="h-3 w-3" />
+                    {copy.fiscalMissingCp}
+                  </Badge>
+                )
+              ) : null}
             </div>
           </div>
         </div>
@@ -196,7 +219,7 @@ export function ClientAddressDetailView({
               {address.reference ? (
                 <InfoRow variant="inline" label={copy.reference} value={address.reference} />
               ) : null}
-              {address.latitude != null && address.longitude != null ? (
+              {showUbicacion && address.latitude != null && address.longitude != null ? (
                 <InfoRow
                   variant="inline"
                   label={copy.coordinates}
@@ -207,7 +230,9 @@ export function ClientAddressDetailView({
             </div>
           </section>
 
-          {address.rfcRemitenteDestinatario || address.nombreRemitenteDestinatario ? (
+          {showUbicacion &&
+          (address.rfcRemitenteDestinatario ||
+            address.nombreRemitenteDestinatario) ? (
             <section className="rounded-md border bg-card">
               <div className="px-4 py-3 border-b">
                 <h4 className="text-sm font-medium">{copy.tripPartyTitle}</h4>

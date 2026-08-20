@@ -70,6 +70,12 @@ export interface CatalogSearchInputProps {
    * Clases CSS adicionales
    */
   className?: string;
+  /** `id` del control (enlazar con `<Label htmlFor>` / FieldInlineError). */
+  id?: string;
+  /** Borde/anillo de error (alineado a `Input`). */
+  error?: boolean;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   /**
    * Límite de resultados
    */
@@ -101,6 +107,10 @@ export function CatalogSearchInput({
   placeholder = "Buscar...",
   disabled = false,
   className,
+  id,
+  error = false,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
   limit = 20,
   debounceMs = 300,
   showCode = true,
@@ -209,16 +219,24 @@ export function CatalogSearchInput({
   // Render
   // ══════════════════════════════════════════════════════════════════════════
 
+  const resolvedAriaInvalid = ariaInvalid ?? error;
+
   // Si hay valor seleccionado, mostrar en modo display (clic para cambiar; X para limpiar)
   if (value && !open) {
     return (
       <div className={cn("relative", className)}>
         <div
+          id={id}
           role="combobox"
           aria-expanded={false}
+          aria-invalid={resolvedAriaInvalid || undefined}
+          aria-describedby={ariaDescribedBy}
           tabIndex={disabled ? -1 : 0}
           className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
+            "flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm",
+            error
+              ? "border-destructive focus-visible:ring-1 focus-visible:ring-destructive"
+              : "border-input",
             disabled && "cursor-not-allowed opacity-50",
             !disabled && "cursor-pointer hover:bg-muted/40",
           )}
@@ -264,11 +282,15 @@ export function CatalogSearchInput({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={inputRef}
+            id={id}
             type="text"
             value={searchTerm}
             onChange={handleInputChange}
             placeholder={placeholder}
             disabled={disabled}
+            error={error}
+            aria-invalid={resolvedAriaInvalid || undefined}
+            aria-describedby={ariaDescribedBy}
             className="pl-9 pr-9"
             onFocus={() => {
               if (searchTerm.length >= 2) {

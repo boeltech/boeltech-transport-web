@@ -207,7 +207,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   TRIP_ALREADY_INVOICED: "El viaje ya está vinculado a una factura activa",
   COMPANY_SETTINGS_INCOMPLETE: "Configura los datos del emisor en Configuración → Empresa antes de facturar",
   PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Datos para facturar.",
-  PAC_CONFIG_ERROR: "Error de configuración del PAC. Verifica las variables de entorno del servidor.",
+  PAC_CONFIG_ERROR:
+    "El servicio de timbrado no está configurado correctamente en el servidor. Contacta a soporte.",
 
   // ── Viajes ─────────────────────────────────────────────────────────────────
   TRIP_NOT_FOUND: "Viaje no encontrado",
@@ -259,11 +260,11 @@ const PAC_USER_MESSAGES: Record<string, string> = {
   CP132:
     "No se pudo timbrar: el RFC de remitente o destinatario en una parada del viaje no está registrado ante el SAT. Revise en Viajes → Ruta todas las paradas (origen, escalas y destino) y use un RFC real y vigente del cliente o ubicación.",
   PAC_ISSUED_AT_OUT_OF_RANGE:
-    "No se pudo timbrar: la fecha de emisión del borrador supera las 72 horas que permite el SAT. Vuelve a intentar el timbrado; el sistema actualiza la fecha automáticamente al timbrar.",
+    "No se pudo timbrar: la fecha de emisión está fuera de la ventana de 72 horas del PAC (a veces adelantada respecto al reloj ProFact). Reintenta; si persiste, revisa la hora del servidor API o el ajuste PROFACT_FECHA_CLOCK_OFFSET_MINUTES en sandbox.",
   CFDI40145:
     "La razón social del receptor no coincide con la registrada ante el SAT para ese RFC. Corrija el nombre en el cliente según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
   CFDI40147:
-    "El código postal fiscal del receptor no coincide con el registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
+    "El código postal fiscal del receptor no coincide con el registrado ante el SAT para ese RFC.",
   CFDI40148:
     "El código postal fiscal del receptor no pertenece al domicilio registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
   CFDI40158:
@@ -598,6 +599,36 @@ function buildCfdi40158OperationalMessage(
   return message;
 }
 
+function xmlChecksRecord(
+  details: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  const checks = details?.xml_checks;
+  if (!checks || typeof checks !== "object" || Array.isArray(checks)) {
+    return null;
+  }
+  return checks as Record<string, unknown>;
+}
+
+function buildCfdi40147OperationalMessage(
+  details: Record<string, unknown> | null,
+  hint: string,
+): string {
+  if (hint) return hint;
+
+  const checks = xmlChecksRecord(details);
+  const rfc =
+    typeof checks?.receptorRfc === "string" ? checks.receptorRfc.trim() : "";
+  const cp =
+    typeof checks?.receptorPostalCode === "string"
+      ? checks.receptorPostalCode.trim()
+      : "";
+  if (rfc && cp) {
+    return `El código postal fiscal ${cp} no coincide con el registrado ante el SAT para el RFC ${rfc}. Si la factura ya muestra ese código, no lo cambie en el cliente: confírmelo en la constancia de situación fiscal del receptor y, si es el mismo, pida apoyo a soporte.`;
+  }
+
+  return PAC_USER_MESSAGES.CFDI40147;
+}
+
 /** Mensaje operativo cuando la API devuelve error ProFact crudo (p. ej. 502 INTERNAL_ERROR). */
 function resolveProFactBodyMessage(errorBody: string): string | null {
   const match = errorBody.match(
@@ -660,6 +691,10 @@ function resolvePacErrorMessage(
     return hint && !message.includes(hint) ? `${message} ${hint}` : message;
   }
 
+  if (pacRule === "CFDI40147") {
+    return buildCfdi40147OperationalMessage(record, hint);
+  }
+
   if (pacRule && PAC_USER_MESSAGES[pacRule]) {
     const mapped = PAC_USER_MESSAGES[pacRule];
     return hint && !mapped.includes(hint) ? `${mapped} ${hint}` : mapped;
@@ -716,6 +751,14 @@ function getMessageForError(
       return `${first.label}: ${first.message}`;
     }
     return `${first.label}: ${first.message} (+${validationErrors.length - 1} más)`;
+  }
+
+  // 1b. PAC bootstrap: nunca filtrar nombres de proveedor / env aunque data.error sea técnico.
+  if (
+    (code === "PAC_NOT_IMPLEMENTED" || code === "PAC_CONFIG_ERROR") &&
+    BUSINESS_ERROR_MESSAGES[code]
+  ) {
+    return BUSINESS_ERROR_MESSAGES[code];
   }
 
   // 2. Para errores de negocio (4xx): el backend es la fuente de verdad.

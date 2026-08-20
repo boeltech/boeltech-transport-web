@@ -17,6 +17,8 @@ export const creditExposureCopy = {
     unbilled: "Viajes por facturar",
     pendingDraft: "Facturas en borrador",
   },
+  collectCta: "Cobrar",
+  collectCtaAria: "Cobrar facturas de este cliente",
   nextDue: (dateLabel: string) => `Próximo vencimiento: ${dateLabel}`,
   loading: "Calculando crédito disponible…",
   unavailable: "No se pudo cargar el crédito disponible",

@@ -261,7 +261,7 @@ export function ClientCreatePage() {
             >
               {currentStep === 1 && !isAddressValid ? (
                 <p className="mb-4 max-w-md text-sm text-muted-foreground">
-                  {"Completa la direcci\u00f3n fiscal y corrige los errores indicados para continuar."}
+                  {"Completa el código postal fiscal del receptor. No hace falta mapa ni RFC de Carta Porte."}
                 </p>
               ) : null}
               {currentStep === 1 && satValidationError ? (
@@ -306,8 +306,6 @@ export function ClientCreatePage() {
                 formContext="billingOnCreate"
                 hideLocationSectionTitle
                 defaultValues={addressData ?? undefined}
-                clientRfc={clientData?.taxId}
-                clientName={clientData?.legalName}
                 onChange={handleAddressChange}
                 disabled={isSubmitting}
               />

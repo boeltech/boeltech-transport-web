@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks";
 import { clientAddressRepository } from "../../infrastructure";
 import { clientQueryKeys } from "../../domain";
+import { evictInvoicePrefillQueries } from "@features/invoicing/application";
 
 // ============================================================================
 // TYPES
@@ -53,6 +54,7 @@ export function useDeleteClientAddress() {
       queryClient.invalidateQueries({
         queryKey: clientQueryKeys.addresses(clientId),
       });
+      evictInvoicePrefillQueries(queryClient);
 
       // Notificar éxito
       toast({
