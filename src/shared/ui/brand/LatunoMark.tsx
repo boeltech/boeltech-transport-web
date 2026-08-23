@@ -1,10 +1,9 @@
 /**
- * LatunoMark — isotipo canónico G (T con caminos).
+ * LatunoMark — isotipo canónico B (portal).
  *
- * Fuente: public/brand/tlama-mark-g-paths*.svg
- * En el lockup de producto sustituye la letra «T» de «laTuno»
- * (la + mark + uno). Preferir este componente en UI; los SVG en /public
- * son assets estáticos (favicon, export, docs).
+ * Fuente: public/brand/latuno-mark-b-portal*.svg
+ * viewBox ceñido al ink para paridad óptica. Preferir este componente en UI;
+ * los SVG en /public son assets estáticos (favicon, export, docs).
  */
 
 import { memo } from "react";
@@ -38,17 +37,18 @@ const VARIANT_CLASSES: Record<
   current: "text-current",
 };
 
+/** Geometría portal B — viewBox ceñido (`10 14 80 70`). */
 function Paths({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 100 100"
+      viewBox="10 14 80 70"
       className={className}
       fill="currentColor"
       aria-hidden
     >
-      <rect x="8" y="15" width="84" height="10" rx="1" />
-      <path d="M9 31 L46 31 A1 1 0 0 1 47 32 L47 83 A1 1 0 0 1 46 84 L37 84 A1 1 0 0 1 36 83 L36 41 L9 41 A1 1 0 0 1 8 40 L8 32 A1 1 0 0 1 9 31 Z" />
-      <path d="M91 31 L54 31 A1 1 0 0 0 53 32 L53 83 A1 1 0 0 0 54 84 L63 84 A1 1 0 0 0 64 83 L64 41 L91 41 A1 1 0 0 0 92 40 L92 32 A1 1 0 0 0 91 31 Z" />
+      <rect x="14" y="18" width="72" height="12" rx="2" />
+      <path d="M20 38 L40 38 A2 2 0 0 1 42 40 L42 78 A2 2 0 0 1 40 80 L28 80 A2 2 0 0 1 26 78 L26 50 L20 50 A2 2 0 0 1 18 48 L18 40 A2 2 0 0 1 20 38 Z" />
+      <path d="M80 38 L60 38 A2 2 0 0 0 58 40 L58 78 A2 2 0 0 0 60 80 L72 80 A2 2 0 0 0 74 78 L74 50 L80 50 A2 2 0 0 0 82 48 L82 40 A2 2 0 0 0 80 38 Z" />
     </svg>
   );
 }
@@ -94,7 +94,7 @@ export const LatunoMark = memo(function LatunoMark({
   );
 });
 
-/** @deprecated Use LatunoMark — alias de transición desde TlamaMark. */
+/** @deprecated Use LatunoMark */
 export const TlamaMark = LatunoMark;
 
 export default LatunoMark;

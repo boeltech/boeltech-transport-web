@@ -1,20 +1,22 @@
 /**
- * BrandLockup — logo de producto laTuno: «la» + isotipo G + «uno».
+ * BrandLockup — logo canónico tlamx: isotipo portal B + wordmark Comfortaa.
  *
- * La letra tipográfica «T» se sustituye por `LatunoMark`
- * (`tlama-mark-g-paths-ink`). Espaciado: altura tipográfica ≈ markSize;
- * gap óptico entre segmentos vía `brandLockupMetrics`.
- * Safe area 0.5×mark solo en assets estáticos (`latuno-lockup-safe-area.svg`).
+ * Display: Comfortaa (`BRAND.displayFontFamily`) + stroke `.brand-wordmark-thick`.
+ * Espaciado guía (Rilxer): mark 100 · wordmark 100 · gap 50 (= 0.5 × markSize).
+ * Alineación vertical: `items-center` + nudge óptico (`WORDMARK_OPTICAL_Y_OFFSET_RATIO`)
+ * para centrar el wordmark respecto al ink del portal (viewBox ceñido + sin descendentes).
  */
 
 import { memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { LatunoMark } from "./LatunoMark";
+import { Wordmark } from "./Wordmark";
 import type { WordmarkProps } from "./Wordmark";
 import { BRAND } from "./brandIdentity";
 import {
   brandLockupGapPx,
   brandLockupWordmarkFontSizePx,
+  brandLockupWordmarkOpticalOffsetPx,
 } from "./brandLockupMetrics";
 
 export interface BrandLockupProps {
@@ -25,18 +27,16 @@ export interface BrandLockupProps {
   /** Lado del mark (= altura canónica del logo). Default 28. */
   markSize?: number;
   className?: string;
-  /** Clases extra en los segmentos tipográficos «la» / «uno». */
+  /** Clases extra en el wordmark (tracking, etc.). */
   wordmarkClassName?: string;
+  /**
+   * Override tipográfico del wordmark.
+   * Default: `BRAND.displayFontFamily` (Comfortaa).
+   */
+  displayFontFamily?: string;
   /** Padre ya anuncia el producto (Link con aria-label). */
   decorative?: boolean;
 }
-
-const VARIANT_CLASSES: Record<NonNullable<WordmarkProps["variant"]>, string> = {
-  brand: "text-primary",
-  onBrand: "text-primary-foreground",
-  muted: "text-muted-foreground",
-  current: "text-current",
-};
 
 export const BrandLockup = memo(function BrandLockup({
   compact = false,
@@ -44,6 +44,7 @@ export const BrandLockup = memo(function BrandLockup({
   markSize = 28,
   className,
   wordmarkClassName,
+  displayFontFamily = BRAND.displayFontFamily,
   decorative = false,
 }: BrandLockupProps) {
   const markVariant =
@@ -55,6 +56,7 @@ export const BrandLockup = memo(function BrandLockup({
 
   const gapPx = brandLockupGapPx(markSize);
   const wordmarkPx = brandLockupWordmarkFontSizePx(markSize);
+  const wordmarkOpticalOffsetPx = brandLockupWordmarkOpticalOffsetPx(markSize);
 
   if (compact) {
     return (
@@ -81,29 +83,18 @@ export const BrandLockup = memo(function BrandLockup({
       aria-label={decorative ? undefined : BRAND.productName}
       role={decorative ? undefined : "img"}
     >
-      <span
-        className={cn(
-          "font-sans font-bold leading-none select-none tracking-[-0.02em]",
-          VARIANT_CLASSES[variant],
-          wordmarkClassName,
-        )}
-        style={{ fontSize: wordmarkPx }}
-        aria-hidden
-      >
-        la
-      </span>
       <LatunoMark variant={markVariant} size={markSize} decorative />
-      <span
-        className={cn(
-          "font-sans font-bold leading-none select-none tracking-[-0.02em]",
-          VARIANT_CLASSES[variant],
-          wordmarkClassName,
-        )}
-        style={{ fontSize: wordmarkPx }}
-        aria-hidden
-      >
-        uno
-      </span>
+      <Wordmark
+        variant={variant}
+        decorative
+        className={cn("lowercase brand-wordmark-thick", wordmarkClassName)}
+        style={{
+          fontSize: wordmarkPx,
+          fontFamily: displayFontFamily,
+          // Centro óptico mark↔wordmark (Comfortaa sin descendentes + portal B).
+          transform: `translateY(${wordmarkOpticalOffsetPx}px)`,
+        }}
+      />
     </span>
   );
 });

@@ -1,58 +1,55 @@
-# Marks laTuno - v2.0
+# Marks tlamx - v3.0
 
-Color `#2558a8` (azul-tinta). Producto: **laTuno** · Empresa: Boeltech.
+Color `#2558a8` (azul-tinta). Producto: **tlamx** · Empresa: Boeltech.  
+Wordmark display: **Comfortaa** (+ stroke `.brand-wordmark-thick`).
 
 ## Logo de producto (lockup)
 
-Composición canónica: **`la` + isotipo G + `uno`**  
-La «T» tipográfica se sustituye por `tlama-mark-g-paths-ink` (T con caminos).
+Composición canónica: **isotipo portal B + wordmark `tlamx`** (Comfortaa).
 
-### Espaciado (safe area)
-
-Referencia de diseño (grid en px, tip guía adjunta):
+### Espaciado (safe area / guía Rilxer)
 
 | Zona | Tamaño | Ratio vs mark |
 |------|--------|---------------|
-| Altura mark / letras (`la` / `uno`) | 100 | 1 |
-| Gap óptico letra↔mark | ~6 | 0.06 |
+| Altura mark / wordmark | 100 | 1 |
+| Gap mark → wordmark | 50 | 0.5 |
 | Safe area exterior (exports) | 50 | 0.5 |
 
 En UI: `BrandLockup` (`brandLockupMetrics.ts`).  
 Asset de referencia: `latuno-lockup-safe-area.svg`.
 
-## Isotipo canónico: G — T con caminos
+## Isotipo canónico: B — portal
 
 | Archivo | Color | Uso |
 |---------|-------|-----|
-| `tlama-mark-g-paths.svg` | tinta `#0a0a0a` | Export monocromo |
-| `tlama-mark-g-paths-ink.svg` | azul `#2558a8` | **Canónico UI** / favicon / letra «T» del lockup |
-| `tlama-mark-g-paths-onbrand.svg` | blanco sobre tile `#2558a8` | Archivo (alternativa tile) |
-| `tlama-mark-g-paths-ink-email.png` | ink | Email HTML (PNG 160×160) |
+| `latuno-mark-b-portal.svg` | tinta `#0a0a0a` | Export monocromo |
+| `latuno-mark-b-portal-ink.svg` | azul `#2558a8` | **Canónico UI** / favicon |
+| `latuno-mark-b-portal-onbrand.svg` | blanco sobre tile | Archivo (alternativa tile) |
+| `latuno-mark-b-portal-ink-email.png` | ink | Email HTML (PNG 160×160) |
+
+viewBox ceñido `10 14 80 70` para paridad óptica.
 
 **Integrado:**
-- `public/favicon.svg` = geometría ink G
-- UI: `BrandLockup` (`la` + `LatunoMark` + `uno`) en sidebar, landing, auth, design-system
-- Email: API `emailBrandHeaderHtml` → PNG G vía `FRONTEND_URL` / `EMAIL_BRAND_ASSET_BASE_URL`
+- `public/favicon.svg` = portal ink
+- UI: `BrandLockup` (`LatunoMark` + `Wordmark` Comfortaa) en sidebar, landing, auth, design-system
+- Email: API `emailBrandHeaderHtml` → PNG portal vía `FRONTEND_URL` / `EMAIL_BRAND_ASSET_BASE_URL`
 
-## Propuestas experimentales (archivo, no canónicas)
+## Archivo — propuestas / legado
 
-| Archivo | Idea |
+| Archivo | Nota |
 |---------|------|
-| `latuno-mark-a-twin.svg` (+ ink / onbrand) | Curvas gemelas |
-| `latuno-mark-b-portal.svg` | Portal de carga |
-| `latuno-mark-c-signal.svg` | Señal de ruta |
-
-## Marketing — landing `/welcome`
-
-Hero sigue usando assets `tlama-landing-*` (tracto / ruta) como ancla visual; no son el logo.
+| `tlama-mark-g-paths*.svg` | Isotipo G histórico (T con caminos) |
+| `latuno-mark-a-twin*.svg` | Curvas gemelas (archivo) |
+| `latuno-mark-c-signal.svg` | Señal de ruta (archivo) |
+| `tlama-landing-*` | Hero marketing (no son logo) |
 
 ## Cómo revisar
 
 Con `npm run dev`:
 
 - `/favicon.svg`
-- `/brand/tlama-mark-g-paths-ink.svg`
+- `/brand/latuno-mark-b-portal-ink.svg`
 - `/brand/latuno-lockup-safe-area.svg`
-- `/welcome` (BrandLockup `la`+mark+`uno`)
+- `/welcome`, `/login`, sidebar ERP
 
-Checklist visual: 16px · 64px · fondo claro/oscuro · gap letra↔mark.
+Checklist: 16px · 64px · gap 0.5×mark · Comfortaa + stroke en wordmark · centro óptico mark↔wordmark (`WORDMARK_OPTICAL_Y_OFFSET_RATIO`).

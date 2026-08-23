@@ -1,5 +1,5 @@
 /**
- * Utilidades de fecha para laTuno — Frontend.
+ * Utilidades de fecha para tlamx — Frontend.
  *
  * Regla: las fechas viajan por la red como strings.
  * Solo se convierten a Date de JS en el último momento: el display.

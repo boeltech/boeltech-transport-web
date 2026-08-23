@@ -56,7 +56,7 @@ const SHELLS: readonly ShellSpec[] = [
     description:
       "Header + WizardSteps + content por paso + nav (anterior/siguiente/revisar/submit). Validación por paso con triggerStepValidation",
     whenToUse:
-      "Creación o flows multi-paso. Patrón canónico: viajes (Paso 1/Paso 2/Cargo/Costos/Resumen).",
+      "Creación o flows multi-paso. Patrón canónico: viajes (Paso 1/Paso 2/Cargo/Dinero del viaje/Resumen).",
     example: "features/trips/presentation/pages/create/TripFormPage.tsx",
     import: 'import { WizardPageShell } from "@shared/ui/page-shells";',
   },

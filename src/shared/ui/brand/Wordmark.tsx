@@ -1,11 +1,13 @@
 /**
- * Wordmark — marca tipográfica del producto laTuno.
+ * Wordmark — marca tipográfica del producto tlamx.
  *
- * Solo texto (Inter). El isotipo vive en LatunoMark / BrandLockup.
+ * Display: Comfortaa (`font-brand` / BRAND.displayFontFamily).
+ * En BrandLockup se aplica además `.brand-wordmark-thick`.
+ * El isotipo vive en LatunoMark / BrandLockup.
  *
  * Variantes:
- *   - default:  "laTuno" completo
- *   - compact:  "T" (monograma tipográfico; preferir LatunoMark en chrome)
+ *   - default:  "tlamx" completo
+ *   - compact:  monograma tipográfico (preferir LatunoMark en chrome)
  *
  * Reglas de uso:
  *   - Lockup icono + nombre: BrandLockup (gap 0.5 × mark)
@@ -20,8 +22,8 @@ import { BRAND } from "./brandIdentity";
 
 export interface WordmarkProps {
   /**
-   * Si es true, muestra solo el monograma "T" (sidebar colapsado).
-   * Si es false (default), muestra "laTuno" completo.
+   * Si es true, muestra solo el monograma (sidebar tipográfico sin mark).
+   * Si es false (default), muestra el nombre completo.
    */
   compact?: boolean;
 
@@ -34,20 +36,8 @@ export interface WordmarkProps {
    */
   variant?: "brand" | "onBrand" | "muted" | "current";
 
-  /**
-   * Clases extra. Útil para tamaño (text-lg, text-xl, etc.) y spacing.
-   * En BrandLockup el tamaño se fija vía `style.fontSize` (altura = mark).
-   */
   className?: string;
-
-  /** Estilo inline (p. ej. fontSize desde BrandLockup). */
   style?: CSSProperties;
-
-  /**
-   * Accesibilidad: si el wordmark es decorativo (porque el Link/padre
-   * ya anuncia el producto), márcalo como true (aria-hidden).
-   * Default false (se anuncia como "laTuno").
-   */
   decorative?: boolean;
 }
 
@@ -72,11 +62,12 @@ export const Wordmark = memo(function Wordmark({
       aria-hidden={decorative || undefined}
       aria-label={decorative ? undefined : BRAND.productName}
       role={decorative ? undefined : "img"}
-      style={style}
+      style={{
+        fontFamily: BRAND.displayFontFamily,
+        ...style,
+      }}
       className={cn(
-        "font-sans font-bold leading-none select-none",
-        // Tracking ligeramente negativo: wordmark editorial/compacto.
-        compact ? "tracking-tight" : "tracking-[-0.02em]",
+        "font-brand font-bold leading-none select-none tracking-[-0.03em] lowercase",
         VARIANT_CLASSES[variant],
         className,
       )}

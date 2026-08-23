@@ -5,7 +5,7 @@ export const platformCopy = {
     name: BRAND.platformName,
     subtitle: BRAND.platformSubtitle,
     company: BRAND.companyName,
-    /** Producto tenant (laTuno); no usar como nombre de esta consola. */
+    /** Producto tenant (tlamx); no usar como nombre de esta consola. */
     tenantProduct: BRAND.productName,
   },
   shell: {

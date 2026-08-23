@@ -1,7 +1,7 @@
 /**
  * @shared/ui/brand
  *
- * Identidad visual del producto laTuno (empresa: Boeltech).
+ * Identidad visual del producto tlamx (empresa: Boeltech).
  */
 
 export { BRAND } from "./brandIdentity";
@@ -9,7 +9,9 @@ export type { BrandIdentity } from "./brandIdentity";
 export {
   BRAND_LOCKUP,
   brandLockupGapPx,
+  brandLockupLetterGapPx,
   brandLockupWordmarkFontSizePx,
+  brandLockupWordmarkOpticalOffsetPx,
 } from "./brandLockupMetrics";
 export { Wordmark } from "./Wordmark";
 export type { WordmarkProps } from "./Wordmark";

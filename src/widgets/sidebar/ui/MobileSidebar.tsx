@@ -86,8 +86,7 @@ export const MobileSidebar = memo(function MobileSidebar() {
             <BrandLockup
               variant="brand"
               decorative
-              markSize={28}
-              wordmarkClassName="text-xl"
+              markSize={30}
             />
           </Link>
           <Button variant="ghost" size="icon" onClick={closeMobile}>

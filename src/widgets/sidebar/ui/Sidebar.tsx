@@ -62,8 +62,7 @@ export const Sidebar = memo(function Sidebar() {
                 compact={isCollapsed}
                 variant="brand"
                 decorative
-                markSize={isCollapsed ? 32 : 28}
-                wordmarkClassName="text-xl"
+                markSize={isCollapsed ? 32 : 30}
               />
             </Link>
             {!isCollapsed && (

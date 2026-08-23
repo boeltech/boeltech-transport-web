@@ -11,6 +11,8 @@
  * ============================================================ */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+/* Brand display (tlamx wordmark) — Comfortaa canónico */
+@import "@fontsource/comfortaa/700.css";
 
 @plugin "tailwindcss-animate";
 
@@ -129,6 +131,9 @@
 
 :root {
   --radius: 0.625rem;
+
+  /* Display de marca tlamx (Comfortaa) — wordmark / BrandLockup */
+  --font-brand: Comfortaa, ui-sans-serif, system-ui, sans-serif;
 
   /* ============================================================
    * Brand scale — azul-tinta (Fase 1)
@@ -323,6 +328,15 @@
   .font-mono {
     font-family: var(--font-mono);
     font-feature-settings: "liga" 0, "calt" 0;
+  }
+  /* Display de marca tlamx — Comfortaa */
+  .font-brand {
+    font-family: Comfortaa, ui-sans-serif, system-ui, sans-serif;
+  }
+  /* Engrosa trazo sin cambiar font-size (mantiene ratio 1:1 con isotipo) */
+  .brand-wordmark-thick {
+    -webkit-text-stroke: 0.55px currentColor;
+    paint-order: stroke fill;
   }
   /* Números tabulares por default en tablas para alineación de totales */
   table {

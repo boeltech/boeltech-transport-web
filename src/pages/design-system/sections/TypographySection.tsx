@@ -50,7 +50,7 @@ export function TypographySection() {
                 Sample
               </p>
               <p className="text-5xl font-bold tracking-[-0.02em]">
-                laTuno
+                tlamx
               </p>
               <p className="text-2xl text-muted-foreground">
                 Sistema de gestión para empresas de transporte mexicanas
