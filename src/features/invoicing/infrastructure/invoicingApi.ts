@@ -285,9 +285,12 @@ export const invoicingApi = {
   getPrefillFromTrip: async (
     tripId: string,
     scope: InvoiceBillingScope = "primary_transport",
+    legId?: string | null,
   ): Promise<InvoicePrefill> => {
-    const qs =
-      scope === "primary_transport" ? "" : `?scope=${scope}`;
+    const params = new URLSearchParams();
+    if (scope !== "primary_transport") params.set("scope", scope);
+    if (legId) params.set("leg_id", legId);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const response = await apiClient.get<{ data: unknown }>(
       `${FINANCE}/prefill/${tripId}${qs}`,
     );

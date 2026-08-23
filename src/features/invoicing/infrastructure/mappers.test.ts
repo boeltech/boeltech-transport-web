@@ -237,5 +237,32 @@ describe("parseInvoiceBillingScope", () => {
     expect(parseInvoiceBillingScope("primary_transport")).toBe("primary_transport");
     expect(parseInvoiceBillingScope(undefined)).toBe("primary_transport");
     expect(parseInvoiceBillingScope("unknown")).toBe("primary_transport");
+    expect(parseInvoiceBillingScope("split_share")).toBe("split_share");
+  });
+});
+
+
+describe("toApiCreateInvoice split_share (ADR-0081)", () => {
+  it("maps split_leg_id and attach_carta_porte", () => {
+    const api = toApiCreateInvoice({
+      tripIds: ["trip-1"],
+      billingScope: "split_share",
+      splitLegId: "leg-1",
+      attachCartaPorte: true,
+      receiverRfc: "AAA010101AAA",
+      receiverName: "Cliente",
+      cfdiUsage: "G03",
+      receiverTaxRegime: "601",
+      receiverPostalCode: "64000",
+      paymentForm: "99",
+      paymentMethod: "PPD",
+      currency: "MXN",
+      subtotal: 100,
+      totalTax: 16,
+      total: 116,
+    });
+    expect(api.billing_scope).toBe("split_share");
+    expect(api.split_leg_id).toBe("leg-1");
+    expect(api.attach_carta_porte).toBe(true);
   });
 });

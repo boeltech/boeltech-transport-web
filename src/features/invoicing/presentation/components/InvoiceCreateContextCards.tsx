@@ -141,6 +141,13 @@ type CreateContextLineProps = {
   total: number;
   issuerName?: string;
   issuerRfc?: string;
+  sharePercent?: number | null;
+  splitLegsInvoiced?: number;
+  splitLegsTotal?: number;
+  attachCartaPorte?: boolean;
+  showCartaPorte?: boolean;
+  cartaPorteAlreadyAttached?: boolean;
+  onAttachCartaPorteChange?: (checked: boolean) => void;
 };
 
 /**
@@ -155,10 +162,64 @@ function CreateContextLine({
   total,
   issuerName,
   issuerRfc,
+  sharePercent,
+  splitLegsInvoiced,
+  splitLegsTotal,
+  attachCartaPorte,
+  showCartaPorte,
+  cartaPorteAlreadyAttached = false,
+  onAttachCartaPorteChange,
 }: CreateContextLineProps) {
+  const splitShareCopy = copy.splitShare;
+  const showSplitProgress =
+    splitLegsTotal != null && splitLegsTotal > 0 && splitLegsInvoiced != null;
+  const showCartaPorteToggle =
+    showCartaPorte && attachCartaPorte != null && onAttachCartaPorteChange;
+
   /** Panel izquierdo ancho: grid horizontal en md+. */
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 md:p-5">
+      {showSplitProgress || showCartaPorteToggle ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3">
+          {showSplitProgress ? (
+            <Badge
+              variant="secondary"
+              className="text-sm font-medium"
+              aria-label={ctxCopy.splitShareProgressLabel}
+            >
+              {ctxCopy.splitShareProgress(splitLegsInvoiced!, splitLegsTotal!)}
+            </Badge>
+          ) : null}
+          {sharePercent != null ? (
+            <Badge variant="outline" className="text-sm font-semibold">
+              {ctxCopy.splitSharePercent(sharePercent)}
+            </Badge>
+          ) : null}
+          {showCartaPorteToggle ? (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                id="attach-carta-porte"
+                type="checkbox"
+                className="mt-1"
+                checked={attachCartaPorte}
+                disabled={cartaPorteAlreadyAttached}
+                onChange={(event) =>
+                  onAttachCartaPorteChange(event.target.checked)
+                }
+              />
+              <span>
+                {splitShareCopy.attachCartaPorteLabel}
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {cartaPorteAlreadyAttached
+                    ? splitShareCopy.attachCartaPorteDisabledHint
+                    : splitShareCopy.attachCartaPorteHint}
+                </span>
+              </span>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center md:gap-6">
         <div className="min-w-0 space-y-1">
           <p className="text-xs font-medium text-muted-foreground">
@@ -224,6 +285,13 @@ export type InvoiceCreateContextCardsProps = {
   receiverRfc?: string;
   /** Alta: total calculado en vivo desde los conceptos. */
   total?: number;
+  sharePercent?: number | null;
+  splitLegsInvoiced?: number;
+  splitLegsTotal?: number;
+  attachCartaPorte?: boolean;
+  showCartaPorte?: boolean;
+  cartaPorteAlreadyAttached?: boolean;
+  onAttachCartaPorteChange?: (checked: boolean) => void;
 };
 
 export function InvoiceCreateContextCards({
@@ -234,6 +302,13 @@ export function InvoiceCreateContextCards({
   receiverName,
   receiverRfc,
   total = 0,
+  sharePercent,
+  splitLegsInvoiced,
+  splitLegsTotal,
+  attachCartaPorte,
+  showCartaPorte,
+  cartaPorteAlreadyAttached,
+  onAttachCartaPorteChange,
 }: InvoiceCreateContextCardsProps) {
   if (mode === "create") {
     if (!prefill && !receiverName) return null;
@@ -246,6 +321,13 @@ export function InvoiceCreateContextCards({
         total={total}
         issuerName={prefill?.issuerName}
         issuerRfc={prefill?.issuerRfc}
+        sharePercent={sharePercent ?? prefill?.sharePercent ?? null}
+        splitLegsInvoiced={splitLegsInvoiced}
+        splitLegsTotal={splitLegsTotal}
+        attachCartaPorte={attachCartaPorte}
+        showCartaPorte={showCartaPorte}
+        cartaPorteAlreadyAttached={cartaPorteAlreadyAttached}
+        onAttachCartaPorteChange={onAttachCartaPorteChange}
       />
     );
   }

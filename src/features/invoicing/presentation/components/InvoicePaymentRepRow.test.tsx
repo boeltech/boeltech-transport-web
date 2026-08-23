@@ -4,7 +4,7 @@ import type { Payment } from "@features/invoicing/domain";
 import { InvoicePaymentRepRow } from "./InvoicePaymentRepRow";
 
 vi.mock("@features/invoicing/application", () => ({
-  downloadRepXml: vi.fn(),
+  useDownloadRepXml: () => ({ mutate: vi.fn(), isPending: false }),
   useOpenRepPdf: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 

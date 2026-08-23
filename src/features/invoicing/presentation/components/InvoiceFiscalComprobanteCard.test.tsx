@@ -34,7 +34,10 @@ vi.mock("@features/catalogs", () => ({
 const dual = invoicingCopy.labelDual;
 const comprobanteCopy = invoicingCopy.comprobante;
 
-function renderCard(onEdit = vi.fn()) {
+function renderCard(
+  onEdit = vi.fn(),
+  receiverReady = true,
+) {
   function Harness() {
     const form = useForm<InvoiceFormValues>({
       defaultValues: {
@@ -47,7 +50,11 @@ function renderCard(onEdit = vi.fn()) {
     });
 
     return (
-      <InvoiceFiscalComprobanteCard control={form.control} onEdit={onEdit} />
+      <InvoiceFiscalComprobanteCard
+        control={form.control}
+        onEdit={onEdit}
+        receiverReady={receiverReady}
+      />
     );
   }
 
@@ -55,12 +62,24 @@ function renderCard(onEdit = vi.fn()) {
 }
 
 describe("InvoiceFiscalComprobanteCard", () => {
-  it("renders dual labels and catalog names without collapsing to codes", () => {
+  it("is collapsed by default and shows operational title with status", () => {
     renderCard();
 
+    expect(screen.getByText(comprobanteCopy.title)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: comprobanteCopy.title }),
+      screen.getByText(comprobanteCopy.collapsedReady),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Personas Morales con Fines no Lucrativos"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders dual labels and catalog names when expanded", async () => {
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.click(screen.getByText(comprobanteCopy.title));
+
     expect(screen.getByText(dual.taxRegime)).toBeInTheDocument();
     expect(screen.getByText(`(${dual.taxRegimeSat})`)).toBeInTheDocument();
     expect(
@@ -71,6 +90,14 @@ describe("InvoiceFiscalComprobanteCard", () => {
     expect(screen.getByText("63734")).toBeInTheDocument();
     expect(
       screen.getByText("Pago en una sola exhibición · Por definir"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows pending status when receiver is not ready", () => {
+    renderCard(vi.fn(), false);
+
+    expect(
+      screen.getByText(comprobanteCopy.collapsedPending),
     ).toBeInTheDocument();
   });
 

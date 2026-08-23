@@ -45,7 +45,8 @@ export const invoiceQueryKeys = {
   prefill: (
     tripId: string,
     scope: InvoiceBillingScope = "primary_transport",
-  ) => [...invoiceQueryKeys.prefills(), tripId, scope] as const,
+    legId?: string | null,
+  ) => [...invoiceQueryKeys.prefills(), tripId, scope, legId ?? null] as const,
 };
 
 /** Prefix for every trip+scope prefill. Client fiscal edits must evict this. */
@@ -202,11 +203,13 @@ export const useInvoicePayments = (invoiceId: string) => {
 export const useInvoicePrefill = (
   tripId: string,
   scope: InvoiceBillingScope = "primary_transport",
+  legId?: string | null,
 ) => {
+  const requiresLeg = scope === "split_share";
   return useQuery({
-    queryKey: invoiceQueryKeys.prefill(tripId, scope),
-    queryFn: () => invoicingApi.getPrefillFromTrip(tripId, scope),
-    enabled: !!tripId,
+    queryKey: invoiceQueryKeys.prefill(tripId, scope, legId),
+    queryFn: () => invoicingApi.getPrefillFromTrip(tripId, scope, legId),
+    enabled: !!tripId && (!requiresLeg || !!legId),
     staleTime: 30_000,
   });
 };
@@ -480,6 +483,23 @@ export function downloadRepXml(
   filename: string,
 ): void {
   void invoicingApi.downloadRepXmlById(invoiceId, paymentId, filename);
+}
+
+export function useDownloadRepXml(
+  options?: Omit<
+    UseMutationOptions<
+      void,
+      Error,
+      { invoiceId: string; paymentId: string; filename: string }
+    >,
+    "mutationFn"
+  >,
+) {
+  return useMutation({
+    mutationFn: ({ invoiceId, paymentId, filename }) =>
+      invoicingApi.downloadRepXmlById(invoiceId, paymentId, filename),
+    ...options,
+  });
 }
 
 export function useOpenRepPdf(

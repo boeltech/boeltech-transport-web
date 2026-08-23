@@ -61,6 +61,36 @@ export function InvoiceCreateReadinessChecklist({
   onFixConcepts?: () => void;
   className?: string;
 }) {
+  const pendingItems = [
+    {
+      key: "receiver",
+      ok: readiness.receiverOk,
+      label: copy.receiver,
+      doneHint: copy.receiverDone,
+      pendingHint: copy.receiverPending,
+      onAction: onFixReceiver,
+    },
+    {
+      key: "concepts",
+      ok: readiness.conceptsOk,
+      label: copy.concepts,
+      doneHint: copy.conceptsDone,
+      pendingHint: copy.conceptsPending,
+      onAction: onFixConcepts,
+    },
+    {
+      key: "total",
+      ok: readiness.totalOk,
+      label: copy.total,
+      doneHint: copy.totalDone,
+      pendingHint: copy.totalPending,
+    },
+  ].filter((item) => !item.ok);
+
+  if (pendingItems.length === 0) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -71,26 +101,16 @@ export function InvoiceCreateReadinessChecklist({
     >
       <p className="mb-3 text-sm font-semibold">{copy.title}</p>
       <ul className="space-y-3">
-        <ChecklistItem
-          ok={readiness.receiverOk}
-          label={copy.receiver}
-          doneHint={copy.receiverDone}
-          pendingHint={copy.receiverPending}
-          onAction={onFixReceiver}
-        />
-        <ChecklistItem
-          ok={readiness.conceptsOk}
-          label={copy.concepts}
-          doneHint={copy.conceptsDone}
-          pendingHint={copy.conceptsPending}
-          onAction={onFixConcepts}
-        />
-        <ChecklistItem
-          ok={readiness.totalOk}
-          label={copy.total}
-          doneHint={copy.totalDone}
-          pendingHint={copy.totalPending}
-        />
+        {pendingItems.map((item) => (
+          <ChecklistItem
+            key={item.key}
+            ok={item.ok}
+            label={item.label}
+            doneHint={item.doneHint}
+            pendingHint={item.pendingHint}
+            onAction={item.onAction}
+          />
+        ))}
       </ul>
     </div>
   );

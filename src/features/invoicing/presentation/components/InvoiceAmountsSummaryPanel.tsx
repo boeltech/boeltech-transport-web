@@ -13,6 +13,8 @@ const panelCopy = invoicingCopy.amountsPanel;
 export interface InvoiceAmountsSummaryPanelProps {
   control: Control<InvoiceFormValues>;
   className?: string;
+  /** Oculta el total destacado (el total vive en la tarjeta resumen del alta). */
+  hideTotal?: boolean;
 }
 
 /** Fila de importe segura en rail estrecho (sin breakpoints de viewport). */
@@ -46,6 +48,7 @@ function AmountLine({
 export function InvoiceAmountsSummaryPanel({
   control,
   className,
+  hideTotal = false,
 }: InvoiceAmountsSummaryPanelProps) {
   const subtotal = useWatch({ control, name: "subtotal" }) ?? 0;
   const totalTax = useWatch({ control, name: "total_tax" }) ?? 0;
@@ -96,15 +99,19 @@ export function InvoiceAmountsSummaryPanel({
         ) : null}
       </div>
 
-      <Separator />
+      {!hideTotal ? (
+        <>
+          <Separator />
 
-      <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
-        <AmountLine
-          label={panelCopy.totalLabel}
-          value={formatMxCurrency(total)}
-          emphasize
-        />
-      </div>
+          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+            <AmountLine
+              label={panelCopy.totalLabel}
+              value={formatMxCurrency(total)}
+              emphasize
+            />
+          </div>
+        </>
+      ) : null}
 
       {retainedTax > 0 ? (
         <p className="pt-2 text-xs text-muted-foreground">

@@ -51,6 +51,7 @@ export { InvoiceDetailPage, CreateInvoicePage } from "./presentation/pages";
 export {
   InvoiceStatusBadge,
   InvoiceTable,
+  InvoiceBillingScopeBadge,
   PaymentFormDialog,
   CancelInvoiceDialog,
   SubstituteInvoiceSheet,
@@ -58,4 +59,9 @@ export {
   getInvoiceStatusConfig,
 } from "./presentation/components";
 
-export { buildInvoiceCreatePathFromTrip } from "./presentation/financeInvoiceFromTripCta";
+export {
+  buildInvoiceCreatePathFromTrip,
+  buildTripInvoicingHubPath,
+  shouldOpenInvoiceCreateFromFinanceHub,
+  canShowInvoiceFromTripCta,
+} from "./presentation/financeInvoiceFromTripCta";

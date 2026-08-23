@@ -36,7 +36,7 @@ vi.mock("@features/invoicing/application", () => ({
   useCancelInvoice: () => ({ mutate: vi.fn(), isPending: false }),
   useSubstituteStampedInvoice: () => ({ mutate: vi.fn(), isPending: false }),
   useOpenInvoicePdf: () => ({ mutate: vi.fn(), isPending: false }),
-  downloadInvoiceXml: vi.fn(),
+  useDownloadInvoiceXml: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const mockUseTrip = vi.fn(() => ({
@@ -209,7 +209,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
   it("manager with execute sees Cancelar and Sustituir but not Eliminar borrador", () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
-        action === "execute" || action === "export",
+        action === "execute" || action === "read",
     );
 
     renderActions(
@@ -234,7 +234,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
     mockUseRole.mockReturnValue("accountant");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
-        action === "execute" || action === "export",
+        action === "execute" || action === "read",
     );
 
     renderActions(
@@ -255,7 +255,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
   it("hides Sustituir on stamped freight CFDI when the trip is false_trip", () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
-        action === "execute" || action === "export",
+        action === "execute" || action === "read",
     );
     mockUseTrip.mockReturnValue({
       data: { operationalOutcome: "false_trip" },
@@ -293,7 +293,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
   it("manager with cobros sees Sustituir disabled instead of hiding it", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
-        action === "execute" || action === "export",
+        action === "execute" || action === "read",
     );
 
     renderActions(
@@ -435,7 +435,7 @@ describe("InvoiceActions portal client export", () => {
     ).toBeInTheDocument();
   });
 
-  it("staff without export does not see PDF/XML", () => {
+  it("dispatcher with invoices.read sees PDF/XML (API lockstep)", () => {
     mockUseRole.mockReturnValue("dispatcher");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "read",
@@ -444,7 +444,10 @@ describe("InvoiceActions portal client export", () => {
     renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
 
     expect(
-      screen.queryByRole("button", { name: /Descargar PDF/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Descargar PDF/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Descargar XML/i }),
+    ).toBeInTheDocument();
   });
 });

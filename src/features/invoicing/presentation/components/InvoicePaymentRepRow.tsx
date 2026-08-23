@@ -8,7 +8,7 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { Payment } from "@features/invoicing/domain";
 import {
-  downloadRepXml,
+  useDownloadRepXml,
   useOpenRepPdf,
 } from "@features/invoicing/application";
 import {
@@ -120,20 +120,25 @@ export function InvoicePaymentRepRow({
       }),
   });
 
+  const { mutate: downloadRepXmlMutate, isPending: downloadingRepXml } =
+    useDownloadRepXml({
+      onError: (err) =>
+        toast({
+          variant: "destructive",
+          title: copy.toast.repXmlError,
+          description: getErrorMessage(err),
+        }),
+    });
+
   const handleDownloadXml = () => {
-    try {
-      downloadRepXml(
-        invoiceId,
-        payment.id,
-        buildRepXmlFilename(invoiceSerieFolio, payment.repNumParcialidad),
-      );
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: copy.toast.repXmlError,
-        description: getErrorMessage(err),
-      });
-    }
+    downloadRepXmlMutate({
+      invoiceId,
+      paymentId: payment.id,
+      filename: buildRepXmlFilename(
+        invoiceSerieFolio,
+        payment.repNumParcialidad,
+      ),
+    });
   };
 
   return (
@@ -201,9 +206,14 @@ export function InvoicePaymentRepRow({
                     variant="outline"
                     className="h-7 text-xs"
                     onClick={handleDownloadXml}
+                    disabled={downloadingRepXml}
                     title={copy.header.repXmlTitle}
                   >
-                    <FileCode className="mr-1.5 h-3.5 w-3.5" />
+                    {downloadingRepXml ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <FileCode className="mr-1.5 h-3.5 w-3.5" />
+                    )}
                     {copy.header.repXml}
                   </Button>
                 )}

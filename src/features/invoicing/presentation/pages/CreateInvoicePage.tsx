@@ -67,6 +67,11 @@ import {
   invoiceCreateHydrationKey,
   shouldHydrateInvoiceCreate,
 } from "./invoiceCreateHydration";
+import {
+  invoiceEditHydrationKey,
+  shouldHydrateInvoiceEdit,
+} from "./invoiceEditHydration";
+import { resolveInvoiceEditPageGate } from "./invoiceEditPageGate";
 
 const copy = invoicingCopy;
 
@@ -95,10 +100,17 @@ export function CreateInvoicePage() {
   /** Pantalla de origen; la envía quien navega aquí (hub, detalle de viaje). */
   const fromState = location.state?.from as string | undefined;
   const billingScope = parseInvoiceBillingScope(searchParams.get("scope"));
+  const splitLegId = searchParams.get("leg_id");
+  const attachCartaPorteFromQuery =
+    searchParams.get("attach_carta_porte") === "1" ||
+    searchParams.get("attach_carta_porte") === "true";
   const isAccessoryScope = billingScope === "accessory";
   const isFalseTripScope = billingScope === "false_trip";
+  const isSplitShareScope = billingScope === "split_share";
   const isServiceOnlyScope = isServiceOnlyBillingScope(billingScope);
   const hasTripContext = Boolean(tripId);
+  const isSplitShareMissingLegId =
+    !isEditMode && isSplitShareScope && hasTripContext && !splitLegId?.trim();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canInvoiceFromTrip = canShowInvoiceFromTripCta(hasPermission);
@@ -113,29 +125,46 @@ export function CreateInvoicePage() {
     ? copy.edit.title
     : isFalseTripScope
       ? copy.create.titleFalseTrip
-      : isAccessoryScope
-        ? copy.create.titleAccessory
-        : copy.create.title;
+      : isSplitShareScope
+        ? copy.create.titleSplitShare
+        : isAccessoryScope
+          ? copy.create.titleAccessory
+          : copy.create.title;
 
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiErrorMessages, setApiErrorMessages] = useState<string[]>([]);
   const hydratedPrefillKeyRef = useRef<string | null>(null);
+  const [attachCartaPorte, setAttachCartaPorte] = useState(
+    attachCartaPorteFromQuery,
+  );
+  const hydratedEditKeyRef = useRef<string | null>(null);
 
   const {
     data: prefill,
     isLoading: prefillLoading,
     isError: prefillIsError,
     error: prefillError,
-  } = useInvoicePrefill(tripId, billingScope);
+  } = useInvoicePrefill(tripId, billingScope, splitLegId);
   const { data: tripContext, isLoading: isTripContextLoading } = useTrip(tripId, {
     enabled: !isEditMode && hasTripContext,
   });
+
+  const isBlockedByActiveSplitWrongScope =
+    !isEditMode &&
+    !!tripContext?.invoicing.hasActiveSplit &&
+    !isSplitShareScope &&
+    !isAccessoryScope &&
+    !isFalseTripScope;
+  const cartaPorteAlreadyAttached =
+    tripContext?.invoicing.cartaPorteAttached === true;
+  const splitShareCopy = copy.splitShare;
 
   const {
     data: editableInvoice,
     isLoading: isLoadingEditableInvoice,
     isError: isEditableInvoiceError,
     error: editableInvoiceError,
+    refetch: refetchEditableInvoice,
   } = useInvoice(invoiceId ?? "");
 
   const { clientType: receiverClientType, isResolving: isResolvingReceiverClientType } =
@@ -177,9 +206,11 @@ export function CreateInvoicePage() {
     !!tripContext &&
     (isFalseTripScope
       ? !tripContext.invoicing.canGenerateFalseTripInvoice
-      : isAccessoryScope
-        ? !tripContext.invoicing.canGenerateAccessoryInvoice
-        : !tripContext.invoicing.canGenerateInvoice);
+      : isSplitShareScope
+        ? !tripContext.invoicing.canGenerateSplitShareInvoice
+        : isAccessoryScope
+          ? !tripContext.invoicing.canGenerateAccessoryInvoice
+          : !tripContext.invoicing.canGenerateInvoice);
   const linkedInvoiceId = tripContext?.invoicing.invoiceId ?? null;
   const linkedInvoiceFolio = tripContext?.invoicing.invoiceFolio ?? null;
   const blockedReason =
@@ -197,7 +228,7 @@ export function CreateInvoicePage() {
     isFalseTripBlockedByError;
 
   const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema as never) as Resolver<InvoiceFormValues>,
+    resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
     defaultValues: defaultInvoiceFormValues(),
     mode: "onChange",
   });
@@ -223,7 +254,12 @@ export function CreateInvoicePage() {
     control: form.control,
     name: "payment_method",
   });
-  const taxRate = prefill?.taxRate ?? 0.16;
+  const taxRate = isEditMode
+    ? (editableInvoice?.concepts.find((line) => line.conceptType === "flete")
+        ?.ivaRate ??
+      editableInvoice?.concepts[0]?.ivaRate ??
+      0.16)
+    : (prefill?.taxRate ?? 0.16);
 
   const readiness = getInvoiceCreateReadiness({
     receiver_name: receiverName ?? "",
@@ -329,14 +365,44 @@ export function CreateInvoicePage() {
     }
   }, [tripId, isEditMode, form]);
 
+    useEffect(() => {
+    if (!isSplitShareScope || isEditMode) return;
+    if (typeof prefill?.attachCartaPorte === "boolean") {
+      setAttachCartaPorte(prefill.attachCartaPorte);
+    } else if (attachCartaPorteFromQuery) {
+      setAttachCartaPorte(true);
+    }
+  }, [
+    isSplitShareScope,
+    isEditMode,
+    prefill?.attachCartaPorte,
+    attachCartaPorteFromQuery,
+  ]);
+
   useEffect(() => {
+    if (
+      isSplitShareScope &&
+      !isEditMode &&
+      cartaPorteAlreadyAttached &&
+      attachCartaPorte
+    ) {
+      setAttachCartaPorte(false);
+    }
+  }, [
+    isSplitShareScope,
+    isEditMode,
+    cartaPorteAlreadyAttached,
+    attachCartaPorte,
+  ]);
+
+useEffect(() => {
     if (!isEditMode && prefill) {
       if (
         !shouldHydrateInvoiceCreate(
           hydratedPrefillKeyRef.current,
           tripId,
           billingScope,
-          { formIsDirty: form.formState.isDirty },
+          { formIsDirty: form.formState.isDirty, legId: splitLegId },
         )
       ) {
         return;
@@ -344,6 +410,7 @@ export function CreateInvoicePage() {
       hydratedPrefillKeyRef.current = invoiceCreateHydrationKey(
         tripId,
         billingScope,
+        splitLegId,
       );
       const personaMoral = prefill.clientType === "company";
       const resolvedTaxRate = prefill.taxRate ?? 0.16;
@@ -387,6 +454,15 @@ export function CreateInvoicePage() {
   useEffect(() => {
     if (!isEditMode || !editableInvoice) return;
     if (isResolvingReceiverClientType) return;
+    if (
+      !shouldHydrateInvoiceEdit(
+        hydratedEditKeyRef.current,
+        editableInvoice.id,
+        { formIsDirty: form.formState.isDirty },
+      )
+    ) {
+      return;
+    }
 
     const retentionRequiredForEdit = inferRetentionRequired({
       clientType: receiverClientType,
@@ -395,6 +471,7 @@ export function CreateInvoicePage() {
       concepts: editableInvoice.concepts,
     });
 
+    hydratedEditKeyRef.current = invoiceEditHydrationKey(editableInvoice.id);
     form.reset({
       receiver_rfc: editableInvoice.receiverRfc ?? "",
       receiver_name: editableInvoice.receiverName ?? "",
@@ -504,7 +581,10 @@ export function CreateInvoicePage() {
       return;
     }
 
-    const parsed = safeParseCreateInvoicePayload(values, tripId, billingScope);
+    const parsed = safeParseCreateInvoicePayload(values, tripId, billingScope, {
+      splitLegId: isSplitShareScope ? splitLegId : undefined,
+      attachCartaPorte: isSplitShareScope ? attachCartaPorte : undefined,
+    });
     if (!parsed.success) {
       const messages = parsed.error.issues.map((issue) => issue.message);
       setApiErrorMessages(messages);
@@ -528,6 +608,8 @@ export function CreateInvoicePage() {
     mutate({
       tripIds: payload.trip_ids,
       billingScope: payload.billing_scope ?? billingScope,
+      splitLegId: isSplitShareScope ? (splitLegId ?? undefined) : undefined,
+      attachCartaPorte: isSplitShareScope ? attachCartaPorte : undefined,
       receiverRfc: payload.receiver_rfc,
       receiverName: payload.receiver_name,
       cfdiUsage: payload.cfdi_usage,
@@ -546,11 +628,22 @@ export function CreateInvoicePage() {
     });
   };
 
-  // En alta el código del viaje vive una sola vez, en la línea de contexto.
+  // En alta el código del viaje vive en la tarjeta resumen.
   const shellSubtitle =
     isEditMode && editableInvoice
       ? copy.edit.subtitleDraft(editableInvoice.serie, editableInvoice.folio)
       : undefined;
+  const hasTripPrefill = !isEditMode && Boolean(prefill);
+  const conceptsSectionDescription =
+    hasTripPrefill
+      ? undefined
+      : formBillingScope === "false_trip"
+        ? copy.concepts.sectionDescriptionFalseTrip
+        : formBillingScope === "split_share"
+          ? copy.concepts.sectionDescriptionSplitShare
+          : isServiceOnlyBillingScope(formBillingScope)
+            ? copy.concepts.sectionDescriptionAccessory
+            : copy.concepts.sectionDescription;
 
   const fieldErrorMessages = collectFieldErrorMessages(form.formState.errors);
   const validationSummaryMessages = [...fieldErrorMessages, ...apiErrorMessages];
@@ -565,7 +658,16 @@ export function CreateInvoicePage() {
     !isCreateBlocked &&
     (isTripContextLoading || prefillLoading);
 
-  if (isEditMode && isLoadingEditableInvoice) {
+  const editPageGate = isEditMode
+    ? resolveInvoiceEditPageGate({
+        isLoading: isLoadingEditableInvoice,
+        isError: isEditableInvoiceError,
+        error: editableInvoiceError,
+        invoice: editableInvoice,
+      })
+    : null;
+
+  if (editPageGate?.kind === "loading") {
     return (
       <InvoiceFormPageShell
         isLoading
@@ -575,7 +677,51 @@ export function CreateInvoicePage() {
     );
   }
 
-  if (isEditMode && (!editableInvoice || editableInvoice.status !== "draft")) {
+  if (editPageGate?.kind === "loadError") {
+    const isForbidden = editPageGate.errorState === "forbidden";
+    return (
+      <InvoiceFormPageShell
+        backHref="/finance?tab=invoices"
+        title={copy.edit.title}
+        subtitle={copy.edit.loadErrorToast}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {isForbidden
+                ? copy.edit.loadErrorForbiddenTitle
+                : copy.edit.loadErrorTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {isForbidden
+                ? copy.edit.loadErrorForbiddenBody
+                : editableInvoiceError
+                  ? getErrorMessage(editableInvoiceError)
+                  : copy.edit.loadErrorBody}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                onClick={() => void refetchEditableInvoice()}
+              >
+                {copy.edit.loadErrorRetry}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/finance?tab=invoices")}
+              >
+                {copy.edit.backToFinance}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </InvoiceFormPageShell>
+    );
+  }
+
+  if (editPageGate?.kind === "notEditable") {
     return (
       <InvoiceFormPageShell
         backHref="/finance?tab=invoices"
@@ -640,6 +786,31 @@ export function CreateInvoicePage() {
     );
   }
 
+  if (!isEditMode && isSplitShareMissingLegId) {
+    return (
+      <InvoiceFormPageShell
+        backHref={shellBackHref}
+        title={shellTitle}
+        subtitle={copy.create.blockedSubtitleSplitShare}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>{splitShareCopy.missingLegIdTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <InvoiceBillingScopeBanner scope="split_share" notThisOnly />
+            <p className="text-sm text-muted-foreground">
+              {splitShareCopy.missingLegIdBody}
+            </p>
+            <Button onClick={() => navigate(`/trips/${tripId}`)}>
+              {splitShareCopy.viewTripInvoicing}
+            </Button>
+          </CardContent>
+        </Card>
+      </InvoiceFormPageShell>
+    );
+  }
+
   if (!isEditMode && isCreateBlocked) {
     const blockedByOperationSat =
       isBlockedByTripContext &&
@@ -648,7 +819,9 @@ export function CreateInvoicePage() {
       !isFalseTripBlockedByError &&
       !linkedInvoiceId &&
       !!tripContext?.invoicing.blockReason;
-    const blockedTitle = isFalseTripScope
+    const blockedTitle = isBlockedByActiveSplitWrongScope
+      ? copy.blocked.titleSplitShare
+      : isFalseTripScope
       ? copy.blocked.titleFalseTrip
       : isAccessoryScope
         ? copy.blocked.titleAccessory
@@ -656,12 +829,18 @@ export function CreateInvoicePage() {
           ? copy.blocked.titleNotReady
           : copy.blocked.title;
 
+    const blockedBody = isBlockedByActiveSplitWrongScope
+      ? copy.blocked.bodySplitShare
+      : blockedReason;
+
     return (
       <InvoiceFormPageShell
         backHref={shellBackHref}
         title={shellTitle}
         subtitle={
-          isFalseTripScope
+          isBlockedByActiveSplitWrongScope
+            ? copy.create.blockedSubtitleSplitShare
+            : isFalseTripScope
             ? copy.create.blockedSubtitleFalseTrip
             : isAccessoryScope
               ? copy.create.blockedSubtitleAccessory
@@ -673,9 +852,22 @@ export function CreateInvoicePage() {
             <CardTitle>{blockedTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{blockedReason}</p>
+            <InvoiceBillingScopeBanner scope={billingScope} notThisOnly />
+            <p className="text-sm text-muted-foreground">{blockedBody}</p>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => navigate(shellBackHref)}>{copy.blocked.backToTrip}</Button>
+              <Button
+                onClick={() =>
+                  navigate(
+                    isBlockedByActiveSplitWrongScope && tripId
+                      ? `/trips/${tripId}`
+                      : shellBackHref,
+                  )
+                }
+              >
+                {isBlockedByActiveSplitWrongScope
+                  ? splitShareCopy.viewTripInvoicing
+                  : copy.blocked.backToTrip}
+              </Button>
               {tripId && /ruta|paradas|coordenadas|distancias|carta\s+porte/i.test(blockedReason) ? (
                 <Button
                   variant="outline"
@@ -692,21 +884,21 @@ export function CreateInvoicePage() {
                   {copy.blocked.goToCargoTab}
                 </Button>
               ) : null}
-              {linkedInvoiceId ? (
+              {linkedInvoiceId && !isBlockedByActiveSplitWrongScope ? (
                 <Button
                   variant="outline"
                   onClick={() => navigate(`/invoices/${linkedInvoiceId}`)}
                 >
                   {copy.blocked.viewInvoice(linkedInvoiceFolio)}
                 </Button>
-              ) : (
+              ) : !isBlockedByActiveSplitWrongScope ? (
                 <Button
                   variant="outline"
                   onClick={() => navigate("/finance?tab=invoices")}
                 >
                   {copy.blocked.goFinance}
                 </Button>
-              )}
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -732,29 +924,38 @@ export function CreateInvoicePage() {
         )}
         className="space-y-6"
       >
-        <InvoiceBillingScopeBanner scope={formBillingScope} />
+        <InvoiceCreateContextCards
+          mode={isEditMode ? "edit" : "create"}
+          prefill={prefill}
+          tripId={tripId}
+          invoice={editableInvoice}
+          receiverName={receiverName}
+          receiverRfc={receiverRfc}
+          total={total}
+          sharePercent={isSplitShareScope ? prefill?.sharePercent : undefined}
+          splitLegsInvoiced={
+            isSplitShareScope
+              ? tripContext?.invoicing.splitLegsInvoiced
+              : undefined
+          }
+          splitLegsTotal={
+            isSplitShareScope ? tripContext?.invoicing.splitLegsTotal : undefined
+          }
+          attachCartaPorte={
+            isSplitShareScope && !isEditMode ? attachCartaPorte : undefined
+          }
+          showCartaPorte={isSplitShareScope && !isEditMode}
+          cartaPorteAlreadyAttached={cartaPorteAlreadyAttached}
+          onAttachCartaPorteChange={
+            isSplitShareScope && !isEditMode ? setAttachCartaPorte : undefined
+          }
+        />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:items-start">
           <div className="order-2 space-y-6 lg:order-1">
-            <InvoiceCreateContextCards
-              mode={isEditMode ? "edit" : "create"}
-              prefill={prefill}
-              tripId={tripId}
-              invoice={editableInvoice}
-              receiverName={receiverName}
-              receiverRfc={receiverRfc}
-              total={total}
-            />
-
             <FormSectionCard
               title={copy.section.concepts}
-              description={
-                formBillingScope === "false_trip"
-                  ? copy.concepts.sectionDescriptionFalseTrip
-                  : isServiceOnlyBillingScope(formBillingScope)
-                    ? copy.concepts.sectionDescriptionAccessory
-                    : copy.concepts.sectionDescription
-              }
+              description={conceptsSectionDescription}
               icon={<ClipboardList className="h-4 w-4" />}
               contentClassName="pt-0"
             >
@@ -778,6 +979,7 @@ export function CreateInvoicePage() {
             <InvoiceFiscalComprobanteCard
               control={control}
               onEdit={() => openReceiverSheet()}
+              receiverReady={readiness.receiverOk}
             />
 
             <FormSectionCard
@@ -807,9 +1009,13 @@ export function CreateInvoicePage() {
               }}
             />
 
-            <InvoiceAmountsSummaryPanel control={control} className="w-full" />
+            <InvoiceAmountsSummaryPanel
+              control={control}
+              className="w-full"
+              hideTotal={!isEditMode}
+            />
 
-            {/* CTA en rail (desktop): totales y consecuencia siempre a la vista. */}
+            {/* CTA en rail (desktop): importes sin total duplicado. */}
             <div className="hidden space-y-3 rounded-lg border bg-card p-4 shadow-sm lg:block">
               {showValidationSummary && validationSummaryMessages.length > 0 ? (
                 <FormValidationSummary
@@ -819,24 +1025,11 @@ export function CreateInvoicePage() {
                 />
               ) : null}
 
-              <div className="space-y-0.5">
-                <p className="text-sm text-muted-foreground">
-                  {copy.amountsPanel.totalLabel}{" "}
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {formatMxCurrency(total)}
-                  </span>
+              {!isEditMode ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.create.submitHint}
                 </p>
-                {!isEditMode ? (
-                  <>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.create.submitConsequence}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.create.stageHint}
-                    </p>
-                  </>
-                ) : null}
-              </div>
+              ) : null}
 
               <div className="flex flex-col gap-2">
                 <Button type="submit" disabled={isPending || isUpdating}>
@@ -878,7 +1071,7 @@ export function CreateInvoicePage() {
               </p>
               {!isEditMode ? (
                 <p className="text-xs text-muted-foreground">
-                  {copy.create.submitConsequence}
+                  {copy.create.submitHint}
                 </p>
               ) : null}
             </div>

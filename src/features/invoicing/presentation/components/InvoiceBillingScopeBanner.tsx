@@ -12,9 +12,12 @@ const bannerCopy = invoicingCopy.scopeBanner;
 export function InvoiceBillingScopeBanner({
   scope,
   className,
+  /** Solo el aviso «no es…» para pantallas bloqueadas (D2). */
+  notThisOnly = false,
 }: {
   scope: InvoiceBillingScope | null | undefined;
   className?: string;
+  notThisOnly?: boolean;
 }) {
   const resolved = parseInvoiceBillingScope(scope);
   const content =
@@ -22,7 +25,17 @@ export function InvoiceBillingScopeBanner({
       ? bannerCopy.accessory
       : resolved === "false_trip"
         ? bannerCopy.falseTrip
-        : bannerCopy.primary;
+        : resolved === "split_share"
+          ? bannerCopy.splitShare
+          : bannerCopy.primary;
+
+  if (notThisOnly) {
+    return (
+      <AlertWithIcon variant="info" className={cn(className)} title={content.title}>
+        <p className="text-muted-foreground">{content.notThis}</p>
+      </AlertWithIcon>
+    );
+  }
 
   return (
     <AlertWithIcon

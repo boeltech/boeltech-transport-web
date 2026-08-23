@@ -43,6 +43,25 @@ describe("shouldHydrateInvoiceCreate", () => {
     const key = invoiceCreateHydrationKey("trip-a", "primary_transport");
     expect(shouldHydrateInvoiceCreate(key, "trip-a", "accessory")).toBe(true);
     expect(shouldHydrateInvoiceCreate(key, "trip-a", "false_trip")).toBe(true);
+    expect(shouldHydrateInvoiceCreate(key, "trip-a", "split_share")).toBe(true);
+  });
+
+  it("includes legId in hydration key for split_share", () => {
+    expect(
+      invoiceCreateHydrationKey("trip-a", "split_share", "leg-1"),
+    ).toBe("trip-a:split_share:leg-1");
+    const key = invoiceCreateHydrationKey("trip-a", "split_share", "leg-1");
+    expect(
+      shouldHydrateInvoiceCreate(key, "trip-a", "split_share", {
+        legId: "leg-2",
+      }),
+    ).toBe(true);
+    expect(
+      shouldHydrateInvoiceCreate(key, "trip-a", "split_share", {
+        legId: "leg-1",
+        formIsDirty: true,
+      }),
+    ).toBe(false);
   });
 
   it("does not hydrate without a trip id", () => {

@@ -4,14 +4,20 @@
 export const invoicingCopy = {
   create: {
     title: "Nueva factura",
-    titleAccessory: "Nueva factura accesoria",
+    titleAccessory: "Nueva factura de servicios adicionales",
     titleFalseTrip: "Nueva factura de viaje en falso",
-    submit: "Guardar borrador",
-    /** Consecuencia del CTA: el borrador no es una factura válida todavía. */
-    submitConsequence:
-      "Se guarda como borrador. En el siguiente paso lo revisas y lo timbras.",
-    /** Indicador de etapa: alta = paso 1; timbrar vive en el detalle. */
-    stageHint: "Paso 1 de 2: guardar borrador. Después lo timbras en el detalle.",
+    titleSplitShare: "Nueva factura de flete prorrateado",
+    subtitleSplitShare: (
+      receiverName: string,
+      percent: number,
+      invoiced: number,
+      totalLegs: number,
+    ) =>
+      `${receiverName} · ${percent}% del flete · ${invoiced} de ${totalLegs} porciones facturadas`,
+    submit: "Guardar para revisar",
+    /** Hint único del rail CTA (alta). */
+    submitHint:
+      "Se guarda para revisar; después la sellas en el detalle.",
     successToast: "Factura creada exitosamente",
     errorToast: "Error al crear factura",
     tripRequiredToast: "Viaje requerido",
@@ -23,6 +29,8 @@ export const invoicingCopy = {
       "No se pueden facturar servicios adicionales para este viaje",
     blockedSubtitleFalseTrip:
       "No se puede emitir la factura de viaje en falso para este viaje",
+    blockedSubtitleSplitShare:
+      "Factura cada porción del reparto desde el detalle del viaje",
   },
   edit: {
     title: "Editar factura",
@@ -30,6 +38,13 @@ export const invoicingCopy = {
     successToast: "Factura actualizada exitosamente",
     errorToast: "Error al actualizar factura",
     loadErrorToast: "No se pudo cargar el borrador",
+    loadErrorTitle: "No se pudo cargar la factura",
+    loadErrorBody:
+      "Revisa tu conexión o permisos e inténtalo de nuevo. Si el problema continúa, vuelve a finanzas.",
+    loadErrorForbiddenTitle: "Sin acceso a esta factura",
+    loadErrorForbiddenBody:
+      "No tienes permiso para ver o editar esta factura.",
+    loadErrorRetry: "Reintentar",
     subtitleDraft: (serie: string, folio: number) => `Borrador ${serie}-${folio}`,
     notEditableTitle: "Edición no disponible",
     notEditableHint: "Solo borradores son editables",
@@ -48,6 +63,9 @@ export const invoicingCopy = {
     titleNotReady: "Faltan datos del viaje para poder facturar",
     titleAccessory: "Servicios adicionales no disponibles",
     titleFalseTrip: "Factura de viaje en falso no disponible",
+    titleSplitShare: "Facturación por reparto del flete",
+    bodySplitShare:
+      "Este viaje reparte el flete entre varios clientes. Abre la facturación del viaje y emite una factura por cada porción acordada.",
     backToTrip: "Volver al viaje",
     goToRouteTab: "Ir a Ruta",
     goToCargoTab: "Ir a Carga",
@@ -56,34 +74,43 @@ export const invoicingCopy = {
     goFinance: "Ir a finanzas",
   },
   billingScope: {
-    /** Glosario alineado a guías ADR-0068 / 0079. */
+    /** Glosario alineado a guías ADR-0068 / 0079 / 0081. */
     primary: "Flete",
-    accessory: "Accesoria",
+    accessory: "Servicios adicionales",
     falseTrip: "Viaje en falso",
+    splitShare: "Flete prorrateado",
   },
   /** Banner de alcance en /invoices/new — identidad del documento above-the-fold. */
   scopeBanner: {
     primary: {
       title: "Factura de flete",
       body: "Cobro del transporte de este viaje. Al timbrar incluirá Carta Porte.",
-      notThis: "No es solo maniobras/estadías ni un viaje en falso.",
+      notThis:
+        "No es servicios adicionales ni viaje en falso ni una porción del reparto del flete.",
     },
     accessory: {
-      title: "Factura accesoria",
-      body: "Solo servicios adicionales (maniobras, estadías, resguardo). El flete ya va en otra factura.",
-      notThis: "No incluye flete ni Carta Porte.",
+      title: "Factura de servicios adicionales",
+      body: "Solo maniobras, estadías o resguardo (0 flete). El flete ya va en otra factura del viaje.",
+      notThis:
+        "No incluye flete ni Carta Porte. No uses esto como otra porción del reparto del flete.",
     },
     falseTrip: {
       title: "Factura de viaje en falso",
       body: "Cobro del desplazamiento cuando no hubo carga entregada.",
-      notThis: "Sin flete de mercancía y sin Carta Porte.",
+      notThis:
+        "Sin flete de mercancía y sin Carta Porte. Incompatible con reparto del flete entre clientes.",
+    },
+    splitShare: {
+      title: "Porción del flete de este viaje",
+      body: "Cobro de la porción acordada para este receptor en el reparto del flete. Carta Porte solo si esta factura la porta.",
+      notThis: "No es servicios adicionales (0 flete) ni viaje en falso.",
     },
   },
   checklist: {
     title: "Antes de guardar",
-    receiver: "Receptor",
-    receiverDone: "Datos fiscales listos",
-    receiverPending: "Revisa o corrige los datos fiscales",
+    receiver: "Cliente a cobrar",
+    receiverDone: "Datos de cobro listos",
+    receiverPending: "Revisa o corrige los datos de cobro",
     concepts: "Conceptos",
     conceptsDone: "Hay conceptos de cobro",
     conceptsPending: "Agrega al menos un concepto",
@@ -103,7 +130,7 @@ export const invoicingCopy = {
   },
   createContext: {
     // Línea de contexto del alta: a quién · qué viaje · cuánto.
-    receiverHeading: "Se factura a",
+    receiverHeading: "Cliente a cobrar",
     tripLabel: "Viaje",
     totalHeading: "Total a facturar",
     currencyCode: "MXN",
@@ -116,12 +143,31 @@ export const invoicingCopy = {
     tripBaseRate: "Tarifa base",
     receiverPrefilledHint: "Receptor precargado desde el cliente del viaje.",
     contextFooterEdit: "Viajes asociados a este borrador (no editables aquí).",
+    splitSharePercent: (percent: number) => `Porción del flete: ${percent}%`,
+    splitShareProgress: (invoiced: number, total: number) =>
+      `${invoiced} de ${total} porciones facturadas en el viaje`,
+    splitShareProgressLabel: "Progreso del reparto",
+  },
+  splitShare: {
+    missingLegIdTitle: "Elige la porción a facturar",
+    missingLegIdBody:
+      "Esta factura corresponde a una porción del reparto del flete. Ábrela desde la facturación del viaje y elige el cliente.",
+    attachCartaPorteLabel: "Adjuntar Carta Porte a esta factura",
+    attachCartaPorteHint: "Solo una porción del viaje debe portar Carta Porte.",
+    attachCartaPorteDisabledHint:
+      "Carta Porte ya adjunta en otra factura de este viaje.",
+    cartaPorteOnInvoice: "Carta Porte en esta factura: sí",
+    cartaPorteOffInvoice: "Carta Porte en esta factura: no",
+    viewTripInvoicing: "Ver facturación del viaje",
+    sharePercentShort: (percent: number) => `${percent}% del flete`,
   },
   comprobante: {
-    title: "Datos fiscales",
+    title: "Datos de cobro",
     description:
-      "Así se emitirá la factura. Se toman del cliente del viaje.",
-    edit: "Corregir datos fiscales",
+      "Régimen, uso de la factura y condiciones de pago del cliente a cobrar.",
+    edit: "Revisar o corregir",
+    collapsedReady: "Listos para guardar",
+    collapsedPending: "Faltan datos de cobro",
     subsectionReceiver: "Receptor",
     subsectionPayment: "Condiciones de cobro",
     paymentSummary: (paymentMethod: string, paymentForm: string) =>
@@ -562,6 +608,7 @@ export const invoicingCopy = {
         "Ya tiene cobros o complementos de pago. No hay asistente para migrar REP.",
       cancel: "Cancelar",
       pdfError: "No se pudo abrir el PDF",
+      xmlError: "No se pudo descargar el XML",
     },
     cancelDialog: {
       title: "Cancelar factura",
@@ -606,6 +653,8 @@ export const invoicingCopy = {
       "Esta factura incluye solo servicios (maniobras, estadías, resguardo). No lleva flete.",
     sectionDescriptionFalseTrip:
       "Un servicio por el desplazamiento. Sin flete y sin Carta Porte. Confirma la clave SAT del catálogo.",
+    sectionDescriptionSplitShare:
+      "Solo la porción de flete acordada para este receptor. No captures el flete completo del viaje.",
     fleteHint: "Concepto principal, ligado a la tarifa del viaje.",
     serviceHint: "Concepto de servicio. Puedes tomarlo de tu catálogo o capturarlo.",
     fleteRowTitle: "Flete",

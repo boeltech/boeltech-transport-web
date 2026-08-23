@@ -11,11 +11,14 @@ import {
 } from "@shared/ui/card";
 import { TripListRouteLabel } from "@features/trips";
 import type { Invoice } from "@features/invoicing/domain";
+import { parseInvoiceBillingScope } from "@features/invoicing/domain";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { InvoiceBillingScopeBadge } from "./InvoiceBillingScopeBadge";
 
 const detailCopy = invoicingCopy.detail;
+const splitShareCopy = invoicingCopy.splitShare;
+const createContextCopy = invoicingCopy.createContext;
 
 export interface InvoiceDetailContextStripProps {
   invoice: Invoice;
@@ -84,6 +87,18 @@ export function InvoiceDetailContextStrip({
                   }}
                   className="mt-1 text-xs text-muted-foreground"
                 />
+                {parseInvoiceBillingScope(trip.billingScope) === "split_share" ? (
+                  <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                    {trip.sharePercent != null ? (
+                      <p>{createContextCopy.splitSharePercent(trip.sharePercent)}</p>
+                    ) : null}
+                    <p>
+                      {trip.attachCartaPorte
+                        ? splitShareCopy.cartaPorteOnInvoice
+                        : splitShareCopy.cartaPorteOffInvoice}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

@@ -18,6 +18,7 @@ export {
   downloadRepXml,
   useOpenRepPdf,
   useDownloadInvoiceXml,
+  useDownloadRepXml,
 } from "./hooks/useInvoices";
 
 export { useInvoiceReceiverClientType } from "./hooks/useInvoiceReceiverClientType";

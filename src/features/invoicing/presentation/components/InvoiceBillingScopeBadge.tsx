@@ -19,14 +19,18 @@ export function InvoiceBillingScopeBadge({
       ? invoicingCopy.billingScope.accessory
       : resolved === "false_trip"
         ? invoicingCopy.billingScope.falseTrip
-        : invoicingCopy.billingScope.primary;
+        : resolved === "split_share"
+          ? invoicingCopy.billingScope.splitShare
+          : invoicingCopy.billingScope.primary;
 
   const variant =
     resolved === "false_trip"
       ? "warning"
-      : resolved === "primary_transport"
-        ? "secondary"
-        : "outline";
+      : resolved === "split_share"
+        ? "default"
+        : resolved === "primary_transport"
+          ? "secondary"
+          : "outline";
 
   return (
     <Badge

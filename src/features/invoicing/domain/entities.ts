@@ -130,9 +130,10 @@ export interface InvoiceListItem {
 export type InvoiceBillingScope =
   | "primary_transport"
   | "accessory"
-  | "false_trip";
+  | "false_trip"
+  | "split_share";
 
-/** ADR-0079: accesoria y falso no llevan flete ni Carta Porte. */
+/** ADR-0079: accesoria y falso no llevan flete ni Carta Porte. `split_share` SÍ lleva flete. */
 export function isServiceOnlyBillingScope(
   scope: InvoiceBillingScope | null | undefined,
 ): boolean {
@@ -142,7 +143,11 @@ export function isServiceOnlyBillingScope(
 export function parseInvoiceBillingScope(
   raw: string | null | undefined,
 ): InvoiceBillingScope {
-  if (raw === "accessory" || raw === "false_trip") {
+  if (
+    raw === "accessory" ||
+    raw === "false_trip" ||
+    raw === "split_share"
+  ) {
     return raw;
   }
   return "primary_transport";
@@ -160,8 +165,14 @@ export interface InvoiceTripRef {
   readonly destinationState: string | null;
   /** Tarifa base del viaje (`trips.base_rate`). */
   readonly baseRate: number;
-  /** ADR-0068: rol del vínculo viaje↔factura. */
+  /** ADR-0068 / ADR-0081: rol del vínculo viaje↔factura. */
   readonly billingScope: InvoiceBillingScope;
+  /** ADR-0081: porción del reparto (solo split_share). */
+  readonly splitLegId?: string | null;
+  /** ADR-0081: esta factura porta Carta Porte. */
+  readonly attachCartaPorte?: boolean;
+  /** ADR-0081: % de la porción en el acuerdo (si el API lo envía). */
+  readonly sharePercent?: number | null;
 }
 
 export type InvoiceLineConceptType = "flete" | "service";
@@ -254,6 +265,11 @@ export interface InvoicePrefill {
   readonly tripId: string;
   readonly tripCode: string;
   readonly suggestedConcepts: InvoiceConcept[];
+  /** ADR-0081 */
+  readonly billingScope?: InvoiceBillingScope;
+  readonly splitLegId?: string | null;
+  readonly attachCartaPorte?: boolean;
+  readonly sharePercent?: number | null;
 }
 
 // ============================================================================
@@ -280,6 +296,10 @@ export interface CreateInvoicePayload {
   tripIds: string[];
   /** ADR-0068: default primary_transport. */
   billingScope?: InvoiceBillingScope;
+  /** ADR-0081: requerido si billingScope=split_share. */
+  splitLegId?: string;
+  /** ADR-0081: adjuntar Carta Porte en esta factura (split_share). */
+  attachCartaPorte?: boolean;
   receiverRfc: string;
   receiverName: string;
   cfdiUsage: string;

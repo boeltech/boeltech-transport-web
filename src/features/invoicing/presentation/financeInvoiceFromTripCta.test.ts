@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInvoiceCreatePathFromTrip,
+  buildTripInvoicingHubPath,
   canShowInvoiceFromTripCta,
   FINANCE_INVOICE_FROM_TRIP_CTA,
+  shouldOpenInvoiceCreateFromFinanceHub,
 } from "./financeInvoiceFromTripCta";
 
 describe("canShowInvoiceFromTripCta", () => {
@@ -43,5 +45,31 @@ describe("buildInvoiceCreatePathFromTrip", () => {
         operationalOutcome: "false_trip",
       }),
     ).toBe("/invoices/new?trip_id=trip-1&scope=false_trip");
+  });
+});
+
+describe("shouldOpenInvoiceCreateFromFinanceHub (ADR-0081)", () => {
+  it("bloquea alta primaria cuando hay split activo", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-1",
+        invoicing: { hasActiveSplit: true },
+      }),
+    ).toBe(false);
+  });
+
+  it("permite alta cuando no hay split activo", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-1",
+        invoicing: { hasActiveSplit: false },
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("buildTripInvoicingHubPath", () => {
+  it("abre el detalle del viaje", () => {
+    expect(buildTripInvoicingHubPath("trip-42")).toBe("/trips/trip-42");
   });
 });

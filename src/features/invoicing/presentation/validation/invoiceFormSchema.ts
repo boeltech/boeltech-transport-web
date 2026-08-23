@@ -373,8 +373,14 @@ export function parseCreateInvoicePayload(
   values: InvoiceFormValues,
   tripId: string,
   billingScope: InvoiceBillingScope = "primary_transport",
+  options?: { splitLegId?: string | null; attachCartaPorte?: boolean },
 ) {
-  const parsed = safeParseCreateInvoicePayload(values, tripId, billingScope);
+  const parsed = safeParseCreateInvoicePayload(
+    values,
+    tripId,
+    billingScope,
+    options,
+  );
   if (!parsed.success) {
     throw parsed.error;
   }
@@ -385,14 +391,22 @@ export function safeParseCreateInvoicePayload(
   values: InvoiceFormValues,
   tripId: string,
   billingScope: InvoiceBillingScope = "primary_transport",
+  options?: { splitLegId?: string | null; attachCartaPorte?: boolean },
 ) {
-  const { apply_retained_tax: _apply, retention_required: _retention, ...rest } = values;
+  const { apply_retained_tax: _apply, retention_required: _retention, ...rest } =
+    values;
   void _apply;
   void _retention;
   return createInvoiceSchema.safeParse({
     ...rest,
     trip_ids: tripId ? [tripId] : values.trip_ids ?? [],
     billing_scope: billingScope,
+    ...(options?.splitLegId
+      ? { split_leg_id: options.splitLegId }
+      : {}),
+    ...(typeof options?.attachCartaPorte === "boolean"
+      ? { attach_carta_porte: options.attachCartaPorte }
+      : {}),
   });
 }
 

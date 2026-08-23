@@ -1,17 +1,24 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Invoice } from "@features/invoicing/domain";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 
 const mutateMock = vi.fn();
+let registerPaymentOnError: ((err: Error) => void) | undefined;
 
 vi.mock("@features/invoicing/application", () => ({
-  useRegisterPayment: () => ({
-    mutate: mutateMock,
-    isPending: false,
-  }),
+  useRegisterPayment: (
+    _invoiceId: string,
+    options?: { onError?: (err: Error) => void },
+  ) => {
+    registerPaymentOnError = options?.onError;
+    return {
+      mutate: mutateMock,
+      isPending: false,
+    };
+  },
 }));
 
 vi.mock("@features/catalogs/presentation/components", () => ({
@@ -102,6 +109,7 @@ function renderDialog(invoice: Invoice = buildInvoice()) {
 describe("PaymentFormDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    registerPaymentOnError = undefined;
   });
 
   it("shows operative title, folio, client and balance without PPD/REP in the title", () => {
@@ -132,5 +140,19 @@ describe("PaymentFormDialog", () => {
         amount: 1160,
       }),
     );
+  });
+
+  it("shows Alert when API rejects overpayment (stale balance)", () => {
+    renderDialog();
+    expect(registerPaymentOnError).toBeTypeOf("function");
+
+    const overpayMessage =
+      "El monto del pago excede el saldo pendiente de la factura";
+    act(() => {
+      registerPaymentOnError?.(new Error(overpayMessage));
+    });
+
+    expect(screen.getByText("Error al registrar pago")).toBeInTheDocument();
+    expect(screen.getByText(overpayMessage)).toBeInTheDocument();
   });
 });

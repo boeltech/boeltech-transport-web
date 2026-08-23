@@ -57,9 +57,8 @@ export function InvoiceDetailPage() {
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
-  const canExportFiles =
-    hasPermission("invoices", "export") ||
-    (isClientPortal && hasPermission("invoices", "read"));
+  // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
+  const canExportFiles = hasPermission("invoices", "read");
   const canRetryRep = hasPermission("invoices", "execute");
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(

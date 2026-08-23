@@ -19,6 +19,7 @@ import {
   type CreatePaymentPayload,
   type SubstituteStampedInvoicePayload,
 } from "@features/invoicing/domain";
+import { sanitizeRepLastErrorForDisplay } from "./sanitizeRepLastErrorForDisplay";
 
 // ============================================================================
 // RAW API TYPES (snake_case — solo usados en este archivo)
@@ -62,6 +63,9 @@ interface ApiTripRef {
   destination_state: string | null;
   base_rate: number;
   billing_scope?: string;
+  split_leg_id?: string | null;
+  attach_carta_porte?: boolean;
+  share_percent?: number | null;
 }
 
 interface ApiInvoiceConcept {
@@ -190,6 +194,10 @@ interface ApiInvoicePrefill {
   trip_id: string;
   trip_code: string;
   suggested_concepts?: ApiInvoiceConcept[];
+  billing_scope?: string;
+  split_leg_id?: string | null;
+  attach_carta_porte?: boolean;
+  share_percent?: number | null;
 }
 
 // ============================================================================
@@ -217,7 +225,7 @@ export function mapPayment(raw: unknown): Payment {
     repStampedAt: payment.rep_stamped_at ?? null,
     repStatus: (payment.rep_status ?? "not_required") as Payment["repStatus"],
     repAttempts: payment.rep_attempts ?? 0,
-    repLastError: payment.rep_last_error ?? null,
+    repLastError: sanitizeRepLastErrorForDisplay(payment.rep_last_error),
     hasRepXml: payment.has_rep_xml ?? false,
     repNumParcialidad: payment.rep_num_parcialidad ?? null,
     repImpSaldoAnt: payment.rep_imp_saldo_ant ?? null,
@@ -276,6 +284,10 @@ function mapTripRef(raw: ApiTripRef): InvoiceTripRef {
     destinationState: raw.destination_state,
     baseRate: raw.base_rate,
     billingScope: parseInvoiceBillingScope(raw.billing_scope),
+    splitLegId: raw.split_leg_id ?? null,
+    attachCartaPorte: raw.attach_carta_porte ?? false,
+    sharePercent:
+      raw.share_percent == null ? null : Number(raw.share_percent),
   };
 }
 
@@ -396,6 +408,13 @@ export function mapInvoicePrefill(raw: unknown): InvoicePrefill {
     tripId: prefill.trip_id,
     tripCode: prefill.trip_code,
     suggestedConcepts: (prefill.suggested_concepts ?? []).map(mapInvoiceConcept),
+    billingScope: prefill.billing_scope
+      ? parseInvoiceBillingScope(prefill.billing_scope)
+      : undefined,
+    splitLegId: prefill.split_leg_id ?? null,
+    attachCartaPorte: prefill.attach_carta_porte ?? false,
+    sharePercent:
+      prefill.share_percent == null ? null : Number(prefill.share_percent),
   };
 }
 
@@ -407,6 +426,10 @@ export function toApiCreateInvoice(payload: CreateInvoicePayload) {
   return {
     trip_ids: payload.tripIds,
     billing_scope: payload.billingScope ?? "primary_transport",
+    ...(payload.splitLegId ? { split_leg_id: payload.splitLegId } : {}),
+    ...(payload.attachCartaPorte != null
+      ? { attach_carta_porte: payload.attachCartaPorte }
+      : {}),
     receiver_rfc: payload.receiverRfc,
     receiver_name: payload.receiverName,
     cfdi_usage: payload.cfdiUsage,

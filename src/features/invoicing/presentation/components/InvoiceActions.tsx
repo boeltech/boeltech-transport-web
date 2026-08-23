@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { usePermissions, useRole } from "@shared/permissions";
-import { isClientPortalRole, ROLES } from "@shared/constants/roles";
+import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
@@ -57,7 +57,7 @@ import {
   FileCode,
 } from "lucide-react";
 import { canRegisterPayment } from "@boeltech/cfdi-domain";
-import { useDeleteInvoice, useOpenInvoicePdf, downloadInvoiceXml } from "@features/invoicing/application";
+import { useDeleteInvoice, useOpenInvoicePdf, useDownloadInvoiceXml } from "@features/invoicing/application";
 import { parseInvoiceBillingScope, toInvoiceLike } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
 import {
@@ -119,7 +119,6 @@ export function InvoiceActions({
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const role = useRole();
-  const isClientPortal = isClientPortalRole(role);
 
   // ── Dialog states ─────────────────────────────────────────────────────────
 
@@ -162,8 +161,18 @@ export function InvoiceActions({
       }),
   });
 
+  const { mutate: downloadXml, isPending: downloadingXml } =
+    useDownloadInvoiceXml({
+      onError: (err) =>
+        toast({
+          variant: "destructive",
+          title: actionsCopy.xmlError,
+          description: getErrorMessage(err),
+        }),
+    });
+
   const isLoading =
-    deleting || fiscal.isStampBusy || openingPdf;
+    deleting || fiscal.isStampBusy || openingPdf || downloadingXml;
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -171,9 +180,8 @@ export function InvoiceActions({
   const canUpdate = hasPermission("invoices", "update");
   const canDelete = hasPermission("invoices", "delete");
   const canExecute = hasPermission("invoices", "execute");
-  const canExport =
-    hasPermission("invoices", "export") ||
-    (isClientPortal && hasPermission("invoices", "read"));
+  // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
+  const canExport = hasPermission("invoices", "read");
   const canAdminManagerFiscal =
     role === ROLES.ADMIN || role === ROLES.MANAGER;
 
@@ -455,12 +463,19 @@ export function InvoiceActions({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      downloadInvoiceXml(fullInvoice.id, serieFolio)
+                      downloadXml({
+                        id: fullInvoice.id,
+                        serieFolio,
+                      })
                     }
                     disabled={isLoading}
                     title={invoicingCopy.detail.header.xmlTitle}
                   >
-                    <FileCode className="mr-2 h-4 w-4" />
+                    {downloadingXml ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileCode className="mr-2 h-4 w-4" />
+                    )}
                     {invoicingCopy.detail.header.xml}
                   </Button>
                 ) : null}

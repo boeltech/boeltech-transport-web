@@ -257,12 +257,17 @@ describe("InvoiceDetailPage", () => {
     expect(screen.queryByText(/Esta factura sustituye a/i)).not.toBeInTheDocument();
   });
 
-  it("shows forbidden state on 403", () => {
+  it("shows forbidden state on Axios 403", () => {
     useInvoiceMock.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
-      error: new ApiError("Forbidden", 403),
+      // Interceptor leaves 403 as Axios (not ApiError) for auth handling.
+      error: {
+        isAxiosError: true,
+        response: { status: 403 },
+        message: "Request failed with status code 403",
+      },
       refetch: refetchMock,
     });
 
