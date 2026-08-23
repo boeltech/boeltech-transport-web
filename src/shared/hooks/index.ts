@@ -26,4 +26,6 @@ export { useTheme } from "./useTheme";
 // Hook para mostrar notificaciones toast
 export * from "./useToast";
 export * from "./useOverlayMutationFeedback";
+export { useQueryErrorToast } from "./useQueryErrorToast";
+export type { UseQueryErrorToastOptions } from "./useQueryErrorToast";
 export { useBodyScrollLock } from "./useBodyScrollLock";

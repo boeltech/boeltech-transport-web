@@ -1,4 +1,7 @@
-import { isApiError } from "@shared/api/interceptors/error-handler";
+import {
+  isApiError,
+  isAxiosError,
+} from "@shared/api/interceptors/error-handler";
 
 export type DetailQueryErrorState =
   | "missingId"
@@ -7,6 +10,12 @@ export type DetailQueryErrorState =
   | "serverError"
   | "unknownError"
   | "ready";
+
+function resolveHttpStatus(error: unknown): number | undefined {
+  if (isApiError(error)) return error.status;
+  if (isAxiosError(error)) return error.response?.status;
+  return undefined;
+}
 
 export function resolveDetailQueryErrorState(input: {
   missingId?: boolean;
@@ -18,7 +27,7 @@ export function resolveDetailQueryErrorState(input: {
   if (input.hasData) return "ready";
   if (!input.isError || !input.error) return "ready";
 
-  const status = isApiError(input.error) ? input.error.status : undefined;
+  const status = resolveHttpStatus(input.error);
   if (status === 404) return "notFound";
   if (status === 403) return "forbidden";
   if (status !== undefined && status >= 500) return "serverError";

@@ -115,4 +115,33 @@ describe("WizardPageShell", () => {
     expect(toastSpy).not.toHaveBeenCalled();
     expect(screen.getByText("Contenido paso 2")).toBeInTheDocument();
   });
+
+  it("bloquea doble confirmación mientras valida pasos async", async () => {
+    let resolveFirstValidation: ((value: boolean) => void) | undefined;
+    const firstValidation = new Promise<boolean>((resolve) => {
+      resolveFirstValidation = resolve;
+    });
+    const triggerStepValidation = vi
+      .fn()
+      .mockImplementationOnce(() => firstValidation)
+      .mockResolvedValue(true);
+    const requestSubmit = vi.fn();
+    renderWizard({
+      validateStep: triggerStepValidation,
+      onSubmit: requestSubmit,
+      initialStep: 2,
+    });
+
+    const submitButton = screen.getByRole("button", { name: /guardar/i });
+    await userEvent.click(submitButton);
+    await userEvent.click(submitButton);
+
+    expect(triggerStepValidation).toHaveBeenCalledTimes(1);
+    expect(submitButton).toBeDisabled();
+
+    resolveFirstValidation?.(true);
+    await vi.waitFor(() => {
+      expect(requestSubmit).toHaveBeenCalledTimes(1);
+    });
+  });
 });

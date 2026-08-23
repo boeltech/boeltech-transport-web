@@ -179,12 +179,16 @@ export const WizardPageShell = memo(function WizardPageShell({
   const [currentStep, setCurrentStep] = useState(() =>
     clampWizardInitialStep(initialStep, steps.length),
   );
+  /** Lock while confirm validates async steps before mutation `isPending`. */
+  const [isConfirming, setIsConfirming] = useState(false);
+  const isConfirmingRef = useRef(false);
   const isFirstStepRenderRef = useRef(true);
 
   const lastStepIndex = steps.length - 1;
   const isReview = currentStep === lastStepIndex;
+  const navBusy = isSubmitting || isConfirming;
   const headerBackDisabled =
-    isSubmitting ||
+    navBusy ||
     (!allowExit && currentStep === 0 && !onHeaderBack);
 
   useEffect(() => {
@@ -258,16 +262,24 @@ export const WizardPageShell = memo(function WizardPageShell({
   );
 
   const handleConfirm = useCallback(async () => {
-    // Validar todos los pasos previos al review
-    for (let i = 0; i < lastStepIndex; i++) {
-      const ok = (await formRef.current?.triggerStepValidation(i)) ?? false;
-      if (!ok) {
-        setCurrentStep(i);
-        return;
+    if (isSubmitting || isConfirmingRef.current) return;
+    isConfirmingRef.current = true;
+    setIsConfirming(true);
+    try {
+      // Validar todos los pasos previos al review
+      for (let i = 0; i < lastStepIndex; i++) {
+        const ok = (await formRef.current?.triggerStepValidation(i)) ?? false;
+        if (!ok) {
+          setCurrentStep(i);
+          return;
+        }
       }
+      formRef.current?.requestSubmit();
+    } finally {
+      isConfirmingRef.current = false;
+      setIsConfirming(false);
     }
-    formRef.current?.requestSubmit();
-  }, [lastStepIndex, formRef]);
+  }, [lastStepIndex, formRef, isSubmitting]);
 
   const goToStep = useCallback(
     (stepIndex: number) => {
@@ -353,14 +365,14 @@ export const WizardPageShell = memo(function WizardPageShell({
        * Navigation bar
        * ================================================================== */}
       <WizardNavigationBar
-        canGoBack={currentStep > 0 && !isSubmitting}
+        canGoBack={currentStep > 0 && !navBusy}
         isLastStep={isReview}
         onPrevious={handlePrevious}
         onCancel={allowExit ? handleCancel : undefined}
         showCancel={allowExit}
         onNext={handleNext}
         onSubmit={handleConfirm}
-        isSubmitting={isSubmitting}
+        isSubmitting={navBusy}
         submitLabel={submitLabel}
         submittingContent={
           <>
