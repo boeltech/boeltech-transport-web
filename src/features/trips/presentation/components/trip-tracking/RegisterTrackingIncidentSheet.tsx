@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { useRegisterTrackingEvent } from "@features/trips/application";
@@ -37,6 +37,7 @@ import {
   TRACKING_SHEET_HEADER_CLASS,
   TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
 } from "./trackingSheetLayout";
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 
 type RegisterTrackingIncidentSheetProps = {
   tripId: string;
@@ -58,12 +59,6 @@ function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
 }
 
-function randomIdempotencyKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : undefined;
-}
-
 function RegisterTrackingIncidentSheetBody({
   tripId,
   referenceStop,
@@ -76,6 +71,7 @@ function RegisterTrackingIncidentSheetBody({
   const [requiresAssistance, setRequiresAssistance] = useState(false);
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
@@ -107,7 +103,7 @@ function RegisterTrackingIncidentSheetBody({
       event: {
         eventType: "incident",
         occurredAt: localInputToUtcIso(occurredAt),
-        idempotencyKey: randomIdempotencyKey(),
+        idempotencyKey,
         payload: {
           incident_type: "other",
           severity,

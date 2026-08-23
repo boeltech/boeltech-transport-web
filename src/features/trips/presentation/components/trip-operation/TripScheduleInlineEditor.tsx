@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { useUpdateTrip } from "@features/trips/application";
+import { useReplaceTripStops, useUpdateTrip } from "@features/trips/application";
 import type { Trip } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
@@ -15,9 +15,14 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { operationCopy } from "../../copy";
+import { showTripDetailErrorToast } from "../../helpers/toastTripDetailError";
 import { tripScheduleDateTimeFieldProps } from "../../scheduleDateTimeField";
 
-import { buildScheduleUpdateInput, type TripScheduleFormValues } from "../trip-detail-patch";
+import {
+  buildScheduleDestinationEtaReplaceStops,
+  buildScheduleUpdateInput,
+  type TripScheduleFormValues,
+} from "../trip-detail-patch";
 import {
   formatTripApiValidationForUser,
   validateUpdateTripApiPayload,
@@ -26,14 +31,6 @@ import {
 export interface TripScheduleInlineEditorProps {
   trip: Trip;
   readOnly: boolean;
-}
-
-function tripScheduleSyncKey(trip: Trip): string {
-  return [
-    trip.updatedAt.getTime(),
-    trip.scheduledDeparture.getTime(),
-    trip.scheduledArrival?.getTime() ?? "",
-  ].join("-");
 }
 
 function tripToScheduleFormValues(trip: Trip): TripScheduleFormValues {
@@ -54,21 +51,40 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(operationCopy.preset);
 
   const updateTrip = useUpdateTrip({
-    onSuccess: () => {
-      toast({ title: operationCopy.toast.scheduleUpdated, variant: "success" });
-    },
     onError: (error) => {
-      toast({
-        title: operationCopy.toast.scheduleUpdateError,
-        description: error.message,
-        variant: "destructive",
-      });
+      showTripDetailErrorToast(
+        toast,
+        error,
+        operationCopy.toast.scheduleUpdateError,
+      );
     },
   });
+
+  const replaceStops = useReplaceTripStops(tripId, {
+    onError: (error) => {
+      showTripDetailErrorToast(
+        toast,
+        error,
+        operationCopy.toast.scheduleUpdateError,
+      );
+    },
+  });
+
+  const isPending = updateTrip.isPending || replaceStops.isPending;
 
   const isDirty =
     draft.scheduledDeparture !== persisted.scheduledDeparture ||
     draft.scheduledArrival !== persisted.scheduledArrival;
+
+  useEffect(() => {
+    if (isDirty) return;
+    setDraft(tripToScheduleFormValues(trip));
+  }, [
+    trip.scheduledDeparture.getTime(),
+    trip.scheduledArrival?.getTime(),
+    isDirty,
+    trip,
+  ]);
 
   const handleSave = async () => {
     setFieldError(null);
@@ -86,8 +102,15 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
 
     try {
       await updateTrip.mutateAsync({ id: tripId, data: payload });
+
+      const replacePayload = buildScheduleDestinationEtaReplaceStops(trip, draft);
+      if (replacePayload) {
+        await replaceStops.mutateAsync(replacePayload);
+      }
+
+      toast({ title: operationCopy.toast.scheduleUpdated, variant: "success" });
     } catch {
-      // Toast en onError del mutation
+      // Toast en onError de las mutaciones
     }
   };
 
@@ -110,7 +133,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
           onChange={(scheduledDeparture) =>
             setDraft((prev) => ({ ...prev, scheduledDeparture }))
           }
-          disabled={updateTrip.isPending}
+          disabled={isPending}
           error={Boolean(fieldError)}
           {...scheduleFieldProps}
           {...getFieldErrorAriaProps("trip-schedule-departure", fieldError ?? undefined)}
@@ -126,7 +149,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
           onChange={(scheduledArrival) =>
             setDraft((prev) => ({ ...prev, scheduledArrival }))
           }
-          disabled={updateTrip.isPending}
+          disabled={isPending}
           {...scheduleFieldProps}
         />
       </FormFieldShell>
@@ -139,9 +162,9 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             type="button"
             size="sm"
             onClick={() => void handleSave()}
-            disabled={updateTrip.isPending}
+            disabled={isPending}
           >
-            {updateTrip.isPending
+            {isPending
               ? operationCopy.action.savingSchedule
               : operationCopy.action.saveSchedule}
           </Button>
@@ -150,7 +173,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             size="sm"
             variant="outline"
             onClick={handleCancel}
-            disabled={updateTrip.isPending}
+            disabled={isPending}
           >
             {operationCopy.action.cancelSchedule}
           </Button>
@@ -184,9 +207,6 @@ export function TripScheduleInlineEditor({
   }
 
   return (
-    <TripScheduleInlineEditorEditable
-      key={tripScheduleSyncKey(trip)}
-      trip={trip}
-    />
+    <TripScheduleInlineEditorEditable trip={trip} />
   );
 }

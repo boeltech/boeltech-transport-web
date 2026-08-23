@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -36,6 +36,7 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import {
   getSheetKindForCategory,
   type TripExpenseSheetKind,
+  formatMxCurrency,
   isIndirectExpenseCategory,
   isOperationalExpenseCategory,
   TripExpenseSheet,
@@ -141,6 +142,124 @@ function formatWindowHint(
   return template.replace("{deadline}", deadline);
 }
 
+type CostsStatusBanner = {
+  severity: "info" | "warning" | "critical";
+  icon: ReactNode;
+  title: string;
+  items: Array<{ text: ReactNode }>;
+};
+
+/**
+ * Un solo banner priorizado (D5):
+ * pendientes > ventana abierta > ventana cerrada > en curso > margen bajo.
+ */
+function resolveCostsStatusBanner(input: {
+  pendingExpenseCount: number;
+  canApproveExpenses: boolean;
+  canViewApprovalsHub: boolean;
+  approvalsHubPath: string;
+  expenseWindowOpen: boolean;
+  expenseWindowClosed: boolean;
+  expenseWindowClosesAt: Date | null;
+  tripStatus: string;
+  manageHint: boolean;
+  marginCritical: boolean;
+}): CostsStatusBanner | null {
+  const {
+    pendingExpenseCount,
+    canApproveExpenses,
+    canViewApprovalsHub,
+    approvalsHubPath,
+    expenseWindowOpen,
+    expenseWindowClosed,
+    expenseWindowClosesAt,
+    tripStatus,
+    manageHint,
+    marginCritical,
+  } = input;
+
+  if (pendingExpenseCount > 0) {
+    return {
+      severity: "warning",
+      icon: <Receipt className="h-4 w-4" />,
+      title: copy.alert.pendingApprovalTitle,
+      items: [
+        {
+          text: canApproveExpenses
+            ? copy.alert.pendingApprovalBodyCanApprove
+            : copy.alert.pendingApprovalBody,
+        },
+        ...(canViewApprovalsHub
+          ? [
+              {
+                text: (
+                  <Link
+                    to={approvalsHubPath}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {copy.alert.approvalsHubLink}
+                  </Link>
+                ),
+              },
+            ]
+          : []),
+      ],
+    };
+  }
+
+  if (expenseWindowOpen) {
+    return {
+      severity: "info",
+      icon: <CircleDollarSign className="h-4 w-4" />,
+      title: copy.alert.postCloseWindowTitle,
+      items: [
+        {
+          text: formatWindowHint(
+            copy.hint.postCloseWindow,
+            expenseWindowClosesAt,
+          ),
+        },
+      ],
+    };
+  }
+
+  if (expenseWindowClosed) {
+    return {
+      severity: "info",
+      icon: <CircleDollarSign className="h-4 w-4" />,
+      title: copy.alert.postCloseWindowClosedTitle,
+      items: [
+        {
+          text: formatWindowHint(
+            copy.hint.postCloseWindowClosed,
+            expenseWindowClosesAt,
+          ),
+        },
+      ],
+    };
+  }
+
+  if (tripStatus === TripStatus.IN_PROGRESS && manageHint) {
+    return {
+      severity: "info",
+      icon: <CircleDollarSign className="h-4 w-4" />,
+      title: copy.alert.inProgressTitle,
+      items: [{ text: copy.hint.inProgress }],
+    };
+  }
+
+  if (marginCritical) {
+    return {
+      severity: "critical",
+      icon: <AlertCircle className="h-4 w-4" />,
+      title: copy.alert.marginCriticalTitle,
+      items: [{ text: copy.alert.marginCriticalBody }],
+    };
+  }
+
+  return null;
+}
+
 export function TripDetailCostsTab({
   tripId,
   tripStatus,
@@ -212,6 +331,13 @@ export function TripDetailCostsTab({
   const approveExpense = useApproveExpense(tripId);
   const rejectExpense = useRejectExpense(tripId);
 
+  const isExpenseMutating =
+    addExpense.isPending ||
+    updateExpense.isPending ||
+    deleteExpense.isPending ||
+    approveExpense.isPending ||
+    rejectExpense.isPending;
+
   const expenseLines = useMemo(() => tripExpensesToWizardLines(expenses), [expenses]);
 
   const operationalItems = useMemo(
@@ -252,12 +378,18 @@ export function TripDetailCostsTab({
       invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending";
     return invoiced
       ? copy.incomeSource.invoiced
-      : copy.incomeSource.rateUnstamped;
+      : copy.incomeSource.rateRegistered;
   }, [invoiceStatus, isCompleted]);
+
+  const calculationStatusHint = isCompleted
+    ? copy.financialSummary.hint.calculationApprovedOnly
+    : copy.financialSummary.hint.calculationEstimated;
 
   const queuedCostsHint =
     isCompleted && financialSnapshot.queuedCostsTotal > 0
-      ? copy.financialSummary.hint.queuedMayLower
+      ? copy.financialSummary.hint.queuedMayLower(
+          formatMxCurrency(financialSnapshot.queuedCostsTotal),
+        )
       : null;
 
   const categoryEntries = useMemo(() => {
@@ -371,7 +503,11 @@ export function TripDetailCostsTab({
     }
   };
 
-  const handleSubmitFromSheet = async (values: TripExpenseFormValues) => {
+  const handleSubmitFromSheet = async (
+    values: TripExpenseFormValues,
+    _editingIndex: number | null,
+    options?: { keepOpen?: boolean },
+  ) => {
     try {
       if (editingExpenseId) {
         await updateExpense.mutateAsync({
@@ -383,9 +519,11 @@ export function TripDetailCostsTab({
         await addExpense.mutateAsync(formValuesToCreateExpenseInput(values));
         toast({ title: copy.toast.created, variant: "success" });
       }
-      setSheetOpen(false);
-      setEditingExpenseId(null);
-      setInitialExpense(null);
+      if (!options?.keepOpen) {
+        setSheetOpen(false);
+        setEditingExpenseId(null);
+        setInitialExpense(null);
+      }
     } catch (error) {
       toast({
         title: copy.toast.saveError,
@@ -407,76 +545,28 @@ export function TripDetailCostsTab({
   const manageHint =
     canManageExpenses ??
     (canCreateExpenses || canUpdatePendingExpenses || canDeletePendingExpenses);
+  const marginCritical = financial.health === "critical" && baseRate > 0;
+  const statusBanner = resolveCostsStatusBanner({
+    pendingExpenseCount,
+    canApproveExpenses,
+    canViewApprovalsHub,
+    approvalsHubPath,
+    expenseWindowOpen,
+    expenseWindowClosed,
+    expenseWindowClosesAt,
+    tripStatus,
+    manageHint,
+    marginCritical,
+  });
 
   return (
     <div className="space-y-6">
-      {tripStatus === TripStatus.IN_PROGRESS && manageHint ? (
+      {statusBanner ? (
         <DetailAlertCard
-          severity="info"
-          icon={<CircleDollarSign className="h-4 w-4" />}
-          title={copy.alert.inProgressTitle}
-          items={[{ text: copy.hint.inProgress }]}
-        />
-      ) : null}
-
-      {expenseWindowOpen ? (
-        <DetailAlertCard
-          severity="info"
-          icon={<CircleDollarSign className="h-4 w-4" />}
-          title={copy.alert.postCloseWindowTitle}
-          items={[
-            {
-              text: formatWindowHint(
-                copy.hint.postCloseWindow,
-                expenseWindowClosesAt,
-              ),
-            },
-          ]}
-        />
-      ) : null}
-
-      {expenseWindowClosed ? (
-        <DetailAlertCard
-          severity="info"
-          icon={<CircleDollarSign className="h-4 w-4" />}
-          title={copy.alert.postCloseWindowClosedTitle}
-          items={[
-            {
-              text: formatWindowHint(
-                copy.hint.postCloseWindowClosed,
-                expenseWindowClosesAt,
-              ),
-            },
-          ]}
-        />
-      ) : null}
-
-      {pendingExpenseCount > 0 ? (
-        <DetailAlertCard
-          severity="warning"
-          icon={<Receipt className="h-4 w-4" />}
-          title={copy.alert.pendingApprovalTitle}
-          items={[
-            {
-              text: canApproveExpenses
-                ? copy.alert.pendingApprovalBodyCanApprove
-                : copy.alert.pendingApprovalBody,
-            },
-            ...(canViewApprovalsHub
-              ? [
-                  {
-                    text: (
-                      <Link
-                        to={approvalsHubPath}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {copy.alert.approvalsHubLink}
-                      </Link>
-                    ),
-                  },
-                ]
-              : []),
-          ]}
+          severity={statusBanner.severity}
+          icon={statusBanner.icon}
+          title={statusBanner.title}
+          items={statusBanner.items}
         />
       ) : null}
 
@@ -503,6 +593,7 @@ export function TripDetailCostsTab({
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isExpenseMutating}
                   onClick={() => handleOpenAdd("cost")}
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
@@ -528,6 +619,7 @@ export function TripDetailCostsTab({
                 onRemove={canDeletePendingExpenses ? handleRemove : undefined}
                 onApprove={approveHandlers.onApprove}
                 onReject={approveHandlers.onReject}
+                actionsDisabled={isExpenseMutating}
               />
             </CardContent>
           </Card>
@@ -543,6 +635,7 @@ export function TripDetailCostsTab({
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isExpenseMutating}
                   onClick={() => handleOpenAdd("expense")}
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
@@ -568,6 +661,7 @@ export function TripDetailCostsTab({
                 onRemove={canDeletePendingExpenses ? handleRemove : undefined}
                 onApprove={approveHandlers.onApprove}
                 onReject={approveHandlers.onReject}
+                actionsDisabled={isExpenseMutating}
               />
             </CardContent>
           </Card>
@@ -577,16 +671,19 @@ export function TripDetailCostsTab({
           <TripWizardFinancialSummary
             className="h-fit"
             snapshot={financialSnapshot}
+            variant="totals"
+            summaryCopy={copy.financialSummary}
             title={
               isCompleted
                 ? copy.financialSummary.section.title
                 : copy.financialSummary.section.titleEstimated
             }
             incomeSourceLabel={incomeSourceLabel}
+            calculationStatusHint={calculationStatusHint}
             queuedCostsHint={queuedCostsHint}
             marginLabel={
               isCompleted
-                ? copy.financialSummary.label.marginApproved
+                ? copy.financialSummary.label.marginConfirmed
                 : undefined
             }
           />
@@ -595,15 +692,6 @@ export function TripDetailCostsTab({
           ) : null}
         </div>
       </div>
-
-      {financial.health === "critical" && baseRate > 0 ? (
-        <DetailAlertCard
-          severity="critical"
-          icon={<AlertCircle className="h-4 w-4" />}
-          title={copy.alert.marginCriticalTitle}
-          items={[{ text: copy.alert.marginCriticalBody }]}
-        />
-      ) : null}
 
       {showExpenseSheet ? (
         <TripExpenseSheet
@@ -614,9 +702,8 @@ export function TripDetailCostsTab({
           editingIndex={editingExpenseId ? 0 : null}
           totalDistanceKm={totalDistanceKm}
           expectedFuelEfficiency={expectedFuelEfficiency}
-          onSubmit={(values) => {
-            void handleSubmitFromSheet(values);
-          }}
+          isSubmitting={isExpenseMutating}
+          onSubmit={handleSubmitFromSheet}
         />
       ) : null}
 

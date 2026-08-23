@@ -4,6 +4,7 @@ import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture"
 import {
   buildFixSheetInitialValues,
   canApplyStopFiscalCorrection,
+  canUpsertTripRevenueSplit,
   finalizeTripsForStampLoad,
   getEffectiveStopRfc,
   mergePatchedStopIntoTrip,
@@ -262,5 +263,51 @@ describe("tripFiscalHelpers", () => {
         preflightOpen: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("canUpsertTripRevenueSplit", () => {
+  it("permite upsert cuando el API habilita factura primaria", () => {
+    expect(
+      canUpsertTripRevenueSplit({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({ canGenerateInvoice: true }),
+      } as Trip),
+    ).toEqual({ allowed: true, blockReason: null });
+  });
+
+  it("bloquea upsert con blockReason del API", () => {
+    expect(
+      canUpsertTripRevenueSplit({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: false,
+          blockReason: "Los viajes cancelados no pueden facturarse.",
+        }),
+      } as Trip),
+    ).toEqual({
+      allowed: false,
+      blockReason: "Los viajes cancelados no pueden facturarse.",
+    });
+  });
+
+  it("no permite upsert en viaje falso ni con split activo", () => {
+    expect(
+      canUpsertTripRevenueSplit({
+        operationalOutcome: "false_trip",
+        invoicing: tripInvoicingFixture({ canGenerateInvoice: true }),
+      } as Trip),
+    ).toEqual({ allowed: false, blockReason: null });
+
+    expect(
+      canUpsertTripRevenueSplit({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: false,
+          hasActiveSplit: true,
+          splitLegsTotal: 2,
+        }),
+      } as Trip),
+    ).toEqual({ allowed: false, blockReason: null });
   });
 });

@@ -2,6 +2,7 @@ import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { tripQueryKeys, type Trip } from "@features/trips/domain";
 import { createGetTripByIdUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 
 /**
  * Hook para obtener un viaje por ID
@@ -17,6 +18,9 @@ export function useTrip(
     queryFn: async () => {
       const result = await getTripByIdUseCase.execute(id);
       if (!result.success) {
+        if (result.error.code === "TRIP_NOT_FOUND") {
+          throw new ApiError(result.error.message, 404, result.error.code);
+        }
         throw new Error(result.error.message);
       }
       return result.data;

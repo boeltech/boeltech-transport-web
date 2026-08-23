@@ -3,10 +3,11 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { tripQueryKeys, type Trip } from "@features/trips/domain";
+import { TripStatus, type Trip } from "@features/trips/domain";
 import { createCancelTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
+import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
 
 /**
  * Hook para cancelar viaje
@@ -27,9 +28,10 @@ export function useCancelTrip(
     },
     ...options,
     onSuccess: async (trip, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(trip.id) });
+      await invalidateTripDetailSurface(queryClient, trip.id, {
+        status: TripStatus.CANCELLED,
+      });
       await invalidateTripAssignmentResources(queryClient);
-      queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

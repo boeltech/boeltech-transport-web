@@ -51,6 +51,7 @@ import { getCargoStatusVariant } from "./trip-cargos/tripCargoDetailHelpers";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { tripDetailCopy } from "../copy";
+import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
 import { isOriginStop } from "./trackingStopEligibility";
 
 interface TripTrackingTabProps {
@@ -106,7 +107,11 @@ export function TripTrackingTab({
 
   const timelineQuery = useTripTimeline(tripId);
   const timeline = timelineQuery.data;
-  const tripStatus = timeline?.trip.status ?? status;
+  /** Prefer page prop when timeline cache still shows a divergent status. */
+  const tripStatus =
+    timeline?.trip.status === status
+      ? timeline.trip.status
+      : status;
 
   const cargos = cargosProp;
 
@@ -129,11 +134,11 @@ export function TripTrackingTab({
       onCargosChanged?.();
     },
     onError: (error) => {
-      toast({
-        title: tripDetailCopy.cargo.toast.deliverError,
-        description: error.message,
-        variant: "destructive",
-      });
+      showTripDetailErrorToast(
+        toast,
+        error,
+        tripDetailCopy.cargo.toast.deliverError,
+      );
       setPendingCargoAction(null);
     },
   });

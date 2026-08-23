@@ -60,6 +60,7 @@ import {
 } from "../../domain";
 import { tripsListCopy } from "../copy/listCopy";
 import { tripDetailCopy } from "../copy";
+import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
 import {
   MoreHorizontal,
   Eye,
@@ -198,11 +199,7 @@ export function TripActions(props: TripActionsProps) {
       onActionComplete?.(trip);
     },
     onError: (error) => {
-      toast({
-        title: "Error al cancelar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showTripDetailErrorToast(toast, error, "Error al cancelar");
     },
   });
 
@@ -212,11 +209,7 @@ export function TripActions(props: TripActionsProps) {
       navigate("/trips");
     },
     onError: (error) => {
-      toast({
-        title: "Error al eliminar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showTripDetailErrorToast(toast, error, "Error al eliminar");
     },
   });
 

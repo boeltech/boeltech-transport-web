@@ -1,42 +1,23 @@
 /**
  * TripFiscalSection — resumen compacto de facturación en el detalle (PD-TD2).
  * Sin UUID prominente; detalle en menú Facturación / ficha de factura.
+ * Con `embedded`, vive dentro de TripInvoicingConsole (sin borde propio).
  */
 
 import { Link } from "react-router-dom";
 import { ExternalLink, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import { TripStatus, type Trip } from "@features/trips/domain";
+import type { Trip } from "@features/trips/domain";
 import {
   getTripInvoicingBadgeConfig,
   getTripInvoicingBlockReason,
   toDetailInvoicingBadge,
 } from "../uiHelpers";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
+import { hasTripFiscalSectionContent } from "./shouldShowTripInvoicingConsole";
 
 const sectionCopy = tripFiscalCopy.invoicesSection;
-
-export function shouldShowTripFiscalBand(
-  trip: Pick<
-    Trip,
-    "status" | "requiresFiscalAttention" | "operationalOutcome" | "invoicing"
-  >,
-  hasPostCancelFiscal: boolean,
-): boolean {
-  if (hasPostCancelFiscal) return true;
-  if (trip.requiresFiscalAttention) return true;
-  if (
-    trip.operationalOutcome === "false_trip" &&
-    trip.invoicing.canGenerateFalseTripInvoice
-  ) {
-    return true;
-  }
-  const billableStatus =
-    trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELLED;
-  if (!billableStatus || !trip.invoicing.blockReason) return false;
-  return getTripInvoicingBlockReason(trip.invoicing) != null;
-}
 
 export interface TripFiscalSectionProps {
   trip: Trip;
@@ -46,6 +27,8 @@ export interface TripFiscalSectionProps {
     lines: readonly string[];
     onDismiss?: () => void;
   };
+  /** Dentro de TripInvoicingConsole — sin card exterior ni título duplicado. */
+  embedded?: boolean;
 }
 
 function blockReasonNeedsRouteLink(reason: string): boolean {
@@ -56,7 +39,11 @@ function blockReasonNeedsCargoLink(reason: string): boolean {
   return /carga|mercanc/i.test(reason);
 }
 
-export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionProps) {
+export function TripFiscalSection({
+  trip,
+  postCancelFiscal,
+  embedded = false,
+}: TripFiscalSectionProps) {
   const invoicing = trip.invoicing;
   const badge = toDetailInvoicingBadge(
     getTripInvoicingBadgeConfig({
@@ -84,15 +71,7 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
     !invoicing.canGenerateInvoice &&
     (!suppressPrimaryBlockReason || !invoicing.canGenerateAccessoryInvoice);
 
-  const hasFiscalContent =
-    invoicing.invoiceFolio ||
-    invoicing.blockReason ||
-    postCancelFiscal ||
-    invoicing.invoiceStatus !== null ||
-    !!invoicing.invoiceId ||
-    accessoryInvoices.length > 0;
-
-  if (!hasFiscalContent) {
+  if (!hasTripFiscalSectionContent(invoicing) && !postCancelFiscal) {
     return null;
   }
 
@@ -105,12 +84,19 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
     invoicing.blockReason != null &&
     blockReasonNeedsCargoLink(invoicing.blockReason);
 
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+  const body = (
+    <>
       <div className="min-w-0 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
-          <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="text-sm font-medium">{sectionCopy.compactTitle}</span>
+          {!embedded ? (
+            <Receipt
+              className="h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          ) : null}
+          {!embedded ? (
+            <span className="text-sm font-medium">{sectionCopy.compactTitle}</span>
+          ) : null}
           <Badge variant={badge.variant}>{badge.label}</Badge>
           {invoicing.invoiceFolio ? (
             <span className="text-sm text-muted-foreground">
@@ -169,7 +155,9 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
             ) : null}
           </div>
         ) : null}
-        <p className="text-xs text-muted-foreground">{sectionCopy.openMenuHint}</p>
+        {!embedded ? (
+          <p className="text-xs text-muted-foreground">{sectionCopy.openMenuHint}</p>
+        ) : null}
       </div>
       {hasPrimaryInvoice ? (
         <Button variant="outline" size="sm" className="shrink-0" asChild>
@@ -182,6 +170,20 @@ export function TripFiscalSection({ trip, postCancelFiscal }: TripFiscalSectionP
           </Link>
         </Button>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      {body}
     </div>
   );
 }

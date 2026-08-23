@@ -3,7 +3,10 @@ import { StopType, TripStatus, type Trip } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 
 import { validateUpdateTripApiPayload } from "../../pages/create/validateTripApiPayload";
-import { buildScheduleUpdateInput } from "./tripSchedulePatch";
+import {
+  buildScheduleDestinationEtaReplaceStops,
+  buildScheduleUpdateInput,
+} from "./tripSchedulePatch";
 import { mapTripToScheduleFormValues } from "./tripStopOperationalFields";
 
 const baseTrip = {
@@ -159,12 +162,23 @@ describe("tripDetailPatch", () => {
     expect(values.scheduledArrival).not.toBe("");
   });
 
-  it("builds partial schedule update payload", () => {
+  it("builds schedule update with dates only (no stops on PUT trip)", () => {
     const values = mapTripToScheduleFormValues(baseTrip);
     const payload = buildScheduleUpdateInput(baseTrip, values);
     expect(payload.scheduledDeparture).toContain("2026-05-14");
     expect(payload.scheduledArrival).toContain("2026-05-14");
-    expect(payload.stops?.[1]?.estimatedArrival).toContain("2026-05-14");
+    expect(payload.stops).toBeUndefined();
+    expect(payload).not.toHaveProperty("cargos");
     expect(validateUpdateTripApiPayload(payload)).toEqual({ ok: true });
+  });
+
+  it("builds replace-stops payload without snapshot addressId for destination ETA", () => {
+    const values = mapTripToScheduleFormValues(baseTrip);
+    const stops = buildScheduleDestinationEtaReplaceStops(baseTrip, values);
+    expect(stops).toHaveLength(2);
+    expect(stops?.[0]).not.toHaveProperty("addressId");
+    expect(stops?.[1]).not.toHaveProperty("addressId");
+    expect(stops?.[1]?.estimatedArrival).toContain("2026-05-14");
+    expect(stops?.[1]?.sourceAddressId).toBeUndefined();
   });
 });

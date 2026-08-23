@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Navigation } from "lucide-react";
 
 import { useClientCorridors, useReplaceTripStops } from "@features/trips/application";
@@ -103,6 +103,18 @@ export function TripDetailRouteTab({
   const [waypointDraftIds, setWaypointDraftIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
+
+  const stopsSyncKey = useMemo(
+    () => orderedStops.map((stop) => stop.id).join("|"),
+    [orderedStops],
+  );
+  const prevStopsSyncKeyRef = useRef(stopsSyncKey);
+  useEffect(() => {
+    if (prevStopsSyncKeyRef.current === stopsSyncKey) return;
+    prevStopsSyncKeyRef.current = stopsSyncKey;
+    setEndpointDraft({});
+    setWaypointDraftIds([]);
+  }, [stopsSyncKey]);
 
   const { origin, destination, waypoints, ordered } =
     groupStopsForRouteDetail(orderedStops);

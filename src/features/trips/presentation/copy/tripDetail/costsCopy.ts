@@ -1,45 +1,48 @@
 /**
  * Namespace: trips.copy.tripDetail.costs.*
+ * Léxico operativo (Capa 1 D3/D7): ruta/unidad, operador/extras, sin jerga fiscal/TI.
  */
 export const costsCopy = {
   section: {
     baseRate: "Ingreso del viaje",
-    operational: "Costos operativos",
-    indirect: "Gastos indirectos",
-    breakdown: "Por categoría",
+    operational: "En la ruta y la unidad",
+    indirect: "Del operador y extras",
+    breakdown: "Por tipo",
   },
   hint: {
     inProgress:
       "Registre costos y gastos reales en curso. Replanifique ruta, cargas o tarifa en edición completa.",
     postCloseWindow:
-      "Puede registrar gastos tardíos hasta el {deadline}. Solo conceptos Pendiente se pueden editar o eliminar; los Aprobados son de solo lectura.",
+      "Puede registrar gastos tardíos hasta el {deadline}. Solo los registros en revisión se pueden editar o eliminar; los aprobados son de solo lectura.",
     postCloseWindowClosed:
-      "La ventana de 30 días para capturar gastos en este viaje ya cerró ({deadline}). Los conceptos aprobados siguen visibles en solo lectura.",
-    breakdown: "Distribución de costos y gastos registrados.",
+      "Pasaron 30 días desde que cerró el viaje ({deadline}). Ya no se pueden agregar gastos; los aprobados siguen visibles en solo lectura.",
+    breakdown: "Distribución de lo registrado por tipo.",
     baseRateTraslado: "Opcional en viajes solo de traslado.",
     baseRateIngresoRequired: "Obligatoria para viajes con factura de servicio y cliente.",
     baseRateIngresoOptional: "Opcional si el viaje no tiene cliente contratante.",
+    breakdownToggleShow: "Ver desglose por tipo",
+    breakdownToggleHide: "Ocultar desglose",
   },
   alert: {
     loadErrorTitle: "No se pudieron cargar los costos",
     loadErrorBody: "Intente de nuevo o vuelva más tarde.",
     inProgressTitle: "Gastos durante el viaje",
-    postCloseWindowTitle: "Ventana de gastos post-cierre",
-    postCloseWindowClosedTitle: "Ventana de gastos cerrada",
-    marginCriticalTitle: "Rentabilidad comprometida",
+    postCloseWindowTitle: "Gastos después de cerrar el viaje",
+    postCloseWindowClosedTitle: "Plazo para gastos cerrado",
+    marginCriticalTitle: "Utilidad muy baja",
     marginCriticalBody:
-      "El margen estimado está por debajo del 10%. Revise tarifa o conceptos registrados.",
-    pendingApprovalTitle: "Gastos pendientes de aprobación",
+      "El margen estimado está por debajo del 10%. Revise la tarifa o los registros.",
+    pendingApprovalTitle: "Registros en revisión",
     pendingApprovalBody:
-      "Los conceptos en estado Pendiente no aparecen en Finanzas hasta que un rol con permiso de aprobaciones los apruebe.",
+      "Los registros en revisión aún no cuentan en Finanzas hasta que alguien con permiso los apruebe.",
     pendingApprovalBodyCanApprove:
-      "Apruebe los conceptos pendientes aquí o desde la bandeja centralizada para incluirlos en reportes de Finanzas.",
+      "Apruebe los registros en revisión aquí o desde la bandeja de aprobaciones para incluirlos en reportes de Finanzas.",
     approvalsHubLink: "Ver en bandeja de aprobaciones",
   },
   action: {
     retry: "Reintentar",
-    addCost: "Agregar costo",
-    addExpense: "Agregar gasto",
+    addCost: "Agregar de ruta",
+    addExpense: "Agregar del operador",
     saveBaseRate: "Guardar tarifa",
     savingBaseRate: "Guardando…",
     cancel: "Cancelar",
@@ -47,30 +50,36 @@ export const costsCopy = {
     remove: "Eliminar",
     approve: "Aprobar",
     reject: "Rechazar",
+    reviewGroup: "Revisión",
   },
   label: {
     baseRate: "Tarifa base",
     baseRateInput: "Tarifa base (MXN)",
   },
   state: {
-    emptyOperationalTitle: "Sin costos registrados",
+    emptyOperationalTitle: "Sin registros de ruta",
     emptyOperationalEditable:
-      'Use "Agregar costo" para combustible, casetas y otros costos directos.',
-    emptyOperationalReadOnly: "No hay costos operativos en este viaje.",
+      'Use "Agregar de ruta" para combustible, casetas y otros costos de la unidad.',
+    emptyOperationalReadOnly: "No hay registros de ruta y unidad en este viaje.",
     emptyAfterFalseTrip: "Los gastos se capturan antes de declarar.",
-    emptyIndirectTitle: "Sin gastos registrados",
+    emptyIndirectTitle: "Sin registros del operador",
     emptyIndirectEditable:
-      'Use "Agregar gasto" para viáticos, hospedaje y otros conceptos indirectos.',
-    emptyIndirectReadOnly: "No hay gastos indirectos en este viaje.",
+      'Use "Agregar del operador" para viáticos, hospedaje y otros extras.',
+    emptyIndirectReadOnly: "No hay registros del operador en este viaje.",
     estimated: "Estimado",
     receipt: "Comprobante",
     noCategory: "Sin categoría",
+    /** Badge: pending → léxico operativo */
+    inReview: "En revisión",
+    inReviewHint: "Aún no cuenta en Finanzas",
+    documented: "Documentado",
+    documentedHint: "Aún no cuenta en Finanzas",
   },
   toast: {
-    updated: "Concepto actualizado",
-    created: "Concepto registrado",
+    updated: "Registro actualizado",
+    created: "Registro guardado",
     saveError: "No se pudo guardar",
-    removed: "Concepto eliminado",
+    removed: "Registro eliminado",
     removeError: "No se pudo eliminar",
     approved: "Gasto aprobado",
     approveError: "No se pudo aprobar",
@@ -85,33 +94,42 @@ export const costsCopy = {
   },
   incomeSource: {
     invoiced: "Facturado",
-    rateUnstamped: "Tarifa (sin timbrar)",
+    rateRegistered: "Tarifa registrada",
   },
   financialSummary: {
     section: {
-      title: "Resumen financiero",
-      titleEstimated: "Resumen financiero estimado",
-      income: "INGRESOS (1)",
-      operational: (count: number) => `COSTOS OPERATIVOS (${count})`,
-      indirect: (count: number) => `GASTOS (${count})`,
+      title: "Resultado del viaje",
+      titleEstimated: "Resultado estimado",
+      income: "Ingreso",
+      operational: (count: number) =>
+        count === 1
+          ? "Ruta y unidad (1)"
+          : `Ruta y unidad (${count})`,
+      indirect: (count: number) =>
+        count === 1
+          ? "Operador y extras (1)"
+          : `Operador y extras (${count})`,
     },
     label: {
       freight: "Flete",
       baseRate: "Tarifa base",
-      income: "Ingresos",
-      costs: "Costos",
-      expenses: "Gastos",
+      income: "Ingreso",
+      costs: "Ruta y unidad",
+      expenses: "Operador y extras",
       margin: "Utilidad",
       marginPct: "Margen",
-      marginApproved: "Utilidad (aprobados)",
+      marginConfirmed: "Utilidad confirmada",
     },
     hint: {
-      approvedOnly:
-        "El margen primario usa solo costos aprobados (paridad Finanzas).",
-      queuedMayLower: "Hay gastos en cola; el margen puede bajar al aprobarlos.",
+      calculationEstimated:
+        "Estimado — incluye registros en revisión.",
+      calculationApprovedOnly:
+        "Utilidad confirmada — solo registros aprobados.",
+      queuedMayLower: (amount: string) =>
+        `Hay ${amount} en revisión; la utilidad puede bajar.`,
     },
     state: {
-      emptyLines: "Sin conceptos",
+      emptyLines: "Sin registros",
     },
   },
 } as const;

@@ -88,6 +88,9 @@ export {
   useClientCorridors,
   useRouteEstimate,
   useReplaceTripStops,
+  useTripRevenueSplit,
+  useUpsertTripRevenueSplit,
+  useDeleteTripRevenueSplit,
   TripCreationError,
 } from "./application";
 

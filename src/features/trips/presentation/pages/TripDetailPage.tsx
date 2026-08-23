@@ -6,7 +6,7 @@
  * - useTripCargos: Obtiene cargas del viaje via endpoint separado
  * - useTripExpenses: Obtiene gastos del viaje via endpoint separado
  * - useTripExpensesSummary: Obtiene resumen de gastos
- * - Tabs: Operación, Ruta, Seguimiento, Cargas, Costos (historial bajo Operación)
+ * - Tabs: Operación, Ruta, Seguimiento, Cargas, Dinero del viaje (historial bajo Operación)
 
  *
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
@@ -70,7 +70,11 @@ import {
   TripDetailCostsTabLazy,
   TripDetailTabFallback,
 } from "./TripDetailLazyTabs";
-import { TripFiscalSection, shouldShowTripFiscalBand } from "../components/TripFiscalSection";
+import {
+  shouldShowTripInvoicingConsole,
+} from "../components/shouldShowTripInvoicingConsole";
+import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
+import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
@@ -79,9 +83,12 @@ import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
+import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { getTripDetailAccess } from "./tripDetailAccess";
 import {
   parseTripDetailTab,
+  resolveCargoCountForDefaultTab,
   resolveDefaultTripDetailTab,
   shouldFetchTripCargos,
   shouldFetchTripExpenses,
@@ -89,6 +96,7 @@ import {
   shouldFetchTripTimeline,
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
+import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
 
 const shell = tripDetailCopy.shell;
 
@@ -114,7 +122,10 @@ export function TripDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = parseTripDetailTab(searchParams.get("tab"));
   /** Origen real (bandeja de aprobaciones, factura…) o el listado de viajes. */
-  const backHref = (location.state?.from as string | undefined) ?? "/trips";
+  const backHref = resolveInternalAppHref(
+    location.state?.from as string | undefined,
+    "/trips",
+  );
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
@@ -122,12 +133,13 @@ export function TripDetailPage() {
   const isLeanTripPortal = isClientPortal || isDriverPortal;
   const tripId = id || "";
   const canUpdateTrip = hasPermission("trips", "update");
+  const canReadExpenses = hasPermission("expenses", "read");
   const canCreateExpense = hasPermission("expenses", "create");
   const canUpdateExpense = hasPermission("expenses", "update");
   const canDeleteExpense = hasPermission("expenses", "delete");
   const canApproveTripExpenses = hasPermission("finance_approvals", "update");
   const canReadInvoices = hasPermission("invoices", "read");
-  const canFetchExpenses = !isLeanTripPortal;
+  const canFetchExpenses = !isLeanTripPortal && canReadExpenses;
 
   // ══════════════════════════════════════════════════════════════════════════
   // QUERIES
@@ -136,42 +148,46 @@ export function TripDetailPage() {
   const {
     data: trip,
     isLoading: isLoadingTrip,
+    isError: isTripError,
+    error: tripError,
     refetch: refetchTrip,
   } = useTrip(tripId);
 
-  const defaultTab = trip
+  const tripQueryState = resolveDetailQueryErrorState({
+    missingId: !tripId,
+    isError: isTripError,
+    error: tripError,
+    hasData: Boolean(trip),
+  });
+
+  const bootstrapDefaultTab = trip
     ? resolveDefaultTripDetailTab({
         status: trip.status,
         routeReady: isTripRouteReadyForStartUi(trip.stops ?? []),
-        cargoCount: trip.cargos?.length,
+        cargoCount:
+          trip.status === TripStatus.DRAFT ? undefined : trip.cargos?.length,
         hasPendingCobro:
           trip.invoicing.canGenerateInvoice ||
           trip.invoicing.canGenerateFalseTripInvoice ||
           trip.requiresFiscalAttention,
-        canShowCosts: !isLeanTripPortal,
+        canShowCosts: canFetchExpenses,
       })
     : "overview";
-  const activeTab = urlTab ?? defaultTab;
-  const resolvedActiveTab =
-    isLeanTripPortal && activeTab === "costs" ? "overview" : activeTab;
-
-  const { data: trackingTimeline } = useTripTimeline(tripId, {
-    enabled: shouldFetchTripTimeline(
-      resolvedActiveTab,
-      tripId,
-      trip?.status,
-    ),
-  });
-  const hasOpenTrackingIncident =
-    trackingTimeline?.trip.hasOpenIncident === true;
+  const bootstrapActiveTab = urlTab ?? bootstrapDefaultTab;
+  const resolvedBootstrapTab =
+    !canFetchExpenses && bootstrapActiveTab === "costs"
+      ? "overview"
+      : isLeanTripPortal && bootstrapActiveTab === "costs"
+        ? "overview"
+        : bootstrapActiveTab;
 
   const fetchCargos = shouldFetchTripCargos(
-    resolvedActiveTab,
+    resolvedBootstrapTab,
     tripId,
     trip?.status,
   );
   const fetchExpenses = shouldFetchTripExpenses(
-    resolvedActiveTab,
+    resolvedBootstrapTab,
     tripId,
     canFetchExpenses,
   );
@@ -187,6 +203,46 @@ export function TripDetailPage() {
       trip?.status === TripStatus.DRAFT ||
       trip?.status === TripStatus.SCHEDULED,
   });
+
+  const cargoCountForDefault = trip
+    ? resolveCargoCountForDefaultTab({
+        status: trip.status,
+        isLoadingLiveCargos: isLoadingCargos,
+        liveCargoCount: cargos.length,
+        embeddedCargoCount: trip.cargos?.length,
+      })
+    : undefined;
+
+  const defaultTab = trip
+    ? resolveDefaultTripDetailTab({
+        status: trip.status,
+        routeReady: isTripRouteReadyForStartUi(trip.stops ?? []),
+        cargoCount: cargoCountForDefault,
+        hasPendingCobro:
+          trip.invoicing.canGenerateInvoice ||
+          trip.invoicing.canGenerateFalseTripInvoice ||
+          trip.requiresFiscalAttention,
+        canShowCosts: canFetchExpenses,
+      })
+    : "overview";
+  const activeTab = urlTab ?? defaultTab;
+  const resolvedActiveTab =
+    !canFetchExpenses && activeTab === "costs"
+      ? "overview"
+      : isLeanTripPortal && activeTab === "costs"
+        ? "overview"
+        : activeTab;
+
+  const timelineEnabled = shouldFetchTripTimeline(
+    resolvedActiveTab,
+    tripId,
+    trip?.status,
+  );
+  const { data: trackingTimeline } = useTripTimeline(tripId, {
+    enabled: timelineEnabled,
+  });
+  const hasOpenTrackingIncident =
+    timelineEnabled && trackingTimeline?.trip.hasOpenIncident === true;
 
   const { data: vehicle } = useVehicle(trip?.vehicleId ?? "", {
     enabled:
@@ -213,7 +269,8 @@ export function TripDetailPage() {
   });
 
   useEffect(() => {
-    if (!isLeanTripPortal || searchParams.get("tab") !== "costs") return;
+    if (searchParams.get("tab") !== "costs") return;
+    if (canFetchExpenses) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -222,20 +279,25 @@ export function TripDetailPage() {
       },
       { replace: true },
     );
-  }, [isLeanTripPortal, searchParams, setSearchParams]);
+  }, [canFetchExpenses, searchParams, setSearchParams]);
 
   // Stops del viaje (vienen en el trip o se pueden obtener separados)
   const stops = trip?.stops ?? [];
   const orderedStops = getOrderedStops(stops);
 
   const routeDetail = useMemo(
-    () => (trip ? buildTripRouteDetailView(trip, trackingTimeline) : null),
-    [trip, trackingTimeline],
+    () =>
+      trip
+        ? buildTripRouteDetailView(
+            trip,
+            timelineEnabled ? trackingTimeline : undefined,
+          )
+        : null,
+    [trip, timelineEnabled, trackingTimeline],
   );
 
-  /** Estado operativo: timeline de seguimiento cuando existe; detalle como respaldo. */
-  const displayStatus: TripStatusType | undefined =
-    routeDetail?.trip.status ?? trip?.status;
+  /** Estado operativo del chrome/CTAs: siempre el GET detail (no timeline cacheado). */
+  const displayStatus: TripStatusType | undefined = trip?.status;
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOCAL STATE
@@ -246,6 +308,7 @@ export function TripDetailPage() {
     title: string;
     lines: readonly string[];
   } | null>(null);
+  const [revenueSplitSheetOpen, setRevenueSplitSheetOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -466,7 +529,7 @@ export function TripDetailPage() {
   // LOADING STATE
   // ══════════════════════════════════════════════════════════════════════════
 
-  if (isLoadingTrip) {
+  if (isLoadingTrip && !trip) {
     return (
       <DetailPageShell
         isLoading
@@ -479,8 +542,83 @@ export function TripDetailPage() {
     );
   }
 
+  if (tripQueryState === "forbidden") {
+    return (
+      <DetailPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: shell.state.accessDeniedTitle,
+          description: shell.state.accessDeniedDescription,
+          backHref: "/trips",
+          backLabel: shell.state.backToList,
+        }}
+        header={{
+          backHref,
+          icon: <Truck className="h-6 w-6" />,
+          title: shell.title.fallback,
+        }}
+      />
+    );
+  }
+
+  if (tripQueryState === "notFound") {
+    return (
+      <DetailPageShell
+        isLoading={false}
+        notFound
+        notFoundConfig={{
+          icon: <AlertCircle />,
+          title: shell.state.notFoundTitle,
+          description: shell.state.notFoundDescription,
+          backHref: "/trips",
+          backLabel: shell.state.backToList,
+        }}
+        header={{
+          backHref,
+          icon: <Truck className="h-6 w-6" />,
+          title: shell.title.fallback,
+        }}
+      />
+    );
+  }
+
+  if (
+    tripQueryState === "serverError" ||
+    tripQueryState === "unknownError" ||
+    tripQueryState === "missingId"
+  ) {
+    return (
+      <DetailPageShell
+        isLoading={false}
+        header={{
+          backHref,
+          icon: <Truck className="h-6 w-6" />,
+          title: shell.title.fallback,
+        }}
+      >
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title={shell.state.loadErrorTitle}
+          items={[{ text: shell.state.loadErrorDescription }]}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={() => void refetchTrip()}
+        >
+          {shell.state.retryLoad}
+        </Button>
+      </DetailPageShell>
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
-  // NOT FOUND STATE
+  // NOT FOUND STATE (sin datos tras carga exitosa vacía)
   // ══════════════════════════════════════════════════════════════════════════
 
   if (!trip) {
@@ -509,9 +647,7 @@ export function TripDetailPage() {
   // ══════════════════════════════════════════════════════════════════════════
 
   /** Tras cargar `trip`, el estado operativo siempre está definido. */
-  const resolvedDisplayStatus: TripStatusType =
-    routeDetail?.trip.status ?? trip.status;
-
+  const resolvedDisplayStatus: TripStatusType = trip.status;
   const tripForMetrics = routeDetail?.trip ?? trip;
   const distance = calculateDistance(tripForMetrics.mileage);
   const duration = calculateTripDuration(tripForMetrics);
@@ -610,28 +746,21 @@ export function TripDetailPage() {
                   startMileage={trip.mileage.start}
                   suggestedStartMileage={vehicle?.currentMileage}
                   onActionComplete={(updated) => {
-                    refetchTrip();
-                    refetchCargos();
-                    refetchExpenses();
+                    // Mutaciones invalidan trip/cargos vía React Query; sin refetch manual.
                     const f = updated?.fiscalActionRequired;
                     if (f) {
-                      const lines: string[] = [];
-                      if (f.suggestedActions?.length) {
-                        lines.push(...f.suggestedActions);
-                      }
-                      lines.push(
-                        shell.alert.postCancelFiscalInvoiceStatus(
-                          f.invoiceStatus,
-                        ),
-                      );
                       setPostCancelFiscal({
                         title: shell.alert.postCancelFiscalTitle,
-                        lines,
+                        lines: buildPostCancelFiscalAlertLines(f),
                       });
                     }
                   }}
                 />
-                <TripInvoiceActions trip={trip} presentation="headerMenu" />
+                <TripInvoiceActions
+                  trip={trip}
+                  presentation="headerMenu"
+                  onOpenRevenueSplit={() => setRevenueSplitSheetOpen(true)}
+                />
                 <TripActions
                   variant="detailMenu"
                   tripId={trip.id}
@@ -644,23 +773,11 @@ export function TripDetailPage() {
                     (cargo) => cargo.status === CargoStatus.DELIVERED,
                   )}
                   onActionComplete={(updated) => {
-                    refetchTrip();
-                    refetchCargos();
-                    refetchExpenses();
                     const f = updated?.fiscalActionRequired;
                     if (f) {
-                      const lines: string[] = [];
-                      if (f.suggestedActions?.length) {
-                        lines.push(...f.suggestedActions);
-                      }
-                      lines.push(
-                        shell.alert.postCancelFiscalInvoiceStatus(
-                          f.invoiceStatus,
-                        ),
-                      );
                       setPostCancelFiscal({
                         title: shell.alert.postCancelFiscalTitle,
-                        lines,
+                        lines: buildPostCancelFiscalAlertLines(f),
                       });
                     }
                   }}
@@ -673,10 +790,10 @@ export function TripDetailPage() {
       alerts={tripAlerts}
       preStats={
         isLeanTripPortal ||
-        !shouldShowTripFiscalBand(trip, Boolean(postCancelFiscal))
+        !shouldShowTripInvoicingConsole(trip, Boolean(postCancelFiscal))
           ? undefined
           : (
-          <TripFiscalSection
+          <TripInvoicingConsole
             trip={trip}
             postCancelFiscal={
               postCancelFiscal
@@ -687,6 +804,7 @@ export function TripDetailPage() {
                   }
                 : undefined
             }
+            onViewRevenueSplit={() => setRevenueSplitSheetOpen(true)}
           />
         )
       }
@@ -730,6 +848,7 @@ export function TripDetailPage() {
         defaultValue: "overview",
         value: resolvedActiveTab,
         onValueChange: (value) => {
+          if (!canFetchExpenses && value === "costs") return;
           if (isLeanTripPortal && value === "costs") return;
           setSearchParams(
             (prev) => {
@@ -754,10 +873,11 @@ export function TripDetailPage() {
                 : shell.tab.operation,
             content: (
               <TripDetailOperationTab
-                trip={tripForMetrics}
+                trip={trip}
                 canEditStructural={canEditStructural}
                 showClientLink={!isLeanTripPortal}
                 showMileage={!isClientPortal}
+                isClientPortalView={isClientPortal}
                 statusHistory={trip.statusHistory}
               />
             ),
@@ -769,7 +889,7 @@ export function TripDetailPage() {
             content: (
               <TripDetailRouteTab
                 trip={routeDetail?.trip ?? trip}
-                tripStatus={routeDetail?.trip.status ?? trip.status}
+                tripStatus={trip.status}
                 orderedStops={routeDetail?.orderedStops ?? orderedStops}
                 progress={routeDetail?.progress ?? 0}
                 canEditStructural={canEditStructural}
@@ -811,7 +931,6 @@ export function TripDetailPage() {
                   status={resolvedDisplayStatus}
                   cargos={cargos}
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
-                  onCargosChanged={() => refetchCargos()}
                 />
               </Suspense>
             ),
@@ -843,14 +962,12 @@ export function TripDetailPage() {
                   isError={isErrorCargos}
                   canEditStructural={canEditStructural}
                   onRetry={() => refetchCargos()}
-                  onCargosChanged={() => refetchCargos()}
                 />
               </Suspense>
             ),
           },
-          ...(isLeanTripPortal
-            ? []
-            : [
+          ...(canFetchExpenses
+            ? [
                 {
                   value: "costs" as const,
                   label: (
@@ -895,16 +1012,28 @@ export function TripDetailPage() {
                     </Suspense>
                   ),
                 },
-              ]),
+              ]
+            : []),
         ],
       }}
       metadata={{
         createdAt: trip.createdAt,
         updatedAt: trip.updatedAt,
-        createdBy: trip.createdByName?.trim() || trip.createdBy || undefined,
-        updatedBy: trip.updatedByName?.trim() || undefined,
+        createdBy: isClientPortal
+          ? undefined
+          : trip.createdByName?.trim() || trip.createdBy || undefined,
+        updatedBy: isClientPortal
+          ? undefined
+          : trip.updatedByName?.trim() || undefined,
       }}
       />
+      {!isLeanTripPortal && trip ? (
+        <TripRevenueSplitSheet
+          trip={trip}
+          open={revenueSplitSheetOpen}
+          onOpenChange={setRevenueSplitSheetOpen}
+        />
+      ) : null}
     </>
   );
 }

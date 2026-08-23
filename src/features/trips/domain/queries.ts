@@ -126,6 +126,10 @@ export const tripQueryKeys = {
   timeline: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "timeline"] as const,
 
+  /** ADR-0081 — acuerdo de prorrateo multi-RFC. */
+  revenueSplit: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "revenue-split"] as const,
+
   // Canvas intake (ADR-0078)
   corridors: (clientId: string) =>
     [...tripQueryKeys.all, "corridors", clientId] as const,

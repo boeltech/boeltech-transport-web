@@ -43,6 +43,9 @@ export function useReplaceTripStops(
         queryKey: tripQueryKeys.cargos(tripId),
       });
       await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.timeline(tripId),
+      });
+      await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.lists(),
       });
       await userOnSuccess?.(trip, stops, onMutateResult, context);

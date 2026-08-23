@@ -25,6 +25,8 @@ import type {
   ExpensesSummary,
   TripFiscalActionRequired,
   TripTrailerRef,
+  TripRevenueSplit,
+  TripRevenueSplitLeg,
   //   TripStatusType,
   CurrencyType,
 } from "@features/trips/domain";
@@ -42,6 +44,8 @@ import type {
   ApiStatusHistoryResponse,
   ApiCreateTripResponse,
   ApiExpensesSummaryResponse,
+  ApiTripRevenueSplitResponse,
+  ApiTripRevenueSplitLegResponse,
 } from "./api-types";
 
 // ============================================================================
@@ -124,6 +128,12 @@ function mapApiTripInvoicing(
     api?.can_generate_accessory_invoice ?? hasActivePrimaryInvoice;
   const canGenerateFalseTripInvoice =
     api?.can_generate_false_trip_invoice ?? false;
+  const hasActiveSplit = api?.has_active_split ?? false;
+  const splitLegsInvoiced = Number(api?.split_legs_invoiced ?? 0) || 0;
+  const splitLegsTotal = Number(api?.split_legs_total ?? 0) || 0;
+  const canGenerateSplitShareInvoice =
+    api?.can_generate_split_share_invoice ?? false;
+  const cartaPorteAttached = api?.carta_porte_attached ?? false;
   const accessoryInvoices = (api?.accessory_invoices ?? []).map((item) => ({
     id: item.id,
     folio: item.folio,
@@ -138,12 +148,49 @@ function mapApiTripInvoicing(
     canGenerateInvoice,
     canGenerateAccessoryInvoice,
     canGenerateFalseTripInvoice,
+    hasActiveSplit,
+    splitLegsInvoiced,
+    splitLegsTotal,
+    canGenerateSplitShareInvoice,
+    cartaPorteAttached,
     invoiceId,
     invoiceFolio,
     invoiceCfdiUuid,
     invoiceStatus,
     accessoryInvoices,
     blockReason: api?.block_reason ?? null,
+  };
+}
+
+function mapApiTripRevenueSplitLeg(
+  api: ApiTripRevenueSplitLegResponse,
+): TripRevenueSplitLeg {
+  return {
+    id: api.id,
+    clientId: api.client_id,
+    clientLegalName: api.client_legal_name ?? null,
+    clientRfc: api.client_rfc ?? null,
+    sharePercent: Number(api.share_percent) || 0,
+    sortOrder: Number(api.sort_order) || 0,
+    suggestedCartaPorte: Boolean(api.suggested_carta_porte),
+    invoiceId: api.invoice_id ?? null,
+  };
+}
+
+/** Mapea respuesta API del acuerdo de prorrateo (ADR-0081). */
+export function mapApiTripRevenueSplit(
+  api: ApiTripRevenueSplitResponse,
+): TripRevenueSplit {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    status: api.status,
+    basisAmount: Number(api.basis_amount) || 0,
+    currency: api.currency || "MXN",
+    notes: api.notes ?? null,
+    legs: (api.legs ?? []).map(mapApiTripRevenueSplitLeg),
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import type { TripCargo, TripStop } from "@features/trips/domain";
@@ -120,6 +120,7 @@ function RegisterTripArrivalSheetBody({
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [closureNotes, setClosureNotes] = useState("");
+  const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
     vehicleId ?? "",
@@ -222,7 +223,7 @@ function RegisterTripArrivalSheetBody({
         occurredAt: occurredAtIso,
         mileage: parsed,
         notes: trimmedNotes || undefined,
-        idempotencyKey: createTrackingIdempotencyKey(),
+        idempotencyKey,
         payload: trimmedNotes ? { closure_notes: trimmedNotes } : {},
         ...trackingGpsToEventFields(gps),
       },

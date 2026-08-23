@@ -71,12 +71,42 @@ export interface ApiTripInvoicingResponse {
   can_generate_invoice?: boolean;
   can_generate_accessory_invoice?: boolean;
   can_generate_false_trip_invoice?: boolean;
+  /** ADR-0081 */
+  has_active_split?: boolean;
+  split_legs_invoiced?: number;
+  split_legs_total?: number;
+  can_generate_split_share_invoice?: boolean;
+  carta_porte_attached?: boolean;
   invoice_id?: string | null;
   invoice_folio?: string | null;
   invoice_cfdi_uuid?: string | null;
   invoice_status?: "draft" | "stamping" | "stamped" | "cancellation_pending" | "cancelled" | null;
   accessory_invoices?: ApiTripAccessoryInvoice[];
   block_reason?: string | null;
+}
+
+/** ADR-0081 — respuesta GET/PUT/DELETE /trips/:id/revenue-split */
+export interface ApiTripRevenueSplitLegResponse {
+  id: string;
+  client_id: string;
+  client_legal_name: string | null;
+  client_rfc: string | null;
+  share_percent: number;
+  sort_order: number;
+  suggested_carta_porte: boolean;
+  invoice_id: string | null;
+}
+
+export interface ApiTripRevenueSplitResponse {
+  id: string;
+  trip_id: string;
+  status: "draft" | "active" | "cancelled";
+  basis_amount: number;
+  currency: string;
+  notes: string | null;
+  legs: ApiTripRevenueSplitLegResponse[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ApiTripInternalStaffResponse {

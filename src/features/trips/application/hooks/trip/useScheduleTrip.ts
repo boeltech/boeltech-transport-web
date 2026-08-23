@@ -5,8 +5,9 @@ import {
 } from "@tanstack/react-query";
 import { tripRepository } from "@features/trips/infrastructure";
 import { createScheduleTripUseCase } from "../../useCases";
-import { tripQueryKeys, type Trip } from "@features/trips/domain";
+import { tripQueryKeys, TripStatus, type Trip } from "@features/trips/domain";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
+import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
 
 // ============================================================================
 // CUSTOM ERROR
@@ -83,9 +84,8 @@ export function useScheduleTrip(
               : previous.internalStaff,
         };
       });
-      await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
+      await invalidateTripDetailSurface(queryClient, tripId, {
+        status: TripStatus.SCHEDULED,
       });
       await invalidateTripAssignmentResources(queryClient);
       await userOnSuccess?.(trip, tripId, onMutateResult, context);

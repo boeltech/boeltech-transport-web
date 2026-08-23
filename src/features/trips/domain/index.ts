@@ -122,6 +122,11 @@ export type {
   TripFiscalActionRequired,
   TripInvoicing,
   TripAccessoryInvoice,
+  TripRevenueSplitStatus,
+  TripRevenueSplitLeg,
+  TripRevenueSplit,
+  UpsertTripRevenueSplitLegInput,
+  UpsertTripRevenueSplitInput,
 
   // Main Entities
   CargoMovement,

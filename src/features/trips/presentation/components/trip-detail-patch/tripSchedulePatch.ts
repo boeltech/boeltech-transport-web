@@ -1,32 +1,45 @@
-import type { Trip, UpdateTripInput } from "@features/trips/domain";
+import { getOrderedStops, type CreateStopInput, type Trip, type UpdateTripInput } from "@features/trips/domain";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
-import { buildCreateLikeFromTrip } from "./tripCreateLikeFromTrip";
-import { buildUpdateTripInputFromCreateInput } from "../../pages/create/updateTripPayloadShared";
+import { mapStopToReplaceStopInput } from "./mapStopToCreateStopInput";
 import {
-  buildScheduleOverrideFromTrip,
   findDestinationStop,
   mergeDestinationEstimatedArrivalFromSchedule,
 } from "./tripScheduledArrivalSync";
 import type { TripScheduleFormValues } from "./tripStopOperationalFields";
 
+/**
+ * Payload de programación para `PUT /trips/:id`: solo fechas del viaje.
+ * No incluir `stops` — el API interpreta stops como replace de ruta y, sin cargos,
+ * borra cargas/gastos; además `address_id` de snapshot provoca STOP_ADDRESS_NOT_FOUND.
+ */
 export function buildScheduleUpdateInput(
-  trip: Trip,
+  _trip: Trip,
   values: TripScheduleFormValues,
 ): UpdateTripInput {
-  const destination = findDestinationStop(trip);
-  if (destination) {
-    const editedById = mergeDestinationEstimatedArrivalFromSchedule(trip, values);
-    const scheduleOverride = buildScheduleOverrideFromTrip(trip, values);
-    return buildUpdateTripInputFromCreateInput(
-      buildCreateLikeFromTrip(trip, editedById, scheduleOverride),
-    );
-  }
-
   return {
     scheduledDeparture: localInputToUtcIso(values.scheduledDeparture),
     scheduledArrival: values.scheduledArrival
       ? localInputToUtcIso(values.scheduledArrival)
       : null,
   };
+}
+
+/**
+ * Ruta completa para `PUT /trips/:id/stops` tras cambiar la programación,
+ * sincronizando `estimatedArrival` del destino. Usa mapper sin `addressId`
+ * de snapshot (ADR-0055).
+ */
+export function buildScheduleDestinationEtaReplaceStops(
+  trip: Trip,
+  values: TripScheduleFormValues,
+): CreateStopInput[] | null {
+  const destination = findDestinationStop(trip);
+  const ordered = getOrderedStops(trip.stops ?? []);
+  if (!destination || ordered.length < 2) return null;
+
+  const editedById = mergeDestinationEstimatedArrivalFromSchedule(trip, values);
+  return ordered.map((stop) =>
+    mapStopToReplaceStopInput(stop, editedById.get(stop.id)),
+  );
 }

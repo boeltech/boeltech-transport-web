@@ -78,8 +78,8 @@ export function buildTripDetailPatchFromTrackingEvent(
 }
 
 /**
- * Fusiona paradas y estado operativo del timeline en la caché del detalle del viaje.
- * Mantiene relaciones del GET /trips/:id que el timeline no incluye.
+ * Fusiona paradas, fechas y odómetro del timeline en la caché del detalle.
+ * No escribe `status` (lo controla el GET detail o un patch explícito).
  */
 export function applyTimelineToTripDetailCache(
   queryClient: QueryClient,
@@ -91,7 +91,6 @@ export function applyTimelineToTripDetailCache(
 
     return {
       ...previous,
-      status: timeline.trip.status,
       scheduledDeparture:
         timeline.trip.scheduledDeparture ?? previous.scheduledDeparture,
       scheduledArrival: timeline.trip.scheduledArrival ?? previous.scheduledArrival,
@@ -110,6 +109,7 @@ export function applyTimelineToTripDetailCache(
 /**
  * Refresca timeline y detalle tras un evento de seguimiento para que el tab Ruta
  * refleje paradas y progreso sin esperar al staleTime del detalle.
+ * Secuencia: patch → refetch timeline → merge stops → invalidate detail → re-patch.
  */
 export async function refetchTripTrackingViews(
   queryClient: QueryClient,
@@ -120,13 +120,9 @@ export async function refetchTripTrackingViews(
     applyTripDetailTrackingPatch(queryClient, tripId, patch);
   }
 
-  await Promise.all([
-    queryClient.refetchQueries({ queryKey: tripQueryKeys.timeline(tripId) }),
-    queryClient.invalidateQueries({
-      queryKey: tripQueryKeys.detail(tripId),
-      refetchType: "active",
-    }),
-  ]);
+  await queryClient.refetchQueries({
+    queryKey: tripQueryKeys.timeline(tripId),
+  });
 
   const timeline = queryClient.getQueryData<TrackingTimeline>(
     tripQueryKeys.timeline(tripId),
@@ -135,6 +131,11 @@ export async function refetchTripTrackingViews(
   if (timeline) {
     applyTimelineToTripDetailCache(queryClient, tripId, timeline);
   }
+
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.detail(tripId),
+    refetchType: "active",
+  });
 
   if (patch) {
     applyTripDetailTrackingPatch(queryClient, tripId, patch);

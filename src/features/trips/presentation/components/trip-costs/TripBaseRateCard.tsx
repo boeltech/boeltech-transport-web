@@ -25,7 +25,7 @@ export interface TripBaseRateCardProps {
   clientId?: string;
   expenseLines: TripWizardExpenseLine[];
   readOnly: boolean;
-  /** PD-D: Facturado vs Tarifa (sin timbrar) en completed. */
+  /** PD-D: Facturado vs Tarifa registrada en completed. */
   incomeSourceLabel?: string | null;
 }
 

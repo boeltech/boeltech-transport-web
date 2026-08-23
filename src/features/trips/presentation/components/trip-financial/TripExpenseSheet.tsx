@@ -66,11 +66,12 @@ export interface TripExpenseSheetProps {
   editingIndex: number | null;
   totalDistanceKm: number;
   expectedFuelEfficiency: number | null;
+  isSubmitting?: boolean;
   onSubmit: (
     values: TripExpenseFormValues,
     editingIndex: number | null,
     options?: { keepOpen?: boolean },
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 function buildEmptyExpense(
@@ -125,6 +126,7 @@ function TripExpenseSheetSession({
   editingIndex,
   totalDistanceKm,
   expectedFuelEfficiency,
+  isSubmitting = false,
   onSubmit,
 }: Omit<TripExpenseSheetProps, "open">) {
   const { success: showSuccessToast } = useToast();
@@ -219,8 +221,9 @@ function TripExpenseSheetSession({
 
   const submitSheet = handleSubmit(
     (values) => {
-      onSubmit(buildPayload(values), editingIndex);
-      onOpenChange(false);
+      void (async () => {
+        await onSubmit(buildPayload(values), editingIndex);
+      })();
     },
     () => {
       setShowSummary(true);
@@ -229,9 +232,9 @@ function TripExpenseSheetSession({
 
   const handleAddAnother = () => {
     void handleSubmit(
-      (values) => {
+      async (values) => {
         const result = buildPayload(values);
-        onSubmit(result, null, { keepOpen: true });
+        await onSubmit(result, null, { keepOpen: true });
         reset(buildEmptyExpense(expenseKind));
         setDieselPricePerLiter(DEFAULT_DIESEL_PRICE);
         setExtrasOpen(false);
@@ -453,6 +456,7 @@ function TripExpenseSheetSession({
           type="button"
           variant="outline"
           onClick={() => onOpenChange(false)}
+          disabled={isSubmitting}
         >
           {copy.action.cancel}
         </Button>
@@ -461,11 +465,16 @@ function TripExpenseSheetSession({
             type="button"
             variant="secondary"
             onClick={handleAddAnother}
+            disabled={isSubmitting}
           >
             {copy.action.addAnother}
           </Button>
         ) : null}
-        <Button type="button" onClick={() => void submitSheet()}>
+        <Button
+          type="button"
+          onClick={() => void submitSheet()}
+          disabled={isSubmitting}
+        >
           {isEdit ? copy.action.saveChanges : copy.action.addConcept}
         </Button>
       </SheetFooter>

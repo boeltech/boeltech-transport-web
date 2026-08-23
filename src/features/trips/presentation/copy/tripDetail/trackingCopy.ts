@@ -103,7 +103,7 @@ export const trackingCopy = {
     declareFalseTripExpensesTitle: "Captura los gastos antes de cerrar",
     declareFalseTripExpensesBody:
       "En terminal ya no se editan. Si aún faltan casetas o combustible, regístralos ahora.",
-    declareFalseTripExpensesCta: "Ir a Costos",
+    declareFalseTripExpensesCta: "Ir a dinero del viaje",
     notesOptional: "Notas (opcional)",
     notesPlaceholder: "Observaciones operativas…",
     closeNotesPlaceholder: "Observaciones al finalizar…",

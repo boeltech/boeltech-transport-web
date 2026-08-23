@@ -13,8 +13,9 @@ export type TripRouteDetailView = {
 };
 
 /**
- * Fuente de verdad para el tab Ruta: timeline de Seguimiento cuando existe;
- * detalle del viaje como respaldo (borrador/programado sin timeline).
+ * Fuente de verdad para el tab Ruta: timeline de Seguimiento cuando existe y
+ * su status operativo coincide con el GET detail; detalle como respaldo.
+ * El `status` del viaje siempre viene del detail (nunca del timeline cacheado).
  */
 export function buildTripRouteDetailView(
   trip: Trip,
@@ -22,7 +23,7 @@ export function buildTripRouteDetailView(
 ): TripRouteDetailView {
   const fallbackStops = getOrderedStops(trip.stops ?? []);
 
-  if (!timeline) {
+  if (!timeline || timeline.trip.status !== trip.status) {
     return {
       trip,
       orderedStops: fallbackStops,
@@ -35,7 +36,7 @@ export function buildTripRouteDetailView(
   return {
     trip: {
       ...trip,
-      status: timeline.trip.status,
+      status: trip.status,
       scheduledDeparture:
         timeline.trip.scheduledDeparture ?? trip.scheduledDeparture,
       scheduledArrival: timeline.trip.scheduledArrival ?? trip.scheduledArrival,

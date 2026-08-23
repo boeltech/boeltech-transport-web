@@ -161,6 +161,7 @@ export function useAddExpense(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(tripId),
       });
+      invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -220,6 +221,7 @@ export function useUpdateExpense(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(tripId),
       });
+      invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -263,6 +265,7 @@ export function useDeleteExpense(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(tripId),
       });
+      invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -429,6 +432,7 @@ export function useAddMultipleExpenses(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(tripId),
       });
+      invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

@@ -1,5 +1,9 @@
 import type { Trip, ITripRepository } from "@features/trips/domain";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
+import {
+  isApiError,
+  isAxiosError,
+} from "@shared/api/interceptors/error-handler";
 
 // ============================================================================
 // GET TRIP BY ID USE CASE
@@ -42,6 +46,9 @@ export class GetTripByIdUseCase implements IGetTripByIdUseCase {
 
       return { success: true, data: trip.data };
     } catch (error) {
+      if (isApiError(error) || isAxiosError(error)) {
+        throw error;
+      }
       return {
         success: false,
         error: {

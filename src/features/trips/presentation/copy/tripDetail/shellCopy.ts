@@ -14,7 +14,7 @@ export const shellCopy = {
     route: "Ruta",
     tracking: "Seguimiento",
     cargo: "Cargas",
-    costs: "Costos",
+    costs: "Dinero del viaje",
     history: "Historial",
     trackingLive: "En vivo",
     trackingIncident: "Incidente",
@@ -89,6 +89,13 @@ export const shellCopy = {
   state: {
     notFoundTitle: "Viaje no encontrado",
     notFoundDescription: "El viaje que buscas no existe o fue eliminado.",
+    accessDeniedTitle: "Sin acceso a este viaje",
+    accessDeniedDescription:
+      "No tienes permiso para ver este viaje o no está disponible para tu cuenta.",
+    loadErrorTitle: "No se pudo cargar el viaje",
+    loadErrorDescription:
+      "Ocurrió un error al obtener los datos. Intenta de nuevo.",
+    retryLoad: "Reintentar",
     backToList: "Volver a Viajes",
   },
   format: {

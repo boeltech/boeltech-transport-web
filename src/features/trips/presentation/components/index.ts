@@ -17,6 +17,11 @@ export { TripActions } from "./TripActions";
 export { StartTripSheet } from "./trip-tracking/StartTripSheet";
 export { TripInvoiceActions } from "./TripInvoiceActions";
 export { TripFiscalSection } from "./TripFiscalSection";
+export { TripInvoicingConsole } from "./TripInvoicingConsole";
+export {
+  shouldShowTripInvoicingConsole,
+  shouldShowTripFiscalBand,
+} from "./shouldShowTripInvoicingConsole";
 export { TripTrackingMap } from "./TripTrackingMap";
 export { TripTrackingTab } from "./TripTrackingTab";
 export { TripDetailCostsTab } from "./trip-costs";
@@ -30,3 +35,5 @@ export {
 } from "./trip-cargos";
 export { TripDetailRouteTab } from "./trip-route";
 export { TripDetailOperationTab } from "./trip-operation";
+export { TripRevenueSplitSheet } from "./TripRevenueSplitSheet";
+export { TripRevenueSplitSummaryLine } from "./TripRevenueSplitSummaryLine";

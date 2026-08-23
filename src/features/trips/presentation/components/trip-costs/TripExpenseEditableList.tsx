@@ -43,6 +43,8 @@ export interface TripExpenseEditableListProps {
   canRemoveItem?: (item: TripExpenseListItem) => boolean;
   readOnly?: boolean;
   showDetailMeta?: boolean;
+  /** Deshabilita acciones mientras hay una mutación en curso. */
+  actionsDisabled?: boolean;
 }
 
 function getExpenseStatusVariant(
@@ -54,9 +56,22 @@ function getExpenseStatusVariant(
     case "rejected":
       return "destructive";
     case "pending":
+    case "documented":
     default:
       return "secondary";
   }
+}
+
+function statusBadgeLabel(status: ExpenseStatusType): string {
+  if (status === "pending") return copy.state.inReview;
+  if (status === "documented") return copy.state.documented;
+  return EXPENSE_STATUS_LABELS[status] ?? status;
+}
+
+function statusFinanceHint(status: ExpenseStatusType): string | null {
+  if (status === "pending") return copy.state.inReviewHint;
+  if (status === "documented") return copy.state.documentedHint;
+  return null;
 }
 
 const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
@@ -68,11 +83,13 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
   onRemove,
   onApprove,
   onReject,
+  actionsDisabled = false,
 }: {
   expense: TripExpenseListItem;
   showDetailMeta: boolean;
   canEdit: boolean;
   canRemove: boolean;
+  actionsDisabled?: boolean;
   onEdit?: (id: string) => void;
   onRemove?: (id: string) => void;
   onApprove?: (id: string) => void;
@@ -83,6 +100,10 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
   const category = EXPENSE_CATEGORY_MAP.get(
     expense.category as TripExpenseFormValues["category"],
   );
+  const financeHint =
+    showDetailMeta && expense.status
+      ? statusFinanceHint(expense.status)
+      : null;
 
   return (
     <div className="flex items-start gap-3 py-3">
@@ -100,8 +121,9 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
             <Badge
               variant={getExpenseStatusVariant(expense.status)}
               className="text-xs font-normal"
+              title={financeHint ?? undefined}
             >
-              {EXPENSE_STATUS_LABELS[expense.status] ?? expense.status}
+              {statusBadgeLabel(expense.status)}
             </Badge>
           ) : null}
           {showDetailMeta && expense.isEstimated ? (
@@ -111,9 +133,14 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          {category?.label || EXPENSE_CATEGORY_LABELS[expense.category as ExpenseCategoryType] || copy.state.noCategory}
+          {category?.label ||
+            EXPENSE_CATEGORY_LABELS[expense.category as ExpenseCategoryType] ||
+            copy.state.noCategory}
           {expense.vendorName ? ` · ${expense.vendorName}` : ""}
         </p>
+        {financeHint ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">{financeHint}</p>
+        ) : null}
         {showDetailMeta && (expense.expenseDate || expense.hasReceipt) ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {expense.expenseDate
@@ -127,58 +154,68 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
       <span className="whitespace-nowrap text-sm font-semibold tabular-nums">
         -{formatMxCurrency(expense.amount)}
       </span>
-      {canApprove ? (
-        <div className="flex shrink-0 gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-success hover:text-success"
-            onClick={() => onApprove(expense.id)}
-            aria-label={copy.action.approve}
+      <div className="flex shrink-0 items-start gap-2">
+        {canApprove ? (
+          <div
+            className="flex gap-0.5 rounded-md border border-border bg-muted/50 p-0.5"
+            role="group"
+            aria-label={copy.action.reviewGroup}
           >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => onReject(expense.id)}
-            aria-label={copy.action.reject}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ) : null}
-      {canEdit || canRemove ? (
-        <div className="flex shrink-0 gap-1">
-          {canEdit && onEdit ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
-              onClick={() => onEdit(expense.id)}
-              aria-label={copy.action.edit}
+              className="h-7 w-7 text-success hover:text-success"
+              disabled={actionsDisabled}
+              onClick={() => onApprove(expense.id)}
+              aria-label={copy.action.approve}
             >
-              <Edit2 className="h-3.5 w-3.5" />
+              <Check className="h-3.5 w-3.5" />
             </Button>
-          ) : null}
-          {canRemove && onRemove ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => onRemove(expense.id)}
-              aria-label={copy.action.remove}
+              disabled={actionsDisabled}
+              onClick={() => onReject(expense.id)}
+              aria-label={copy.action.reject}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <X className="h-3.5 w-3.5" />
             </Button>
-          ) : null}
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+        {canEdit || canRemove ? (
+          <div className="flex gap-0.5">
+            {canEdit && onEdit ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={actionsDisabled}
+                onClick={() => onEdit(expense.id)}
+                aria-label={copy.action.edit}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+            {canRemove && onRemove ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                disabled={actionsDisabled}
+                onClick={() => onRemove(expense.id)}
+                aria-label={copy.action.remove}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 });
@@ -195,6 +232,7 @@ export function TripExpenseEditableList({
   canRemoveItem,
   readOnly = false,
   showDetailMeta = false,
+  actionsDisabled = false,
 }: TripExpenseEditableListProps) {
   if (items.length === 0) {
     return (
@@ -225,6 +263,7 @@ export function TripExpenseEditableList({
             showDetailMeta={showDetailMeta}
             canEdit={canEdit}
             canRemove={canRemove}
+            actionsDisabled={actionsDisabled}
             onEdit={onEdit}
             onRemove={onRemove}
             onApprove={onApprove}

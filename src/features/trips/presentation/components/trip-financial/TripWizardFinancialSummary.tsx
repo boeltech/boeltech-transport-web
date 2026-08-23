@@ -10,26 +10,52 @@ import { formatMxCurrency } from "./financialSummary";
 import type { TripWizardExpenseLine, TripWizardFinancialSnapshot } from "./tripWizardFinancialSnapshot";
 import { wizardCopy } from "../../copy";
 
-const copy = wizardCopy.costs.financialSummary;
+const defaultCopy = wizardCopy.costs.financialSummary;
+
+/** Subconjunto de labels usados por el resumen (wizard o detalle). */
+export type TripFinancialSummaryCopy = {
+  section: {
+    title: string;
+    income: string;
+    operational: (count: number) => string;
+    indirect: (count: number) => string;
+  };
+  label: {
+    freight: string;
+    baseRate: string;
+    income: string;
+    costs: string;
+    expenses: string;
+    margin: string;
+    marginPct: string;
+  };
+  state: {
+    emptyLines: string;
+  };
+};
 
 export interface TripWizardFinancialSummaryProps {
   snapshot: TripWizardFinancialSnapshot;
   className?: string;
-  /** Envuelve en Card con encabezado (panel sticky del paso Costos). */
+  /** Envuelve en Card con encabezado (panel sticky del paso Dinero del viaje). */
   showCard?: boolean;
   /**
-   * `lines` (default): lista cada concepto — detalle y resumen del wizard.
-   * `totals`: solo totales y margen — paso Costos (sin eco de líneas).
+   * `lines` (default): lista cada concepto — resumen del wizard.
+   * `totals`: solo totales y margen — paso Dinero del viaje y detalle viaje.
    */
   variant?: "lines" | "totals";
   /** Override del título del card (detalle viaje). */
   title?: string;
   /** Chip de origen del ingreso (Facturado / Tarifa). */
   incomeSourceLabel?: string | null;
-  /** Microcopy bajo el margen cuando hay gastos en cola. */
+  /** Microcopy bajo el margen (p. ej. monto en revisión). */
   queuedCostsHint?: string | null;
-  /** Etiqueta del margen primario (p. ej. Utilidad (aprobados)). */
+  /** Estado del cálculo (estimado vs solo aprobados). */
+  calculationStatusHint?: string | null;
+  /** Etiqueta del margen primario (p. ej. Utilidad confirmada). */
   marginLabel?: string;
+  /** Copy del resumen; por defecto wizard. Detalle pasa tripDetailCopy.costs.financialSummary. */
+  summaryCopy?: TripFinancialSummaryCopy;
 }
 
 function TripWizardFinancialSummaryBody({
@@ -37,17 +63,33 @@ function TripWizardFinancialSummaryBody({
   variant,
   incomeSourceLabel,
   queuedCostsHint,
+  calculationStatusHint,
   marginLabel,
+  copy,
 }: {
   snapshot: TripWizardFinancialSnapshot;
   variant: "lines" | "totals";
   incomeSourceLabel?: string | null;
   queuedCostsHint?: string | null;
+  calculationStatusHint?: string | null;
   marginLabel?: string;
+  copy: TripFinancialSummaryCopy;
 }) {
   const { operationalCosts, indirectExpenses, financial, marginToneClass } =
     snapshot;
   const resolvedMarginLabel = marginLabel ?? copy.label.margin;
+
+  const statusBlock =
+    calculationStatusHint || queuedCostsHint ? (
+      <div className="space-y-1">
+        {calculationStatusHint ? (
+          <p className="text-xs text-muted-foreground">{calculationStatusHint}</p>
+        ) : null}
+        {queuedCostsHint ? (
+          <p className="text-xs text-warning-foreground">{queuedCostsHint}</p>
+        ) : null}
+      </div>
+    ) : null;
 
   if (variant === "totals") {
     return (
@@ -95,9 +137,7 @@ function TripWizardFinancialSummaryBody({
               : `${financial.marginPct.toFixed(1)} %`
           }
         />
-        {queuedCostsHint ? (
-          <p className="text-xs text-warning-foreground">{queuedCostsHint}</p>
-        ) : null}
+        {statusBlock}
       </div>
     );
   }
@@ -207,9 +247,7 @@ function TripWizardFinancialSummaryBody({
             : `${financial.marginPct.toFixed(1)}%`
         }
       />
-      {queuedCostsHint ? (
-        <p className="text-xs text-warning-foreground">{queuedCostsHint}</p>
-      ) : null}
+      {statusBlock}
     </div>
   );
 }
@@ -222,8 +260,12 @@ export function TripWizardFinancialSummary({
   title,
   incomeSourceLabel,
   queuedCostsHint,
+  calculationStatusHint,
   marginLabel,
+  summaryCopy,
 }: TripWizardFinancialSummaryProps) {
+  const copy = summaryCopy ?? defaultCopy;
+
   if (!showCard) {
     return (
       <div className={className}>
@@ -232,7 +274,9 @@ export function TripWizardFinancialSummary({
           variant={variant}
           incomeSourceLabel={incomeSourceLabel}
           queuedCostsHint={queuedCostsHint}
+          calculationStatusHint={calculationStatusHint}
           marginLabel={marginLabel}
+          copy={copy}
         />
       </div>
     );
@@ -252,7 +296,9 @@ export function TripWizardFinancialSummary({
           variant={variant}
           incomeSourceLabel={incomeSourceLabel}
           queuedCostsHint={queuedCostsHint}
+          calculationStatusHint={calculationStatusHint}
           marginLabel={marginLabel}
+          copy={copy}
         />
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 /**
  * Namespace: trips.copy.wizard.costs.*
  *
- * Léxico operativo del paso Costos: tarifa, conceptos del viaje y resultado.
+ * Léxico operativo del paso Dinero del viaje: tarifa, conceptos del viaje y resultado.
  * No reutiliza títulos ALL CAPS ni «rentabilidad» del detalle.
  */
 export const costsCopy = {

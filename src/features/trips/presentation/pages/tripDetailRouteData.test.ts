@@ -101,5 +101,67 @@ describe("buildTripRouteDetailView", () => {
     expect(view.orderedStops).toHaveLength(3);
     expect(view.orderedStops[0]?.status).toBe(StopStatus.COMPLETED);
     expect(view.trip.actualDeparture).toEqual(timeline.trip.actualDeparture);
+    expect(view.trip.status).toBe("in_progress");
+  });
+
+  it("ignores stale timeline when status diverges (P0 cancel/schedule)", () => {
+    const trip = {
+      ...baseTrip([
+        {
+          id: "s0",
+          sequenceOrder: 0,
+          stopType: [StopType.ORIGIN],
+          status: StopStatus.PENDING,
+        },
+      ] as Trip["stops"]),
+      status: "cancelled" as const,
+    };
+
+    const timeline = {
+      trip: {
+        id: "trip-1",
+        tripCode: "VJ-001",
+        status: "in_progress" as const,
+        scheduledDeparture: null,
+        scheduledArrival: null,
+        actualDeparture: new Date("2026-05-28T10:00:00.000Z"),
+        actualArrival: null,
+        startMileage: 100_000,
+        endMileage: null,
+        hasOpenIncident: false,
+        totalDistRec: null,
+      },
+      progress: {
+        stopsTotal: 3,
+        stopsCompleted: 1,
+        percentComplete: 33,
+        distancePlannedKm: 800,
+        distanceActualKm: null,
+        estimatedArrival: null,
+      },
+      stops: [
+        {
+          id: "s0",
+          sequenceOrder: 0,
+          stopType: [StopType.ORIGIN],
+          status: StopStatus.COMPLETED,
+        },
+        {
+          id: "s1",
+          sequenceOrder: 1,
+          stopType: [StopType.DESTINATION],
+          status: StopStatus.PENDING,
+        },
+      ],
+      events: [],
+      statusHistory: [],
+      map: { routeGeojson: null, lastKnownPosition: null },
+    } as unknown as TrackingTimeline;
+
+    const view = buildTripRouteDetailView(trip, timeline);
+
+    expect(view.trip.status).toBe("cancelled");
+    expect(view.orderedStops).toHaveLength(1);
+    expect(view.progress).toBe(0);
   });
 });

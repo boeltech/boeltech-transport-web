@@ -1,7 +1,7 @@
 import type { CreateTripInput, Trip } from "@features/trips/domain";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
-import { mapStopToCreateStopInput } from "./mapStopToCreateStopInput";
+import { mapStopToReplaceStopInput } from "./mapStopToCreateStopInput";
 import type { TripStopOperationalValues } from "./tripStopOperationalFields";
 
 export function buildCreateLikeFromTrip(
@@ -40,7 +40,7 @@ export function buildCreateLikeFromTrip(
         paymentNotes: staff.paymentNotes ?? undefined,
       })) ?? [],
     stops: (trip.stops ?? []).map((stop) =>
-      mapStopToCreateStopInput(stop, editedById.get(stop.id)),
+      mapStopToReplaceStopInput(stop, editedById.get(stop.id)),
     ),
     cargos: (trip.cargos ?? []).map((cargo) => ({
       clientId: cargo.clientId,

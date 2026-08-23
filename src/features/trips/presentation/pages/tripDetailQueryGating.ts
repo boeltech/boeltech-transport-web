@@ -36,6 +36,20 @@ export interface DefaultTripDetailTabInput {
  * Tab inicial cuando no hay `?tab=` (Capa 1 D2).
  * `cargoCount` undefined = aún no sabemos; no saltar a Cargas.
  */
+/** Conteo de cargas para tab default: live en DRAFT/SCHEDULED, embebido en otros estados. */
+export function resolveCargoCountForDefaultTab(input: {
+  status: TripStatusType;
+  isLoadingLiveCargos: boolean;
+  liveCargoCount: number;
+  embeddedCargoCount: number | undefined;
+}): number | undefined {
+  const usesLiveCargos =
+    input.status === TripStatus.DRAFT || input.status === TripStatus.SCHEDULED;
+  if (!usesLiveCargos) return input.embeddedCargoCount;
+  if (input.isLoadingLiveCargos) return undefined;
+  return input.liveCargoCount;
+}
+
 export function resolveDefaultTripDetailTab(
   input: DefaultTripDetailTabInput,
 ): TripDetailTabValue {
@@ -88,7 +102,7 @@ export function shouldFetchTripCargos(
   return false;
 }
 
-/** Lista pesada de gastos: solo tab Costos (y si el rol puede ver costos). */
+/** Lista pesada de gastos: solo tab Dinero del viaje (y si el rol puede ver costos). */
 export function shouldFetchTripExpenses(
   activeTab: TripDetailTabValue,
   tripId: string,

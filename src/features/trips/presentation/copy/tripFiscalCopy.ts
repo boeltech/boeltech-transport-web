@@ -133,23 +133,137 @@ export const tripFiscalCopy = {
     menuLabel: "Facturación",
     generatePrimary: "Facturar",
     generateFalseTrip: "Facturar viaje en falso",
-    generateAccessory: "Facturar servicios adicionales",
+    /** Accesoria 0068 — 0 flete; no usar como 2.ª porción de flete. */
+    generateAccessory: "Facturar servicios adicionales (sin flete)",
+    generateSplitShare: (label: string) => `Facturar porción · ${label}`,
+    viewSplitShare: (label: string) => `Ver factura · ${label}`,
+    splitProgress: (invoiced: number, total: number) =>
+      `Cobro por cliente: ${invoiced} de ${total} facturado`,
+    splitMenuGroup: "Cobro por cliente",
+    openRevenueSplit: "Repartir flete entre clientes…",
+    continueRevenueSplit: "Continuar borrador del reparto",
+    viewRevenueSplitMenu: "Ver reparto del flete",
+    accessoryMenuGroup: "Servicios adicionales",
+    collectionByReceiverHint: "Cobranza por receptor (cada CFDI)",
     viewPrimary: "Ver factura",
     viewAccessory: (folio: string) =>
-      folio ? `Ver factura (${folio})` : "Ver factura adicional",
+      folio ? `Ver servicios adicionales (${folio})` : "Ver servicios adicionales",
   },
   invoicesSection: {
     title: "Facturas del viaje",
     primaryLabel: "Flete",
-    accessoryLabel: "Adicional",
+    accessoryLabel: "Servicios adicionales",
+    splitLabel: "Reparto del flete",
     folio: (folio: string) => `Folio ${folio}`,
     status: (status: string) => status,
     openInvoice: "Abrir",
     empty: "Aún no hay facturas vinculadas a este viaje.",
-    compactTitle: "Facturación",
-    openMenuHint: "Gestionar en el menú Facturación",
+    compactTitle: "Facturación del viaje",
+    openMenuHint: "También en el menú Facturación",
+    collectionByReceiver: "Cobranza por receptor — un saldo por CFDI",
     goToRouteTab: "Ir a Ruta",
     goToCargoTab: "Ir a Cargas",
+  },
+  revenueSplit: {
+    sheetTitle: "Reparto del flete entre clientes",
+    sheetDescription:
+      "Varios clientes pagan el flete de este viaje, cada uno con su porcentaje. No uses esto para servicios adicionales ni para viaje en falso.",
+    title: "Reparto del flete entre clientes",
+    startCta: "Definir reparto",
+    startHint:
+      "Aún no hay un reparto. Elige clientes y porcentajes; puedes guardar un borrador o confirmarlo de una vez.",
+    cancelEditor: "Cancelar",
+    close: "Cerrar",
+    loading: "Cargando…",
+    preset6040: "Usar 60 / 40",
+    whoSectionTitle: "Quiénes comparten",
+    whoSectionDescription:
+      "Indica el cliente principal del viaje. Debe ser uno de los que aparecen en el reparto.",
+    howSectionTitle: "Cómo se reparte",
+    howSectionDescription:
+      "Captura la base de flete y el porcentaje de cada cliente. Para guardar (borrador o confirmar), la suma debe ser 100 %.",
+    cpSectionTitle: "Carta Porte",
+    cpSectionDescription:
+      "Como máximo un cliente lleva Carta Porte en su factura. El resto factura solo su parte del flete.",
+    saveSectionTitle: "Al guardar",
+    saveSectionDescription:
+      "La suma debe ser 100 % tanto al guardar borrador como al confirmar. Sin confirmar, puedes seguir editando; al confirmar, el reparto queda activo para facturar por cliente.",
+    basisLabel: "Base de flete",
+    tripClientLabel: "Cliente principal del viaje",
+    tripClientHint: "Debe ser uno de los clientes del reparto",
+    tripClientPlaceholder: "Selecciona un cliente del reparto",
+    tripClientRequired:
+      "Elige el cliente principal del viaje para confirmar el reparto",
+    tripClientNotInLegs:
+      "El cliente principal debe ser uno de los clientes del reparto",
+    /** Errores de validación del formulario (mapear por code del paquete, no por message). */
+    errors: {
+      minLegs: "Agrega al menos 2 clientes al reparto",
+      maxLegs: (max: number) =>
+        `El reparto admite como máximo ${max} clientes`,
+      clientRequired: "Selecciona un cliente para esta fila",
+      clientDuplicate: "Este cliente ya está en el reparto; elige otro",
+      sharePercentInvalid:
+        "Indica un porcentaje mayor que 0 y hasta 100",
+      sharesInvalid: (sum: string) =>
+        `La suma de porcentajes debe ser 100 % (ahora suma ${sum} %)`,
+      multipleCartaPorte:
+        "Solo un cliente puede llevar Carta Porte en este reparto",
+      unknown: "Revisa los datos del reparto",
+    },
+    legClientLabel: (index: number) => `Cliente ${index + 1}`,
+    legClientPlaceholder: (index: number) =>
+      `Selecciona el cliente ${index + 1}`,
+    shareLabel: (index: number) => `% cliente ${index + 1}`,
+    shareAria: (index: number) => `Porcentaje del cliente ${index + 1}`,
+    addLeg: "Agregar cliente",
+    removeLegAria: (index: number) => `Quitar cliente ${index + 1}`,
+    activateOnSave: "Confirmar reparto al guardar",
+    activateOnSaveHint:
+      "Si no marcas esta opción, se guarda un borrador (también con suma 100 %) y puedes volver a abrirlo desde Facturación.",
+    shareSum: (sum: string) => `Suma: ${sum}%`,
+    shareSumReady: "Listo para guardar (100 %)",
+    shareSumPending: "Falta completar al 100 % para guardar",
+    /** @deprecated Prefer saveDraft / saveAndConfirm según activateOnSave */
+    save: "Guardar borrador",
+    saveDraft: "Guardar borrador",
+    saveAndConfirm: "Guardar y confirmar",
+    cancelActive: "Cancelar reparto",
+    cancelConfirmTitle: "¿Cancelar el reparto?",
+    cancelConfirmDescription:
+      "Se elimina el acuerdo de este viaje. Si aún no hay facturas por porción, podrás definir uno nuevo después.",
+    cancelConfirmAction: "Sí, cancelar reparto",
+    cancelConfirmDismiss: "Seguir con el reparto",
+    validationSummary: "Revisa el reparto",
+    savedToast: "Reparto guardado",
+    saveErrorTitle: "No se pudo guardar el reparto",
+    cancelledToast: "Reparto cancelado",
+    cancelErrorTitle: "No se pudo cancelar el reparto",
+    confirmTitle: "Así quedará al confirmar",
+    confirmTripClient: (name: string) => `Cliente principal del viaje: ${name}`,
+    confirmCpNone: "Carta Porte: ninguno",
+    confirmCpLeg: (label: string) => `Carta Porte con ${label}`,
+    confirmShares: (summary: string) => `Porcentajes: ${summary}`,
+    cpCarrierLabel: "Quién lleva Carta Porte",
+    cpNone: "Ninguno (sin Carta Porte en este reparto)",
+    cpLeg: (index: number, label: string) =>
+      label || `Cliente ${index + 1}`,
+    statusPending: "Pendiente de facturar",
+    statusInvoiced: "Con factura",
+    cpSuggested: "Carta Porte con este cliente",
+    cpAttachedElsewhere: "Carta Porte ya en otra factura del viaje",
+    viewInvoice: "Ver factura",
+    draftChip: "Reparto sin confirmar",
+    activeReadOnlyTitle: "Reparto activo",
+    draftReadOnlyTitle: "Borrador del reparto",
+    viewRevenueSplitLink: "Ver reparto",
+    summaryPending: (clients: number) =>
+      `Reparto del flete · ${clients} clientes · pendiente de facturar`,
+    summaryInProgress: (clients: number) =>
+      `Reparto del flete · ${clients} clientes · facturación en curso`,
+    summaryComplete: (clients: number) =>
+      `Reparto del flete · ${clients} clientes · cobro completado`,
+    legRfcSubtitle: (rfc: string) => `RFC ${rfc}`,
   },
   detailBadge: {
     readyToBill: "Listo para facturar",

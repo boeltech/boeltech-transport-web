@@ -33,6 +33,8 @@ export interface TripDetailOperationTabProps {
   showClientLink?: boolean;
   /** Portal cliente: sin kilometraje inicial/final. */
   showMileage?: boolean;
+  /** Portal cliente: oculta asignación, staff interno y notas operativas. */
+  isClientPortalView?: boolean;
   statusHistory?: readonly TripStatusHistory[];
 }
 
@@ -95,6 +97,7 @@ export function TripDetailOperationTab({
   canEditStructural,
   showClientLink = true,
   showMileage = true,
+  isClientPortalView = false,
   statusHistory,
 }: TripDetailOperationTabProps) {
   const {
@@ -117,7 +120,11 @@ export function TripDetailOperationTab({
       <div
         className={cn(
           "grid grid-cols-1 gap-6",
-          showMileage ? "lg:grid-cols-3" : "lg:grid-cols-2",
+          isClientPortalView
+            ? "lg:grid-cols-1"
+            : showMileage
+              ? "lg:grid-cols-3"
+              : "lg:grid-cols-2",
         )}
       >
         <Card>
@@ -149,6 +156,7 @@ export function TripDetailOperationTab({
           </CardContent>
         </Card>
 
+        {!isClientPortalView ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -255,6 +263,7 @@ export function TripDetailOperationTab({
             ) : null}
           </CardContent>
         </Card>
+        ) : null}
 
         {showMileage ? (
           <Card>
@@ -275,7 +284,7 @@ export function TripDetailOperationTab({
         ) : null}
       </div>
 
-      {trip.notes ? (
+      {!isClientPortalView && trip.notes ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{copy.section.notes}</CardTitle>

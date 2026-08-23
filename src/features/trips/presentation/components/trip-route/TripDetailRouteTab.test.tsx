@@ -299,6 +299,51 @@ describe("TripDetailRouteTab", () => {
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
+  it("clears composer endpoint draft when orderedStops change externally", async () => {
+    const user = userEvent.setup();
+    const originStop = tripStop({ id: "stop-origin" });
+
+    const { rerender } = renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+
+    expect(
+      screen.getByText(`${copy.composer.selectedStop}: ${pickerItem.locationName}`),
+    ).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[originStop]}
+          progress={0}
+          canEditStructural
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByText(`${copy.composer.selectedStop}: ${pickerItem.locationName}`),
+    ).not.toBeInTheDocument();
+  });
+
   it("buffers origin alone and rejects the same address for destination", async () => {
     const user = userEvent.setup();
     renderTab(

@@ -16,6 +16,7 @@ import {
 import {
   formatStopDisplayPrimaryLine,
   formatStopDisplayStreetLine,
+  getTripInvoicingBlockReason,
 } from "@features/trips/presentation/uiHelpers";
 import { composeStopLocalityLine } from "@features/trips/presentation/stopLocalityDisplay";
 
@@ -256,4 +257,28 @@ export function formatStopLocation(stop: TripStop): string {
 
 export function isTripCompletedForFiscalChip(status: TripStatusType): boolean {
   return status === TripStatus.COMPLETED;
+}
+
+export type RevenueSplitUpsertEligibility = {
+  allowed: boolean;
+  blockReason: string | null;
+};
+
+/** Gate UI de creación/edición de prorrateo — consume flags API, sin reglas SAT locales. */
+export function canUpsertTripRevenueSplit(
+  trip: Pick<Trip, "operationalOutcome" | "invoicing">,
+): RevenueSplitUpsertEligibility {
+  if (trip.operationalOutcome === "false_trip") {
+    return { allowed: false, blockReason: null };
+  }
+
+  if (trip.invoicing.hasActiveSplit) {
+    return { allowed: false, blockReason: null };
+  }
+
+  const allowed = trip.invoicing.canGenerateInvoice;
+  return {
+    allowed,
+    blockReason: allowed ? null : getTripInvoicingBlockReason(trip.invoicing),
+  };
 }

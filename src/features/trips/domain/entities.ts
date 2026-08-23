@@ -157,6 +157,13 @@ export interface TripInvoicing {
   readonly canGenerateAccessoryInvoice: boolean;
   /** Outcome falso + completed + sin principal activa (ADR-0079). */
   readonly canGenerateFalseTripInvoice: boolean;
+  /** ADR-0081: acuerdo de prorrateo multi-RFC activo. */
+  readonly hasActiveSplit: boolean;
+  readonly splitLegsInvoiced: number;
+  readonly splitLegsTotal: number;
+  readonly canGenerateSplitShareInvoice: boolean;
+  /** Alguna factura activa del viaje ya porta Carta Porte. */
+  readonly cartaPorteAttached: boolean;
   readonly invoiceId: string | null;
   readonly invoiceFolio: string | null;
   /** UUID del CFDI timbrado (solo lectura / operación fiscal). */
@@ -164,6 +171,49 @@ export interface TripInvoicing {
   readonly invoiceStatus: TripInvoiceStatus | null;
   readonly accessoryInvoices: readonly TripAccessoryInvoice[];
   readonly blockReason: string | null;
+}
+
+/** ADR-0081 — estado del acuerdo de prorrateo. */
+export type TripRevenueSplitStatus = "draft" | "active" | "cancelled";
+
+export interface TripRevenueSplitLeg {
+  readonly id: string;
+  readonly clientId: string;
+  readonly clientLegalName: string | null;
+  readonly clientRfc: string | null;
+  readonly sharePercent: number;
+  readonly sortOrder: number;
+  readonly suggestedCartaPorte: boolean;
+  /** Factura `split_share` activa ligada a esta porción. */
+  readonly invoiceId: string | null;
+}
+
+export interface TripRevenueSplit {
+  readonly id: string;
+  readonly tripId: string;
+  readonly status: TripRevenueSplitStatus;
+  readonly basisAmount: number;
+  readonly currency: string;
+  readonly notes: string | null;
+  readonly legs: readonly TripRevenueSplitLeg[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** Body camelCase para PUT /trips/:id/revenue-split (el client serializa a snake). */
+export interface UpsertTripRevenueSplitLegInput {
+  readonly clientId: string;
+  readonly sharePercent: number;
+  readonly suggestedCartaPorte?: boolean;
+}
+
+export interface UpsertTripRevenueSplitInput {
+  readonly basisAmount: number;
+  readonly currency?: string;
+  readonly tripClientId?: string;
+  readonly legs: readonly UpsertTripRevenueSplitLegInput[];
+  readonly activate?: boolean;
+  readonly notes?: string | null;
 }
 
 // ============================================================================

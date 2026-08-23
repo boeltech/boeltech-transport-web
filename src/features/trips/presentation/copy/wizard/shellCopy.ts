@@ -20,7 +20,7 @@ export const shellCopy = {
     basic: { title: "Información", description: "Asignaciones y programación" },
     route: { title: "Ruta", description: "Paradas del viaje" },
     cargo: { title: "Cargas", description: "Mercancías a transportar" },
-    costs: { title: "Costos", description: "Tarifa y conceptos estimados" },
+    costs: { title: "Dinero del viaje", description: "Tarifa y conceptos estimados" },
     summary: { title: "Resumen", description: "Confirmar y crear" },
     pedido: {
       title: "Pedido",
@@ -46,7 +46,7 @@ export const shellCopy = {
       "Revisa la información básica del viaje",
       "Revisa la ruta y las paradas",
       "Revisa las cargas del viaje",
-      "Revisa los costos del viaje",
+      "Revisa el dinero del viaje",
       "Revisa el resumen antes de guardar",
     ] as const,
     reserveStepSummaryTitles: [

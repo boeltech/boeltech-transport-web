@@ -8,9 +8,11 @@ import {
 } from "@features/trips/domain";
 
 import {
+  applyTimelineToTripDetailCache,
   applyTripDetailTrackingPatch,
   buildTripDetailPatchFromTrackingEvent,
 } from "./syncTripDetailFromTimeline";
+import type { TrackingTimeline } from "@features/trips/domain";
 
 function baseTrip(overrides: Partial<Trip> = {}): Trip {
   return {
@@ -95,5 +97,56 @@ describe("applyTripDetailTrackingPatch", () => {
     expect(cached?.status).toBe(TripStatus.COMPLETED);
     expect(cached?.mileage.end).toBe(101_150);
     expect(cached?.mileage.start).toBe(100_000);
+  });
+});
+
+describe("applyTimelineToTripDetailCache", () => {
+  it("merges stops/mileage without overwriting status", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(
+      tripQueryKeys.detail("trip-1"),
+      baseTrip({ status: TripStatus.COMPLETED }),
+    );
+
+    const timeline = {
+      trip: {
+        id: "trip-1",
+        tripCode: "TRP-1",
+        status: TripStatus.IN_PROGRESS,
+        scheduledDeparture: null,
+        scheduledArrival: null,
+        actualDeparture: new Date("2026-06-06T10:05:00Z"),
+        actualArrival: null,
+        startMileage: 100_000,
+        endMileage: 101_000,
+        hasOpenIncident: false,
+        totalDistRec: null,
+      },
+      progress: {
+        stopsTotal: 1,
+        stopsCompleted: 1,
+        percentComplete: 100,
+        distancePlannedKm: null,
+        distanceActualKm: null,
+        estimatedArrival: null,
+      },
+      stops: [
+        {
+          id: "s0",
+          sequenceOrder: 0,
+          status: "completed",
+        },
+      ],
+      events: [],
+      statusHistory: [],
+      map: { routeGeojson: null, lastKnownPosition: null },
+    } as unknown as TrackingTimeline;
+
+    applyTimelineToTripDetailCache(queryClient, "trip-1", timeline);
+
+    const cached = queryClient.getQueryData<Trip>(tripQueryKeys.detail("trip-1"));
+    expect(cached?.status).toBe(TripStatus.COMPLETED);
+    expect(cached?.mileage.end).toBe(101_000);
+    expect(cached?.stops).toHaveLength(1);
   });
 });

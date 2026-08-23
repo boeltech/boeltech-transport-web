@@ -61,6 +61,20 @@ describe("getTripDetailAccess", () => {
     expect(access.expenseWindowClosed).toBe(false);
   });
 
+  it("blocks post-close create while auth role is unresolved", () => {
+    const access = getTripDetailAccess("completed", {
+      canUpdateTrip: false,
+      canCreateExpense: true,
+      canUpdateExpense: true,
+      canDeleteExpense: true,
+      closedAt: "2026-05-01T12:00:00.000Z",
+      now: "2026-05-15T12:00:00.000Z",
+      role: undefined,
+    });
+    expect(access.canCreateExpenses).toBe(false);
+    expect(access.expenseWindowOpen).toBe(true);
+  });
+
   it("hides post-close create CTA for operator while keeping pending mutate (PD-E)", () => {
     const access = getTripDetailAccess("completed", {
       canUpdateTrip: false,

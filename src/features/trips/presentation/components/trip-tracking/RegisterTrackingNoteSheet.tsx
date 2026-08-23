@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StickyNote } from "lucide-react";
 
 import { useRegisterTrackingEvent } from "@features/trips/application";
@@ -30,6 +30,7 @@ import {
   TRACKING_SHEET_HEADER_CLASS,
   TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
 } from "./trackingSheetLayout";
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 
 type RegisterTrackingNoteSheetProps = {
   tripId: string;
@@ -43,12 +44,6 @@ function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
 }
 
-function randomIdempotencyKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : undefined;
-}
-
 function RegisterTrackingNoteSheetBody({
   tripId,
   referenceStop,
@@ -59,6 +54,7 @@ function RegisterTrackingNoteSheetBody({
   const [note, setNote] = useState("");
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
@@ -91,7 +87,7 @@ function RegisterTrackingNoteSheetBody({
         eventType: "note",
         notes: note.trim(),
         occurredAt: localInputToUtcIso(occurredAt),
-        idempotencyKey: randomIdempotencyKey(),
+        idempotencyKey,
         ...trackingGpsToEventFields(gps),
       },
     });

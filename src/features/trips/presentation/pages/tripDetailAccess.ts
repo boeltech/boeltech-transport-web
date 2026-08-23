@@ -146,7 +146,7 @@ function allowsPostCloseExpenseCreateUi(
 
 ): boolean {
 
-  if (role == null) return true;
+  if (role == null) return false;
 
   return POST_CLOSE_EXPENSE_CREATE_ROLES.has(role as UserRole);
 

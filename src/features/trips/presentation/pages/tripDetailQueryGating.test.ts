@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TripStatus } from "@features/trips/domain";
 import {
   parseTripDetailTab,
+  resolveCargoCountForDefaultTab,
   resolveDefaultTripDetailTab,
   resolveTripDetailTab,
   shouldFetchTripCargos,
@@ -88,6 +89,33 @@ describe("tripDetailQueryGating", () => {
     ).toBe("overview");
   });
 
+  it("resolveCargoCountForDefaultTab uses live count for draft/scheduled", () => {
+    expect(
+      resolveCargoCountForDefaultTab({
+        status: TripStatus.DRAFT,
+        isLoadingLiveCargos: true,
+        liveCargoCount: 0,
+        embeddedCargoCount: 5,
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveCargoCountForDefaultTab({
+        status: TripStatus.DRAFT,
+        isLoadingLiveCargos: false,
+        liveCargoCount: 0,
+        embeddedCargoCount: 5,
+      }),
+    ).toBe(0);
+    expect(
+      resolveCargoCountForDefaultTab({
+        status: TripStatus.COMPLETED,
+        isLoadingLiveCargos: false,
+        liveCargoCount: 0,
+        embeddedCargoCount: 3,
+      }),
+    ).toBe(3);
+  });
+
   it("gates cargo query to cargo tab or operational tracking", () => {
     expect(shouldFetchTripCargos("cargo", "trip-1")).toBe(true);
     expect(shouldFetchTripCargos("overview", "trip-1")).toBe(false);
@@ -118,6 +146,11 @@ describe("tripDetailQueryGating", () => {
     expect(shouldFetchTripExpensesSummary("overview", "trip-1", false)).toBe(
       false,
     );
+  });
+
+  it("disables expenses queries without expenses.read even on costs tab", () => {
+    expect(shouldFetchTripExpenses("costs", "trip-1", false)).toBe(false);
+    expect(shouldFetchTripExpensesSummary("costs", "trip-1", false)).toBe(false);
   });
 
   it("fetches timeline on route and tracking tabs", () => {

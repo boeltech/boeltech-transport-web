@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, MapPin, Navigation } from "lucide-react";
 
 import type { TripCargo, TripStop } from "@features/trips/domain";
@@ -19,6 +19,8 @@ import {
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { trackingCopy } from "../../copy";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
+import { showTripDetailErrorToast } from "../../helpers/toastTripDetailError";
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
@@ -33,6 +35,7 @@ import {
   TRACKING_SHEET_HEADER_CLASS,
   TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
 } from "./trackingSheetLayout";
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 
 export type StopTrackingEventMode = "arrival" | "departure";
 
@@ -49,12 +52,6 @@ type RegisterStopTrackingEventSheetProps = {
 
 function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
-}
-
-function randomIdempotencyKey() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : undefined;
 }
 
 function stopToastLabel(
@@ -107,6 +104,7 @@ function RegisterStopTrackingEventSheetBody({
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [occurredAtError, setOccurredAtError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
   const copy = trackingCopy;
 
   const registerMutation = useRegisterTrackingEvent({
@@ -122,9 +120,9 @@ function RegisterStopTrackingEventSheetBody({
       onOpenChange(false);
     },
     onError: (error) => {
-      toast({
-        title: copy.toast.registerFailed,
-        description: error.message,
+      showTripDetailErrorToast(toast, error, copy.toast.registerFailed, {
+        setInlineError: setFormError,
+        seeInlineCopy: tripFiscalCopy.overlayErrorSeeInline,
         variant: "error",
       });
     },
@@ -163,7 +161,7 @@ function RegisterStopTrackingEventSheetBody({
         stopId: stop.id,
         occurredAt: localInputToUtcIso(occurredAt),
         notes: notes.trim() || undefined,
-        idempotencyKey: randomIdempotencyKey(),
+        idempotencyKey,
         ...trackingGpsToEventFields(gps),
       },
     });

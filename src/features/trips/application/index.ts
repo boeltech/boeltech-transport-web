@@ -44,6 +44,9 @@ export {
   useUpdateTripStatus,
   usePatchStopFiscal,
   usePatchTripFiscal,
+  useTripRevenueSplit,
+  useUpsertTripRevenueSplit,
+  useDeleteTripRevenueSplit,
 } from "./hooks";
 
 // Use Cases

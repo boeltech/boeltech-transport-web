@@ -80,4 +80,46 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(screen.queryByText(CLIENT_ID)).not.toBeInTheDocument();
     expect(screen.getByText(copy.state.clientUnavailable)).toBeInTheDocument();
   });
+
+  it("oculta asignación y datos internos en portal cliente", () => {
+    render(
+      <MemoryRouter>
+        <TripDetailOperationTab
+          trip={makeTrip({
+            notes: "Nota interna del viaje",
+            internalStaff: [
+              {
+                id: "staff-1",
+                employeeId: "emp-1",
+                employeeFullName: "Ayudante Interno",
+                internalRole: "helper",
+                isPaymentResponsible: true,
+                paymentNotes: "Pago en efectivo",
+              },
+            ],
+          })}
+          canEditStructural={false}
+          isClientPortalView
+          showMileage={false}
+          showClientLink={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
+    expect(screen.queryByText("U-12")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ana Lopez")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nota interna del viaje")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ayudante Interno")).not.toBeInTheDocument();
+  });
+
+  it("shows notes from trip prop (raw trip, not timeline merge)", () => {
+    renderTab(
+      makeTrip({
+        notes: "Nota operativa del GET trip",
+      }),
+    );
+
+    expect(screen.getByText("Nota operativa del GET trip")).toBeInTheDocument();
+  });
 });

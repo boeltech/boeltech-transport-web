@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapApiTripListItem } from "./mappers";
+import { mapApiTripListItem, mapApiTripRevenueSplit } from "./mappers";
 import type { ApiTripListItemResponse } from "./api-types";
 
 function baseListItem(
@@ -122,5 +122,113 @@ describe("mapApiTripListItem invoicing (ADR-0068)", () => {
     expect(item.invoicing.hasActivePrimaryInvoice).toBe(true);
     expect(item.invoicing.hasActiveInvoice).toBe(true);
     expect(item.invoicing.accessoryInvoices).toEqual([]);
+  });
+
+  it("maps ADR-0081 split invoicing flags", () => {
+    const item = mapApiTripListItem(
+      baseListItem({
+        has_active_invoice: false,
+        can_generate_invoice: false,
+        has_active_split: true,
+        split_legs_invoiced: 1,
+        split_legs_total: 2,
+        can_generate_split_share_invoice: true,
+        can_generate_accessory_invoice: true,
+        carta_porte_attached: false,
+      }),
+    );
+
+    expect(item.invoicing).toMatchObject({
+      hasActiveSplit: true,
+      splitLegsInvoiced: 1,
+      splitLegsTotal: 2,
+      canGenerateSplitShareInvoice: true,
+      canGenerateAccessoryInvoice: true,
+      cartaPorteAttached: false,
+      canGenerateInvoice: false,
+    });
+  });
+
+  it("defaults ADR-0081 split flags when absent", () => {
+    const item = mapApiTripListItem(
+      baseListItem({
+        has_active_invoice: false,
+        can_generate_invoice: true,
+      }),
+    );
+
+    expect(item.invoicing.hasActiveSplit).toBe(false);
+    expect(item.invoicing.splitLegsInvoiced).toBe(0);
+    expect(item.invoicing.splitLegsTotal).toBe(0);
+    expect(item.invoicing.canGenerateSplitShareInvoice).toBe(false);
+    expect(item.invoicing.cartaPorteAttached).toBe(false);
+  });
+});
+
+describe("mapApiTripRevenueSplit (ADR-0081)", () => {
+  it("maps split agreement and legs", () => {
+    const split = mapApiTripRevenueSplit({
+      id: "split-1",
+      trip_id: "trip-1",
+      status: "active",
+      basis_amount: 100000,
+      currency: "MXN",
+      notes: "Grupo piloto",
+      legs: [
+        {
+          id: "leg-a",
+          client_id: "cli-a",
+          client_legal_name: "Cliente A",
+          client_rfc: "AAA010101AAA",
+          share_percent: 60,
+          sort_order: 0,
+          suggested_carta_porte: true,
+          invoice_id: null,
+        },
+        {
+          id: "leg-b",
+          client_id: "cli-b",
+          client_legal_name: "Cliente B",
+          client_rfc: "BBB010101BBB",
+          share_percent: 40,
+          sort_order: 1,
+          suggested_carta_porte: false,
+          invoice_id: "inv-b",
+        },
+      ],
+      created_at: "2026-08-21T12:00:00.000Z",
+      updated_at: "2026-08-21T13:00:00.000Z",
+    });
+
+    expect(split).toMatchObject({
+      id: "split-1",
+      tripId: "trip-1",
+      status: "active",
+      basisAmount: 100000,
+      currency: "MXN",
+      notes: "Grupo piloto",
+    });
+    expect(split.legs).toEqual([
+      {
+        id: "leg-a",
+        clientId: "cli-a",
+        clientLegalName: "Cliente A",
+        clientRfc: "AAA010101AAA",
+        sharePercent: 60,
+        sortOrder: 0,
+        suggestedCartaPorte: true,
+        invoiceId: null,
+      },
+      {
+        id: "leg-b",
+        clientId: "cli-b",
+        clientLegalName: "Cliente B",
+        clientRfc: "BBB010101BBB",
+        sharePercent: 40,
+        sortOrder: 1,
+        suggestedCartaPorte: false,
+        invoiceId: "inv-b",
+      },
+    ]);
   });
 });

@@ -90,6 +90,11 @@ export function useUpdateTrip(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(id),
       });
+      if (data.stops !== undefined) {
+        await queryClient.invalidateQueries({
+          queryKey: tripQueryKeys.timeline(id),
+        });
+      }
       await onSuccessExternal?.(updatedTrip, variables, onMutateResult, context);
     },
     onError: async (error, variables, onMutateResult, context) => {

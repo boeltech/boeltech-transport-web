@@ -41,3 +41,8 @@ export { useUpdateTrip } from "./trip/useUpdateTrip";
 export { useUpdateTripStatus } from "./trip/useUpdateTripStatus";
 export { usePatchStopFiscal } from "./usePatchStopFiscal";
 export { usePatchTripFiscal } from "./usePatchTripFiscal";
+export {
+  useTripRevenueSplit,
+  useUpsertTripRevenueSplit,
+  useDeleteTripRevenueSplit,
+} from "./useTripRevenueSplit";

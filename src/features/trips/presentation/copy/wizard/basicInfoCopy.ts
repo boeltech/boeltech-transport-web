@@ -86,9 +86,21 @@ export const basicInfoCopy = {
     expiredAssignmentTitle: "Documentación vencida en la asignación",
     expiredVehicleItem: (reason: string) => reason,
     expiredDriverItem: (reason: string) => reason,
+    licenseCategorySoftTitle: "Categoría SICT y tipo de unidad",
+    licenseCategorySoftHint:
+      "Es una advertencia operativa: puedes continuar con la asignación.",
+    licenseMissingFederalTitle: "Sin licencia federal SICT",
+    licenseMissingFederalHint:
+      "El conductor solo tiene licencia estatal o no tiene federal. Puedes asignarlo; Carta Porte exigirá número federal.",
+    licenseSignalsLegend:
+      "Señales: licencia vencida (grupo aparte) · categoría SICT ≠ unidad · sin licencia federal. Las dos últimas no bloquean.",
     assignmentClearedTitle: "Asignación actualizada",
     assignmentClearedBody:
       "La unidad o el conductor ya no corresponden a la base operativa. Vuelve a seleccionarlos.",
+  },
+  badge: {
+    licenseCategorySoft: "Categoría SICT ≠ unidad",
+    licenseMissingFederal: "Sin federal",
   },
   action: {
     add: "Agregar",
