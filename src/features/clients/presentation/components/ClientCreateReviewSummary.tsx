@@ -12,7 +12,7 @@ import {
 import { Badge } from "@shared/ui/badge";
 import { InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
-import { CLIENT_TYPE_LABELS } from "../../domain";
+import { CLIENT_TYPE_LABELS, PAYMENT_TERMS_LABELS } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
 import type { ClientFormData } from "../validation/clientSchema";
 import type { ClientAddressFormData } from "../validation/clientAddressSchema";
@@ -27,6 +27,15 @@ export interface ClientCreateReviewSummaryProps {
 function displayValue(value: string | null | undefined): string {
   const trimmed = (value ?? "").trim();
   return trimmed || EMPTY_VALUE;
+}
+
+function formatCreditLimit(value: number | null | undefined): string {
+  if (value == null) return "Sin límite";
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
@@ -168,6 +177,11 @@ export function ClientCreateReviewSummary({
 
   const isIndividual = clientData.type === "individual";
   const Icon = isIndividual ? User : Building2;
+  const hasContact = Boolean(
+    clientData.contactName?.trim() ||
+      clientData.phone?.trim() ||
+      clientData.email?.trim(),
+  );
 
   return (
     <div className="space-y-4 text-sm">
@@ -195,6 +209,70 @@ export function ClientCreateReviewSummary({
           </p>
         </div>
       </div>
+
+      <section className="rounded-lg border bg-muted/30 p-4 space-y-1">
+        <h3 className="mb-2 text-sm font-medium text-foreground">
+          Datos fiscales y comerciales
+        </h3>
+        <InfoRow
+          variant="inline"
+          label="Régimen fiscal"
+          value={displayValue(clientData.taxRegime)}
+          mono
+        />
+        <InfoRow
+          variant="inline"
+          label="Términos de pago"
+          value={PAYMENT_TERMS_LABELS[clientData.paymentTerms]}
+        />
+        {clientData.paymentTerms === "credit" ? (
+          <>
+            <InfoRow
+              variant="inline"
+              label="Días de crédito"
+              value={String(clientData.creditDays)}
+            />
+            <InfoRow
+              variant="inline"
+              label="Límite de crédito"
+              value={formatCreditLimit(clientData.creditLimit)}
+            />
+          </>
+        ) : null}
+        {clientData.billingEmail?.trim() ? (
+          <InfoRow
+            variant="inline"
+            label="Correo de facturación"
+            value={clientData.billingEmail}
+          />
+        ) : null}
+      </section>
+
+      {hasContact ? (
+        <section className="rounded-lg border bg-muted/30 p-4 space-y-1">
+          <h3 className="mb-2 text-sm font-medium text-foreground">
+            Contacto principal
+          </h3>
+          <InfoRow
+            variant="inline"
+            label="Nombre"
+            value={displayValue(clientData.contactName)}
+          />
+          {clientData.contactPosition?.trim() ? (
+            <InfoRow
+              variant="inline"
+              label="Puesto"
+              value={clientData.contactPosition}
+            />
+          ) : null}
+          {clientData.phone?.trim() ? (
+            <InfoRow variant="inline" label="Teléfono" value={clientData.phone} />
+          ) : null}
+          {clientData.email?.trim() ? (
+            <InfoRow variant="inline" label="Correo" value={clientData.email} />
+          ) : null}
+        </section>
+      ) : null}
 
       {addressData ? <ClientAddressReviewBlock data={addressData} /> : null}
     </div>

@@ -15,6 +15,7 @@ export { ClientForm } from "./ClientForm";
 export { ClientActions } from "./ClientActions";
 export { ClientDetailDataTab } from "./ClientDetailDataTab";
 export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
+export { ClientDetailHeaderSubtitle } from "./ClientDetailHeaderSubtitle";
 
 // Contact components (WS-B)
 export { ClientContactForm } from "./ClientContactForm";

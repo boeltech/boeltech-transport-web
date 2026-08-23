@@ -14,6 +14,10 @@ import {
 import { AlertWithIcon } from "@shared/ui/alert";
 import { cn } from "@shared/lib/utils/cn";
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 import { useCreateClient } from "../../application";
 import {
   CLIENT_TYPE_LABELS,
@@ -35,6 +39,7 @@ import {
   type ClientAddressFormData,
 } from "../validation";
 import type { ClientFormData } from "../validation/clientSchema";
+import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
 
 const WIZARD_STEPS = [
   ...CLIENT_WIZARD_STEPS.map((s) => ({
@@ -44,14 +49,22 @@ const WIZARD_STEPS = [
   })),
   {
     id: "review",
-    title: "Revisi\u00f3n",
+    title: "Revisión",
     description: "Confirmar antes de crear el cliente",
   },
 ];
 
+/** Solo marca el paso de revisión (sin campos). La validación real es full-form vía refs. */
 const CLIENT_CREATE_WIZARD_STEP_FIELDS: ReadonlyArray<readonly string[]> = [
   ["type", "legalName", "taxId", "taxRegime", "paymentTerms", "creditDays"],
-  ["street", "exteriorNumber", "postalCode", "satStateCode", "satMunicipalityCode"],
+  [
+    "locationName",
+    "street",
+    "exteriorNumber",
+    "postalCode",
+    "satStateCode",
+    "satMunicipalityCode",
+  ],
   [],
 ];
 
@@ -77,6 +90,8 @@ export function ClientCreatePage() {
   const clientDraftRef = useRef<ClientFormData | null>(null);
   const addressDraftRef = useRef<ClientAddressFormData | null>(null);
   const visitedStepsRef = useRef<Set<number>>(new Set([0]));
+  /** Cierra la ventana entre validación del shell y `isPending` de la mutación. */
+  const [isCreateBusy, setIsCreateBusy] = useState(false);
 
   const [clientData, setClientData] = useState<ClientFormData | null>(null);
   const [addressData, setAddressData] = useState<ClientAddressFormData | null>(
@@ -85,11 +100,15 @@ export function ClientCreatePage() {
   const [isClientValid, setIsClientValid] = useState(false);
   const [isAddressValid, setIsAddressValid] = useState(false);
   const [satValidationError, setSatValidationError] = useState<string | null>(null);
+  const [pageApiAlertMessages, setPageApiAlertMessages] = useState<string[]>(
+    [],
+  );
 
   const handleClientChange = useCallback(
     (data: ClientFormData, isValid: boolean) => {
       clientDraftRef.current = data;
       setIsClientValid(isValid);
+      setPageApiAlertMessages([]);
       startTransition(() => setClientData(data));
     },
     [],
@@ -100,6 +119,7 @@ export function ClientCreatePage() {
       addressDraftRef.current = data;
       setIsAddressValid(isValid);
       setSatValidationError(null);
+      setPageApiAlertMessages([]);
       startTransition(() => setAddressData(data));
     },
     [],
@@ -132,13 +152,69 @@ export function ClientCreatePage() {
         hasInlineSatErrors
           ? null
           : (satResult.errors[0]?.message ??
-              "No se pudo validar la direcci\u00f3n fiscal."),
+              "No se pudo validar la dirección fiscal."),
       );
       return false;
     }
     setSatValidationError(null);
     return true;
   }, [addressData]);
+
+  const applyCreateApiError = useCallback((error: unknown) => {
+    if (isApiError(error) && error.hasValidationErrors()) {
+      const clientEntries: { field: string; message: string }[] = [];
+      const addressEntries: { field: string; message: string }[] = [];
+      const unmapped: string[] = [];
+
+      for (const entry of error.validationErrors) {
+        const target = resolveClientCreateApiField(entry.field);
+        if (target?.form === "client") {
+          clientEntries.push({
+            field: entry.field,
+            message: entry.message,
+          });
+        } else if (target?.form === "address") {
+          addressEntries.push({
+            field: entry.field,
+            message: entry.message,
+          });
+        } else if (entry.message.trim()) {
+          unmapped.push(entry.message.trim());
+        }
+      }
+
+      if (clientEntries.length > 0) {
+        clientFormRef.current?.applyApiValidationErrors(clientEntries);
+      }
+      if (addressEntries.length > 0) {
+        const leftover =
+          addressFormRef.current?.applyApiValidationErrors(addressEntries) ??
+          addressEntries.map((e) => e.message);
+        unmapped.push(...leftover);
+      }
+
+      const toastDetail = error.getToastMessage();
+      if (unmapped.length === 0 && toastDetail) {
+        // Campos ya tienen inline; reforzar con alert de página si no hubo unmapped.
+        setPageApiAlertMessages([toastDetail]);
+      } else {
+        setPageApiAlertMessages(
+          unmapped.length > 0 ? unmapped : [toastDetail || error.message],
+        );
+      }
+      return;
+    }
+
+    const description = isApiError(error)
+      ? error.getDetailedMessage()
+      : getErrorMessage(error);
+    clientFormRef.current?.setApiAlertMessages(
+      description ? [description] : [getErrorMessage(error)],
+    );
+    setPageApiAlertMessages(
+      description ? [description] : [getErrorMessage(error)],
+    );
+  }, []);
 
   const submitCreate = useCallback(() => {
     const clientSnapshot = clientDraftRef.current ?? clientData;
@@ -165,6 +241,11 @@ export function ClientCreatePage() {
     const addressSnapshot = addressDraftRef.current ?? addressData;
     if (!addressSnapshot || !validateAddressDraft(addressSnapshot)) return;
 
+    setIsCreateBusy(true);
+    setPageApiAlertMessages([]);
+    clientFormRef.current?.clearApiErrors();
+    addressFormRef.current?.clearApiFieldErrors();
+
     createClientMutation.mutate(
       {
         client: clientPayload,
@@ -184,9 +265,21 @@ export function ClientCreatePage() {
       },
       {
         onSuccess: (result) => navigate(`/clients/${result.clientId}`),
+        onError: (error) => {
+          applyCreateApiError(error);
+        },
+        onSettled: () => {
+          setIsCreateBusy(false);
+        },
       },
     );
-  }, [clientData, addressData, createClientMutation, navigate]);
+  }, [
+    clientData,
+    addressData,
+    createClientMutation,
+    navigate,
+    applyCreateApiError,
+  ]);
 
   const validateWizardStep = useCallback(
     async (stepIndex: number): Promise<boolean> => {
@@ -199,15 +292,13 @@ export function ClientCreatePage() {
     [validateAddressStep, validateClientStep],
   );
 
+  /**
+   * El shell ya validó todos los pasos en `handleConfirm` y navega al paso
+   * fallido. Aquí solo disparamos el mutate (sin re-validar async).
+   */
   const requestWizardSubmit = useCallback(() => {
-    void (async () => {
-      const clientOk = await validateClientStep();
-      if (!clientOk) return;
-      const addressOk = await validateAddressStep();
-      if (!addressOk) return;
-      submitCreate();
-    })();
-  }, [submitCreate, validateAddressStep, validateClientStep]);
+    submitCreate();
+  }, [submitCreate]);
 
   useWizardFormRef({
     formRef,
@@ -215,7 +306,7 @@ export function ClientCreatePage() {
     requestSubmit: requestWizardSubmit,
   });
 
-  const isSubmitting = createClientMutation.isPending;
+  const isSubmitting = createClientMutation.isPending || isCreateBusy;
   const handleCancel = useCallback(() => navigate("/clients"), [navigate]);
 
   const shellHeader = useMemo(
@@ -224,7 +315,7 @@ export function ClientCreatePage() {
       backLabel: "Volver a la lista de clientes",
       icon: <Users className="h-5 w-5" />,
       title: "Nuevo Cliente",
-      subtitle: "Completa la informaci\u00f3n para crear un nuevo cliente",
+      subtitle: "Completa la información para crear un nuevo cliente",
     }),
     [],
   );
@@ -237,13 +328,29 @@ export function ClientCreatePage() {
 
       return (
         <>
+          {pageApiAlertMessages.length > 0 ? (
+            <div className="mb-4 max-w-2xl">
+              <AlertWithIcon
+                variant="destructive"
+                title="No se pudo completar el alta"
+              >
+                <ul className="list-disc space-y-1 pl-4">
+                  {pageApiAlertMessages.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              </AlertWithIcon>
+            </div>
+          ) : null}
+
           <div
             className={cn(currentStep !== 0 && "hidden")}
             aria-hidden={currentStep !== 0}
           >
             {currentStep === 0 && !isClientValid ? (
               <p className="mb-4 max-w-md text-sm text-muted-foreground">
-                {"Completa los campos obligatorios (RFC seg\u00fan tipo de persona y t\u00e9rminos de pago si aplica) para continuar."}
+                Completa los campos obligatorios (RFC según tipo de persona y
+                términos de pago si aplica) para continuar.
               </p>
             ) : null}
             <ClientForm
@@ -261,14 +368,15 @@ export function ClientCreatePage() {
             >
               {currentStep === 1 && !isAddressValid ? (
                 <p className="mb-4 max-w-md text-sm text-muted-foreground">
-                  {"Completa el código postal fiscal del receptor. No hace falta mapa ni RFC de Carta Porte."}
+                  Completa el código postal fiscal del receptor. No hace falta
+                  mapa ni RFC de Carta Porte.
                 </p>
               ) : null}
               {currentStep === 1 && satValidationError ? (
                 <div className="mb-4 max-w-md">
                   <AlertWithIcon
                     variant="destructive"
-                    title={"Direcci\u00f3n incompleta"}
+                    title="Dirección incompleta"
                   >
                     {satValidationError}
                   </AlertWithIcon>
@@ -288,13 +396,13 @@ export function ClientCreatePage() {
                     </span>
                     {clientData.tradeName?.trim() ? (
                       <span className="text-muted-foreground">
-                        {" \u00b7 "}
+                        {" · "}
                         {clientData.tradeName}
                       </span>
                     ) : null}
                     <span className="mt-1 block text-muted-foreground">
                       RFC {clientData.taxId.toUpperCase()}
-                      {" \u00b7 "}
+                      {" · "}
                       {CLIENT_TYPE_LABELS[clientData.type]}
                     </span>
                   </div>
@@ -325,6 +433,7 @@ export function ClientCreatePage() {
       isClientValid,
       isAddressValid,
       satValidationError,
+      pageApiAlertMessages,
       clientData,
       addressData,
       handleClientChange,

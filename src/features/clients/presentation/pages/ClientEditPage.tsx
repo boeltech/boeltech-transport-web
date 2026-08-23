@@ -11,13 +11,19 @@
  * Ubicación: src/features/clients/presentation/pages/ClientEditPage.tsx
  */
 
+import { useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AlertCircle, Building2 } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
+import { useToast } from "@shared/hooks";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 
 import { useClient, useUpdateClient } from "../../application";
 import { getClientDisplayName } from "../../domain";
-import { ClientForm } from "../components";
+import { ClientForm, type ClientFormRef } from "../components";
 import {
   clientFormDataToUpdateDto,
   type ClientFormData,
@@ -26,25 +32,67 @@ import {
 export function ClientEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const formRef = useRef<ClientFormRef>(null);
   const clientId = id ?? "";
 
   const { data: client, isLoading, isError } = useClient(clientId || undefined);
 
-  const updateMutation = useUpdateClient();
+  const updateMutation = useUpdateClient({
+    onSuccess: () => {
+      toast({
+        title: "Cliente actualizado",
+        description: "Los cambios han sido guardados exitosamente.",
+      });
+      navigate(`/clients/${clientId}`);
+    },
+    onError: (error) => {
+      if (isApiError(error) && error.hasValidationErrors()) {
+        formRef.current?.applyApiValidationErrors(
+          error.validationErrors.map((entry) => ({
+            field: entry.field,
+            message: entry.message,
+          })),
+        );
+        toast({
+          title: "Error al actualizar",
+          description: error.getToastMessage(),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const description = isApiError(error)
+        ? error.getDetailedMessage()
+        : getErrorMessage(error);
+      formRef.current?.setApiAlertMessages(
+        description ? [description] : [getErrorMessage(error)],
+      );
+      toast({
+        title: "Error al actualizar",
+        description,
+        variant: "destructive",
+      });
+    },
+  });
 
   const clientUnavailable = !client;
 
-  const handleSubmit = (data: ClientFormData) => {
-    if (!clientId || clientUnavailable) return;
-    updateMutation.mutate(
-      { clientId, data: clientFormDataToUpdateDto(data) },
-      { onSuccess: () => navigate(`/clients/${clientId}`) },
-    );
-  };
+  const handleSubmit = useCallback(
+    (data: ClientFormData) => {
+      if (!clientId || clientUnavailable) return;
+      formRef.current?.clearApiErrors();
+      updateMutation.mutate({
+        clientId,
+        data: clientFormDataToUpdateDto(data),
+      });
+    },
+    [clientId, clientUnavailable, updateMutation],
+  );
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     navigate(`/clients/${clientId}`);
-  };
+  }, [navigate, clientId]);
 
   return (
     <FormPageShell
@@ -68,6 +116,7 @@ export function ClientEditPage() {
     >
       {client ? (
         <ClientForm
+          ref={formRef}
           key={client.id}
           mode="edit"
           client={client}

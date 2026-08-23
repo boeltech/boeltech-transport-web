@@ -3,18 +3,23 @@
  * Clean Architecture - Application Layer
  *
  * Hook mutation para actualizar un cliente existente.
+ * Toast / navegación / mapeo de errores de campo: responsabilidad de la página
+ * (p. ej. ClientEditPage), igual que useUpdateDriver.
  *
  * @example
- * const { mutate, isPending } = useUpdateClient();
- *
- * const handleSubmit = (data) => {
- *   mutate({ clientId, data });
- * };
+ * const { mutate, isPending } = useUpdateClient({
+ *   onSuccess: () => navigate(`/clients/${clientId}`),
+ *   onError: (error) => { ... },
+ * });
  *
  * Ubicación: src/features/clients/application/hooks/useUpdateClient.ts
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
 import { useToast } from "@shared/hooks";
 import { clientRepository } from "../../infrastructure";
 import {
@@ -40,37 +45,28 @@ interface UpdateClientParams {
 /**
  * Hook mutation para actualizar un cliente
  */
-export function useUpdateClient() {
+export function useUpdateClient(
+  options?: Omit<
+    UseMutationOptions<Client, Error, UpdateClientParams>,
+    "mutationFn"
+  >,
+) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  return useMutation<Client, Error, UpdateClientParams>({
-    mutationFn: ({ clientId, data }) => clientRepository.update(clientId, data),
+  return useMutation({
+    mutationFn: ({ clientId, data }: UpdateClientParams) =>
+      clientRepository.update(clientId, data),
 
-    onSuccess: (client) => {
-      // Actualizar cache del cliente específico
+    onSuccess: (client, variables, onMutateResult, context) => {
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client);
-
-      // Invalidar listados (en background, sin bloquear)
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
       evictInvoicePrefillQueries(queryClient);
-
-      // Notificar éxito
-      toast({
-        title: "Cliente actualizado",
-        description: "Los cambios han sido guardados exitosamente.",
-      });
+      options?.onSuccess?.(client, variables, onMutateResult, context);
     },
 
-    onError: (error) => {
-      toast({
-        title: "Error al actualizar",
-        description:
-          error.message || "Ocurrió un error al actualizar el cliente.",
-        variant: "destructive",
-      });
-    },
+    onError: options?.onError,
+    onSettled: options?.onSettled,
   });
 }
 

@@ -63,7 +63,7 @@ export interface ClientContact {
 }
 
 export const CLIENT_CONTACT_ROLE_LABELS = {
-  signsCartaPorte: "Firma Carta Porte",
+  signsCartaPorte: "Firma documentos de viaje",
   receivesInvoices: "Recibe facturas",
   authorizesPayments: "Autoriza pagos",
 } as const;

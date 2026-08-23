@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clientFormDataToUpdateDto,
+  clientFormSchema,
   clientToFormValues,
   createClientFormSchema,
   defaultClientFormValues,
@@ -22,6 +23,25 @@ describe("clientSchema", () => {
   it("createClientFormSchema acepta alta mínima válida", () => {
     const result = createClientFormSchema.safeParse(validCompanyValues);
     expect(result.success).toBe(true);
+  });
+
+  it("clientFormSchema (wizard) acepta alta mínima válida", () => {
+    const result = clientFormSchema.safeParse(validCompanyValues);
+    expect(result.success).toBe(true);
+  });
+
+  it("clientFormSchema exige nombre si hay teléfono o correo de contacto", () => {
+    const result = clientFormSchema.safeParse({
+      ...validCompanyValues,
+      contactName: "",
+      phone: "5512345678",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path[0] === "contactName"),
+      ).toBe(true);
+    }
   });
 
   it("createClientFormSchema rechaza RFC inválido para persona moral", () => {
@@ -67,7 +87,7 @@ describe("clientSchema", () => {
     expect(formValues.tradeName).toBe("");
 
     const dto = clientFormDataToUpdateDto(formValues);
-    expect(dto.tradeName).toBeUndefined();
+    expect(dto.tradeName).toBeNull();
     expect(dto.taxId).toBe("AAA010101AAA");
     expect(dto.legalName).toBe("Transportes Demo SA de CV");
   });

@@ -371,8 +371,8 @@ export function toApiCreateClient(
 }
 
 /**
- * Convierte DTO de actualización de cliente a formato API (snake_case)
- * Solo incluye los campos que están definidos
+ * Convierte DTO de actualización de cliente a formato API (snake_case).
+ * Incluye claves con `null` (limpiar columna); omite solo `undefined`.
  */
 export function toApiUpdateClient(
   dto: UpdateClientDTO,

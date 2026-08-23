@@ -101,9 +101,25 @@ export interface CreateClientDTO {
 }
 
 /**
- * DTO para actualizar un cliente
+ * DTO para actualizar un cliente.
+ * Semántica patch: `undefined` = no tocar · `null` = limpiar (API nullable).
  */
-export interface UpdateClientDTO extends Partial<CreateClientDTO> {
+export interface UpdateClientDTO {
+  type?: ClientType;
+  legalName?: string;
+  tradeName?: string | null;
+  taxId?: string;
+  taxRegime?: string;
+  contactName?: string | null;
+  contactPosition?: string | null;
+  phone?: string | null;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  billingEmail?: string | null;
+  paymentTerms?: PaymentTerms;
+  creditDays?: number;
+  creditLimit?: number | null;
+  notes?: string | null;
   isActive?: boolean;
 }
 

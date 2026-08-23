@@ -3,7 +3,7 @@
  * Clean Architecture - Presentation Layer
  *
  * Detalle canónico: DetailPageShell con stats, alerts, tabs y metadata.
- * Tabs: Cliente · Contactos · Direcciones · Viajes.
+ * Tabs: Datos · Contactos · Direcciones · Viajes.
  * Crédito solo en bloque comercial + alerts de riesgo (sin StatCard).
  *
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
@@ -52,6 +52,7 @@ import {
   ClientContactsMasterDetail,
   ClientDetailCommercialTab,
   ClientDetailDataTab,
+  ClientDetailHeaderSubtitle,
   ClientTripHistoryTab,
 } from "../components";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
@@ -156,6 +157,7 @@ export function ClientDetailPage() {
   const clientId = id ?? "";
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission("clients", "update");
   const canCollect = isFinanceCobrosTabEnabled({
     isClientPortal: isClientPortalRole(user?.role),
     hasFinanceCreate: hasPermission("finance", "create"),
@@ -361,11 +363,11 @@ export function ClientDetailPage() {
         iconShape: client.type === "individual" ? "circle" : "rounded",
         title: getClientDisplayName(client),
         subtitle: (
-          <>
-            <span className="font-mono">{client.clientCode}</span>
-            <span className="text-muted-foreground"> · </span>
-            <span>{typeConfig.label}</span>
-          </>
+          <ClientDetailHeaderSubtitle
+            clientCode={client.clientCode}
+            typeLabel={typeConfig.label}
+            rfc={rfc}
+          />
         ),
         statusBadge: (
           <ClientStatusBadge
@@ -405,7 +407,12 @@ export function ClientDetailPage() {
           {
             value: TAB.contacts,
             label: copy.tabs.contacts,
-            content: <ClientContactsMasterDetail clientId={client.id} />,
+            content: (
+              <ClientContactsMasterDetail
+                clientId={client.id}
+                readOnly={!canUpdate}
+              />
+            ),
           },
           {
             value: TAB.addresses,
@@ -415,6 +422,7 @@ export function ClientDetailPage() {
                 clientId={client.id}
                 clientRfc={client.taxId}
                 clientName={client.legalName}
+                readOnly={!canUpdate}
               />
             ),
           },

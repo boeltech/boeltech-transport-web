@@ -29,7 +29,20 @@ import {
 } from "@shared/ui/select";
 import { Button } from "@shared/ui/button";
 import { FormSectionCard } from "@shared/ui/form-section-card";
-import { Building2, Phone, CreditCard, FileText, Landmark, Loader2 } from "lucide-react";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@shared/ui/alert";
+import {
+  AlertCircle,
+  Building2,
+  Phone,
+  CreditCard,
+  FileText,
+  Landmark,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
 import {
@@ -45,16 +58,23 @@ import {
   type Client,
 } from "../../domain";
 import {
-  createClientFormSchema,
+  clientFormSchema,
   updateClientFormSchema,
   clientToFormValues,
   defaultClientFormValues,
   type ClientFormData,
 } from "../validation/clientSchema";
+import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
 
 export interface ClientFormRef {
   /** Valida todos los campos y muestra errores si falla. */
   triggerValidation: () => Promise<boolean>;
+  /** Aplica errores de validación API a campos y/o alert persistente. */
+  applyApiValidationErrors: (
+    entries: ReadonlyArray<{ field: string; message: string }>,
+  ) => void;
+  setApiAlertMessages: (messages: string[]) => void;
+  clearApiErrors: () => void;
 }
 
 export interface ClientFormProps {
@@ -142,6 +162,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   ) {
   const { toast } = useToast();
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [apiAlertMessages, setApiAlertMessages] = useState<string[]>([]);
   /** Wizard (onChange sin footer): validación solo inline/summary, sin toast. */
   const isWizardMode = Boolean(onChange) && !onSubmit;
 
@@ -158,10 +179,10 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   }, [mode, client, defaultValues]);
 
   const activeSchema =
-    mode === "edit" ? updateClientFormSchema : createClientFormSchema;
+    mode === "edit" ? updateClientFormSchema : clientFormSchema;
 
   const form = useForm<ClientFormData, unknown, ClientFormData>({
-    // Schema del paquete (Zod 4); @hookform/resolvers tipa Zod 3 — cast acotado al formulario.
+    // Schema del paquete (Zod 4) + refine UX; @hookform/resolvers tipa Zod 3 — cast acotado.
     resolver: zodResolver(activeSchema as never) as Resolver<ClientFormData>,
     defaultValues: initialFormValues,
     mode: "onChange",
@@ -172,6 +193,8 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     control,
     handleSubmit,
     trigger,
+    setError,
+    clearErrors,
     formState: { errors, isValid, isDirty },
   } = form;
   const showFormActions = Boolean(onCancel);
@@ -200,22 +223,48 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     ref,
     () => ({
       triggerValidation: runValidation,
+      applyApiValidationErrors: (entries) => {
+        const unmapped: string[] = [];
+        for (const entry of entries) {
+          const target = resolveClientCreateApiField(entry.field);
+          if (target?.form === "client") {
+            setError(target.field, {
+              type: "server",
+              message: entry.message,
+            });
+          } else if (entry.message.trim()) {
+            unmapped.push(entry.message.trim());
+          }
+        }
+        setApiAlertMessages(unmapped);
+        setShowValidationSummary(true);
+      },
+      setApiAlertMessages: (messages) => {
+        const next = messages.filter((m) => m.trim().length > 0);
+        setApiAlertMessages(next);
+        if (next.length > 0) setShowValidationSummary(true);
+      },
+      clearApiErrors: () => {
+        clearErrors();
+        setApiAlertMessages([]);
+      },
     }),
-    [runValidation],
+    [runValidation, setError, clearErrors],
   );
 
   const handleInvalidSubmit = useCallback(
     (fieldErrors: FieldErrors<ClientFormData>) => {
       setShowValidationSummary(true);
       void trigger(undefined, { shouldFocus: true });
-      if (isWizardMode) return;
+      // Wizard y edición: solo summary + foco (sin toast). Toast solo en create con footer.
+      if (isWizardMode || mode === "edit") return;
       toast({
         title: "Revisa el formulario",
         description: formatFormValidationToastDescription(fieldErrors),
         variant: "destructive",
       });
     },
-    [isWizardMode, toast, trigger],
+    [isWizardMode, mode, toast, trigger],
   );
 
   const handleValidSubmit = useCallback(
@@ -239,6 +288,20 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}
       className={cn("space-y-6", className)}
     >
+      {apiAlertMessages.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No se pudo guardar el cliente</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {apiAlertMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <FormSectionCard
         title="Tipo de Cliente"
         icon={<Building2 className="h-4 w-4" />}
@@ -383,6 +446,10 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         icon={<Phone className="h-4 w-4" />}
         contentClassName="grid gap-4 sm:grid-cols-2"
       >
+        <p className="sm:col-span-2 text-xs text-muted-foreground">
+          Si capturas teléfono, correo o puesto, el nombre del contacto es
+          obligatorio para registrarlo al crear el cliente.
+        </p>
         <div className="space-y-2">
           <Label htmlFor="contactName">Nombre del Contacto</Label>
           <Input

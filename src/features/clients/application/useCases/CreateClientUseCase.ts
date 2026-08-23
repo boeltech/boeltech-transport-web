@@ -11,7 +11,11 @@
  * 3. Crear contacto principal si se proporcionó (POST /clients/:id/contacts)
  * 4. Retornar el resultado combinado
  *
- * Ubicación: src/features/clients/application/use-cases/CreateClientUseCase.ts
+ * Si falla la dirección: intenta soft-delete del cliente (compensación) para
+ * no dejar huérfanos sin billing; si la compensación falla, expone el cliente
+ * creado para completar la dirección en detalle.
+ *
+ * Ubicación: src/features/clients/application/useCases/CreateClientUseCase.ts
  */
 
 import {
@@ -24,6 +28,9 @@ import type {
   CreateClientAddressDTO,
   CreateClientWithAddressDTO,
   CreateClientResult,
+  IClientRepository,
+  IClientAddressRepository,
+  IClientContactRepository,
 } from "../../domain";
 
 // ============================================================================
@@ -31,7 +38,8 @@ import type {
 // ============================================================================
 
 /**
- * El cliente ya se persistió pero falló la creación de la dirección fiscal.
+ * El cliente ya se persistió pero falló la creación de la dirección fiscal
+ * y la compensación (soft-delete) también falló.
  * Permite al UI ofrecer ir al detalle a completar la dirección.
  */
 export class CreateClientAddressFailedError extends Error {
@@ -48,6 +56,22 @@ export class CreateClientAddressFailedError extends Error {
     super(message);
     this.name = "CreateClientAddressFailedError";
     this.clientId = clientId;
+    this.clientCode = clientCode;
+    this.causeError = causeError;
+  }
+}
+
+/**
+ * Falló la dirección fiscal y el cliente se revirtió (soft-delete).
+ * El alta se trata como fallida; el RFC queda libre para reintentar.
+ */
+export class CreateClientCompensatedError extends Error {
+  readonly clientCode: string;
+  readonly causeError: unknown;
+
+  constructor(message: string, clientCode: string, causeError?: unknown) {
+    super(message);
+    this.name = "CreateClientCompensatedError";
     this.clientCode = clientCode;
     this.causeError = causeError;
   }
@@ -83,6 +107,12 @@ export class CreateClientPrimaryContactFailedError extends Error {
 // ============================================================================
 
 export class CreateClientUseCase {
+  constructor(
+    private readonly clients: IClientRepository = clientRepository,
+    private readonly addresses: IClientAddressRepository = clientAddressRepository,
+    private readonly contacts: IClientContactRepository = clientContactRepository,
+  ) {}
+
   /**
    * Crea un cliente con su dirección fiscal (wizard)
    *
@@ -91,13 +121,9 @@ export class CreateClientUseCase {
    * @throws Error si falla la creación del cliente o la dirección
    */
   async execute(data: CreateClientWithAddressDTO): Promise<CreateClientResult> {
-    // 1. Crear el cliente
-    const { id: clientId, clientCode } = await clientRepository.create(
-      data.client,
-    );
+    const { id: clientId, clientCode } = await this.clients.create(data.client);
 
     try {
-      // 2. Crear la dirección fiscal
       const addressData: CreateClientAddressDTO = {
         ...data.billingAddress,
         addressType: "billing",
@@ -111,15 +137,11 @@ export class CreateClientUseCase {
         addressData.nombreRemitenteDestinatario = data.client.legalName;
       }
 
-      const address = await clientAddressRepository.create(
-        clientId,
-        addressData,
-      );
+      const address = await this.addresses.create(clientId, addressData);
 
-      // 3. Contacto principal (tabla client_contacts)
       if (data.primaryContact?.fullName?.trim()) {
         try {
-          await clientContactRepository.create(clientId, {
+          await this.contacts.create(clientId, {
             ...data.primaryContact,
             isPrimary: true,
           });
@@ -147,13 +169,25 @@ export class CreateClientUseCase {
       if (error instanceof CreateClientPrimaryContactFailedError) {
         throw error;
       }
-      const message =
+
+      const addressMessage =
         error instanceof Error
           ? error.message
           : "No se pudo registrar la dirección fiscal.";
-      throw new CreateClientAddressFailedError(
-        message,
-        clientId,
+
+      try {
+        await this.clients.delete(clientId);
+      } catch {
+        throw new CreateClientAddressFailedError(
+          addressMessage,
+          clientId,
+          clientCode,
+          error,
+        );
+      }
+
+      throw new CreateClientCompensatedError(
+        "No se pudo completar el alta del cliente. La dirección fiscal no se registró; puedes reintentar con los mismos datos.",
         clientCode,
         error,
       );
@@ -167,7 +201,7 @@ export class CreateClientUseCase {
   async createClientOnly(
     data: CreateClientDTO,
   ): Promise<{ id: string; clientCode: string }> {
-    return clientRepository.create(data);
+    return this.clients.create(data);
   }
 }
 

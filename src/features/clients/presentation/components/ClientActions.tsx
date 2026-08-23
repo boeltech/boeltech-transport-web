@@ -152,9 +152,12 @@ export function ClientActions({
             </DropdownMenuItem>
 
             {canEdit && (
-              <DropdownMenuItem onClick={handleEdit}>
+              <DropdownMenuItem
+                onClick={handleEdit}
+                title={clientDetailCopy.actions.editTitle}
+              >
                 <Pencil className="mr-2 h-4 w-4" />
-                Editar
+                {clientDetailCopy.actions.edit}
               </DropdownMenuItem>
             )}
 
@@ -230,9 +233,14 @@ export function ClientActions({
         )}
 
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={handleEdit}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEdit}
+            title={clientDetailCopy.actions.editTitle}
+          >
             <Pencil className="mr-2 h-4 w-4" />
-            Editar
+            {clientDetailCopy.actions.edit}
           </Button>
         )}
 

@@ -71,6 +71,7 @@ import {
   CLIENT_ADDRESS_FISCAL_COPY,
 } from "../config/clientConfig";
 import { showsClientUbicacionFields } from "../config/clientAddressPurpose";
+import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
 
 const fiscalCopy = CLIENT_ADDRESS_FISCAL_COPY;
 
@@ -82,6 +83,11 @@ export interface ClientAddressFormRef {
   triggerValidation: () => Promise<boolean>;
   /** Errores SAT (p. ej. estado/CP obligatorios XSD) en campos del formulario. */
   applySatFieldErrors: (fieldErrors: Record<string, string>) => void;
+  /** Errores de validación API mapeados a campos del domicilio. */
+  applyApiValidationErrors: (
+    entries: ReadonlyArray<{ field: string; message: string }>,
+  ) => string[];
+  clearApiFieldErrors: () => void;
 }
 
 export interface ClientAddressFormProps {
@@ -310,6 +316,31 @@ const ClientAddressFormRoot = forwardRef<
     [clearErrors, setError, setFocus],
   );
 
+  const applyApiValidationErrors = useCallback(
+    (entries: ReadonlyArray<{ field: string; message: string }>) => {
+      const unmapped: string[] = [];
+      let firstField: keyof ClientAddressFormData | null = null;
+      for (const entry of entries) {
+        const target = resolveClientCreateApiField(entry.field);
+        if (target?.form === "address") {
+          setError(target.field, {
+            type: "server",
+            message: entry.message,
+          });
+          if (!firstField) firstField = target.field;
+        } else if (entry.message.trim()) {
+          unmapped.push(entry.message.trim());
+        }
+      }
+      if (firstField) {
+        setShowValidationSummary(true);
+        void setFocus(firstField);
+      }
+      return unmapped;
+    },
+    [setError, setFocus],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
@@ -320,8 +351,12 @@ const ClientAddressFormRoot = forwardRef<
         return ok;
       },
       applySatFieldErrors,
+      applyApiValidationErrors,
+      clearApiFieldErrors: () => {
+        clearErrors();
+      },
     }),
-    [applySatFieldErrors, trigger],
+    [applyApiValidationErrors, applySatFieldErrors, clearErrors, trigger],
   );
 
   const onChangeRef = useRef(onChange);

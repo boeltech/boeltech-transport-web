@@ -11,11 +11,11 @@ const operationalCohortHint =
 const operatingRevenue = {
   label: "Ingresos",
   singular: "Ingreso",
-  summaryTooltip: `Factura timbrada o tarifa base por viaje · ${operationalCohortHint} · Sin costos ni margen`,
+  summaryTooltip: `Ingreso por viaje facturado o tarifa acordada · ${operationalCohortHint} · Sin costos ni margen`,
   historyDescription:
-    "Ingreso por viaje (factura timbrada o tarifa base). Sin costos ni margen.",
+    "Ingreso por viaje (factura emitida o tarifa base). Sin costos ni margen.",
   perTripHint:
-    "Factura timbrada cuando existe; si no, tarifa base del viaje.",
+    "Factura emitida cuando existe; si no, tarifa base del viaje.",
 } as const;
 
 export const clientDetailCopy = {
@@ -29,15 +29,22 @@ export const clientDetailCopy = {
     backToList: "Volver a clientes",
   },
   tabs: {
-    client: "Cliente",
+    client: "Datos",
     contacts: "Contactos",
     addresses: "Direcciones",
     trips: "Viajes",
   },
+  header: {
+    copyRfcAria: "Copiar RFC",
+    rfcCopied: "RFC copiado",
+    copyFailed: "No se pudo copiar",
+    editCue:
+      "Datos generales → Editar. Contactos y direcciones se gestionan en estas pestañas.",
+  },
   alerts: {
     missingBillingCp: {
       title: "Falta código postal para facturar",
-      text: "Agrega un domicilio fiscal con código postal. Se usa como receptor del CFDI, no como parada de viaje.",
+      text: "Agrega un domicilio para facturar con código postal. Se usa al emitir facturas, no como parada de viaje.",
       goToAddresses: "Ir a Direcciones",
     },
     noTripPlaces: {
@@ -47,7 +54,7 @@ export const clientDetailCopy = {
     },
     rfcSuspicious: {
       title: "RFC incompleto o inválido",
-      text: "Verifica longitud y caracteres del RFC según el tipo de persona (moral 12 · física 13).",
+      text: "Revisa el RFC: empresa 12 caracteres · persona 13.",
     },
     creditNoLimit: {
       title: "Crédito sin límite definido",
@@ -56,7 +63,7 @@ export const clientDetailCopy = {
   },
   identification: {
     title: "Identificación",
-    description: "Razón social, RFC y régimen del cliente.",
+    description: "Nombre legal, RFC y datos para facturar.",
     legalName: "Razón social",
     tradeName: "Nombre comercial",
     taxId: "RFC",
@@ -97,10 +104,12 @@ export const clientDetailCopy = {
     empty: "No hay contacto principal registrado.",
     cta: "Ir a Contactos",
     viewInContacts: "Ver en Contactos",
+    phone: "Teléfono",
+    email: "Correo",
   },
   address: {
     groups: {
-      fiscal: "Fiscal",
+      fiscal: "Facturación",
       forTrips: "Para viajes",
       other: "Otros",
     },
@@ -112,12 +121,13 @@ export const clientDetailCopy = {
     editDescription: "Los cambios se guardan al confirmar.",
     emptyTitle: "No hay direcciones registradas",
     emptyDescriptionReadOnly:
-      "Puedes agregar direcciones desde la pantalla Editar cliente.",
+      "Aún no hay direcciones. Se agregan desde esta pestaña cuando tienes permiso.",
     emptyDescription:
-      "Agrega el domicilio fiscal para facturar y, si aplica, bodegas o puntos de viaje.",
+      "Agrega el domicilio para facturar y, si aplica, bodegas o puntos de viaje.",
     emptyCta: "Agregar primera dirección",
     emptyHints: {
-      fiscal: "Registra al menos un domicilio fiscal con código postal para CFDI.",
+      fiscal:
+        "Registra al menos un domicilio para facturar con código postal.",
       trips: "Bodegas, entrega y recolección se reutilizan al armar viajes.",
       other: "Oficina u otros quedan en este tab; no salen en el picker de paradas.",
     },
@@ -175,7 +185,7 @@ export const clientDetailCopy = {
       empty: "Este cliente aún no tiene viajes registrados.",
     },
     revenueSource: {
-      invoice_subtotal: "Factura timbrada",
+      invoice_subtotal: "Factura emitida",
       trip_base_rate: "Tarifa base",
     } as Record<string, string>,
     invoiceStatus: {
@@ -196,6 +206,8 @@ export const clientDetailCopy = {
     noPayments: "Sin pagos",
   },
   actions: {
+    edit: "Editar",
+    editTitle: "Editar datos generales del cliente",
     deleteTitle: "¿Eliminar cliente?",
     deleteDescription: (name: string) =>
       `Se dará de baja a ${name}. Dejará de mostrarse en el listado y no podrás seguir operando su ficha como hasta ahora.`,

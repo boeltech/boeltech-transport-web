@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ClientApiResponse, ClientListItemApiResponse } from "../domain";
-import { mapClient, mapClientFromApi, mapPaginatedClients } from "./mappers";
+import {
+  mapClient,
+  mapClientFromApi,
+  mapPaginatedClients,
+  toApiUpdateClient,
+} from "./mappers";
 
 const snakeListItem: ClientListItemApiResponse = {
   id: "c-1",
@@ -57,5 +62,39 @@ describe("client mappers (mapSingleResponse / mapPaginatedResponse)", () => {
     const client = mapClientFromApi(snakeClient);
     expect(client.paymentTerms).toBe("credit");
     expect(client.creditDays).toBe(30);
+  });
+});
+
+describe("toApiUpdateClient", () => {
+  it("incluye credit_limit: null para limpiar límite", () => {
+    expect(toApiUpdateClient({ creditLimit: null })).toEqual({
+      credit_limit: null,
+    });
+  });
+
+  it("incluye trade_name/notes/billing_email null", () => {
+    expect(
+      toApiUpdateClient({
+        tradeName: null,
+        notes: null,
+        billingEmail: null,
+      }),
+    ).toEqual({
+      trade_name: null,
+      notes: null,
+      billing_email: null,
+    });
+  });
+
+  it("omite credit_limit en patch parcial solo isActive", () => {
+    expect(toApiUpdateClient({ isActive: true })).toEqual({
+      is_active: true,
+    });
+  });
+
+  it("envía credit_limit numérico", () => {
+    expect(toApiUpdateClient({ creditLimit: 10000 })).toEqual({
+      credit_limit: 10000,
+    });
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Tab "Cliente" del detalle — identificación, contacto principal (teaser) y notas.
+ * Tab "Datos" del detalle — identificación, contacto principal (teaser) y notas.
  */
 
 import type { ReactNode } from "react";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shar
 import { InfoRow } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import { FileText, User, Star } from "lucide-react";
+import { FileText, User, Star, Phone, Mail } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
 import type { Client } from "../../domain";
@@ -34,6 +34,8 @@ export function ClientDetailDataTab({
 }: ClientDetailDataTabProps) {
   const primary = client.primaryContact;
   const threeCol = Boolean(commercialSection);
+  const phone = primary?.phone?.trim() || primary?.secondaryPhone?.trim() || "";
+  const email = primary?.email?.trim() || "";
 
   return (
     <div className="space-y-6">
@@ -95,6 +97,30 @@ export function ClientDetailDataTab({
                   </Badge>
                 </div>
                 <p className="text-sm font-medium">{primary.fullName}</p>
+                {phone ? (
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <a
+                      href={`tel:${phone}`}
+                      className="text-primary hover:underline"
+                      aria-label={contactCopy.phone}
+                    >
+                      {phone}
+                    </a>
+                  </p>
+                ) : null}
+                {email ? (
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <a
+                      href={`mailto:${email}`}
+                      className="truncate text-primary hover:underline"
+                      aria-label={contactCopy.email}
+                    >
+                      {email}
+                    </a>
+                  </p>
+                ) : null}
                 {onGoToContacts ? (
                   <Button type="button" variant="outline" size="sm" onClick={onGoToContacts}>
                     {contactCopy.viewInContacts}
