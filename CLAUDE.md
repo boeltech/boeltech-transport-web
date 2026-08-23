@@ -27,6 +27,7 @@ npm run test:smoke:branches      # smoke sucursales: listado → detalle (mapa g
 npm run test:smoke:branch-kpis   # smoke SUC-M12 widget dashboard compare + tarjeta KPI detalle sucursal
 npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria (CTA/scope/badge)
 npm run test:smoke:trip-false-trip # smoke ADR-0079 viaje en falso (CTA/scope/badge, sin PAC)
+npm run test:smoke:trip-revenue-split # smoke ADR-0081 prorrateo multi-RFC (CTA/scope/badge, sin PAC)
 npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cutover /trailers
 npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
 npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → validate → commit)
@@ -39,6 +40,8 @@ npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → valid
 **Billing SaaS v1 (ADR-0064):** `@features/billing` read-only en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención) · consola platform (suscripción, entitlements, export conciliación CSV) · paywall `internal_staff_compensation` en wizard viajes. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md`.
 
 **Multifactura por viaje (ADR-0068):** factura de flete (primaria + Carta Porte) y N facturas accesorias (solo servicios, sin CP) ligadas al mismo viaje · UI `?scope=accessory` · smoke `npm run test:smoke:trip-multi-invoice`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\facturas-accesorias-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\trip-multi-invoice\sdd.md`.
+
+**Prorrateo multi-RFC (ADR-0081):** N CFDIs de flete por porción del acuerdo (`billing_scope=split_share`) · UI `?scope=split_share&leg_id=` · smoke `npm run test:smoke:trip-revenue-split`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\prorrateo-multi-rfc-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0081-split-multi-rfc-mismo-viaje.md` · SDD `design/sdd/trip-revenue-split/`.
 
 **Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. Capa 1 job UX en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
 
@@ -125,6 +128,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | Viajes — canvas de alta (ADR-0078, Aceptado · F0–F4) | `...\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · addendum composer **Aceptado** (E1 web, sin API) · SDD `...\design\sdd\trip-canvas-intake\` |
+| Viajes — prorrateo multi-RFC (ADR-0081) | `...\design\adr\0081-split-multi-rfc-mismo-viaje.md` · SDD `...\design\sdd\trip-revenue-split\` · guía `...\docs\facturacion\prorrateo-multi-rfc-viaje-usuario.md` |
 | Viajes — falso ingreso sin CP (ADR-0079, Aceptado · F0–F3 código) | `...\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · addendum 0068 · SDD `...\design\sdd\trip-false-trip\` · guía `...\docs\facturacion\viaje-en-falso-usuario.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |
 | ADR-0043 | `...\docs\adr-0043\` |

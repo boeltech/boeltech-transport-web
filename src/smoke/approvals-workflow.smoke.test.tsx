@@ -23,6 +23,17 @@ vi.mock("@features/approvals/infrastructure/approvalsApi", () => ({
   },
 }));
 
+// Approve invalidates notifications with force unread fetch.
+vi.mock("@features/notifications/infrastructure", () => ({
+  notificationsApi: {
+    getUnreadCount: vi.fn().mockResolvedValue(0),
+    list: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}));
+
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: () => true,

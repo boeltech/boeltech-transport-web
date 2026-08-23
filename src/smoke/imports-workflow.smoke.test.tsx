@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ImportsHubPage } from "@features/imports/presentation/pages/ImportsHubPage";
+import { MasterImportWizard } from "@features/imports/presentation/components/MasterImportWizard";
 import { importsCopy } from "@features/imports/presentation/copy/importsCopy";
 import type {
   ImportCommitResult,
@@ -271,6 +272,20 @@ describe("imports workflow smoke (ADR-0074)", () => {
         importsCopy.wizard.result.counts(1, 0, 0, 0),
       ),
     ).toBeInTheDocument();
+
+    expect(
+      within(dialog).getByText(importsCopy.wizard.result.scopeTitle),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        importsCopy.wizard.result.scope.clients.persisted,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("link", {
+        name: importsCopy.wizard.result.scope.clients.actions[0]!.label,
+      }),
+    ).toHaveAttribute("href", "/clients");
   });
 
   it("muestra Descargar errores en validación y llama downloadJobErrors", async () => {
@@ -397,6 +412,53 @@ describe("imports workflow smoke (ADR-0074)", () => {
 
     await waitFor(() => {
       expect(mockDownloadJobErrors).toHaveBeenCalledWith("job-err");
+    });
+  });
+
+  it("wizard conductores muestra guía ADR-0080 (federal/estatal)", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <MasterImportWizard
+            open
+            onOpenChange={() => undefined}
+            entityType="drivers"
+            lockEntityType
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /Cómo llenar este archivo/i,
+      }),
+    );
+
+    expect(
+      within(dialog).getByText("Columna: federal_license_number"),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Columna: state_issuing_state"),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("Columna: license_number"),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: importsCopy.wizard.upload.downloadTemplate,
+      }),
+    );
+    await waitFor(() => {
+      expect(mockDownloadTemplate).toHaveBeenCalledWith("drivers");
     });
   });
 });
