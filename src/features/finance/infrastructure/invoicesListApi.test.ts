@@ -60,6 +60,7 @@ describe("financeInvoicesListApi", () => {
       id: "inv-1",
       receiverRfc: "XAXX010101000",
       status: "stamped",
+      totalPaid: 0,
     });
 
     // Range formula used by ListingResultsSummary for page 1
@@ -67,6 +68,71 @@ describe("financeInvoicesListApi", () => {
     expect(`${(page - 1) * limit + 1}-${Math.min(page * limit, total)}`).toBe(
       "1-10",
     );
+  });
+
+  it("maps total_paid when present and falls back to total - balance_due", async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          id: "inv-paid",
+          serie: "A",
+          folio: 2,
+          receiver_rfc: "XAXX010101000",
+          receiver_name: "Cliente",
+          issued_at: "2026-07-01T12:00:00.000Z",
+          payment_method: "PPD",
+          total: 1160,
+          balance_due: 660,
+          total_paid: 500,
+          trip_codes: [],
+          status: "stamped",
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        total_pages: 1,
+      },
+    });
+
+    const result = await financeInvoicesListApi.getAll({ page: 1, limit: 10 });
+    expect(result.data[0]?.totalPaid).toBe(500);
+  });
+
+  it("maps billing_scope and share_percent when present (ADR-0081)", async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          id: "inv-split",
+          serie: "A",
+          folio: 9,
+          receiver_rfc: "AAA010101AAA",
+          receiver_name: "Cliente A",
+          issued_at: "2026-07-01T12:00:00.000Z",
+          payment_method: "PUE",
+          total: 6000,
+          balance_due: 0,
+          trip_codes: ["T-001"],
+          status: "stamped",
+          billing_scope: "split_share",
+          share_percent: 60,
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        total_pages: 1,
+      },
+    });
+
+    const result = await financeInvoicesListApi.getAll({ page: 1, limit: 10 });
+
+    expect(result.data[0]).toMatchObject({
+      billingScope: "split_share",
+      sharePercent: 60,
+    });
   });
 
   it("computes last-page range without NaN when totalPages is mapped", async () => {

@@ -6,12 +6,14 @@ const exportCopy = {
     profitabilityTruncated: (exported: number, total: number) =>
       `Muestra de ${exported} de ${total} viajes (CSV).`,
     aging: "Antigüedad de saldos por cliente (CSV).",
-    expenses: "Gastos por cliente (CSV).",
+    expenses: (groupLabel: string) =>
+      `Gastos por ${groupLabel.toLowerCase()} (CSV).`,
   },
   files: {
     profitability: "finance-margen",
     aging: "finance-antiguedad",
-    expensesByClient: "finance-gastos-cliente",
+    /** Prefijo + slug de agrupación (unidad|operador|cliente|ruta). */
+    expensesPrefix: "finance-gastos",
   },
 } as const;
 
@@ -266,7 +268,10 @@ export const financeCopy = {
     entityLabelPlural: "facturas",
     kpi: {
       stamped: { label: "Emitidas", description: "facturas" },
-      draft: { label: "Borradores", description: "facturas" },
+      draft: {
+        label: "Borradores",
+        description: "incluye en timbrado",
+      },
       cancellationPending: {
         label: "Cancelación en proceso",
         description: "facturas",
@@ -276,6 +281,7 @@ export const financeCopy = {
     /** Labels operativos staff (alineados al portal; D7). */
     statusLabels: {
       draft: "Borrador",
+      stamping: "Timbrando…",
       stamped: "Emitida",
       cancellation_pending: "Cancelación en proceso",
       cancelled: "Cancelada",
@@ -283,6 +289,7 @@ export const financeCopy = {
     /** Labels del portal client (consulta). */
     statusLabelsClient: {
       draft: "Borrador",
+      stamping: "En proceso",
       stamped: "Facturado",
       cancellation_pending: "Cancelación en proceso",
       cancelled: "Cancelada",
@@ -319,10 +326,11 @@ export const financeCopy = {
   invoiceable: {
     title: "Viajes por facturar",
     description:
-      "Viajes listos para facturar que aún no tienen factura emitida.",
+      "Viajes listos para facturar. Si el flete está prorrateado entre varios RFC, abre el viaje para facturar cada porción.",
     searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
+    goToTripInvoicing: "Ir a facturación del viaje",
     noClient: "Sin cliente",
     table: {
       trip: "Viaje",
@@ -332,6 +340,9 @@ export const financeCopy = {
       baseRate: "Importe del viaje",
       empty: "No hay viajes por facturar.",
       falseTripChip: "Viaje en falso",
+      splitShareChip: "Flete prorrateado",
+      splitLegsProgress: (invoiced: number, total: number) =>
+        `${invoiced} de ${total} porciones facturadas`,
     },
     empty: {
       title: "Nada por facturar",
@@ -491,41 +502,40 @@ export const financeCopy = {
   },
   expenses: {
     alert: {
-      title: "Solo gastos aprobados",
+      summary:
+        "Solo costos de viaje ya aprobados. Los pendientes no aparecen hasta la aprobación.",
+      includesShow: "¿Qué incluye?",
+      includesHide: "Ocultar detalle",
       body: "Se incluyen conceptos de costo del viaje ya aprobados. Los pendientes aparecen cuando un gerente o administrador los aprueba en el detalle del viaje.",
       bodyRoutePrefix: "Registra conceptos en",
-      bodyRouteLink: "Viajes → detalle → Costos",
+      bodyRouteLink: "Viajes → detalle → Dinero del viaje",
       bodyRouteSuffix:
         ". La tarifa base y los costos presupuestados no alimentan este análisis.",
     },
     metrics: {
-      currentPeriodExpense: "Gasto total del periodo actual",
-      referencePeriod: "Periodo de referencia",
-      activeCategories: {
-        title: "Categorías con gasto",
-        subtitle: "Conceptos aprobados en el periodo",
-      },
-      dimensionRows: {
-        title: "Registros por grupo",
-        subtitle: (dimensionLabel: string) => `Agrupado por ${dimensionLabel}`,
+      totalExpense: "Gasto total",
+      topConcentration: {
+        title: "Mayor concentración",
+        empty: "Sin agrupación con gasto",
+        subtitle: (dimensionLabel: string) => `Por ${dimensionLabel}`,
       },
     },
     filters: {
-      granularity: "Periodo",
+      granularity: "Ver por",
       granularityValues: {
-        day: "Diaria",
-        week: "Semanal",
-        month: "Mensual",
+        day: "Día",
+        week: "Semana",
+        month: "Mes",
       },
       chipGranularity: (value: string) =>
-        `Periodo: ${financeCopy.expenses.filters.granularityValues[value as keyof typeof financeCopy.expenses.filters.granularityValues] ?? value}`,
+        `Ver por: ${financeCopy.expenses.filters.granularityValues[value as keyof typeof financeCopy.expenses.filters.granularityValues] ?? value}`,
       chipDimension: (value: string) =>
         `Agrupar por: ${financeCopy.expenses.filters.dimensionValues[value as keyof typeof financeCopy.expenses.filters.dimensionValues] ?? value}`,
       chipFrom: (value: string) => `Desde: ${value}`,
       chipTo: (value: string) => `Hasta: ${value}`,
       chipVehicle: "Unidad seleccionada",
-      dateRangeHeading: "Periodo de gastos",
-      dateRangePlaceholder: "Seleccionar periodo",
+      dateRangeHeading: "Rango de fechas",
+      dateRangePlaceholder: "Seleccionar fechas",
       dimension: "Agrupar por",
       dimensionValues: {
         vehicle: "Unidad",
@@ -533,12 +543,18 @@ export const financeCopy = {
         client: "Cliente",
         route: "Ruta",
       },
+      exportFileSlug: {
+        vehicle: "unidad",
+        driver: "operador",
+        client: "cliente",
+        route: "ruta",
+      },
     },
     table: {
-      title: "Gasto por grupo",
+      title: "¿Dónde se concentra el gasto?",
       description:
-        "Totales y promedios por viaje según el agrupamiento seleccionado (solo gastos aprobados).",
-      category: "Categoría",
+        "Totales y promedio por viaje según la agrupación (solo costos aprobados).",
+      category: "Concepto",
       amount: "Monto",
       dimensionTripCount: "Viajes",
       totalExpense: "Gasto total",
@@ -554,28 +570,35 @@ export const financeCopy = {
     empty: {
       title: "Sin datos de gastos",
       description:
-        "No hay gastos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Costos y que estén aprobados.",
+        "No hay costos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Dinero del viaje y que estén aprobados.",
+    },
+    chartsSection: {
+      show: "Ver tendencia y composición",
+      hide: "Ocultar tendencia y composición",
     },
     charts: {
       empty: {
         title: "Sin datos para graficar",
       },
       timeSeries: {
-        title: "Gastos por categoría en el tiempo",
-        description: "Evolución de gastos aprobados por periodo",
+        title: "Cómo cambian los conceptos",
+        description: "Evolución de costos aprobados en el tiempo",
         footer: (periodCount: number, categoryCount: number) =>
-          `${periodCount} periodo(s) · ${categoryCount} categoría(s)`,
+          `${periodCount} tramo(s) · ${categoryCount} concepto(s)`,
       },
       latestPeriod: {
-        title: "Composición del periodo actual",
-        description: "Distribución por categoría en el último periodo",
-        centerLabel: "Total periodo",
-        footer: (referencePeriod: string) => `Periodo: ${referencePeriod}`,
+        title: (periodLabel: string) =>
+          periodLabel
+            ? `En qué se fue el gasto (${periodLabel})`
+            : "En qué se fue el gasto",
+        description: "Distribución por concepto",
+        centerLabel: "Total",
+        footer: (referencePeriod: string) => referencePeriod,
         emptyDescription:
-          "No hay gastos aprobados en el último periodo para este rango.",
+          "No hay costos aprobados en este tramo del rango.",
       },
     },
-    exportCsv: "Exportar gastos (CSV)",
+    exportCsv: "Exportar listado (CSV)",
   },
   exports: exportCopy,
   paymentMethods: {

@@ -3,6 +3,7 @@
  */
 
 import type {
+  FinanceInvoiceStatus,
   ProfitabilityDimension,
   ProfitabilityScope,
   ProfitabilityStatus,
@@ -58,6 +59,15 @@ export const PROFITABILITY_STATUSES = [
   "breakeven",
   "loss",
 ] as const satisfies readonly ProfitabilityStatus[];
+
+/** Estados de factura del tab Facturas (lockstep API invoiceQuerySchema + stamping). */
+export const FINANCE_INVOICE_STATUSES = [
+  "draft",
+  "stamping",
+  "stamped",
+  "cancellation_pending",
+  "cancelled",
+] as const satisfies readonly FinanceInvoiceStatus[];
 
 export const EXPENSE_GRANULARITIES = ["day", "week", "month"] as const;
 
@@ -138,6 +148,14 @@ export function parseProfitabilityStatus(
 ): ProfitabilityStatus | undefined {
   if (!raw || raw === "all") return undefined;
   if (includesValue(PROFITABILITY_STATUSES, raw)) return raw;
+  return undefined;
+}
+
+export function parseFinanceInvoiceStatus(
+  raw: string | null | undefined,
+): FinanceInvoiceStatus | undefined {
+  if (!raw || raw === "all") return undefined;
+  if (includesValue(FINANCE_INVOICE_STATUSES, raw)) return raw;
   return undefined;
 }
 

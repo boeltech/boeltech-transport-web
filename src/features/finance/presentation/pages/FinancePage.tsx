@@ -20,8 +20,8 @@ import { FinanceAnalysisTab } from "./FinanceAnalysisTab";
 import { FinanceInvoiceableTripsTab } from "./FinanceInvoiceableTripsTab";
 import { FinanceInvoicesTab } from "./FinanceInvoicesTab";
 import { FinanceSummaryTab } from "./FinanceSummaryTab";
+import { canShowInvoiceFromTripCta } from "@features/invoicing";
 import { financeCopy } from "../copy";
-import { canShowInvoiceFromTripCta } from "../utils/financeInvoiceFromTripCta";
 
 const ANALYTICS_TABS: FinanceHubTab[] = [
   "summary",
@@ -168,6 +168,7 @@ export function FinancePage() {
           <FinanceInvoicesTab
             showFinanceSummaryMetrics={canAnalytics && !isClientPortal}
             isClientPortal={isClientPortal}
+            queriesEnabled={activeTab === "invoices"}
           />
         ),
       },

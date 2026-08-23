@@ -18,27 +18,28 @@ import type {
   FinanceInvoiceListItem,
   FinanceInvoiceStatus,
 } from "@features/finance/domain";
-import { getDisplayAmountsFromInvoiceFields } from "@features/invoicing";
+import {
+  getDisplayAmountsFromInvoiceFields,
+  InvoiceBillingScopeBadge,
+} from "@features/invoicing";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
+import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
 import { financeCopy } from "../copy";
 import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMethod";
 
+const copy = financeCopy.invoices;
+const splitShareCopy = invoicingCopy.splitShare;
+
 /** Saldo mostrado: PUE timbrada = liquidada (igual que detalle de factura). */
 function getListDisplayAmounts(invoice: FinanceInvoiceListItem) {
-  const recordedPaid = Math.max(
-    0,
-    Number((invoice.total - invoice.balanceDue).toFixed(2)),
-  );
   return getDisplayAmountsFromInvoiceFields({
     status: invoice.status,
     paymentMethod: invoice.paymentMethod,
     total: invoice.total,
-    totalPaid: recordedPaid,
+    totalPaid: invoice.totalPaid,
   });
 }
-
-const copy = financeCopy.invoices;
 
 interface FinanceInvoiceListTableProps {
   invoices: FinanceInvoiceListItem[];
@@ -164,7 +165,20 @@ export function FinanceInvoiceListTable({
               onClick={() => onView(invoice.id)}
             >
               <TableCell className="font-medium font-mono">
-                {invoice.serie}-{invoice.folio}
+                <div className="space-y-1">
+                  <div>{`${invoice.serie}-${invoice.folio}`}</div>
+                  {invoice.billingScope ? (
+                    <div className="flex flex-wrap items-center gap-1.5 font-sans">
+                      <InvoiceBillingScopeBadge scope={invoice.billingScope} />
+                      {invoice.billingScope === "split_share" &&
+                      invoice.sharePercent != null ? (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {splitShareCopy.sharePercentShort(invoice.sharePercent)}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </TableCell>
               {!isClientPortal ? (
                 <TableCell>
@@ -179,7 +193,7 @@ export function FinanceInvoiceListTable({
                 </TableCell>
               ) : null}
               <TableCell className="text-sm">
-                {formatDate(invoice.issuedAt.split("T")[0])}
+                {formatDate(invoice.issuedAt)}
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="text-xs">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileClock } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -13,14 +13,17 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { useToast } from "@shared/hooks";
+import { useQueryErrorToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { useFinanceListingFilters } from "@features/finance/application";
 import { useTrips, formatRoute } from "@features/trips";
 import type { TripListItem } from "@features/trips/domain";
-import { buildInvoiceCreatePathFromTrip } from "@features/invoicing";
+import {
+  buildInvoiceCreatePathFromTrip,
+  buildTripInvoicingHubPath,
+  shouldOpenInvoiceCreateFromFinanceHub,
+} from "@features/invoicing";
 import { financeCopy } from "../copy";
 
 const copy = financeCopy.invoiceable;
@@ -88,10 +91,12 @@ function InvoiceableTripsTable({
   trips,
   isLoading,
   onInvoice,
+  onOpenTripInvoicing,
 }: {
   trips: TripListItem[];
   isLoading: boolean;
   onInvoice: (trip: TripListItem) => void;
+  onOpenTripInvoicing: (trip: TripListItem) => void;
 }) {
   return (
     <div className="rounded-md border">
@@ -112,15 +117,37 @@ function InvoiceableTripsTable({
           </TableBody>
         ) : (
           <TableBody>
-            {trips.map((trip) => (
+            {trips.map((trip) => {
+              const hasActiveSplit = trip.invoicing.hasActiveSplit;
+              const splitProgress =
+                hasActiveSplit && trip.invoicing.splitLegsTotal > 0
+                  ? copy.table.splitLegsProgress(
+                      trip.invoicing.splitLegsInvoiced,
+                      trip.invoicing.splitLegsTotal,
+                    )
+                  : null;
+
+              return (
               <TableRow key={trip.id}>
                 <TableCell className="font-mono font-medium">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{trip.tripCode}</span>
-                    {trip.operationalOutcome === "false_trip" ? (
-                      <Badge variant="warning" tone="soft" className="text-xs">
-                        {copy.table.falseTripChip}
-                      </Badge>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{trip.tripCode}</span>
+                      {trip.operationalOutcome === "false_trip" ? (
+                        <Badge variant="warning" tone="soft" className="text-xs">
+                          {copy.table.falseTripChip}
+                        </Badge>
+                      ) : null}
+                      {hasActiveSplit ? (
+                        <Badge variant="default" className="text-xs">
+                          {copy.table.splitShareChip}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {splitProgress ? (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {splitProgress}
+                      </span>
                     ) : null}
                   </div>
                 </TableCell>
@@ -139,12 +166,23 @@ function InvoiceableTripsTable({
                   {formatMxCurrency(trip.baseRate)}
                 </TableCell>
                 <TableCell>
-                  <Button size="sm" onClick={() => onInvoice(trip)}>
-                    {copy.invoiceAction}
-                  </Button>
+                  {shouldOpenInvoiceCreateFromFinanceHub(trip) ? (
+                    <Button size="sm" onClick={() => onInvoice(trip)}>
+                      {copy.invoiceAction}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onOpenTripInvoicing(trip)}
+                    >
+                      {copy.goToTripInvoicing}
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
-            ))}
+            );
+            })}
           </TableBody>
         )}
       </Table>
@@ -156,7 +194,6 @@ export function FinanceInvoiceableTripsTab({
   queriesEnabled,
 }: FinanceInvoiceableTripsTabProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const filters = useFinanceListingFilters({ filters: {} });
 
@@ -175,15 +212,12 @@ export function FinanceInvoiceableTripsTab({
 
   const trips = data?.data ?? [];
 
-  useEffect(() => {
-    if (isError && error) {
-      toast({
-        variant: "destructive",
-        title: copy.loadError,
-        description: getErrorMessage(error),
-      });
-    }
-  }, [isError, error, toast]);
+  useQueryErrorToast({
+    isError,
+    error,
+    title: copy.loadError,
+    enabled: queriesEnabled,
+  });
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -192,6 +226,15 @@ export function FinanceInvoiceableTripsTab({
   const handleInvoice = useCallback(
     (trip: TripListItem) => {
       navigate(buildInvoiceCreatePathFromTrip(trip), {
+        state: { from: TAB_PATH },
+      });
+    },
+    [navigate],
+  );
+
+  const handleOpenTripInvoicing = useCallback(
+    (trip: TripListItem) => {
+      navigate(buildTripInvoicingHubPath(trip.id), {
         state: { from: TAB_PATH },
       });
     },
@@ -235,6 +278,7 @@ export function FinanceInvoiceableTripsTab({
           trips={trips}
           isLoading={isLoading}
           onInvoice={handleInvoice}
+          onOpenTripInvoicing={handleOpenTripInvoicing}
         />
       )}
       emptyState={{

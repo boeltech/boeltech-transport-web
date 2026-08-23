@@ -1,3 +1,11 @@
+/**
+ * Listado de facturas del hub Finanzas via GET /invoices.
+ *
+ * El tab mapea solo los campos que necesita la tabla/KPI. El DTO API completo
+ * (tenant_id, subtotales, etc.) lo comparte también invoicingApi.getAll —
+ * recorte de superficie en el endpoint queda post-v1 (auditoría H11).
+ */
+
 import { apiClient } from "@shared/api";
 import type { ApiPagination } from "@shared/api";
 import type {
@@ -6,10 +14,19 @@ import type {
   FinanceInvoiceStatus,
   PaginatedFinanceInvoices,
 } from "@features/finance/domain";
+import { parseInvoiceBillingScope } from "@features/invoicing";
 
 const INVOICES = "/invoices";
 
 function mapInvoiceListItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
+  const total = Number(raw.total ?? 0);
+  const balanceDue = Number(raw.balance_due ?? 0);
+  const totalPaidRaw = raw.total_paid;
+  const totalPaid =
+    totalPaidRaw == null
+      ? Math.max(0, Number((total - balanceDue).toFixed(2)))
+      : Number(totalPaidRaw);
+
   return {
     id: String(raw.id ?? ""),
     serie: String(raw.serie ?? ""),
@@ -18,12 +35,18 @@ function mapInvoiceListItem(raw: Record<string, unknown>): FinanceInvoiceListIte
     receiverName: String(raw.receiver_name ?? ""),
     issuedAt: String(raw.issued_at ?? ""),
     paymentMethod: String(raw.payment_method ?? ""),
-    total: Number(raw.total ?? 0),
-    balanceDue: Number(raw.balance_due ?? 0),
+    total,
+    balanceDue,
+    totalPaid: Number.isFinite(totalPaid) ? totalPaid : 0,
     tripCodes: Array.isArray(raw.trip_codes)
       ? raw.trip_codes.map((code) => String(code))
       : [],
     status: String(raw.status ?? "draft") as FinanceInvoiceStatus,
+    billingScope: raw.billing_scope
+      ? parseInvoiceBillingScope(String(raw.billing_scope))
+      : undefined,
+    sharePercent:
+      raw.share_percent == null ? null : Number(raw.share_percent),
   };
 }
 

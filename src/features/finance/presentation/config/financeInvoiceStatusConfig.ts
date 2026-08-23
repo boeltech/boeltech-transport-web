@@ -23,6 +23,11 @@ export const FINANCE_INVOICE_STATUS_CONFIG: Record<
     icon: FileEdit,
     description: "Borrador pendiente de emitir",
   }),
+  stamping: createStatusConfig("warning", {
+    label: labels.stamping,
+    icon: Clock,
+    description: "Timbrado en proceso",
+  }),
   stamped: createStatusConfig("success", {
     label: labels.stamped,
     icon: CheckCircle2,

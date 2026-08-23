@@ -51,6 +51,13 @@ export function mapOpenPpdPagination(
 }
 
 function mapOpenPpdItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
+  const total = Number(raw.total ?? 0);
+  const balanceDue = Number(raw.balance_due ?? 0);
+  const totalPaidRaw = raw.total_paid;
+  const totalPaid =
+    totalPaidRaw == null
+      ? Math.max(0, Number((total - balanceDue).toFixed(2)))
+      : Number(totalPaidRaw);
   return {
     id: String(raw.id ?? ""),
     serie: String(raw.serie ?? ""),
@@ -59,8 +66,9 @@ function mapOpenPpdItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
     receiverName: String(raw.receiver_name ?? ""),
     issuedAt: String(raw.issued_at ?? ""),
     paymentMethod: String(raw.payment_method ?? ""),
-    total: Number(raw.total ?? 0),
-    balanceDue: Number(raw.balance_due ?? 0),
+    total,
+    balanceDue,
+    totalPaid: Number.isFinite(totalPaid) ? totalPaid : 0,
     tripCodes: Array.isArray(raw.trip_codes)
       ? raw.trip_codes.map((code) => String(code))
       : [],

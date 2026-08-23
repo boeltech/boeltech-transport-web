@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ExpensesByDimensionItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
@@ -111,8 +112,11 @@ export function ExpenseDimensionTableSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((item) => (
-                  <TableRow key={`${dimension}-${item.key}`}>
+                {rows.map((item, index) => (
+                  <TableRow
+                    key={`${dimension}-${item.key}`}
+                    className={cn(index === 0 && "bg-primary/5")}
+                  >
                     <TableCell className="font-medium">
                       {dimension === "vehicle" ? (
                         <Link

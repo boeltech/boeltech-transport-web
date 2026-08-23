@@ -3,6 +3,7 @@ import {
   buildFinanceTabSearchParams,
   parseExpenseDimension,
   parseExpenseGranularity,
+  parseFinanceInvoiceStatus,
   parseProfitabilityDimension,
   parseProfitabilityScope,
   parseProfitabilityStatus,
@@ -168,5 +169,24 @@ describe("analysis filter parsers", () => {
     expect(sanitizeAnalysisDimension("expenses", "month")).toBeUndefined();
     expect(sanitizeAnalysisDimension("expenses", "vehicle")).toBe("vehicle");
     expect(sanitizeAnalysisDimension("margin", "")).toBeUndefined();
+  });
+});
+
+describe("parseFinanceInvoiceStatus", () => {
+  it("returns undefined for empty, all, or invalid values", () => {
+    expect(parseFinanceInvoiceStatus("")).toBeUndefined();
+    expect(parseFinanceInvoiceStatus("all")).toBeUndefined();
+    expect(parseFinanceInvoiceStatus("high")).toBeUndefined();
+    expect(parseFinanceInvoiceStatus("bogus")).toBeUndefined();
+  });
+
+  it("keeps valid invoice statuses including stamping", () => {
+    expect(parseFinanceInvoiceStatus("draft")).toBe("draft");
+    expect(parseFinanceInvoiceStatus("stamping")).toBe("stamping");
+    expect(parseFinanceInvoiceStatus("stamped")).toBe("stamped");
+    expect(parseFinanceInvoiceStatus("cancellation_pending")).toBe(
+      "cancellation_pending",
+    );
+    expect(parseFinanceInvoiceStatus("cancelled")).toBe("cancelled");
   });
 });

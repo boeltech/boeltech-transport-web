@@ -16,6 +16,7 @@ function buildInvoice(): FinanceInvoiceListItem {
     paymentMethod: "PPD",
     total: 1160,
     balanceDue: 1160,
+    totalPaid: 0,
     tripCodes: ["TRP-001"],
     status: "stamped",
   };

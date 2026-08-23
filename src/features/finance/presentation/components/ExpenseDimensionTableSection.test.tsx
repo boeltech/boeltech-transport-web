@@ -24,6 +24,9 @@ describe("ExpenseDimensionTableSection", () => {
     );
 
     expect(
+      screen.getByRole("heading", { name: "¿Dónde se concentra el gasto?" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("link", { name: "Ver detalle de la unidad U-014 · ABC-123-A" }),
     ).toHaveAttribute(
       "href",

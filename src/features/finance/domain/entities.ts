@@ -189,8 +189,11 @@ export interface ExpensesByDimensionFilters {
   sortOrder?: "asc" | "desc";
 }
 
+import type { InvoiceBillingScope } from "@features/invoicing";
+
 export type FinanceInvoiceStatus =
   | "draft"
+  | "stamping"
   | "stamped"
   | "cancellation_pending"
   | "cancelled";
@@ -205,8 +208,13 @@ export interface FinanceInvoiceListItem {
   readonly paymentMethod: string;
   readonly total: number;
   readonly balanceDue: number;
+  /** Pagos registrados (API total_paid); base para Por cobrar / PUE liquidada. */
+  readonly totalPaid: number;
   readonly tripCodes: string[];
   readonly status: FinanceInvoiceStatus;
+  /** ADR-0081 / ADR-0068: alcance fiscal en listado Finanzas. */
+  readonly billingScope?: InvoiceBillingScope;
+  readonly sharePercent?: number | null;
 }
 
 export interface FinanceInvoicePagination {

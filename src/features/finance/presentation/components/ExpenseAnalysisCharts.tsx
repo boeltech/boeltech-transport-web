@@ -7,13 +7,6 @@ import {
   type ChartSeries,
 } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ExpensesByCategory } from "@features/finance/domain";
 import { buildExpenseCategoryChartSeries, pickFinanceExpenseChartToken } from "../config/financeChartConfig";
@@ -31,8 +24,7 @@ interface ExpenseAnalysisChartsProps {
   categorySummary: { category: string; amount: number }[];
   latestPeriodIndex: number;
   latestPeriod?: string;
-  granularity: "day" | "week" | "month";
-  onGranularityChange: (value: "day" | "week" | "month") => void;
+  periodLabel: string;
   isLoading?: boolean;
 }
 
@@ -52,8 +44,7 @@ export function ExpenseAnalysisCharts({
   categorySummary,
   latestPeriodIndex,
   latestPeriod,
-  granularity,
-  onGranularityChange,
+  periodLabel,
   isLoading = false,
 }: ExpenseAnalysisChartsProps) {
   const { timeSeriesData, timeSeriesChartSeries } = useMemo(() => {
@@ -96,28 +87,8 @@ export function ExpenseAnalysisCharts({
       ? (byCategory.total[latestPeriodIndex] ?? 0)
       : 0;
 
-  const granularityFilter = (
-    <Select
-      value={granularity}
-      onValueChange={(value) =>
-        onGranularityChange(value as "day" | "week" | "month")
-      }
-    >
-      <SelectTrigger className="w-[160px]" aria-label={financeCopy.expenses.filters.granularity}>
-        <SelectValue placeholder={financeCopy.expenses.filters.granularity} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="day">
-          {financeCopy.expenses.filters.granularityValues.day}
-        </SelectItem>
-        <SelectItem value="week">
-          {financeCopy.expenses.filters.granularityValues.week}
-        </SelectItem>
-        <SelectItem value="month">
-          {financeCopy.expenses.filters.granularityValues.month}
-        </SelectItem>
-      </SelectContent>
-    </Select>
+  const compositionTitle = financeCopy.expenses.charts.latestPeriod.title(
+    periodLabel === "—" ? "" : periodLabel,
   );
 
   return (
@@ -126,8 +97,7 @@ export function ExpenseAnalysisCharts({
         title={financeCopy.expenses.charts.timeSeries.title}
         description={financeCopy.expenses.charts.timeSeries.description}
         isLoading={isLoading}
-        aria-label="Gráfico de barras apiladas: gastos por categoría en el tiempo"
-        tools={granularityFilter}
+        aria-label="Gráfico de barras apiladas: gastos por concepto en el tiempo"
         footer={
           timeSeriesData.length > 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -152,10 +122,10 @@ export function ExpenseAnalysisCharts({
       </ChartCard>
 
       <ChartCard
-        title={financeCopy.expenses.charts.latestPeriod.title}
+        title={compositionTitle}
         description={financeCopy.expenses.charts.latestPeriod.description}
         isLoading={isLoading}
-        aria-label="Gráfico de dona: composición de gastos del periodo actual"
+        aria-label="Gráfico de dona: composición de gastos del tramo"
         footer={
           latestPeriod ? (
             <p className="text-xs text-muted-foreground">

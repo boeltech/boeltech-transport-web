@@ -3,14 +3,11 @@ import { MetricTrendCard, Sparkline } from "@shared/ui/data-display";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ExpensesByCategory, ExpensesByDimensionItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
-import { expenseCategoryLabel } from "../utils/expenseCategoryLabel";
-import { formatFinanceReferencePeriod } from "../utils/financeChartHelpers";
 
 interface ExpenseAnalysisKpiCardsProps {
   byCategory?: ExpensesByCategory;
-  categorySummary: { category: string; amount: number }[];
   latestPeriodIndex: number;
-  latestPeriod?: string;
+  periodLabel: string;
   dimensionLabel: string;
   dimensionRows: ExpensesByDimensionItem[];
   isLoading?: boolean;
@@ -19,9 +16,8 @@ interface ExpenseAnalysisKpiCardsProps {
 
 export function ExpenseAnalysisKpiCards({
   byCategory,
-  categorySummary,
   latestPeriodIndex,
-  latestPeriod,
+  periodLabel,
   dimensionLabel,
   dimensionRows,
   isLoading = false,
@@ -42,46 +38,27 @@ export function ExpenseAnalysisKpiCards({
     return <Sparkline data={expenseTrendData} token="chart-1" height={40} />;
   }, [expenseTrendData]);
 
-  const activeCategories = categorySummary.filter((item) => item.amount > 0);
-  const topCategory = activeCategories[0];
+  const topRow = dimensionRows[0];
 
   const cards = [
     {
       key: "periodTotal",
-      title: financeCopy.expenses.metrics.currentPeriodExpense,
-      subtitle: latestPeriod
-        ? formatFinanceReferencePeriod(latestPeriod)
-        : financeCopy.expenses.metrics.referencePeriod,
+      title: financeCopy.expenses.metrics.totalExpense,
+      subtitle: periodLabel,
       value: formatMxCurrency(periodTotal),
       tone: "warning" as const,
       trend: expenseSparkline,
       cardLoading: isLoading,
     },
     {
-      key: "referencePeriod",
-      title: financeCopy.expenses.metrics.referencePeriod,
-      subtitle: financeCopy.expenses.charts.latestPeriod.description,
-      value: latestPeriod ? formatFinanceReferencePeriod(latestPeriod) : "—",
-      tone: "neutral" as const,
-      trend: undefined,
-      cardLoading: isLoading,
-    },
-    {
-      key: "activeCategories",
-      title: financeCopy.expenses.metrics.activeCategories.title,
-      subtitle: topCategory
-        ? `${expenseCategoryLabel(topCategory.category)} · ${formatMxCurrency(topCategory.amount)}`
-        : financeCopy.expenses.metrics.activeCategories.subtitle,
-      value: activeCategories.length,
-      tone: "info" as const,
-      trend: undefined,
-      cardLoading: isLoading,
-    },
-    {
-      key: "dimensionRows",
-      title: financeCopy.expenses.metrics.dimensionRows.title,
-      subtitle: financeCopy.expenses.metrics.dimensionRows.subtitle(dimensionLabel),
-      value: dimensionRows.length,
+      key: "topConcentration",
+      title: financeCopy.expenses.metrics.topConcentration.title,
+      subtitle: topRow
+        ? financeCopy.expenses.metrics.topConcentration.subtitle(dimensionLabel)
+        : financeCopy.expenses.metrics.topConcentration.empty,
+      value: topRow
+        ? `${topRow.label} · ${formatMxCurrency(topRow.totalExpenses)}`
+        : "—",
       tone: "primary" as const,
       trend: undefined,
       cardLoading: isDimensionLoading,
@@ -89,7 +66,7 @@ export function ExpenseAnalysisKpiCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {cards.map((card) => (
         <MetricTrendCard
           key={card.key}

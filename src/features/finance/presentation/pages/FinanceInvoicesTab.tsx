@@ -11,10 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { useToast } from "@shared/hooks";
+import { useQueryErrorToast, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
+  parseFinanceInvoiceStatus,
   useFinanceInvoicesList,
   useFinanceListingFilters,
   useFinanceSummary,
@@ -29,14 +29,15 @@ import {
 } from "../components";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { financeCopy } from "../copy";
-import {
-  canShowInvoiceFromTripCta,
-} from "../utils/financeInvoiceFromTripCta";
-import { buildInvoiceCreatePathFromTrip } from "@features/invoicing";
+import { canShowInvoiceFromTripCta } from "@features/invoicing";
+import type { TripListItem } from "@features/trips/domain";
+import { resolveFinanceInvoicesTabTripTarget } from "../utils/financeInvoiceFromTripCta";
 
 interface FinanceInvoicesTabProps {
   showFinanceSummaryMetrics: boolean;
   isClientPortal?: boolean;
+  /** Paridad hub Finanzas: no fetch cuando el tab no está activo. */
+  queriesEnabled?: boolean;
 }
 
 const newInvoiceCta = financeCopy.invoices.newInvoiceCta;
@@ -44,6 +45,7 @@ const newInvoiceCta = financeCopy.invoices.newInvoiceCta;
 export function FinanceInvoicesTab({
   showFinanceSummaryMetrics,
   isClientPortal = false,
+  queriesEnabled = true,
 }: FinanceInvoicesTabProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -66,31 +68,38 @@ export function FinanceInvoicesTab({
     },
   });
 
-  const statusFilter = filters.filters.status as FinanceInvoiceStatus | "";
+  const rawStatus = filters.filters.status;
+  const statusFilter = parseFinanceInvoiceStatus(rawStatus);
+
+  useEffect(() => {
+    if (rawStatus && !statusFilter) {
+      filters.setFilter("status", "");
+    }
+  }, [rawStatus, statusFilter, filters.setFilter]);
 
   const { data, isLoading, isError, error, refetch, isFetching } =
-    useFinanceInvoicesList({
-      search: filters.search || undefined,
-      status: statusFilter || undefined,
-      page: filters.page,
-      limit: FINANCE_INVOICES_PAGE_SIZE,
-    });
+    useFinanceInvoicesList(
+      {
+        search: filters.search || undefined,
+        status: statusFilter,
+        page: filters.page,
+        limit: FINANCE_INVOICES_PAGE_SIZE,
+      },
+      { enabled: queriesEnabled },
+    );
 
   const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
-    enabled: showFinanceSummaryMetrics,
+    enabled: queriesEnabled && showFinanceSummaryMetrics,
   });
 
   const invoices = data?.data ?? [];
 
-  useEffect(() => {
-    if (isError && error) {
-      toast({
-        variant: "destructive",
-        title: financeCopy.invoices.toasts.loadError,
-        description: getErrorMessage(error),
-      });
-    }
-  }, [isError, error, toast]);
+  useQueryErrorToast({
+    isError,
+    error,
+    title: financeCopy.invoices.toasts.loadError,
+    enabled: queriesEnabled,
+  });
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -99,7 +108,7 @@ export function FinanceInvoicesTab({
 
   const handleKpiStatus = useCallback(
     (status: FinanceInvoiceStatus) => {
-      const current = filters.filters.status;
+      const current = parseFinanceInvoiceStatus(filters.filters.status);
       filters.setFilter("status", current === status ? "" : status);
     },
     [filters],
@@ -115,8 +124,8 @@ export function FinanceInvoicesTab({
   );
 
   const handleTripSelected = useCallback(
-    (trip: { id: string; operationalOutcome?: string | null }) => {
-      navigate(buildInvoiceCreatePathFromTrip(trip), {
+    (trip: TripListItem) => {
+      navigate(resolveFinanceInvoicesTabTripTarget(trip), {
         state: { from: "/finance?tab=invoices" },
       });
     },
@@ -131,7 +140,7 @@ export function FinanceInvoicesTab({
         cancellationPending={summary?.invoicesByStatus.cancellationPending ?? 0}
         cancelled={summary?.invoicesByStatus.cancelled ?? 0}
         isLoading={summaryLoading}
-        activeStatus={statusFilter}
+        activeStatus={statusFilter ?? ""}
         onFilterStatus={handleKpiStatus}
       />
     ) : undefined;

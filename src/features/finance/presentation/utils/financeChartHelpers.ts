@@ -14,6 +14,43 @@ export function formatFinanceReferencePeriod(period: string): string {
   return date.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
 }
 
+/** Etiqueta legible del rango de filtro o del tramo de la serie. */
+export function formatExpenseTemporalLabel(options: {
+  from?: string;
+  to?: string;
+  latestPeriod?: string;
+}): string {
+  const { from, to, latestPeriod } = options;
+  if (from && to) {
+    const start = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      const sameMonth =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth();
+      if (sameMonth) {
+        return start.toLocaleDateString("es-MX", {
+          month: "long",
+          year: "numeric",
+        });
+      }
+      const startLabel = start.toLocaleDateString("es-MX", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      const endLabel = end.toLocaleDateString("es-MX", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      return `${startLabel} – ${endLabel}`;
+    }
+  }
+  if (latestPeriod) return formatFinanceReferencePeriod(latestPeriod);
+  return "—";
+}
+
 export function financeCurrencyValueFormatter(
   value: ValueType,
 ): string {

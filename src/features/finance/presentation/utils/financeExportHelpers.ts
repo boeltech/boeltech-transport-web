@@ -66,9 +66,13 @@ export function exportAgingByClientCsv(
   );
 }
 
+type ExpenseExportDimension = "vehicle" | "driver" | "client" | "route";
+
 export function exportExpensesByDimensionCsv(
   items: readonly ExpensesByDimensionItem[],
+  dimension: ExpenseExportDimension,
 ): void {
+  const slug = financeCopy.expenses.filters.exportFileSlug[dimension];
   const rows = items.map((row) => [
     row.key,
     row.label,
@@ -77,7 +81,7 @@ export function exportExpensesByDimensionCsv(
     row.avgExpensePerTrip,
   ]);
   downloadCsv(
-    `${financeCopy.exports.files.expensesByClient}-${nowDateKey()}.csv`,
+    `${financeCopy.exports.files.expensesPrefix}-${slug}-${nowDateKey()}.csv`,
     ["key", "label", "trip_count", "total_expenses", "avg_expense_per_trip"],
     rows,
   );
