@@ -3,8 +3,10 @@
  * Clean Architecture - Application Layer
  *
  * Caso de uso para crear un nuevo conductor.
+ * Unicidad de licencia: fuente de verdad en API (POST /drivers); sin pre-check HTTP.
  */
 
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, CreateDriverDTO } from "../../domain";
 
@@ -24,13 +26,11 @@ export class CreateDriverUseCase {
    */
   async execute(data: CreateDriverDTO): Promise<UseCaseResult<Driver>> {
     try {
-      // Validaciones de negocio
-      const validationResult = await this.validate(data);
+      const validationResult = this.validate(data);
       if (!validationResult.success) {
         return validationResult;
       }
 
-      // Crear conductor
       const result = await this.driverRepository.create(data);
 
       return {
@@ -38,7 +38,9 @@ export class CreateDriverUseCase {
         data: result.data,
       };
     } catch (error) {
-      console.error("[CreateDriverUseCase] Error:", error);
+      if (isApiError(error)) {
+        throw error;
+      }
 
       return {
         success: false,
@@ -54,12 +56,9 @@ export class CreateDriverUseCase {
   }
 
   /**
-   * Valida los datos antes de crear
+   * Validación sync local (sin round-trips). Unicidad de licencia la resuelve la API.
    */
-  private async validate(
-    data: CreateDriverDTO,
-  ): Promise<UseCaseResult<Driver>> {
-    // Validar campos requeridos
+  private validate(data: CreateDriverDTO): UseCaseResult<Driver> {
     if (!data.employeeId) {
       return {
         success: false,
@@ -70,51 +69,19 @@ export class CreateDriverUseCase {
       };
     }
 
-    if (!data.licenseNumber) {
+    const federalNumber = data.federalLicenseNumber?.trim();
+    const stateNumber = data.stateLicenseNumber?.trim();
+
+    if (!federalNumber && !stateNumber) {
       return {
         success: false,
         error: {
-          code: "MISSING_LICENSE_NUMBER",
-          message: "El número de licencia es requerido",
+          code: "MISSING_LICENSE",
+          message: "Registra al menos una licencia federal o estatal",
         },
       };
     }
 
-    if (!data.licenseType) {
-      return {
-        success: false,
-        error: {
-          code: "MISSING_LICENSE_TYPE",
-          message: "El tipo de licencia es requerido",
-        },
-      };
-    }
-
-    if (!data.licenseExpiry) {
-      return {
-        success: false,
-        error: {
-          code: "MISSING_LICENSE_EXPIRY",
-          message: "La fecha de vencimiento de licencia es requerida",
-        },
-      };
-    }
-
-    // Verificar que el número de licencia no esté en uso
-    const licenseExists = await this.driverRepository.existsByLicenseNumber(
-      data.licenseNumber,
-    );
-    if (licenseExists) {
-      return {
-        success: false,
-        error: {
-          code: "LICENSE_NUMBER_EXISTS",
-          message: "Ya existe un conductor con este número de licencia",
-        },
-      };
-    }
-
-    // Validación exitosa (retornamos un objeto vacío que será ignorado)
     return { success: true, data: {} as Driver };
   }
 }

@@ -2,14 +2,7 @@
  * EmployeeSelector
  * Clean Architecture - Presentation Layer (Components)
  *
- * Componente para seleccionar un empleado disponible para ser
- * registrado como conductor.
- *
- * Características:
- * - Combobox con búsqueda
- * - Solo muestra empleados activos que NO son conductores
- * - Muestra número de empleado + nombre completo
- * - Link para crear empleado si no existe
+ * Combobox para seleccionar un empleado disponible como conductor.
  */
 
 import { useState, useMemo } from "react";
@@ -27,27 +20,22 @@ import {
   CommandList,
 } from "@shared/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import { Label } from "@shared/ui/label";
+import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 
 import {
   useAvailableEmployeesForDriver,
+  useEmployeeBasic,
   type EmployeeForSelection,
 } from "@features/employees";
+import { driversCopy } from "../copy";
 
-// ============================================================================
-// Types
-// ============================================================================
+const es = driversCopy.form.employeeSelector;
 
 interface EmployeeSelectorProps {
-  /** ID del empleado seleccionado */
   value: string;
-  /** Callback cuando se selecciona un empleado */
   onChange: (employeeId: string) => void;
-  /** Mensaje de error de validación */
   error?: string;
-  /** Deshabilitar el selector */
   disabled?: boolean;
-  /** Placeholder del selector */
   placeholder?: string;
   /**
    * Si se indica, solo se listan empleados cuyo `position` en BD coincide exactamente
@@ -56,22 +44,21 @@ interface EmployeeSelectorProps {
   positionEquals?: string;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
+function formatEmployeeLabel(employee: EmployeeForSelection): string {
+  return `${employee.employeeNumber} — ${employee.fullName}`;
+}
 
 export function EmployeeSelector({
   value,
   onChange,
   error,
   disabled = false,
-  placeholder = "Buscar empleado...",
+  placeholder = es.placeholder,
   positionEquals,
 }: EmployeeSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch empleados disponibles
   const {
     data: employees = [],
     isLoading,
@@ -82,43 +69,48 @@ export function EmployeeSelector({
     positionEquals?.trim() || undefined,
   );
 
-  // Encontrar el empleado seleccionado
-  const selectedEmployee = useMemo(() => {
+  const { data: basicEmployee } = useEmployeeBasic(value, Boolean(value));
+
+  const selectedFromList = useMemo(() => {
     if (!value) return null;
     return employees.find((emp) => emp.id === value) || null;
   }, [value, employees]);
 
-  // Formatear label del empleado
-  const formatEmployeeLabel = (employee: EmployeeForSelection): string => {
-    return `${employee.employeeNumber} - ${employee.fullName}`;
-  };
+  const selectedEmployee = selectedFromList ?? basicEmployee ?? null;
 
-  // Handle selection
   const handleSelect = (employeeId: string) => {
     onChange(employeeId === value ? "" : employeeId);
     setOpen(false);
   };
 
-  return (
-    <div className="space-y-2">
-      <Label htmlFor="employee-selector">
-        Empleado <span className="text-destructive">*</span>
-      </Label>
+  const helperDescription = positionEquals
+    ? es.helperWithPosition(positionEquals)
+    : es.helper;
 
+  return (
+    <FormFieldShell
+      fieldId="employeeId"
+      label={es.label}
+      required
+      errorMessage={error}
+      description={error ? undefined : helperDescription}
+    >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            id="employee-selector"
+            id="employeeId"
+            type="button"
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            aria-label="Seleccionar empleado"
+            aria-label={es.ariaLabel}
             disabled={disabled}
             className={cn(
               "w-full justify-between font-normal",
               !value && "text-muted-foreground",
               error && "border-destructive",
             )}
+            {...getFieldErrorAriaProps("employeeId", error)}
           >
             {selectedEmployee ? (
               <span className="truncate">
@@ -134,7 +126,7 @@ export function EmployeeSelector({
         <PopoverContent className="w-[400px] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder="Buscar por nombre o número..."
+              placeholder={es.searchPlaceholder}
               value={searchQuery}
               onValueChange={setSearchQuery}
             />
@@ -144,12 +136,12 @@ export function EmployeeSelector({
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   <span className="ml-2 text-sm text-muted-foreground">
-                    Buscando empleados...
+                    {es.loading}
                   </span>
                 </div>
               ) : isError ? (
                 <div className="py-6 text-center text-sm text-destructive">
-                  Error al cargar empleados
+                  {es.loadError}
                 </div>
               ) : employees.length === 0 ? (
                 <CommandEmpty>
@@ -157,20 +149,20 @@ export function EmployeeSelector({
                     <Search className="h-8 w-8 text-muted-foreground/50" />
                     <p className="text-sm text-muted-foreground">
                       {positionEquals
-                        ? `No hay empleados disponibles con puesto «${positionEquals}»`
-                        : "No se encontraron empleados disponibles"}
+                        ? es.emptyWithPosition(positionEquals)
+                        : es.empty}
                     </p>
                     <Link
                       to="/employees/new"
                       className="mt-2 flex items-center gap-1 text-sm text-primary hover:underline"
                     >
                       <UserPlus className="h-4 w-4" />
-                      Crear nuevo empleado
+                      {es.createLink}
                     </Link>
                   </div>
                 </CommandEmpty>
               ) : (
-                <CommandGroup heading="Empleados disponibles">
+                <CommandGroup heading={es.groupHeading}>
                   {employees.map((employee) => (
                     <CommandItem
                       key={employee.id}
@@ -180,7 +172,7 @@ export function EmployeeSelector({
                     >
                       <div className="flex flex-col">
                         <span className="font-medium">
-                          {employee.employeeNumber} - {employee.fullName}
+                          {formatEmployeeLabel(employee)}
                         </span>
                         {(employee.department || employee.position) && (
                           <span className="text-xs text-muted-foreground">
@@ -203,31 +195,18 @@ export function EmployeeSelector({
             </CommandList>
           </Command>
 
-          {/* Footer con link para crear empleado */}
           <div className="border-t p-2">
             <Link
               to="/employees/new"
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             >
               <UserPlus className="h-4 w-4" />
-              ¿No encuentras al empleado? Créalo primero
+              {es.createFooter}
             </Link>
           </div>
         </PopoverContent>
       </Popover>
-
-      {/* Error message */}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {/* Helper text */}
-      {!error && (
-        <p className="text-xs text-muted-foreground">
-          {positionEquals
-            ? `Solo empleados activos con puesto «${positionEquals}», sin registro como conductor`
-            : "Solo se muestran empleados activos que no están registrados como conductores"}
-        </p>
-      )}
-    </div>
+    </FormFieldShell>
   );
 }
 

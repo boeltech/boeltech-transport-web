@@ -38,6 +38,16 @@ export {
   // Labels
   DRIVER_STATUS_LABELS,
   LICENSE_TYPE_LABELS,
+  getDriverLicenseJurisdiction,
+  getDriverPrimaryLicenseNumber,
+  getDriverPrimaryLicenseExpiry,
+  getDriverPrimaryCategoryLabel,
+  getDriverLicenseAssignmentSoftSignal,
+  getDriverLicenseCategorySoftWarning,
+  evaluateFederalCategoryForVehicleType,
+  type DriverLicenseJurisdiction,
+  type LicenseAssignmentSoftKind,
+  type LicenseAssignmentSoftSignal,
   // DTOs
   type CreateDriverDTO,
   type UpdateDriverDTO,

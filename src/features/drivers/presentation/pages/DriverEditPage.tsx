@@ -5,12 +5,17 @@
  * Edición de conductor existente (FormPageShell + DriverForm).
  */
 
+import { useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UserCog, User } from "lucide-react";
 import { useToast } from "@shared/hooks";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 import { useDriver, useUpdateDriver } from "../../application";
-import { DriverForm } from "../components/DriverForm";
+import { DriverForm, type DriverFormRef } from "../components/DriverForm";
 import {
   driverFormDataToUpdateDriverDTO,
   type DriverFormData,
@@ -19,7 +24,11 @@ import {
   formatDriverName,
   DriverStatusBadge,
 } from "../config/driverStatusConfig";
-import { LICENSE_TYPE_LABELS, type LicenseTypeValue } from "../../domain";
+import {
+  getDriverPrimaryCategoryLabel,
+  getDriverPrimaryLicenseNumber,
+  LICENSE_TYPE_LABELS,
+} from "../../domain";
 import { driversCopy } from "../copy";
 
 const copy = driversCopy.form;
@@ -28,6 +37,7 @@ export function DriverEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const formRef = useRef<DriverFormRef>(null);
   const driverId = id || "";
 
   const { data: driver, isLoading, isError } = useDriver(driverId);
@@ -42,36 +52,60 @@ export function DriverEditPage() {
       navigate(`/drivers/${driverId}`);
     },
     onError: (error) => {
+      if (isApiError(error) && error.hasValidationErrors()) {
+        formRef.current?.applyApiValidationErrors(
+          error.validationErrors.map((entry) => ({
+            field: entry.field,
+            message: entry.message,
+          })),
+        );
+        toast({
+          title: copy.edit.toast.errorTitle,
+          description: error.getToastMessage(),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const description = isApiError(error)
+        ? error.getDetailedMessage()
+        : getErrorMessage(error);
+      formRef.current?.setApiAlertMessages(
+        description ? [description] : [getErrorMessage(error)],
+      );
       toast({
         title: copy.edit.toast.errorTitle,
-        description: error.message,
+        description,
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (data: DriverFormData) => {
-    if (!driver) return;
-    updateMutation.mutate({
-      id: driverId,
-      data: driverFormDataToUpdateDriverDTO(data, {
-        status: driver.status,
-        isActive: driver.isActive,
-      }),
-    });
-  };
+  const handleSubmit = useCallback(
+    (data: DriverFormData) => {
+      if (!driver) return;
+      formRef.current?.clearApiErrors();
+      updateMutation.mutate({
+        id: driverId,
+        data: driverFormDataToUpdateDriverDTO(data),
+      });
+    },
+    [driver, driverId, updateMutation],
+  );
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     navigate(`/drivers/${driverId}`);
-  };
+  }, [navigate, driverId]);
 
   const fullName = driver?.employee
     ? formatDriverName(driver.employee)
     : driversCopy.detail.title.fallback;
 
   const licenseTypeLabel = driver
-    ? LICENSE_TYPE_LABELS[driver.licenseType as LicenseTypeValue] ||
-      driver.licenseType
+    ? getDriverPrimaryCategoryLabel(driver, LICENSE_TYPE_LABELS)
+    : "";
+  const primaryLicenseNumber = driver
+    ? getDriverPrimaryLicenseNumber(driver)
     : "";
 
   return (
@@ -94,7 +128,7 @@ export function DriverEditPage() {
               fullName,
               driver.employee?.employeeNumber ?? null,
               licenseTypeLabel,
-              driver.licenseNumber,
+              primaryLicenseNumber,
             )
           : undefined,
         trailing: driver ? (
@@ -104,6 +138,7 @@ export function DriverEditPage() {
     >
       {driver ? (
         <DriverForm
+          ref={formRef}
           key={driver.id}
           mode="edit"
           driver={driver}

@@ -43,12 +43,14 @@ const ALLOW_EXPIRED_DOCS_ROLES: ReadonlySet<UserRole> = new Set([
 
 import { wizardCopy } from "../../../copy";
 import type { AssignableDriverItem } from "../tripAssignmentDrivers";
+import { resolveSelectedAssignmentLicenseSoftSignal } from "../tripAssignmentLicenseMatch";
 import {
   shouldClearDriverSelection,
   shouldClearVehicleSelection,
 } from "../tripAssignmentSelectability";
 import type { TripWizardFormValues } from "./validation";
 import { TripTrailerAssignmentFields } from "./TripTrailerAssignmentFields";
+import { getDriverLicenseAssignmentSoftSignal } from "@features/drivers";
 
 const copy = wizardCopy.basicInfo;
 const reserveCopy = wizardCopy.shell.reserve;
@@ -179,6 +181,17 @@ export function TripAssignmentResourceFields({
     }
     return items;
   }, [selectedVehicleAssignment, selectedDriverAssignment]);
+
+  const licenseAssignmentSoftSignal = useMemo(
+    () =>
+      resolveSelectedAssignmentLicenseSoftSignal(
+        selectedDriverAssignment,
+        selectedVehicleAssignment,
+      ),
+    [selectedDriverAssignment, selectedVehicleAssignment],
+  );
+
+  const selectedVehicleType = selectedVehicleAssignment?.type;
 
   const {
     assignableDriversForConductorSelect,
@@ -512,11 +525,37 @@ export function TripAssignmentResourceFields({
                       {assignableDriversForConductorSelect.length > 0 && (
                         <SelectGroup>
                           <SelectLabel>{copy.state.available}</SelectLabel>
-                          {assignableDriversForConductorSelect.map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.displayName}
-                            </SelectItem>
-                          ))}
+                          {assignableDriversForConductorSelect.map((d) => {
+                            const softSignal = selectedVehicleType
+                              ? getDriverLicenseAssignmentSoftSignal(
+                                  d,
+                                  selectedVehicleType,
+                                )
+                              : undefined;
+                            return (
+                              <SelectItem key={d.id} value={d.id}>
+                                <span className="flex items-center gap-2">
+                                  {d.displayName}
+                                  {softSignal?.kind === "category_mismatch" ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-warning border-warning/40"
+                                    >
+                                      {copy.badge.licenseCategorySoft}
+                                    </Badge>
+                                  ) : null}
+                                  {softSignal?.kind === "missing_federal" ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] font-normal"
+                                    >
+                                      {copy.badge.licenseMissingFederal}
+                                    </Badge>
+                                  ) : null}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectGroup>
                       )}
                       {expiredDocsDriversForConductorSelect.length > 0 && (
@@ -616,6 +655,44 @@ export function TripAssignmentResourceFields({
           items={expiredAssignmentAlertItems}
         />
       ) : null}
+
+      {licenseAssignmentSoftSignal?.kind === "category_mismatch" ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title={copy.alert.licenseCategorySoftTitle}
+          items={[
+            {
+              label: copy.label.driver,
+              text: licenseAssignmentSoftSignal.message,
+            },
+            {
+              text: copy.alert.licenseCategorySoftHint,
+            },
+          ]}
+        />
+      ) : null}
+
+      {licenseAssignmentSoftSignal?.kind === "missing_federal" ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title={copy.alert.licenseMissingFederalTitle}
+          items={[
+            {
+              label: copy.label.driver,
+              text: licenseAssignmentSoftSignal.message,
+            },
+            {
+              text: copy.alert.licenseMissingFederalHint,
+            },
+          ]}
+        />
+      ) : null}
+
+      <p className="text-xs text-muted-foreground">
+        {copy.alert.licenseSignalsLegend}
+      </p>
     </div>
   );
 }

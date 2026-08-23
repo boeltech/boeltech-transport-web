@@ -33,11 +33,15 @@ export interface CreateDriverDTO {
   // Referencia al empleado (REQUERIDO)
   employeeId: string;
 
-  // Licencia (REQUERIDO)
-  licenseNumber: string;
-  licenseType: LicenseTypeValue;
-  licenseExpiry: string; // YYYY-MM-DD
-  licenseIssuingState?: string;
+  // Licencia federal SICT (opcional como grupo)
+  federalLicenseNumber?: string | null;
+  federalLicenseCategory?: LicenseTypeValue | null;
+  federalLicenseExpiry?: string | null; // YYYY-MM-DD
+
+  // Licencia estatal (opcional)
+  stateLicenseNumber?: string | null;
+  stateLicenseExpiry?: string | null; // YYYY-MM-DD
+  stateIssuingState?: string | null;
 
   // Certificado médico (OPCIONAL)
   medicalCertificateNumber?: string;
@@ -68,11 +72,15 @@ export interface CreateDriverDTO {
  * NO se puede cambiar el employee_id.
  */
 export interface UpdateDriverDTO {
-  // Licencia
-  licenseNumber?: string;
-  licenseType?: LicenseTypeValue;
-  licenseExpiry?: string;
-  licenseIssuingState?: string | null;
+  // Licencia federal SICT
+  federalLicenseNumber?: string | null;
+  federalLicenseCategory?: LicenseTypeValue | null;
+  federalLicenseExpiry?: string | null;
+
+  // Licencia estatal
+  stateLicenseNumber?: string | null;
+  stateLicenseExpiry?: string | null;
+  stateIssuingState?: string | null;
 
   // Certificado médico
   medicalCertificateNumber?: string | null;
@@ -92,10 +100,6 @@ export interface UpdateDriverDTO {
 
   // Notas
   notes?: string | null;
-
-  // Estado
-  status?: DriverStatusType;
-  isActive?: boolean;
 }
 
 /**
@@ -140,7 +144,10 @@ export interface IDriverRepository {
   //   licenseNumber: string,
   //   excludeId?: string,
   // ): Promise<boolean>;
-  existsByLicenseNumber(licenseNumber: string): Promise<boolean>;
+  existsByLicenseNumber(
+    licenseNumber: string,
+    jurisdiction?: "federal" | "state",
+  ): Promise<boolean>;
   // getAvailable(): Promise<DriverListItem[]>;
   findAvailable(): Promise<DriverListItem[]>;
   // getTrips(

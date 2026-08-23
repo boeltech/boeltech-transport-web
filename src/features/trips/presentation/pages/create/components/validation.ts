@@ -633,7 +633,7 @@ export function wizardHasContractingClient(clientId: string | undefined): boolea
 }
 
 /**
- * Reglas de negocio del paso Costos (no bloqueantes para CP/API):
+ * Reglas de negocio del paso Dinero del viaje (no bloqueantes para CP/API):
  * 1. Ingreso + cliente → tarifa base obligatoria y &gt; 0.
  * 2. Traslado → tarifa base opcional.
  * 3. Margen crítico (&lt;10%) → advertencia, no bloquea.

@@ -1,4 +1,5 @@
 import type { DriverListItem } from "@features/drivers/domain";
+import { getDriverPrimaryLicenseExpiry } from "@features/drivers/domain";
 import { isExpiringSoon } from "@shared/utils/dateUtils";
 
 import { BUSY_ON_ACTIVE_TRIP } from "./tripAssignmentBusyResources";
@@ -60,7 +61,8 @@ export function classifyDriverAssignability(
     };
   }
 
-  if (isExpiringSoon(driver.licenseExpiry, 30)) {
+  const primaryLicenseExpiry = getDriverPrimaryLicenseExpiry(driver);
+  if (primaryLicenseExpiry && isExpiringSoon(primaryLicenseExpiry, 30)) {
     return { canBeAssigned: true, blockReason: undefined };
   }
 

@@ -4,24 +4,55 @@ import type { DriverListItem } from "@features/drivers/domain";
 
 import { buildAssignableDriversForTripWizard } from "./tripAssignmentDrivers";
 
-function driver(
+function baseDriverListItem(
   overrides: Partial<DriverListItem> & Pick<DriverListItem, "id">,
 ): DriverListItem {
   return {
     tenantId: "tenant",
     employeeId: `emp-${overrides.id}`,
-    employee: { id: `emp-${overrides.id}`, fullName: "Conductor" },
-    licenseNumber: "LIC-1",
-    licenseType: "E",
-    licenseExpiry: "2030-01-01",
+    employee: {
+      id: `emp-${overrides.id}`,
+      employeeNumber: "E-001",
+      firstName: "Conductor",
+      lastName: "Prueba",
+      secondLastName: null,
+      fullName: "Conductor",
+      email: null,
+      phone: null,
+      mobilePhone: null,
+      curp: null,
+      rfc: null,
+      branchId: null,
+      branchName: null,
+      branchCode: null,
+    },
+    federalLicenseNumber: "LIC-1",
+    federalLicenseCategory: "E",
+    federalLicenseExpiry: "2030-01-01",
+    stateLicenseNumber: null,
+    stateLicenseExpiry: null,
+    stateIssuingState: null,
+    hasFederalLicense: true,
+    hasStateLicense: false,
+    isFederalLicenseExpired: false,
+    isStateLicenseExpired: false,
     status: "available",
     yearsOfExperience: 1,
     totalTrips: 0,
     isLicenseExpired: false,
     isActive: true,
     createdAt: new Date(),
+    branchId: null,
+    branchName: null,
+    branchCode: null,
     ...overrides,
-  } as DriverListItem;
+  };
+}
+
+function driver(
+  overrides: Partial<DriverListItem> & Pick<DriverListItem, "id">,
+): DriverListItem {
+  return baseDriverListItem(overrides);
 }
 
 describe("buildAssignableDriversForTripWizard", () => {

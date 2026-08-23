@@ -30,10 +30,20 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { DriverListItem, DriverStatusType } from "../../domain";
+import {
+  getDriverLicenseJurisdiction,
+  getDriverPrimaryLicenseExpiry,
+  getDriverPrimaryLicenseNumber,
+} from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { formatDriverName } from "../config/driverStatusConfig";
-import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
+import { formatDate, isExpiringSoon } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
+import { Badge } from "@shared/ui/badge";
+import { driversCopy } from "../copy";
+
+const rfcMissingChip = driversCopy.detail.alert.rfcMissing.chip;
+const jurisdictionCopy = driversCopy.list.jurisdiction;
 
 // ============================================================================
 // TYPES
@@ -60,8 +70,21 @@ export function DriverCard({
   const hasActions = onEdit || onDelete;
   const fullName = formatDriverName(driver.employee);
 
-  const isLicenseExpired = isExpired(driver.licenseExpiry);
-  const isLicenseExpiringSoon = isExpiringSoon(driver.licenseExpiry, 30);
+  const primaryLicenseNumber = getDriverPrimaryLicenseNumber(driver);
+  const primaryLicenseExpiry = getDriverPrimaryLicenseExpiry(driver);
+  const jurisdiction = getDriverLicenseJurisdiction(driver);
+  const jurisdictionLabel =
+    jurisdiction === "both"
+      ? jurisdictionCopy.both
+      : jurisdiction === "federal"
+        ? jurisdictionCopy.federal
+        : jurisdiction === "state"
+          ? jurisdictionCopy.state
+          : null;
+  const isLicenseExpired = driver.isLicenseExpired;
+  const isLicenseExpiringSoon = primaryLicenseExpiry
+    ? isExpiringSoon(primaryLicenseExpiry, 30)
+    : false;
 
   return (
     <Card
@@ -80,6 +103,15 @@ export function DriverCard({
               <p className="text-sm text-muted-foreground mt-1">
                 {driver.employee.employeeNumber}
               </p>
+              {!driver.employee.rfc?.trim() ? (
+                <Badge
+                  variant="warning"
+                  tone="soft"
+                  className="mt-2 text-[10px] font-normal"
+                >
+                  {rfcMissingChip}
+                </Badge>
+              ) : null}
             </div>
           </div>
 
@@ -153,7 +185,17 @@ export function DriverCard({
           {/* License Number */}
           <div className="flex items-center gap-2 text-muted-foreground">
             <CreditCard className="h-4 w-4 shrink-0" />
-            <span className="font-mono truncate">{driver.licenseNumber}</span>
+            <span className="font-mono truncate">
+              {primaryLicenseNumber || "—"}
+            </span>
+            {jurisdictionLabel ? (
+              <Badge
+                variant="outline"
+                className="shrink-0 text-[10px] font-normal"
+              >
+                {jurisdictionLabel}
+              </Badge>
+            ) : null}
           </div>
 
           {/* License Expiration */}
@@ -168,7 +210,7 @@ export function DriverCard({
                     : ""
               }
             >
-              {formatDate(driver.licenseExpiry)}
+              {primaryLicenseExpiry ? formatDate(primaryLicenseExpiry) : "—"}
             </span>
             {(isLicenseExpired || isLicenseExpiringSoon) && (
               <AlertTriangle

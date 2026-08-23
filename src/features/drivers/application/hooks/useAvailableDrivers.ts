@@ -34,7 +34,7 @@ import { createGetAvailableDriversUseCase } from "../useCases/GetAvailableDriver
  *     <Select value={value} onValueChange={onChange} disabled={isLoading}>
  *       {drivers?.map(driver => (
  *         <SelectItem key={driver.id} value={driver.id}>
- *           {driver.fullName} - {driver.licenseType}
+ *           {driver.fullName} - {driver.federalLicenseCategory}
  *         </SelectItem>
  *       ))}
  *     </Select>

@@ -17,9 +17,9 @@
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useState,
+  type FormEvent,
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { FormSectionCard } from "@shared/ui/form-section-card";
-import { Alert, AlertDescription } from "@shared/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   Loader2,
   User,
@@ -48,6 +48,7 @@ import {
   Info,
   ExternalLink,
   ClipboardCheck,
+  AlertCircle,
 } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
@@ -58,15 +59,18 @@ import {
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { useEmployeeBasic } from "@features/employees";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
 import { DriverEditEmployeeBanner } from "./DriverEditEmployeeBanner";
 import { driversCopy } from "../copy";
+import { resolveDriverFormField } from "../helpers/applyDriverApiFieldErrors";
 import {
   driverSchema,
   DRIVER_CREATE_WIZARD_STEP_FIELDS,
   type DriverFormData,
   defaultDriverFormValues,
+  driverToFormValues,
   LICENSE_TYPES,
   MEXICAN_STATES,
   PSYCHOMETRIC_RESULTS,
@@ -74,6 +78,7 @@ import {
 } from "../validation/driverSchema";
 
 const fc = driversCopy.form;
+const SELECT_NONE = "__none__";
 
 // ============================================================================
 // Types
@@ -82,6 +87,12 @@ const fc = driversCopy.form;
 export type DriverFormRef = {
   triggerStepValidation: (stepIndex: number) => Promise<boolean>;
   requestSubmit: () => void;
+  /** Aplica errores de validación API a campos y/o alert persistente. */
+  applyApiValidationErrors: (
+    entries: ReadonlyArray<{ field: string; message: string }>,
+  ) => void;
+  setApiAlertMessages: (messages: string[]) => void;
+  clearApiErrors: () => void;
 };
 
 interface DriverFormProps {
@@ -111,10 +122,17 @@ function reviewLine(label: string, value: string) {
   );
 }
 
-function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData }) {
+function DriverReviewSummary({
+  getValues,
+  employeeLabel,
+}: {
+  getValues: () => DriverFormData;
+  employeeLabel: string;
+}) {
   const v = getValues();
-  const licenseLabel =
-    LICENSE_TYPES.find((t) => t.value === v.licenseType)?.label ?? v.licenseType;
+  const federalCategoryLabel =
+    LICENSE_TYPES.find((t) => t.value === v.federalLicenseCategory)?.label ??
+    (v.federalLicenseCategory || fc.hint.reviewEmpty);
   const psychLabel =
     PSYCHOMETRIC_RESULTS.find((r) => r.value === v.psychometricTestResult)
       ?.label ?? (v.psychometricTestResult || fc.hint.reviewEmpty);
@@ -133,33 +151,60 @@ function DriverReviewSummary({ getValues }: { getValues: () => DriverFormData })
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {fc.section.review.groupEmployee}
         </p>
-        {reviewLine(
-          fc.label.employeeId,
-          v.employeeId ? v.employeeId : "",
-        )}
+        {reviewLine(fc.label.employeeId, employeeLabel)}
       </div>
 
       <div className="space-y-3 border-b pb-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {fc.section.review.groupLicenseMedical}
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {reviewLine(fc.label.licenseNumber, v.licenseNumber)}
-          {reviewLine(fc.label.licenseType, licenseLabel)}
-          {reviewLine(fc.label.licenseExpiry, v.licenseExpiry)}
-          {reviewLine(
-            fc.label.licenseState,
-            v.licenseState ? v.licenseState : fc.hint.reviewOptional,
-          )}
-          {reviewLine(fc.label.medicalNumber, v.medicalCertificateNumber ?? "")}
-          {reviewLine(
-            fc.label.medicalExpiry,
-            v.medicalCertificateExpiry ?? "",
-          )}
-          {reviewLine(
-            fc.label.medicalIssuer,
-            v.medicalCertificateIssuer ?? "",
-          )}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {fc.section.licenseFederal.title}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {reviewLine(
+                fc.label.federalLicenseNumber,
+                v.federalLicenseNumber ?? "",
+              )}
+              {reviewLine(fc.label.federalLicenseCategory, federalCategoryLabel)}
+              {reviewLine(
+                fc.label.federalLicenseExpiry,
+                v.federalLicenseExpiry ?? "",
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {fc.section.licenseState.title}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {reviewLine(
+                fc.label.stateLicenseNumber,
+                v.stateLicenseNumber ?? "",
+              )}
+              {reviewLine(
+                fc.label.stateLicenseExpiry,
+                v.stateLicenseExpiry ?? "",
+              )}
+              {reviewLine(
+                fc.label.stateIssuingState,
+                v.stateIssuingState ? v.stateIssuingState : fc.hint.reviewOptional,
+              )}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {reviewLine(fc.label.medicalNumber, v.medicalCertificateNumber ?? "")}
+            {reviewLine(
+              fc.label.medicalExpiry,
+              v.medicalCertificateExpiry ?? "",
+            )}
+            {reviewLine(
+              fc.label.medicalIssuer,
+              v.medicalCertificateIssuer ?? "",
+            )}
+          </div>
         </div>
       </div>
 
@@ -205,30 +250,57 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
   const wizardActive = Boolean(wizardMode && mode === "create");
   const ws = wizardStepIndex;
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [apiAlertMessages, setApiAlertMessages] = useState<string[]>([]);
 
   const {
     register,
     handleSubmit,
     setValue,
+    setError,
+    clearErrors,
     control,
     getValues,
     trigger,
-    formState: { errors, isDirty, isValid },
-    reset,
+    formState: { errors, isDirty },
   } = useForm<DriverFormData>({
     resolver: zodResolver(driverSchema),
-    defaultValues: defaultDriverFormValues,
+    defaultValues:
+      mode === "edit" && driver
+        ? driverToFormValues(driver)
+        : defaultDriverFormValues,
     mode: "onChange",
   });
 
   const validationMessages = collectFieldErrorMessages(errors);
-  const shouldShowValidationSummary = showValidationSummary && !isValid;
+  const shouldShowValidationSummary =
+    showValidationSummary && validationMessages.length > 0;
 
   const handleFormSubmit = useCallback(
     (data: DriverFormData) => {
+      setShowValidationSummary(false);
+      setApiAlertMessages([]);
       onSubmit(data);
     },
     [onSubmit],
+  );
+
+  const handleInvalidSubmit = useCallback(() => {
+    setShowValidationSummary(true);
+  }, []);
+
+  const runSubmit = useCallback(() => {
+    void handleSubmit(handleFormSubmit, handleInvalidSubmit)();
+  }, [handleSubmit, handleFormSubmit, handleInvalidSubmit]);
+
+  const handleNativeSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      if (wizardActive) {
+        event.preventDefault();
+        return;
+      }
+      void handleSubmit(handleFormSubmit, handleInvalidSubmit)(event);
+    },
+    [wizardActive, handleSubmit, handleFormSubmit, handleInvalidSubmit],
   );
 
   useImperativeHandle(
@@ -243,68 +315,107 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         return ok;
       },
       requestSubmit: () => {
-        void handleSubmit(handleFormSubmit)();
+        runSubmit();
+      },
+      applyApiValidationErrors: (entries) => {
+        const unmapped: string[] = [];
+        for (const entry of entries) {
+          const formField = resolveDriverFormField(entry.field);
+          if (formField) {
+            setError(formField, { type: "server", message: entry.message });
+          } else if (entry.message.trim()) {
+            unmapped.push(entry.message.trim());
+          }
+        }
+        setApiAlertMessages(unmapped);
+        setShowValidationSummary(true);
+      },
+      setApiAlertMessages: (messages) => {
+        const next = messages.filter((m) => m.trim().length > 0);
+        setApiAlertMessages(next);
+        if (next.length > 0) setShowValidationSummary(true);
+      },
+      clearApiErrors: () => {
+        clearErrors();
+        setApiAlertMessages([]);
       },
     }),
-    [trigger, handleSubmit, handleFormSubmit],
+    [trigger, runSubmit, setError, clearErrors],
   );
 
   // Watch values for controlled components
   const watchedEmployeeId = useWatch({ control, name: "employeeId" });
-  const watchedLicenseType = useWatch({ control, name: "licenseType" });
-  const watchedLicenseState = useWatch({ control, name: "licenseState" });
+  const { data: reviewEmployee } = useEmployeeBasic(
+    watchedEmployeeId || "",
+    Boolean(watchedEmployeeId),
+  );
+  const employeeReviewLabel = reviewEmployee
+    ? `${reviewEmployee.employeeNumber} — ${reviewEmployee.fullName}`
+    : "";
+  const watchedFederalNumber = useWatch({
+    control,
+    name: "federalLicenseNumber",
+  });
+  const watchedFederalCategory = useWatch({
+    control,
+    name: "federalLicenseCategory",
+  });
+  const watchedFederalExpiry = useWatch({
+    control,
+    name: "federalLicenseExpiry",
+  });
+  const watchedStateNumber = useWatch({ control, name: "stateLicenseNumber" });
+  const watchedStateExpiry = useWatch({ control, name: "stateLicenseExpiry" });
+  const watchedStateIssuingState = useWatch({
+    control,
+    name: "stateIssuingState",
+  });
   const watchedPsychometricResult = useWatch({
     control,
     name: "psychometricTestResult",
   });
   const watchedDrugTestResult = useWatch({ control, name: "drugTestResult" });
 
-  // Populate form when editing
-  useEffect(() => {
-    if (driver && mode === "edit") {
-      // Normalizar licenseType a mayúsculas (el backend puede devolver minúsculas)
-      const normalizedLicenseType = (driver.licenseType?.toUpperCase() ||
-        "E") as DriverFormData["licenseType"];
+  const federalGroupHasAny = Boolean(
+    watchedFederalNumber?.trim() ||
+      watchedFederalCategory ||
+      watchedFederalExpiry?.trim(),
+  );
+  const stateGroupHasAny = Boolean(
+    watchedStateNumber?.trim() ||
+      watchedStateExpiry?.trim() ||
+      watchedStateIssuingState?.trim(),
+  );
 
-      // Validar que psychometricTestResult sea un valor válido
-      const validPsychometricResults = PSYCHOMETRIC_RESULTS.map((r) => r.value);
-      const psychometricValue = driver.psychometricTestResult ?? "";
-      const normalizedPsychometricResult = validPsychometricResults.includes(
-        psychometricValue as (typeof validPsychometricResults)[number],
-      )
-        ? psychometricValue
-        : "";
+  const clearFederalLicense = useCallback(() => {
+    setValue("federalLicenseNumber", "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("federalLicenseCategory", undefined, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("federalLicenseExpiry", "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }, [setValue]);
 
-      // Validar que drugTestResult sea un valor válido
-      const validDrugTestResults = DRUG_TEST_RESULTS.map((r) => r.value);
-      const drugTestValue = driver.drugTestResult ?? "";
-      const normalizedDrugTestResult = validDrugTestResults.includes(
-        drugTestValue as (typeof validDrugTestResults)[number],
-      )
-        ? drugTestValue
-        : "";
-
-      // Usar reset con valores explícitos
-      const formValues: DriverFormData = {
-        employeeId: driver.employeeId,
-        licenseNumber: driver.licenseNumber || "",
-        licenseType: normalizedLicenseType,
-        licenseExpiry: driver.licenseExpiry,
-        licenseState: driver.licenseIssuingState || "",
-        medicalCertificateNumber: driver.medicalCertificateNumber || "",
-        medicalCertificateExpiry: driver.medicalCertificateExpiry || undefined,
-        medicalCertificateIssuer: driver.medicalCertificateIssuer || "",
-        psychometricTestDate: driver.psychometricTestDate || undefined,
-        psychometricTestResult: normalizedPsychometricResult || "",
-        lastDrugTestDate: driver.lastDrugTestDate || undefined,
-        drugTestResult: normalizedDrugTestResult || "",
-        assignedDeviceId: driver.assignedDeviceId || "",
-        notes: driver.notes || "",
-      };
-
-      reset(formValues);
-    }
-  }, [driver, mode, reset]);
+  const clearStateLicense = useCallback(() => {
+    setValue("stateLicenseNumber", "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("stateLicenseExpiry", "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("stateIssuingState", "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }, [setValue]);
 
   // Handler para Select que maneja el valor vacío
   const handleSelectChange = <K extends keyof DriverFormData>(
@@ -315,7 +426,21 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form onSubmit={handleNativeSubmit} className="space-y-6">
+      {apiAlertMessages.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{fc.validation.apiAlertTitle}</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {apiAlertMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {mode === "edit" && driver ? (
         <DriverEditEmployeeBanner driver={driver} />
       ) : null}
@@ -375,58 +500,79 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       {/* SECCIÓN: LICENCIA                                                  */}
       {/* ================================================================== */}
       <FormSectionCard
-        title={fc.section.license.title}
+        title={fc.section.licenseFederal.title}
         icon={<CreditCard className="h-4 w-4" />}
-        description={fc.section.license.description}
+        description={fc.section.licenseFederal.description}
         contentClassName="space-y-4"
+        action={
+          federalGroupHasAny ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={clearFederalLicense}
+            >
+              {fc.action.clearFederal}
+            </Button>
+          ) : null
+        }
       >
+          <p className="text-xs text-muted-foreground">
+            {fc.hint.groupCompleteOrEmpty}
+          </p>
+          {!federalGroupHasAny ? (
+            <p className="text-sm text-muted-foreground">{fc.hint.groupEmpty}</p>
+          ) : null}
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldShell
-              label={fc.label.licenseNumber}
-              fieldId="licenseNumber"
-              required
-              errorMessage={errors.licenseNumber?.message}
+              label={fc.label.federalLicenseNumber}
+              fieldId="federalLicenseNumber"
+              errorMessage={errors.federalLicenseNumber?.message}
             >
               <Input
-                id="licenseNumber"
-                {...register("licenseNumber")}
-                placeholder={fc.placeholder.licenseNumber}
-                error={Boolean(errors.licenseNumber)}
+                id="federalLicenseNumber"
+                {...register("federalLicenseNumber")}
+                placeholder={fc.placeholder.federalLicenseNumber}
+                error={Boolean(errors.federalLicenseNumber)}
                 {...getFieldErrorAriaProps(
-                  "licenseNumber",
-                  errors.licenseNumber?.message,
+                  "federalLicenseNumber",
+                  errors.federalLicenseNumber?.message,
                 )}
               />
             </FormFieldShell>
 
             <FormFieldShell
-              label={fc.label.licenseType}
-              fieldId="licenseType"
-              required
-              errorMessage={errors.licenseType?.message}
+              label={fc.label.federalLicenseCategory}
+              fieldId="federalLicenseCategory"
+              errorMessage={errors.federalLicenseCategory?.message}
             >
               <Select
-                value={watchedLicenseType ?? ""}
+                key={`federalLicenseCategory-${watchedFederalCategory ?? SELECT_NONE}`}
+                value={watchedFederalCategory ?? SELECT_NONE}
                 onValueChange={(value) => {
-                  if (value) {
-                    handleSelectChange(
-                      "licenseType",
-                      value as DriverFormData["licenseType"],
-                    );
-                  }
+                  handleSelectChange(
+                    "federalLicenseCategory",
+                    value === SELECT_NONE
+                      ? undefined
+                      : (value as DriverFormData["federalLicenseCategory"]),
+                  );
                 }}
               >
                 <SelectTrigger
-                  id="licenseType"
-                  error={Boolean(errors.licenseType)}
+                  id="federalLicenseCategory"
+                  error={Boolean(errors.federalLicenseCategory)}
                   {...getFieldErrorAriaProps(
-                    "licenseType",
-                    errors.licenseType?.message,
+                    "federalLicenseCategory",
+                    errors.federalLicenseCategory?.message,
                   )}
                 >
                   <SelectValue placeholder={fc.placeholder.selectType} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SELECT_NONE}>
+                    {fc.placeholder.selectNone}
+                  </SelectItem>
                   {LICENSE_TYPES.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
@@ -438,36 +584,92 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
 
             <RHFDateField
               control={control}
-              name="licenseExpiry"
-              fieldId="licenseExpiry"
-              label={fc.label.licenseExpiry}
-              required
+              name="federalLicenseExpiry"
+              fieldId="federalLicenseExpiry"
+              label={fc.label.federalLicenseExpiry}
+            />
+          </div>
+      </FormSectionCard>
+
+      <FormSectionCard
+        title={fc.section.licenseState.title}
+        icon={<CreditCard className="h-4 w-4" />}
+        description={fc.section.licenseState.description}
+        contentClassName="space-y-4"
+        action={
+          stateGroupHasAny ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={clearStateLicense}
+            >
+              {fc.action.clearState}
+            </Button>
+          ) : null
+        }
+      >
+          <p className="text-xs text-muted-foreground">
+            {fc.hint.groupCompleteOrEmpty}
+          </p>
+          {!stateGroupHasAny ? (
+            <p className="text-sm text-muted-foreground">{fc.hint.groupEmpty}</p>
+          ) : null}
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormFieldShell
+              label={fc.label.stateLicenseNumber}
+              fieldId="stateLicenseNumber"
+              errorMessage={errors.stateLicenseNumber?.message}
+            >
+              <Input
+                id="stateLicenseNumber"
+                {...register("stateLicenseNumber")}
+                placeholder={fc.placeholder.stateLicenseNumber}
+                error={Boolean(errors.stateLicenseNumber)}
+                {...getFieldErrorAriaProps(
+                  "stateLicenseNumber",
+                  errors.stateLicenseNumber?.message,
+                )}
+              />
+            </FormFieldShell>
+
+            <RHFDateField
+              control={control}
+              name="stateLicenseExpiry"
+              fieldId="stateLicenseExpiry"
+              label={fc.label.stateLicenseExpiry}
             />
 
             <FormFieldShell
-              label={fc.label.licenseState}
-              fieldId="licenseState"
-              errorMessage={errors.licenseState?.message}
+              label={fc.label.stateIssuingState}
+              fieldId="stateIssuingState"
+              errorMessage={errors.stateIssuingState?.message}
             >
               <Select
-                value={watchedLicenseState ?? ""}
+                key={`stateIssuingState-${watchedStateIssuingState || SELECT_NONE}`}
+                value={watchedStateIssuingState?.trim() ? watchedStateIssuingState : SELECT_NONE}
                 onValueChange={(value) => {
-                  if (value) {
-                    handleSelectChange("licenseState", value);
-                  }
+                  handleSelectChange(
+                    "stateIssuingState",
+                    value === SELECT_NONE ? "" : value,
+                  );
                 }}
               >
                 <SelectTrigger
-                  id="licenseState"
-                  error={Boolean(errors.licenseState)}
+                  id="stateIssuingState"
+                  error={Boolean(errors.stateIssuingState)}
                   {...getFieldErrorAriaProps(
-                    "licenseState",
-                    errors.licenseState?.message,
+                    "stateIssuingState",
+                    errors.stateIssuingState?.message,
                   )}
                 >
                   <SelectValue placeholder={fc.placeholder.selectState} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SELECT_NONE}>
+                    {fc.placeholder.selectNone}
+                  </SelectItem>
                   {MEXICAN_STATES.map((state) => (
                     <SelectItem key={state} value={state}>
                       {state}
@@ -562,11 +764,17 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               errorMessage={errors.psychometricTestResult?.message}
             >
               <Select
-                value={watchedPsychometricResult ?? ""}
+                key={`psychometricTestResult-${watchedPsychometricResult || SELECT_NONE}`}
+                value={
+                  watchedPsychometricResult?.trim()
+                    ? watchedPsychometricResult
+                    : SELECT_NONE
+                }
                 onValueChange={(value) => {
-                  if (value) {
-                    handleSelectChange("psychometricTestResult", value);
-                  }
+                  handleSelectChange(
+                    "psychometricTestResult",
+                    value === SELECT_NONE ? "" : value,
+                  );
                 }}
               >
                 <SelectTrigger
@@ -580,6 +788,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   <SelectValue placeholder={fc.placeholder.selectResult} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SELECT_NONE}>
+                    {fc.placeholder.selectNone}
+                  </SelectItem>
                   {PSYCHOMETRIC_RESULTS.map((result) => (
                     <SelectItem key={result.value} value={result.value}>
                       {result.label}
@@ -614,11 +825,17 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               errorMessage={errors.drugTestResult?.message}
             >
               <Select
-                value={watchedDrugTestResult ?? ""}
+                key={`drugTestResult-${watchedDrugTestResult || SELECT_NONE}`}
+                value={
+                  watchedDrugTestResult?.trim()
+                    ? watchedDrugTestResult
+                    : SELECT_NONE
+                }
                 onValueChange={(value) => {
-                  if (value) {
-                    handleSelectChange("drugTestResult", value);
-                  }
+                  handleSelectChange(
+                    "drugTestResult",
+                    value === SELECT_NONE ? "" : value,
+                  );
                 }}
               >
                 <SelectTrigger
@@ -632,6 +849,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                   <SelectValue placeholder={fc.placeholder.selectResult} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SELECT_NONE}>
+                    {fc.placeholder.selectNone}
+                  </SelectItem>
                   {DRUG_TEST_RESULTS.map((result) => (
                     <SelectItem key={result.value} value={result.value}>
                       {result.label}
@@ -702,7 +922,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         data-wizard-panel="3"
         aria-hidden={!wizardActive || ws !== 3}
       >
-        <DriverReviewSummary getValues={getValues} />
+        <DriverReviewSummary
+          getValues={getValues}
+          employeeLabel={employeeReviewLabel}
+        />
       </div>
 
       {shouldShowValidationSummary ? (

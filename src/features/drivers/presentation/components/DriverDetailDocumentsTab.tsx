@@ -6,6 +6,7 @@ import { cn } from "@shared/lib/utils/cn";
 import {
   DRUG_TEST_RESULT_COLORS,
   DRUG_TEST_RESULT_LABELS,
+  LICENSE_TYPE_LABELS,
   PSYCHOMETRIC_RESULT_COLORS,
   PSYCHOMETRIC_RESULT_LABELS,
   type Driver,
@@ -34,19 +35,17 @@ function formatDrugEstimatedExpiry(lastDrugTestDate: string | null): string {
   return copy.vigency.daysRemainingLong(daysRemaining);
 }
 
-interface DriverDetailDocumentsTabProps {
-  driver: Driver;
-}
-
-export function DriverDetailDocumentsTab({
-  driver,
-}: DriverDetailDocumentsTabProps) {
-  const daysUntilLicenseExpiration = getDaysUntilDateString(
-    driver.licenseExpiry,
-  );
-  const licenseVariant = getLicenseExpirationVariant(
-    daysUntilLicenseExpiration,
-  );
+function LicenseExpiryRow({
+  expiry,
+  isExpired,
+  isExpiringSoon,
+}: {
+  expiry: string | null;
+  isExpired: boolean;
+  isExpiringSoon: boolean;
+}) {
+  const daysUntilExpiration = expiry ? getDaysUntilDateString(expiry) : null;
+  const licenseVariant = getLicenseExpirationVariant(daysUntilExpiration);
   const licenseBadgeProps =
     licenseVariant === "warning"
       ? { variant: "warning" as const, tone: "soft" as const }
@@ -55,12 +54,58 @@ export function DriverDetailDocumentsTab({
         : licenseVariant === "secondary"
           ? { variant: "secondary" as const }
           : { variant: "default" as const };
-  const isLicenseExpired =
-    daysUntilLicenseExpiration !== null && daysUntilLicenseExpiration <= 0;
-  const isLicenseExpiringSoon =
-    daysUntilLicenseExpiration !== null &&
-    daysUntilLicenseExpiration > 0 &&
-    daysUntilLicenseExpiration <= 30;
+
+  if (!expiry) {
+    return copy.hint.emptyOptional;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <span
+        className={cn(
+          isExpired && "text-destructive",
+          isExpiringSoon && "text-warning",
+        )}
+      >
+        {formatDate(expiry)}
+      </span>
+      <Badge {...licenseBadgeProps}>
+        {isExpired
+          ? copy.vigency.expiredShort
+          : isExpiringSoon
+            ? copy.vigency.daysRemaining(daysUntilExpiration!)
+            : copy.vigency.valid}
+      </Badge>
+    </div>
+  );
+}
+
+interface DriverDetailDocumentsTabProps {
+  driver: Driver;
+}
+
+export function DriverDetailDocumentsTab({
+  driver,
+}: DriverDetailDocumentsTabProps) {
+  const federalDaysUntilExpiration = getDaysUntilDateString(
+    driver.federalLicenseExpiry,
+  );
+  const isFederalLicenseExpired = driver.isFederalLicenseExpired;
+  const isFederalLicenseExpiringSoon =
+    !isFederalLicenseExpired &&
+    federalDaysUntilExpiration !== null &&
+    federalDaysUntilExpiration > 0 &&
+    federalDaysUntilExpiration <= 30;
+
+  const stateDaysUntilExpiration = getDaysUntilDateString(
+    driver.stateLicenseExpiry,
+  );
+  const isStateLicenseExpired = driver.isStateLicenseExpired;
+  const isStateLicenseExpiringSoon =
+    !isStateLicenseExpired &&
+    stateDaysUntilExpiration !== null &&
+    stateDaysUntilExpiration > 0 &&
+    stateDaysUntilExpiration <= 30;
 
   const daysUntilMedicalExpiration = getDaysUntilDateString(
     driver.medicalCertificateExpiry,
@@ -86,6 +131,10 @@ export function DriverDetailDocumentsTab({
     daysUntilDrugEstimatedExpiry > 0 &&
     daysUntilDrugEstimatedExpiry <= 30;
 
+  const federalCategoryLabel = driver.federalLicenseCategory
+    ? LICENSE_TYPE_LABELS[driver.federalLicenseCategory]
+    : copy.hint.emptyOptional;
+
   return (
     <div className="space-y-8">
       <DetailSection
@@ -93,40 +142,95 @@ export function DriverDetailDocumentsTab({
         title={copy.section.license.title}
         description={copy.section.license.description}
       >
-        <Card>
-          <CardContent className="grid grid-cols-1 gap-4 pt-6 lg:grid-cols-2">
-            <InfoRow
-              variant="inline"
-              label={copy.label.licenseExpiry}
-              value={
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <span
-                    className={cn(
-                      isLicenseExpired && "text-destructive",
-                      isLicenseExpiringSoon && "text-warning",
-                    )}
-                  >
-                    {formatDate(driver.licenseExpiry)}
-                  </span>
-                  <Badge {...licenseBadgeProps}>
-                    {isLicenseExpired
-                      ? copy.vigency.expiredShort
-                      : isLicenseExpiringSoon
-                        ? copy.vigency.daysRemaining(
-                            daysUntilLicenseExpiration!,
-                          )
-                        : copy.vigency.valid}
-                  </Badge>
-                </div>
-              }
-            />
-            <InfoRow
-              variant="inline"
-              label={copy.label.licenseState}
-              value={driver.licenseIssuingState ?? copy.hint.emptyOptional}
-            />
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{copy.section.licenseFederal.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {copy.section.licenseFederal.description}
+            </p>
+            {!driver.federalLicenseNumber &&
+            !driver.federalLicenseCategory &&
+            !driver.federalLicenseExpiry ? (
+              <p className="text-sm text-muted-foreground">{copy.hint.empty}</p>
+            ) : (
+            <Card>
+              <CardContent className="grid grid-cols-1 gap-4 pt-6 lg:grid-cols-2">
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.federalLicenseNumber}
+                  value={
+                    driver.federalLicenseNumber ? (
+                      <span className="font-mono">{driver.federalLicenseNumber}</span>
+                    ) : (
+                      copy.hint.emptyOptional
+                    )
+                  }
+                />
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.federalLicenseCategory}
+                  value={federalCategoryLabel}
+                />
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.federalLicenseExpiry}
+                  value={
+                    <LicenseExpiryRow
+                      expiry={driver.federalLicenseExpiry}
+                      isExpired={isFederalLicenseExpired}
+                      isExpiringSoon={isFederalLicenseExpiringSoon}
+                    />
+                  }
+                />
+              </CardContent>
+            </Card>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{copy.section.licenseState.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {copy.section.licenseState.description}
+            </p>
+            {!driver.stateLicenseNumber &&
+            !driver.stateLicenseExpiry &&
+            !driver.stateIssuingState ? (
+              <p className="text-sm text-muted-foreground">{copy.hint.empty}</p>
+            ) : (
+            <Card>
+              <CardContent className="grid grid-cols-1 gap-4 pt-6 lg:grid-cols-2">
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.stateLicenseNumber}
+                  value={
+                    driver.stateLicenseNumber ? (
+                      <span className="font-mono">{driver.stateLicenseNumber}</span>
+                    ) : (
+                      copy.hint.emptyOptional
+                    )
+                  }
+                />
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.stateLicenseExpiry}
+                  value={
+                    <LicenseExpiryRow
+                      expiry={driver.stateLicenseExpiry}
+                      isExpired={isStateLicenseExpired}
+                      isExpiringSoon={isStateLicenseExpiringSoon}
+                    />
+                  }
+                />
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.stateIssuingState}
+                  value={driver.stateIssuingState ?? copy.hint.emptyOptional}
+                />
+              </CardContent>
+            </Card>
+            )}
+          </div>
+        </div>
       </DetailSection>
 
       <DetailSection

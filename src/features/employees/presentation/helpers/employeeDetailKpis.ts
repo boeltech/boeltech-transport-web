@@ -44,6 +44,11 @@ export function isNssMissing(employee: Employee): boolean {
   return !employee.nss?.trim();
 }
 
+/** RFC vacío: operable, pero bloquea figura CP al timbrar (sin estado persistido). */
+export function isRfcMissing(rfc: string | null | undefined): boolean {
+  return !rfc?.trim();
+}
+
 /** Días hasta la baja programada (futuro); negativo o null si no aplica. */
 export function daysUntilTermination(
   terminationDateIso: string | null | undefined,

@@ -84,6 +84,7 @@ export function useUpdateDriverStatus(
       // Llamar callback personalizado
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: options?.onError,
+    onSettled: options?.onSettled,
   });
 }

@@ -43,6 +43,7 @@ import {
   type DriverListItem,
   type DriverStatusType,
   DRIVER_STATUS_LABELS,
+  getDriverPrimaryLicenseNumber,
 } from "../../domain";
 import { DriverTable, DriverCard, DriverCardSkeleton } from "../components";
 import { driversCopy } from "../copy/driversCopy";
@@ -342,8 +343,9 @@ export function DriversListPage() {
             <AlertDialogDescription>
               Esta acción no se puede deshacer. El conductor{" "}
               <strong>{driverToDelete?.employee.fullName}</strong>
-              {driverToDelete?.licenseNumber
-                ? ` (licencia ${driverToDelete.licenseNumber})`
+              {driverToDelete &&
+              getDriverPrimaryLicenseNumber(driverToDelete)
+                ? ` (licencia ${getDriverPrimaryLicenseNumber(driverToDelete!)})`
                 : ""}{" "}
               será eliminado del sistema y dejará de estar disponible para
               asignaciones a viajes.

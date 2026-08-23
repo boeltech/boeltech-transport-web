@@ -23,27 +23,31 @@ import {
   getErrorMessage,
   isApiError,
 } from "@shared/api/interceptors/error-handler";
+import { driversCopy } from "../copy";
+
+const wizardStepsCopy = driversCopy.form.create.wizard.steps;
+const createCopy = driversCopy.form.create;
 
 const WIZARD_STEPS = [
   {
     id: "emp",
-    title: "Empleado",
-    description: "Vincular un empleado existente",
+    title: wizardStepsCopy.employee.title,
+    description: wizardStepsCopy.employee.description,
   },
   {
     id: "lic",
-    title: "Licencia y salud",
-    description: "Licencia federal y certificado médico",
+    title: wizardStepsCopy.licenses.title,
+    description: wizardStepsCopy.licenses.description,
   },
   {
     id: "exam",
-    title: "Exámenes y equipo",
-    description: "Psicométrico, antidoping, GPS y notas",
+    title: wizardStepsCopy.exams.title,
+    description: wizardStepsCopy.exams.description,
   },
   {
     id: "rev",
-    title: "Revisión",
-    description: "Confirmar antes de registrar",
+    title: wizardStepsCopy.review.title,
+    description: wizardStepsCopy.review.description,
   },
 ];
 
@@ -55,26 +59,39 @@ export function DriverCreatePage() {
   const createMutation = useCreateDriver({
     onSuccess: (driver) => {
       toast({
-        title: "Conductor registrado",
-        description: "El conductor ha sido registrado exitosamente",
+        title: createCopy.toast.successTitle,
+        description: createCopy.toast.successDescription,
         variant: "success",
       });
       navigate(`/drivers/${driver.id}`);
     },
     onError: (error) => {
-      if (isApiError(error)) {
+      if (isApiError(error) && error.hasValidationErrors()) {
+        formRef.current?.applyApiValidationErrors(
+          error.validationErrors.map((entry) => ({
+            field: entry.field,
+            message: entry.message,
+          })),
+        );
         toast({
-          title: "Error al registrar conductor",
-          description: error.getDetailedMessage(),
+          title: createCopy.toast.errorTitle,
+          description: error.getToastMessage(),
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Error al registrar conductor",
-          description: getErrorMessage(error),
-          variant: "destructive",
-        });
+        return;
       }
+
+      const description = isApiError(error)
+        ? error.getDetailedMessage()
+        : getErrorMessage(error);
+      formRef.current?.setApiAlertMessages(
+        description ? [description] : [getErrorMessage(error)],
+      );
+      toast({
+        title: createCopy.toast.errorTitle,
+        description,
+        variant: "destructive",
+      });
     },
   });
 
@@ -93,18 +110,18 @@ export function DriverCreatePage() {
       <>
         {currentStep < 3 ? (
           <p className="mb-4 max-w-md text-sm text-muted-foreground">
-            Completa los campos obligatorios del paso para continuar.
+            {createCopy.stepHelper}
           </p>
         ) : null}
         <DriverForm
-        ref={formRef}
-        mode="create"
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        isSubmitting={isSubmitting}
-        wizardMode
-        wizardStepIndex={currentStep}
-      />
+          ref={formRef}
+          mode="create"
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          isSubmitting={isSubmitting}
+          wizardMode
+          wizardStepIndex={currentStep}
+        />
       </>
     ),
     [handleCancel, handleSubmit, isSubmitting],
@@ -115,9 +132,8 @@ export function DriverCreatePage() {
       backHref: "/drivers",
       backLabel: "Volver a la lista de conductores",
       icon: <UserPlus className="h-5 w-5" />,
-      title: "Registrar Conductor",
-      subtitle:
-        "Completa los pasos para registrar un empleado como conductor",
+      title: createCopy.title,
+      subtitle: createCopy.subtitle,
     }),
     [],
   );
@@ -129,7 +145,7 @@ export function DriverCreatePage() {
       header={shellHeader}
       renderStep={renderStep}
       isSubmitting={isSubmitting}
-      submitLabel="Registrar conductor"
+      submitLabel={driversCopy.form.action.register}
       submittingLabel="Registrando..."
       stepsAriaLabel="Pasos para registrar un conductor"
       onCancel={handleCancel}

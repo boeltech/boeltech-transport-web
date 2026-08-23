@@ -135,7 +135,7 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
   return (
     <DetailSection
       icon={<Route className="h-4 w-4" />}
-      title={copy.section.trips.title}
+      title={copy.format.tripsTab(tripsTotal)}
       description={copy.section.trips.description}
     >
       <Card>

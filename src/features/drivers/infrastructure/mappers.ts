@@ -64,9 +64,16 @@ export interface ApiDriverListItemResponse {
   tenant_id: string;
   employee_id: string;
   employee: ApiEmployeeRef;
-  license_number: string;
-  license_type: string;
-  license_expiry: string;
+  federal_license_number: string | null;
+  federal_license_category: string | null;
+  federal_license_expiry: string | null;
+  state_license_number: string | null;
+  state_license_expiry: string | null;
+  state_issuing_state: string | null;
+  has_federal_license: boolean;
+  has_state_license: boolean;
+  is_federal_license_expired: boolean;
+  is_state_license_expired: boolean;
   status: string;
   years_of_experience: number;
   total_trips: number;
@@ -98,11 +105,18 @@ export interface ApiDriverResponse {
   employee_id: string;
   employee?: ApiEmployeeRef;
 
-  // Licencia
-  license_number: string;
-  license_type: string;
-  license_expiry: string;
-  license_issuing_state: string | null;
+  // Licencias (ADR-0080 dual)
+  federal_license_number: string | null;
+  federal_license_category: string | null;
+  federal_license_expiry: string | null;
+  state_license_number: string | null;
+  state_license_expiry: string | null;
+  state_issuing_state: string | null;
+  has_federal_license: boolean;
+  has_state_license: boolean;
+  is_federal_license_expired: boolean;
+  is_state_license_expired: boolean;
+  is_license_expired: boolean;
 
   // Certificado médico
   medical_certificate_number: string | null;
@@ -212,9 +226,16 @@ function mapDriverListItemToDomain(
     tenantId: raw.tenantId,
     employeeId: raw.employeeId,
     employee: mapEmployeeRefToDomain(raw.employee),
-    licenseNumber: raw.licenseNumber,
-    licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiry: raw.licenseExpiry,
+    federalLicenseNumber: raw.federalLicenseNumber,
+    federalLicenseCategory: raw.federalLicenseCategory as LicenseTypeValue | null,
+    federalLicenseExpiry: raw.federalLicenseExpiry,
+    stateLicenseNumber: raw.stateLicenseNumber,
+    stateLicenseExpiry: raw.stateLicenseExpiry,
+    stateIssuingState: raw.stateIssuingState,
+    hasFederalLicense: raw.hasFederalLicense,
+    hasStateLicense: raw.hasStateLicense,
+    isFederalLicenseExpired: raw.isFederalLicenseExpired,
+    isStateLicenseExpired: raw.isStateLicenseExpired,
     status: raw.status as DriverStatusType,
     yearsOfExperience: raw.yearsOfExperience,
     totalTrips: raw.totalTrips,
@@ -237,11 +258,18 @@ function mapDriverToDomain(raw: DeepCamelCase<ApiDriverResponse>): Driver {
     employeeId: raw.employeeId,
     employee: raw.employee ? mapEmployeeRefToDomain(raw.employee) : undefined,
 
-    // Licencia
-    licenseNumber: raw.licenseNumber,
-    licenseType: raw.licenseType as LicenseTypeValue,
-    licenseExpiry: raw.licenseExpiry,
-    licenseIssuingState: raw.licenseIssuingState,
+    // Licencias
+    federalLicenseNumber: raw.federalLicenseNumber,
+    federalLicenseCategory: raw.federalLicenseCategory as LicenseTypeValue | null,
+    federalLicenseExpiry: raw.federalLicenseExpiry,
+    stateLicenseNumber: raw.stateLicenseNumber,
+    stateLicenseExpiry: raw.stateLicenseExpiry,
+    stateIssuingState: raw.stateIssuingState,
+    hasFederalLicense: raw.hasFederalLicense,
+    hasStateLicense: raw.hasStateLicense,
+    isFederalLicenseExpired: raw.isFederalLicenseExpired,
+    isStateLicenseExpired: raw.isStateLicenseExpired,
+    isLicenseExpired: raw.isLicenseExpired,
 
     // Certificado médico
     medicalCertificateNumber: raw.medicalCertificateNumber,
@@ -422,11 +450,13 @@ export function toApiCreateDriver(
   return {
     employee_id: dto.employeeId,
 
-    // Licencia
-    license_number: dto.licenseNumber,
-    license_type: dto.licenseType,
-    license_expiry: dto.licenseExpiry,
-    license_state: dto.licenseIssuingState || undefined,
+    // Licencias
+    federal_license_number: dto.federalLicenseNumber ?? undefined,
+    federal_license_category: dto.federalLicenseCategory ?? undefined,
+    federal_license_expiry: dto.federalLicenseExpiry ?? undefined,
+    state_license_number: dto.stateLicenseNumber ?? undefined,
+    state_license_expiry: dto.stateLicenseExpiry ?? undefined,
+    state_issuing_state: dto.stateIssuingState ?? undefined,
 
     // Certificado médico
     medical_certificate_number: dto.medicalCertificateNumber || undefined,
@@ -457,14 +487,19 @@ export function toApiUpdateDriver(
 ): Record<string, unknown> {
   const apiData: Record<string, unknown> = {};
 
-  // Licencia
-  if (dto.licenseNumber !== undefined)
-    apiData.license_number = dto.licenseNumber;
-  if (dto.licenseType !== undefined) apiData.license_type = dto.licenseType;
-  if (dto.licenseExpiry !== undefined)
-    apiData.license_expiry = dto.licenseExpiry;
-  if (dto.licenseIssuingState !== undefined)
-    apiData.license_state = dto.licenseIssuingState;
+  // Licencias
+  if (dto.federalLicenseNumber !== undefined)
+    apiData.federal_license_number = dto.federalLicenseNumber;
+  if (dto.federalLicenseCategory !== undefined)
+    apiData.federal_license_category = dto.federalLicenseCategory;
+  if (dto.federalLicenseExpiry !== undefined)
+    apiData.federal_license_expiry = dto.federalLicenseExpiry;
+  if (dto.stateLicenseNumber !== undefined)
+    apiData.state_license_number = dto.stateLicenseNumber;
+  if (dto.stateLicenseExpiry !== undefined)
+    apiData.state_license_expiry = dto.stateLicenseExpiry;
+  if (dto.stateIssuingState !== undefined)
+    apiData.state_issuing_state = dto.stateIssuingState;
 
   // Certificado médico
   if (dto.medicalCertificateNumber !== undefined)
@@ -492,10 +527,6 @@ export function toApiUpdateDriver(
 
   // Notas
   if (dto.notes !== undefined) apiData.notes = dto.notes;
-
-  // Estado (si se permite actualizar)
-  if (dto.status !== undefined) apiData.status = dto.status;
-  if (dto.isActive !== undefined) apiData.is_active = dto.isActive;
 
   return apiData;
 }

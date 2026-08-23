@@ -45,6 +45,22 @@ export {
   DRUG_TEST_RESULT_COLORS,
 } from "./entities";
 
+export {
+  getDriverLicenseJurisdiction,
+  getDriverPrimaryLicenseNumber,
+  getDriverPrimaryLicenseExpiry,
+  getDriverPrimaryCategoryLabel,
+  type DriverLicenseJurisdiction,
+} from "./licenseDisplay";
+
+export {
+  evaluateFederalCategoryForVehicleType,
+  getDriverLicenseAssignmentSoftSignal,
+  getDriverLicenseCategorySoftWarning,
+  type LicenseAssignmentSoftKind,
+  type LicenseAssignmentSoftSignal,
+} from "./licenseVehicleMatch";
+
 // Repository Interfaces & DTOs
 export {
   // DTOs

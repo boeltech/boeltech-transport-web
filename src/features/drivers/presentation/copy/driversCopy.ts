@@ -11,27 +11,38 @@ export const driversCopy = {
       notFoundTitle: "Conductor no encontrado",
       notFoundDescription:
         "El conductor que buscas no existe o fue eliminado de flota.",
+      loadErrorTitle: "No se pudo cargar el conductor",
+      loadErrorDescription:
+        "Ocurrió un error al obtener los datos. Intenta de nuevo.",
+      retry: "Reintentar",
       backToList: "Volver a conductores",
       noEmployeeNumber: "Sin número de empleado",
     },
     stat: {
-      totalTrips: {
-        title: "Viajes",
-        description: "Asignaciones registradas",
+      federalLicense: {
+        title: "Licencia federal",
+        description: "Documento de flota / Carta Porte",
       },
-      completedTrips: {
-        title: "Completados",
-        successRate: (pct: number) => `${pct}% de tasa de cierre`,
+      stateLicense: {
+        title: "Licencia estatal",
+        description: "Complemento opcional",
       },
-      experience: {
-        title: "Experiencia",
-        description: "Años declarados al alta",
-        value: (years: number) =>
-          years === 1 ? "1 año" : `${years} años`,
+      medical: {
+        title: "Certificado médico",
+        description: "Aptitud para operar unidades",
+      },
+      vigency: {
+        valid: "Vigente",
+        validHint: "Sin alerta de vencimiento",
+        expiring: (days: number) => `Vence en ${days} d`,
+        expiringHint: "Dentro de 30 días",
+        expired: "Vencida",
+        missing: "Sin registrar",
+        notApplicable: "No aplica",
       },
     },
     tab: {
-      driver: "Conductor",
+      driver: "Perfil",
       documents: "Documentación",
       trips: "Viajes",
     },
@@ -46,7 +57,16 @@ export const driversCopy = {
     },
     alert: {
       licenseLabel: "Licencia",
+      federalLicenseLabel: "Licencia federal",
+      stateLicenseLabel: "Licencia estatal",
       medicalLabel: "Certificado médico",
+      viewDocuments: "Ver documentación",
+      rfcMissing: {
+        title: "RFC del empleado pendiente",
+        body: "El conductor puede asignarse a un viaje. Al timbrar Carta Porte se exige el RFC en el expediente del empleado.",
+        chip: "RFC pendiente",
+        editEmployee: "Completar en el empleado",
+      },
       licenseExpiredText: (daysAgo: number, date: string) =>
         `Vencida hace ${daysAgo} días (${date})`,
       licenseExpiringText: (days: number, date: string) =>
@@ -56,9 +76,15 @@ export const driversCopy = {
       medicalExpiringText: (days: number, date: string) =>
         `Vence en ${days} días (${date})`,
       title: {
-        bothExpired: "Licencia y certificado médico vencidos",
-        bothExpiring: "Licencia y certificado médico próximos a vencer",
+        bothExpired: "Licencias y certificado médico vencidos",
+        bothExpiring: "Licencias y certificado médico próximos a vencer",
         reviewDocs: "Revisar documentación del conductor",
+        licensesExpired: "Licencias federal y estatal vencidas",
+        licensesExpiring: "Licencias próximas a vencer",
+        federalExpired: "Licencia federal vencida",
+        federalExpiring: "Licencia federal próxima a vencer",
+        stateExpired: "Licencia estatal vencida",
+        stateExpiring: "Licencia estatal próxima a vencer",
         licenseExpired: "Licencia vencida",
         licenseExpiring: "Licencia próxima a vencer",
         medicalExpired: "Certificado médico vencido",
@@ -89,9 +115,17 @@ export const driversCopy = {
           "Persona a contactar en incidentes; proviene del perfil del empleado.",
       },
       license: {
-        title: "Licencia de conducir",
+        title: "Licencias de conducir",
         description:
-          "Vigencia y emisor. El tipo y número aparecen en el encabezado.",
+          "Licencia federal (primaria) y licencia estatal opcional.",
+      },
+      licenseFederal: {
+        title: "Licencia federal",
+        description: "Número, categoría A–F y vencimiento.",
+      },
+      licenseState: {
+        title: "Licencia estatal",
+        description: "Complemento opcional emitido por entidad federativa.",
       },
       medical: {
         title: "Certificado médico",
@@ -122,6 +156,12 @@ export const driversCopy = {
       notes: "Notas",
       licenseExpiry: "Fecha de vencimiento",
       licenseState: "Estado emisor",
+      federalLicenseNumber: "Número de licencia federal",
+      federalLicenseCategory: "Categoría (A–F)",
+      federalLicenseExpiry: "Vencimiento federal",
+      stateLicenseNumber: "Número de licencia estatal",
+      stateLicenseExpiry: "Vencimiento estatal",
+      stateIssuingState: "Estado emisor",
       medicalNumber: "Número de certificado",
       medicalExpiry: "Fecha de vencimiento",
       medicalIssuer: "Institución emisora",
@@ -146,6 +186,12 @@ export const driversCopy = {
       emergencyFromEmployee:
         "Captura o actualiza este dato en el perfil del empleado.",
     },
+    jurisdiction: {
+      federal: "Federal",
+      state: "Estatal",
+      both: "Federal + estatal",
+      stateOnly: "Solo estatal",
+    },
     action: {
       loadMoreTrips: "Cargar más",
       loadingMoreTrips: "Cargando…",
@@ -153,7 +199,9 @@ export const driversCopy = {
     format: {
       employeeLine: (employeeNumber: string) => `No. empleado ${employeeNumber}`,
       licenseLine: (typeLabel: string, licenseNumber: string) =>
-        `${typeLabel} · ${licenseNumber}`,
+        typeLabel
+          ? `${typeLabel} · ${licenseNumber}`
+          : licenseNumber,
       tripsTab: (total: number) => `Viajes (${total})`,
       tripMeta: (vehicleLabel: string, clientLabel: string | null) =>
         clientLabel
@@ -173,6 +221,11 @@ export const driversCopy = {
       branch: "Sucursal",
       allBranches: "Todas las sucursales",
       chipBranch: (label: string) => `Sucursal: ${label}`,
+    },
+    jurisdiction: {
+      federal: "Federal",
+      state: "Solo estatal",
+      both: "Federal + estatal",
     },
   },
   form: {
@@ -200,9 +253,56 @@ export const driversCopy = {
       },
     },
     create: {
+      title: "Registrar Conductor",
+      subtitle:
+        "Completa los pasos para registrar un empleado como conductor",
+      stepHelper: "Completa los campos obligatorios del paso para continuar.",
       employeeAlert:
         "Para registrar un conductor, el colaborador debe existir primero como empleado.",
       createEmployeeLink: "Registrar empleado",
+      toast: {
+        successTitle: "Conductor registrado",
+        successDescription: "El conductor ha sido registrado exitosamente",
+        errorTitle: "Error al registrar conductor",
+      },
+      wizard: {
+        steps: {
+          employee: {
+            title: "Empleado",
+            description: "Vincular un empleado existente",
+          },
+          licenses: {
+            title: "Licencias y salud",
+            description: "Federal SICT, estatal opcional y certificado médico",
+          },
+          exams: {
+            title: "Exámenes y equipo",
+            description: "Psicométrico, antidoping, GPS y notas",
+          },
+          review: {
+            title: "Revisión",
+            description: "Confirmar antes de registrar",
+          },
+        },
+      },
+    },
+    employeeSelector: {
+      label: "Empleado",
+      placeholder: "Buscar empleado...",
+      searchPlaceholder: "Buscar por nombre o número...",
+      loading: "Buscando empleados...",
+      loadError: "Error al cargar empleados",
+      empty: "No se encontraron empleados disponibles",
+      emptyWithPosition: (position: string) =>
+        `No hay empleados disponibles con puesto «${position}»`,
+      createLink: "Crear nuevo empleado",
+      createFooter: "¿No encuentras al empleado? Créalo primero",
+      helper:
+        "Solo se muestran empleados activos que no están registrados como conductores",
+      helperWithPosition: (position: string) =>
+        `Solo empleados activos con puesto «${position}», sin registro como conductor`,
+      ariaLabel: "Seleccionar empleado",
+      groupHeading: "Empleados disponibles",
     },
     section: {
       employee: {
@@ -210,20 +310,31 @@ export const driversCopy = {
         description: "Selecciona el colaborador que operará unidades en campo.",
       },
       license: {
-        title: "Licencia de conducir",
+        title: "Licencias de conducir",
         description:
-          "Licencia federal o estatal requerida para asignación de viajes.",
+          "Captura la licencia federal SICT y, si aplica, la licencia estatal.",
+      },
+      licenseFederal: {
+        title: "Licencia federal (SICT)",
+        description:
+          "Número, categoría A–F y vencimiento. Es el NumLicencia de Carta Porte. Completa las tres o déjalas vacías.",
+      },
+      licenseState: {
+        title: "Licencia estatal (opcional)",
+        description:
+          "Complemento para operación local. Completa número, vencimiento y estado emisor, o déjalas vacías.",
       },
       medical: {
-        title: "Certificado médico",
-        description: "Examen de aptitud física para operación de unidades.",
+        title: "Certificado médico (opcional)",
+        description:
+          "Examen de aptitud física. Opcional; no bloquea el alta ni el despacho.",
       },
       psychometric: {
-        title: "Examen psicométrico",
+        title: "Examen psicométrico (opcional)",
         description: "Evaluación psicológica y de aptitudes al volante.",
       },
       drugTest: {
-        title: "Examen antidoping",
+        title: "Examen antidoping (opcional)",
         description:
           "Última prueba registrada; vigencia estimada de 180 días.",
       },
@@ -240,16 +351,18 @@ export const driversCopy = {
         title: "Revisión",
         description: "Confirma los datos antes de registrar al conductor.",
         groupEmployee: "Empleado",
-        groupLicenseMedical: "Licencia y certificado médico",
+        groupLicenseMedical: "Licencias y certificado médico",
         groupExamsDevice: "Exámenes, dispositivo y notas",
       },
     },
     label: {
-      employeeId: "ID de empleado vinculado",
-      licenseNumber: "Número de licencia",
-      licenseType: "Tipo de licencia",
-      licenseExpiry: "Fecha de vencimiento",
-      licenseState: "Estado emisor",
+      employeeId: "Empleado",
+      federalLicenseNumber: "Número de licencia federal",
+      federalLicenseCategory: "Categoría SICT (A–F)",
+      federalLicenseExpiry: "Vencimiento federal",
+      stateLicenseNumber: "Número de licencia estatal",
+      stateLicenseExpiry: "Vencimiento estatal",
+      stateIssuingState: "Estado emisor",
       medicalNumber: "Número de certificado",
       medicalExpiry: "Fecha de vencimiento",
       medicalIssuer: "Institución emisora",
@@ -261,28 +374,36 @@ export const driversCopy = {
       notes: "Notas",
     },
     placeholder: {
-      licenseNumber: "Ej. ABC123456",
+      federalLicenseNumber: "Ej. SICT-123456789",
+      stateLicenseNumber: "Ej. EST-987654",
       medicalNumber: "Ej. CM-2026-001234",
       medicalIssuer: "Ej. IMSS, hospital autorizado",
       deviceId: "Ej. GPS-001, TLM-A1234",
       notes: "Restricciones, observaciones o certificaciones adicionales…",
-      selectType: "Seleccionar tipo",
+      selectType: "Seleccionar categoría",
       selectState: "Seleccionar estado",
       selectResult: "Seleccionar resultado",
+      selectNone: "Sin especificar",
     },
     hint: {
       deviceId: "Opcional. Identificador único del GPS o telemetría.",
       reviewEmpty: "Sin registrar",
       reviewOptional: "No especificado",
+      groupEmpty: "Sin capturar. Completa el grupo entero o déjalo vacío.",
+      groupCompleteOrEmpty:
+        "Grupo completo o vacío: no dejes campos sueltos.",
     },
     action: {
       cancel: "Cancelar",
       save: "Guardar cambios",
       register: "Registrar conductor",
+      clearFederal: "Quitar licencia federal",
+      clearState: "Quitar licencia estatal",
     },
     validation: {
       summaryEdit: "Revisa los siguientes campos",
       summaryWizard: "Revisa la información del conductor",
+      apiAlertTitle: "No se pudo guardar",
     },
     state: {
       notFoundTitle: "Conductor no encontrado",
@@ -296,22 +417,46 @@ export const driversCopy = {
 export type DriversCopy = typeof driversCopy;
 
 export function resolveLicenseMedicalAlertTitle(input: {
-  hasLicenseItem: boolean;
-  hasMedicalItem: boolean;
-  isLicenseExpired: boolean;
-  isMedicalExpired: boolean;
+  federalExpired: boolean;
+  federalExpiring: boolean;
+  stateExpired: boolean;
+  stateExpiring: boolean;
+  medicalExpired: boolean;
+  medicalExpiring: boolean;
 }): string {
-  const { hasLicenseItem, hasMedicalItem, isLicenseExpired, isMedicalExpired } =
-    input;
+  const {
+    federalExpired,
+    federalExpiring,
+    stateExpired,
+    stateExpiring,
+    medicalExpired,
+    medicalExpiring,
+  } = input;
   const copy = driversCopy.detail.alert.title;
 
-  if (hasLicenseItem && hasMedicalItem) {
-    if (isLicenseExpired && isMedicalExpired) return copy.bothExpired;
-    if (isLicenseExpired || isMedicalExpired) return copy.reviewDocs;
+  const hasLicenseAlert =
+    federalExpired ||
+    federalExpiring ||
+    stateExpired ||
+    stateExpiring;
+  const hasMedicalAlert = medicalExpired || medicalExpiring;
+  const anyLicenseExpired = federalExpired || stateExpired;
+
+  if (hasLicenseAlert && hasMedicalAlert) {
+    if (anyLicenseExpired && medicalExpired) return copy.bothExpired;
+    if (anyLicenseExpired || medicalExpired) return copy.reviewDocs;
     return copy.bothExpiring;
   }
-  if (hasLicenseItem) {
-    return isLicenseExpired ? copy.licenseExpired : copy.licenseExpiring;
+
+  if (hasLicenseAlert) {
+    if (federalExpired && stateExpired) return copy.licensesExpired;
+    if (federalExpired) return copy.federalExpired;
+    if (stateExpired) return copy.stateExpired;
+    if (federalExpiring && stateExpiring) return copy.licensesExpiring;
+    if (federalExpiring) return copy.federalExpiring;
+    if (stateExpiring) return copy.stateExpiring;
+    return copy.licenseExpiring;
   }
-  return isMedicalExpired ? copy.medicalExpired : copy.medicalExpiring;
+
+  return medicalExpired ? copy.medicalExpired : copy.medicalExpiring;
 }

@@ -65,13 +65,11 @@ export function useCreateDriver(
       return result.data;
     },
     onSuccess: (data, variables, onMutateResult, context) => {
-      // Invalidar lista de conductores
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.lists() });
-      // Invalidar lista de disponibles
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
-      // Llamar callback personalizado
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
-    ...options,
+    onError: options?.onError,
+    onSettled: options?.onSettled,
   });
 }

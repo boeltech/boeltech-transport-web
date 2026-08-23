@@ -83,17 +83,18 @@ export class DriverRepository implements IDriverRepository {
   }
 
   /**
-   * Verifica si existe un conductor con el número de licencia dado
+   * Verifica si existe un conductor con el número de licencia dado.
+   * Fail-closed: propaga errores de red/HTTP (no interpreta fallo como «libre»).
    */
-  async existsByLicenseNumber(licenseNumber: string): Promise<boolean> {
-    try {
-      const response = await apiClient.get<{ exists: boolean }>(
-        `${DRIVERS_ENDPOINT}/check-license/${licenseNumber}`,
-      );
-      return response.exists ?? false;
-    } catch {
-      return false;
-    }
+  async existsByLicenseNumber(
+    licenseNumber: string,
+    jurisdiction: "federal" | "state" = "federal",
+  ): Promise<boolean> {
+    const response = await apiClient.get<{ exists: boolean }>(
+      `${DRIVERS_ENDPOINT}/check-license/${encodeURIComponent(licenseNumber)}`,
+      { params: { jurisdiction } },
+    );
+    return response.exists ?? false;
   }
 
   /**
@@ -212,6 +213,7 @@ export class DriverRepository implements IDriverRepository {
     if (params.filters) {
       const {
         status,
+        federalLicenseCategory,
         licenseType,
         search,
         licenseExpiringSoon,
@@ -223,7 +225,8 @@ export class DriverRepository implements IDriverRepository {
       if (status) {
         queryParams.status = Array.isArray(status) ? status : [status];
       }
-      if (licenseType) queryParams.license_type = licenseType;
+      const category = federalLicenseCategory ?? licenseType;
+      if (category) queryParams.federal_license_category = category;
       if (search) queryParams.search = search;
       if (licenseExpiringSoon !== undefined)
         queryParams.license_expiring_soon = licenseExpiringSoon;

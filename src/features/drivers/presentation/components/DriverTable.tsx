@@ -19,14 +19,24 @@ import {
 import { Skeleton } from "@shared/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
 import type { DriverListItem, DriverStatusType } from "../../domain";
+import {
+  LICENSE_TYPE_LABELS,
+  getDriverLicenseJurisdiction,
+  getDriverPrimaryCategoryLabel,
+  getDriverPrimaryLicenseExpiry,
+  getDriverPrimaryLicenseNumber,
+} from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
 import { DriverActions } from "./DriverActions";
-import { formatDate, isExpired, isExpiringSoon } from "@shared/utils/dateUtils";
+import { formatDate, isExpiringSoon } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
 import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import { driversCopy } from "../copy";
+import { Badge } from "@shared/ui/badge";
 
 const listCopy = driversCopy.list.table;
+const jurisdictionCopy = driversCopy.list.jurisdiction;
+const rfcMissingChip = driversCopy.detail.alert.rfcMissing.chip;
 
 // ============================================================================
 // TYPES
@@ -167,8 +177,26 @@ export function DriverTable({
         <TableHeaderRow />
         <TableBody>
           {drivers.map((driver) => {
-            const expiringSoon = isExpiringSoon(driver.licenseExpiry);
-            const expired = isExpired(driver.licenseExpiry);
+            const primaryLicenseExpiry = getDriverPrimaryLicenseExpiry(driver);
+            const primaryLicenseNumber = getDriverPrimaryLicenseNumber(driver);
+            const categoryLabel = getDriverPrimaryCategoryLabel(
+              driver,
+              LICENSE_TYPE_LABELS,
+            );
+            const jurisdiction = getDriverLicenseJurisdiction(driver);
+            const jurisdictionLabel =
+              jurisdiction === "both"
+                ? jurisdictionCopy.both
+                : jurisdiction === "federal"
+                  ? jurisdictionCopy.federal
+                  : jurisdiction === "state"
+                    ? jurisdictionCopy.state
+                    : null;
+            const expiringSoon = primaryLicenseExpiry
+              ? isExpiringSoon(primaryLicenseExpiry)
+              : false;
+            const expired = driver.isLicenseExpired;
+            const rfcMissing = !driver.employee.rfc?.trim();
 
             return (
               <TableRow
@@ -185,6 +213,15 @@ export function DriverTable({
                     <p className="text-sm text-muted-foreground">
                       {driver.employee.email}
                     </p>
+                    {rfcMissing ? (
+                      <Badge
+                        variant="warning"
+                        tone="soft"
+                        className="mt-1 text-[10px] font-normal"
+                      >
+                        {rfcMissingChip}
+                      </Badge>
+                    ) : null}
                   </div>
                 </TableCell>
 
@@ -202,7 +239,28 @@ export function DriverTable({
 
                 {/* Licencia */}
                 <TableCell className="font-mono">
-                  {driver.licenseNumber}
+                  {primaryLicenseNumber ? (
+                    <div className="space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>{primaryLicenseNumber}</span>
+                        {jurisdictionLabel ? (
+                          <Badge
+                            variant="outline"
+                            className="font-sans text-[10px] font-normal"
+                          >
+                            {jurisdictionLabel}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {categoryLabel ? (
+                        <p className="text-xs font-sans text-muted-foreground">
+                          {categoryLabel}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </TableCell>
 
                 {/* Vencimiento */}
@@ -217,7 +275,9 @@ export function DriverTable({
                             : ""
                       }
                     >
-                      {formatDate(driver.licenseExpiry)}
+                      {primaryLicenseExpiry
+                        ? formatDate(primaryLicenseExpiry)
+                        : "—"}
                     </span>
                     {(expiringSoon || expired) && (
                       <AlertTriangle

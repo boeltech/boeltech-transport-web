@@ -50,6 +50,103 @@ export interface LicenseInfo {
   readonly daysUntilExpiration: number | null;
 }
 
+/**
+ * Conductor para listado (versión reducida) — ADR-0080 dual licenses
+ */
+export interface DriverListItem {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly employeeId: string;
+  readonly employee: EmployeeRef;
+  readonly federalLicenseNumber: string | null;
+  readonly federalLicenseCategory: LicenseTypeValue | null;
+  readonly federalLicenseExpiry: string | null;
+  readonly stateLicenseNumber: string | null;
+  readonly stateLicenseExpiry: string | null;
+  readonly stateIssuingState: string | null;
+  readonly hasFederalLicense: boolean;
+  readonly hasStateLicense: boolean;
+  readonly isFederalLicenseExpired: boolean;
+  readonly isStateLicenseExpired: boolean;
+  readonly status: DriverStatusType;
+  readonly yearsOfExperience: number;
+  readonly totalTrips: number;
+  readonly isLicenseExpired: boolean;
+  readonly isActive: boolean;
+  readonly createdAt: Date;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
+}
+
+/**
+ * Conductor completo (Aggregate Root)
+ */
+export interface Driver {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly employeeId: string;
+  readonly employee?: EmployeeRef;
+
+  readonly federalLicenseNumber: string | null;
+  readonly federalLicenseCategory: LicenseTypeValue | null;
+  readonly federalLicenseExpiry: string | null;
+  readonly stateLicenseNumber: string | null;
+  readonly stateLicenseExpiry: string | null;
+  readonly stateIssuingState: string | null;
+  readonly hasFederalLicense: boolean;
+  readonly hasStateLicense: boolean;
+  readonly isFederalLicenseExpired: boolean;
+  readonly isStateLicenseExpired: boolean;
+  readonly isLicenseExpired: boolean;
+
+  // Certificado médico
+  readonly medicalCertificateNumber: string | null;
+  readonly medicalCertificateExpiry: string | null;
+  readonly medicalCertificateIssuer: string | null;
+
+  // Examen psicométrico
+  readonly psychometricTestDate: string | null;
+  readonly psychometricTestResult: string | null;
+
+  // Examen antidoping
+  readonly lastDrugTestDate: string | null;
+  readonly drugTestResult: string | null;
+
+  // Dispositivo asignado
+  readonly assignedDeviceId: string | null;
+
+  // Estado y disponibilidad
+  readonly status: DriverStatusType;
+  readonly isActive: boolean;
+  readonly yearsOfExperience: number;
+
+  // Información del empleado (solo lectura, viene de employees)
+  readonly bloodType: string | null;
+  readonly emergencyContactName: string | null;
+  readonly emergencyContactPhone: string | null;
+  readonly emergencyContactRelationship: string | null;
+
+  // Notas
+  readonly notes: string | null;
+
+  // Estadísticas
+  readonly stats?: DriverStats;
+
+  // Auditoría
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly createdBy: string | null;
+  readonly updatedBy: string | null;
+  /** Nombre completo del usuario creador (LEFT JOIN users). */
+  readonly createdByName: string | null;
+  /** Nombre completo del usuario que realizó la última actualización. */
+  readonly updatedByName: string | null;
+  readonly branchId: string | null;
+  readonly branchName: string | null;
+  readonly branchCode: string | null;
+}
+
 export interface MedicalCertificateInfo {
   readonly number: string | null;
   readonly expirationDate: string | null;
@@ -107,90 +204,6 @@ export interface EmployeeRef {
 }
 
 /**
- * Conductor para listado (versión reducida)
- */
-export interface DriverListItem {
-  readonly id: string;
-  readonly tenantId: string;
-  readonly employeeId: string;
-  readonly employee: EmployeeRef;
-  readonly licenseNumber: string;
-  readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiry: string;
-  readonly status: DriverStatusType;
-  readonly yearsOfExperience: number;
-  readonly totalTrips: number;
-  readonly isLicenseExpired: boolean;
-  readonly isActive: boolean;
-  readonly createdAt: Date;
-  readonly branchId: string | null;
-  readonly branchName: string | null;
-  readonly branchCode: string | null;
-}
-
-/**
- * Conductor completo (Aggregate Root)
- */
-export interface Driver {
-  readonly id: string;
-  readonly tenantId: string;
-  readonly employeeId: string;
-  readonly employee?: EmployeeRef;
-
-  // Información de licencia
-  readonly licenseNumber: string;
-  readonly licenseType: LicenseTypeValue;
-  readonly licenseExpiry: string;
-  readonly licenseIssuingState: string | null;
-
-  // Certificado médico
-  readonly medicalCertificateNumber: string | null;
-  readonly medicalCertificateExpiry: string | null;
-  readonly medicalCertificateIssuer: string | null;
-
-  // Examen psicométrico
-  readonly psychometricTestDate: string | null;
-  readonly psychometricTestResult: string | null;
-
-  // Examen antidoping
-  readonly lastDrugTestDate: string | null;
-  readonly drugTestResult: string | null;
-
-  // Dispositivo asignado
-  readonly assignedDeviceId: string | null;
-
-  // Estado y disponibilidad
-  readonly status: DriverStatusType;
-  readonly isActive: boolean;
-  readonly yearsOfExperience: number;
-
-  // Información del empleado (solo lectura, viene de employees)
-  readonly bloodType: string | null;
-  readonly emergencyContactName: string | null;
-  readonly emergencyContactPhone: string | null;
-  readonly emergencyContactRelationship: string | null;
-
-  // Notas
-  readonly notes: string | null;
-
-  // Estadísticas
-  readonly stats?: DriverStats;
-
-  // Auditoría
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
-  readonly createdBy: string | null;
-  readonly updatedBy: string | null;
-  /** Nombre completo del usuario creador (LEFT JOIN users). */
-  readonly createdByName: string | null;
-  /** Nombre completo del usuario que realizó la última actualización. */
-  readonly updatedByName: string | null;
-  readonly branchId: string | null;
-  readonly branchName: string | null;
-  readonly branchCode: string | null;
-}
-
-/**
  * Conductor con detalle completo
  */
 export interface DriverDetail extends Driver {
@@ -236,6 +249,9 @@ export class DriverQueryError extends Error {
 
 export interface DriverFilters {
   readonly status?: DriverStatusType | DriverStatusType[];
+  /** Categoría SICT federal A–F */
+  readonly federalLicenseCategory?: LicenseTypeValue;
+  /** @deprecated use federalLicenseCategory */
   readonly licenseType?: LicenseTypeValue;
   readonly isActive?: boolean;
   readonly search?: string;
@@ -252,7 +268,7 @@ export interface DriverSortOptions {
     | "employee_name"
     | "first_name"
     | "last_name"
-    | "license_number"
+    | "federal_license_expiry"
     | "license_expiry"
     | "status"
     | "years_of_experience"
@@ -304,9 +320,9 @@ export interface DriverAvailableItem {
   readonly employeeId: string;
   readonly employeeNumber: string;
   readonly fullName: string;
-  readonly licenseType: LicenseTypeValue;
-  readonly licenseNumber: string;
-  readonly licenseExpiry: string;
+  readonly federalLicenseCategory: LicenseTypeValue | null;
+  readonly federalLicenseNumber: string | null;
+  readonly federalLicenseExpiry: string | null;
   readonly phone?: string;
 }
 
@@ -377,12 +393,13 @@ export const DRIVER_STATUS_LABELS: Record<DriverStatusType, string> = {
 };
 
 export const LICENSE_TYPE_LABELS: Record<LicenseTypeValue, string> = {
-  [LicenseType.A]: "Tipo A - Motocicleta",
-  [LicenseType.B]: "Tipo B - Automóvil",
-  [LicenseType.C]: "Tipo C - Carga hasta 3.5 ton",
-  [LicenseType.D]: "Tipo D - Pasajeros",
-  [LicenseType.E]: "Tipo E - Carga más de 3.5 ton",
-  [LicenseType.F]: "Tipo F - Doble articulado",
+  [LicenseType.A]: "A — Pasajeros y turismo (SICT)",
+  [LicenseType.B]: "B — Carga general (SICT)",
+  [LicenseType.C]: "C — Carga rabón/tortón (SICT)",
+  [LicenseType.D]: "D — Turismo chofer-guía (SICT)",
+  [LicenseType.E]:
+    "E — Carga especializada / peligrosos / doble articulado (SICT)",
+  [LicenseType.F]: "F — Pasajeros puerto/aeropuerto (SICT)",
 };
 
 export const PSYCHOMETRIC_RESULT_LABELS: Record<string, string> = {

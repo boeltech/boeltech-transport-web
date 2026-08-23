@@ -37,6 +37,7 @@ import {
   daysUntilTermination,
   formatEmployeeTenure,
   isNssMissing,
+  isRfcMissing,
   shouldHintEventualContract,
 } from "../helpers/employeeDetailKpis";
 import { buildEmployeeDriverRoleAlert } from "../helpers/employeeDriverRoleAlert";
@@ -142,6 +143,18 @@ export function EmployeeDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alert.nssMissing.title}
           items={[{ text: copy.alert.nssMissing.body }]}
+        />,
+      );
+    }
+
+    if (!terminated && isRfcMissing(employee.rfc)) {
+      cards.push(
+        <DetailAlertCard
+          key="rfc-missing"
+          severity="info"
+          icon={<Info className="h-5 w-5" />}
+          title={copy.alert.rfcMissing.title}
+          items={[{ text: copy.alert.rfcMissing.body }]}
         />,
       );
     }

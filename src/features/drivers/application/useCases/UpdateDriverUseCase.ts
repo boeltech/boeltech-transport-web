@@ -3,8 +3,10 @@
  * Clean Architecture - Application Layer
  *
  * Caso de uso para actualizar un conductor existente.
+ * Unicidad de licencia: fuente de verdad en API (PUT/PATCH /drivers/:id); sin pre-check HTTP.
  */
 
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, UpdateDriverDTO } from "../../domain";
 import { isExpired } from "@shared/utils/dateUtils";
@@ -51,12 +53,8 @@ export class UpdateDriverUseCase {
         };
       }
 
-      // Validaciones de negocio
-      const validationResult = await this.validate(
-        id,
-        data,
-        existingDriver.data,
-      );
+      // Validaciones de negocio (sync; unicidad la resuelve la API)
+      const validationResult = this.validate(data);
       if (!validationResult.success) {
         return validationResult;
       }
@@ -69,6 +67,10 @@ export class UpdateDriverUseCase {
         data: result.data,
       };
     } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+
       console.error("[UpdateDriverUseCase] Error:", error);
 
       return {
@@ -85,45 +87,31 @@ export class UpdateDriverUseCase {
   }
 
   /**
-   * Valida los datos antes de actualizar
+   * Validación sync local (sin round-trips). Unicidad de licencia la resuelve la API.
    */
-  private async validate(
-    _id: string,
-    data: UpdateDriverDTO,
-    existingDriver: Driver,
-  ): Promise<UseCaseResult<Driver>> {
-    // Si se está actualizando la fecha de vencimiento, validar que no esté vencida
-    if (isExpired(data.licenseExpiry)) {
+  private validate(data: UpdateDriverDTO): UseCaseResult<Driver> {
+    if (data.federalLicenseExpiry && isExpired(data.federalLicenseExpiry)) {
       return {
         success: false,
         error: {
           code: "LICENSE_EXPIRED",
           message:
-            "No se puede establecer una fecha de vencimiento en el pasado",
+            "No se puede establecer una fecha de vencimiento federal en el pasado",
         },
       };
     }
 
-    // Si se está cambiando el número de licencia, verificar que no esté en uso
-    if (
-      data.licenseNumber &&
-      data.licenseNumber !== existingDriver.licenseNumber
-    ) {
-      const licenseExists = await this.driverRepository.existsByLicenseNumber(
-        data.licenseNumber,
-      );
-      if (licenseExists) {
-        return {
-          success: false,
-          error: {
-            code: "LICENSE_NUMBER_EXISTS",
-            message: "Ya existe un conductor con este número de licencia",
-          },
-        };
-      }
+    if (data.stateLicenseExpiry && isExpired(data.stateLicenseExpiry)) {
+      return {
+        success: false,
+        error: {
+          code: "LICENSE_EXPIRED",
+          message:
+            "No se puede establecer una fecha de vencimiento estatal en el pasado",
+        },
+      };
     }
 
-    // Validación exitosa
     return { success: true, data: {} as Driver };
   }
 }

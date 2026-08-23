@@ -18,7 +18,7 @@ import {
   LicenseType,
   LICENSE_TYPE_LABELS,
   type CreateDriverDTO,
-  type DriverStatusType,
+  type Driver,
   type LicenseTypeValue,
   type UpdateDriverDTO,
 } from "../../domain";
@@ -84,6 +84,29 @@ export const DRUG_TEST_RESULTS = [
   { value: "pending", label: "Pendiente" },
 ] as const;
 
+const psychometricResultEnum = z.enum(
+  [
+    PSYCHOMETRIC_RESULTS[0].value,
+    PSYCHOMETRIC_RESULTS[1].value,
+    PSYCHOMETRIC_RESULTS[2].value,
+    PSYCHOMETRIC_RESULTS[3].value,
+  ],
+  { message: "Selecciona un resultado psicométrico válido" },
+);
+
+const drugTestResultEnum = z.enum(
+  [
+    DRUG_TEST_RESULTS[0].value,
+    DRUG_TEST_RESULTS[1].value,
+    DRUG_TEST_RESULTS[2].value,
+  ],
+  { message: "Selecciona un resultado de antidoping válido" },
+);
+
+/** Vacío = sin resultado (Select `__none__`). */
+const optionalExamResult = <T extends z.ZodTypeAny>(schema: T) =>
+  z.union([schema, z.literal("")]).optional();
+
 // ============================================================================
 // Schema
 // ============================================================================
@@ -97,21 +120,29 @@ export const driverSchema = z.object({
     .uuid("Debe seleccionar un empleado válido")
     .min(1, "Debe seleccionar un empleado"),
 
-  // ========================================
-  // Datos de Licencia (REQUERIDO)
-  // ========================================
-  licenseNumber: z
+  // Licencia federal SICT (opcional como grupo)
+  federalLicenseNumber: z
     .string()
-    .min(1, "El número de licencia es requerido")
-    .max(30, "El número de licencia es muy largo"),
+    .max(30, "El número de licencia federal es muy largo")
+    .optional(),
 
-  licenseType: z.enum(["A", "B", "C", "D", "E", "F"], {
-    message: "El tipo de licencia es requerido",
-  }),
+  federalLicenseCategory: z
+    .enum(["A", "B", "C", "D", "E", "F"], {
+      message: "Selecciona una categoría SICT válida",
+    })
+    .optional(),
 
-  licenseExpiry: z.string().min(1, "La fecha de vencimiento es requerida"),
+  federalLicenseExpiry: z.string().optional(),
 
-  licenseState: z.string().optional(),
+  // Licencia estatal (opcional)
+  stateLicenseNumber: z
+    .string()
+    .max(30, "El número de licencia estatal es muy largo")
+    .optional(),
+
+  stateLicenseExpiry: z.string().optional(),
+
+  stateIssuingState: z.string().optional(),
 
   // ========================================
   // Certificado Médico (OPCIONAL)
@@ -133,17 +164,14 @@ export const driverSchema = z.object({
   // ========================================
   psychometricTestDate: z.string().optional(),
 
-  psychometricTestResult: z
-    .string()
-    .max(50, "El resultado es muy largo")
-    .optional(),
+  psychometricTestResult: optionalExamResult(psychometricResultEnum),
 
   // ========================================
   // Examen Antidoping (OPCIONAL)
   // ========================================
   lastDrugTestDate: z.string().optional(),
 
-  drugTestResult: z.string().max(20, "El resultado es muy largo").optional(),
+  drugTestResult: optionalExamResult(drugTestResultEnum),
 
   // ========================================
   // Dispositivo Asignado (OPCIONAL)
@@ -157,6 +185,80 @@ export const driverSchema = z.object({
   // Notas (OPCIONAL)
   // ========================================
   notes: z.string().max(1000, "Las notas son muy largas").optional(),
+}).superRefine((data, ctx) => {
+  const federalNumber = data.federalLicenseNumber?.trim();
+  const federalCategory = data.federalLicenseCategory;
+  const federalExpiry = data.federalLicenseExpiry?.trim();
+  const federalAny = Boolean(federalNumber || federalCategory || federalExpiry);
+  const federalComplete = Boolean(
+    federalNumber && federalCategory && federalExpiry,
+  );
+
+  if (federalAny && !federalComplete) {
+    const msg =
+      "Completa número, categoría SICT y vencimiento de la licencia federal";
+    if (!federalNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["federalLicenseNumber"],
+      });
+    }
+    if (!federalCategory) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["federalLicenseCategory"],
+      });
+    }
+    if (!federalExpiry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["federalLicenseExpiry"],
+      });
+    }
+  }
+
+  const stateNumber = data.stateLicenseNumber?.trim();
+  const stateExpiry = data.stateLicenseExpiry?.trim();
+  const stateIssuing = data.stateIssuingState?.trim();
+  const stateAny = Boolean(stateNumber || stateExpiry || stateIssuing);
+  const stateComplete = Boolean(stateNumber && stateExpiry && stateIssuing);
+
+  if (stateAny && !stateComplete) {
+    const msg =
+      "Completa número, vencimiento y estado emisor de la licencia estatal";
+    if (!stateNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["stateLicenseNumber"],
+      });
+    }
+    if (!stateExpiry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["stateLicenseExpiry"],
+      });
+    }
+    if (!stateIssuing) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: msg,
+        path: ["stateIssuingState"],
+      });
+    }
+  }
+
+  if (!federalComplete && !stateComplete) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Registra al menos una licencia: federal SICT o estatal",
+      path: ["federalLicenseNumber"],
+    });
+  }
 });
 
 // ============================================================================
@@ -169,10 +271,12 @@ export type DriverFormData = z.infer<typeof driverSchema>;
 export const DRIVER_CREATE_WIZARD_STEP_FIELDS: (keyof DriverFormData)[][] = [
   ["employeeId"],
   [
-    "licenseNumber",
-    "licenseType",
-    "licenseExpiry",
-    "licenseState",
+    "federalLicenseNumber",
+    "federalLicenseCategory",
+    "federalLicenseExpiry",
+    "stateLicenseNumber",
+    "stateLicenseExpiry",
+    "stateIssuingState",
     "medicalCertificateNumber",
     "medicalCertificateExpiry",
     "medicalCertificateIssuer",
@@ -193,10 +297,12 @@ export const DRIVER_CREATE_WIZARD_STEP_FIELDS: (keyof DriverFormData)[][] = [
 
 export const defaultDriverFormValues: DriverFormData = {
   employeeId: "",
-  licenseNumber: "",
-  licenseType: "E",
-  licenseExpiry: "",
-  licenseState: "",
+  federalLicenseNumber: "",
+  federalLicenseCategory: undefined,
+  federalLicenseExpiry: "",
+  stateLicenseNumber: "",
+  stateLicenseExpiry: "",
+  stateIssuingState: "",
   medicalCertificateNumber: "",
   medicalCertificateExpiry: "",
   medicalCertificateIssuer: "",
@@ -212,27 +318,80 @@ export const defaultDriverFormValues: DriverFormData = {
 // Mapper: Form → CreateDriverDTO (dominio / API vía toApiCreateDriver)
 // ============================================================================
 
+function trimOrEmptyToNull(value: string | undefined): string | null {
+  const t = value?.trim();
+  return t ? t : null;
+}
+
 function trimOrEmptyToUndefined(value: string | undefined): string | undefined {
   const t = value?.trim();
   return t ? t : undefined;
 }
 
+function mapLicenseFields(data: DriverFormData) {
+  return {
+    federalLicenseNumber: trimOrEmptyToNull(data.federalLicenseNumber),
+    federalLicenseCategory: data.federalLicenseCategory ?? null,
+    federalLicenseExpiry: trimOrEmptyToNull(data.federalLicenseExpiry),
+    stateLicenseNumber: trimOrEmptyToNull(data.stateLicenseNumber),
+    stateLicenseExpiry: trimOrEmptyToNull(data.stateLicenseExpiry),
+    stateIssuingState: trimOrEmptyToNull(data.stateIssuingState),
+  };
+}
+
 /**
- * Normaliza el alta desde el formulario al DTO de creación.
- * Evita enviar `""` en fechas u opcionales (el backend valida YYYY-MM-DD estricto).
+ * Hidrata el formulario de edición desde el conductor cargado (una vez vía defaultValues).
  */
+export function driverToFormValues(driver: Driver): DriverFormData {
+  const normalizedFederalCategory = driver.federalLicenseCategory
+    ? (driver.federalLicenseCategory.toUpperCase() as DriverFormData["federalLicenseCategory"])
+    : undefined;
+
+  const validPsychometricResults = PSYCHOMETRIC_RESULTS.map((r) => r.value);
+  const psychometricValue = driver.psychometricTestResult ?? "";
+  const normalizedPsychometricResult = validPsychometricResults.includes(
+    psychometricValue as (typeof validPsychometricResults)[number],
+  )
+    ? psychometricValue
+    : "";
+
+  const validDrugTestResults = DRUG_TEST_RESULTS.map((r) => r.value);
+  const drugTestValue = driver.drugTestResult ?? "";
+  const normalizedDrugTestResult = validDrugTestResults.includes(
+    drugTestValue as (typeof validDrugTestResults)[number],
+  )
+    ? drugTestValue
+    : "";
+
+  return {
+    employeeId: driver.employeeId,
+    federalLicenseNumber: driver.federalLicenseNumber || "",
+    federalLicenseCategory: normalizedFederalCategory,
+    federalLicenseExpiry: driver.federalLicenseExpiry || "",
+    stateLicenseNumber: driver.stateLicenseNumber || "",
+    stateLicenseExpiry: driver.stateLicenseExpiry || "",
+    stateIssuingState: driver.stateIssuingState || "",
+    medicalCertificateNumber: driver.medicalCertificateNumber || "",
+    medicalCertificateExpiry: driver.medicalCertificateExpiry || "",
+    medicalCertificateIssuer: driver.medicalCertificateIssuer || "",
+    psychometricTestDate: driver.psychometricTestDate || "",
+    psychometricTestResult: normalizedPsychometricResult || "",
+    lastDrugTestDate: driver.lastDrugTestDate || "",
+    drugTestResult: normalizedDrugTestResult || "",
+    assignedDeviceId: driver.assignedDeviceId || "",
+    notes: driver.notes || "",
+  };
+}
+
 /**
- * Normaliza edición desde el formulario al DTO de actualización (incluye status/isActive).
+ * Normaliza edición desde el formulario al DTO de actualización.
+ * No incluye status/isActive (solo PATCH /drivers/:id/status).
  */
 export function driverFormDataToUpdateDriverDTO(
   data: DriverFormData,
-  base: { status: DriverStatusType; isActive: boolean },
 ): UpdateDriverDTO {
   return {
-    licenseNumber: data.licenseNumber.trim(),
-    licenseType: data.licenseType,
-    licenseExpiry: data.licenseExpiry,
-    licenseIssuingState: trimOrEmptyToUndefined(data.licenseState) ?? null,
+    ...mapLicenseFields(data),
     medicalCertificateNumber:
       trimOrEmptyToUndefined(data.medicalCertificateNumber) ?? null,
     medicalCertificateExpiry:
@@ -247,8 +406,6 @@ export function driverFormDataToUpdateDriverDTO(
     drugTestResult: trimOrEmptyToUndefined(data.drugTestResult) ?? null,
     assignedDeviceId: trimOrEmptyToUndefined(data.assignedDeviceId) ?? null,
     notes: trimOrEmptyToUndefined(data.notes) ?? null,
-    status: base.status,
-    isActive: base.isActive,
   };
 }
 
@@ -257,10 +414,7 @@ export function driverFormDataToCreateDriverDTO(
 ): CreateDriverDTO {
   return {
     employeeId: data.employeeId,
-    licenseNumber: data.licenseNumber.trim(),
-    licenseType: data.licenseType,
-    licenseExpiry: data.licenseExpiry,
-    licenseIssuingState: trimOrEmptyToUndefined(data.licenseState),
+    ...mapLicenseFields(data),
     medicalCertificateNumber: trimOrEmptyToUndefined(
       data.medicalCertificateNumber,
     ),

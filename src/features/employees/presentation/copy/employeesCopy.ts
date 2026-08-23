@@ -46,6 +46,13 @@ export const employeesCopy = {
         title: "NSS sin registrar",
         body: "No hay número de seguridad social capturado. Es obligatorio para nómina e IMSS.",
       },
+      rfcMissing: {
+        title: "RFC pendiente para Carta Porte",
+        body: "Puede operar sin RFC. Si figura en un viaje con Carta Porte, complétalo antes de timbrar.",
+        chip: "RFC pendiente",
+        fieldHint:
+          "Opcional en el padrón; necesario al timbrar Carta Porte si va como figura.",
+      },
       terminationPlanned: {
         title: "Baja programada próxima",
         body: (days: number) =>

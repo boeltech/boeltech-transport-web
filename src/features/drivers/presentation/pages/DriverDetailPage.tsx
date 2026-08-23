@@ -5,27 +5,36 @@
  * Detalle de conductor: ficha operativa, documentación y viajes.
  */
 
-import { useParams } from "react-router-dom";
+import { useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import type { InfiniteData } from "@tanstack/react-query";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
+import { NotFoundState } from "@shared/ui/feedback-states";
 import {
   DetailAlertCard,
   type DetailAlertCardItem,
 } from "@shared/ui/data-display";
+import type { MappedPaginatedResult } from "@shared/api";
 import {
   User,
   AlertTriangle,
-  CheckCircle2,
-  TrendingUp,
-  Route,
+  AlertCircle,
+  CreditCard,
+  IdCard,
+  Stethoscope,
   FlaskConical,
   ClipboardCheck,
+  Info,
 } from "lucide-react";
-import { useDriver } from "../../application";
+import { useDriver, useDriverTripsInfinite } from "../../application";
 import {
   LICENSE_TYPE_LABELS,
-  type LicenseTypeValue,
+  getDriverLicenseJurisdiction,
+  getDriverPrimaryCategoryLabel,
+  getDriverPrimaryLicenseNumber,
+  type DriverTripSummary,
 } from "../../domain";
 import {
   DriverStatusBadge,
@@ -40,6 +49,7 @@ import {
   driversCopy,
   resolveLicenseMedicalAlertTitle,
 } from "../copy";
+import { resolveDocumentVigencyStat } from "../helpers/documentVigencyStat";
 import {
   formatDate,
   getDaysUntilDateString,
@@ -51,8 +61,13 @@ const copy = driversCopy.detail;
 /** Tabs enlazables por `?tab=` (deep-link de alertas de licencia y examen médico). */
 const DRIVER_DETAIL_TABS = ["driver", "documents", "trips"] as const;
 
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat("es-MX").format(num);
+/** Derivado de campo vacío — sin estado de completitud en entidad. */
+function isEmployeeRfcMissing(rfc: string | null | undefined): boolean {
+  return !rfc?.trim();
+}
+
+function documentsTabHref(driverId: string): string {
+  return `/drivers/${driverId}?tab=documents`;
 }
 
 export function DriverDetailPage() {
@@ -63,8 +78,20 @@ export function DriverDetailPage() {
   const {
     data: driver,
     isLoading: isLoadingDriver,
+    isError: isDriverError,
     refetch: refetchDriver,
   } = useDriver(driverId);
+
+  const { data: tripsInfiniteData } = useDriverTripsInfinite(driverId, {
+    limit: 10,
+  });
+
+  const tripsTotal = useMemo(() => {
+    const infinite = tripsInfiniteData as
+      | InfiniteData<MappedPaginatedResult<DriverTripSummary>>
+      | undefined;
+    return infinite?.pages[0]?.pagination.total;
+  }, [tripsInfiniteData]);
 
   if (isLoadingDriver) {
     return (
@@ -76,6 +103,18 @@ export function DriverDetailPage() {
           iconShape: "circle",
           title: copy.title.fallback,
         }}
+      />
+    );
+  }
+
+  if (isDriverError) {
+    return (
+      <NotFoundState
+        icon={<AlertCircle />}
+        title={copy.state.loadErrorTitle}
+        description={copy.state.loadErrorDescription}
+        onBackClick={() => void refetchDriver()}
+        backLabel={copy.state.retry}
       />
     );
   }
@@ -106,19 +145,40 @@ export function DriverDetailPage() {
     ? formatDriverName(driver.employee)
     : copy.title.fallback;
 
-  const licenseTypeLabel =
-    LICENSE_TYPE_LABELS[driver.licenseType as LicenseTypeValue] ||
-    driver.licenseType;
-
-  const daysUntilLicenseExpiration = getDaysUntilDateString(
-    driver.licenseExpiry,
+  const licenseTypeLabel = getDriverPrimaryCategoryLabel(
+    driver,
+    LICENSE_TYPE_LABELS,
   );
+  const primaryLicenseNumber = getDriverPrimaryLicenseNumber(driver);
+  const licenseJurisdiction = getDriverLicenseJurisdiction(driver);
+
+  const federalDaysUntilExpiration = getDaysUntilDateString(
+    driver.federalLicenseExpiry,
+  );
+  const isFederalLicenseExpired = driver.isFederalLicenseExpired;
+  const isFederalLicenseExpiringSoon =
+    !isFederalLicenseExpired &&
+    federalDaysUntilExpiration !== null &&
+    federalDaysUntilExpiration > 0 &&
+    federalDaysUntilExpiration <= 30;
+
+  const stateDaysUntilExpiration = getDaysUntilDateString(
+    driver.stateLicenseExpiry,
+  );
+  const isStateLicenseExpired = driver.isStateLicenseExpired;
+  const isStateLicenseExpiringSoon =
+    !isStateLicenseExpired &&
+    stateDaysUntilExpiration !== null &&
+    stateDaysUntilExpiration > 0 &&
+    stateDaysUntilExpiration <= 30;
+
   const isLicenseExpired =
-    daysUntilLicenseExpiration !== null && daysUntilLicenseExpiration <= 0;
+    driver.isLicenseExpired ||
+    isFederalLicenseExpired ||
+    isStateLicenseExpired;
   const isLicenseExpiringSoon =
-    daysUntilLicenseExpiration !== null &&
-    daysUntilLicenseExpiration > 0 &&
-    daysUntilLicenseExpiration <= 30;
+    !isLicenseExpired &&
+    (isFederalLicenseExpiringSoon || isStateLicenseExpiringSoon);
 
   const daysUntilMedicalExpiration = getDaysUntilDateString(
     driver.medicalCertificateExpiry,
@@ -143,14 +203,6 @@ export function DriverDetailPage() {
     daysUntilDrugEstimatedExpiry > 0 &&
     daysUntilDrugEstimatedExpiry <= 30;
 
-  const hasDriverAlerts =
-    isLicenseExpired ||
-    isLicenseExpiringSoon ||
-    isMedicalExpired ||
-    isMedicalExpiringSoon ||
-    isDrugEstimatedExpired ||
-    isDrugEstimatedExpiringSoon;
-
   const hasDocumentAlerts =
     isLicenseExpired ||
     isLicenseExpiringSoon ||
@@ -159,18 +211,46 @@ export function DriverDetailPage() {
     isDrugEstimatedExpired ||
     isDrugEstimatedExpiringSoon;
 
+  const rfcMissing = isEmployeeRfcMissing(driver.employee?.rfc);
+  const showAlerts = hasDocumentAlerts || rfcMissing;
+
+  const viewDocumentsCta: DetailAlertCardItem = {
+    text: (
+      <Link
+        to={documentsTabHref(driver.id)}
+        className="font-medium text-primary underline-offset-4 hover:underline"
+      >
+        {copy.alert.viewDocuments}
+      </Link>
+    ),
+  };
+
   const licenseMedicalAlertItems: DetailAlertCardItem[] = [];
-  if (isLicenseExpired || isLicenseExpiringSoon) {
+  if (isFederalLicenseExpired || isFederalLicenseExpiringSoon) {
     licenseMedicalAlertItems.push({
-      label: copy.alert.licenseLabel,
-      text: isLicenseExpired
+      label: copy.alert.federalLicenseLabel,
+      text: isFederalLicenseExpired
         ? copy.alert.licenseExpiredText(
-            Math.abs(daysUntilLicenseExpiration!),
-            formatDate(driver.licenseExpiry),
+            Math.abs(federalDaysUntilExpiration!),
+            formatDate(driver.federalLicenseExpiry!),
           )
         : copy.alert.licenseExpiringText(
-            daysUntilLicenseExpiration!,
-            formatDate(driver.licenseExpiry),
+            federalDaysUntilExpiration!,
+            formatDate(driver.federalLicenseExpiry!),
+          ),
+    });
+  }
+  if (isStateLicenseExpired || isStateLicenseExpiringSoon) {
+    licenseMedicalAlertItems.push({
+      label: copy.alert.stateLicenseLabel,
+      text: isStateLicenseExpired
+        ? copy.alert.licenseExpiredText(
+            Math.abs(stateDaysUntilExpiration!),
+            formatDate(driver.stateLicenseExpiry!),
+          )
+        : copy.alert.licenseExpiringText(
+            stateDaysUntilExpiration!,
+            formatDate(driver.stateLicenseExpiry!),
           ),
     });
   }
@@ -188,24 +268,39 @@ export function DriverDetailPage() {
           ),
     });
   }
+  if (licenseMedicalAlertItems.length > 0) {
+    licenseMedicalAlertItems.push(viewDocumentsCta);
+  }
 
   const licenseMedicalAlertSeverity: "critical" | "warning" =
     isLicenseExpired || isMedicalExpired ? "critical" : "warning";
 
   const licenseMedicalAlertTitle = resolveLicenseMedicalAlertTitle({
-    hasLicenseItem: isLicenseExpired || isLicenseExpiringSoon,
-    hasMedicalItem: isMedicalExpired || isMedicalExpiringSoon,
-    isLicenseExpired,
-    isMedicalExpired,
+    federalExpired: isFederalLicenseExpired,
+    federalExpiring: isFederalLicenseExpiringSoon,
+    stateExpired: isStateLicenseExpired,
+    stateExpiring: isStateLicenseExpiringSoon,
+    medicalExpired: isMedicalExpired,
+    medicalExpiring: isMedicalExpiringSoon,
   });
 
-  const stats = driver.stats || {
-    totalTrips: 0,
-    completedTrips: 0,
-    cancelledTrips: 0,
-    averageRating: null,
-    yearsOfExperience: driver.yearsOfExperience || 0,
-  };
+  const federalStat = resolveDocumentVigencyStat(
+    driver.federalLicenseExpiry,
+    "missing",
+  );
+  const stateStat = resolveDocumentVigencyStat(
+    driver.stateLicenseExpiry,
+    "notApplicable",
+  );
+  const medicalStat = resolveDocumentVigencyStat(
+    driver.medicalCertificateExpiry,
+    "notApplicable",
+  );
+
+  const tripsTabLabel =
+    typeof tripsTotal === "number"
+      ? copy.format.tripsTab(tripsTotal)
+      : copy.tab.trips;
 
   return (
     <DetailPageShell
@@ -219,7 +314,8 @@ export function DriverDetailPage() {
           <DriverDetailHeaderSubtitle
             employeeNumber={driver.employee?.employeeNumber ?? null}
             licenseTypeLabel={licenseTypeLabel}
-            licenseNumber={driver.licenseNumber}
+            licenseNumber={primaryLicenseNumber}
+            jurisdiction={licenseJurisdiction}
           />
         ),
         statusBadge: (
@@ -236,8 +332,31 @@ export function DriverDetailPage() {
         ),
       }}
       alerts={
-        hasDriverAlerts ? (
+        showAlerts ? (
           <div className="space-y-3">
+            {rfcMissing ? (
+              <DetailAlertCard
+                severity="info"
+                icon={<Info className="h-5 w-5" />}
+                title={copy.alert.rfcMissing.title}
+                items={[
+                  { text: copy.alert.rfcMissing.body },
+                  {
+                    text: (
+                      <>
+                        <Link
+                          to={`/employees/${driver.employeeId}`}
+                          className="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          {copy.alert.rfcMissing.editEmployee}
+                        </Link>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            ) : null}
+
             {licenseMedicalAlertItems.length > 0 ? (
               <DetailAlertCard
                 severity={licenseMedicalAlertSeverity}
@@ -278,6 +397,7 @@ export function DriverDetailPage() {
                           daysUntilDrugEstimatedExpiry!,
                         ),
                   },
+                  viewDocumentsCta,
                 ]}
               />
             ) : null}
@@ -286,30 +406,27 @@ export function DriverDetailPage() {
       }
       stats={[
         {
-          title: copy.stat.totalTrips.title,
-          value: formatNumber(stats.totalTrips),
-          tone: "primary",
-          icon: <Route className="h-5 w-5" />,
-          description: copy.stat.totalTrips.description,
-        },
-        {
-          title: copy.stat.completedTrips.title,
-          value: formatNumber(stats.completedTrips),
-          tone: "success",
-          icon: <CheckCircle2 className="h-5 w-5" />,
+          title: copy.stat.federalLicense.title,
+          value: federalStat.value,
+          tone: federalStat.tone,
+          icon: <CreditCard className="h-5 w-5" />,
           description:
-            stats.totalTrips > 0
-              ? copy.stat.completedTrips.successRate(
-                  Math.round((stats.completedTrips / stats.totalTrips) * 100),
-                )
-              : undefined,
+            federalStat.description ?? copy.stat.federalLicense.description,
         },
         {
-          title: copy.stat.experience.title,
-          value: copy.stat.experience.value(stats.yearsOfExperience),
-          tone: "info",
-          icon: <TrendingUp className="h-5 w-5" />,
-          description: copy.stat.experience.description,
+          title: copy.stat.stateLicense.title,
+          value: stateStat.value,
+          tone: stateStat.tone,
+          icon: <IdCard className="h-5 w-5" />,
+          description:
+            stateStat.description ?? copy.stat.stateLicense.description,
+        },
+        {
+          title: copy.stat.medical.title,
+          value: medicalStat.value,
+          tone: medicalStat.tone,
+          icon: <Stethoscope className="h-5 w-5" />,
+          description: medicalStat.description ?? copy.stat.medical.description,
         },
       ]}
       metadata={{
@@ -343,7 +460,7 @@ export function DriverDetailPage() {
           },
           {
             value: "trips",
-            label: copy.tab.trips,
+            label: tripsTabLabel,
             content: <DriverDetailTripsTab driverId={driver.id} />,
           },
         ],

@@ -257,6 +257,7 @@ export function DriverActions(props: DriverActionsProps) {
   // ══════════════════════════════════════════════════════════════════════════
 
   const handleDeleteConfirm = () => {
+    if (deleteMutation.isPending) return;
     deleteMutation.mutate(id);
   };
 
@@ -444,6 +445,7 @@ export function DriverActions(props: DriverActionsProps) {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
+              disabled={deleteMutation.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
               {deleteMutation.isPending && (

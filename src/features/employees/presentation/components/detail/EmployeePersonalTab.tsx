@@ -11,6 +11,7 @@ import { InfoRow } from "@shared/ui/data-display";
 import type { Employee } from "../../../domain/entities";
 import { GENDER_LABELS, MARITAL_STATUS_LABELS } from "../../config/employeeConfig";
 import { formatDate } from "@shared/utils/dateUtils";
+import { isRfcMissing } from "../../helpers/employeeDetailKpis";
 import { employeesCopy } from "../../copy";
 
 const copy = employeesCopy.detail;
@@ -25,6 +26,8 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
 }: {
   employee: Employee;
 }) {
+  const rfcMissing = isRfcMissing(employee.rfc);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -106,6 +109,11 @@ export const EmployeePersonalTab = memo(function EmployeePersonalTab({
               mono
               copyable
             />
+            {rfcMissing ? (
+              <p className="mb-3 text-xs text-muted-foreground">
+                {copy.alert.rfcMissing.fieldHint}
+              </p>
+            ) : null}
             <InfoRow
               variant="inline"
               label={copy.label.nss}
