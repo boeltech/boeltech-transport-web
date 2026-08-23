@@ -36,6 +36,11 @@ export interface ImportTemplateGuide {
     id: TemplateGuideSectionId;
     title: string;
   }>;
+  /** Escenarios operativos (ej. federal-only / state-only). */
+  scenarios?: ReadonlyArray<{
+    title: string;
+    body: string;
+  }>;
   columns: ReadonlyArray<TemplateColumnGuide>;
 }
 
@@ -50,6 +55,7 @@ export const importTemplateGuideCopy = {
   toggleShow: "Cómo llenar este archivo",
   toggleHide: "Ocultar guía de columnas",
   technicalHint: (header: string) => `Columna: ${header}`,
+  scenariosHeading: "Ejemplos de filas",
 } as const;
 
 export const IMPORT_TEMPLATE_GUIDES: Record<
@@ -336,7 +342,7 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "rfc",
         label: "RFC",
-        tip: "Si lo tienes.",
+        tip: "Opcional en el padrón. Si el empleado irá como figura en Carta Porte, complétalo antes de timbrar.",
         requirement: "optional",
       },
       {
@@ -349,8 +355,9 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "hire_date",
         label: "Fecha de ingreso",
-        tip: "Formato AAAA-MM-DD.",
+        tip: "Solo AAAA-MM-DD. Si Excel muestra 03/11/2019, escribe 2019-11-03 como texto; no uses barras.",
         requirement: "optional",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
       },
       {
         header: "email",
@@ -406,7 +413,7 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
   vehicles: {
     title: "Cómo llenar este archivo",
     intro:
-      "Cada fila es una unidad. Puedes cargarla en cualquier momento respecto a empleados.",
+      "Cada fila es una unidad tractor con los datos de autotransporte del alta. Los remolques no van en este archivo: si la configuración es S/R, se eligen al crear el viaje (Flota → Remolques).",
     leaveHeadersNote:
       "Deja los nombres de columna exactamente como vienen en la plantilla.",
     defaultOpen: false,
@@ -481,8 +488,9 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "insurance_expiry",
         label: "Vence seguro",
-        tip: "AAAA-MM-DD.",
+        tip: "Solo AAAA-MM-DD. Si Excel muestra 03/11/2019, escribe 2019-11-03 como texto; no uses barras.",
         requirement: "optional",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
       },
       {
         header: "sct_permit_number",
@@ -493,8 +501,9 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "sct_permit_expiry",
         label: "Vence permiso SCT",
-        tip: "AAAA-MM-DD.",
+        tip: "Solo AAAA-MM-DD. Si Excel muestra 03/11/2019, escribe 2019-11-03 como texto; no uses barras.",
         requirement: "optional",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
       },
       {
         header: "sat_tipo_permiso_code",
@@ -506,7 +515,7 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
       {
         header: "sat_config_autotransporte_code",
         label: "Configuración vehicular",
-        tip: "ConfigVehicular — catálogo c_ConfigAutotransporte. Códigos con S/R requieren remolque.",
+        tip: "ConfigVehicular — catálogo c_ConfigAutotransporte. Si el código es S/R, el remolque se elige en el viaje, no en este CSV.",
         requirement: "required",
         writeAs: "Ej. C2, T3S2",
       },
@@ -515,30 +524,6 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
         label: "Peso bruto (ton)",
         tip: "PesoBrutoVehicular en toneladas (> 0).",
         requirement: "required",
-      },
-      {
-        header: "remolque_1_sat_sub_tipo_rem_code",
-        label: "Remolque 1 — subtipo",
-        tip: "Obligatorio si ConfigVehicular es S/R. Catálogo SubTipoRem.",
-        requirement: "optional",
-      },
-      {
-        header: "remolque_1_license_plate",
-        label: "Remolque 1 — placa",
-        tip: "5–7 alfanuméricos. Junto con el subtipo del remolque 1.",
-        requirement: "optional",
-      },
-      {
-        header: "remolque_2_sat_sub_tipo_rem_code",
-        label: "Remolque 2 — subtipo",
-        tip: "Segundo remolque (máx. 2).",
-        requirement: "optional",
-      },
-      {
-        header: "remolque_2_license_plate",
-        label: "Remolque 2 — placa",
-        tip: "5–7 alfanuméricos.",
-        requirement: "optional",
       },
       {
         header: "branch_id",
@@ -558,10 +543,24 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
   drivers: {
     title: "Cómo llenar este archivo",
     intro:
-      "Cada fila es un conductor ligado a un empleado que ya exista (mismo número de empleado).",
+      "Cada fila es un conductor ligado a un empleado que ya exista (mismo número de empleado). El RFC va en el empleado, no en este archivo. Puedes capturar licencia federal SICT, estatal, o ambas; al menos un grupo completo es obligatorio. Un grupo a medias (p. ej. solo número federal sin categoría) falla la validación. Para Carta Porte se usa el número federal.",
     leaveHeadersNote:
       "Deja los nombres de columna exactamente como vienen en la plantilla.",
     defaultOpen: false,
+    scenarios: [
+      {
+        title: "Solo federal",
+        body: "Llena federal_license_number + federal_license_category + federal_license_expiry. Deja vacías las tres columnas state_*.",
+      },
+      {
+        title: "Solo estatal",
+        body: "Llena state_license_number + state_license_expiry + state_issuing_state. Deja vacías las tres federal_*. Sirve para flota local; Carta Porte pedirá federal después.",
+      },
+      {
+        title: "Ambas",
+        body: "Completa el grupo federal y el grupo estatal (seis columnas con valor). No mezcles medias: o el grupo completo o vacío.",
+      },
+    ],
     columns: [
       {
         header: "employee_number",
@@ -570,40 +569,55 @@ export const IMPORT_TEMPLATE_GUIDES: Record<
         requirement: "required",
       },
       {
-        header: "license_number",
-        label: "Número de licencia",
-        tip: "Licencia vigente del conductor.",
-        requirement: "required",
-      },
-      {
-        header: "license_type",
-        label: "Tipo de licencia",
-        tip: "Categoría de la licencia.",
+        header: "federal_license_number",
+        label: "Número de licencia federal (SICT)",
+        tip: "Licencia Federal de Conductor. Es el NumLicencia de Carta Porte cuando aplica. Completa el grupo federal junto con categoría y vencimiento, o déjalo vacío si solo capturas estatal.",
         requirement: "recommended",
       },
       {
-        header: "license_expiry",
-        label: "Vence licencia",
-        tip: "AAAA-MM-DD.",
+        header: "federal_license_category",
+        label: "Categoría SICT (A–F)",
+        tip: "Categorías oficiales DOF 2016: A pasajeros/turismo, B carga general, C rabón/tortón, D chofer-guía, E especializada/peligrosos/doble articulado, F pasajeros puerto/aeropuerto. No es catálogo estatal.",
         requirement: "recommended",
       },
       {
-        header: "license_state",
-        label: "Estado que emitió la licencia",
-        tip: "Ej. Jalisco.",
+        header: "federal_license_expiry",
+        label: "Vence licencia federal",
+        tip: "Solo AAAA-MM-DD. Si Excel muestra 03/11/2019, escribe 2019-11-03 como texto; no uses barras.",
+        requirement: "recommended",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
+      },
+      {
+        header: "state_license_number",
+        label: "Número de licencia estatal",
+        tip: "Opcional. Completa número + vencimiento + estado emisor juntos, o deja las tres vacías.",
+        requirement: "optional",
+      },
+      {
+        header: "state_license_expiry",
+        label: "Vence licencia estatal",
+        tip: "Solo AAAA-MM-DD. Obligatorio si capturas número estatal.",
+        requirement: "optional",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
+      },
+      {
+        header: "state_issuing_state",
+        label: "Estado emisor (licencia estatal)",
+        tip: "Ej. Jalisco, GTO, CDMX. Obligatorio si capturas número estatal.",
         requirement: "optional",
       },
       {
         header: "medical_certificate_number",
         label: "Certificado médico",
-        tip: "Número, si aplica.",
+        tip: "Número, si aplica. Opcional; no bloquea despacho.",
         requirement: "optional",
       },
       {
         header: "medical_certificate_expiry",
         label: "Vence certificado médico",
-        tip: "AAAA-MM-DD.",
+        tip: "Solo AAAA-MM-DD. Si Excel muestra 03/11/2019, escribe 2019-11-03 como texto; no uses barras.",
         requirement: "optional",
+        writeAs: "3 noviembre 2019 → 2019-11-03",
       },
       {
         header: "notes",

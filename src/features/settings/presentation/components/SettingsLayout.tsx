@@ -62,8 +62,8 @@ export const SettingsLayout = memo(function SettingsLayout({
           )}
         </nav>
 
-        <div className="flex items-start gap-3">
-          {headerSlot ? <div className="shrink-0">{headerSlot}</div> : null}
+        <div className="flex items-start gap-4">
+          {headerSlot ? <div className="shrink-0 pt-0.5">{headerSlot}</div> : null}
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">
               {title ?? DEFAULT_TITLE}

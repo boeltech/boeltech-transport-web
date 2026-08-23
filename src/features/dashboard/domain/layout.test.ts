@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyRbac,
   buildSystemDefaultLayout,
+  getVisibleWidgetsInOrder,
   mergeWithDefaults,
   normalizeLayout,
   reorderWidgets,
@@ -56,16 +57,48 @@ describe("dashboard layout", () => {
     expect(filtered.widgets[0]?.id).toBe("operations_snapshot");
   });
 
-  it("system default puts month scorecard first for finance-capable layouts", () => {
+  it("system default matches compact finance+ops baseline order and visibility", () => {
     const layout = buildSystemDefaultLayout();
-    expect(layout.widgets[0]?.id).toBe("metric_trends");
+    expect(layout.widgets.map((w) => w.id)).toEqual([
+      "metric_trends",
+      "operations_snapshot",
+      "alerts",
+      "vehicle_expense_ranking",
+      "financial_comparison",
+      "recent_trips",
+      "fleet_drivers",
+      "trips_by_day",
+      "financial_trend",
+      "branch_kpis",
+    ]);
+    expect(
+      layout.widgets.filter((w) => w.visible).map((w) => w.id),
+    ).toEqual([
+      "metric_trends",
+      "operations_snapshot",
+      "alerts",
+      "vehicle_expense_ranking",
+      "financial_comparison",
+    ]);
+
     const withFinance = applyRbac(layout, {
       canReadTrips: true,
       showFinance: true,
       canReadBranches: true,
     });
-    expect(withFinance.widgets[0]?.id).toBe("metric_trends");
-    expect(withFinance.widgets[1]?.id).toBe("operations_snapshot");
+    expect(
+      getVisibleWidgetsInOrder(withFinance, {
+        canReadTrips: true,
+        showFinance: true,
+        canReadBranches: true,
+      }).map((w) => w.id),
+    ).toEqual([
+      "metric_trends",
+      "operations_snapshot",
+      "alerts",
+      "vehicle_expense_ranking",
+      "financial_comparison",
+    ]);
   });
 
   it("setWidgetVisibility and reorderWidgets update prefs", () => {

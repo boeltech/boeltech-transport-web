@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -181,7 +182,7 @@ function MasterImportWizardContent({
   const handleCommit = () => {
     if (!preview?.id) return;
     setActionError(null);
-    commitMutation.mutate({ id: preview.id, options });
+    commitMutation.mutate({ id: preview.id, options, entityType });
   };
 
   const handleDownloadErrors = (jobId: string) => {
@@ -545,6 +546,9 @@ function MasterImportWizardContent({
   const renderResultStep = () => {
     if (!commitResult) return null;
     const hasErrors = commitResult.errorCount > 0;
+    const scope = copy.result.scope[entityType];
+    const nextActions = scope.actions.slice(0, 3);
+
     return (
       <div className="space-y-6">
         <Alert variant={hasErrors ? "warning" : undefined}>
@@ -567,6 +571,54 @@ function MasterImportWizardContent({
             </p>
           </AlertDescription>
         </Alert>
+
+        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+          <p className="text-sm font-medium">{copy.result.scopeTitle}</p>
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">
+                {copy.result.scopePersistedLabel}
+              </dt>
+              <dd className="mt-0.5 text-foreground">{scope.persisted}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">
+                {copy.result.scopeOperableLabel}
+              </dt>
+              <dd className="mt-0.5 text-foreground">{scope.operable}</dd>
+            </div>
+            {scope.gap ? (
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  {copy.result.scopeGapLabel}
+                </dt>
+                <dd className="mt-0.5 text-foreground">{scope.gap}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {nextActions.length > 0 ? (
+            <div className="space-y-2 border-t border-border/60 pt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {copy.result.nextStepsLabel}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {nextActions.map((action) => (
+                  <Button
+                    key={action.href + action.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <Link to={action.href} onClick={handleClose}>
+                      {action.label}
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {actionError ? (
           <Alert variant="destructive">

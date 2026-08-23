@@ -29,12 +29,26 @@ export const IMPORT_ROW_ACTION_LABELS: Record<ImportRowAction, string> = {
   skip: "Se omite",
 };
 
+/** CTA post-commit del wizard (máx. 3 por entidad). */
+export type ImportResultNextAction = {
+  label: string;
+  href: string;
+};
+
+export type ImportResultScopeCopy = {
+  persisted: string;
+  operable: string;
+  /** Gap hacia timbrado CP / factura; omitir si no aplica. */
+  gap: string | null;
+  actions: ReadonlyArray<ImportResultNextAction>;
+};
+
 export const importsCopy = {
   hub: {
     sectionTitle: "Cargas",
     title: "Carga desde archivo",
     description:
-      "Sube clientes, direcciones, empleados, vehículos o conductores en bloque. Usa la plantilla, revisa el archivo y aplica la carga.",
+      "Deja el padrón listo para consultar y asignar. Que la carga salga bien no significa que todo esté listo para timbrar: algunos datos se completan en el expediente o al facturar el viaje.",
     /** CTA principal del hub (familia D6). */
     newImport: "Nueva carga",
     emptyTitle: "Aún no hay cargas",
@@ -54,7 +68,7 @@ export const importsCopy = {
       `Importar ${IMPORT_ENTITY_TYPE_LABELS[entityType].toLowerCase()}`,
     titleGeneric: "Importar desde archivo",
     description:
-      "Sube el archivo con la plantilla, revisa el resultado y confirma la carga.",
+      "Sube el archivo con la plantilla, revisa las filas y confirma. La carga alimenta el padrón operable; el timbrado se valida después en el viaje o la factura.",
     /**
      * Tip corto de orden. Si el tipo está fijado, copy contextual;
      * en hub (tipo libre) muestra la guía completa breve.
@@ -100,8 +114,8 @@ export const importsCopy = {
     },
     validate: {
       summary: (valid: number, errors: number, total: number) =>
-        `${valid} listas · ${errors} con problema · ${total} en total`,
-      failedTitle: "No hay filas listas para cargar",
+        `${valid} válidas · ${errors} con problema · ${total} en total`,
+      failedTitle: "No hay filas válidas para cargar",
       failedDescription:
         "Corrige el archivo o descarga la plantilla y vuelve a revisarlo.",
       previewTitle: "Detalle de filas (muestra)",
@@ -115,8 +129,8 @@ export const importsCopy = {
       colKey: "Identificador",
       colAction: "Qué hará",
       colStatus: "Estado",
-      valid: "Lista",
-      invalid: "Problema",
+      valid: "Válida",
+      invalid: "Con problema",
       rowLabel: (row: number, detail: string) => `Fila ${row}: ${detail}`,
       rowAction: (action: ImportRowAction | null) =>
         action ? IMPORT_ROW_ACTION_LABELS[action] : "—",
@@ -142,8 +156,62 @@ export const importsCopy = {
         errors: number,
       ) =>
         `${inserted} nuevas · ${updated} actualizadas · ${skipped} omitidas · ${errors} con problema`,
+      scopeTitle: "Qué significa este resultado",
+      scopePersistedLabel: "Quedó en el padrón",
+      scopeOperableLabel: "Ya puedes",
+      scopeGapLabel: "Para timbrar",
+      nextStepsLabel: "Siguiente",
       downloadErrors: "Descargar problemas",
       close: "Cerrar",
+      /**
+       * Alcance post-commit por maestro (Producto D2).
+       * No inventa estados de entidad: solo orienta gates persistir / asignar / timbrar.
+       */
+      scope: {
+        clients: {
+          persisted: "Los clientes quedaron guardados con RFC, razón social y régimen.",
+          operable:
+            "Consultarlos en el padrón y usarlos en viajes o facturación.",
+          gap: "Si falta un dato menor del receptor, se completa al facturar.",
+          actions: [{ label: "Ver clientes", href: "/clients" }],
+        },
+        addresses: {
+          persisted: "Los domicilios quedaron ligados al dueño que ya existía.",
+          operable: "Usarlos como parada cuando el dueño esté en el viaje.",
+          gap: "Si el domicilio está incompleto para Carta Porte, se corrige en la parada o al timbrar.",
+          actions: [{ label: "Ver clientes", href: "/clients" }],
+        },
+        employees: {
+          persisted: "Los empleados quedaron en el padrón (el RFC puede ir vacío).",
+          operable:
+            "Consultarlos y, si aplica, registrarlos después como conductores.",
+          gap: "Sin RFC no se puede timbrar Carta Porte si van como figura de transporte. Complétalo en el expediente.",
+          actions: [
+            { label: "Ver empleados", href: "/employees" },
+            { label: "Completar RFC", href: "/employees" },
+          ],
+        },
+        vehicles: {
+          persisted:
+            "Las unidades quedaron con los datos de autotransporte exigidos al alta (permiso, configuración, seguro RC).",
+          operable: "Asignarlas a un viaje.",
+          gap: "Si la configuración es S/R, el remolque se elige en el viaje (no en este archivo).",
+          actions: [
+            { label: "Ver vehículos", href: "/vehicles" },
+            { label: "Remolques", href: "/trailers" },
+          ],
+        },
+        drivers: {
+          persisted:
+            "Los conductores quedaron ligados al empleado con licencia federal SICT y/o estatal.",
+          operable: "Asignarlos a un viaje.",
+          gap: "Al timbrar Carta Porte se exige RFC del empleado y licencia federal vigente (NumLicencia).",
+          actions: [
+            { label: "Ver conductores", href: "/drivers" },
+            { label: "Empleados", href: "/employees" },
+          ],
+        },
+      } satisfies Record<ImportImplementedEntityType, ImportResultScopeCopy>,
     },
     cancel: "Cancelar",
   },
@@ -189,7 +257,7 @@ export const importsCopy = {
       if (job.rowCount === 0 && job.validCount === 0 && job.errorCount === 0) {
         return "—";
       }
-      return `${job.validCount} listas · ${job.errorCount} con problema`;
+      return `${job.validCount} válidas · ${job.errorCount} con problema`;
     },
   },
   cta: {

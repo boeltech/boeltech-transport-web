@@ -66,7 +66,7 @@ export const settingsNavItems: SettingsNavItem[] = [
     id: SettingsSection.IMPORTS,
     label: "Cargas",
     description:
-      "Sube clientes, direcciones, empleados, vehículos o conductores desde un archivo",
+      "Padrón desde archivo: operable al cargar; el timbrado se completa después",
     path: "/settings/imports",
     icon: FileUp,
     permission: { module: "imports", action: "read" },

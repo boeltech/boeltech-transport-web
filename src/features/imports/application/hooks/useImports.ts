@@ -11,6 +11,7 @@ import {
   type ImportOptions,
 } from "../../domain";
 import { importsApi } from "../../infrastructure";
+import { invalidateImportedMasterQueries } from "../invalidateImportedMasterQueries";
 
 interface MutationCallbacks<TData = unknown, TError = Error> {
   onSuccess?: (data: TData) => void;
@@ -98,14 +99,18 @@ export const useCommitImport = (
     mutationFn: ({
       id,
       options,
+      entityType: _entityType,
     }: {
       id: string;
       options?: Partial<ImportOptions>;
+      /** Maestro cargado — para invalidar listados del padrón. */
+      entityType: ImportImplementedEntityType;
     }) => importsApi.commit(id, options),
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: importQueryKeys.lists() });
       qc.invalidateQueries({ queryKey: importQueryKeys.detail(result.id) });
       qc.invalidateQueries({ queryKey: importQueryKeys.errors(result.id) });
+      invalidateImportedMasterQueries(qc, variables.entityType);
       callbacks?.onSuccess?.(result);
     },
     onError: callbacks?.onError,

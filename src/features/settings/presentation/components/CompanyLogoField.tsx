@@ -1,7 +1,8 @@
 /**
  * Control de logo dentro de la tarjeta de identidad.
  *
- * Preview con zona de arrastre + subir / cambiar / eliminar.
+ * Preview de trabajo (más grande que la mark del header) + zona de arrastre
+ * y acciones subir / cambiar / eliminar.
  */
 
 import { memo, useCallback, useState } from "react";
@@ -110,39 +111,46 @@ export const CompanyLogoField = memo(function CompanyLogoField({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
       <div
         className={cn(
-          "flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed transition-colors",
-          dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+          "flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed bg-muted/40 transition-colors sm:h-40 sm:w-40",
+          dragActive
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25",
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
+        aria-label={copy.label}
       >
         {isProcessing ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         ) : hasLogo && !imageFailed ? (
           <img
             src={logoSrc ?? undefined}
             alt={copy.previewAlt}
-            className="h-full w-full object-contain p-1.5"
+            className="h-full w-full object-contain p-3"
             onError={() => {
               setImageFailed(true);
               setError(copy.loadFailed);
             }}
           />
         ) : (
-          <div className="flex flex-col items-center gap-1 p-2 text-center">
-            <ImagePlus className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center gap-1.5 p-3 text-center">
+            <ImagePlus className="h-8 w-8 text-muted-foreground" />
             {hasLogo && imageFailed ? (
-              <span className="text-[11px] leading-tight text-muted-foreground">
+              <span className="text-xs leading-tight text-muted-foreground">
                 {copy.unavailable}
               </span>
-            ) : null}
+            ) : (
+              <span className="text-xs leading-tight text-muted-foreground">
+                {copy.dropHint}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      <div className="min-w-0 flex-1 space-y-2">
+      <div className="min-w-0 flex-1 space-y-2 sm:pt-1">
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="file"

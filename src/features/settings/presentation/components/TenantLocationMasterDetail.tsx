@@ -101,19 +101,45 @@ export function TenantLocationMasterDetail() {
   const [formData, setFormData] = useState<ClientAddressFormData | null>(null);
   const formRef = useRef<ClientAddressFormRef>(null);
 
-  const effectiveSelectedId =
-    mode === "view"
-      ? sorted.find((a) => a.id === selectedId)?.id ?? sorted[0]?.id ?? null
-      : selectedId;
+  /**
+   * Selección efectiva en modo vista: si `selectedId` no existe en la lista
+   * (p. ej. tras borrar) o es null, se muestra la primera ubicación — sin
+   * `useEffect` (evita react-hooks/set-state-in-effect).
+   * Misma convención que ClientAddressMasterDetail.
+   */
+  const resolvedViewId = useMemo(() => {
+    if (sorted.length === 0) return null;
+    if (selectedId != null && sorted.some((a) => a.id === selectedId)) {
+      return selectedId;
+    }
+    return sorted[0].id;
+  }, [sorted, selectedId]);
 
-  const detailQuery = useTenantLocation(effectiveSelectedId ?? undefined);
+  const detailFetchId = useMemo(() => {
+    if (mode === "create") return undefined;
+    if (mode === "edit") return selectedId ?? resolvedViewId ?? undefined;
+    return resolvedViewId ?? undefined;
+  }, [mode, selectedId, resolvedViewId]);
+
+  const listHighlightId =
+    mode === "edit" ? (selectedId ?? resolvedViewId) : resolvedViewId;
+
+  const detailQuery = useTenantLocation(detailFetchId);
   const selectedListItem =
-    sorted.find((a) => a.id === effectiveSelectedId) ?? null;
+    sorted.find((a) => a.id === detailFetchId) ?? null;
 
   const handleCreate = () => {
     setSelectedId(null);
     setFormData(null);
     setMode("create");
+  };
+
+  const handleCancelForm = () => {
+    setMode("view");
+    setFormData(null);
+    if (selectedId === null && sorted.length > 0) {
+      setSelectedId(sorted[0].id);
+    }
   };
 
   const handleSubmitForm = async () => {
@@ -146,9 +172,10 @@ export function TenantLocationMasterDetail() {
       return;
     }
 
-    if (!selectedId) return;
+    const locationId = selectedId ?? resolvedViewId;
+    if (!locationId) return;
     await updateMutation.mutateAsync({
-      id: selectedId,
+      id: locationId,
       data: tenantLocationFormDataToUpdateDto(asTenant),
     });
     setFormData(null);
@@ -158,17 +185,17 @@ export function TenantLocationMasterDetail() {
   const handleSave = () => {};
 
   const handleEdit = () => {
-    if (detailQuery.data) {
-      setFormData(addressToFormData(detailQuery.data));
-    }
+    setSelectedId((prev) => prev ?? resolvedViewId);
     setMode("edit");
+    setFormData(null);
   };
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
-    await deleteMutation.mutateAsync(pendingDelete.id);
+    const deletedId = pendingDelete.id;
+    await deleteMutation.mutateAsync(deletedId);
     setPendingDelete(null);
-    if (selectedId === pendingDelete.id) {
+    if (selectedId === deletedId || selectedId === null) {
       setSelectedId(null);
       setMode("view");
     }
@@ -212,10 +239,11 @@ export function TenantLocationMasterDetail() {
               <ClientAddressListRow
                 key={item.id}
                 address={item}
-                selected={item.id === selectedId && mode !== "create"}
+                selected={item.id === listHighlightId && mode !== "create"}
                 onClick={() => {
                   setSelectedId(item.id);
                   setMode("view");
+                  setFormData(null);
                 }}
               />
             ))
@@ -244,7 +272,7 @@ export function TenantLocationMasterDetail() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setMode("view")}
+                  onClick={handleCancelForm}
                 >
                   {tenantLocationsCopy.form.cancel}
                 </Button>
@@ -257,12 +285,12 @@ export function TenantLocationMasterDetail() {
                 </Button>
               </div>
             </div>
-          ) : mode === "edit" && selectedId ? (
+          ) : mode === "edit" && (selectedId ?? resolvedViewId) ? (
             <div className="space-y-4">
               <h3 className="font-medium">{tenantLocationsCopy.form.editTitle}</h3>
               <ClientAddressForm
                 ref={formRef}
-                key={selectedId}
+                key={selectedId ?? resolvedViewId ?? "edit"}
                 formContext="additional"
                 hidePrimarySwitch
                 infoMessage={tenantLocationsCopy.form.hint}
@@ -280,7 +308,7 @@ export function TenantLocationMasterDetail() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setMode("view")}
+                  onClick={handleCancelForm}
                 >
                   {tenantLocationsCopy.form.cancel}
                 </Button>

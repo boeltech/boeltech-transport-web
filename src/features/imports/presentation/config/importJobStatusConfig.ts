@@ -38,7 +38,7 @@ export const IMPORT_JOB_STATUS_CONFIG: Record<ImportJobStatus, StatusConfig> = {
   failed: createStatusConfig("danger", {
     label: IMPORT_JOB_STATUS_LABELS.failed,
     icon: XCircle,
-    description: "No se pudo aplicar o no hubo filas listas",
+    description: "No se pudo aplicar o no hubo filas válidas",
   }),
   cancelled: createStatusConfig("neutral", {
     label: IMPORT_JOB_STATUS_LABELS.cancelled,

@@ -666,6 +666,11 @@ export const router = createBrowserRouter([
                 path: "/drivers/new",
                 element: withSuspense(DriverCreatePage),
               },
+            ],
+          },
+          {
+            element: <PermissionRoute module="drivers" action="update" />,
+            children: [
               {
                 path: "/drivers/:id/edit",
                 element: withSuspense(DriverEditPage),

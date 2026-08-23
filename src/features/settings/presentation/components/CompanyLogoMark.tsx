@@ -1,7 +1,8 @@
 /**
- * Miniatura del logo de la empresa.
+ * Miniatura del logo de la empresa en el encabezado de la ficha.
  *
- * Se usa en el encabezado de la ficha y como preview del control de subida.
+ * Compacta a propósito: identifica la empresa junto al título sin competir
+ * con él. El preview de trabajo (más grande) vive en CompanyLogoField.
  */
 
 import { memo, useState } from "react";
@@ -29,7 +30,7 @@ export const CompanyLogoMark = memo(function CompanyLogoMark({
   return (
     <div
       className={cn(
-        "flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border bg-card",
+        "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40 sm:h-16 sm:w-16",
         className,
       )}
     >
@@ -37,14 +38,17 @@ export const CompanyLogoMark = memo(function CompanyLogoMark({
         <img
           src={src ?? undefined}
           alt={copy.previewAlt}
-          className="h-full w-full object-contain p-1"
+          className="h-full w-full object-contain p-1.5"
           onError={() => {
             setFailed(true);
             onError?.();
           }}
         />
       ) : (
-        <Building2 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <Building2
+          className="h-6 w-6 text-muted-foreground"
+          aria-hidden="true"
+        />
       )}
     </div>
   );

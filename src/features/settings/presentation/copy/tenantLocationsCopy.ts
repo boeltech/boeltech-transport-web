@@ -12,6 +12,8 @@ export const tenantLocationsCopy = {
   },
   guide: {
     title: "Cuándo usar este directorio",
+    /** Subtítulo del trigger cuando la guía está colapsada. */
+    collapsedHint: "Ver cuándo sí y cuándo no",
     use: "Bodega o patio propio, o de un tercero, que no pertenece a un cliente ni a una sucursal.",
     notTitle: "No lo uses para",
     notClient: "Patio o bodega del cliente — va en Cliente → Direcciones.",

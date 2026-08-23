@@ -97,12 +97,18 @@ describe("useCommitImport", () => {
     invalidateQueries.mockClear();
   });
 
-  it("invalidates list, detail and errors on success", () => {
+  it("invalidates import jobs and master lists on success", () => {
     const mutation = useCommitImport() as unknown as {
-      onSuccess?: (data: { id: string }) => void;
+      onSuccess?: (
+        data: { id: string },
+        variables: { id: string; entityType: "employees" },
+      ) => void;
     };
 
-    mutation.onSuccess?.({ id: "job-42" });
+    mutation.onSuccess?.(
+      { id: "job-42" },
+      { id: "job-42", entityType: "employees" },
+    );
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: importQueryKeys.lists(),
@@ -112,6 +118,9 @@ describe("useCommitImport", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: importQueryKeys.errors("job-42"),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["employees", "list"],
     });
   });
 });

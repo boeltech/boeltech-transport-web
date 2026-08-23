@@ -169,6 +169,23 @@ export function ImportTemplateGuidePanel({
         <p className="text-xs font-medium text-foreground/90">
           {guide.leaveHeadersNote}
         </p>
+        {guide.scenarios && guide.scenarios.length > 0 ? (
+          <div className="space-y-2 rounded-md border border-border/60 bg-background/60 px-2.5 py-2">
+            <p className="text-xs font-semibold text-foreground">
+              {importTemplateGuideCopy.scenariosHeading}
+            </p>
+            <ul className="space-y-2">
+              {guide.scenarios.map((scenario) => (
+                <li key={scenario.title} className="space-y-0.5">
+                  <p className="text-xs font-medium text-foreground">
+                    {scenario.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{scenario.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {guide.sections ? (
           <SectionedColumnList
             columns={guide.columns}
