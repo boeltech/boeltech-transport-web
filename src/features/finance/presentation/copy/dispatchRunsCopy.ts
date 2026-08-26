@@ -108,7 +108,9 @@ export const dispatchRunsCopy = {
       return `${facturas} para ${clientes} · ${pendientes}`;
     },
     attachmentsHint:
-      "Los correos con muchas facturas pueden enviarse con enlaces al portal en lugar de adjuntos PDF/XML.",
+      "Clientes con más de 4 facturas en este envío recibirán un archivo ZIP con todos los PDF y XML.",
+    zipTooLargeError:
+      "El paquete de facturas excede el tamaño de correo. Reenvía en lotes menores o envía facturas individuales.",
     sendingBanner: "Envío en curso. Esta pantalla se actualiza sola.",
     counts: {
       pendingStamp: "Faltan por generar",
@@ -170,7 +172,7 @@ export const dispatchRunsCopy = {
     confirm: {
       title: "¿Enviar facturas por correo?",
       emailNote:
-        "Se enviará un correo por cliente con las facturas listas de este periodo.",
+        "Se enviará un correo por cliente con los archivos fiscales (PDF y XML) adjuntos. Clientes con muchas facturas recibirán un ZIP.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
@@ -196,7 +198,7 @@ export const dispatchRunsCopy = {
       riskNote:
         "No se regeneran el PDF ni el XML y no se vuelve a timbrar. Solo se reenvía el correo con los archivos ya generados. Por defecto estas facturas se omiten del envío normal.",
       emailNote:
-        "Se enviará un correo por cliente solo con las facturas que marcaste para reenvío.",
+        "Se reenviará un correo por cliente solo con las facturas que marcaste, con PDF/XML adjuntos (o ZIP si hay muchas).",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>

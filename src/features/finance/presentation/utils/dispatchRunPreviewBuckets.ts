@@ -166,8 +166,8 @@ export const DISPATCH_READY_COLLAPSE_THRESHOLD = 20;
 /** D4: folios visibles antes de «Ver N más». */
 export const DISPATCH_FOLIO_PREVIEW_LIMIT = 5;
 /**
- * D10: umbral de facturas promedio por cliente para aviso de enlaces
- * (alineado a MAX_ATTACHED_FOLIOS del API ≈ 4).
+ * Umbral de facturas promedio por cliente para aviso de ZIP
+ * (alineado a MAX_ATTACHED_FOLIOS del API = 4).
  */
 export const DISPATCH_ATTACHMENTS_HINT_AVG_FOLIOS = 4;
 

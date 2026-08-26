@@ -270,7 +270,7 @@ describe("dispatchRunPreviewBuckets", () => {
     expect(shouldCollapsePendingCard(11, 10)).toBe(true);
   });
 
-  it("shouldShowAttachmentsHint when avg folios per client > 4", () => {
+  it("shouldShowAttachmentsHint when avg folios per client > 4 (ZIP)", () => {
     expect(shouldShowAttachmentsHint(8, 2)).toBe(false);
     expect(shouldShowAttachmentsHint(10, 2)).toBe(true);
   });
