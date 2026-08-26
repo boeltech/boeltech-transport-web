@@ -65,6 +65,8 @@ export interface ProfitabilityTripItem {
   recognizedRevenue?: number;
   revenueSource?: ProfitabilityRevenueSource | null;
   cancelledInvoiceRevenue?: number;
+  /** ISO timestamp when mv_trip_financial_snapshot was last refreshed (optional; future UX). */
+  snapshotRefreshedAt?: string;
 }
 
 export interface ProfitabilityTripsResponse {

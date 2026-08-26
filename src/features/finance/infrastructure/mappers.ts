@@ -111,6 +111,8 @@ function mapProfitabilityTripItem(
       raw.cancelled_invoice_revenue == null
         ? undefined
         : asNumber(raw.cancelled_invoice_revenue),
+    snapshotRefreshedAt:
+      asNullableString(raw.snapshot_refreshed_at) ?? undefined,
   };
 }
 

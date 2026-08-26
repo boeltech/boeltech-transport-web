@@ -32,6 +32,7 @@ describe("mapProfitabilityTripsResponse", () => {
           gross_margin_pct: null,
           profitability_status: null,
           has_pending_expenses: false,
+          snapshot_refreshed_at: "2026-06-01T12:00:00.000Z",
         },
       ],
       pagination: { page: 1, limit: 20, total: 1, total_pages: 1 },
@@ -59,6 +60,7 @@ describe("mapProfitabilityTripsResponse", () => {
     expect(result.data[0]?.revenueSource).toBe("trip_base_rate");
     expect(result.data[0]?.cancelledInvoiceRevenue).toBe(5000);
     expect(result.data[0]?.financialBucket).toBe("in_progress");
+    expect(result.data[0]?.snapshotRefreshedAt).toBe("2026-06-01T12:00:00.000Z");
     expect(result.data[0]?.grossMargin).toBeNull();
     expect(result.data[0]?.profitabilityStatus).toBeNull();
   });
