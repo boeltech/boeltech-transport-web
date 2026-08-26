@@ -1,6 +1,6 @@
 /**
- * La bandeja vive como tab del hub de Finanzas (`/finance?tab=approvals`):
- * embebida no repite el encabezado y sus acciones no pueden perder el tab.
+ * La bandeja vive embebida en `/finance/approvals` (FinanceApprovalsPage):
+ * no repite el encabezado del shell y sus acciones no pierden la ruta.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -56,7 +56,7 @@ function renderEmbedded(initialEntry: string) {
   );
 }
 
-describe("ApprovalInboxPage embebida en el hub", () => {
+describe("ApprovalInboxPage embebida en Finanzas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockList.mockResolvedValue({
@@ -66,7 +66,7 @@ describe("ApprovalInboxPage embebida en el hub", () => {
   });
 
   it("no repite el encabezado del hub y conserva la descripción", async () => {
-    renderEmbedded("/finance?tab=approvals&type=trip_expense&status=pending");
+    renderEmbedded("/finance/approvals?type=trip_expense&status=pending");
 
     await waitFor(() => {
       expect(mockList).toHaveBeenCalled();
@@ -80,9 +80,9 @@ describe("ApprovalInboxPage embebida en el hub", () => {
     ).toBeInTheDocument();
   });
 
-  it("mantiene el tab del hub al limpiar filtros", async () => {
+  it("mantiene la ruta al limpiar filtros", async () => {
     const user = userEvent.setup();
-    renderEmbedded("/finance?tab=approvals&type=trip_expense&category=fuel");
+    renderEmbedded("/finance/approvals?type=trip_expense&category=fuel");
 
     await user.click(
       await screen.findByRole("button", { name: /limpiar filtros/i }),
@@ -90,9 +90,9 @@ describe("ApprovalInboxPage embebida en el hub", () => {
 
     await waitFor(() => {
       const location = screen.getByTestId("location").textContent ?? "";
-      expect(location).toContain("/finance");
-      expect(location).toContain("tab=approvals");
+      expect(location).toContain("/finance/approvals");
       expect(location).not.toContain("category=fuel");
+      expect(location).not.toContain("tab=");
     });
   });
 });

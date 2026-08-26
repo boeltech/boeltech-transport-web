@@ -3,6 +3,7 @@ import {
   buildInvoiceCreatePathFromTrip,
   buildTripInvoicingHubPath,
   shouldOpenInvoiceCreateFromFinanceHub,
+  type FinanceHubTripInvoiceSource,
 } from "@features/invoicing";
 import { financeCopy } from "../copy";
 
@@ -11,11 +12,11 @@ export const FINANCE_INVOICE_FROM_TRIP_CTA = financeCopy.invoices.fromTripCta;
 
 /**
  * Destino de navegación al elegir un viaje desde el picker «Nueva factura»
- * del tab Facturas. Paridad con FinanceInvoiceableTripsTab (ADR-0081).
+ * del tab Facturas. Paridad con FinanceInvoiceablePage (ADR-0081 + PreStampV2).
  */
 export function resolveFinanceInvoicesTabTripTarget(
   trip: Pick<TripListItem, "id" | "operationalOutcome"> & {
-    invoicing?: { hasActiveSplit?: boolean };
+    invoicing?: FinanceHubTripInvoiceSource["invoicing"];
   },
 ): string {
   if (shouldOpenInvoiceCreateFromFinanceHub(trip)) {

@@ -29,11 +29,7 @@ import { financeCopy } from "../copy";
 const copy = financeCopy.invoiceable;
 const PAGE_SIZE = 10;
 /** Origen para el back del formulario de factura. */
-const TAB_PATH = "/finance?tab=invoiceable";
-
-interface FinanceInvoiceableTripsTabProps {
-  queriesEnabled: boolean;
-}
+const PAGE_PATH = "/finance/invoiceable";
 
 const TABLE_HEADERS = [
   { key: "trip", label: copy.table.trip },
@@ -171,13 +167,25 @@ function InvoiceableTripsTable({
                       {copy.invoiceAction}
                     </Button>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onOpenTripInvoicing(trip)}
-                    >
-                      {copy.goToTripInvoicing}
-                    </Button>
+                    <div className="flex max-w-[14rem] flex-col items-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={
+                          !hasActiveSplit && trip.invoicing.blockReason
+                            ? trip.invoicing.blockReason
+                            : undefined
+                        }
+                        onClick={() => onOpenTripInvoicing(trip)}
+                      >
+                        {copy.goToTripInvoicing}
+                      </Button>
+                      {!hasActiveSplit && trip.invoicing.blockReason ? (
+                        <span className="text-xs font-normal text-muted-foreground text-right">
+                          {trip.invoicing.blockReason}
+                        </span>
+                      ) : null}
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
@@ -190,9 +198,7 @@ function InvoiceableTripsTable({
   );
 }
 
-export function FinanceInvoiceableTripsTab({
-  queriesEnabled,
-}: FinanceInvoiceableTripsTabProps) {
+export function FinanceInvoiceablePage() {
   const navigate = useNavigate();
 
   const filters = useFinanceListingFilters({ filters: {} });
@@ -207,7 +213,6 @@ export function FinanceInvoiceableTripsTab({
       },
       sort: { field: "scheduled_departure", direction: "desc" },
     },
-    { enabled: queriesEnabled },
   );
 
   const trips = data?.data ?? [];
@@ -216,7 +221,6 @@ export function FinanceInvoiceableTripsTab({
     isError,
     error,
     title: copy.loadError,
-    enabled: queriesEnabled,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -226,7 +230,7 @@ export function FinanceInvoiceableTripsTab({
   const handleInvoice = useCallback(
     (trip: TripListItem) => {
       navigate(buildInvoiceCreatePathFromTrip(trip), {
-        state: { from: TAB_PATH },
+        state: { from: PAGE_PATH },
       });
     },
     [navigate],
@@ -235,7 +239,7 @@ export function FinanceInvoiceableTripsTab({
   const handleOpenTripInvoicing = useCallback(
     (trip: TripListItem) => {
       navigate(buildTripInvoicingHubPath(trip.id), {
-        state: { from: TAB_PATH },
+        state: { from: PAGE_PATH },
       });
     },
     [navigate],
@@ -244,10 +248,7 @@ export function FinanceInvoiceableTripsTab({
   return (
     <ListPageShell<TripListItem>
       title={copy.title}
-      showHeader={false}
-      beforeToolbar={
-        <p className="text-sm text-muted-foreground">{copy.description}</p>
-      }
+      description={copy.description}
       toolbar={{
         search: {
           ...filters.searchProps,

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, Plus } from "lucide-react";
+import { useAuth } from "@features/auth";
+import { isClientPortalRole } from "@shared/constants/roles";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
 import { InvoiceableTripPickerSheet } from "@features/trips";
@@ -14,6 +16,7 @@ import {
 import { useQueryErrorToast, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import {
+  isFinanceAnalyticsEnabled,
   parseFinanceInvoiceStatus,
   useFinanceInvoicesList,
   useFinanceListingFilters,
@@ -33,23 +36,20 @@ import { canShowInvoiceFromTripCta } from "@features/invoicing";
 import type { TripListItem } from "@features/trips/domain";
 import { resolveFinanceInvoicesTabTripTarget } from "../utils/financeInvoiceFromTripCta";
 
-interface FinanceInvoicesTabProps {
-  showFinanceSummaryMetrics: boolean;
-  isClientPortal?: boolean;
-  /** Paridad hub Finanzas: no fetch cuando el tab no está activo. */
-  queriesEnabled?: boolean;
-}
+const INVOICES_PAGE_PATH = "/finance/invoices";
 
 const newInvoiceCta = financeCopy.invoices.newInvoiceCta;
 
-export function FinanceInvoicesTab({
-  showFinanceSummaryMetrics,
-  isClientPortal = false,
-  queriesEnabled = true,
-}: FinanceInvoicesTabProps) {
+export function FinanceInvoicesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isClientPortal = isClientPortalRole(user?.role);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const showFinanceSummaryMetrics = isFinanceAnalyticsEnabled({
+    isClientPortal,
+    hasFinanceRead: hasPermission("finance", "read"),
+  });
   const canInvoiceFromTrip =
     !isClientPortal && canShowInvoiceFromTripCta(hasPermission);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -85,11 +85,11 @@ export function FinanceInvoicesTab({
         page: filters.page,
         limit: FINANCE_INVOICES_PAGE_SIZE,
       },
-      { enabled: queriesEnabled },
+      { enabled: true },
     );
 
   const { data: summary, isLoading: summaryLoading } = useFinanceSummary({
-    enabled: queriesEnabled && showFinanceSummaryMetrics,
+    enabled: showFinanceSummaryMetrics,
   });
 
   const invoices = data?.data ?? [];
@@ -98,7 +98,6 @@ export function FinanceInvoicesTab({
     isError,
     error,
     title: financeCopy.invoices.toasts.loadError,
-    enabled: queriesEnabled,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -117,7 +116,7 @@ export function FinanceInvoicesTab({
   const handleView = useCallback(
     (id: string) => {
       navigate(`/invoices/${id}`, {
-        state: { from: "/finance?tab=invoices" },
+        state: { from: INVOICES_PAGE_PATH },
       });
     },
     [navigate],
@@ -126,7 +125,7 @@ export function FinanceInvoicesTab({
   const handleTripSelected = useCallback(
     (trip: TripListItem) => {
       navigate(resolveFinanceInvoicesTabTripTarget(trip), {
-        state: { from: "/finance?tab=invoices" },
+        state: { from: INVOICES_PAGE_PATH },
       });
     },
     [navigate],
@@ -148,8 +147,14 @@ export function FinanceInvoicesTab({
   return (
     <>
     <ListPageShell<FinanceInvoiceListItem>
-      title={financeCopy.invoices.title}
-      showHeader={false}
+      title={
+        isClientPortal
+          ? financeCopy.page.portal.invoicesTab
+          : financeCopy.invoices.title
+      }
+      description={
+        isClientPortal ? financeCopy.page.portal.subtitle : undefined
+      }
       beforeToolbar={kpiStrip}
       toolbar={{
         search: {

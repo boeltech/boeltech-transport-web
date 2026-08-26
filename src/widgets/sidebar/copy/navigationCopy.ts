@@ -19,15 +19,19 @@ export const navigationCopy = {
     drivers: "Conductores",
     employees: "Empleados",
     clientsList: "Clientes",
-    financeHub: "Finanzas",
+    /** Entrada al hub Finanzas (landing Resumen). Grupo = Finanzas; ítem ≠ mismo label. */
+    financeHub: "Resumen",
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
     /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */
     financeCobros: "Cobros",
     financeApprovals: "Aprobaciones",
-    /** Deep-link al tab Facturas del hub (no es un módulo aparte). */
+    financeDispatchRuns: "Envío de facturas",
+    financeAnalysis: "Análisis",
+    /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",
-    reportsList: "Reportes",
+    /** Hub de inteligencia de negocio (/reports). Distinto de Finanzas → Análisis. */
+    reportsList: "Inteligencia",
     users: "Usuarios",
     /** Movimientos de las cuentas del equipo, no auditoría de todo el sistema. */
     usersActivity: "Historial de usuarios",

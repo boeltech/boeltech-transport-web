@@ -66,7 +66,7 @@ function navPathKey(item: NavItem): string {
 
 /**
  * Especificidad del ítem frente al query actual, para desempatar entre ítems que
- * comparten pathname (p. ej. `/finance` y `/finance?tab=invoiceable`):
+ * comparten pathname (p. ej. ítems con query en path legacy):
  * - sin query declarado: 0, es el fallback del pathname
  * - query declarado que coincide: gana al fallback y crece con cada parámetro
  * - query declarado que no coincide: pierde contra el fallback, pero sigue siendo
@@ -91,9 +91,15 @@ function navQueryScore(item: NavItem, currentSearch: string): number {
 /**
  * Verifica si un path coincide con el path actual
  */
-function checkPathActive(currentPath: string, targetPath: string): boolean {
+function checkPathActive(
+  currentPath: string,
+  targetPath: string,
+  exactOnly = false,
+): boolean {
   // Coincidencia exacta
   if (currentPath === targetPath) return true;
+
+  if (exactOnly) return false;
 
   // Coincidencia de subrutas (ej: /trips/123 activa /trips)
   // Pero no activar "/" para cualquier ruta
@@ -107,7 +113,7 @@ function checkPathActive(currentPath: string, targetPath: string): boolean {
 /**
  * Entre todos los ítems que coinciden con la ruta actual, gana el prefijo más largo
  * (evita marcar /users y /users/activity activos a la vez) y, a igual pathname, el
- * que coincide con el query actual (`/finance?tab=invoiceable` sobre `/finance`).
+ * que coincide con el query actual (desempate por query declarado en path).
  */
 export function findActiveNavItem(
   currentPath: string,
@@ -120,7 +126,7 @@ export function findActiveNavItem(
 
   for (const item of items) {
     const key = navPathKey(item);
-    if (!checkPathActive(currentPath, key)) continue;
+    if (!checkPathActive(currentPath, key, item.exactPath)) continue;
 
     const queryScore = navQueryScore(item, currentSearch);
     if (

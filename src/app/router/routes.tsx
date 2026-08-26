@@ -11,7 +11,6 @@
 import {
   createBrowserRouter,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 import { Suspense, type ReactNode } from "react";
 import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
@@ -37,6 +36,7 @@ import {
 // ============================================
 import { AppLayout } from "@widgets/layout";
 import { SettingsRoutes } from "@features/settings";
+import { StaffFinanceRoute } from "@features/finance";
 const AuthLayout = lazyWithRetry(() => import("@widgets/layout/ui/AuthLayout"));
 
 // ============================================
@@ -51,18 +51,6 @@ function PageLoader() {
       </div>
     </div>
   );
-}
-
-/**
- * La bandeja de aprobaciones vive como tab del hub de Finanzas. La ruta propia
- * sigue montada porque la usan los deep-links del dashboard, el detalle de viaje
- * y el `action_href` que genera el backend en las notificaciones.
- */
-function ApprovalsHubRedirect() {
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  params.set("tab", "approvals");
-  return <Navigate to={`/finance?${params.toString()}`} replace />;
 }
 
 // ============================================
@@ -278,14 +266,35 @@ const BranchEditPage = lazyWithRetry(() =>
 // const FuelCreatePage = lazyWithRetry(() => import("@/pages/fuel/create"));
 
 // Finance / Invoices
-const FinancePage = lazyWithRetry(() =>
-  import("@features/finance").then((m) => ({ default: m.FinancePage })),
+const FinanceIndexRoute = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceIndexRoute })),
+);
+const FinanceInvoicesPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceInvoicesPage })),
+);
+const FinanceInvoiceablePage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceInvoiceablePage })),
+);
+const FinanceCobrosPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceCobrosPage })),
+);
+const FinanceApprovalsPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceApprovalsPage })),
+);
+const FinanceDispatchRunsPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceDispatchRunsPage })),
+);
+const FinanceAnalysisPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceAnalysisPage })),
 );
 const InvoiceDetailPage = lazyWithRetry(() =>
   import("@features/invoicing").then((m) => ({ default: m.InvoiceDetailPage })),
 );
 const CreateInvoicePage = lazyWithRetry(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
+);
+const DispatchRunDetailPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.DispatchRunDetailPage })),
 );
 
 // Reports
@@ -835,11 +844,69 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/finance",
-                element: withSuspense(FinancePage),
+                element: withSuspense(FinanceIndexRoute),
+              },
+              {
+                path: "/finance/invoices",
+                element: withSuspense(FinanceInvoicesPage),
               },
               {
                 path: "/invoices/:id",
                 element: withSuspense(InvoiceDetailPage),
+              },
+            ],
+          },
+          {
+            element: <StaffFinanceRoute />,
+            children: [
+              {
+                element: <PermissionRoute module="invoices" action="create" />,
+                children: [
+                  {
+                    path: "/finance/invoiceable",
+                    element: withSuspense(FinanceInvoiceablePage),
+                  },
+                ],
+              },
+              {
+                element: <PermissionRoute module="finance" action="create" />,
+                children: [
+                  {
+                    path: "/finance/cobros",
+                    element: withSuspense(FinanceCobrosPage),
+                  },
+                ],
+              },
+              {
+                element: <ModuleRoute module="finance_approvals" />,
+                children: [
+                  {
+                    path: "/finance/approvals",
+                    element: withSuspense(FinanceApprovalsPage),
+                  },
+                ],
+              },
+              {
+                element: <ModuleRoute module="invoices" />,
+                children: [
+                  {
+                    path: "/finance/dispatch-runs",
+                    element: withSuspense(FinanceDispatchRunsPage),
+                  },
+                  {
+                    path: "/finance/dispatch-runs/:id",
+                    element: withSuspense(DispatchRunDetailPage),
+                  },
+                ],
+              },
+              {
+                element: <PermissionRoute module="finance" action="read" />,
+                children: [
+                  {
+                    path: "/finance/analysis",
+                    element: withSuspense(FinanceAnalysisPage),
+                  },
+                ],
               },
             ],
           },
@@ -862,18 +929,6 @@ export const router = createBrowserRouter([
             ],
           },
 
-          // ========================================
-          // Módulo: Finance Approvals (Aprobaciones)
-          // ========================================
-          {
-            element: <ModuleRoute module="finance_approvals" />,
-            children: [
-              {
-                path: "/finance/approvals",
-                element: <ApprovalsHubRedirect />,
-              },
-            ],
-          },
 
           // ========================================
           // Módulo: Reports (Reportes)

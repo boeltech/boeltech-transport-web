@@ -1,8 +1,10 @@
-export { FinancePage } from "./FinancePage";
-export { FinanceSummaryTab } from "./FinanceSummaryTab";
-export { FinanceInvoicesTab } from "./FinanceInvoicesTab";
-export { FinanceCobranzaTab } from "./FinanceCobranzaTab";
-export { FinanceAnalysisTab } from "./FinanceAnalysisTab";
+export { FinanceSummaryPage } from "./FinanceSummaryPage";
+export { FinanceInvoicesPage } from "./FinanceInvoicesPage";
+export { FinanceInvoiceablePage } from "./FinanceInvoiceablePage";
+export { FinanceCobrosPage } from "./FinanceCobrosPage";
+export { FinanceApprovalsPage } from "./FinanceApprovalsPage";
+export { FinanceDispatchRunsPage } from "./FinanceDispatchRunsPage";
+export { FinanceAnalysisPage } from "./FinanceAnalysisPage";
 export { ProfitabilityTab } from "./ProfitabilityTab";
 export { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
-export { FinanceInvoiceableTripsTab } from "./FinanceInvoiceableTripsTab";
+export { DispatchRunDetailPage } from "./DispatchRunDetailPage";

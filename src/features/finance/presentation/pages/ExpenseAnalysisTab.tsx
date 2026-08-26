@@ -34,14 +34,10 @@ import {
 import { exportExpensesByDimensionCsv } from "../utils/financeExportHelpers";
 import { formatExpenseTemporalLabel } from "../utils/financeChartHelpers";
 
-interface ExpenseAnalysisTabProps {
-  queriesEnabled: boolean;
-}
-
 const DEFAULT_DIMENSION = "vehicle";
 const DEFAULT_GRANULARITY = "month";
 
-export function ExpenseAnalysisTab({ queriesEnabled }: ExpenseAnalysisTabProps) {
+export function ExpenseAnalysisTab() {
   const { toast } = useToast();
   const [chartsOpen, setChartsOpen] = useState(false);
   const [includesOpen, setIncludesOpen] = useState(false);
@@ -113,11 +109,9 @@ export function ExpenseAnalysisTab({ queriesEnabled }: ExpenseAnalysisTabProps) 
 
   const { data: byCategory, isLoading: byCategoryLoading } = useExpensesByCategory(
     byCategoryFilters,
-    { enabled: queriesEnabled },
   );
   const { data: byDimension, isLoading: byDimensionLoading } = useExpensesByDimension(
     byDimensionFilters,
-    { enabled: queriesEnabled },
   );
 
   const latestPeriod = byCategory?.periods.at(-1);

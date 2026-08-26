@@ -39,6 +39,8 @@ export interface NavItem {
   badge?: number | string;
   /** Si está deshabilitado */
   disabled?: boolean;
+  /** Solo resalta con pathname exacto (hub con rutas hermanas bajo el mismo prefijo). */
+  exactPath?: boolean;
 }
 
 // ============================================

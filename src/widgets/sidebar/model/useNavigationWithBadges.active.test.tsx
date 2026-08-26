@@ -40,8 +40,8 @@ function itemById(
 }
 
 describe("useNavigationWithBadges", () => {
-  it("marks the badged approvals item as active on its hub tab", () => {
-    const { result } = renderNavigation("/finance?tab=approvals&status=pending");
+  it("marks the badged approvals item as active on its route", () => {
+    const { result } = renderNavigation("/finance/approvals?status=pending");
     const approvals = itemById(result.current.navigation, "finance-approvals");
 
     expect(approvals?.badge).toBe(3);
@@ -49,7 +49,7 @@ describe("useNavigationWithBadges", () => {
   });
 
   it("does not mark sibling finance items as active", () => {
-    const { result } = renderNavigation("/finance?tab=approvals");
+    const { result } = renderNavigation("/finance/approvals");
     const hub = itemById(result.current.navigation, "finance-hub");
     const invoiceable = itemById(result.current.navigation, "finance-invoiceable");
     const cobros = itemById(result.current.navigation, "finance-cobros");
@@ -59,8 +59,8 @@ describe("useNavigationWithBadges", () => {
     expect(result.current.isItemActive(cobros!)).toBe(false);
   });
 
-  it("marks cobros as the active finance job when that tab is open", () => {
-    const { result } = renderNavigation("/finance?tab=cobros&rfc=XAXX010101000");
+  it("marks cobros as the active finance job when that route is open", () => {
+    const { result } = renderNavigation("/finance/cobros?rfc=XAXX010101000");
     const cobros = itemById(result.current.navigation, "finance-cobros");
     const hub = itemById(result.current.navigation, "finance-hub");
 
@@ -68,7 +68,7 @@ describe("useNavigationWithBadges", () => {
     expect(result.current.isItemActive(hub!)).toBe(false);
   });
 
-  it("keeps the hub active when no tab is requested", () => {
+  it("keeps the hub active on /finance", () => {
     const { result } = renderNavigation("/finance");
     const hub = itemById(result.current.navigation, "finance-hub");
     const approvals = itemById(result.current.navigation, "finance-approvals");

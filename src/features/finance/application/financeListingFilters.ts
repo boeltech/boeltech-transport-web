@@ -1,5 +1,5 @@
 /**
- * Resuelve tabs del hub Finanzas + vista de Análisis, con redirects de URLs legadas.
+ * Filtros de listado/análisis de Finanzas (query params por ruta).
  */
 
 import type {
@@ -9,21 +9,15 @@ import type {
   ProfitabilityStatus,
 } from "@features/finance/domain";
 
-export const FINANCE_TAB_PARAM = "tab";
 export const FINANCE_ANALYSIS_VIEW_PARAM = "view";
-/** RFC precargado al abrir Cobros desde Resumen (D2). */
+/** RFC precargado al abrir Cobros desde Resumen. */
 export const FINANCE_COBROS_RFC_PARAM = "rfc";
 
-export const FINANCE_TABS = [
-  "summary",
-  "invoiceable",
-  "invoices",
-  "cobros",
-  "analysis",
-  "approvals",
+/** Query params que no se borran al limpiar filtros de listado. */
+export const FINANCE_PRESERVED_URL_PARAMS = [
+  FINANCE_ANALYSIS_VIEW_PARAM,
+  FINANCE_COBROS_RFC_PARAM,
 ] as const;
-
-export type FinanceHubTab = (typeof FINANCE_TABS)[number];
 
 export const FINANCE_ANALYSIS_VIEWS = ["margin", "expenses"] as const;
 
@@ -60,7 +54,7 @@ export const PROFITABILITY_STATUSES = [
   "loss",
 ] as const satisfies readonly ProfitabilityStatus[];
 
-/** Estados de factura del tab Facturas (lockstep API invoiceQuerySchema + stamping). */
+/** Estados de factura del listado Facturas (lockstep API invoiceQuerySchema + stamping). */
 export const FINANCE_INVOICE_STATUSES = [
   "draft",
   "stamping",
@@ -79,38 +73,11 @@ export const DEFAULT_EXPENSE_DIMENSION: ExpenseAnalysisDimension = "vehicle";
 export const DEFAULT_PROFITABILITY_SCOPE: ProfitabilityScope = "operational";
 export const DEFAULT_EXPENSE_GRANULARITY: ExpenseGranularity = "month";
 
-const LEGACY_TAB_REDIRECT: Record<
-  string,
-  { tab: FinanceHubTab; view?: FinanceAnalysisView }
-> = {
-  cobranza: { tab: "cobros" },
-  profitability: { tab: "analysis", view: "margin" },
-  expenses: { tab: "analysis", view: "expenses" },
-  reports: { tab: "analysis", view: "margin" },
-};
-
-export const FINANCE_PRESERVED_URL_PARAMS = [
-  FINANCE_TAB_PARAM,
-  FINANCE_ANALYSIS_VIEW_PARAM,
-] as const;
-
-const FINANCE_ANALYSIS_FILTER_PARAMS = [
-  "dimension",
-  "granularity",
-  "from",
-  "to",
-  "vehicleId",
-] as const;
-
 function includesValue<T extends string>(
   list: readonly T[],
   value: string | null | undefined,
 ): value is T {
   return value != null && (list as readonly string[]).includes(value);
-}
-
-export function isFinanceHubTab(value: string | null): value is FinanceHubTab {
-  return value != null && (FINANCE_TABS as readonly string[]).includes(value);
 }
 
 export function isFinanceAnalysisView(
@@ -176,57 +143,4 @@ export function sanitizeAnalysisDimension(
     return includesValue(MARGIN_ANALYSIS_DIMENSIONS, raw) ? raw : undefined;
   }
   return includesValue(EXPENSE_ANALYSIS_DIMENSIONS, raw) ? raw : undefined;
-}
-
-export function resolveFinanceLegacyTab(requested: string | null): {
-  tab: FinanceHubTab | null;
-  view?: FinanceAnalysisView;
-  redirected: boolean;
-} {
-  if (!requested) {
-    return { tab: null, redirected: false };
-  }
-  if (isFinanceHubTab(requested)) {
-    return { tab: requested, redirected: false };
-  }
-  const legacy = LEGACY_TAB_REDIRECT[requested];
-  if (legacy) {
-    return { ...legacy, redirected: true };
-  }
-  return { tab: null, redirected: false };
-}
-
-export function buildFinanceTabSearchParams(
-  tab: string,
-  options?: {
-    view?: FinanceAnalysisView;
-    preserveFrom?: URLSearchParams;
-    /** Solo aplica en tab cobros; limpia al cambiar de tab. */
-    rfc?: string | null;
-  },
-): URLSearchParams {
-  const params = new URLSearchParams();
-  const analysisView: FinanceAnalysisView = options?.view ?? "margin";
-  for (const key of FINANCE_ANALYSIS_FILTER_PARAMS) {
-    const value = options?.preserveFrom?.get(key);
-    if (!value) continue;
-    if (key === "dimension" && tab === "analysis") {
-      const sanitized = sanitizeAnalysisDimension(analysisView, value);
-      if (sanitized) params.set(key, sanitized);
-      continue;
-    }
-    params.set(key, value);
-  }
-  params.set(FINANCE_TAB_PARAM, tab);
-  if (tab === "analysis") {
-    params.set(FINANCE_ANALYSIS_VIEW_PARAM, analysisView);
-  }
-  if (tab === "cobros") {
-    const rfc =
-      options?.rfc?.trim() ||
-      options?.preserveFrom?.get(FINANCE_COBROS_RFC_PARAM)?.trim() ||
-      "";
-    if (rfc) params.set(FINANCE_COBROS_RFC_PARAM, rfc.toUpperCase());
-  }
-  return params;
 }

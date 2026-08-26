@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronDown, Download } from "lucide-react";
 import {
+  DEFAULT_MARGIN_DIMENSION,
+  DEFAULT_PROFITABILITY_SCOPE,
   parseProfitabilityDimension,
   parseProfitabilityScope,
   parseProfitabilityStatus,
@@ -30,14 +32,7 @@ import {
 import { financeCopy } from "../copy";
 import { exportProfitabilityTripsCsv } from "../utils/financeExportHelpers";
 
-interface ProfitabilityTabProps {
-  queriesEnabled: boolean;
-}
-
-const DEFAULT_SCOPE: ProfitabilityScope = "operational";
-const DEFAULT_DIMENSION: ProfitabilityDimension = "client";
-
-export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
+export function ProfitabilityTab() {
   const { toast } = useToast();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [chartsOpen, setChartsOpen] = useState(false);
@@ -70,7 +65,7 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
 
   const handleScopeChange = useCallback(
     (value: ProfitabilityScope) => {
-      filters.setFilter("scope", value === DEFAULT_SCOPE ? "" : value);
+      filters.setFilter("scope", value === DEFAULT_PROFITABILITY_SCOPE ? "" : value);
       setExpandedKey(null);
     },
     [filters],
@@ -78,7 +73,7 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
 
   const handleDimensionChange = useCallback(
     (value: ProfitabilityDimension) => {
-      filters.setFilter("dimension", value === DEFAULT_DIMENSION ? "" : value);
+      filters.setFilter("dimension", value === DEFAULT_MARGIN_DIMENSION ? "" : value);
       setExpandedKey(null);
     },
     [filters],
@@ -113,7 +108,6 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
 
   const { data: trips, isLoading: tripsLoading } = useProfitabilityTrips(
     tripFilters,
-    { enabled: queriesEnabled },
   );
 
   const aggregateFilters = useMemo(
@@ -127,7 +121,7 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
   );
 
   const { data: aggregate, isLoading: aggregateLoading } =
-    useProfitabilityAggregate(aggregateFilters, { enabled: queriesEnabled });
+    useProfitabilityAggregate(aggregateFilters);
 
   const { data: monthAggregate, isLoading: monthAggregateLoading } =
     useProfitabilityAggregate(
@@ -137,7 +131,6 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
         sortBy: "totalRevenue",
         sortOrder: "asc",
       },
-      { enabled: queriesEnabled },
     );
 
   const chartsCopy = financeCopy.profitability.chartsSection;
@@ -198,7 +191,6 @@ export function ProfitabilityTab({ queriesEnabled }: ProfitabilityTabProps) {
         }
         expandedKey={expandedKey}
         onExpandedKeyChange={setExpandedKey}
-        queriesEnabled={queriesEnabled}
       />
 
       <Collapsible open={chartsOpen} onOpenChange={setChartsOpen}>

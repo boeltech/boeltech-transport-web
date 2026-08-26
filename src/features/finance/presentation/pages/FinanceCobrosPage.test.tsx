@@ -6,7 +6,7 @@ import type {
   FinanceRepExceptionItem,
 } from "@features/finance/domain";
 import { renderWithTheme } from "@/test/renderWithTheme";
-import { FinanceCobranzaTab } from "./FinanceCobranzaTab";
+import { FinanceCobrosPage } from "./FinanceCobrosPage";
 import {
   COBROS_FOLLOW_THROUGH_STORAGE_KEY,
 } from "../utils/cobrosFollowThrough";
@@ -92,7 +92,7 @@ function buildInvoice(): FinanceInvoiceListItem {
   };
 }
 
-describe("FinanceCobranzaTab", () => {
+describe("FinanceCobrosPage", () => {
   beforeEach(() => {
     openPpd.data = undefined;
     openPpd.isLoading = false;
@@ -105,14 +105,14 @@ describe("FinanceCobranzaTab", () => {
   });
 
   it("shows the RFC task and a path to Resumen when there is no rfc", () => {
-    renderWithTheme(<FinanceCobranzaTab />, {
-      route: ["/finance?tab=cobros"],
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
     });
 
     expect(screen.getByText("Registrar un cobro")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Ir a Resumen" }),
-    ).toHaveAttribute("href", "/finance?tab=summary");
+    ).toHaveAttribute("href", "/finance");
     expect(screen.queryByText("Facturas abiertas a crédito")).not.toBeInTheDocument();
     expect(screen.getByText("Comprobantes por atender")).toBeInTheDocument();
   });
@@ -124,8 +124,8 @@ describe("FinanceCobranzaTab", () => {
       pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
     };
 
-    renderWithTheme(<FinanceCobranzaTab />, {
-      route: ["/finance?tab=cobros&rfc=xaxx010101000"],
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros?rfc=xaxx010101000"],
     });
 
     expect(screen.getByText("RFC XAXX010101000")).toBeInTheDocument();
@@ -154,8 +154,8 @@ describe("FinanceCobranzaTab", () => {
       }),
     );
 
-    renderWithTheme(<FinanceCobranzaTab />, {
-      route: ["/finance?tab=cobros"],
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
     });
 
     expect(screen.getByText("Cobro registrado")).toBeInTheDocument();
@@ -194,8 +194,8 @@ describe("FinanceCobranzaTab", () => {
       pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
     };
 
-    renderWithTheme(<FinanceCobranzaTab />, {
-      route: ["/finance?tab=cobros"],
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
     });
 
     expect(screen.getByText("Sello fallido")).toBeInTheDocument();

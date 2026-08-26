@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Download } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Download, Landmark } from "lucide-react";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { Button } from "@shared/ui/button";
 import {
-  buildFinanceTabSearchParams,
+  buildFinanceCobrosPath,
   useAccountStatement,
   useAgingByClient,
   useAgingSummary,
@@ -14,39 +14,34 @@ import {
 import {
   FinanceAccountStatementSection,
   FinanceAgingChart,
+  FinanceSectionHeader,
   FinanceSummaryCards,
 } from "../components";
 import { financeCopy } from "../copy";
 import { exportAgingByClientCsv } from "../utils/financeExportHelpers";
 
-interface FinanceSummaryTabProps {
-  queriesEnabled: boolean;
-}
-
-export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
+export function FinanceSummaryPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
   const {
     data: summary,
     isLoading,
     isError: summaryError,
     error: summaryErr,
-  } = useFinanceSummary({ enabled: queriesEnabled });
+  } = useFinanceSummary();
   const {
     data: statement,
     isLoading: stmtLoading,
     isError: stmtError,
     error: stmtErr,
-  } = useAccountStatement({ enabled: queriesEnabled });
+  } = useAccountStatement();
   const {
     data: agingSummary,
     isLoading: agingLoading,
     isError: agingError,
     error: agingErr,
-  } = useAgingSummary({ enabled: queriesEnabled });
-  const { data: agingByClient } = useAgingByClient({
-    enabled: queriesEnabled,
-  });
+  } = useAgingSummary();
+  const { data: agingByClient } = useAgingByClient();
 
   useEffect(() => {
     if (!summaryError || !summaryErr) return;
@@ -79,15 +74,9 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
 
   const handleCollectClient = useCallback(
     (clientRfc: string) => {
-      setSearchParams(
-        buildFinanceTabSearchParams("cobros", {
-          rfc: clientRfc,
-          preserveFrom: searchParams,
-        }),
-        { replace: false },
-      );
+      navigate(buildFinanceCobrosPath(clientRfc));
     },
-    [searchParams, setSearchParams],
+    [navigate],
   );
 
   const agingExportAction = useMemo(() => {
@@ -113,6 +102,12 @@ export function FinanceSummaryTab({ queriesEnabled }: FinanceSummaryTabProps) {
 
   return (
     <div className="space-y-6">
+      <FinanceSectionHeader
+        icon={<Landmark className="h-5 w-5" />}
+        title={financeCopy.page.sections.summary.title}
+        subtitle={financeCopy.page.sections.summary.subtitle}
+      />
+
       <FinanceSummaryCards summary={summary} isLoading={isLoading} />
 
       <FinanceAgingChart

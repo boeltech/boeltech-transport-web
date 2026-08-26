@@ -141,13 +141,23 @@ export const financeCopy = {
       subtitle: "Consulta las facturas de tus envíos.",
       invoicesTab: "Facturas",
     },
-    tabs: {
-      summary: "Resumen",
-      invoiceable: "Por facturar",
-      invoices: "Facturas",
-      cobros: "Cobros",
-      analysis: "Análisis",
-      approvals: "Aprobaciones",
+    sections: {
+      summary: {
+        title: "Resumen",
+        subtitle: "Indicadores de cobro, antigüedad de saldos y estado de cuenta por cliente.",
+      },
+      cobros: {
+        title: "Cobros",
+        subtitle: "Registra cobros por RFC y revisa comprobantes de pago pendientes.",
+      },
+      analysis: {
+        title: "Análisis",
+        subtitle: "Margen por viaje y concentración de gastos operativos aprobados.",
+      },
+      approvals: {
+        title: "Aprobaciones",
+        subtitle: "Bandeja centralizada de solicitudes pendientes de revisión.",
+      },
     },
     analysisViews: {
       margin: "Margen",
@@ -326,7 +336,7 @@ export const financeCopy = {
   invoiceable: {
     title: "Viajes por facturar",
     description:
-      "Viajes listos para facturar. Si el flete está prorrateado entre varios RFC, abre el viaje para facturar cada porción.",
+      "Candidatos fiscales sin factura pendiente de emitir. «Facturar» aparece cuando la operación y los datos SAT lo permiten; si falta ruta, cargas o el flete está prorrateado, abre el viaje.",
     searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
@@ -347,7 +357,7 @@ export const financeCopy = {
     empty: {
       title: "Nada por facturar",
       description:
-        "Todos los viajes con facturación disponible ya tienen factura.",
+        "No hay candidatos fiscales pendientes en la cola.",
       withFilters:
         "No hay resultados con la búsqueda actual. Prueba otro folio o cliente.",
       clearFilters: "Limpiar búsqueda",

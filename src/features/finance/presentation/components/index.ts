@@ -15,6 +15,20 @@ export { ProfitabilityBucketBar } from "./ProfitabilityBucketBar";
 export { ProfitabilityDimensionBarList } from "./ProfitabilityDimensionBarList";
 export { FinanceInvoicesSummaryCards } from "./FinanceInvoicesSummaryCards";
 export { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
+export { FinanceDispatchRunsTable } from "./FinanceDispatchRunsTable";
+export { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
+export { FinanceSectionHeader } from "./FinanceSectionHeader";
 export { FinanceTabFiltersBar } from "./FinanceTabFiltersBar";
+export {
+  DispatchRunClientReceipts,
+  DispatchRunRecipientsEditor,
+  DispatchRunRecipientsReadOnly,
+} from "./DispatchRunRecipientsList";
+export { DispatchRunAlreadySentSection } from "./DispatchRunAlreadySentSection";
+export {
+  DispatchRunClientGroup,
+  DispatchRunFolioList,
+} from "./DispatchRunClientGroup";
+export { DispatchRunSendResults } from "./DispatchRunSendResults";
 

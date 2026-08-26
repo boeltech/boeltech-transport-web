@@ -73,6 +73,36 @@ describe("navigationConfig", () => {
       "employees",
     ]);
   });
+
+  it("exposes daily finance queues in sidebar without period ritual or consult tabs", () => {
+    const finance = navigationConfig.find((group) => group.id === "finance");
+    const ids = finance?.items.map((item) => item.id) ?? [];
+    const labels = finance?.items.map((item) => item.label) ?? [];
+
+    expect(finance?.title).toBe("Finanzas");
+    expect(labels).toContain("Resumen");
+    expect(labels).toContain("Por facturar");
+    expect(labels).toContain("Cobros");
+    expect(labels).toContain("Aprobaciones");
+    expect(labels).toContain("Envío de facturas");
+    expect(labels).toContain("Análisis");
+    expect(ids).toContain("finance-dispatch-runs");
+    expect(ids).toContain("finance-analysis");
+  });
+
+  it("uses distinct Lucide icons within the finance group", () => {
+    const finance = navigationConfig.find((group) => group.id === "finance");
+    const items = finance?.items ?? [];
+    const iconById = Object.fromEntries(
+      items.map((item) => [item.id, item.icon.displayName ?? item.icon.name]),
+    );
+
+    expect(iconById["finance-hub"]).not.toBe(iconById["finance-invoices"]);
+    expect(iconById["finance-analysis"]).not.toBe(iconById["reports-list"]);
+
+    const icons = items.map((item) => item.icon);
+    expect(new Set(icons).size).toBe(icons.length);
+  });
 });
 
 describe("clientPortalNavigationConfig", () => {

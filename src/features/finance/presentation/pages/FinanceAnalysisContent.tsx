@@ -4,19 +4,17 @@ import { financeCopy } from "../copy";
 import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
 import { ProfitabilityTab } from "./ProfitabilityTab";
 
-interface FinanceAnalysisTabProps {
-  queriesEnabled: boolean;
+interface FinanceAnalysisContentProps {
   view: FinanceAnalysisView;
   onViewChange: (view: FinanceAnalysisView) => void;
 }
 
 const VIEWS: FinanceAnalysisView[] = ["margin", "expenses"];
 
-export function FinanceAnalysisTab({
-  queriesEnabled,
+export function FinanceAnalysisContent({
   view,
   onViewChange,
-}: FinanceAnalysisTabProps) {
+}: FinanceAnalysisContentProps) {
   const labels = financeCopy.page.analysisViews;
 
   return (
@@ -46,11 +44,7 @@ export function FinanceAnalysisTab({
         ))}
       </div>
 
-      {view === "margin" ? (
-        <ProfitabilityTab queriesEnabled={queriesEnabled} />
-      ) : (
-        <ExpenseAnalysisTab queriesEnabled={queriesEnabled} />
-      )}
+      {view === "margin" ? <ProfitabilityTab /> : <ExpenseAnalysisTab />}
     </div>
   );
 }

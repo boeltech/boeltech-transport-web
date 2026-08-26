@@ -7,11 +7,11 @@ import {
   ReceiptText,
   Search,
   Send,
+  Wallet,
 } from "lucide-react";
 import {
   FINANCE_COBROS_RFC_PARAM,
   OPEN_PPD_INVOICES_PAGE_SIZE,
-  buildFinanceTabSearchParams,
   useOpenPpdInvoices,
   useRegisterFinancePayment,
 } from "@features/finance/application";
@@ -31,6 +31,7 @@ import { usePermissions } from "@shared/permissions";
 import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { FinanceChainRepairConfirmDialog } from "../components/FinanceChainRepairConfirmDialog";
+import { FinanceSectionHeader } from "../components/FinanceSectionHeader";
 import { FinanceCobrosConfirmSheet } from "../components/FinanceCobrosConfirmSheet";
 import { FinanceCobrosFollowThroughAlert } from "../components/FinanceCobrosFollowThroughAlert";
 import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTable";
@@ -70,7 +71,7 @@ function CobrosRegisterBar({
   );
 }
 
-export function FinanceCobranzaTab() {
+export function FinanceCobrosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rfcFromUrl = (searchParams.get(FINANCE_COBROS_RFC_PARAM) ?? "")
     .trim()
@@ -86,13 +87,17 @@ export function FinanceCobranzaTab() {
 
   return (
     <div className="space-y-6">
+      <FinanceSectionHeader
+        icon={<Wallet className="h-5 w-5" />}
+        title={financeCopy.page.sections.cobros.title}
+        subtitle={financeCopy.page.sections.cobros.subtitle}
+      />
       {followThrough ? (
         <FinanceCobrosFollowThroughAlert followThrough={followThrough} />
       ) : null}
       <FinanceCobrosSession
         key={`session-${rfcFromUrl || "empty"}`}
         rfcFromUrl={rfcFromUrl}
-        searchParams={searchParams}
         setSearchParams={setSearchParams}
         onPaymentRegistered={handlePaymentRegistered}
       />
@@ -106,12 +111,10 @@ export function FinanceCobranzaTab() {
 
 function FinanceCobrosSession({
   rfcFromUrl,
-  searchParams,
   setSearchParams,
   onPaymentRegistered,
 }: {
   rfcFromUrl: string;
-  searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
   onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
 }) {
@@ -195,6 +198,7 @@ function FinanceCobrosSession({
     if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
       setChainRepairLabels(getChainRepairAffectedLabels(err.details));
       setChainRepairError(null);
+      setSheetOpen(false);
       setChainRepairOpen(true);
       return;
     }
@@ -271,10 +275,11 @@ function FinanceCobrosSession({
     setPage(1);
     setIsEditingRfc(false);
     setSearchParams(
-      buildFinanceTabSearchParams("cobros", {
-        rfc: nextRfc,
-        preserveFrom: searchParams,
-      }),
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(FINANCE_COBROS_RFC_PARAM, nextRfc);
+        return next;
+      },
       { replace: true },
     );
   };
@@ -327,7 +332,7 @@ function FinanceCobrosSession({
               <p className="text-sm text-muted-foreground">
                 {copy.summaryLink}{" "}
                 <Button variant="link" className="h-auto p-0" asChild>
-                  <Link to="/finance?tab=summary">{copy.summaryLinkCta}</Link>
+                  <Link to="/finance">{copy.summaryLinkCta}</Link>
                 </Button>
               </p>
             ) : null}
@@ -465,7 +470,7 @@ function FinanceCobrosSession({
           paymentDate={paymentDate}
           reference={reference}
           onReferenceChange={setReference}
-          isPending={isPending}
+          isPending={isPending || chainRepairOpen}
           onConfirm={handleRegister}
         />
       ) : null}

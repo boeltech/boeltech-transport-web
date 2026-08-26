@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAccessBillingDispatchRuns,
   isFinanceAnalyticsEnabled,
   isFinanceCobrosTabEnabled,
 } from "./financeHubAccess";
@@ -57,6 +58,35 @@ describe("isFinanceCobrosTabEnabled", () => {
       isFinanceCobrosTabEnabled({
         isClientPortal: false,
         hasFinanceCreate: true,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("canAccessBillingDispatchRuns", () => {
+  it("returns false for client portal even with invoices.read", () => {
+    expect(
+      canAccessBillingDispatchRuns({
+        isClientPortal: true,
+        hasInvoicesRead: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false for staff without invoices.read", () => {
+    expect(
+      canAccessBillingDispatchRuns({
+        isClientPortal: false,
+        hasInvoicesRead: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true for staff with invoices.read", () => {
+    expect(
+      canAccessBillingDispatchRuns({
+        isClientPortal: false,
+        hasInvoicesRead: true,
       }),
     ).toBe(true);
   });

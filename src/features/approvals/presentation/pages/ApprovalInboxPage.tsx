@@ -278,11 +278,8 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
 
   const handleClearFilters = useCallback(() => {
     filters.setSearchInput("");
-    setSearchParams((prev) => {
+    setSearchParams(() => {
       const params = new URLSearchParams();
-      /** Limpiar filtros no debe sacar al usuario del tab del hub. */
-      const tab = prev.get("tab");
-      if (tab) params.set("tab", tab);
       params.set("type", DEFAULT_APPROVAL_TYPE);
       params.set("status", "pending");
       return params;

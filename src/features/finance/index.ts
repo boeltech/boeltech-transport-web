@@ -34,15 +34,25 @@ export {
   useIncomeByMonth,
   useInvoicesByStatusMonth,
   getCurrentMonthExpenseRange,
+  buildFinanceCobrosPath,
+  buildFinanceAnalysisSearchParams,
+  resolveLegacyFinanceLocation,
 } from "./application";
 
 export { financeApi } from "./infrastructure";
 
 export {
-  FinancePage,
-  FinanceSummaryTab,
-  FinanceInvoicesTab,
+  FinanceSummaryPage,
+  FinanceInvoicesPage,
+  FinanceInvoiceablePage,
+  FinanceCobrosPage,
+  FinanceApprovalsPage,
+  FinanceDispatchRunsPage,
+  FinanceAnalysisPage,
   ProfitabilityTab,
   ExpenseAnalysisTab,
-  FinanceInvoiceableTripsTab,
+  DispatchRunDetailPage,
 } from "./presentation/pages";
+
+export { FinanceIndexRoute } from "./presentation/routes/FinanceIndexRoute";
+export { StaffFinanceRoute } from "./presentation/routes/StaffFinanceRoute";

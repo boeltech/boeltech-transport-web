@@ -100,7 +100,7 @@ interface ProfitabilityMasterDetailTableProps {
   profitabilityStatus: ProfitabilityStatus[] | undefined;
   expandedKey: string | null;
   onExpandedKeyChange: (key: string | null) => void;
-  queriesEnabled: boolean;
+  queriesEnabled?: boolean;
 }
 
 function ProfitabilityTripDetailPanel({
@@ -287,7 +287,7 @@ export function ProfitabilityMasterDetailTable({
   profitabilityStatus,
   expandedKey,
   onExpandedKeyChange,
-  queriesEnabled,
+  queriesEnabled = true,
 }: ProfitabilityMasterDetailTableProps) {
   const expandedFilters = useMemo(() => {
     if (!expandedKey) return null;

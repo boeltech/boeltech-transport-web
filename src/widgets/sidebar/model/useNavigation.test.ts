@@ -5,26 +5,27 @@ import { findActiveNavItem } from "./useNavigation";
 
 const hub: NavItem = {
   id: "finance-hub",
-  label: "Finanzas",
+  label: "Resumen",
   path: "/finance",
   icon: Circle,
+  exactPath: true,
 };
 const invoiceable: NavItem = {
   id: "finance-invoiceable",
   label: "Por facturar",
-  path: "/finance?tab=invoiceable",
+  path: "/finance/invoiceable",
   icon: Circle,
 };
 const cobros: NavItem = {
   id: "finance-cobros",
   label: "Cobros",
-  path: "/finance?tab=cobros",
+  path: "/finance/cobros",
   icon: Circle,
 };
 const approvals: NavItem = {
   id: "finance-approvals",
   label: "Aprobaciones",
-  path: "/finance?tab=approvals",
+  path: "/finance/approvals",
   icon: Circle,
 };
 const users: NavItem = {
@@ -41,53 +42,36 @@ const usersActivity: NavItem = {
 };
 
 describe("findActiveNavItem", () => {
-  it("prefers the item whose tab matches the current query", () => {
-    const active = findActiveNavItem(
-      "/finance",
-      [hub, invoiceable, approvals],
-      "?tab=invoiceable",
-    );
-
-    expect(active?.id).toBe("finance-invoiceable");
-  });
-
-  it("prefers cobros when that tab is in the query", () => {
-    expect(
-      findActiveNavItem("/finance", [hub, invoiceable, cobros], "?tab=cobros")
-        ?.id,
-    ).toBe("finance-cobros");
-  });
-
-  it("keeps the hub active when the tab does not match", () => {
-    expect(
-      findActiveNavItem("/finance", [hub, invoiceable], "")?.id,
-    ).toBe("finance-hub");
-    expect(
-      findActiveNavItem("/finance", [hub, invoiceable], "?tab=cobros")?.id,
-    ).toBe("finance-hub");
-  });
-
-  it("activates a tab item even without query when it is the only one visible", () => {
-    expect(findActiveNavItem("/finance", [invoiceable], "")?.id).toBe(
+  it("activates finance sections by pathname", () => {
+    expect(findActiveNavItem("/finance/invoiceable", [hub, invoiceable], "")?.id).toBe(
       "finance-invoiceable",
     );
+    expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
+      "finance-cobros",
+    );
+    expect(findActiveNavItem("/finance", [hub, invoiceable], "")?.id).toBe(
+      "finance-hub",
+    );
   });
 
-  it("distinguishes sibling tabs of the same hub", () => {
+  it("prefers the longest matching pathname", () => {
     expect(
-      findActiveNavItem(
-        "/finance",
-        [hub, invoiceable, approvals],
-        "?tab=approvals&status=pending",
-      )?.id,
+      findActiveNavItem("/finance/approvals", [hub, approvals], "?status=pending")?.id,
     ).toBe("finance-approvals");
   });
 
-  it("still wins by longest pathname over any query match", () => {
+  it("does not mark Resumen active on nested finance routes", () => {
+    expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
+      "finance-cobros",
+    );
+    expect(findActiveNavItem("/finance/cobros", [hub, invoiceable], "")).toBeUndefined();
+  });
+
+  it("still wins by longest pathname over shorter siblings", () => {
     const active = findActiveNavItem(
       "/users/activity",
       [users, usersActivity, hub],
-      "?tab=approvals",
+      "",
     );
 
     expect(active?.id).toBe("users-activity");

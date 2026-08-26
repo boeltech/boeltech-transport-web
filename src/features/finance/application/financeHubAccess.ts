@@ -16,3 +16,14 @@ export function isFinanceCobrosTabEnabled(options: {
 }): boolean {
   return !options.isClientPortal && options.hasFinanceCreate;
 }
+
+/**
+ * Corridas de despacho (ADR-0082): staff con invoices.read.
+ * Portal client excluido (SDD §8) aunque tenga invoices.read.
+ */
+export function canAccessBillingDispatchRuns(options: {
+  isClientPortal: boolean;
+  hasInvoicesRead: boolean;
+}): boolean {
+  return !options.isClientPortal && options.hasInvoicesRead;
+}
