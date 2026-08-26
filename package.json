@@ -38,10 +38,12 @@
     "test:smoke:trip-canvas": "vitest run src/smoke/trip-canvas-intake.smoke.test.tsx src/features/trips/infrastructure/api/canvas-mappers.test.ts src/features/trips/presentation/pages/create/wizardToCreateTripInput.test.ts src/features/trips/presentation/pages/TripEditRedirect.test.tsx",
     "test:smoke:auth-phase2": "vitest run src/smoke/auth-phase2.smoke.test.tsx src/smoke/session-platform-erp-isolation.smoke.test.ts src/features/auth/application/useCases/LogoutUseCase.test.ts src/features/auth/infrastructure/interceptors/authInterceptor.test.ts src/features/auth/infrastructure/storage/tokenStorage.test.ts",
     "test:smoke:imports": "vitest run src/smoke/imports-workflow.smoke.test.tsx src/features/imports",
-    "test:smoke:trip-revenue-split": "vitest run src/smoke/trip-revenue-split.smoke.test.tsx src/features/trips/infrastructure/api/mappers.test.ts src/features/invoicing/infrastructure/mappers.test.ts"
+    "test:smoke:trip-revenue-split": "vitest run src/smoke/trip-revenue-split.smoke.test.tsx src/features/trips/infrastructure/api/mappers.test.ts src/features/invoicing/infrastructure/mappers.test.ts",
+    "test:smoke:billing-dispatch": "vitest run src/smoke/billing-dispatch-workflow.smoke.test.tsx src/features/finance/presentation/utils/dispatchRunPreviewBuckets.test.ts",
+    "test:smoke:invoice-auto-dispatch": "vitest run src/smoke/invoice-auto-dispatch.smoke.test.tsx src/features/clients/presentation/validation/clientSchema.test.ts src/features/invoicing/infrastructure/mappers.test.ts"
   },
   "dependencies": {
-    "@boeltech/cfdi-domain": "0.18.1",
+    "@boeltech/cfdi-domain": "0.23.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
