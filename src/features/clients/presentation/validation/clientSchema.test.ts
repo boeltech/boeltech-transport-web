@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientEditFormSchema,
   clientFormDataToUpdateDto,
   clientFormSchema,
   clientToFormValues,
   createClientFormSchema,
   defaultClientFormValues,
-  updateClientFormSchema,
 } from "./clientSchema";
 import type { Client } from "../../domain";
 
@@ -60,9 +60,37 @@ describe("clientSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("updateClientFormSchema acepta los mismos campos de edición completa", () => {
-    const result = updateClientFormSchema.safeParse(validCompanyValues);
+  it("clientEditFormSchema acepta los mismos campos de edición completa", () => {
+    const result = clientEditFormSchema.safeParse(validCompanyValues);
     expect(result.success).toBe(true);
+  });
+
+  it("clientFormDataToUpdateDto incluye invoiceAutoDispatchEnabled", () => {
+    const dto = clientFormDataToUpdateDto({
+      ...validCompanyValues,
+      invoiceAutoDispatchEnabled: true,
+      billingSchemeId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(dto.invoiceAutoDispatchEnabled).toBe(true);
+    expect(dto.billingSchemeId).toBe("11111111-1111-4111-8111-111111111111");
+  });
+
+  it("clientToFormValues defaulta invoiceAutoDispatchEnabled a false", () => {
+    const client = {
+      id: "c1",
+      tenantId: "t1",
+      clientCode: "CLI-1",
+      type: "company",
+      legalName: "Transportes Demo SA de CV",
+      taxId: "AAA010101AAA",
+      taxRegime: "601",
+      paymentTerms: "cash",
+      creditDays: 0,
+      isActive: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    } as Client;
+    expect(clientToFormValues(client).invoiceAutoDispatchEnabled).toBe(false);
   });
 
   it("clientToFormValues + clientFormDataToUpdateDto redondean opcionales vacíos", () => {
@@ -90,5 +118,27 @@ describe("clientSchema", () => {
     expect(dto.tradeName).toBeNull();
     expect(dto.taxId).toBe("AAA010101AAA");
     expect(dto.legalName).toBe("Transportes Demo SA de CV");
+    expect(dto).not.toHaveProperty("contactName");
+    expect(dto).not.toHaveProperty("contactPosition");
+    expect(dto).not.toHaveProperty("phone");
+    expect(dto).not.toHaveProperty("secondaryPhone");
+    expect(dto).not.toHaveProperty("email");
+    expect(dto.invoiceAutoDispatchEnabled).toBe(false);
+  });
+
+  it("clientFormDataToUpdateDto omite contactos legacy aunque el form los tenga", () => {
+    const dto = clientFormDataToUpdateDto({
+      ...validCompanyValues,
+      contactName: "Ana",
+      contactPosition: "Compras",
+      phone: "5512345678",
+      secondaryPhone: "5599999999",
+      email: "ana@acme.test",
+      billingEmail: "billing@acme.test",
+    });
+    expect(dto.billingEmail).toBe("billing@acme.test");
+    expect(dto).not.toHaveProperty("contactName");
+    expect(dto).not.toHaveProperty("phone");
+    expect(dto).not.toHaveProperty("email");
   });
 });

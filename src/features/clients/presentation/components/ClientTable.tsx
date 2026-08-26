@@ -146,6 +146,11 @@ export function ClientTable({
             const typeConfig = getClientTypeConfig(client.type);
             const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
             const TypeIcon = typeConfig.icon;
+            const contactPhone =
+              client.primaryContact?.phone ?? client.phone;
+            const contactEmail =
+              client.primaryContact?.email ?? client.email;
+            const contactName = client.primaryContact?.fullName;
 
             return (
               <TableRow
@@ -200,19 +205,24 @@ export function ClientTable({
                 {/* Contacto */}
                 <TableCell>
                   <div className="flex flex-col gap-0.5 text-sm">
-                    {client.phone && (
+                    {contactName && (
+                      <span className="truncate max-w-[150px]">
+                        {contactName}
+                      </span>
+                    )}
+                    {contactPhone && (
                       <span className="flex items-center gap-1 text-muted-foreground">
                         <Phone className="h-3 w-3" />
-                        {client.phone}
+                        {contactPhone}
                       </span>
                     )}
-                    {client.email && (
+                    {contactEmail && (
                       <span className="flex items-center gap-1 text-muted-foreground truncate max-w-[150px]">
                         <Mail className="h-3 w-3" />
-                        {client.email}
+                        {contactEmail}
                       </span>
                     )}
-                    {!client.phone && !client.email && (
+                    {!contactName && !contactPhone && !contactEmail && (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </div>

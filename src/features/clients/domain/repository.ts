@@ -116,6 +116,9 @@ export interface UpdateClientDTO {
   secondaryPhone?: string | null;
   email?: string | null;
   billingEmail?: string | null;
+  billingSchemeId?: string | null;
+  /** ADR-0083: opt-in corrida programada. */
+  invoiceAutoDispatchEnabled?: boolean;
   paymentTerms?: PaymentTerms;
   creditDays?: number;
   creditLimit?: number | null;
@@ -318,12 +321,21 @@ export interface ClientListItemApiResponse {
   legal_name: string;
   trade_name: string | null;
   tax_id: string;
+  /** @deprecated Prefer primary_contact.phone */
   phone: string | null;
+  /** @deprecated Prefer primary_contact.email */
   email: string | null;
   payment_terms: string;
   credit_days: number;
   credit_limit: number | null;
   is_active: boolean;
+  primary_contact?: {
+    id: string;
+    full_name: string;
+    phone: string | null;
+    email: string | null;
+    is_primary: boolean;
+  } | null;
 }
 
 /**
@@ -345,6 +357,8 @@ export interface ClientApiResponse {
   secondary_phone: string | null;
   email: string | null;
   billing_email: string | null;
+  billing_scheme_id: string | null;
+  invoice_auto_dispatch_enabled: boolean;
   // Términos comerciales
   payment_terms: string;
   credit_days: number;

@@ -43,6 +43,9 @@ export function ClientCard({ client, className }: ClientCardProps) {
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
   const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
+  const contactPhone = client.primaryContact?.phone ?? client.phone;
+  const contactEmail = client.primaryContact?.email ?? client.email;
+  const contactName = client.primaryContact?.fullName;
 
   const handleClick = () => {
     navigate(`/clients/${client.id}`);
@@ -102,16 +105,19 @@ export function ClientCard({ client, className }: ClientCardProps) {
 
         {/* Contacto */}
         <div className="flex flex-col gap-1">
-          {client.phone && (
+          {contactName && (
+            <div className="text-sm truncate">{contactName}</div>
+          )}
+          {contactPhone && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>{client.phone}</span>
+              <span>{contactPhone}</span>
             </div>
           )}
-          {client.email && (
+          {contactEmail && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{client.email}</span>
+              <span className="truncate">{contactEmail}</span>
             </div>
           )}
         </div>

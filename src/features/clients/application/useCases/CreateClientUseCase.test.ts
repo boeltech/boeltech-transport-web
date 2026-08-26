@@ -78,7 +78,13 @@ describe("CreateClientUseCase", () => {
 
     const result = await useCase.execute({
       ...basePayload,
-      primaryContact: { fullName: "Ana Pérez", isPrimary: true },
+      // WS-B: POST /clients sin contactos legacy; contacto vía primaryContact.
+      primaryContact: {
+        fullName: "Ana Pérez",
+        phone: "5512345678",
+        email: "ana@acme.test",
+        isPrimary: true,
+      },
     });
 
     expect(result).toEqual({
@@ -87,6 +93,13 @@ describe("CreateClientUseCase", () => {
       addressId: "addr-1",
     });
     expect(clients.create).toHaveBeenCalledOnce();
+    const createArg = vi.mocked(clients.create).mock.calls[0]?.[0];
+    expect(createArg).toEqual(basePayload.client);
+    expect(createArg).not.toHaveProperty("contactName");
+    expect(createArg).not.toHaveProperty("contactPosition");
+    expect(createArg).not.toHaveProperty("phone");
+    expect(createArg).not.toHaveProperty("secondaryPhone");
+    expect(createArg).not.toHaveProperty("email");
     expect(addresses.create).toHaveBeenCalledWith(
       "client-1",
       expect.objectContaining({
@@ -97,6 +110,15 @@ describe("CreateClientUseCase", () => {
       }),
     );
     expect(contacts.create).toHaveBeenCalledOnce();
+    expect(contacts.create).toHaveBeenCalledWith(
+      "client-1",
+      expect.objectContaining({
+        fullName: "Ana Pérez",
+        phone: "5512345678",
+        email: "ana@acme.test",
+        isPrimary: true,
+      }),
+    );
     expect(clients.delete).not.toHaveBeenCalled();
   });
 

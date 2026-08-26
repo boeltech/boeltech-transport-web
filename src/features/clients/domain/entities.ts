@@ -161,13 +161,22 @@ export interface Client {
   taxId: string; // RFC
   taxRegime: string; // Régimen fiscal SAT
 
-  // Contacto principal
+  // Contacto principal (legacy en fila `clients`; preferir `primaryContact`)
+  /** @deprecated Prefer primaryContact / client_contacts */
   contactName?: string;
+  /** @deprecated Prefer primaryContact / client_contacts */
   contactPosition?: string;
+  /** @deprecated Prefer primaryContact / client_contacts */
   phone?: string;
+  /** @deprecated Prefer primaryContact / client_contacts */
   secondaryPhone?: string;
+  /** @deprecated Prefer primaryContact / client_contacts */
   email?: string;
   billingEmail?: string;
+  /** Esquema de corrida ADR-0082; null = solo cola invoiceable global */
+  billingSchemeId?: string | null;
+  /** ADR-0083: opt-in a corridas programadas del esquema asignado */
+  invoiceAutoDispatchEnabled?: boolean;
 
   // Términos comerciales
   paymentTerms: PaymentTerms;
@@ -202,12 +211,19 @@ export interface ClientListItem {
   legalName: string;
   tradeName?: string;
   taxId: string;
+  /** @deprecated Prefer primaryContact.phone */
   phone?: string;
+  /** @deprecated Prefer primaryContact.email */
   email?: string;
   paymentTerms: PaymentTerms;
   creditDays: number;
   creditLimit?: number;
   isActive: boolean;
+  /** Contacto principal desde `client_contacts` (WS-B). */
+  primaryContact?: Pick<
+    ClientContact,
+    "id" | "fullName" | "phone" | "email"
+  > | null;
 }
 
 /**

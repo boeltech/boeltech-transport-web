@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveClientCreateApiField } from "./applyClientApiFieldErrors";
+import {
+  resolveClientCreateApiField,
+  resolveClientEditApiField,
+} from "./applyClientApiFieldErrors";
 
 describe("resolveClientCreateApiField", () => {
   it("maps client snake_case API paths to client form fields", () => {
@@ -31,6 +34,17 @@ describe("resolveClientCreateApiField", () => {
     });
   });
 
+  it("maps create contact fields for wizard UX", () => {
+    expect(resolveClientCreateApiField("contact_name")).toEqual({
+      form: "client",
+      field: "contactName",
+    });
+    expect(resolveClientCreateApiField("phone")).toEqual({
+      form: "client",
+      field: "phone",
+    });
+  });
+
   it("returns null for unknown or general fields", () => {
     expect(resolveClientCreateApiField("general")).toBeNull();
     expect(resolveClientCreateApiField("unknown_field")).toBeNull();
@@ -57,5 +71,22 @@ describe("resolveClientCreateApiField", () => {
     expect(clientFields).toEqual(["taxId"]);
     expect(addressFields).toEqual(["postalCode"]);
     expect(unmapped).toEqual(["Revisa el alta"]);
+  });
+});
+
+describe("resolveClientEditApiField", () => {
+  it("maps fiscal/commercial fields", () => {
+    expect(resolveClientEditApiField("billing_email")).toEqual({
+      form: "client",
+      field: "billingEmail",
+    });
+  });
+
+  it("does not map legacy contact fields", () => {
+    expect(resolveClientEditApiField("contact_name")).toBeNull();
+    expect(resolveClientEditApiField("contact_position")).toBeNull();
+    expect(resolveClientEditApiField("phone")).toBeNull();
+    expect(resolveClientEditApiField("secondary_phone")).toBeNull();
+    expect(resolveClientEditApiField("email")).toBeNull();
   });
 });

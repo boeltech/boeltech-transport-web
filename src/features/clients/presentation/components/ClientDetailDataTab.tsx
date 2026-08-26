@@ -16,6 +16,9 @@ import { clientDetailCopy } from "../copy/clientDetailCopy";
 interface ClientDetailDataTabProps {
   client: Client;
   taxRegimeLabel: string | null;
+  billingSchemeLabel?: string | null;
+  /** Cadencia del esquema (p. ej. «Semanal · Días Jue, Vie»). */
+  billingSchemeCadence?: string | null;
   /** Navega al tab Contactos (CTA cuando no hay principal o para ver ficha completa). */
   onGoToContacts?: () => void;
   /** Tercera columna (términos comerciales). Si se omite, layout 2 columnas. */
@@ -29,6 +32,8 @@ const notesCopy = clientDetailCopy.notes;
 export function ClientDetailDataTab({
   client,
   taxRegimeLabel,
+  billingSchemeLabel,
+  billingSchemeCadence,
   onGoToContacts,
   commercialSection,
 }: ClientDetailDataTabProps) {
@@ -76,6 +81,33 @@ export function ClientDetailDataTab({
                 }
               />
             ) : null}
+            <InfoRow
+              variant="inline"
+              label={idCopy.billingScheme}
+              value={
+                billingSchemeLabel?.trim() ? (
+                  <span className="space-y-0.5">
+                    <span className="block">{billingSchemeLabel}</span>
+                    {billingSchemeCadence ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {billingSchemeCadence}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : (
+                  idCopy.billingSchemeEmpty
+                )
+              }
+            />
+            <InfoRow
+              variant="inline"
+              label={idCopy.invoiceAutoDispatch}
+              value={
+                client.invoiceAutoDispatchEnabled
+                  ? idCopy.invoiceAutoDispatchOn
+                  : idCopy.invoiceAutoDispatchOff
+              }
+            />
           </CardContent>
         </Card>
 

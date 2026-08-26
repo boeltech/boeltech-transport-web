@@ -75,6 +75,17 @@ function apiOptionalEmail(
 function mapClientListItemToDomain(
   raw: DeepCamelCase<ClientListItemApiResponse>,
 ): ClientListItem {
+  const primary = raw.primaryContact
+    ? {
+        id: raw.primaryContact.id,
+        fullName: raw.primaryContact.fullName,
+        phone: raw.primaryContact.phone ?? undefined,
+        email: raw.primaryContact.email ?? undefined,
+      }
+    : raw.primaryContact === null
+      ? null
+      : undefined;
+
   return {
     id: raw.id,
     clientCode: raw.clientCode,
@@ -82,12 +93,13 @@ function mapClientListItemToDomain(
     legalName: raw.legalName,
     tradeName: raw.tradeName ?? undefined,
     taxId: raw.taxId,
-    phone: raw.phone ?? undefined,
-    email: raw.email ?? undefined,
+    phone: primary?.phone ?? raw.phone ?? undefined,
+    email: primary?.email ?? raw.email ?? undefined,
     paymentTerms: raw.paymentTerms as PaymentTerms,
     creditDays: raw.creditDays,
     creditLimit: raw.creditLimit ?? undefined,
     isActive: raw.isActive,
+    primaryContact: primary,
   };
 }
 
@@ -107,6 +119,8 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     secondaryPhone: raw.secondaryPhone ?? undefined,
     email: raw.email ?? undefined,
     billingEmail: raw.billingEmail ?? undefined,
+    billingSchemeId: raw.billingSchemeId ?? undefined,
+    invoiceAutoDispatchEnabled: Boolean(raw.invoiceAutoDispatchEnabled),
     paymentTerms: raw.paymentTerms as PaymentTerms,
     creditDays: raw.creditDays,
     creditLimit: raw.creditLimit ?? undefined,
@@ -346,20 +360,8 @@ export function toApiCreateClient(
 
   payload.tax_regime = dto.taxRegime.trim();
 
-  const contactName = apiOptionalTrimmedString(dto.contactName);
-  if (contactName !== undefined) payload.contact_name = contactName;
-
-  const contactPosition = apiOptionalTrimmedString(dto.contactPosition);
-  if (contactPosition !== undefined) payload.contact_position = contactPosition;
-
-  const phone = apiOptionalTrimmedString(dto.phone);
-  if (phone !== undefined) payload.phone = phone;
-
-  const secondaryPhone = apiOptionalTrimmedString(dto.secondaryPhone);
-  if (secondaryPhone !== undefined) payload.secondary_phone = secondaryPhone;
-
-  const email = apiOptionalEmail(dto.email);
-  if (email !== undefined) payload.email = email;
+  // Contacto legacy (`contact_*` / phone / email) ya no se dual-write;
+  // el alta usa POST /clients/:id/contacts (primaryContact).
 
   const billingEmail = apiOptionalEmail(dto.billingEmail);
   if (billingEmail !== undefined) payload.billing_email = billingEmail;
@@ -384,15 +386,14 @@ export function toApiUpdateClient(
   if (dto.tradeName !== undefined) result.trade_name = dto.tradeName;
   if (dto.taxId !== undefined) result.tax_id = dto.taxId.toUpperCase();
   if (dto.taxRegime !== undefined) result.tax_regime = dto.taxRegime;
-  // Contacto
-  if (dto.contactName !== undefined) result.contact_name = dto.contactName;
-  if (dto.contactPosition !== undefined)
-    result.contact_position = dto.contactPosition;
-  if (dto.phone !== undefined) result.phone = dto.phone;
-  if (dto.secondaryPhone !== undefined)
-    result.secondary_phone = dto.secondaryPhone;
-  if (dto.email !== undefined) result.email = dto.email;
+  // Contacto legacy omitido (WS-B); contactos viven en client_contacts.
   if (dto.billingEmail !== undefined) result.billing_email = dto.billingEmail;
+  if (dto.billingSchemeId !== undefined) {
+    result.billing_scheme_id = dto.billingSchemeId;
+  }
+  if (dto.invoiceAutoDispatchEnabled !== undefined) {
+    result.invoice_auto_dispatch_enabled = dto.invoiceAutoDispatchEnabled;
+  }
   // Términos comerciales
   if (dto.paymentTerms !== undefined) result.payment_terms = dto.paymentTerms;
   if (dto.creditDays !== undefined) result.credit_days = dto.creditDays;

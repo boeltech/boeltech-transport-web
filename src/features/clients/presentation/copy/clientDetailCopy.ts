@@ -69,6 +69,20 @@ export const clientDetailCopy = {
     taxId: "RFC",
     taxRegime: "Régimen",
     billingEmail: "Correo de facturación",
+    billingScheme: "Esquema de facturación",
+    billingSchemeEmpty: "Sin esquema — solo aparece en Por facturar",
+    billingSchemeNone: "Sin esquema (solo Por facturar)",
+    billingSchemePlaceholder: "Seleccionar esquema",
+    billingSchemeHint:
+      "Opcional. Con esquema, el cliente puede entrar a envíos programados; sin esquema solo aparece en Por facturar.",
+    invoiceAutoDispatch: "Envío automático de facturas",
+    invoiceAutoDispatchOn: "Activado",
+    invoiceAutoDispatchOff: "Desactivado",
+    invoiceAutoDispatchHint:
+      "Si está activo y el cliente tiene esquema, el sistema prepara y envía el correo del periodo sin que lo confirmes.",
+    invoiceAutoDispatchNoSchemeTitle: "Falta esquema de facturación",
+    invoiceAutoDispatchNoSchemeText:
+      "Asigna un esquema para que el envío automático tenga efecto. Sin esquema el cliente no entra a envíos programados.",
   },
   notes: {
     title: "Notas",

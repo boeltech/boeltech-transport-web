@@ -17,8 +17,20 @@ import { z } from "zod";
 import type { Client } from "../../domain";
 import type { UpdateClientDTO } from "../../domain/repository";
 
+const billingSchemeIdSchema = z
+  .string()
+  .uuid({ message: "Esquema de facturación inválido" })
+  .optional()
+  .nullable();
+
 export { clientTypeSchema, createClientFormSchema, updateClientFormSchema };
 export const paymentTermsSchema = clientPaymentTermsSchema;
+
+/** Edición: contrato del paquete + esquema + autoenvío (ADR-0082 / ADR-0083). */
+export const clientEditFormSchema = updateClientFormSchema.extend({
+  billingSchemeId: billingSchemeIdSchema,
+  invoiceAutoDispatchEnabled: z.boolean().default(false),
+});
 
 /**
  * Alta (wizard): mismo contrato del paquete + UX — si hay teléfono/correo/puesto
@@ -43,8 +55,11 @@ export const clientFormSchema = createClientFormSchema.superRefine(
   },
 );
 
-export type ClientFormData = z.infer<typeof createClientFormSchema>;
-export type UpdateClientFormData = z.infer<typeof updateClientFormSchema>;
+export type ClientFormData = z.infer<typeof createClientFormSchema> & {
+  billingSchemeId?: string | null;
+  invoiceAutoDispatchEnabled?: boolean;
+};
+export type UpdateClientFormData = z.infer<typeof clientEditFormSchema>;
 
 export const defaultClientFormValues: ClientFormData = {
   type: "company",
@@ -62,6 +77,7 @@ export const defaultClientFormValues: ClientFormData = {
   creditDays: 0,
   creditLimit: undefined,
   notes: "",
+  invoiceAutoDispatchEnabled: false,
 };
 
 export function clientToFormValues(client: Client): ClientFormData {
@@ -77,6 +93,8 @@ export function clientToFormValues(client: Client): ClientFormData {
     secondaryPhone: client.secondaryPhone ?? "",
     email: client.email ?? "",
     billingEmail: client.billingEmail ?? "",
+    billingSchemeId: client.billingSchemeId ?? undefined,
+    invoiceAutoDispatchEnabled: Boolean(client.invoiceAutoDispatchEnabled),
     paymentTerms: client.paymentTerms,
     creditDays: client.creditDays,
     creditLimit: client.creditLimit ?? undefined,
@@ -93,7 +111,7 @@ function emptyToNull(value: string | undefined): string | null {
 /**
  * Mapeo de formulario de edición → DTO de update.
  * `creditLimit` / strings clearables del form: vacío → `null` (sin límite / clear).
- * Contactos legacy (`contact_*`): omiten si vacíos (H2 fuera de alcance).
+ * Contactos legacy (`contact_*` / phone / email) no se envían (WS-B → client_contacts).
  */
 export function clientFormDataToUpdateDto(data: ClientFormData): UpdateClientDTO {
   return {
@@ -102,12 +120,9 @@ export function clientFormDataToUpdateDto(data: ClientFormData): UpdateClientDTO
     tradeName: emptyToNull(data.tradeName),
     taxId: data.taxId,
     taxRegime: data.taxRegime,
-    contactName: data.contactName || undefined,
-    contactPosition: data.contactPosition || undefined,
-    phone: data.phone || undefined,
-    secondaryPhone: data.secondaryPhone || undefined,
-    email: data.email || undefined,
     billingEmail: emptyToNull(data.billingEmail),
+    billingSchemeId: data.billingSchemeId?.trim() ? data.billingSchemeId : null,
+    invoiceAutoDispatchEnabled: Boolean(data.invoiceAutoDispatchEnabled),
     paymentTerms: data.paymentTerms,
     creditDays: data.creditDays,
     creditLimit: data.creditLimit ?? null,

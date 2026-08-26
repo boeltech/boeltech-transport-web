@@ -30,6 +30,8 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
+import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
+import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { useAuth } from "@features/auth";
 import {
   FINANCE_COBROS_RFC_PARAM,
@@ -174,6 +176,16 @@ export function ClientDetailPage() {
   const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime, {
     format: "name",
   });
+
+  const { data: billingSchemes = [] } = useBillingSchemes();
+  const billingScheme = useMemo(() => {
+    if (!client?.billingSchemeId) return null;
+    return billingSchemes.find((s) => s.id === client.billingSchemeId) ?? null;
+  }, [billingSchemes, client?.billingSchemeId]);
+  const billingSchemeLabel = billingScheme?.name ?? null;
+  const billingSchemeCadence = billingScheme
+    ? formatBillingSchemeCadenceSummary(billingScheme)
+    : null;
 
   const addressQuery = useClientAddresses(clientId || undefined, {
     enabled: !!clientId && !clientUnavailable,
@@ -350,7 +362,7 @@ export function ClientDetailPage() {
   const rfc = client.taxId.trim().toUpperCase();
   const collectHref =
     canCollect && rfc
-      ? `/finance?tab=cobros&${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfc)}`
+      ? `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfc)}`
       : undefined;
 
   return (
@@ -392,6 +404,8 @@ export function ClientDetailPage() {
               <ClientDetailDataTab
                 client={client}
                 taxRegimeLabel={taxRegimeLabel}
+                billingSchemeLabel={billingSchemeLabel}
+                billingSchemeCadence={billingSchemeCadence}
                 onGoToContacts={() => setActiveTab(TAB.contacts)}
                 commercialSection={
                   <ClientDetailCommercialTab

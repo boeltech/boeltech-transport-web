@@ -50,7 +50,10 @@ import {
   formatFormValidationToastDescription,
 } from "@shared/utils/formErrors";
 import { RegimenFiscalSelect } from "@features/catalogs";
+import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
+import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import { FormValidationSummary } from "@shared/ui/form";
+import { Switch } from "@shared/ui/switch";
 
 import {
   CLIENT_TYPE_LABELS,
@@ -59,12 +62,15 @@ import {
 } from "../../domain";
 import {
   clientFormSchema,
-  updateClientFormSchema,
+  clientEditFormSchema,
   clientToFormValues,
   defaultClientFormValues,
   type ClientFormData,
 } from "../validation/clientSchema";
-import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
+import { resolveClientCreateApiField, resolveClientEditApiField } from "../helpers/applyClientApiFieldErrors";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
+
+const idCopy = clientDetailCopy.identification;
 
 export interface ClientFormRef {
   /** Valida todos los campos y muestra errores si falla. */
@@ -105,6 +111,8 @@ const CLIENT_NOTIFY_KEYS = [
   "secondaryPhone",
   "email",
   "billingEmail",
+  "billingSchemeId",
+  "invoiceAutoDispatchEnabled",
   "paymentTerms",
   "creditDays",
   "creditLimit",
@@ -179,7 +187,19 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   }, [mode, client, defaultValues]);
 
   const activeSchema =
-    mode === "edit" ? updateClientFormSchema : clientFormSchema;
+    mode === "edit" ? clientEditFormSchema : clientFormSchema;
+
+  const { data: billingSchemes = [] } = useBillingSchemes({
+    isActive: true,
+  });
+  const billingSchemeOptions = useMemo(
+    () =>
+      billingSchemes.map((scheme) => ({
+        value: scheme.id,
+        label: scheme.name,
+      })),
+    [billingSchemes],
+  );
 
   const form = useForm<ClientFormData, unknown, ClientFormData>({
     // Schema del paquete (Zod 4) + refine UX; @hookform/resolvers tipa Zod 3 — cast acotado.
@@ -225,8 +245,12 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       triggerValidation: runValidation,
       applyApiValidationErrors: (entries) => {
         const unmapped: string[] = [];
+        const resolveField =
+          mode === "edit"
+            ? resolveClientEditApiField
+            : resolveClientCreateApiField;
         for (const entry of entries) {
-          const target = resolveClientCreateApiField(entry.field);
+          const target = resolveField(entry.field);
           if (target?.form === "client") {
             setError(target.field, {
               type: "server",
@@ -249,7 +273,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         setApiAlertMessages([]);
       },
     }),
-    [runValidation, setError, clearErrors],
+    [runValidation, setError, clearErrors, mode],
   );
 
   const handleInvalidSubmit = useCallback(
@@ -425,18 +449,76 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
         {mode === "edit" ? (
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="billingEmail">Correo de Facturación</Label>
-            <Input
-              id="billingEmail"
-              type="email"
-              disabled={disabled}
-              error={Boolean(errors.billingEmail)}
-              {...register("billingEmail")}
-              {...getFieldErrorAriaProps("billingEmail", errors.billingEmail?.message)}
-            />
-            <FieldInlineError fieldId="billingEmail" message={errors.billingEmail?.message} />
-          </div>
+          <>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="billingEmail">Correo de Facturación</Label>
+              <Input
+                id="billingEmail"
+                type="email"
+                disabled={disabled}
+                error={Boolean(errors.billingEmail)}
+                {...register("billingEmail")}
+                {...getFieldErrorAriaProps(
+                  "billingEmail",
+                  errors.billingEmail?.message,
+                )}
+              />
+              <FieldInlineError
+                fieldId="billingEmail"
+                message={errors.billingEmail?.message}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="billingSchemeId">{idCopy.billingScheme}</Label>
+              <RHFSelect
+                control={control}
+                name="billingSchemeId"
+                triggerId="billingSchemeId"
+                options={billingSchemeOptions}
+                allowNone
+                noneLabel={idCopy.billingSchemeNone}
+                placeholder={idCopy.billingSchemePlaceholder}
+              />
+              <p className="text-xs text-muted-foreground">
+                {idCopy.billingSchemeHint}
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center gap-2">
+                <Controller
+                  name="invoiceAutoDispatchEnabled"
+                  control={control}
+                  render={({ field }) => (
+                    <Switch
+                      id="invoiceAutoDispatchEnabled"
+                      checked={Boolean(field.value)}
+                      onCheckedChange={field.onChange}
+                      disabled={disabled}
+                    />
+                  )}
+                />
+                <Label
+                  htmlFor="invoiceAutoDispatchEnabled"
+                  className="cursor-pointer"
+                >
+                  {idCopy.invoiceAutoDispatch}
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {idCopy.invoiceAutoDispatchHint}
+              </p>
+              {Boolean(formValues?.invoiceAutoDispatchEnabled) &&
+              !formValues?.billingSchemeId ? (
+                <Alert variant="warning">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{idCopy.invoiceAutoDispatchNoSchemeTitle}</AlertTitle>
+                  <AlertDescription>
+                    {idCopy.invoiceAutoDispatchNoSchemeText}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
+          </>
         ) : null}
       </FormSectionCard>
 

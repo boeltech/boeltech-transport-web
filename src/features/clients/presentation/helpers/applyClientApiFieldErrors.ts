@@ -2,7 +2,8 @@ import { snakeToCamel } from "@shared/api/utils/case-transformer";
 import type { ClientFormData } from "../validation/clientSchema";
 import type { ClientAddressFormData } from "../validation/clientAddressSchema";
 
-const CLIENT_FORM_FIELD_NAMES = new Set<string>([
+/** Alta: incluye campos de contacto del wizard (van a primaryContact, no al DTO cliente). */
+const CLIENT_CREATE_FORM_FIELD_NAMES = new Set<string>([
   "type",
   "legalName",
   "tradeName",
@@ -14,6 +15,24 @@ const CLIENT_FORM_FIELD_NAMES = new Set<string>([
   "secondaryPhone",
   "email",
   "billingEmail",
+  "billingSchemeId",
+  "invoiceAutoDispatchEnabled",
+  "paymentTerms",
+  "creditDays",
+  "creditLimit",
+  "notes",
+]);
+
+/** Edición: sin contactos legacy (WS-B; contactos en client_contacts). */
+const CLIENT_EDIT_FORM_FIELD_NAMES = new Set<string>([
+  "type",
+  "legalName",
+  "tradeName",
+  "taxId",
+  "taxRegime",
+  "billingEmail",
+  "billingSchemeId",
+  "invoiceAutoDispatchEnabled",
   "paymentTerms",
   "creditDays",
   "creditLimit",
@@ -78,6 +97,40 @@ function normalizeApiFieldSegment(apiField: string): string {
   return segment.includes("_") ? snakeToCamel(segment) : segment;
 }
 
+function resolveClientApiField(
+  apiField: string,
+  clientFieldNames: Set<string>,
+  options?: { includeAddress?: boolean },
+): ClientApiFieldTarget | null {
+  const camel = normalizeApiFieldSegment(apiField);
+  if (!camel) return null;
+
+  const includeAddress = options?.includeAddress ?? true;
+  const trimmed = apiField.trim();
+  const first = trimmed.split(".")[0] ?? "";
+  const prefersAddress = ADDRESS_PATH_PREFIXES.some(
+    (prefix) => first === prefix || first.startsWith(`${prefix}[`),
+  );
+
+  if (
+    includeAddress &&
+    prefersAddress &&
+    CLIENT_ADDRESS_FORM_FIELD_NAMES.has(camel)
+  ) {
+    return { form: "address", field: camel as keyof ClientAddressFormData };
+  }
+
+  if (clientFieldNames.has(camel)) {
+    return { form: "client", field: camel as keyof ClientFormData };
+  }
+
+  if (includeAddress && CLIENT_ADDRESS_FORM_FIELD_NAMES.has(camel)) {
+    return { form: "address", field: camel as keyof ClientAddressFormData };
+  }
+
+  return null;
+}
+
 /**
  * Resuelve un path de error API (snake/camel, anidado) al formulario de alta
  * de cliente (datos fiscales vs domicilio fiscal).
@@ -85,26 +138,16 @@ function normalizeApiFieldSegment(apiField: string): string {
 export function resolveClientCreateApiField(
   apiField: string,
 ): ClientApiFieldTarget | null {
-  const camel = normalizeApiFieldSegment(apiField);
-  if (!camel) return null;
+  return resolveClientApiField(apiField, CLIENT_CREATE_FORM_FIELD_NAMES);
+}
 
-  const trimmed = apiField.trim();
-  const first = trimmed.split(".")[0] ?? "";
-  const prefersAddress = ADDRESS_PATH_PREFIXES.some(
-    (prefix) => first === prefix || first.startsWith(`${prefix}[`),
-  );
-
-  if (prefersAddress && CLIENT_ADDRESS_FORM_FIELD_NAMES.has(camel)) {
-    return { form: "address", field: camel as keyof ClientAddressFormData };
-  }
-
-  if (CLIENT_FORM_FIELD_NAMES.has(camel)) {
-    return { form: "client", field: camel as keyof ClientFormData };
-  }
-
-  if (CLIENT_ADDRESS_FORM_FIELD_NAMES.has(camel)) {
-    return { form: "address", field: camel as keyof ClientAddressFormData };
-  }
-
-  return null;
+/**
+ * Edición de cliente: sin mapear contactos legacy a campos del form.
+ */
+export function resolveClientEditApiField(
+  apiField: string,
+): ClientApiFieldTarget | null {
+  return resolveClientApiField(apiField, CLIENT_EDIT_FORM_FIELD_NAMES, {
+    includeAddress: false,
+  });
 }
