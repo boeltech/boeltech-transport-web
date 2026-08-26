@@ -128,6 +128,15 @@ export class SettingsRepository implements ISettingsRepository {
     await apiClient.delete(`${SETTINGS_ENDPOINT}/company/logo`);
   }
 
+  async fetchCompanyLogoBlob(): Promise<Blob> {
+    const axios = apiClient.getAxiosInstance();
+    const response = await axios.get<Blob>(
+      `${SETTINGS_ENDPOINT}/company/logo`,
+      { responseType: "blob" },
+    );
+    return response.data;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Billing Settings
   // ─────────────────────────────────────────────────────────────────────────

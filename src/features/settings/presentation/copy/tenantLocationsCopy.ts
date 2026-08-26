@@ -5,7 +5,7 @@
 
 export const tenantLocationsCopy = {
   page: {
-    breadcrumb: "Directorio",
+    breadcrumb: "Bodegas",
     title: "Bodegas y puntos de la empresa",
     description:
       "Lugares de la empresa que no son de un cliente ni de una sucursal. Se reutilizan al armar paradas.",

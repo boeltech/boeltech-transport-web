@@ -7,6 +7,7 @@
 // Company Settings
 export {
   useCompanySettings,
+  useCompanyLogoObjectUrl,
   useUpdateCompanySettings,
   useUploadLogo,
   useDeleteLogo,
@@ -23,6 +24,15 @@ export {
 
 // Billing Service Concepts
 export { useBillingServiceConcepts } from "./useBillingServiceConcepts";
+
+// Billing Schemes (ADR-0082)
+export {
+  useBillingSchemes,
+  useBillingScheme,
+  useCreateBillingScheme,
+  useUpdateBillingScheme,
+  useDeleteBillingScheme,
+} from "./useBillingSchemes";
 
 // Notification Settings
 export {

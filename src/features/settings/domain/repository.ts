@@ -109,6 +109,8 @@ export interface ISettingsRepository {
   ): Promise<SettingsResult<CompanySettings>>;
   uploadLogo(file: File): Promise<UploadLogoResult>;
   deleteLogo(): Promise<void>;
+  /** Bytes del logo vía GET autenticado (no usar /uploads directo). */
+  fetchCompanyLogoBlob(): Promise<Blob>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Billing Settings

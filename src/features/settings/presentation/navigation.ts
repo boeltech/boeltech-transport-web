@@ -2,6 +2,7 @@
  * Settings Navigation Configuration
  *
  * Configuración de la navegación interna del módulo Settings.
+ * Orden (Capa 1): poner a punto → facturación → plan → padrón/consulta → preferencias.
  */
 
 import {
@@ -13,6 +14,7 @@ import {
   MapPin,
   CreditCard,
   FileUp,
+  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -45,6 +47,41 @@ export const settingsNavItems: SettingsNavItem[] = [
     permission: { module: "settings", action: "read" },
   },
   {
+    id: SettingsSection.BILLING,
+    label: "Datos para facturar",
+    description:
+      "Sello digital, numeración y valores con los que emites tus facturas",
+    path: "/settings/billing",
+    icon: FileText,
+    permission: { module: "settings", action: "read" },
+  },
+  {
+    id: SettingsSection.BILLING_SCHEMES,
+    label: "Esquemas de facturación",
+    description:
+      "Cuándo agrupar el envío por correo; independiente del sello digital",
+    path: "/settings/billing-schemes",
+    icon: CalendarClock,
+    permission: { module: "invoices", action: "read" },
+  },
+  {
+    id: SettingsSection.SUBSCRIPTION,
+    label: "Tu plan",
+    description: "Cupo para facturar, plan y saldo pendiente",
+    path: "/settings/subscription",
+    icon: CreditCard,
+    permission: { module: "billing", action: "read" },
+  },
+  {
+    id: SettingsSection.IMPORTS,
+    label: "Importar padrón",
+    description:
+      "Padrón desde archivo: operable al cargar; el timbrado se completa después",
+    path: "/settings/imports",
+    icon: FileUp,
+    permission: { module: "imports", action: "read" },
+  },
+  {
     id: SettingsSection.CATALOGS,
     label: "Catálogos",
     description:
@@ -55,38 +92,12 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
   {
     id: SettingsSection.LOCATIONS,
-    label: "Directorio",
+    label: "Bodegas",
     description:
       "Bodegas de la empresa que no son de un cliente ni de una sucursal",
     path: "/settings/locations",
     icon: MapPin,
     permission: { module: "settings", action: "update" },
-  },
-  {
-    id: SettingsSection.IMPORTS,
-    label: "Cargas",
-    description:
-      "Padrón desde archivo: operable al cargar; el timbrado se completa después",
-    path: "/settings/imports",
-    icon: FileUp,
-    permission: { module: "imports", action: "read" },
-  },
-  {
-    id: SettingsSection.BILLING,
-    label: "Datos para facturar",
-    description:
-      "Sello digital, numeración y valores con los que emites tus facturas",
-    path: "/settings/billing",
-    icon: FileText,
-    permission: { module: "settings", action: "read" },
-  },
-  {
-    id: SettingsSection.SUBSCRIPTION,
-    label: "Tu plan",
-    description: "Cupo para facturar, plan y saldo pendiente",
-    path: "/settings/subscription",
-    icon: CreditCard,
-    permission: { module: "billing", action: "read" },
   },
   {
     id: SettingsSection.NOTIFICATIONS,

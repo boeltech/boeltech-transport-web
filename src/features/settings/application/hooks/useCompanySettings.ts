@@ -7,6 +7,7 @@
  * Ubicación: src/features/settings/application/hooks/useCompanySettings.ts
  */
 
+import { useEffect, useState } from "react";
 import {
   useQuery,
   useMutation,
@@ -44,6 +45,39 @@ export function useCompanySettings(
     gcTime: 1000 * 60 * 30, // 30 minutos en cache
     ...options,
   });
+}
+
+/**
+ * Carga el logo vía API autenticada y expone un object URL para `<img>`.
+ * No usar `/uploads/...` directo (Bearer no viaja en src de imagen).
+ */
+export function useCompanyLogoObjectUrl(
+  hasLogo: boolean,
+  version: number,
+): { logoSrc: string | null; isLoading: boolean; isError: boolean } {
+  const { data: blob, isLoading, isError } = useQuery({
+    queryKey: settingsQueryKeys.companyLogo(version),
+    queryFn: () => settingsRepository.fetchCompanyLogoBlob(),
+    enabled: hasLogo,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
+
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!blob) {
+      setLogoSrc(null);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    setLogoSrc(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [blob]);
+
+  return { logoSrc: hasLogo ? logoSrc : null, isLoading, isError };
 }
 
 // ============================================================================
@@ -106,7 +140,6 @@ export function useUploadLogo(
   return useMutation({
     mutationFn: (file: File) => settingsRepository.uploadLogo(file),
     onSuccess: (result) => {
-      // Invalidar para recargar con el nuevo logo
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.company() });
 
       toast({

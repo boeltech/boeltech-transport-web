@@ -56,6 +56,7 @@ export type {
 export {
   // Company
   useCompanySettings,
+  useCompanyLogoObjectUrl,
   useUpdateCompanySettings,
   useUploadLogo,
   useDeleteLogo,

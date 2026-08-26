@@ -147,6 +147,7 @@ export const billingSettingsCopy = {
     claveUnidadHint: "Para servicios de transporte, la clave habitual es E48.",
     moneda: "Moneda",
     monedaPlaceholder: "Elige la moneda",
+    monedaHint: "Por ahora solo se admite peso mexicano.",
     monedaOptions: {
       mxn: "Peso mexicano (MXN)",
       usd: "Dólar estadounidense (USD)",

@@ -17,20 +17,9 @@ import {
   type PacProvider,
 } from "../../domain";
 
-export const ALLOWED_MONEDA = ["MXN", "USD"] as const;
 export const ALLOWED_TASA_IVA = [0, 0.08, 0.16] as const;
 
-export type AllowedMoneda = (typeof ALLOWED_MONEDA)[number];
 export type AllowedTasaIva = (typeof ALLOWED_TASA_IVA)[number];
-
-export function normalizeMoneda(value: unknown): AllowedMoneda | null {
-  const normalized = String(value ?? "")
-    .trim()
-    .toUpperCase();
-  return ALLOWED_MONEDA.includes(normalized as AllowedMoneda)
-    ? (normalized as AllowedMoneda)
-    : null;
-}
 
 export function normalizeTasaIva(value: unknown): AllowedTasaIva | null {
   const parsed =
@@ -68,9 +57,7 @@ export const billingSettingsSchema = z
       .string()
       .min(1, "Elige la clave de producto o servicio que se precargará"),
     claveUnidad: z.string().min(1, "Elige la clave de unidad que se precargará"),
-    moneda: z.enum(ALLOWED_MONEDA, {
-      message: "Elige una moneda válida: peso mexicano o dólar",
-    }),
+    moneda: z.literal("MXN"),
     tasaIva: z
       .number()
       .refine(
@@ -109,7 +96,8 @@ export function mapSettingsToForm(
     testMode: settings.testMode,
     claveProductoServicio: settings.claveProductoServicio,
     claveUnidad: settings.claveUnidad,
-    moneda: normalizeMoneda(settings.moneda) ?? "MXN",
+    // MXN fijo en UI de facturación (select bloqueado); no rehidratar otra moneda.
+    moneda: "MXN",
     tasaIva: normalizeTasaIva(settings.tasaIva) ?? 0.16,
   };
 }

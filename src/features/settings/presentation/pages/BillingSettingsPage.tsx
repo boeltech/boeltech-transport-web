@@ -8,7 +8,7 @@
  * Ubicación: src/features/settings/presentation/pages/BillingSettingsPage.tsx
  */
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
@@ -53,6 +53,10 @@ import {
   mapSettingsToForm,
   type BillingSettingsFormData,
 } from "../validation/billingSettingsSchema";
+import {
+  billingSettingsHydrationKey,
+  shouldHydrateBillingSettings,
+} from "./billingSettingsHydration";
 
 const copy = billingSettingsCopy;
 
@@ -66,12 +70,24 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const canUpdateSettings = hasPermission("settings", "update");
   const canUploadCertificate = hasRole(ROLES.ADMIN);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const hydratedKeyRef = useRef<string | null>(null);
+  const lastHydratedFormRef = useRef<BillingSettingsFormData | null>(null);
 
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
     defaultValues: { pacProvider: PacProviders.PROFACT },
-    values: settings ? mapSettingsToForm(settings) : undefined,
   });
+
+  useEffect(() => {
+    if (!settings) return;
+    if (!shouldHydrateBillingSettings(hydratedKeyRef.current, settings.id)) {
+      return;
+    }
+    const next = mapSettingsToForm(settings);
+    form.reset(next);
+    lastHydratedFormRef.current = next;
+    hydratedKeyRef.current = billingSettingsHydrationKey(settings.id);
+  }, [settings, form]);
 
   const onSubmit = useCallback(
     (data: BillingSettingsFormData) => {
@@ -88,7 +104,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         testMode: data.testMode,
         claveProductoServicio: data.claveProductoServicio,
         claveUnidad: data.claveUnidad,
-        moneda: data.moneda,
+        moneda: "MXN",
         tasaIva: data.tasaIva,
       };
 
@@ -100,9 +116,16 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         if (data.pacPassword) dto.pacPassword = data.pacPassword;
       }
 
-      updateMutation.mutate(dto);
+      updateMutation.mutate(dto, {
+        onSuccess: (result) => {
+          const next = mapSettingsToForm(result.data);
+          form.reset(next);
+          lastHydratedFormRef.current = next;
+          hydratedKeyRef.current = billingSettingsHydrationKey(result.data.id);
+        },
+      });
     },
-    [canUpdateSettings, updateMutation],
+    [canUpdateSettings, form, updateMutation],
   );
 
   const handleTestConnection = useCallback(() => {
@@ -231,7 +254,11 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                   variant="outline"
                   onClick={() => {
                     setShowValidationSummary(false);
-                    form.reset();
+                    if (lastHydratedFormRef.current) {
+                      form.reset(lastHydratedFormRef.current);
+                    } else {
+                      form.reset();
+                    }
                   }}
                   disabled={!form.formState.isDirty || updateMutation.isPending}
                 >

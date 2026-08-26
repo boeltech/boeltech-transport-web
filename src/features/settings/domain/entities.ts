@@ -230,6 +230,7 @@ export const SettingsSection = {
   LOCATIONS: "locations",
   IMPORTS: "imports",
   BILLING: "billing",
+  BILLING_SCHEMES: "billing-schemes",
   SUBSCRIPTION: "subscription",
   NOTIFICATIONS: "notifications",
   DASHBOARD_LAYOUTS: "dashboard-layouts",
@@ -243,9 +244,10 @@ export type SettingsSectionValue =
 export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.GENERAL]: "General",
   [SettingsSection.CATALOGS]: "Catálogos",
-  [SettingsSection.LOCATIONS]: "Directorio",
-  [SettingsSection.IMPORTS]: "Cargas",
+  [SettingsSection.LOCATIONS]: "Bodegas",
+  [SettingsSection.IMPORTS]: "Importar padrón",
   [SettingsSection.BILLING]: "Datos para facturar",
+  [SettingsSection.BILLING_SCHEMES]: "Esquemas de facturación",
   [SettingsSection.SUBSCRIPTION]: "Tu plan",
   [SettingsSection.NOTIFICATIONS]: "Avisos de la empresa",
   [SettingsSection.DASHBOARD_LAYOUTS]: "Dashboard",
@@ -260,10 +262,16 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
 export const settingsQueryKeys = {
   all: ["settings"] as const,
   company: () => [...settingsQueryKeys.all, "company"] as const,
+  companyLogo: (version: number | string) =>
+    [...settingsQueryKeys.company(), "logo", version] as const,
   locations: () => [...settingsQueryKeys.all, "locations"] as const,
   location: (id: string) => [...settingsQueryKeys.locations(), id] as const,
   billing: () => [...settingsQueryKeys.all, "billing"] as const,
   billingServiceConcepts: (params?: { search?: string; isActive?: boolean }) =>
     [...settingsQueryKeys.all, "billing-service-concepts", params ?? {}] as const,
+  billingSchemes: (params?: { isActive?: boolean }) =>
+    [...settingsQueryKeys.all, "billing-schemes", params ?? {}] as const,
+  billingScheme: (id: string) =>
+    [...settingsQueryKeys.all, "billing-schemes", id] as const,
   notifications: () => [...settingsQueryKeys.all, "notifications"] as const,
 };

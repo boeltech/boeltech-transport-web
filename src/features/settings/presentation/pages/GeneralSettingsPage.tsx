@@ -13,11 +13,13 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { SettingsPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
 
-import { useCompanySettings } from "../../application/hooks";
+import {
+  useCompanyLogoObjectUrl,
+  useCompanySettings,
+} from "../../application/hooks";
 import { generalSettingsCopy } from "../copy/generalSettingsCopy";
 import { CompanyProfileView } from "../components/CompanyProfileView";
 import { CompanyLogoMark } from "../components/CompanyLogoMark";
-import { resolveCompanyLogoSrc } from "../components/companyLogoSrc";
 
 const copy = generalSettingsCopy;
 
@@ -29,11 +31,9 @@ export const GeneralSettingsPage = memo(function GeneralSettingsPage() {
   // Estable durante la sesión: solo se usa si el API no expone `updatedAt`.
   const [logoFallbackVersion] = useState(() => Date.now());
 
-  const logoSrc = resolveCompanyLogoSrc(
-    settings?.logoUrl,
-    settings?.updatedAt,
-    logoFallbackVersion,
-  );
+  const logoVersion = settings?.updatedAt?.getTime?.() ?? logoFallbackVersion;
+  const hasLogo = Boolean(settings?.logoUrl);
+  const { logoSrc } = useCompanyLogoObjectUrl(hasLogo, logoVersion);
 
   const title = settings
     ? (settings.tradeName?.trim() || settings.legalName)

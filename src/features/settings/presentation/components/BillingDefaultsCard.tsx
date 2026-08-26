@@ -38,19 +38,12 @@ import {
 import type { BillingSettings } from "../../domain";
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
 import {
-  normalizeMoneda,
   normalizeTasaIva,
-  type AllowedMoneda,
   type BillingSettingsFormData,
 } from "../validation/billingSettingsSchema";
 import { SettingsCard } from "./SettingsLayout";
 
 const copy = billingSettingsCopy.defaults;
-
-const MONEDA_OPTIONS: { value: AllowedMoneda; label: string }[] = [
-  { value: "MXN", label: copy.monedaOptions.mxn },
-  { value: "USD", label: copy.monedaOptions.usd },
-];
 
 const TASA_IVA_OPTIONS = [
   { value: 0.16, label: copy.tasaIvaOptions.general },
@@ -101,11 +94,7 @@ export const BillingDefaultsCard = memo(function BillingDefaultsCard({
           <InfoRow
             variant="inline"
             label={copy.moneda}
-            value={
-              MONEDA_OPTIONS.find(
-                (option) => option.value === normalizeMoneda(settings.moneda),
-              )?.label ?? copy.emptyValue
-            }
+            value={copy.monedaOptions.mxn}
           />
           <InfoRow
             variant="inline"
@@ -140,7 +129,6 @@ function BillingDefaultsForm({
     defaultMetodoPago,
     claveProductoServicio,
     claveUnidad,
-    moneda,
     tasaIva,
   ] = useWatch({
     control: form.control,
@@ -150,7 +138,6 @@ function BillingDefaultsForm({
       "defaultMetodoPago",
       "claveProductoServicio",
       "claveUnidad",
-      "moneda",
       "tasaIva",
     ],
   });
@@ -232,15 +219,7 @@ function BillingDefaultsForm({
 
         <div className="space-y-2">
           <Label htmlFor="moneda">{copy.moneda}</Label>
-          <Select
-            value={normalizeMoneda(moneda) ?? "MXN"}
-            onValueChange={(value) =>
-              form.setValue("moneda", value.toUpperCase() as AllowedMoneda, {
-                shouldDirty: true,
-                shouldValidate: true,
-              })
-            }
-          >
+          <Select value="MXN" disabled>
             <SelectTrigger
               id="moneda"
               error={Boolean(errors.moneda)}
@@ -249,13 +228,10 @@ function BillingDefaultsForm({
               <SelectValue placeholder={copy.monedaPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              {MONEDA_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              <SelectItem value="MXN">{copy.monedaOptions.mxn}</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">{copy.monedaHint}</p>
           <FieldInlineError fieldId="moneda" message={errors.moneda?.message} />
         </div>
 

@@ -41,6 +41,12 @@ const BillingServiceConceptsPage = lazyWithRetry(() =>
   })),
 );
 
+const BillingSchemesPage = lazyWithRetry(() =>
+  import("./pages/BillingSchemesPage").then((m) => ({
+    default: m.BillingSchemesPage,
+  })),
+);
+
 const BillingSubscriptionPage = lazyWithRetry(() =>
   import("@features/billing/presentation/pages/BillingSubscriptionPage").then(
     (m) => ({
@@ -205,6 +211,18 @@ export function SettingsRoutes() {
         {/* Billing Settings */}
         <Route path="billing" element={<BillingSettingsPage />} />
         <Route path="billing/service-concepts" element={<BillingServiceConceptsPage />} />
+        <Route
+          path="billing-schemes"
+          element={
+            <PermissionGuard
+              module="invoices"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <BillingSchemesPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
         <Route path="subscription" element={<BillingSubscriptionPage />} />
