@@ -26,7 +26,7 @@ describe("canShowInvoiceFromTripCta", () => {
   it("manda el empty state a la cola de viajes por facturar", () => {
     expect(FINANCE_INVOICE_FROM_TRIP_CTA.label).toBe("Ver viajes por facturar");
     expect(FINANCE_INVOICE_FROM_TRIP_CTA.invoiceablePath).toBe(
-      "/finance?tab=invoiceable",
+      "/finance/invoiceable",
     );
   });
 });
@@ -48,23 +48,77 @@ describe("buildInvoiceCreatePathFromTrip", () => {
   });
 });
 
-describe("shouldOpenInvoiceCreateFromFinanceHub (ADR-0081)", () => {
+describe("shouldOpenInvoiceCreateFromFinanceHub (ADR-0081 + PreStampV2)", () => {
   it("bloquea alta primaria cuando hay split activo", () => {
     expect(
       shouldOpenInvoiceCreateFromFinanceHub({
         id: "trip-1",
-        invoicing: { hasActiveSplit: true },
+        invoicing: {
+          hasActiveSplit: true,
+          canGenerateInvoice: true,
+        },
       }),
     ).toBe(false);
   });
 
-  it("permite alta cuando no hay split activo", () => {
+  it("permite alta primaria cuando canGenerateInvoice es true", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-1",
+        invoicing: {
+          hasActiveSplit: false,
+          canGenerateInvoice: true,
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("bloquea alta primaria cuando canGenerateInvoice es false", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-1",
+        invoicing: {
+          hasActiveSplit: false,
+          canGenerateInvoice: false,
+          blockReason: "Completa la ruta antes de facturar.",
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("fail-closed si falta canGenerateInvoice", () => {
     expect(
       shouldOpenInvoiceCreateFromFinanceHub({
         id: "trip-1",
         invoicing: { hasActiveSplit: false },
       }),
+    ).toBe(false);
+  });
+
+  it("permite false_trip cuando canGenerateFalseTripInvoice es true", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-false",
+        operationalOutcome: "false_trip",
+        invoicing: {
+          hasActiveSplit: false,
+          canGenerateFalseTripInvoice: true,
+        },
+      }),
     ).toBe(true);
+  });
+
+  it("bloquea false_trip cuando canGenerateFalseTripInvoice es false", () => {
+    expect(
+      shouldOpenInvoiceCreateFromFinanceHub({
+        id: "trip-false",
+        operationalOutcome: "false_trip",
+        invoicing: {
+          hasActiveSplit: false,
+          canGenerateFalseTripInvoice: false,
+        },
+      }),
+    ).toBe(false);
   });
 });
 

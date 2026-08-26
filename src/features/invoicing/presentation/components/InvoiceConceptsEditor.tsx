@@ -7,7 +7,7 @@ import {
   type Control,
   type UseFormSetValue,
 } from "react-hook-form";
-import { recomputeInvoiceAmountsFromConcepts, PERSONA_MORAL_RETAINED_IVA_RATE } from "@boeltech/cfdi-domain";
+import { recomputeInvoiceAmountsFromConcepts } from "@boeltech/cfdi-domain";
 import { useBillingServiceConcepts } from "@features/settings/application/hooks/useBillingServiceConcepts";
 import {
   isServiceOnlyBillingScope,
@@ -21,6 +21,7 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 import { InvoiceConceptLineSheet } from "./InvoiceConceptLineSheet";
 import { InvoiceConceptLinesTable } from "./InvoiceConceptLinesTable";
 import {
+  syncFleteRetentionForPersonaMoral,
   type InvoiceConceptFormLine,
   type InvoiceFormValues,
 } from "../validation/invoiceFormSchema";
@@ -87,9 +88,30 @@ export function InvoiceConceptsEditor({
   useEffect(() => {
     if (concepts.length === 0) return;
 
-    const amounts = recomputeInvoiceAmountsFromConcepts(concepts, discount, {
+    const { concepts: synced, changed } = syncFleteRetentionForPersonaMoral(
+      concepts,
+      retentionRequired,
+      taxRate,
+    );
+
+    if (changed) {
+      synced.forEach((line, index) => {
+        if (line !== concepts[index]) {
+          update(index, line);
+        }
+      });
+      return;
+    }
+
+    const normalized = synced.map((line) => ({
+      ...line,
+      iva_rate: line.iva_rate ?? 0,
+      retained_iva_rate: line.retained_iva_rate ?? 0,
+    }));
+
+    const amounts = recomputeInvoiceAmountsFromConcepts(normalized, discount, {
       tasaIva: taxRate,
-      retainedTaxRate: retentionRequired ? PERSONA_MORAL_RETAINED_IVA_RATE : 0,
+      retainedTaxRate: 0,
     });
 
     setValue("subtotal", amounts.subtotal, { shouldValidate: true });
@@ -101,7 +123,7 @@ export function InvoiceConceptsEditor({
       retentionRequired || (amounts.retained_tax ?? 0) > 0,
       { shouldValidate: false },
     );
-  }, [concepts, discount, taxRate, retentionRequired, setValue]);
+  }, [concepts, discount, taxRate, retentionRequired, setValue, update]);
 
   const fleteLine = concepts.find((line) => line.concept_type === "flete");
   const fleteAmount = fleteLine?.amount ?? 0;

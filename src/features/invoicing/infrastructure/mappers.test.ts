@@ -3,7 +3,7 @@ import {
   parseInvoiceBillingScope,
   type CreateInvoicePayload,
 } from "@features/invoicing/domain";
-import { mapInvoice, toApiCreateInvoice } from "./mappers";
+import { mapInvoice, toApiCreateInvoice, toApiSendInvoice } from "./mappers";
 
 describe("invoicing mappers billing_scope (ADR-0068)", () => {
   it("mapInvoice maps trips[].billing_scope", () => {
@@ -264,5 +264,119 @@ describe("toApiCreateInvoice split_share (ADR-0081)", () => {
     expect(api.billing_scope).toBe("split_share");
     expect(api.split_leg_id).toBe("leg-1");
     expect(api.attach_carta_porte).toBe(true);
+  });
+});
+
+describe("invoicing mappers dispatch_sent_at", () => {
+  it("mapInvoice maps dispatch_sent_at", () => {
+    const invoice = mapInvoice({
+      id: "inv-1",
+      tenant_id: "t-1",
+      serie: "A",
+      folio: 1,
+      status: "stamped",
+      dispatch_sent_at: "2026-08-20T15:00:00.000Z",
+      issuer_rfc: "AAA010101AAA",
+      issuer_name: "Emisor",
+      issuer_tax_regime: "601",
+      issue_location: "64000",
+      receiver_rfc: "BBB010101BBB",
+      receiver_name: "Receptor",
+      cfdi_usage: "G03",
+      receiver_tax_regime: "601",
+      receiver_postal_code: "64000",
+      payment_form: "99",
+      payment_method: "PPD",
+      currency: "MXN",
+      exchange_rate: 1,
+      subtotal: 500,
+      discount: 0,
+      total_tax: 80,
+      retained_tax: 0,
+      total: 580,
+      stamped_at: "2026-08-20T14:00:00.000Z",
+      cancelled_at: null,
+      created_at: "2026-07-01T10:00:00.000Z",
+      updated_at: "2026-07-01T10:00:00.000Z",
+      concepts: [],
+      trips: [],
+      payments: [],
+      total_paid: 0,
+      balance_due: 580,
+    });
+
+    expect(invoice.dispatchSentAt).toBe("2026-08-20T15:00:00.000Z");
+  });
+
+  it("mapInvoice maps auto_dispatch failed", () => {
+    const invoice = mapInvoice({
+      id: "inv-1",
+      tenant_id: "t-1",
+      serie: "A",
+      folio: 1,
+      status: "stamped",
+      dispatch_sent_at: null,
+      auto_dispatch: {
+        enabled_for_client: true,
+        last_scheduled_run_id: "run-1",
+        last_item_status: "failed",
+        last_error: "SMTP down",
+      },
+      issuer_rfc: "AAA010101AAA",
+      issuer_name: "Emisor",
+      issuer_tax_regime: "601",
+      issue_location: "64000",
+      receiver_rfc: "BBB010101BBB",
+      receiver_name: "Receptor",
+      cfdi_usage: "G03",
+      receiver_tax_regime: "601",
+      receiver_postal_code: "64000",
+      payment_form: "99",
+      payment_method: "PPD",
+      currency: "MXN",
+      exchange_rate: 1,
+      subtotal: 500,
+      discount: 0,
+      total_tax: 80,
+      retained_tax: 0,
+      total: 580,
+      stamped_at: "2026-08-20T14:00:00.000Z",
+      cancelled_at: null,
+      created_at: "2026-07-01T10:00:00.000Z",
+      updated_at: "2026-07-01T10:00:00.000Z",
+      concepts: [],
+      trips: [],
+      payments: [],
+      total_paid: 0,
+      balance_due: 580,
+    });
+
+    expect(invoice.autoDispatch).toEqual({
+      enabledForClient: true,
+      lastScheduledRunId: "run-1",
+      lastItemStatus: "failed",
+      lastError: "SMTP down",
+    });
+  });
+});
+
+describe("toApiSendInvoice", () => {
+  it("omits body when recipientKeys is undefined (all eligible)", () => {
+    expect(toApiSendInvoice({})).toEqual({});
+    expect(toApiSendInvoice({ recipientKeys: undefined })).toEqual({});
+  });
+
+  it("sends empty array when recipientKeys is [] (API 422)", () => {
+    expect(toApiSendInvoice({ recipientKeys: [] })).toEqual({
+      recipient_keys: [],
+    });
+  });
+
+  it("sends subset keys", () => {
+    expect(
+      toApiSendInvoice({ recipientKeys: ["billing_email", "contact:abc"] }),
+    ).toEqual({
+      recipient_keys: ["billing_email", "contact:abc"],
+    });
   });
 });

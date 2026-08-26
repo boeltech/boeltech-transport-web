@@ -55,6 +55,8 @@ import {
   RefreshCw,
   Download,
   FileCode,
+  Mail,
+  ChevronDown,
 } from "lucide-react";
 import { canRegisterPayment } from "@boeltech/cfdi-domain";
 import { useDeleteInvoice, useOpenInvoicePdf, useDownloadInvoiceXml } from "@features/invoicing/application";
@@ -67,13 +69,12 @@ import {
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
+import { SendInvoiceDialog } from "./SendInvoiceDialog";
 import type { InvoiceStatus, Invoice } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
 const actionsCopy = invoicingCopy.detail.actions;
-
-const cancelButtonClassName =
-  "border-destructive/40 text-destructive hover:bg-destructive-soft hover:text-destructive-soft-foreground";
+const sendCopy = invoicingCopy.send;
 
 // ============================================================================
 // TYPES
@@ -126,6 +127,8 @@ export function InvoiceActions({
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const openSendDialogRef = useRef<() => void>(() => {});
   /** Snapshot frozen while payment/cancel/substitute overlays are open. */
   const [overlayInvoice, setOverlayInvoice] = useState<Invoice | null>(null);
   const lastBusyRef = useRef(false);
@@ -135,7 +138,7 @@ export function InvoiceActions({
   const { mutate: deleteInvoice, isPending: deleting } = useDeleteInvoice({
     onSuccess: () => {
       toast({ title: "Borrador eliminado" });
-      navigate("/finance?tab=invoices");
+      navigate("/finance/invoices");
     },
     onError: (err) =>
       toast({
@@ -143,13 +146,6 @@ export function InvoiceActions({
         title: "Error al eliminar",
         description: getErrorMessage(err),
       }),
-  });
-
-  const fiscal = useTripFiscalSheets({
-    invoiceTripRefs: fullInvoice?.trips ?? [],
-    enableAutoRestamp: variant === "buttons",
-    onStampSuccess: onActionComplete,
-    getStampErrorDescription: describeStampApiError,
   });
 
   const { mutate: openPdf, isPending: openingPdf } = useOpenInvoicePdf({
@@ -170,9 +166,6 @@ export function InvoiceActions({
           description: getErrorMessage(err),
         }),
     });
-
-  const isLoading =
-    deleting || fiscal.isStampBusy || openingPdf || downloadingXml;
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -230,6 +223,33 @@ export function InvoiceActions({
 
   const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
+  const canShowSendByEmail = isStamped && canExecute;
+
+  const fiscal = useTripFiscalSheets({
+    invoiceTripRefs: fullInvoice?.trips ?? [],
+    enableAutoRestamp: variant === "buttons",
+    onStampSuccess: onActionComplete,
+    onStampSuccessToast:
+      variant === "buttons" && canShowSendByEmail
+        ? () => {
+            toast({
+              variant: "success",
+              title: sendCopy.stampSuccessTitle,
+              action: {
+                label: sendCopy.stampSuccessAction,
+                onClick: () => openSendDialogRef.current(),
+              },
+            });
+          }
+        : undefined,
+    getStampErrorDescription: describeStampApiError,
+  });
+
+  openSendDialogRef.current = () => setSendDialogOpen(true);
+
+  const isLoading =
+    deleting || fiscal.isStampBusy || openingPdf || downloadingXml;
+
   const openOverlayWithSnapshot = (
     invoice: Invoice,
     kind: "payment" | "cancel" | "substitute",
@@ -259,6 +279,7 @@ export function InvoiceActions({
       paymentDialogOpen ||
       cancelDialogOpen ||
       substituteSheetOpen ||
+      sendDialogOpen ||
       fiscal.isStampBusy;
     if (lastBusyRef.current === busy) return;
     lastBusyRef.current = busy;
@@ -269,15 +290,9 @@ export function InvoiceActions({
     paymentDialogOpen,
     cancelDialogOpen,
     substituteSheetOpen,
+    sendDialogOpen,
     fiscal.isStampBusy,
   ]);
-
-  const hasStampedActions =
-    isStamped &&
-    (canShowRegisterPayment ||
-      canShowCancel ||
-      canShowSubstitute ||
-      showBlockedSubstitute);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 
@@ -363,193 +378,239 @@ export function InvoiceActions({
   // RENDER: BUTTONS MODE (para InvoiceDetailPage)
   // ══════════════════════════════════════════════════════════════════════════
 
-  const hasNoActions =
-    (!isDraft || (!canDelete && !canCreate && !canUpdate)) &&
-    (!isStamped || !hasStampedActions) &&
-    !canShowExport;
+  const primaryIsStamp = isDraft && canCreate && canExecute;
+  const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
+  const hasDownloadMenu = canShowExport && Boolean(fullInvoice);
+  const hasStampedXml =
+    Boolean(fullInvoice) &&
+    (fullInvoice!.hasStampedXml ?? Boolean(fullInvoice!.xmlContent));
+  const hasMoreMenu =
+    (isDraft && (canUpdate || canDelete)) ||
+    showBlockedSubstitute ||
+    (canShowSubstitute && Boolean(fullInvoice)) ||
+    canShowCancel;
 
-  if (hasNoActions) return null;
+  const hasToolbar =
+    primaryIsStamp ||
+    primaryIsPayment ||
+    canShowSendByEmail ||
+    hasDownloadMenu ||
+    hasMoreMenu;
+
+  if (!hasToolbar) return null;
 
   const serieFolio = folioCombined;
 
-  const hasWorkflowActions =
-    (isDraft && (canDelete || canCreate || canUpdate)) ||
-    canShowRegisterPayment ||
-    canShowSubstitute ||
-    showBlockedSubstitute;
-
-  const hasSecondaryActions =
-    canShowExport || canShowCancel;
-
-  const primaryIsStamp = isDraft && canCreate && canExecute;
-  const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
-
   return (
     <>
-      <div className="flex flex-col gap-2 sm:items-end">
-        {/* D5: CTA primaria única según estado */}
-        {(primaryIsStamp || primaryIsPayment) && (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {primaryIsStamp ? (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => void fiscal.requestStamp(invoiceId)}
-                disabled={isLoading}
-              >
-                {fiscal.isStampBusy ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Stamp className="mr-2 h-4 w-4" />
-                )}
-                {fiscal.isStamping ? actionsCopy.stamping : actionsCopy.stamp}
-              </Button>
-            ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {primaryIsStamp ? (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => void fiscal.requestStamp(invoiceId)}
+            disabled={isLoading}
+          >
+            {fiscal.isStampBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Stamp className="mr-2 h-4 w-4" />
+            )}
+            {fiscal.isStamping ? actionsCopy.stamping : actionsCopy.stamp}
+          </Button>
+        ) : null}
 
-            {primaryIsPayment && fullInvoice ? (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
-                disabled={isLoading}
-              >
-                <DollarSign className="mr-2 h-4 w-4" />
-                {actionsCopy.registerPayment}
-              </Button>
-            ) : null}
-          </div>
-        )}
+        {primaryIsPayment && fullInvoice ? (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
+            disabled={isLoading}
+          >
+            <DollarSign className="mr-2 h-4 w-4" />
+            {actionsCopy.registerPayment}
+          </Button>
+        ) : null}
 
-        {hasWorkflowActions || hasSecondaryActions ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {isDraft && canUpdate && (
+        {canShowSendByEmail ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSendDialogOpen(true)}
+            disabled={isLoading}
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            {actionsCopy.sendByEmail}
+          </Button>
+        ) : null}
+
+        {hasDownloadMenu && fullInvoice ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/invoices/${invoiceId}/edit`)}
+                className="gap-1"
                 disabled={isLoading}
               >
-                <Pencil className="mr-2 h-4 w-4" />
-                {actionsCopy.editDraft}
+                {openingPdf || downloadingXml ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {openingPdf
+                  ? actionsCopy.downloadGenerating
+                  : actionsCopy.downloadMenu}
+                <ChevronDown className="h-4 w-4 opacity-70" />
               </Button>
-            )}
-
-            {canShowExport && fullInvoice ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    openPdf({
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                disabled={isLoading || openingPdf}
+                onSelect={() =>
+                  openPdf({
+                    id: fullInvoice.id,
+                    serieFolio,
+                  })
+                }
+              >
+                {openingPdf ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {invoicingCopy.detail.header.pdf}
+              </DropdownMenuItem>
+              {hasStampedXml ? (
+                <DropdownMenuItem
+                  disabled={isLoading || downloadingXml}
+                  onSelect={() =>
+                    downloadXml({
                       id: fullInvoice.id,
                       serieFolio,
                     })
                   }
-                  disabled={isLoading}
-                  title={invoicingCopy.detail.header.pdfTitle}
                 >
-                  {openingPdf ? (
+                  {downloadingXml ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Download className="mr-2 h-4 w-4" />
+                    <FileCode className="mr-2 h-4 w-4" />
                   )}
-                  {openingPdf
-                    ? invoicingCopy.detail.header.pdfGenerating
-                    : invoicingCopy.detail.header.pdf}
-                </Button>
-                {(fullInvoice.hasStampedXml ??
-                  Boolean(fullInvoice.xmlContent)) ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      downloadXml({
-                        id: fullInvoice.id,
-                        serieFolio,
-                      })
-                    }
+                  {invoicingCopy.detail.header.xml}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+
+        {hasMoreMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                disabled={isLoading}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                <span>{actionsCopy.moreActions}</span>
+                <ChevronDown className="h-4 w-4 opacity-70" />
+                <span className="sr-only">{actionsCopy.moreActionsSrOnly}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {isDraft && canUpdate ? (
+                <DropdownMenuItem
+                  onSelect={() => navigate(`/invoices/${invoiceId}/edit`)}
+                  disabled={isLoading}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {actionsCopy.editDraft}
+                </DropdownMenuItem>
+              ) : null}
+
+              {showBlockedSubstitute ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block w-full">
+                      <DropdownMenuItem
+                        disabled
+                        aria-label={actionsCopy.substituteBlockedTitle}
+                        className="w-full"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        {actionsCopy.substitute}
+                      </DropdownMenuItem>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs text-left">
+                    {actionsCopy.substituteBlocked}
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+
+              {canShowSubstitute && fullInvoice ? (
+                <DropdownMenuItem
+                  disabled={isLoading}
+                  onSelect={() => {
+                    // Diferir apertura tras cerrar el menú (sheet-from-menu-focus).
+                    setTimeout(
+                      () => openOverlayWithSnapshot(fullInvoice, "substitute"),
+                      0,
+                    );
+                  }}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {actionsCopy.substitute}
+                </DropdownMenuItem>
+              ) : null}
+
+              {canShowCancel ? (
+                <>
+                  {(isDraft && canUpdate) ||
+                  showBlockedSubstitute ||
+                  (canShowSubstitute && fullInvoice) ? (
+                    <DropdownMenuSeparator />
+                  ) : null}
+                  <DropdownMenuItem
                     disabled={isLoading}
-                    title={invoicingCopy.detail.header.xmlTitle}
+                    onSelect={() => {
+                      if (fullInvoice) {
+                        openOverlayWithSnapshot(fullInvoice, "cancel");
+                      }
+                    }}
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
                   >
-                    {downloadingXml ? (
+                    <XCircle className="mr-2 h-4 w-4" />
+                    {actionsCopy.cancel}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+
+              {isDraft && canDelete ? (
+                <>
+                  {(isDraft && canUpdate) ||
+                  showBlockedSubstitute ||
+                  (canShowSubstitute && fullInvoice) ||
+                  canShowCancel ? (
+                    <DropdownMenuSeparator />
+                  ) : null}
+                  <DropdownMenuItem
+                    disabled={isLoading || deleting}
+                    onSelect={() => setDeleteDialogOpen(true)}
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                  >
+                    {deleting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <FileCode className="mr-2 h-4 w-4" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                     )}
-                    {invoicingCopy.detail.header.xml}
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-
-            {showBlockedSubstitute ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled
-                      aria-label={actionsCopy.substituteBlockedTitle}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      {actionsCopy.substitute}
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs text-left">
-                  {actionsCopy.substituteBlocked}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-
-            {canShowSubstitute && fullInvoice ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  openOverlayWithSnapshot(fullInvoice, "substitute")
-                }
-                disabled={isLoading}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {actionsCopy.substitute}
-              </Button>
-            ) : null}
-
-            {isDraft && canDelete ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={isLoading}
-              >
-                {deleting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                {actionsCopy.deleteDraft}
-              </Button>
-            ) : null}
-
-            {canShowCancel ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className={cancelButtonClassName}
-                onClick={() => {
-                  if (fullInvoice) {
-                    openOverlayWithSnapshot(fullInvoice, "cancel");
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                {actionsCopy.cancel}
-              </Button>
-            ) : null}
-          </div>
+                    {actionsCopy.deleteDraft}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
 
@@ -612,6 +673,16 @@ export function InvoiceActions({
           onOpenChange={(open) => handleOverlayOpenChange("substitute", open)}
         />
       )}
+
+      {variant === "buttons" && canShowSendByEmail ? (
+        <SendInvoiceDialog
+          invoiceId={invoiceId}
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          alreadySent={Boolean(fullInvoice?.dispatchSentAt)}
+          onSent={onActionComplete}
+        />
+      ) : null}
 
       {fiscal.sheets}
     </>

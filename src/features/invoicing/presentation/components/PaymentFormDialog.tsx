@@ -383,7 +383,10 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
           >
             {formCopy.cancel}
           </Button>
-          <Button type="submit" disabled={isPending || !hasPendingBalance}>
+          <Button
+            type="submit"
+            disabled={isPending || !hasPendingBalance || chainRepairOpen}
+          >
             {isPending ? formCopy.submitting : formCopy.submit}
           </Button>
         </DialogFooter>

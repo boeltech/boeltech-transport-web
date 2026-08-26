@@ -20,15 +20,20 @@ import { HintIcon } from "@shared/ui/hint-icon";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import {
   useSubstituteStampedInvoice,
+  useResumeSubstitutionCancel,
   prefetchInvoiceLinkedTrips,
   buildStopsByIdFromCache,
   buildTripsByIdFromCache,
   findMissingTripCorrectionStopIds,
   useInvoiceLinkedTripsLoading,
   useInvoiceReceiverClientType,
+  invoiceQueryKeys,
 } from "@features/invoicing/application";
 import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import {
+  getErrorMessage,
+  isApiError,
+} from "@shared/api/interceptors/error-handler";
 import type { Invoice } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { SubstitutionAmountCorrectionsSection } from "./SubstitutionAmountCorrectionsSection";
@@ -79,6 +84,9 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [preflightMessages, setPreflightMessages] = useState<string[]>([]);
   const [isSubmittingTrips, setIsSubmittingTrips] = useState(false);
+  const [cancelFailedRecovery, setCancelFailedRecovery] = useState<{
+    uuid: string | null;
+  } | null>(null);
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
       errorTitle: copy.errorTitle,
@@ -156,6 +164,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
 
   const { mutate, isPending } = useSubstituteStampedInvoice(invoice.id, {
     onSuccess: (data) => {
+      setCancelFailedRecovery(null);
       toast({
         title: copy.successTitle,
         description: copy.successDescription(
@@ -171,15 +180,50 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
       onOpenChange(false);
     },
     onError: (err) => {
+      if (isApiError(err) && err.code === "SUBSTITUTION_CANCEL_FAILED") {
+        const uuid =
+          typeof err.details?.replacement_cfdi_uuid === "string"
+            ? err.details.replacement_cfdi_uuid
+            : null;
+        setCancelFailedRecovery({ uuid });
+        showOverlayError(copy.cancelFailedDescription(uuid));
+        void queryClient.invalidateQueries({
+          queryKey: invoiceQueryKeys.detail(invoice.id),
+        });
+        void queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+        return;
+      }
+      setCancelFailedRecovery(null);
       showOverlayError(getErrorMessage(err));
     },
   });
+
+  const { mutate: resumeCancel, isPending: isResumingCancel } =
+    useResumeSubstitutionCancel(invoice.id, {
+      onSuccess: () => {
+        setCancelFailedRecovery(null);
+        toast({
+          title: copy.resumeCancelSuccessTitle,
+          description: copy.resumeCancelSuccessDescription,
+        });
+        form.reset(
+          defaultSubstituteInvoiceSheetValues(invoice, {
+            clientType: receiverClientType,
+          }),
+        );
+        onOpenChange(false);
+      },
+      onError: (err) => {
+        showOverlayError(getErrorMessage(err));
+      },
+    });
 
   const handleFormSubmit = form.handleSubmit(
     async (values) => {
       setShowValidationSummary(false);
       setPreflightMessages([]);
       clearOverlayError();
+      setCancelFailedRecovery(null);
 
       let stopsById = buildStopsByIdFromCache(queryClient, linkedTripIds);
       let tripsById = buildTripsByIdFromCache(queryClient, linkedTripIds);
@@ -240,7 +284,11 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
   );
 
   const isSubmitBlocked =
-    isPending || isSubmittingTrips || (linkedTripIds.length > 0 && isTripsLoading);
+    isPending ||
+    isSubmittingTrips ||
+    isResumingCancel ||
+    cancelFailedRecovery != null ||
+    (linkedTripIds.length > 0 && isTripsLoading);
 
   const validationMessages = collectFieldErrorMessages(form.formState.errors);
   const summaryMessages = [...validationMessages, ...preflightMessages];
@@ -269,10 +317,37 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
         <div className={SUBSTITUTION_SHEET_BODY_CLASS}>
           {submissionError ? (
             <Alert variant="destructive">
-              <AlertTitle>{copy.errorTitle}</AlertTitle>
+              <AlertTitle>
+                {cancelFailedRecovery
+                  ? copy.cancelFailedTitle
+                  : copy.errorTitle}
+              </AlertTitle>
               <AlertDescription className="select-text whitespace-pre-wrap break-words">
                 {submissionError}
               </AlertDescription>
+              {cancelFailedRecovery ? (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={isResumingCancel}
+                    onClick={() => {
+                      const reason = form.getValues("cancellationReason")?.trim();
+                      if (!reason) {
+                        setShowValidationSummary(true);
+                        showOverlayError(copy.cancellationReasonLabel);
+                        return;
+                      }
+                      resumeCancel({ cancellationReason: reason });
+                    }}
+                  >
+                    {isResumingCancel
+                      ? copy.resumeCancelProcessing
+                      : copy.resumeCancel}
+                  </Button>
+                </div>
+              ) : null}
             </Alert>
           ) : null}
 
@@ -366,6 +441,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
             type="button"
             variant="outline"
             className={SUBSTITUTION_SHEET_PRIMARY_BUTTON_CLASS}
+            disabled={isPending || isSubmittingTrips || isResumingCancel}
             onClick={() => onOpenChange(false)}
           >
             {copy.close}
@@ -390,7 +466,14 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
 export function SubstituteInvoiceSheet({ invoice, open, onOpenChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={SUBSTITUTION_SHEET_CONTENT_CLASS}>
+      <SheetContent
+        side="right"
+        className={SUBSTITUTION_SHEET_CONTENT_CLASS}
+        // Sheet desde DropdownMenu "Más": Radix dispara onFocusOutside antes de
+        // que el foco entre al panel; sin preventDefault se cierra al instante.
+        // Ver .cursor/rules/sheet-from-menu-focus.mdc
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         {open ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <SubstituteInvoiceSheetForm

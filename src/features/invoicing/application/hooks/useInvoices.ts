@@ -25,6 +25,8 @@ import type {
   SubstituteStampedInvoiceCorrections,
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
+  InvoiceSendRecipients,
+  SendInvoicePayload,
 } from "@features/invoicing/domain";
 import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";
 
@@ -47,6 +49,8 @@ export const invoiceQueryKeys = {
     scope: InvoiceBillingScope = "primary_transport",
     legId?: string | null,
   ) => [...invoiceQueryKeys.prefills(), tripId, scope, legId ?? null] as const,
+  sendRecipients: (id: string) =>
+    [...invoiceQueryKeys.detail(id), "send-recipients"] as const,
 };
 
 /** Prefix for every trip+scope prefill. Client fiscal edits must evict this. */
@@ -280,6 +284,9 @@ export function useDeleteInvoice(
     mutationFn: (id: string) => invoicingApi.delete(id),
     ...options,
     onSuccess: (data, variables, context, mutation) => {
+      queryClient.removeQueries({
+        queryKey: invoiceQueryKeys.detail(variables),
+      });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeQueryRoot });
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
@@ -427,6 +434,72 @@ export function useSubstituteStampedInvoice(
         queryClient,
         variables.corrections?.tripCorrections,
       );
+      await invalidateAndRefetchFinance(queryClient);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
+  });
+}
+
+export function useResumeSubstitutionCancel(
+  invoiceId: string,
+  options?: Omit<
+    UseMutationOptions<
+      SubstituteStampedInvoiceResult,
+      Error,
+      { cancellationReason: string }
+    >,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { cancellationReason: string }) =>
+      invoicingApi.resumeSubstitutionCancel(invoiceId, payload),
+    ...options,
+    onSuccess: async (data, variables, context, mutation) => {
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(invoiceId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(data.replacement.id),
+      });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      await invalidateAndRefetchFinance(queryClient);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
+  });
+}
+
+export function useInvoiceSendRecipients(
+  invoiceId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: invoiceQueryKeys.sendRecipients(invoiceId),
+    queryFn: () => invoicingApi.getSendRecipients(invoiceId),
+    enabled: enabled && Boolean(invoiceId),
+    staleTime: 30_000,
+  });
+}
+
+export function useSendInvoice(
+  invoiceId: string,
+  options?: Omit<
+    UseMutationOptions<Invoice, Error, SendInvoicePayload>,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SendInvoicePayload) =>
+      invoicingApi.sendInvoice(invoiceId, payload),
+    ...options,
+    onSuccess: async (data, variables, context, mutation) => {
+      queryClient.setQueryData(invoiceQueryKeys.detail(invoiceId), data);
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.sendRecipients(invoiceId),
+      });
       await invalidateAndRefetchFinance(queryClient);
       options?.onSuccess?.(data, variables, context, mutation);
     },

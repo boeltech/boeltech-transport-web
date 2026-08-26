@@ -9,14 +9,26 @@ export type FinanceHubTripInvoiceSource = {
   operationalOutcome?: string | null;
   invoicing?: {
     hasActiveSplit?: boolean;
+    canGenerateInvoice?: boolean;
+    canGenerateFalseTripInvoice?: boolean;
+    blockReason?: string | null;
   };
 };
 
-/** ADR-0081: con split activo Finanzas deriva al detalle del viaje, no al alta primaria. */
+/**
+ * Abre alta desde Finanzas solo si PreStampV2 marca elegible el scope aplicable.
+ * ADR-0081: split activo → hub (no alta primaria). Fail-closed si falta el flag.
+ */
 export function shouldOpenInvoiceCreateFromFinanceHub(
   trip: FinanceHubTripInvoiceSource,
 ): boolean {
-  return trip.invoicing?.hasActiveSplit !== true;
+  if (trip.invoicing?.hasActiveSplit === true) {
+    return false;
+  }
+  if (trip.operationalOutcome === "false_trip") {
+    return trip.invoicing?.canGenerateFalseTripInvoice === true;
+  }
+  return trip.invoicing?.canGenerateInvoice === true;
 }
 
 export function buildTripInvoicingHubPath(tripId: string): string {

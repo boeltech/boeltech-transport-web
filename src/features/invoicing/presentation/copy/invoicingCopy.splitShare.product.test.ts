@@ -18,6 +18,8 @@ const userFacingStrings = [
   invoicingCopy.scopeBanner.splitShare.notThis,
   invoicingCopy.splitShare.missingLegIdTitle,
   invoicingCopy.splitShare.missingLegIdBody,
+  invoicingCopy.splitShare.alreadyInvoicedTitle,
+  invoicingCopy.splitShare.alreadyInvoicedBody,
   invoicingCopy.splitShare.attachCartaPorteHint,
   invoicingCopy.createContext.splitSharePercent(60),
   invoicingCopy.createContext.splitShareProgress(1, 2),

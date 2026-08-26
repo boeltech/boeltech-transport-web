@@ -18,6 +18,9 @@ export type {
   SubstituteStampedInvoiceCorrections,
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
+  InvoiceSendRecipient,
+  InvoiceSendRecipients,
+  SendInvoicePayload,
   TripCorrectionEntry,
   InvoiceFilters,
 } from "./entities";

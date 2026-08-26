@@ -58,7 +58,7 @@ import {
   useInvoiceReceiverClientType,
   useUpdateInvoice,
 } from "@features/invoicing/application";
-import { useTrip } from "@features/trips";
+import { useTrip, useTripRevenueSplit } from "@features/trips";
 import {
   isServiceOnlyBillingScope,
   parseInvoiceBillingScope,
@@ -72,6 +72,8 @@ import {
   shouldHydrateInvoiceEdit,
 } from "./invoiceEditHydration";
 import { resolveInvoiceEditPageGate } from "./invoiceEditPageGate";
+import { isFalseTripPrefillBlockedError } from "../utils/falseTripCreatePrefillBlock";
+import { findSplitShareLegAlreadyInvoiced } from "../utils/splitShareLegAlreadyInvoiced";
 
 const copy = invoicingCopy;
 
@@ -119,7 +121,7 @@ export function CreateInvoicePage() {
     isEditMode && invoiceId
       ? `/invoices/${invoiceId}`
       : (fromState ??
-        (tripId ? `/trips/${tripId}` : "/finance?tab=invoices"));
+        (tripId ? `/trips/${tripId}` : "/finance/invoices"));
 
   const shellTitle = isEditMode
     ? copy.edit.title
@@ -148,6 +150,16 @@ export function CreateInvoicePage() {
   const { data: tripContext, isLoading: isTripContextLoading } = useTrip(tripId, {
     enabled: !isEditMode && hasTripContext,
   });
+  const { data: revenueSplit, isLoading: isRevenueSplitLoading } =
+    useTripRevenueSplit(tripId, {
+      enabled: !isEditMode && isSplitShareScope && hasTripContext,
+    });
+  const alreadyInvoicedSplitLeg = findSplitShareLegAlreadyInvoiced(
+    revenueSplit?.legs,
+    splitLegId,
+  );
+  const isSplitShareLegAlreadyInvoiced =
+    !isEditMode && isSplitShareScope && !!alreadyInvoicedSplitLeg;
 
   const isBlockedByActiveSplitWrongScope =
     !isEditMode &&
@@ -196,11 +208,7 @@ export function CreateInvoicePage() {
     !isEditMode &&
     isFalseTripScope &&
     prefillIsError &&
-    (prefillErrorCode === "FALSE_TRIP_OUTCOME_REQUIRED" ||
-      prefillErrorCode === "TRIP_ALREADY_HAS_PRIMARY_INVOICE" ||
-      /false_trip_outcome_required|trip_already_has_primary_invoice|desenlace\s+falso|principal\s+activa/i.test(
-        prefillErrorMessage,
-      ));
+    isFalseTripPrefillBlockedError(prefillErrorCode, prefillErrorMessage);
   const isBlockedByTripContext =
     !isEditMode &&
     !!tripContext &&
@@ -225,7 +233,8 @@ export function CreateInvoicePage() {
     isBlockedByTripContext ||
     isAlreadyInvoicedByError ||
     isAccessoryBlockedByError ||
-    isFalseTripBlockedByError;
+    isFalseTripBlockedByError ||
+    isSplitShareLegAlreadyInvoiced;
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
@@ -656,7 +665,9 @@ useEffect(() => {
     !isEditMode &&
     hasTripContext &&
     !isCreateBlocked &&
-    (isTripContextLoading || prefillLoading);
+    (isTripContextLoading ||
+      prefillLoading ||
+      (isSplitShareScope && isRevenueSplitLoading));
 
   const editPageGate = isEditMode
     ? resolveInvoiceEditPageGate({
@@ -681,7 +692,7 @@ useEffect(() => {
     const isForbidden = editPageGate.errorState === "forbidden";
     return (
       <InvoiceFormPageShell
-        backHref="/finance?tab=invoices"
+        backHref="/finance/invoices"
         title={copy.edit.title}
         subtitle={copy.edit.loadErrorToast}
       >
@@ -710,7 +721,7 @@ useEffect(() => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate("/finance?tab=invoices")}
+                onClick={() => navigate("/finance/invoices")}
               >
                 {copy.edit.backToFinance}
               </Button>
@@ -724,7 +735,7 @@ useEffect(() => {
   if (editPageGate?.kind === "notEditable") {
     return (
       <InvoiceFormPageShell
-        backHref="/finance?tab=invoices"
+        backHref="/finance/invoices"
         title={copy.edit.title}
         subtitle={copy.edit.notEditableHint}
       >
@@ -734,7 +745,7 @@ useEffect(() => {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{copy.edit.notEditableBody}</p>
-            <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
+            <Button variant="outline" onClick={() => navigate("/finance/invoices")}>
               {copy.edit.backToFinance}
             </Button>
           </CardContent>
@@ -746,7 +757,7 @@ useEffect(() => {
   if (!isEditMode && !hasTripContext) {
     return (
       <InvoiceFormPageShell
-        backHref="/finance?tab=invoices"
+        backHref="/finance/invoices"
         title={shellTitle}
         subtitle={FINANCE_INVOICE_FROM_TRIP_CTA.emptyDescription}
       >
@@ -766,7 +777,7 @@ useEffect(() => {
                   {FINANCE_INVOICE_FROM_TRIP_CTA.label}
                 </Button>
               ) : null}
-              <Button variant="outline" onClick={() => navigate("/finance?tab=invoices")}>
+              <Button variant="outline" onClick={() => navigate("/finance/invoices")}>
                 {copy.empty.backToFinance}
               </Button>
             </div>
@@ -805,6 +816,40 @@ useEffect(() => {
             <Button onClick={() => navigate(`/trips/${tripId}`)}>
               {splitShareCopy.viewTripInvoicing}
             </Button>
+          </CardContent>
+        </Card>
+      </InvoiceFormPageShell>
+    );
+  }
+
+  if (!isEditMode && isSplitShareLegAlreadyInvoiced && alreadyInvoicedSplitLeg) {
+    return (
+      <InvoiceFormPageShell
+        backHref={shellBackHref}
+        title={shellTitle}
+        subtitle={copy.create.blockedSubtitleSplitShare}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>{splitShareCopy.alreadyInvoicedTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <InvoiceBillingScopeBanner scope="split_share" notThisOnly />
+            <p className="text-sm text-muted-foreground">
+              {splitShareCopy.alreadyInvoicedBody}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() =>
+                  navigate(`/invoices/${alreadyInvoicedSplitLeg.invoiceId}`)
+                }
+              >
+                {splitShareCopy.viewExistingInvoice}
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/trips/${tripId}`)}>
+                {splitShareCopy.viewTripInvoicing}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </InvoiceFormPageShell>
@@ -894,7 +939,7 @@ useEffect(() => {
               ) : !isBlockedByActiveSplitWrongScope ? (
                 <Button
                   variant="outline"
-                  onClick={() => navigate("/finance?tab=invoices")}
+                  onClick={() => navigate("/finance/invoices")}
                 >
                   {copy.blocked.goFinance}
                 </Button>

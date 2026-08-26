@@ -21,17 +21,21 @@ import type {
   SubstituteStampedInvoiceResult,
   InvoiceFilters,
   InvoiceBillingScope,
+  InvoiceSendRecipients,
+  SendInvoicePayload,
 } from "@features/invoicing/domain";
 import {
   mapInvoice,
   mapInvoiceListItem,
   mapPayment,
   mapInvoicePrefill,
+  mapInvoiceSendRecipients,
   toApiCreateInvoice,
   toApiUpdateInvoice,
   toApiCancelInvoice,
   toApiCreatePayment,
   toApiSubstituteStampedInvoice,
+  toApiSendInvoice,
 } from "./mappers";
 
 const INVOICES = "/invoices";
@@ -146,6 +150,40 @@ export const invoicingApi = {
       replacement: mapInvoice(d.replacement as Record<string, unknown>),
       original: mapInvoice(d.original as Record<string, unknown>),
     };
+  },
+
+  resumeSubstitutionCancel: async (
+    id: string,
+    payload: { cancellationReason: string },
+  ): Promise<SubstituteStampedInvoiceResult> => {
+    const response = await apiClient.post<{
+      data: { replacement: unknown; original: unknown };
+    }>(`${INVOICES}/${id}/resume-substitution-cancel`, {
+      cancellation_reason: payload.cancellationReason,
+    });
+    const d = response.data;
+    return {
+      replacement: mapInvoice(d.replacement as Record<string, unknown>),
+      original: mapInvoice(d.original as Record<string, unknown>),
+    };
+  },
+
+  getSendRecipients: async (id: string): Promise<InvoiceSendRecipients> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${INVOICES}/${id}/send-recipients`,
+    );
+    return mapInvoiceSendRecipients(response.data);
+  },
+
+  sendInvoice: async (
+    id: string,
+    payload: SendInvoicePayload,
+  ): Promise<Invoice> => {
+    const response = await apiClient.post<{ data: unknown; message: string }>(
+      `${INVOICES}/${id}/send`,
+      toApiSendInvoice(payload),
+    );
+    return mapInvoice(response.data as Record<string, unknown>);
   },
 
   // ──────────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
   parseCreateInvoicePayload,
   parseDraftInvoicePayload,
   safeParseCreateInvoicePayload,
+  syncFleteRetentionForPersonaMoral,
 } from "./invoiceFormSchema";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { PERSONA_MORAL_RETAINED_IVA_RATE } from "@boeltech/cfdi-domain";
@@ -491,5 +492,58 @@ describe("invoiceConceptSheetSchema", () => {
     };
     expect(line.retained_iva_rate).toBe(PERSONA_MORAL_RETAINED_IVA_RATE);
     expect(schema.safeParse(line).success).toBe(true);
+  });
+});
+
+describe("syncFleteRetentionForPersonaMoral", () => {
+  it("forces 4% on gravada flete when retentionRequired", () => {
+    const concepts = [
+      defaultFleteConceptFormLine(10_000, {
+        ivaAplica: true,
+        retencionAplica: false,
+      }),
+      {
+        ...defaultFleteConceptFormLine(1_500, {
+          ivaAplica: true,
+          retencionAplica: false,
+        }),
+        concept_type: "service" as const,
+        description: "Maniobras",
+        clave_prod_serv: "78101801",
+      },
+    ];
+    const { concepts: synced, changed } = syncFleteRetentionForPersonaMoral(
+      concepts,
+      true,
+      0.16,
+    );
+    expect(changed).toBe(true);
+    expect(synced[0]?.retained_iva_rate).toBe(PERSONA_MORAL_RETAINED_IVA_RATE);
+    expect(synced[0]?.iva_rate).toBe(0.16);
+    expect(synced[1]?.retained_iva_rate).toBe(0);
+  });
+
+  it("returns unchanged when flete already has 4%", () => {
+    const concepts = [
+      defaultFleteConceptFormLine(10_000, {
+        ivaAplica: true,
+        retencionAplica: true,
+      }),
+    ];
+    const { concepts: synced, changed } = syncFleteRetentionForPersonaMoral(
+      concepts,
+      true,
+      0.16,
+    );
+    expect(changed).toBe(false);
+    expect(synced).toBe(concepts);
+  });
+
+  it("no-ops when retentionRequired is false", () => {
+    const concepts = [
+      defaultFleteConceptFormLine(10_000, { retencionAplica: false }),
+    ];
+    const { changed } = syncFleteRetentionForPersonaMoral(concepts, false, 0.16);
+    expect(changed).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   useCreateInvoice,
   useCancelInvoice,
+  useDeleteInvoice,
   useSubstituteStampedInvoice,
   invoiceQueryKeys,
 } from "./useInvoices";
@@ -16,6 +17,7 @@ import type {
 } from "@features/invoicing/domain";
 
 const invalidateQueries = vi.fn().mockResolvedValue(undefined);
+const removeQueries = vi.fn();
 const refetchQueries = vi.fn().mockResolvedValue(undefined);
 const queryDataStore = new Map<string, unknown>();
 const onSuccessSpy = vi.fn();
@@ -26,6 +28,7 @@ vi.mock("@tanstack/react-query", () => ({
   useMutation: (config: unknown) => useMutationMock(config),
   useQueryClient: () => ({
     invalidateQueries,
+    removeQueries,
     refetchQueries,
     getQueryData: (queryKey: readonly unknown[]) =>
       queryDataStore.get(JSON.stringify(queryKey)),
@@ -57,6 +60,7 @@ describe("useCreateInvoice cache invalidation", () => {
   beforeEach(() => {
     invalidateQueries.mockReset();
     invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
     refetchQueries.mockReset();
     refetchQueries.mockResolvedValue(undefined);
     onSuccessSpy.mockReset();
@@ -100,6 +104,7 @@ describe("useCancelInvoice cache invalidation", () => {
   beforeEach(() => {
     invalidateQueries.mockReset();
     invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
     refetchQueries.mockReset();
     refetchQueries.mockResolvedValue(undefined);
     onSuccessSpy.mockReset();
@@ -198,6 +203,7 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
   beforeEach(() => {
     invalidateQueries.mockReset();
     invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
     refetchQueries.mockReset();
     refetchQueries.mockResolvedValue(undefined);
     onSuccessSpy.mockReset();
@@ -300,5 +306,47 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: driverQueryKeys.trips(newDriverId),
     });
+  });
+});
+
+describe("useDeleteInvoice cache eviction", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+  });
+
+  it("removes detail query for the deleted invoice id", () => {
+    const invoiceId = "invoice-to-delete";
+    const mutationConfig = useDeleteInvoice({
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: void,
+        variables: string,
+        context: unknown,
+        mutation: unknown,
+      ) => void;
+    };
+
+    mutationConfig.onSuccess(undefined, invoiceId, {}, {});
+
+    expect(removeQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.detail(invoiceId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["finance"],
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["trips"],
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
   });
 });

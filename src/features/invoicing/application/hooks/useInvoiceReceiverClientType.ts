@@ -7,7 +7,11 @@ type InvoiceReceiverClientSource = Pick<Invoice, "trips"> | undefined;
 
 /**
  * Tipo de receptor para reglas de retención PM, alineado a API
- * (`resolveReceiverClientType`: cliente del primer viaje vinculado).
+ * (`resolveReceiverClientType`).
+ *
+ * Política vigente (OP-L0.3): se ancla al tipo del cliente del primer viaje
+ * vinculado (`clients.type`), no al RFC editado del comprobante. Un cambio de
+ * ancla viaje↔RFC es decisión de proceso de negocio, no de este hook.
  */
 export function useInvoiceReceiverClientType(
   invoice: InvoiceReceiverClientSource,

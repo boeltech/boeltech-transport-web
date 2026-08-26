@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Invoice } from "@features/invoicing/domain";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 
@@ -154,5 +155,28 @@ describe("PaymentFormDialog", () => {
 
     expect(screen.getByText("Error al registrar pago")).toBeInTheDocument();
     expect(screen.getByText(overpayMessage)).toBeInTheDocument();
+  });
+
+  it("disables submit while chain repair dialog is open", () => {
+    renderDialog();
+    expect(registerPaymentOnError).toBeTypeOf("function");
+
+    act(() => {
+      registerPaymentOnError?.(
+        new ApiError("Cadena requiere reparación", 409, "CHAIN_REORDER_REQUIRED"),
+      );
+    });
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Actualizar comprobantes de pago anteriores/i,
+      }),
+    ).toBeInTheDocument();
+
+    const submit = document.querySelector(
+      'form button[type="submit"]',
+    ) as HTMLButtonElement | null;
+    expect(submit).not.toBeNull();
+    expect(submit).toBeDisabled();
   });
 });

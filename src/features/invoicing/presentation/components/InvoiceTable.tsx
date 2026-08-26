@@ -19,6 +19,8 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { cn } from "@shared/lib/utils/cn";
+import { Mail } from "lucide-react";
 import {
   getInvoiceListItemDisplayAmounts,
   type InvoiceListItem,
@@ -50,6 +52,7 @@ const TABLE_HEADERS = [
   { key: "total", label: "Total", className: "text-right" },
   { key: "balance", label: invoicingCopy.detail.label.balance, className: "text-right" },
   { key: "trips", label: "Viajes" },
+  { key: "dispatch", label: "", className: "w-10" },
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
 ];
@@ -100,6 +103,9 @@ function LoadingSkeleton() {
           </TableCell>
           <TableCell>
             <Skeleton className="h-5 w-16" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-4" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-5 w-20" />
@@ -233,6 +239,25 @@ export function InvoiceTable({
                     </Badge>
                   )}
                 </div>
+              </TableCell>
+
+              {/* Envío por correo */}
+              <TableCell onClick={(event) => event.stopPropagation()}>
+                {inv.status === "stamped" ? (
+                  <Mail
+                    className={cn(
+                      "h-4 w-4",
+                      inv.dispatchSentAt
+                        ? "text-success"
+                        : "text-muted-foreground/45",
+                    )}
+                    aria-label={
+                      inv.dispatchSentAt
+                        ? invoicingCopy.send.listSentTitle
+                        : invoicingCopy.send.listNotSentTitle
+                    }
+                  />
+                ) : null}
               </TableCell>
 
               {/* Estado */}

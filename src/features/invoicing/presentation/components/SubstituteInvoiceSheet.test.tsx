@@ -21,6 +21,10 @@ vi.mock("@features/invoicing/application", async (importOriginal) => {
       mutate: mutateMock,
       isPending: false,
     }),
+    useResumeSubstitutionCancel: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
     useInvoiceLinkedTripsLoading: () => false,
     prefetchInvoiceLinkedTrips: vi.fn(
       async (

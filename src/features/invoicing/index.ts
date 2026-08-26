@@ -39,6 +39,7 @@ export {
   useCancelInvoice,
   useRegisterPayment,
   useSubstituteStampedInvoice,
+  useResumeSubstitutionCancel,
 } from "./application";
 
 // Infrastructure
@@ -64,4 +65,6 @@ export {
   buildTripInvoicingHubPath,
   shouldOpenInvoiceCreateFromFinanceHub,
   canShowInvoiceFromTripCta,
+  FINANCE_INVOICE_FROM_TRIP_CTA,
+  type FinanceHubTripInvoiceSource,
 } from "./presentation/financeInvoiceFromTripCta";

@@ -89,6 +89,7 @@ export function InvoicePaymentRepRow({
   retryingPaymentId,
 }: InvoicePaymentRepRowProps) {
   const { toast } = useToast();
+  const anyRetryPending = retryingPaymentId != null;
   const retrying = retryingPaymentId === payment.id;
   const fiscalDeadline =
     payment.repStatus === "pending" ||
@@ -258,7 +259,7 @@ export function InvoicePaymentRepRow({
             type="button"
             size="sm"
             variant="outline"
-            disabled={retrying}
+            disabled={anyRetryPending}
             onClick={() => onRetry(payment.id)}
           >
             {retrying ? (

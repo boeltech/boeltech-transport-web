@@ -72,6 +72,15 @@ export interface Invoice {
   readonly qrCode: string | null;
   readonly pdfUrl: string | null;
   readonly stampedAt: string | null;
+  /** Primera vez enviada por correo al cliente (envío unitario o corrida). */
+  readonly dispatchSentAt: string | null;
+  /** ADR-0083 — último ítem de corrida scheduled (detalle). */
+  readonly autoDispatch?: {
+    enabledForClient: boolean;
+    lastScheduledRunId: string | null;
+    lastItemStatus: string | null;
+    lastError: string | null;
+  } | null;
   // Cancelación
   readonly cancelledAt: string | null;
   readonly cancellationReason: string | null;
@@ -119,6 +128,8 @@ export interface InvoiceListItem {
   readonly satCancellationStatus: string;
   readonly satCancellationMessage: string | null;
   readonly stampedAt: string | null;
+  /** Primera vez enviada por correo (solo facturas timbradas). */
+  readonly dispatchSentAt: string | null;
   readonly tripCount: number;
   readonly tripCodes: string[];
   readonly totalPaid: number;
@@ -391,6 +402,26 @@ export interface SubstituteStampedInvoicePayload {
 export interface SubstituteStampedInvoiceResult {
   readonly replacement: Invoice;
   readonly original: Invoice;
+}
+
+export type InvoiceSendRecipientKind = "billing_email" | "contact";
+
+export interface InvoiceSendRecipient {
+  readonly key: string;
+  readonly kind: InvoiceSendRecipientKind;
+  readonly contactId?: string;
+  readonly label: string;
+  readonly email: string;
+}
+
+export interface InvoiceSendRecipients {
+  readonly clientId: string;
+  readonly clientName: string;
+  readonly recipients: InvoiceSendRecipient[];
+}
+
+export interface SendInvoicePayload {
+  readonly recipientKeys?: string[];
 }
 
 export interface CreatePaymentPayload {

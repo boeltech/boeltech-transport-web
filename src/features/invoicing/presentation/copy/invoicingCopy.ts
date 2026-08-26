@@ -152,6 +152,9 @@ export const invoicingCopy = {
     missingLegIdTitle: "Elige la porción a facturar",
     missingLegIdBody:
       "Esta factura corresponde a una porción del reparto del flete. Ábrela desde la facturación del viaje y elige el cliente.",
+    alreadyInvoicedTitle: "Esta porción ya tiene factura",
+    alreadyInvoicedBody:
+      "El cliente de esta porción del reparto ya tiene una factura activa. Ábrela desde el viaje o elige otra porción pendiente.",
     attachCartaPorteLabel: "Adjuntar Carta Porte a esta factura",
     attachCartaPorteHint: "Solo una porción del viaje debe portar Carta Porte.",
     attachCartaPorteDisabledHint:
@@ -159,6 +162,7 @@ export const invoicingCopy = {
     cartaPorteOnInvoice: "Carta Porte en esta factura: sí",
     cartaPorteOffInvoice: "Carta Porte en esta factura: no",
     viewTripInvoicing: "Ver facturación del viaje",
+    viewExistingInvoice: "Ver factura de la porción",
     sharePercentShort: (percent: number) => `${percent}% del flete`,
   },
   comprobante: {
@@ -247,6 +251,44 @@ export const invoicingCopy = {
   },
   action: {
     back: "Volver",
+  },
+  send: {
+    cta: "Enviar por correo",
+    badgeSent: "Enviada",
+    badgeNotSent: "No enviada",
+    badgeSentOn: (label: string) => `Enviada · ${label}`,
+    listSentTitle: "Enviada por correo al cliente",
+    listNotSentTitle: "Aún no enviada por correo",
+    stampSuccessTitle: "Factura timbrada exitosamente",
+    stampSuccessAction: "Enviar por correo",
+    dialog: {
+      title: "Enviar factura por correo",
+      titleResend: "Reenviar factura por correo",
+      description:
+        "Se enviará un correo con PDF y XML a los destinatarios marcados. Los cambios solo aplican a este envío.",
+      resendWarning:
+        "Esta factura ya se envió antes. Reenviar puede duplicar el correo en la bandeja del cliente. No se regenera el PDF ni el XML y no se vuelve a timbrar.",
+      submit: "Confirmar y enviar",
+      submitting: "Enviando…",
+      cancel: "Cancelar",
+      loading: "Cargando destinatarios…",
+      retry: "Reintentar",
+      loadError: "No se pudieron cargar los destinatarios.",
+      noRecipients:
+        "Sin destinatarios elegibles. Agrega correo de facturación o contactos que reciban facturas en el cliente:",
+      clientLink: "Ir al cliente",
+      zeroSelected: "Marca al menos un destinatario antes de confirmar.",
+      recipientsSelected: (selected: number) =>
+        selected === 1
+          ? "1 destinatario seleccionado"
+          : `${selected} destinatarios seleccionados`,
+      successToast: "Factura enviada por correo",
+      errorToast: "No se pudo enviar la factura",
+    },
+    autoDispatchFailedTitle: "Falló el envío automático",
+    autoDispatchFailedBody:
+      "El envío automático no pudo entregar esta factura. Reintenta con «Enviar por correo» o revisa el envío.",
+    autoDispatchFailedLink: "Ver envío",
   },
   detail: {
     section: {
@@ -575,6 +617,16 @@ export const invoicingCopy = {
         `Factura ${serie}-${folio} emitida. La factura original quedó cancelada.`,
       errorTitle: "Error en sustitución",
       errorSeeInline: "Revisa el mensaje detallado en el formulario.",
+      cancelFailedTitle: "Sustituta timbrada; original sin cancelar",
+      cancelFailedDescription: (uuid: string | null) =>
+        uuid
+          ? `La nueva factura ya tiene UUID ${uuid}. No vuelvas a sustituir: reintenta solo la cancelación del original.`
+          : "La nueva factura ya se timbró. No vuelvas a sustituir: reintenta solo la cancelación del original.",
+      resumeCancel: "Reintentar cancelación del original",
+      resumeCancelProcessing: "Reintentando cancelación…",
+      resumeCancelSuccessTitle: "Cancelación del original completada",
+      resumeCancelSuccessDescription:
+        "La factura sustituta queda vigente y el CFDI original fue cancelado (o quedó pendiente ante el SAT).",
       tripsStopLoadErrorTitle: "No se pudieron cargar las paradas",
       tripsStopLoadErrorDescription:
         "Espera a que terminen de cargar los viajes vinculados o vuelve a intentar.",
@@ -609,6 +661,11 @@ export const invoicingCopy = {
       cancel: "Cancelar",
       pdfError: "No se pudo abrir el PDF",
       xmlError: "No se pudo descargar el XML",
+      sendByEmail: "Enviar por correo",
+      downloadMenu: "Descargar",
+      downloadGenerating: "Generando…",
+      moreActions: "Más",
+      moreActionsSrOnly: "Más acciones de factura",
     },
     cancelDialog: {
       title: "Cancelar factura",
@@ -752,5 +809,5 @@ export const invoiceFromTripCta = {
     "Abre la cola de viajes con facturación disponible en Finanzas",
   emptyDescription:
     "Elige un viaje de la cola «Por facturar» para generar su factura.",
-  invoiceablePath: "/finance?tab=invoiceable",
+  invoiceablePath: "/finance/invoiceable",
 } as const;

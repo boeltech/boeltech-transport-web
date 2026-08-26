@@ -18,6 +18,8 @@ import {
   type CancelInvoicePayload,
   type CreatePaymentPayload,
   type SubstituteStampedInvoicePayload,
+  type InvoiceSendRecipients,
+  type SendInvoicePayload,
 } from "@features/invoicing/domain";
 import { sanitizeRepLastErrorForDisplay } from "./sanitizeRepLastErrorForDisplay";
 
@@ -124,6 +126,13 @@ interface ApiInvoice {
   qr_code: string | null;
   pdf_url: string | null;
   stamped_at: string | null;
+  dispatch_sent_at?: string | null;
+  auto_dispatch?: {
+    enabled_for_client: boolean;
+    last_scheduled_run_id: string | null;
+    last_item_status: string | null;
+    last_error: string | null;
+  } | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
   cancellation_code: string | null;
@@ -162,6 +171,7 @@ interface ApiInvoiceListItem {
   sat_cancellation_status: string;
   sat_cancellation_message: string | null;
   stamped_at: string | null;
+  dispatch_sent_at?: string | null;
   trip_count: number;
   trip_codes: string[];
   total_paid: number;
@@ -332,6 +342,17 @@ export function mapInvoice(raw: unknown): Invoice {
     qrCode: invoice.qr_code,
     pdfUrl: invoice.pdf_url,
     stampedAt: invoice.stamped_at,
+    dispatchSentAt: invoice.dispatch_sent_at ?? null,
+    autoDispatch: invoice.auto_dispatch
+      ? {
+          enabledForClient: Boolean(invoice.auto_dispatch.enabled_for_client),
+          lastScheduledRunId: invoice.auto_dispatch.last_scheduled_run_id,
+          lastItemStatus: invoice.auto_dispatch.last_item_status,
+          lastError: invoice.auto_dispatch.last_error,
+        }
+      : invoice.auto_dispatch === null
+        ? null
+        : undefined,
     cancelledAt: invoice.cancelled_at,
     cancellationReason: invoice.cancellation_reason,
     cancellationCode: invoice.cancellation_code,
@@ -373,6 +394,7 @@ export function mapInvoiceListItem(raw: unknown): InvoiceListItem {
     satCancellationStatus: item.sat_cancellation_status ?? "none",
     satCancellationMessage: item.sat_cancellation_message,
     stampedAt: item.stamped_at,
+    dispatchSentAt: item.dispatch_sent_at ?? null,
     tripCount: item.trip_count,
     tripCodes: item.trip_codes ?? [],
     totalPaid: item.total_paid,
@@ -605,4 +627,39 @@ export function toApiCreatePayment(payload: CreatePaymentPayload) {
     body.confirm_chain_repair = true;
   }
   return body;
+}
+
+interface ApiInvoiceSendRecipient {
+  key: string;
+  kind: string;
+  contact_id?: string;
+  label: string;
+  email: string;
+}
+
+export function mapInvoiceSendRecipients(raw: unknown): InvoiceSendRecipients {
+  const data = raw as {
+    client_id: string;
+    client_name: string;
+    recipients?: ApiInvoiceSendRecipient[];
+  };
+  return {
+    clientId: data.client_id,
+    clientName: data.client_name,
+    recipients: (data.recipients ?? []).map((recipient) => ({
+      key: recipient.key,
+      kind: recipient.kind === "contact" ? "contact" : "billing_email",
+      contactId: recipient.contact_id,
+      label: recipient.label,
+      email: recipient.email,
+    })),
+  };
+}
+
+export function toApiSendInvoice(payload: SendInvoicePayload) {
+  // undefined = all eligible (API default). [] must stay [] → API 422, not "all".
+  if (payload.recipientKeys === undefined) {
+    return {};
+  }
+  return { recipient_keys: payload.recipientKeys };
 }

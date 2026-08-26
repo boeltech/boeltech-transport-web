@@ -13,12 +13,15 @@ export {
   useRegisterPayment,
   useRetryRepStamp,
   useSubstituteStampedInvoice,
+  useResumeSubstitutionCancel,
   useOpenInvoicePdf,
   downloadInvoiceXml,
   downloadRepXml,
   useOpenRepPdf,
   useDownloadInvoiceXml,
   useDownloadRepXml,
+  useInvoiceSendRecipients,
+  useSendInvoice,
 } from "./hooks/useInvoices";
 
 export { useInvoiceReceiverClientType } from "./hooks/useInvoiceReceiverClientType";

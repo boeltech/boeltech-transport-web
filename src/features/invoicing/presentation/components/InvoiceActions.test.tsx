@@ -37,6 +37,13 @@ vi.mock("@features/invoicing/application", () => ({
   useSubstituteStampedInvoice: () => ({ mutate: vi.fn(), isPending: false }),
   useOpenInvoicePdf: () => ({ mutate: vi.fn(), isPending: false }),
   useDownloadInvoiceXml: () => ({ mutate: vi.fn(), isPending: false }),
+  useInvoiceSendRecipients: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useSendInvoice: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const mockUseTrip = vi.fn(() => ({
@@ -45,6 +52,19 @@ const mockUseTrip = vi.fn(() => ({
 
 vi.mock("@features/trips/application", () => ({
   useTrip: (...args: unknown[]) => mockUseTrip(...args),
+}));
+
+vi.mock("./SubstituteInvoiceSheet", () => ({
+  SubstituteInvoiceSheet: ({
+    open,
+  }: {
+    open: boolean;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Sustituir factura">
+        Substitute sheet open
+      </div>
+    ) : null,
 }));
 
 function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
@@ -85,6 +105,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     qrCode: null,
     pdfUrl: null,
     stampedAt: "2026-06-01T12:05:00.000Z",
+    dispatchSentAt: null,
     cancelledAt: null,
     cancellationReason: null,
     cancellationCode: null,
@@ -126,6 +147,24 @@ function renderActions(invoice: Invoice) {
         </MemoryRouter>
       </TooltipProvider>
     </QueryClientProvider>,
+  );
+}
+
+const actionsCopy = invoicingCopy.detail.actions;
+
+async function openMoreMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", {
+      name: new RegExp(actionsCopy.moreActions, "i"),
+    }),
+  );
+}
+
+async function openDownloadMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", {
+      name: new RegExp(actionsCopy.downloadMenu, "i"),
+    }),
   );
 }
 
@@ -206,7 +245,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
     mockUseTrip.mockReturnValue({ data: undefined });
   });
 
-  it("manager with execute sees Cancelar and Sustituir but not Eliminar borrador", () => {
+  it("manager with execute sees Cancelar and Sustituir but not Eliminar borrador", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "execute" || action === "read",
@@ -219,15 +258,42 @@ describe("InvoiceActions RBAC execute/delete", () => {
       }),
     );
 
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
     expect(
-      screen.getByRole("button", { name: /Cancelar/i }),
+      screen.getByRole("menuitem", { name: actionsCopy.cancel }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Sustituir factura/i }),
+      screen.getByRole("menuitem", { name: actionsCopy.substitute }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Eliminar borrador/i }),
+      screen.queryByRole("menuitem", { name: actionsCopy.deleteDraft }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens SubstituteInvoiceSheet from Más → Sustituir factura", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+      }),
+    );
+
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: actionsCopy.substitute }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Sustituir factura" }),
+    ).toBeInTheDocument();
   });
 
   it("accountant with execute does not see Cancelar or Sustituir", () => {
@@ -245,14 +311,13 @@ describe("InvoiceActions RBAC execute/delete", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: /Cancelar/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Sustituir factura/i }),
+      screen.queryByRole("button", {
+        name: new RegExp(actionsCopy.moreActions, "i"),
+      }),
     ).not.toBeInTheDocument();
   });
 
-  it("hides Sustituir on stamped freight CFDI when the trip is false_trip", () => {
+  it("hides Sustituir on stamped freight CFDI when the trip is false_trip", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "execute" || action === "read",
@@ -282,11 +347,14 @@ describe("InvoiceActions RBAC execute/delete", () => {
       }),
     );
 
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
     expect(
-      screen.getByRole("button", { name: /Cancelar/i }),
+      screen.getByRole("menuitem", { name: actionsCopy.cancel }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Sustituir factura/i }),
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
     ).not.toBeInTheDocument();
   });
 
@@ -335,23 +403,24 @@ describe("InvoiceActions RBAC execute/delete", () => {
     );
 
     const user = userEvent.setup();
-    const substitute = screen.getByRole("button", {
-      name: invoicingCopy.detail.actions.substituteBlockedTitle,
+    await openMoreMenu(user);
+    const substitute = screen.getByRole("menuitem", {
+      name: actionsCopy.substituteBlockedTitle,
     });
 
-    expect(substitute).toBeDisabled();
+    expect(substitute).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
-    await user.hover(substitute.parentElement!);
+    await user.hover(substitute.closest("span")!);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       invoicingCopy.detail.actions.substituteBlocked,
     );
     expect(
-      screen.getByRole("button", { name: /Cancelar/i }),
+      screen.getByRole("menuitem", { name: actionsCopy.cancel }),
     ).toBeInTheDocument();
   });
 
-  it("user with delete but not execute does not see Cancelar on stamped invoice", () => {
+  it("user with delete but not execute does not see Cancelar on stamped invoice", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "delete",
     );
@@ -359,19 +428,24 @@ describe("InvoiceActions RBAC execute/delete", () => {
     renderActions(buildInvoice({ status: "stamped" }));
 
     expect(
-      screen.queryByRole("button", { name: /Cancelar/i }),
+      screen.queryByRole("button", {
+        name: new RegExp(actionsCopy.moreActions, "i"),
+      }),
     ).not.toBeInTheDocument();
   });
 
-  it("user with delete sees Eliminar borrador on draft", () => {
+  it("user with delete sees Eliminar borrador on draft", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "delete",
     );
 
     renderActions(buildInvoice({ status: "draft", cfdiUuid: null }));
 
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
     expect(
-      screen.getByRole("button", { name: /Eliminar borrador/i }),
+      screen.getByRole("menuitem", { name: actionsCopy.deleteDraft }),
     ).toBeInTheDocument();
   });
 
@@ -424,18 +498,25 @@ describe("InvoiceActions portal client export", () => {
     mockUseTrip.mockReturnValue({ data: undefined });
   });
 
-  it("client with invoices.read sees PDF/XML without invoices.export", () => {
+  it("client with invoices.read sees PDF/XML without invoices.export", async () => {
     renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
 
+    const user = userEvent.setup();
+    await openDownloadMenu(user);
+
     expect(
-      screen.getByRole("button", { name: /Descargar PDF/i }),
+      screen.getByRole("menuitem", {
+        name: invoicingCopy.detail.header.pdf,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Descargar XML/i }),
+      screen.getByRole("menuitem", {
+        name: invoicingCopy.detail.header.xml,
+      }),
     ).toBeInTheDocument();
   });
 
-  it("dispatcher with invoices.read sees PDF/XML (API lockstep)", () => {
+  it("dispatcher with invoices.read sees PDF/XML (API lockstep)", async () => {
     mockUseRole.mockReturnValue("dispatcher");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "read",
@@ -443,11 +524,31 @@ describe("InvoiceActions portal client export", () => {
 
     renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
 
+    const user = userEvent.setup();
+    await openDownloadMenu(user);
+
     expect(
-      screen.getByRole("button", { name: /Descargar PDF/i }),
+      screen.getByRole("menuitem", {
+        name: invoicingCopy.detail.header.pdf,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Descargar XML/i }),
+      screen.getByRole("menuitem", {
+        name: invoicingCopy.detail.header.xml,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Enviar por correo for stamped invoice with execute", () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "read" || action === "execute",
+    );
+
+    renderActions(buildInvoice({ status: "stamped", hasStampedXml: true }));
+
+    expect(
+      screen.getByRole("button", { name: invoicingCopy.send.cta }),
     ).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Badge } from "@shared/ui/badge";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
@@ -10,6 +11,7 @@ import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
+import { formatDate } from "@shared/utils/dateUtils";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
@@ -46,7 +48,7 @@ function resolveInvoiceBackHref(
 ): string {
   if (from && !from.startsWith("/invoices/new")) return from;
   if (invoice?.trips?.length) return `/trips/${invoice.trips[0].tripId}`;
-  return "/finance?tab=invoices";
+  return "/finance/invoices";
 }
 
 export function InvoiceDetailPage() {
@@ -209,11 +211,35 @@ export function InvoiceDetailPage() {
 
   const backHref = resolveInvoiceBackHref(fromState, invoice);
 
+  const autoDispatchFailed =
+    invoice.autoDispatch?.lastItemStatus === "failed";
+
   const hasAlerts =
     !isClientPortal &&
-    (isActiveSubstitute || isStampedLike || showRepFiscalAlert);
+    (isActiveSubstitute ||
+      isStampedLike ||
+      showRepFiscalAlert ||
+      autoDispatchFailed);
   const alerts = hasAlerts ? (
     <div className="space-y-3">
+      {autoDispatchFailed ? (
+        <AlertWithIcon
+          variant="destructive"
+          title={invoicingCopy.send.autoDispatchFailedTitle}
+        >
+          <span className="block">
+            {invoicingCopy.send.autoDispatchFailedBody}
+          </span>
+          {invoice.autoDispatch?.lastScheduledRunId ? (
+            <Link
+              to={`/finance/dispatch-runs/${invoice.autoDispatch.lastScheduledRunId}`}
+              className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {invoicingCopy.send.autoDispatchFailedLink}
+            </Link>
+          ) : null}
+        </AlertWithIcon>
+      ) : null}
       {showRepFiscalAlert && repFiscalWorstStatus ? (
         <AlertWithIcon variant="warning" title={copy.label.repFiscalDeadline}>
           {repFiscalWorstStatus === "overdue"
@@ -266,6 +292,19 @@ export function InvoiceDetailPage() {
             <InvoiceBillingScopeBadge
               scope={resolveInvoiceBillingScope(invoice.trips)}
             />
+            {invoice.status === "stamped" ? (
+              <Badge
+                variant={invoice.dispatchSentAt ? "success" : "neutral"}
+                tone="soft"
+                className="text-xs font-medium"
+              >
+                {invoice.dispatchSentAt
+                  ? invoicingCopy.send.badgeSentOn(
+                      formatDate(invoice.dispatchSentAt.split("T")[0]),
+                    )
+                  : invoicingCopy.send.badgeNotSent}
+              </Badge>
+            ) : null}
           </span>
         ),
         subtitle: (

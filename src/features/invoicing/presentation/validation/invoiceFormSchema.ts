@@ -271,6 +271,43 @@ export function applyConceptTaxFlags(
   };
 }
 
+/**
+ * Cuando retención PM es obligatoria, fuerza IVA + 4% en flete gravado.
+ * No altera servicios (retención opcional). Devuelve `changed` para evitar loops RHF.
+ */
+export function syncFleteRetentionForPersonaMoral(
+  concepts: InvoiceConceptFormLine[],
+  retentionRequired: boolean,
+  taxRate: number,
+): { concepts: InvoiceConceptFormLine[]; changed: boolean } {
+  if (!retentionRequired) {
+    return { concepts, changed: false };
+  }
+
+  let changed = false;
+  const next = concepts.map((line) => {
+    if (
+      line.concept_type !== "flete" ||
+      line.object_imp !== "02" ||
+      (line.amount ?? 0) <= 0
+    ) {
+      return line;
+    }
+    const flags = applyConceptTaxFlags(true, true, taxRate);
+    if (
+      (line.iva_rate ?? 0) === flags.iva_rate &&
+      (line.retained_iva_rate ?? 0) === flags.retained_iva_rate &&
+      line.object_imp === flags.object_imp
+    ) {
+      return line;
+    }
+    changed = true;
+    return { ...line, ...flags };
+  });
+
+  return { concepts: changed ? next : concepts, changed };
+}
+
 export function readConceptTaxFlags(line: {
   iva_rate?: number;
   retained_iva_rate?: number;
