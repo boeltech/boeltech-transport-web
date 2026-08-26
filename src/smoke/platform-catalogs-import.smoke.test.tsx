@@ -185,7 +185,7 @@ describe("smoke platform catalogs import (SAT release kit)", () => {
     seedCatalogMocks();
   });
 
-  it("owner: abre wizard, descarga plantilla con authScope platform y ve estimate tras validar", async () => {
+  it("owner: abre wizard, descarga plantilla con authScope platform, valida estimate e importa", async () => {
     seedPlatformSession(PLATFORM_OWNER);
     const user = userEvent.setup();
     renderHub();
@@ -260,6 +260,27 @@ describe("smoke platform catalogs import (SAT release kit)", () => {
           element?.tagName === "STRONG" && content.trim() === "3"
         );
       }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Continuar/i }));
+
+    expect(
+      await screen.findByRole("button", { name: /Importar catálogo/i }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Importar catálogo/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockImportCatalog).toHaveBeenCalled();
+    });
+    expect(mockImportCatalog.mock.calls[0]?.[3]).toEqual({
+      authScope: "platform",
+    });
+
+    expect(
+      await screen.findByText("Importación completada"),
     ).toBeInTheDocument();
   });
 

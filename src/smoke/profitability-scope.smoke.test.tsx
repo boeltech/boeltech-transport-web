@@ -61,9 +61,9 @@ function renderTab() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <MemoryRouter initialEntries={["/finance?tab=analysis&view=margin"]}>
+    <MemoryRouter initialEntries={["/finance/analysis?view=margin"]}>
       <QueryClientProvider client={queryClient}>
-        <ProfitabilityTab queriesEnabled />
+        <ProfitabilityTab />
       </QueryClientProvider>
     </MemoryRouter>,
   );
@@ -86,7 +86,9 @@ describe("profitability scope smoke", () => {
       expect(screen.getByText("Margen")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Exportar margen/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Exportar muestra/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Composición financiera")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Fuera de operación · no incluido en el margen"),

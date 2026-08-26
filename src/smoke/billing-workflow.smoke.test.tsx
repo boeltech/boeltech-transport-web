@@ -37,6 +37,7 @@ vi.mock("@features/billing", async (importOriginal) => {
   };
 });
 
+const mockGetAccess = vi.fn();
 const mockGetSubscription = vi.fn();
 const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
@@ -44,6 +45,7 @@ const mockGetArrears = vi.fn();
 
 vi.mock("@features/billing/infrastructure/billingApi", () => ({
   billingApi: {
+    getAccess: (...args: unknown[]) => mockGetAccess(...args),
     getSubscription: (...args: unknown[]) => mockGetSubscription(...args),
     getUsage: (...args: unknown[]) => mockGetUsage(...args),
     getEntitlements: (...args: unknown[]) => mockGetEntitlements(...args),
@@ -227,6 +229,13 @@ function BasicInfoStepHarness() {
 describe("billing workflow smoke (Imp-v1d)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Esencial",
+      effectiveModuleCodes: [],
+    });
     mockGetSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
     mockGetUsage.mockResolvedValue(MOCK_USAGE);
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS_WITHOUT);
@@ -240,9 +249,16 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     });
     mockUseInternalStaffEntitlement.mockReturnValue({
       hasModule: false,
+      isSuccess: true,
       isFetched: true,
       isLoading: false,
-      data: MOCK_ENTITLEMENTS_WITHOUT,
+      data: {
+        subscriptionStatus: "active",
+        isOperational: true,
+        trialEndsAt: null,
+        planName: "Operación Esencial",
+        effectiveModuleCodes: [],
+      },
     });
   });
 
@@ -259,10 +275,9 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       expect(screen.getAllByText("Operación Esencial").length).toBeGreaterThan(0);
     });
 
-    // Nivel de rentabilidad: etiqueta comercial + código como identificador (D11).
+    // Nivel de rentabilidad: etiqueta comercial (sin código Lx en esta superficie).
     expect(screen.getByText(billingCopy.modules.level.label)).toBeInTheDocument();
     expect(screen.getByText("Margen operativo")).toBeInTheDocument();
-    expect(screen.getByText("Nivel L0")).toBeInTheDocument();
     expect(
       screen.getByText(PROFITABILITY_LEVEL_COPY.L0.includes),
     ).toBeInTheDocument();
@@ -275,7 +290,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     expect(screen.getByText(billingCopy.modules.eaBadge)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: billingCopy.modules.level.profitabilityLink }),
-    ).toHaveAttribute("href", "/finance?tab=analysis&view=margin");
+    ).toHaveAttribute("href", "/finance/analysis?view=margin");
     expect(
       screen.getByRole("link", { name: billingCopy.contact.cta }),
     ).toHaveAttribute("href", "mailto:billing@boeltech.com");
@@ -333,9 +348,16 @@ describe("billing workflow smoke (Imp-v1d)", () => {
   it("enables support staff section when entitlement is active", async () => {
     mockUseInternalStaffEntitlement.mockReturnValue({
       hasModule: true,
+      isSuccess: true,
       isFetched: true,
       isLoading: false,
-      data: MOCK_ENTITLEMENTS_WITH,
+      data: {
+        subscriptionStatus: "active",
+        isOperational: true,
+        trialEndsAt: null,
+        planName: "Operación Esencial",
+        effectiveModuleCodes: [INTERNAL_STAFF_MODULE_CODE],
+      },
     });
 
     render(
@@ -356,5 +378,30 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     expect(addButton.closest(".pointer-events-none")).toBeNull();
     await userEvent.click(addButton);
     expect(screen.getByText(basicInfoCopy.error.selectEmployee)).toBeInTheDocument();
+  });
+
+  it("does not show false paywall when entitlement query has not succeeded", async () => {
+    mockUseInternalStaffEntitlement.mockReturnValue({
+      hasModule: false,
+      isSuccess: false,
+      isFetched: true,
+      isError: true,
+      isLoading: false,
+      data: undefined,
+    });
+
+    render(
+      <TestProviders>
+        <BasicInfoStepHarness />
+      </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(basicInfoCopy.section.supportStaff),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(basicInfoCopy.paywall.title)).not.toBeInTheDocument();
   });
 });

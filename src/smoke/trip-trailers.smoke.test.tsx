@@ -63,6 +63,7 @@ vi.mock("@features/trailers", async (importOriginal) => {
 vi.mock("@features/billing", () => ({
   useInternalStaffEntitlement: () => ({
     hasModule: true,
+    isSuccess: true,
     isFetched: true,
   }),
 }));

@@ -20,6 +20,8 @@ npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (
 npm run test:smoke:platform-catalogs-import # smoke release kit SAT (hub + plantilla + estimate; support RO)
 npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
 npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
+npm run test:smoke:billing-dispatch # smoke ADR-0082 corrida preview → confirm-send (digest)
+npm run test:smoke:invoice-auto-dispatch # smoke ADR-0083 flag + badge Automática + alerta failed
 npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
 npm run test:smoke:catalogs-tenant # smoke catálogos tenant: sin import SAT + CRUD internos
 npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + wizard Costos
@@ -42,6 +44,10 @@ npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → valid
 **Multifactura por viaje (ADR-0068):** factura de flete (primaria + Carta Porte) y N facturas accesorias (solo servicios, sin CP) ligadas al mismo viaje · UI `?scope=accessory` · smoke `npm run test:smoke:trip-multi-invoice`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\facturas-accesorias-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\trip-multi-invoice\sdd.md`.
 
 **Prorrateo multi-RFC (ADR-0081):** N CFDIs de flete por porción del acuerdo (`billing_scope=split_share`) · UI `?scope=split_share&leg_id=` · smoke `npm run test:smoke:trip-revenue-split`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\prorrateo-multi-rfc-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0081-split-multi-rfc-mismo-viaje.md` · SDD `design/sdd/trip-revenue-split/`.
+
+**Esquemas + corrida de despacho (ADR-0082, F0–F4):** catálogo `/settings/billing-schemes` · asignación en cliente · corridas en Finanzas · digest 1 email/cliente (sin stamp) · smoke `npm run test:smoke:billing-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\corrida-despacho-esquemas-usuario.md` · SDD `design/sdd/billing-scheme-dispatch/`.
+
+**Envío automático de facturas (ADR-0083, F0–F3):** opt-in `invoice_auto_dispatch_enabled` + corrida `origin=scheduled` tras corte CDMX · badge Automática · alerta failed en factura · inbox `billing_dispatch` · smoke `npm run test:smoke:invoice-auto-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\envio-automatico-facturas-usuario.md` · SDD `design/sdd/invoice-auto-dispatch/`. Local: worker (`npm run dev:worker`) + migr. **155**.
 
 **Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. Capa 1 job UX en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
 

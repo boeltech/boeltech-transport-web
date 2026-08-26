@@ -333,4 +333,58 @@ describe("smoke platform admin workflow", () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it("cancelled tenant menu shows reactivate only (no suspend/cancel)", async () => {
+    const user = userEvent.setup();
+    const cancelled = {
+      ...createActiveTenant(),
+      status: "cancelled" as const,
+      suspendedAt: null,
+    };
+
+    mockListTenants.mockResolvedValue({
+      data: [cancelled as PlatformTenantListItem],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+    mockGetTenantById.mockResolvedValue({
+      data: cancelled,
+      message: undefined,
+    });
+
+    renderPlatform(
+      <Routes>
+        <Route
+          path="/platform/tenants/:id"
+          element={<PlatformTenantDetailPage />}
+        />
+      </Routes>,
+      `/platform/tenants/${TENANT_ID}`,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Transporte Demo" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: platformCopy.tenants.detail.actions.moreActions,
+      }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", {
+        name: platformCopy.tenants.detail.actions.reactivate,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: platformCopy.tenants.detail.actions.suspend,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: platformCopy.tenants.detail.actions.cancel,
+      }),
+    ).not.toBeInTheDocument();
+  });
 });

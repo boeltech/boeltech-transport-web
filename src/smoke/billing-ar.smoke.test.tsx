@@ -18,6 +18,7 @@ import type {
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
 
+const mockGetAccess = vi.fn();
 const mockGetSubscription = vi.fn();
 const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
@@ -25,6 +26,7 @@ const mockGetArrears = vi.fn();
 
 vi.mock("@features/billing/infrastructure/billingApi", () => ({
   billingApi: {
+    getAccess: (...args: unknown[]) => mockGetAccess(...args),
     getSubscription: (...args: unknown[]) => mockGetSubscription(...args),
     getUsage: (...args: unknown[]) => mockGetUsage(...args),
     getEntitlements: (...args: unknown[]) => mockGetEntitlements(...args),
@@ -157,6 +159,13 @@ function TestProviders({ children }: { children: ReactNode }) {
 describe("billing AR smoke (ADR-0072 WS-D)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Esencial",
+      effectiveModuleCodes: [],
+    });
     mockGetSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
     mockGetUsage.mockResolvedValue(MOCK_USAGE);
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS);

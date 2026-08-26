@@ -124,7 +124,7 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
           }}
           paymentConfig={paymentConfig}
           PaymentIcon={CreditCard}
-          collectHref="/finance?tab=cobros&rfc=ACM010101AAA"
+          collectHref="/finance/cobros?rfc=ACM010101AAA"
         />
       </TestProviders>,
     );
@@ -134,7 +134,7 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
     expect(screen.getByText(creditExposureCopy.breakdown.unbilled)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: creditExposureCopy.collectCtaAria })).toHaveAttribute(
       "href",
-      "/finance?tab=cobros&rfc=ACM010101AAA",
+      "/finance/cobros?rfc=ACM010101AAA",
     );
     expect(mockUseClientCreditSummary).toHaveBeenCalledWith("client-1");
   });
