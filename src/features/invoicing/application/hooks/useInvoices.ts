@@ -25,7 +25,6 @@ import type {
   SubstituteStampedInvoiceCorrections,
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
-  InvoiceSendRecipients,
   SendInvoicePayload,
 } from "@features/invoicing/domain";
 import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";

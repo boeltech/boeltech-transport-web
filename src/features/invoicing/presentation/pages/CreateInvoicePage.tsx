@@ -237,7 +237,7 @@ export function CreateInvoicePage() {
     isSplitShareLegAlreadyInvoiced;
 
   const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
+    resolver: zodResolver(invoiceFormSchema as never) as Resolver<InvoiceFormValues>,
     defaultValues: defaultInvoiceFormValues(),
     mode: "onChange",
   });

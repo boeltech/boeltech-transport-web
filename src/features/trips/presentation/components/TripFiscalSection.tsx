@@ -11,7 +11,6 @@ import { Badge } from "@shared/ui/badge";
 import type { Trip } from "@features/trips/domain";
 import {
   getTripInvoicingBadgeConfig,
-  getTripInvoicingBlockReason,
   toDetailInvoicingBadge,
 } from "../uiHelpers";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";

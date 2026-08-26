@@ -1,4 +1,4 @@
-import type { CreateTrailerPayload, Trailer, UpdateTrailerPayload } from "../../domain";
+import type { CreateTrailerPayload, Trailer, UpdateTrailerPayload } from "../domain";
 import type { CreateTrailerFormData } from "./validation";
 
 export function buildCreateTrailerPayload(

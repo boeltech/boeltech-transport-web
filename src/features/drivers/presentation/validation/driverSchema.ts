@@ -375,9 +375,11 @@ export function driverToFormValues(driver: Driver): DriverFormData {
     medicalCertificateExpiry: driver.medicalCertificateExpiry || "",
     medicalCertificateIssuer: driver.medicalCertificateIssuer || "",
     psychometricTestDate: driver.psychometricTestDate || "",
-    psychometricTestResult: normalizedPsychometricResult || "",
+    psychometricTestResult: (normalizedPsychometricResult ||
+      "") as DriverFormData["psychometricTestResult"],
     lastDrugTestDate: driver.lastDrugTestDate || "",
-    drugTestResult: normalizedDrugTestResult || "",
+    drugTestResult: (normalizedDrugTestResult ||
+      "") as DriverFormData["drugTestResult"],
     assignedDeviceId: driver.assignedDeviceId || "",
     notes: driver.notes || "",
   };

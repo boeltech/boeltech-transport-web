@@ -773,7 +773,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                 onValueChange={(value) => {
                   handleSelectChange(
                     "psychometricTestResult",
-                    value === SELECT_NONE ? "" : value,
+                    value === SELECT_NONE
+                      ? ""
+                      : (value as DriverFormData["psychometricTestResult"]),
                   );
                 }}
               >
@@ -834,7 +836,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
                 onValueChange={(value) => {
                   handleSelectChange(
                     "drugTestResult",
-                    value === SELECT_NONE ? "" : value,
+                    value === SELECT_NONE
+                      ? ""
+                      : (value as DriverFormData["drugTestResult"]),
                   );
                 }}
               >

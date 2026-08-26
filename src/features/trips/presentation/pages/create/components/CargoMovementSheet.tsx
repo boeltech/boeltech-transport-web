@@ -48,7 +48,6 @@ import {
   RHFMoneyField,
   RHFTextField,
   RHFTextareaField,
-  getFieldErrorAriaProps,
 } from "@shared/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {

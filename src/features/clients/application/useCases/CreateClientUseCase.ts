@@ -2,20 +2,20 @@
  * CreateClient Use Case
  * Clean Architecture - Application Layer
  *
- * Caso de uso para crear un cliente CON su dirección fiscal obligatoria.
- * Este es el caso de uso principal usado por el wizard de creación.
+ * Caso de uso para crear un cliente CON su direcci?n fiscal obligatoria.
+ * Este es el caso de uso principal usado por el wizard de creaci?n.
  *
  * FLUJO:
  * 1. Crear el cliente (POST /clients)
- * 2. Crear la dirección fiscal (POST /clients/:id/addresses)
- * 3. Crear contacto principal si se proporcionó (POST /clients/:id/contacts)
+ * 2. Crear la direcci?n fiscal (POST /clients/:id/addresses)
+ * 3. Crear contacto principal si se proporcion? (POST /clients/:id/contacts)
  * 4. Retornar el resultado combinado
  *
- * Si falla la dirección: intenta soft-delete del cliente (compensación) para
- * no dejar huérfanos sin billing; si la compensación falla, expone el cliente
- * creado para completar la dirección en detalle.
+ * Si falla la direcci?n: intenta soft-delete del cliente (compensaci?n) para
+ * no dejar hu?rfanos sin billing; si la compensaci?n falla, expone el cliente
+ * creado para completar la direcci?n en detalle.
  *
- * Ubicación: src/features/clients/application/useCases/CreateClientUseCase.ts
+ * Ubicaci?n: src/features/clients/application/useCases/CreateClientUseCase.ts
  */
 
 import {
@@ -38,9 +38,9 @@ import type {
 // ============================================================================
 
 /**
- * El cliente ya se persistió pero falló la creación de la dirección fiscal
- * y la compensación (soft-delete) también falló.
- * Permite al UI ofrecer ir al detalle a completar la dirección.
+ * El cliente ya se persisti? pero fall? la creaci?n de la direcci?n fiscal
+ * y la compensaci?n (soft-delete) tambi?n fall?.
+ * Permite al UI ofrecer ir al detalle a completar la direcci?n.
  */
 export class CreateClientAddressFailedError extends Error {
   readonly clientId: string;
@@ -62,7 +62,7 @@ export class CreateClientAddressFailedError extends Error {
 }
 
 /**
- * Falló la dirección fiscal y el cliente se revirtió (soft-delete).
+ * Fall? la direcci?n fiscal y el cliente se revirti? (soft-delete).
  * El alta se trata como fallida; el RFC queda libre para reintentar.
  */
 export class CreateClientCompensatedError extends Error {
@@ -78,7 +78,7 @@ export class CreateClientCompensatedError extends Error {
 }
 
 /**
- * Cliente y dirección creados, pero falló el contacto principal opcional.
+ * Cliente y direcci?n creados, pero fall? el contacto principal opcional.
  */
 export class CreateClientPrimaryContactFailedError extends Error {
   readonly clientId: string;
@@ -107,18 +107,26 @@ export class CreateClientPrimaryContactFailedError extends Error {
 // ============================================================================
 
 export class CreateClientUseCase {
+  private readonly clients: IClientRepository;
+  private readonly addresses: IClientAddressRepository;
+  private readonly contacts: IClientContactRepository;
+
   constructor(
-    private readonly clients: IClientRepository = clientRepository,
-    private readonly addresses: IClientAddressRepository = clientAddressRepository,
-    private readonly contacts: IClientContactRepository = clientContactRepository,
-  ) {}
+    clients: IClientRepository = clientRepository,
+    addresses: IClientAddressRepository = clientAddressRepository,
+    contacts: IClientContactRepository = clientContactRepository,
+  ) {
+    this.clients = clients;
+    this.addresses = addresses;
+    this.contacts = contacts;
+  }
 
   /**
-   * Crea un cliente con su dirección fiscal (wizard)
+   * Crea un cliente con su direcci?n fiscal (wizard)
    *
-   * @param data - Datos del cliente y dirección fiscal
-   * @returns Resultado con IDs del cliente y dirección creados
-   * @throws Error si falla la creación del cliente o la dirección
+   * @param data - Datos del cliente y direcci?n fiscal
+   * @returns Resultado con IDs del cliente y direcci?n creados
+   * @throws Error si falla la creaci?n del cliente o la direcci?n
    */
   async execute(data: CreateClientWithAddressDTO): Promise<CreateClientResult> {
     const { id: clientId, clientCode } = await this.clients.create(data.client);
@@ -173,7 +181,7 @@ export class CreateClientUseCase {
       const addressMessage =
         error instanceof Error
           ? error.message
-          : "No se pudo registrar la dirección fiscal.";
+          : "No se pudo registrar la direcci?n fiscal.";
 
       try {
         await this.clients.delete(clientId);
@@ -187,7 +195,7 @@ export class CreateClientUseCase {
       }
 
       throw new CreateClientCompensatedError(
-        "No se pudo completar el alta del cliente. La dirección fiscal no se registró; puedes reintentar con los mismos datos.",
+        "No se pudo completar el alta del cliente. La direcci?n fiscal no se registr?; puedes reintentar con los mismos datos.",
         clientCode,
         error,
       );
@@ -195,8 +203,8 @@ export class CreateClientUseCase {
   }
 
   /**
-   * Crea solo el cliente (sin dirección)
-   * Útil para casos donde se crean direcciones por separado
+   * Crea solo el cliente (sin direcci?n)
+   * ?til para casos donde se crean direcciones por separado
    */
   async createClientOnly(
     data: CreateClientDTO,

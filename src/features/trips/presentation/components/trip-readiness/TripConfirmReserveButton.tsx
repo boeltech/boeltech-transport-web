@@ -261,7 +261,7 @@ export function TripConfirmReserveButton({
                 {...scheduleFieldProps}
                 {...getFieldErrorAriaProps(
                   "confirm-scheduled-arrival",
-                  arrivalError,
+                  arrivalError ?? undefined,
                 )}
               />
             </FormFieldShell>
@@ -278,7 +278,10 @@ export function TripConfirmReserveButton({
                 value={rateInput}
                 onValueChange={setRateInput}
                 error={Boolean(rateError)}
-                {...getFieldErrorAriaProps("confirm-base-rate", rateError)}
+                {...getFieldErrorAriaProps(
+                  "confirm-base-rate",
+                  rateError ?? undefined,
+                )}
               />
             </FormFieldShell>
           ) : null}
@@ -303,7 +306,7 @@ export function TripConfirmReserveButton({
                 error={Boolean(mileageError)}
                 {...getFieldErrorAriaProps(
                   "confirm-start-mileage",
-                  mileageError,
+                  mileageError ?? undefined,
                 )}
               />
             </FormFieldShell>

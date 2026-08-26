@@ -265,6 +265,16 @@ export function addressSearchItemToCreateStopInput(
   return stopFormDataToCreateInput(
     {
       ...slice,
+      latitude: slice.latitude ?? undefined,
+      longitude: slice.longitude ?? undefined,
+      interiorNumber: slice.interiorNumber ?? undefined,
+      reference: slice.reference ?? undefined,
+      satLocalityCode: slice.satLocalityCode ?? undefined,
+      localityName: slice.localityName ?? undefined,
+      satNeighborhoodCode: slice.satNeighborhoodCode ?? undefined,
+      neighborhoodName: slice.neighborhoodName ?? undefined,
+      previousStopLatitude: slice.previousStopLatitude ?? undefined,
+      previousStopLongitude: slice.previousStopLongitude ?? undefined,
       stopCategory: category,
       stopType: composerStopTypes(category),
     },

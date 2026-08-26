@@ -8,7 +8,7 @@ import { clientQueryKeys } from "@features/clients";
 import { employeeQueryKeys } from "@features/employees";
 import { vehicleQueryKeys } from "@features/vehicles";
 import { driverQueryKeys } from "@features/drivers";
-import type { ImportImplementedEntityType } from "../../domain";
+import type { ImportImplementedEntityType } from "../domain";
 
 export function invalidateImportedMasterQueries(
   queryClient: QueryClient,
