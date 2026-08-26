@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapBillingAccess,
   mapBillingArrears,
   mapBillingEntitlements,
   mapBillingSubscription,
@@ -7,6 +8,24 @@ import {
 } from "./mappers";
 
 describe("billing mappers", () => {
+  it("mapBillingAccess maps slim access payload without commercial fields", () => {
+    const access = mapBillingAccess({
+      subscription_status: "active",
+      is_operational: true,
+      trial_ends_at: null,
+      plan_name: "Operación Arranque",
+      effective_module_codes: ["internal_staff_compensation"],
+    });
+
+    expect(access).toEqual({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Arranque",
+      effectiveModuleCodes: ["internal_staff_compensation"],
+    });
+  });
+
   it("mapBillingSubscription converts snake_case API payload", () => {
     const sub = mapBillingSubscription({
       plan_code: "operacion_esencial",

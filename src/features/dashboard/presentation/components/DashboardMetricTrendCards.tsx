@@ -16,7 +16,7 @@ interface DashboardMetricTrendCardsProps {
 }
 
 const APPROVALS_PENDING_HREF =
-  "/finance?tab=approvals&status=pending&type=trip_expense";
+  "/finance/approvals?status=pending&type=trip_expense";
 
 function ScorecardCell({
   title,
@@ -132,7 +132,7 @@ export function DashboardMetricTrendCards({
         navigate(
           isProvisional
             ? APPROVALS_PENDING_HREF
-            : "/finance?tab=analysis&view=margin",
+            : "/finance/analysis?view=margin",
         ),
       tone: isProvisional ? "warning" : "default",
       chip: isProvisional
@@ -153,7 +153,7 @@ export function DashboardMetricTrendCards({
         ? formatMxCurrencyWhole(financeSummary.collectedThisMonth)
         : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance?tab=cobros"),
+      onClick: () => navigate("/finance/cobros"),
     },
     {
       key: "receivable",
@@ -163,7 +163,7 @@ export function DashboardMetricTrendCards({
         ? formatMxCurrencyWhole(financeSummary.totalReceivable)
         : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance?tab=cobros"),
+      onClick: () => navigate("/finance/cobros"),
     },
     {
       key: "overdue",
@@ -171,7 +171,7 @@ export function DashboardMetricTrendCards({
       subtitle: dashboardCopy.scorecard.overdue.subtitle,
       value: financeSummary ? formatMxCurrencyWhole(overdue) : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance?tab=cobros"),
+      onClick: () => navigate("/finance/cobros"),
       tone: hasOverdue ? "warning" : "default",
     },
   ];

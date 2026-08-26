@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -106,9 +106,19 @@ export function ManageSubscriptionSheet({
     },
   });
 
+  /** One hydrate session per open+tenant; ignore subscription refetches after applied. */
+  const hydrateSessionRef = useRef<{
+    tenantId: string;
+    appliedSubscription: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    if (!tenant) return;
-    form.reset({
+    if (!open || !tenant) {
+      if (!open) hydrateSessionRef.current = null;
+      return;
+    }
+
+    const values: ManagePlatformSubscriptionFormData = {
       planCode: subscription?.planCode ?? tenant.planCode ?? "",
       status:
         (subscription?.status as ManagePlatformSubscriptionFormData["status"]) ??
@@ -120,8 +130,24 @@ export function ManageSubscriptionSheet({
         ? utcIsoToLocalInput(subscription.trialEndsAt)
         : "",
       notes: subscription?.notes ?? "",
-    });
-  }, [tenant, subscription, form]);
+    };
+
+    const session = hydrateSessionRef.current;
+    const isNewSession = !session || session.tenantId !== tenant.id;
+    if (isNewSession) {
+      hydrateSessionRef.current = {
+        tenantId: tenant.id,
+        appliedSubscription: Boolean(subscription),
+      };
+      form.reset(values);
+      return;
+    }
+
+    if (!session.appliedSubscription && subscription) {
+      session.appliedSubscription = true;
+      form.reset(values);
+    }
+  }, [open, tenant, subscription, form]);
 
   const status = useWatch({ control: form.control, name: "status" });
 

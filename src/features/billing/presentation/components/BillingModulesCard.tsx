@@ -19,7 +19,7 @@ import {
 } from "../utils/billingFormatters";
 
 /** Vista de rentabilidad de viajes; la ruta /finance vive bajo el módulo `invoices`. */
-const PROFITABILITY_ROUTE = "/finance?tab=analysis&view=margin";
+const PROFITABILITY_ROUTE = "/finance/analysis?view=margin";
 
 interface BillingModulesCardProps {
   entitlements?: BillingEntitlements;

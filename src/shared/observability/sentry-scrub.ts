@@ -13,9 +13,17 @@ const SENSITIVE_FIELD_KEYS = new Set([
   "pacpassword",
   "refresh_token",
   "access_token",
+  "token",
   "csd",
   "private_key",
   "xml",
+]);
+
+const SENSITIVE_QUERY_PARAMS = new Set([
+  "token",
+  "access_token",
+  "refresh_token",
+  "password",
 ]);
 
 function scrubObject(obj: Record<string, unknown>): Record<string, unknown> {
@@ -38,6 +46,21 @@ function scrubObject(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
+function scrubUrl(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url, "http://localhost");
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (SENSITIVE_QUERY_PARAMS.has(key.toLowerCase())) {
+        parsed.searchParams.set(key, "[Filtered]");
+      }
+    }
+    return parsed.pathname + parsed.search;
+  } catch {
+    return url;
+  }
+}
+
 function scrubHeaders(
   headers: Record<string, string> | undefined,
 ): Record<string, string> | undefined {
@@ -47,6 +70,16 @@ function scrubHeaders(
     if (SENSITIVE_HEADER_KEYS.has(key.toLowerCase())) {
       scrubbed[key] = "[Filtered]";
     }
+  }
+  return scrubbed;
+}
+
+function scrubCrumbData(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const scrubbed = scrubObject(data);
+  if (typeof scrubbed.url === "string") {
+    scrubbed.url = scrubUrl(scrubbed.url) ?? scrubbed.url;
   }
   return scrubbed;
 }
@@ -62,6 +95,7 @@ export function scrubSentryEvent(
       ...event.request,
       headers: scrubHeaders(event.request.headers),
       cookies: undefined,
+      url: scrubUrl(event.request.url),
       data:
         event.request.data && typeof event.request.data === "object"
           ? scrubObject(event.request.data as Record<string, unknown>)
@@ -74,7 +108,7 @@ export function scrubSentryEvent(
       if (crumb.data && typeof crumb.data === "object") {
         return {
           ...crumb,
-          data: scrubObject(crumb.data as Record<string, unknown>),
+          data: scrubCrumbData(crumb.data as Record<string, unknown>),
         };
       }
       return crumb;
@@ -91,3 +125,5 @@ export function scrubSentryEvent(
 export function shouldCaptureApiStatus(status: number | undefined): boolean {
   return status !== undefined && status >= 500;
 }
+
+export { scrubUrl, scrubObject, SENSITIVE_FIELD_KEYS };

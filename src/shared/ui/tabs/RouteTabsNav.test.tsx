@@ -46,6 +46,7 @@ describe("RouteTabsNav", () => {
     const list = screen.getByRole("navigation", { name: /Mi cuenta/i });
     expect(list.className).toMatch(/border-border/);
     expect(list.className).not.toMatch(/bg-primary/);
+    expect(list.className).not.toMatch(/overflow-x-auto/);
 
     const inactive = screen.getByRole("link", { name: /Seguridad/i });
     expect(inactive).not.toHaveAttribute("aria-current");

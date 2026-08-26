@@ -7,7 +7,10 @@ import {
 } from "../../domain/entities";
 import { platformCopy } from "../copy/platformCopy";
 import { resolvePlanDisplayName } from "./formatPlanLabel";
-import { getPlatformSubscriptionStatusLabel } from "./platformBillingFormatters";
+import {
+  formatBillingPriceCents,
+  getPlatformSubscriptionStatusLabel,
+} from "./platformBillingFormatters";
 
 type PlanRef = readonly Pick<PlatformBillingPlan, "code" | "name">[] | undefined;
 
@@ -45,6 +48,19 @@ function metadataString(
     }
   }
   return null;
+}
+
+function metadataNumber(
+  metadata: Record<string, unknown>,
+  key: string,
+): number | null {
+  const value = metadata[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatTotalCents(metadata: Record<string, unknown>): string | null {
+  const cents = metadataNumber(metadata, "total_cents");
+  return cents != null ? formatBillingPriceCents(cents) : null;
 }
 
 export function getAuditOperatorLabel(item: PlatformAuditLogItem): string {
@@ -121,6 +137,23 @@ export function getAuditMetadataSummary(
             ? metadata.units
             : null,
       );
+    case PlatformAuditAction.TENANT_ADMIN_ACTIVATION_SENT:
+      return copy.activationSent(
+        metadataString(metadata, "email"),
+        metadata.send_failed === true,
+      );
+    case PlatformAuditAction.TENANT_ADMIN_ACTIVATION_RESENT:
+      return copy.activationResent(
+        metadataString(metadata, "email"),
+        metadata.send_failed === true,
+      );
+    case PlatformAuditAction.TENANT_ADMIN_ACTIVATED:
+      return copy.adminActivated(metadataString(metadata, "email"));
+    case PlatformAuditAction.TENANT_ADMIN_CREDENTIALS_ROTATED:
+      return copy.credentialsRotated(
+        metadataString(metadata, "email"),
+        metadata.resend_activation === true,
+      );
     case PlatformAuditAction.TRIAL_AUTO_CUT:
       return copy.trialAutoCut(
         typeof metadata.reason === "string" ? metadata.reason : null,
@@ -148,6 +181,24 @@ export function getAuditMetadataSummary(
           ? metadata.catalog_code
           : null,
       );
+    case PlatformAuditAction.SAAS_INVOICE_ISSUED:
+      return copy.saasInvoiceIssued(
+        metadataString(metadata, "period_key"),
+        formatTotalCents(metadata),
+      );
+    case PlatformAuditAction.SAAS_INVOICE_PAID:
+      return copy.saasInvoicePaid(
+        formatTotalCents(metadata),
+        metadataString(metadata, "method"),
+      );
+    case PlatformAuditAction.SAAS_INVOICE_VOIDED:
+      return copy.saasInvoiceVoided(metadataString(metadata, "void_reason"));
+    case PlatformAuditAction.SUBSCRIPTION_PAST_DUE_AUTO:
+      return copy.subscriptionPastDueAuto(
+        metadataNumber(metadata, "overdue_open_count"),
+      );
+    case PlatformAuditAction.SUBSCRIPTION_ACTIVE_RESTORED_AUTO:
+      return copy.subscriptionActiveRestoredAuto();
     default:
       return platformCopy.audit.noDetail;
   }

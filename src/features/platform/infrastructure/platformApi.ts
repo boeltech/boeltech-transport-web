@@ -543,6 +543,9 @@ export const platformApi = {
       {
         catalog_code: payload.catalogCode,
         notes: payload.notes ?? null,
+        ...(payload.idempotencyKey
+          ? { idempotency_key: payload.idempotencyKey }
+          : {}),
       },
       { authScope: "platform" },
     );

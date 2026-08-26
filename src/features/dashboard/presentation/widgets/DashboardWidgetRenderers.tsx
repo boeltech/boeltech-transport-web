@@ -93,7 +93,7 @@ export function renderVehicleExpenseRanking(ctx: DashboardWidgetContext) {
       rows={ctx.vehicleExpenseRanking}
       isLoading={ctx.vehicleExpenseRankingLoading}
       onViewAnalysis={() =>
-        ctx.navigate("/finance?tab=analysis&view=expenses")
+        ctx.navigate("/finance/analysis?view=expenses")
       }
       onViewVehicle={(vehicleId) => ctx.navigate(`/vehicles/${vehicleId}`)}
     />

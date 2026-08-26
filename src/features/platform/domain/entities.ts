@@ -286,6 +286,7 @@ export interface PlatformTenantStampPackBalance {
 export interface GrantPlatformStampPackPayload {
   catalogCode: string;
   notes?: string | null;
+  idempotencyKey?: string;
 }
 
 export interface PlatformModuleCatalogItem {
@@ -458,6 +459,10 @@ export const PlatformAuditAction = {
   TENANT_PLAN_ASSIGNED: "tenant_plan_assigned",
   TENANT_FLEET_DECLARED: "tenant_fleet_declared",
   TENANT_SELF_SERVE_REGISTERED: "tenant_self_serve_registered",
+  TENANT_ADMIN_ACTIVATION_SENT: "tenant_admin_activation_sent",
+  TENANT_ADMIN_ACTIVATION_RESENT: "tenant_admin_activation_resent",
+  TENANT_ADMIN_ACTIVATED: "tenant_admin_activated",
+  TENANT_ADMIN_CREDENTIALS_ROTATED: "tenant_admin_credentials_rotated",
   TRIAL_AUTO_CUT: "trial_auto_cut",
   CATALOG_IMPORT: "catalog_import",
   SUBSCRIPTION_ASSIGNED: "subscription_assigned",

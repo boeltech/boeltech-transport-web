@@ -25,14 +25,14 @@ Asset de referencia: `latuno-lockup-safe-area.svg`.
 | `latuno-mark-b-portal.svg` | tinta `#0a0a0a` | Export monocromo |
 | `latuno-mark-b-portal-ink.svg` | azul `#2558a8` | **Canónico UI** / favicon |
 | `latuno-mark-b-portal-onbrand.svg` | blanco sobre tile | Archivo (alternativa tile) |
-| `latuno-mark-b-portal-ink-email.png` | ink | Email HTML (PNG 160×160) |
+| `latuno-mark-b-portal-ink-email.png` | ink | Email HTML (PNG 160×160, fondo blanco; API embebe data URI) |
 
 viewBox ceñido `10 14 80 70` para paridad óptica.
 
 **Integrado:**
 - `public/favicon.svg` = portal ink
 - UI: `BrandLockup` (`LatunoMark` + `Wordmark` Comfortaa) en sidebar, landing, auth, design-system
-- Email: API `emailBrandHeaderHtml` → PNG portal vía `FRONTEND_URL` / `EMAIL_BRAND_ASSET_BASE_URL`
+- Email: API `emailBrandHeaderHtml` → PNG portal **inline** (data URI); override remoto opcional `EMAIL_BRAND_ASSET_BASE_URL`. Regenerar: `node scripts/generate-email-mark.mjs` en API.
 
 ## Archivo — propuestas / legado
 

@@ -19,6 +19,10 @@ import {
   platformTokenStorage,
 } from "../../infrastructure/platformTokenStorage";
 import { setPlatformUnauthorizedHandler } from "../../infrastructure/platformSessionHandlers";
+import {
+  resetPlatformRefreshCoordinator,
+  runPlatformRefresh,
+} from "../../infrastructure/platformRefreshCoordinator";
 
 interface PlatformAuthState {
   user: PlatformUserJSON | null;
@@ -34,12 +38,6 @@ interface PlatformAuthContextValue extends PlatformAuthState {
 }
 
 const PlatformAuthContext = createContext<PlatformAuthContextValue | null>(null);
-
-/** Evita doble POST /refresh en React Strict Mode (reuse detection). */
-let platformBootstrapRefresh: Promise<{
-  accessToken: string;
-  refreshToken: string;
-}> | null = null;
 
 function readInitialPlatformAuthState(): PlatformAuthState {
   const token = platformTokenStorage.getToken();
@@ -67,7 +65,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
   /** Ends platform session only — does not touch tenant cookies or erp_* storage. */
   const endPlatformSession = useCallback(
     (options?: { sessionExpired?: boolean }) => {
-      platformBootstrapRefresh = null;
+      resetPlatformRefreshCoordinator();
       platformTokenStorage.clear();
       queryClient.removeQueries({ queryKey: platformQueryKeys.all });
       setState({
@@ -120,20 +118,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    if (!platformBootstrapRefresh) {
-      platformBootstrapRefresh = platformApi
-        .refresh(refreshToken)
-        .then((tokens) => {
-          platformBootstrapRefresh = null;
-          return tokens;
-        })
-        .catch((err: unknown) => {
-          platformBootstrapRefresh = null;
-          throw err;
-        });
-    }
-
-    void platformBootstrapRefresh
+    void runPlatformRefresh(() => platformApi.refresh(refreshToken))
       .then((tokens) => {
         if (cancelled) return;
         platformTokenStorage.setToken(tokens.accessToken);

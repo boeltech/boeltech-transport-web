@@ -3,6 +3,8 @@ import {
   Bell,
   ClipboardCheck,
   Info,
+  MailWarning,
+  Mail,
   ShieldAlert,
   Truck,
   UserRound,
@@ -42,6 +44,18 @@ export const NOTIFICATION_TYPE_CONFIG: Record<
   },
   sct_permit_expiring: {
     icon: Wrench,
+    badgeVariant: "warning",
+  },
+  dispatch_item_failed: {
+    icon: MailWarning,
+    badgeVariant: "destructive",
+  },
+  dispatch_run_failed: {
+    icon: MailWarning,
+    badgeVariant: "destructive",
+  },
+  dispatch_pending_stamp: {
+    icon: Mail,
     badgeVariant: "warning",
   },
 };

@@ -91,7 +91,7 @@ describe("AddressPicker", () => {
       );
       expect(screen.getByText("Cliente")).toBeInTheDocument();
       expect(screen.getByText("Sucursal")).toBeInTheDocument();
-      expect(screen.getByText("Directorio")).toBeInTheDocument();
+      expect(screen.getByText("Bodegas")).toBeInTheDocument();
       expect(screen.getByText("CEDIS Norte")).toBeInTheDocument();
     });
   });

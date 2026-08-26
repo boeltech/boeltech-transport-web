@@ -15,7 +15,7 @@ export const ADDRESS_PICKER_COPY = {
   groups: {
     client: "Cliente",
     branch: "Sucursal",
-    tenant: "Directorio",
+    tenant: "Bodegas",
   } as const,
   aria: {
     combobox: "Seleccionar dirección para precargar",

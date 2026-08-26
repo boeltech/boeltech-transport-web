@@ -35,6 +35,43 @@ describe("scrubSentryEvent (web)", () => {
       (scrubbed?.breadcrumbs?.[0]?.data as Record<string, string>).Authorization,
     ).toBe("[Filtered]");
   });
+
+  it("filters token query on request.url", () => {
+    const event = {
+      request: {
+        url: "/activate-tenant?token=secret-activate-token",
+      },
+    } as unknown as ErrorEvent;
+
+    const scrubbed = scrubSentryEvent(event);
+    expect(scrubbed?.request?.url).toBe(
+      "/activate-tenant?token=%5BFiltered%5D",
+    );
+    expect(JSON.stringify(scrubbed)).not.toContain("secret-activate-token");
+  });
+
+  it("filters token field in request data and breadcrumb url query", () => {
+    const event = {
+      request: {
+        url: "/activate-tenant",
+        data: { token: "body-secret" },
+      },
+      breadcrumbs: [
+        {
+          category: "navigation",
+          data: {
+            url: "/activate-tenant?token=crumb-secret",
+          },
+        },
+      ],
+    } as unknown as ErrorEvent;
+
+    const scrubbed = scrubSentryEvent(event);
+    expect(scrubbed?.request?.data).toEqual({ token: "[Filtered]" });
+    expect(
+      (scrubbed?.breadcrumbs?.[0]?.data as Record<string, string>).url,
+    ).toBe("/activate-tenant?token=%5BFiltered%5D");
+  });
 });
 
 describe("initSentry (web)", () => {

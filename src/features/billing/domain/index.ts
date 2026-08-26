@@ -4,6 +4,7 @@ export type {
   BillingEntitlements,
   BillingArrears,
   BillingArrearsInvoice,
+  BillingAccess,
 } from "./entities";
 export {
   billingQueryKeys,

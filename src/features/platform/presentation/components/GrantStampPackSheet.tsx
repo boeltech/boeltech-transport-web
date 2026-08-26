@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -60,6 +60,7 @@ export function GrantStampPackSheet({
   const { data: catalog, isLoading: catalogLoading } =
     usePlatformStampPackCatalog();
   const { data: balance } = usePlatformTenantStampPacks(tenant?.id ?? "");
+  const idempotencyKeyRef = useRef<string>("");
 
   const grantMutation = useGrantPlatformStampPack({
     onSuccess: () => {
@@ -82,6 +83,7 @@ export function GrantStampPackSheet({
 
   useEffect(() => {
     if (!open) return;
+    idempotencyKeyRef.current = crypto.randomUUID();
     form.reset({ catalogCode: "", notes: "" });
   }, [open, form]);
 
@@ -92,6 +94,7 @@ export function GrantStampPackSheet({
       payload: {
         catalogCode: values.catalogCode,
         notes: values.notes?.trim() || null,
+        idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
       },
     });
   });
@@ -101,7 +104,10 @@ export function GrantStampPackSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-lg">
+      <SheetContent
+        className="sm:max-w-lg"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>{copy.description}</SheetDescription>

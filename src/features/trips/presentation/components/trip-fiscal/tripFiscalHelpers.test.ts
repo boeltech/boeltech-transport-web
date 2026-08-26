@@ -263,6 +263,22 @@ describe("tripFiscalHelpers", () => {
         preflightOpen: false,
       }),
     ).toBe(false);
+    expect(
+      resolveIsStampBusy({
+        isPreparingStamp: false,
+        isStamping: false,
+        preflightOpen: false,
+        fixSheetOpen: true,
+      }),
+    ).toBe(true);
+    expect(
+      resolveIsStampBusy({
+        isPreparingStamp: false,
+        isStamping: false,
+        preflightOpen: false,
+        pickerOpen: true,
+      }),
+    ).toBe(true);
   });
 });
 

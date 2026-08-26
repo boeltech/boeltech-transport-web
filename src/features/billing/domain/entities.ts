@@ -113,8 +113,18 @@ export interface BillingArrears {
   invoices: BillingArrearsInvoice[];
 }
 
+/** Slim staff access (GET /billing/access) — no prices / arrears. */
+export interface BillingAccess {
+  subscriptionStatus: string | null;
+  isOperational: boolean;
+  trialEndsAt: string | null;
+  planName: string | null;
+  effectiveModuleCodes: string[];
+}
+
 export const billingQueryKeys = {
   all: ["billing-saas"] as const,
+  access: () => [...billingQueryKeys.all, "access"] as const,
   subscription: () => [...billingQueryKeys.all, "subscription"] as const,
   usage: () => [...billingQueryKeys.all, "usage"] as const,
   entitlements: () => [...billingQueryKeys.all, "entitlements"] as const,

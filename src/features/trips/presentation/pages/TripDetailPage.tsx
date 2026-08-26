@@ -724,7 +724,7 @@ export function TripDetailPage() {
                     to={
                       trip.invoicing.invoiceId
                         ? `/invoices/${trip.invoicing.invoiceId}`
-                        : "/finance?tab=invoices"
+                        : "/finance/invoices"
                     }
                   >
                     <Receipt className="mr-1.5 h-4 w-4" />

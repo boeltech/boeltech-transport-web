@@ -11,8 +11,24 @@ function useBillingQueryEnabled(): boolean {
   );
 }
 
-export const useBillingSubscription = () => {
-  const enabled = useBillingQueryEnabled();
+type BillingQueryOptions = {
+  /** Extra gate (e.g. billing.read for commercial payloads). */
+  enabled?: boolean;
+};
+
+/** Soft-gate + module paywall — available without billing.read. */
+export const useBillingAccess = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
+  return useQuery({
+    queryKey: billingQueryKeys.access(),
+    queryFn: () => billingApi.getAccess(),
+    staleTime: 60_000,
+    enabled,
+  });
+};
+
+export const useBillingSubscription = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
   return useQuery({
     queryKey: billingQueryKeys.subscription(),
     queryFn: () => billingApi.getSubscription(),
@@ -21,8 +37,8 @@ export const useBillingSubscription = () => {
   });
 };
 
-export const useBillingUsage = () => {
-  const enabled = useBillingQueryEnabled();
+export const useBillingUsage = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
   return useQuery({
     queryKey: billingQueryKeys.usage(),
     queryFn: () => billingApi.getUsage(),
@@ -31,8 +47,8 @@ export const useBillingUsage = () => {
   });
 };
 
-export const useBillingEntitlements = () => {
-  const enabled = useBillingQueryEnabled();
+export const useBillingEntitlements = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
   return useQuery({
     queryKey: billingQueryKeys.entitlements(),
     queryFn: () => billingApi.getEntitlements(),
@@ -41,8 +57,8 @@ export const useBillingEntitlements = () => {
   });
 };
 
-export const useBillingArrears = () => {
-  const enabled = useBillingQueryEnabled();
+export const useBillingArrears = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
   return useQuery({
     queryKey: billingQueryKeys.arrears(),
     queryFn: () => billingApi.getArrears(),
@@ -51,10 +67,15 @@ export const useBillingArrears = () => {
   });
 };
 
+/**
+ * Module entitlement for paywall UI. Uses slim /billing/access so roles
+ * without billing.read do not treat 403 as “not entitled”.
+ */
 export const useHasBillingModule = (moduleCode: string) => {
-  const query = useBillingEntitlements();
+  const query = useBillingAccess();
   const hasModule =
-    query.data?.effectiveModuleCodes.includes(moduleCode) ?? false;
+    query.isSuccess &&
+    (query.data?.effectiveModuleCodes.includes(moduleCode) ?? false);
   return { ...query, hasModule };
 };
 

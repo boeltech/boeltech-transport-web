@@ -209,6 +209,20 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Datos para facturar.",
   PAC_CONFIG_ERROR:
     "El servicio de timbrado no está configurado correctamente en el servidor. Contacta a soporte.",
+  SUBSTITUTION_CANCEL_FAILED:
+    "La factura sustituta ya se timbró, pero no se pudo cancelar el CFDI original. Usa «Reintentar cancelación del original» o contacta a soporte con el UUID de la sustituta.",
+  SUBSTITUTION_ALREADY_HAS_REPLACEMENT:
+    "Ya existe una factura sustituta para esta factura. No sustituyas de nuevo; reintenta la cancelación del original si sigue activa.",
+  RATE_LIMIT_EXCEEDED:
+    "Demasiados envíos en poco tiempo. Espera un momento e inténtalo de nuevo.",
+
+  // ── Envío de facturas (ADR-0082) ───────────────────────────────────────────
+  DISPATCH_SEND_FAILED:
+    "El envío de facturas falló. Revisa el detalle de la corrida e inténtalo de nuevo.",
+  DISPATCH_RUN_NEEDS_PREVIEW:
+    "Esta corrida ya falló o no está lista. Actualiza la lista e inténtalo de nuevo.",
+  DISPATCH_RUN_INVALID_TRANSITION:
+    "La corrida cambió de estado. Recarga la página.",
 
   // ── Viajes ─────────────────────────────────────────────────────────────────
   TRIP_NOT_FOUND: "Viaje no encontrado",

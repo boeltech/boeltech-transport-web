@@ -185,14 +185,20 @@ export function shouldBlockConcurrentStampRequest(options: {
   return options.preparing || options.stamping;
 }
 
-/** CTA / poll busy while preparing, mutating, or preflight sheet is open. */
+/** CTA / poll busy while preparing, mutating, preflight, or fiscal fix/picker overlays. */
 export function resolveIsStampBusy(options: {
   isPreparingStamp: boolean;
   isStamping: boolean;
   preflightOpen: boolean;
+  fixSheetOpen?: boolean;
+  pickerOpen?: boolean;
 }): boolean {
   return (
-    options.isPreparingStamp || options.isStamping || options.preflightOpen
+    options.isPreparingStamp ||
+    options.isStamping ||
+    options.preflightOpen ||
+    Boolean(options.fixSheetOpen) ||
+    Boolean(options.pickerOpen)
   );
 }
 

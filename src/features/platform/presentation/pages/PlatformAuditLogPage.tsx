@@ -175,14 +175,9 @@ export function PlatformAuditLogPage() {
   }, [dateDraft.from, dateDraft.to, filters, searchParams, setSearchParams]);
 
   const clearAllFilters = useCallback(() => {
-    filters.clearAll();
     setDateDraft({ from: "", to: "" });
-    const next = new URLSearchParams(searchParams);
-    next.delete("targetTenantId");
-    next.delete("createdFrom");
-    next.delete("createdTo");
-    setSearchParams(next);
-  }, [filters, searchParams, setSearchParams]);
+    setSearchParams(new URLSearchParams());
+  }, [setSearchParams]);
 
   const tenantFilterName = tenantFilter?.name ?? null;
 

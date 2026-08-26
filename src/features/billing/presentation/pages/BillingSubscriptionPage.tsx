@@ -7,6 +7,7 @@ import { AlertWithIcon } from "@shared/ui/alert";
 import { SettingsPageShell } from "@shared/ui/page-shells/SettingsPageShell";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
+  useBillingAccess,
   useBillingArrears,
   useBillingEntitlements,
   useBillingSubscription,
@@ -30,23 +31,74 @@ export function BillingSubscriptionPage() {
   const copy = billingCopy;
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const canReadBilling = hasPermission("billing", "read");
   const canReadBranches = hasPermission("branches", "read");
 
-  const subscription = useBillingSubscription();
-  const usage = useBillingUsage();
-  const entitlements = useBillingEntitlements();
-  const arrears = useBillingArrears();
+  const access = useBillingAccess();
+  const subscription = useBillingSubscription({ enabled: canReadBilling });
+  const usage = useBillingUsage({ enabled: canReadBilling });
+  const entitlements = useBillingEntitlements({ enabled: canReadBilling });
+  const arrears = useBillingArrears({ enabled: canReadBilling });
   const { data: branchesResult } = useBranches(
     {
       page: 1,
       limit: 1,
       filters: { isActive: true },
     },
-    { enabled: canReadBranches },
+    { enabled: canReadBranches && canReadBilling },
   );
 
   if (isSubscriptionPaywallExemptRole(user?.role)) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  /** Staff without billing.read: status notices from slim access + contact. */
+  if (!canReadBilling) {
+    if (access.isError) {
+      return (
+        <SettingsPageShell
+          sectionTitle={copy.page.sectionTitle}
+          title={copy.page.title}
+          description={copy.page.description}
+        >
+          <AlertWithIcon
+            variant="destructive"
+            title={copy.notices.accessDenied.title}
+          >
+            <p>{copy.notices.accessDenied.description}</p>
+          </AlertWithIcon>
+        </SettingsPageShell>
+      );
+    }
+
+    const notice = resolveBillingNotice({
+      isSubscriptionResolved: !access.isLoading && !access.isError,
+      status: access.data?.subscriptionStatus,
+      trialEndsAt: access.data?.trialEndsAt,
+      usagePercent: 0,
+      branchesOverQuota: false,
+      hasOpenArrears: false,
+    });
+
+    return (
+      <SettingsPageShell
+        sectionTitle={copy.page.sectionTitle}
+        title={copy.page.title}
+        description={copy.page.description}
+      >
+        <div className="space-y-6">
+          <BillingStatusNotice
+            notice={notice}
+            includedStamps={0}
+            stampsRemaining={0}
+            trialEndsAtLabel={formatDate(access.data?.trialEndsAt)}
+            graceDeadlineLabel=""
+            quotaPolicy=""
+          />
+          <BillingContactCard />
+        </div>
+      </SettingsPageShell>
+    );
   }
 
   const sub = subscription.data;

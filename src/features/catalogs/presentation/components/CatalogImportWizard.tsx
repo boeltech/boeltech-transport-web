@@ -92,7 +92,8 @@ export interface CatalogImportWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (result: CatalogImportResult) => void;
-  authScope?: "platform" | "tenant";
+  /** Platform SAT import always uses platform Bearer (H2 audit remedio). */
+  authScope: "platform";
 }
 
 type WizardStep = "upload" | "validate" | "import" | "result";
@@ -136,12 +137,11 @@ export function CatalogImportWizard({
   );
 
   const wizardCopy = catalogImportWizardCopy;
-  const isPlatformScope = authScope === "platform";
 
   // Obtener el tipo de catálogo con su versión actual
   const { data: catalogType, isLoading: isLoadingType } = useCatalogType(
     typeCode,
-    authScope ? { authScope } : undefined,
+    { authScope },
   );
 
   const {
@@ -238,7 +238,7 @@ export function CatalogImportWizard({
     if (!file) return;
 
     validate(
-      { typeCode, file, ...(authScope ? { authScope } : {}) },
+      { typeCode, file, authScope },
       {
         onSuccess: () => {
           setStep("validate");
@@ -261,7 +261,7 @@ export function CatalogImportWizard({
       };
 
       importCatalog(
-        { typeCode, file, options, ...(authScope ? { authScope } : {}) },
+        { typeCode, file, options, authScope },
         {
           onSuccess: (result) => {
             setStep("result");
@@ -431,7 +431,7 @@ export function CatalogImportWizard({
           onClick={() =>
             downloadTemplate.mutate({
               typeCode,
-              ...(authScope ? { authScope } : {}),
+              authScope,
             })
           }
         >
@@ -844,7 +844,7 @@ export function CatalogImportWizard({
           </Alert>
         ) : null}
 
-        {isPlatformScope ? (
+        {authScope === "platform" ? (
           <Alert>
             <Info className="h-4 w-4" />
             <AlertTitle>{wizardCopy.auditHint.title}</AlertTitle>

@@ -94,7 +94,7 @@ describe("DashboardMetricTrendCards", () => {
       }),
     );
     expect(navigate).toHaveBeenCalledWith(
-      "/finance?tab=approvals&status=pending&type=trip_expense",
+      "/finance/approvals?status=pending&type=trip_expense",
     );
   });
 });

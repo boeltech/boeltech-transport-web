@@ -48,6 +48,8 @@ type UseTripFiscalSheetsOptions = {
   invoiceTripRefs?: readonly InvoiceTripRef[];
   enableAutoRestamp?: boolean;
   onStampSuccess?: () => void;
+  /** Si se define, reemplaza el toast de éxito por defecto al timbrar. */
+  onStampSuccessToast?: () => void;
   getStampErrorDescription?: (error: unknown) => string;
 };
 
@@ -57,6 +59,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     invoiceTripRefs = [],
     enableAutoRestamp = false,
     onStampSuccess,
+    onStampSuccessToast,
     getStampErrorDescription = describeStampApiError,
   } = options;
 
@@ -93,7 +96,11 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     onSuccess: () => {
       setPendingStampInvoiceId(null);
       releasePreparingStamp();
-      toast({ variant: "success", title: "Factura timbrada exitosamente" });
+      if (onStampSuccessToast) {
+        onStampSuccessToast();
+      } else {
+        toast({ variant: "success", title: "Factura timbrada exitosamente" });
+      }
       onStampSuccess?.();
     },
     onError: (error, invoiceId) => {
@@ -444,6 +451,8 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     isPreparingStamp,
     isStamping,
     preflightOpen,
+    fixSheetOpen: fixStopId != null,
+    pickerOpen,
   });
 
   return {

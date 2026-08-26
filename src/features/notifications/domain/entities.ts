@@ -1,4 +1,8 @@
-export const NOTIFICATION_SOURCES = ["approvals", "dashboard"] as const;
+export const NOTIFICATION_SOURCES = [
+  "approvals",
+  "dashboard",
+  "billing_dispatch",
+] as const;
 export type NotificationSource = (typeof NOTIFICATION_SOURCES)[number];
 
 export const NOTIFICATION_TYPES = [
@@ -8,6 +12,9 @@ export const NOTIFICATION_TYPES = [
   "medical_certificate_expiring",
   "insurance_expiring",
   "sct_permit_expiring",
+  "dispatch_item_failed",
+  "dispatch_run_failed",
+  "dispatch_pending_stamp",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

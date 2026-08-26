@@ -102,10 +102,10 @@ export function TripDetailOperationTab({
 }: TripDetailOperationTabProps) {
   const {
     hasModule: hasInternalStaffModule,
-    isFetched: isInternalStaffEntitlementFetched,
+    isSuccess: isInternalStaffEntitlementSuccess,
   } = useInternalStaffEntitlement();
   const showInternalStaffEntitlementWarning =
-    isInternalStaffEntitlementFetched &&
+    isInternalStaffEntitlementSuccess &&
     !hasInternalStaffModule &&
     Boolean(trip.internalStaff && trip.internalStaff.length > 0);
 

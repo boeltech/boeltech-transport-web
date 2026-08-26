@@ -97,7 +97,7 @@ describe("BillingModulesCard", () => {
       screen.getByRole("link", {
         name: billingCopy.modules.level.profitabilityLink,
       }),
-    ).toHaveAttribute("href", "/finance?tab=analysis&view=margin");
+    ).toHaveAttribute("href", "/finance/analysis?view=margin");
   });
 
   it("oculta el enlace de rentabilidad sin permiso de facturas", () => {

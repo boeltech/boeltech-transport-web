@@ -1,5 +1,6 @@
 export { BillingSubscriptionPage } from "./presentation/pages/BillingSubscriptionPage";
 export {
+  useBillingAccess,
   useBillingSubscription,
   useBillingUsage,
   useBillingEntitlements,
@@ -15,4 +16,5 @@ export {
   type BillingEntitlements,
   type BillingArrears,
   type BillingArrearsInvoice,
+  type BillingAccess,
 } from "./domain/index";

@@ -153,10 +153,10 @@ export function BasicInfoStep({
   const { control } = form;
   const {
     hasModule: hasInternalStaffModule,
-    isFetched: isInternalStaffEntitlementFetched,
+    isSuccess: isInternalStaffEntitlementSuccess,
   } = useInternalStaffEntitlement();
   const isInternalStaffPaywalled =
-    isInternalStaffEntitlementFetched && !hasInternalStaffModule;
+    isInternalStaffEntitlementSuccess && !hasInternalStaffModule;
 
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");

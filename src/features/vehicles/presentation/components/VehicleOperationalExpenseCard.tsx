@@ -45,7 +45,7 @@ export function VehicleOperationalExpenseCard({
   const row = data?.[0];
   const copy = vehiclesCopy.detail.section.operationalExpenses;
   const financeHref =
-    `/finance?tab=analysis&view=expenses&vehicleId=${encodeURIComponent(vehicleId)}` +
+    `/finance/analysis?view=expenses&vehicleId=${encodeURIComponent(vehicleId)}` +
     `&from=${period.from}&to=${period.to}`;
 
   return (

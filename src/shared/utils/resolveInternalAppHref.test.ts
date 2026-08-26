@@ -15,8 +15,8 @@ describe("resolveInternalAppHref", () => {
     expect(resolveInternalAppHref("/approvals?tab=open", fallback)).toBe(
       "/approvals?tab=open",
     );
-    expect(resolveInternalAppHref("/finance?tab=invoices", fallback)).toBe(
-      "/finance?tab=invoices",
+    expect(resolveInternalAppHref("/finance/invoices", fallback)).toBe(
+      "/finance/invoices",
     );
   });
 

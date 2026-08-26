@@ -1,4 +1,5 @@
 import type {
+  BillingAccess,
   BillingArrears,
   BillingEntitlements,
   BillingSubscription,
@@ -103,6 +104,22 @@ export interface ApiBillingArrears {
   max_days_overdue: number;
   invoices: ApiBillingArrearsInvoice[];
 }
+
+export interface ApiBillingAccess {
+  subscription_status: string | null;
+  is_operational: boolean;
+  trial_ends_at: string | null;
+  plan_name: string | null;
+  effective_module_codes: string[];
+}
+
+export const mapBillingAccess = (raw: ApiBillingAccess): BillingAccess => ({
+  subscriptionStatus: raw.subscription_status,
+  isOperational: raw.is_operational,
+  trialEndsAt: raw.trial_ends_at,
+  planName: raw.plan_name,
+  effectiveModuleCodes: raw.effective_module_codes,
+});
 
 export const mapBillingSubscription = (
   raw: ApiBillingSubscription,

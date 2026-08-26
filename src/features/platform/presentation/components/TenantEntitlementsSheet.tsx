@@ -82,7 +82,10 @@ export function TenantEntitlementsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-lg">
+      <SheetContent
+        className="flex w-full flex-col sm:max-w-lg"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>{copy.description}</SheetDescription>
@@ -104,9 +107,6 @@ export function TenantEntitlementsSheet({
           ) : (
             catalogItems.map((item) => {
               const isPack = item.kind === "pack";
-              const isPending =
-                mutateMutation.isPending &&
-                mutateMutation.variables?.payload.moduleCode === item.code;
 
               return (
                 <div
@@ -160,7 +160,7 @@ export function TenantEntitlementsSheet({
                     <Switch
                       id={`ent-${item.code}`}
                       checked={item.isActiveForTenant}
-                      disabled={!canMutate || isPending}
+                      disabled={!canMutate || mutateMutation.isPending}
                       onCheckedChange={() =>
                         void handleToggle(item.code, item.isActiveForTenant)
                       }

@@ -99,14 +99,14 @@ describe("CreditExposureCard", () => {
         <CreditExposureCard
           summary={buildSummary("ok")}
           showBreakdown
-          collectHref="/finance?tab=cobros&rfc=XAXX010101000"
+          collectHref="/finance/cobros?rfc=XAXX010101000"
         />
       </MemoryRouter>,
     );
 
     expect(
       screen.getByRole("link", { name: creditExposureCopy.collectCtaAria }),
-    ).toHaveAttribute("href", "/finance?tab=cobros&rfc=XAXX010101000");
+    ).toHaveAttribute("href", "/finance/cobros?rfc=XAXX010101000");
   });
 
   it("hides Cobrar when invoiced breakdown is zero", () => {
@@ -117,7 +117,7 @@ describe("CreditExposureCard", () => {
             breakdown: { invoiced: 0, unbilled: 12_000, pendingDraft: 3_000 },
           })}
           showBreakdown
-          collectHref="/finance?tab=cobros&rfc=XAXX010101000"
+          collectHref="/finance/cobros?rfc=XAXX010101000"
         />
       </MemoryRouter>,
     );

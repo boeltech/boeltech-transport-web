@@ -3,6 +3,7 @@
  *
  * Misma apariencia que `@shared/ui/tabs` (TabsList / TabsTrigger soft),
  * para secciones multi-página (Configuración, Mi cuenta) sin Radix Tabs.
+ * Overflow horizontal vía ScrollArea (mismo thumb fino que el sidebar).
  */
 
 import { memo, type ReactNode } from "react";
@@ -11,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
+import { ScrollArea } from "@shared/ui/scroll-area";
 import {
   tabsListClassName,
   tabsTriggerActiveClassName,
@@ -60,25 +62,24 @@ export const RouteTabsNav = memo(function RouteTabsNav({
   const { pathname } = useLocation();
 
   return (
-    <nav
-      className={cn(
-        tabsListClassName,
-        "h-auto min-h-10 w-full max-w-full justify-start gap-1 overflow-x-auto",
-        className,
-      )}
-      aria-label={ariaLabel}
+    <ScrollArea
+      orientation="horizontal"
+      type="hover"
+      className={cn("w-full max-w-full", className)}
     >
-      {items.map((item) => {
-        const active = !item.disabled && isItemActive(pathname, item);
-        return (
-          <RouteTab
-            key={item.id}
-            item={item}
-            isActive={active}
-          />
-        );
-      })}
-    </nav>
+      <nav
+        className={cn(
+          tabsListClassName,
+          "h-auto min-h-10 w-max min-w-full justify-start gap-1",
+        )}
+        aria-label={ariaLabel}
+      >
+        {items.map((item) => {
+          const active = !item.disabled && isItemActive(pathname, item);
+          return <RouteTab key={item.id} item={item} isActive={active} />;
+        })}
+      </nav>
+    </ScrollArea>
   );
 });
 

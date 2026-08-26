@@ -380,7 +380,7 @@ export const platformCopy = {
         exportSuccess: "Estimado descargado",
         exportError: "No se pudo descargar el estimado",
         exportEstimateHint:
-          "Proyección del mes en curso. No usar para CFDI ni para Nuevo cobro.",
+          "Estimado con precios y módulos actuales (no es snapshot histórico del periodo). No usar para CFDI ni para Nuevo cobro.",
       },
       actions: {
         manageSubscription: "Gestionar suscripción",
@@ -723,6 +723,10 @@ export const platformCopy = {
       tenant_plan_assigned: "Plan asignado",
       tenant_fleet_declared: "Flota declarada",
       tenant_self_serve_registered: "Alta pública",
+      tenant_admin_activation_sent: "Activación enviada",
+      tenant_admin_activation_resent: "Activación reenviada",
+      tenant_admin_activated: "Admin activado",
+      tenant_admin_credentials_rotated: "Credenciales rotadas",
       trial_auto_cut: "Corte automático de prueba",
       catalog_import: "Catálogo actualizado",
       subscription_assigned: "Suscripción asignada",
@@ -792,6 +796,48 @@ export const platformCopy = {
         if (planCode) parts.push(planCode);
         return parts.join(" · ");
       },
+      activationSent: (email?: string | null, sendFailed?: boolean) => {
+        const base = email ? `Email: ${email}` : "Activación enviada";
+        return sendFailed ? `${base} · envío fallido` : base;
+      },
+      activationResent: (email?: string | null, sendFailed?: boolean) => {
+        const base = email ? `Reenviado a ${email}` : "Activación reenviada";
+        return sendFailed ? `${base} · envío fallido` : base;
+      },
+      adminActivated: (email?: string | null) =>
+        email ? `Activó: ${email}` : "Admin activado",
+      credentialsRotated: (
+        email?: string | null,
+        resendActivation?: boolean | null,
+      ) => {
+        const base = email ? `Rotadas · ${email}` : "Credenciales rotadas";
+        return resendActivation ? `${base} · reenvío` : base;
+      },
+      saasInvoiceIssued: (
+        periodKey?: string | null,
+        totalLabel?: string | null,
+      ) => {
+        const parts: string[] = [];
+        if (periodKey) parts.push(periodKey);
+        if (totalLabel) parts.push(totalLabel);
+        return parts.length > 0 ? parts.join(" · ") : "Cobro emitido";
+      },
+      saasInvoicePaid: (
+        totalLabel?: string | null,
+        method?: string | null,
+      ) => {
+        const parts: string[] = [];
+        if (totalLabel) parts.push(totalLabel);
+        if (method) parts.push(method);
+        return parts.length > 0 ? parts.join(" · ") : "Cobro pagado";
+      },
+      saasInvoiceVoided: (reason?: string | null) =>
+        reason ? `Anulado · ${reason}` : "Cobro anulado",
+      subscriptionPastDueAuto: (overdueCount?: number | null) =>
+        overdueCount != null
+          ? `past_due · ${overdueCount} cobro(s) vencido(s)`
+          : "Suscripción → past_due",
+      subscriptionActiveRestoredAuto: () => "Suscripción → active",
     },
   },
   ar: {

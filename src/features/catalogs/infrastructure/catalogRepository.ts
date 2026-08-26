@@ -302,7 +302,7 @@ export class CatalogRepository implements ICatalogRepository {
 
   /**
    * Descarga CSV plantilla SAT para el tipo (GET …/import/template).
-   * Usar `authScope: "platform"` desde el hub Platform.
+   * Requiere `authScope: "platform"` (import SAT global).
    */
   async downloadTemplate(
     typeCode: string,

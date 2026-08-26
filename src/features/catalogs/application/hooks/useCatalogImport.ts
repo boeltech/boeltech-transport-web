@@ -37,18 +37,18 @@ export interface ImportCatalogParams {
   typeCode: string;
   file: File;
   options: CatalogImportOptions;
-  authScope?: "platform" | "tenant";
+  authScope: "platform";
 }
 
 export interface ValidateCatalogParams {
   typeCode: string;
   file: File;
-  authScope?: "platform" | "tenant";
+  authScope: "platform";
 }
 
 export interface DownloadCatalogTemplateParams {
   typeCode: string;
-  authScope?: "platform" | "tenant";
+  authScope: "platform";
 }
 
 // ============================================================================
@@ -75,7 +75,7 @@ export function useCatalogImport(
       authScope,
     }: ImportCatalogParams) => {
       return catalogRepository.importCatalog(typeCode, file, importOptions, {
-        ...(authScope ? { authScope } : {}),
+        authScope,
       });
     },
     onSuccess: (data, variables) => {
@@ -134,7 +134,7 @@ export function useCatalogValidate(
   return useMutation({
     mutationFn: async ({ typeCode, file, authScope }: ValidateCatalogParams) => {
       return catalogRepository.validateImport(typeCode, file, {
-        ...(authScope ? { authScope } : {}),
+        authScope,
       });
     },
     onSuccess: (data) => {
@@ -170,7 +170,7 @@ export function useCatalogValidate(
 
 /**
  * Descarga la plantilla CSV SAT del tipo (`GET …/import/template`).
- * En hub Platform pasar `authScope: "platform"`.
+ * Requiere `authScope: "platform"` (hub Platform / import SAT global).
  */
 export function useDownloadCatalogTemplate(
   options?: Omit<
@@ -186,7 +186,7 @@ export function useDownloadCatalogTemplate(
       authScope,
     }: DownloadCatalogTemplateParams) => {
       return catalogRepository.downloadTemplate(typeCode, {
-        ...(authScope ? { authScope } : {}),
+        authScope,
       });
     },
     onSuccess: () => {

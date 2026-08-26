@@ -107,7 +107,7 @@ export function PlatformTenantDetailPage() {
                   {copy.grantStampPack}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {tenant.status !== PlatformTenantStatus.SUSPENDED ? (
+                {tenant.status === PlatformTenantStatus.ACTIVE ? (
                   <DropdownMenuItem
                     onSelect={() =>
                       openOverlayAfterMenuClose(() => {
@@ -118,7 +118,9 @@ export function PlatformTenantDetailPage() {
                   >
                     {copy.suspend}
                   </DropdownMenuItem>
-                ) : (
+                ) : null}
+                {tenant.status === PlatformTenantStatus.SUSPENDED ||
+                tenant.status === PlatformTenantStatus.CANCELLED ? (
                   <DropdownMenuItem
                     onSelect={() =>
                       openOverlayAfterMenuClose(() => {
@@ -129,7 +131,7 @@ export function PlatformTenantDetailPage() {
                   >
                     {copy.reactivate}
                   </DropdownMenuItem>
-                )}
+                ) : null}
                 {tenant.status !== PlatformTenantStatus.CANCELLED ? (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

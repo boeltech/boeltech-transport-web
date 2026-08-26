@@ -9,7 +9,7 @@ import { TripDetailOperationTab } from "./TripDetailOperationTab";
 vi.mock("@features/billing", () => ({
   useInternalStaffEntitlement: () => ({
     hasModule: true,
-    isFetched: true,
+    isSuccess: true,
   }),
 }));
 

@@ -45,7 +45,7 @@ export type ImportResultScopeCopy = {
 
 export const importsCopy = {
   hub: {
-    sectionTitle: "Cargas",
+    sectionTitle: "Importar padrón",
     title: "Carga desde archivo",
     description:
       "Deja el padrón listo para consultar y asignar. Que la carga salga bien no significa que todo esté listo para timbrar: algunos datos se completan en el expediente o al facturar el viaje.",

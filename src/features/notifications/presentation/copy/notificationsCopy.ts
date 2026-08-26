@@ -22,6 +22,7 @@ export const notificationsCopy = {
 export const NOTIFICATION_SOURCE_LABELS = {
   approvals: "Aprobaciones",
   dashboard: "Operación",
+  billing_dispatch: "Envío de facturas",
 } as const;
 
 export const NOTIFICATION_SEVERITY_LABELS = {
