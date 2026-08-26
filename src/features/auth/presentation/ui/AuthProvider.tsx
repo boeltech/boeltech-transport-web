@@ -49,6 +49,7 @@ import {
   persistsAuthTokens,
   usesAuthCookies,
 } from "../../infrastructure/sessionMode";
+import { clearTenantQueryCache } from "../../infrastructure/clearTenantQueryCache";
 import { clearSentryUser, setSentryUser } from "@/shared/observability/sentry";
 import { AuthContext, type AuthContextType } from "./authContext";
 
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Refresh/access inválido: el servidor puede responder 401; igual limpiamos cliente
       }
 
-      queryClient.clear();
+      clearTenantQueryCache(queryClient);
 
       setState({
         user: null,

@@ -4,6 +4,7 @@ import {
   notifyTenantUnauthorized,
   notifyTenantTokenRefreshed,
 } from "@features/auth/infrastructure/sessionHandlers";
+import { shouldRedirectOnSubscriptionRequired } from "./shouldRedirectOnSubscriptionRequired";
 
 let teardown: (() => void) | undefined;
 
@@ -22,15 +23,7 @@ export function bootstrapAuthInterceptors(): void {
     },
     onSubscriptionRequired: () => {
       if (typeof window === "undefined") return;
-      const path = window.location.pathname;
-      if (
-        path === "/settings/subscription" ||
-        path.startsWith("/settings/subscription/") ||
-        path === "/account" ||
-        path.startsWith("/account/") ||
-        path === "/profile" ||
-        path === "/login"
-      ) {
+      if (!shouldRedirectOnSubscriptionRequired(window.location.pathname)) {
         return;
       }
       window.location.assign("/settings/subscription");

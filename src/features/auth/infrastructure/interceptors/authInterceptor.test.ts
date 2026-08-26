@@ -67,6 +67,10 @@ vi.mock("@features/platform/infrastructure/platformSessionHandlers", () => ({
 
 import { setupAuthInterceptor } from "./authInterceptor";
 import { notifyPlatformUnauthorized as notifyPlatformUnauthorizedImport } from "@features/platform/infrastructure/platformSessionHandlers";
+import {
+  resetPlatformRefreshCoordinator,
+  runPlatformRefresh,
+} from "@features/platform/infrastructure/platformRefreshCoordinator";
 
 function axios401(
   config: AxiosError["config"],
@@ -106,6 +110,7 @@ describe("setupAuthInterceptor public auth 401", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPlatformRefreshCoordinator();
     getToken.mockReturnValue(null);
     getRefreshToken.mockReturnValue(null);
     getUser.mockReturnValue(null);
@@ -336,5 +341,83 @@ describe("setupAuthInterceptor public auth 401", () => {
     expect(notifyPlatformUnauthorizedImport).toHaveBeenCalled();
     expect(clear).not.toHaveBeenCalled();
     expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("shares one platform refresh between interceptor and coordinator", async () => {
+    platformGetToken.mockReturnValue("platform-access-old");
+    platformGetRefreshToken.mockReturnValue("platform-refresh");
+
+    let refreshPosts = 0;
+    let resolveRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      resolveRefresh = resolve;
+    });
+
+    instance.defaults.adapter = async (config) => {
+      const url = config.url ?? "";
+      if (url.includes("/platform/auth/refresh")) {
+        refreshPosts += 1;
+        await refreshGate;
+        return {
+          data: {
+            data: {
+              access_token: "platform-access-new",
+              refresh_token: "platform-refresh-new",
+            },
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        };
+      }
+
+      if (url.includes("/platform/tenants")) {
+        const auth = getAuthorizationHeader(config);
+        if (!auth.includes("platform-access-new")) {
+          throw axios401(config, {
+            error: "expired",
+            code: "TOKEN_EXPIRED",
+          });
+        }
+        return {
+          data: { data: [] },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        };
+      }
+
+      throw new Error(`Unexpected url: ${url}`);
+    };
+
+    // Bootstrap-style refresh starts first and holds the coordinator lock.
+    const bootstrapPromise = runPlatformRefresh(async () => {
+      const response = await instance.post(
+        "/platform/auth/refresh",
+        { refresh_token: "platform-refresh" },
+        { authScope: "platform" } as never,
+      );
+      const accessToken = response.data.data.access_token as string;
+      const refreshToken = response.data.data.refresh_token as string;
+      platformSetToken(accessToken);
+      platformSetRefreshToken(refreshToken);
+      return { accessToken, refreshToken };
+    });
+
+    await Promise.resolve();
+
+    const interceptorPromise = instance.get("/platform/tenants", {
+      authScope: "platform",
+    } as never);
+
+    resolveRefresh();
+
+    await expect(bootstrapPromise).resolves.toMatchObject({
+      accessToken: "platform-access-new",
+    });
+    await expect(interceptorPromise).resolves.toMatchObject({ status: 200 });
+    expect(refreshPosts).toBe(1);
   });
 });

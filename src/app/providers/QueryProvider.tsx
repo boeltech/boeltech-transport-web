@@ -54,8 +54,15 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
             refetchOnMount: true,
           },
           mutations: {
-            // Reintentos para mutaciones
-            retry: 1,
+            // Mutaciones no idempotentes (POST confirm-send, etc.): no reintentar
+            // errores HTTP. Un retry:1 global convertía 502→segundo POST→409.
+            retry: (failureCount, error) => {
+              const mutationError = error as QueryErrorLike;
+              const status =
+                mutationError.response?.status ?? mutationError.status;
+              if (status !== undefined) return false;
+              return failureCount < 1;
+            },
 
             // Callback global de error
             onError: (error) => {

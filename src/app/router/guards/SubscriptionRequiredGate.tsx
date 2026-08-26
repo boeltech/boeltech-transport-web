@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@features/auth";
-import { useBillingSubscription } from "@features/billing";
+import { useBillingAccess } from "@features/billing";
 import {
   isSubscriptionPaywallExemptRole,
   type UserRole,
@@ -31,7 +31,7 @@ export function isOperationalSubscriptionStatus(
 
 /**
  * Soft paywall decision for staff tenants (ADR-0064 alcance 2).
- * Portal roles and billing read errors must not be treated as “no plan”.
+ * Portal roles and billing access errors must not be treated as “no plan”.
  */
 export function shouldRedirectToSubscriptionPaywall(input: {
   role: UserRole | null | undefined;
@@ -55,13 +55,13 @@ export function shouldRedirectToSubscriptionPaywall(input: {
 /**
  * Tras onboarding: si la suscripción no es trialing|active|past_due,
  * redirige a `/settings/subscription` (paywall operativo ADR-0064 alcance 2).
- * Login y billing GET siguen permitidos en API.
+ * Usa GET /billing/access (sin billing.read).
  * Roles `client`/`driver` quedan fuera del soft-gate.
  */
 export function SubscriptionRequiredGate({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
-  const subscription = useBillingSubscription();
+  const access = useBillingAccess();
 
   if (!isAuthenticated || !user) {
     return <>{children}</>;
@@ -71,15 +71,15 @@ export function SubscriptionRequiredGate({ children }: { children: ReactNode }) 
     !shouldRedirectToSubscriptionPaywall({
       role: user.role,
       pathname: location.pathname,
-      isLoading: subscription.isLoading,
-      isError: subscription.isError,
-      status: subscription.data?.status,
+      isLoading: access.isLoading,
+      isError: access.isError,
+      status: access.data?.subscriptionStatus,
     })
   ) {
     if (
       !isSubscriptionPaywallExemptRole(user.role) &&
       !isAllowedWithoutOperationalSubscription(location.pathname) &&
-      subscription.isLoading
+      access.isLoading
     ) {
       return null;
     }

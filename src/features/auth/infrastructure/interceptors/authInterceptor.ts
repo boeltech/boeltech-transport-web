@@ -18,6 +18,10 @@ import { tokenStorage } from "../storage/tokenStorage";
 import { platformTokenStorage } from "@features/platform/infrastructure/platformTokenStorage";
 import { notifyPlatformUnauthorized } from "@features/platform/infrastructure/platformSessionHandlers";
 import {
+  resetPlatformRefreshCoordinator,
+  runPlatformRefresh,
+} from "@features/platform/infrastructure/platformRefreshCoordinator";
+import {
   persistsAuthTokens,
   sendsBearerFromStorage,
   usesAuthCookies,
@@ -152,7 +156,39 @@ async function refreshAccessToken(
     return "";
   }
 
-  const storage = getTokenStorage(scope);
+  if (scope === "platform") {
+    const tokens = await runPlatformRefresh(async () => {
+      const refreshToken = platformTokenStorage.getRefreshToken();
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      const response = await instance.post(endpoint, {
+        refresh_token: refreshToken,
+      });
+
+      const newToken = response?.data?.data?.access_token as string | undefined;
+      if (!newToken) {
+        throw new Error("Refresh response missing access_token");
+      }
+
+      platformTokenStorage.setToken(newToken);
+      const newRefresh = response?.data?.data?.refresh_token as
+        | string
+        | undefined;
+      if (newRefresh) {
+        platformTokenStorage.setRefreshToken(newRefresh);
+      }
+
+      return {
+        accessToken: newToken,
+        refreshToken: newRefresh ?? refreshToken,
+      };
+    });
+    return tokens.accessToken;
+  }
+
+  const storage = tokenStorage;
   const refreshToken = storage.getRefreshToken();
 
   if (!refreshToken) {
@@ -167,7 +203,7 @@ async function refreshAccessToken(
 
   if (!newToken) {
     // dual/cookies: body puede omitir tokens; cookie renovada
-    if (scope === "tenant" && usesAuthCookies()) {
+    if (usesAuthCookies()) {
       return "";
     }
     throw new Error("Refresh response missing access_token");
@@ -257,6 +293,7 @@ export function setupAuthInterceptor(
           "[AuthInterceptor] Refresh endpoint returned 401 — ending session",
         );
         if (scope === "platform") {
+          resetPlatformRefreshCoordinator();
           platformTokenStorage.clear();
           notifyPlatformUnauthorized();
         } else {
@@ -270,6 +307,7 @@ export function setupAuthInterceptor(
           "[AuthInterceptor] 401 after retry — refresh did not fix access",
         );
         if (scope === "platform") {
+          resetPlatformRefreshCoordinator();
           platformTokenStorage.clear();
           notifyPlatformUnauthorized();
         } else {
@@ -287,6 +325,7 @@ export function setupAuthInterceptor(
       if (!hasRefreshMaterial) {
         if (storage.getToken() || (scope === "tenant" && storage.getUser())) {
           if (scope === "platform") {
+            resetPlatformRefreshCoordinator();
             platformTokenStorage.clear();
             notifyPlatformUnauthorized();
           } else {
@@ -333,6 +372,7 @@ export function setupAuthInterceptor(
         );
         rejectPending(scope, refreshError);
         if (scope === "platform") {
+          resetPlatformRefreshCoordinator();
           platformTokenStorage.clear();
           notifyPlatformUnauthorized();
         } else {
