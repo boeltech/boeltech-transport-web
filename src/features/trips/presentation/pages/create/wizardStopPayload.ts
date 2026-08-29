@@ -33,7 +33,8 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
   state: string;
 } {
   if (stopHasCatalogSnapshot(stop)) {
-    const label = stop.locationName?.trim() || "Domicilio en catálogo";
+    const rawLabel = stop.locationName?.trim() || "Domicilio en catálogo";
+    const label = rawLabel.length >= 5 ? rawLabel : `Ubicación ${rawLabel}`;
     return {
       address: label,
       city:
@@ -48,25 +49,41 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
 
   const addressParts: string[] = [];
 
-  if (stop.street) {
-    let streetLine = stop.street;
-    if (stop.exteriorNumber) {
-      streetLine += ` #${stop.exteriorNumber}`;
+  if (stop.street?.trim()) {
+    let streetLine = stop.street.trim();
+    if (stop.exteriorNumber?.trim()) {
+      streetLine += ` #${stop.exteriorNumber.trim()}`;
     }
-    if (stop.interiorNumber) {
-      streetLine += `, Int. ${stop.interiorNumber}`;
+    if (stop.interiorNumber?.trim()) {
+      streetLine += `, Int. ${stop.interiorNumber.trim()}`;
     }
-    addressParts.push(streetLine);
+    partsPushIfValid: {
+      addressParts.push(streetLine);
+    }
   }
 
-  if (stop.postalCode) {
-    addressParts.push(`C.P. ${stop.postalCode}`);
+  if (stop.postalCode?.trim()) {
+    addressParts.push(`C.P. ${stop.postalCode.trim()}`);
+  }
+
+  const structuredAddress = addressParts.join(", ").trim();
+  let resolvedAddress = structuredAddress;
+
+  if (resolvedAddress.length < 5) {
+    const locName = stop.locationName?.trim();
+    if (locName && locName.length >= 5) {
+      resolvedAddress = locName;
+    } else if (locName) {
+      resolvedAddress = `Ubicación ${locName}`;
+    } else if (stop.satStateCode || stop.satMunicipalityCode) {
+      resolvedAddress = `Ubicación ${stop.satStateCode || "MEX"}-${stop.satMunicipalityCode || "000"}`;
+    } else {
+      resolvedAddress = "Ubicación de parada";
+    }
   }
 
   return {
-    address:
-      addressParts.join(", ") ||
-      `Ubicación ${stop.satStateCode}-${stop.satMunicipalityCode}`,
+    address: resolvedAddress,
     city:
       stop.cityName?.trim() ||
       stop.locationName?.trim() ||

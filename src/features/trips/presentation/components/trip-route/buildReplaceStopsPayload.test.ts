@@ -546,6 +546,46 @@ describe("mapStopToReplaceStopInput", () => {
     expect(input.sourceAddressId).toBe(pickerItem.id);
     expect(input.postalCode).toBe("44100");
   });
+
+  it("derives valid address >= 5 chars for incomplete pre-existing stops without addressId (e.g. Canvas MUNDO DULCE)", () => {
+    const incompleteOrigin = tripStop({
+      id: "stop-origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      addressId: null,
+      sourceAddressId: null,
+      address: "",
+      street: null,
+      exteriorNumber: null,
+      locationName: "MUNDO DULCE",
+      city: "Toluca",
+      state: "MEX",
+      postalCode: null,
+    });
+    const input = mapStopToReplaceStopInput(incompleteOrigin);
+    expect(input.address).toBe("MUNDO DULCE");
+    expect(input.address.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("derives valid address >= 5 chars for short locationName (e.g. GDL)", () => {
+    const incompleteStop = tripStop({
+      id: "stop-gdl",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      addressId: null,
+      sourceAddressId: null,
+      address: "",
+      street: null,
+      exteriorNumber: null,
+      locationName: "GDL",
+      city: "",
+      state: "JAL",
+      postalCode: null,
+    });
+    const input = mapStopToReplaceStopInput(incompleteStop);
+    expect(input.address).toBe("Ubicación GDL");
+    expect(input.address.length).toBeGreaterThanOrEqual(5);
+  });
 });
 
 describe("isDuplicateComposerEndpointAddress", () => {

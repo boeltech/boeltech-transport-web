@@ -38,6 +38,76 @@ export function resolveStopCityForApi(stop: NonNullable<Trip["stops"]>[number]):
   return "Sin ciudad";
 }
 
+/**
+ * El schema API (`createStopSchema`) exige `address` con longitud mínima 5 cuando no hay `address_id`.
+ * Al reemplazar paradas preexistentes (ej. esqueletos de canvas o paradas incompletas),
+ * derivamos un texto válido (>= 5 caracteres) a partir de los datos disponibles.
+ */
+export function resolveStopAddressForApi(stop: NonNullable<Trip["stops"]>[number]): string {
+  const currentAddress = (stop.address ?? "").trim();
+  if (currentAddress.length >= 5) {
+    return currentAddress;
+  }
+
+  // 1. Intentar armar dirección estructurada si hay calle/número/colonia/CP
+  const parts: string[] = [];
+  if (stop.street?.trim()) {
+    let streetLine = stop.street.trim();
+    if (stop.exteriorNumber?.trim()) {
+      streetLine += ` #${stop.exteriorNumber.trim()}`;
+    }
+    if (stop.interiorNumber?.trim()) {
+      streetLine += `, Int. ${stop.interiorNumber.trim()}`;
+    }
+    parts.push(streetLine);
+  }
+  if (stop.colonia?.trim()) {
+    parts.push(stop.colonia.trim());
+  }
+  if (stop.postalCode?.trim()) {
+    parts.push(`C.P. ${stop.postalCode.trim()}`);
+  }
+  const structured = parts.join(", ").trim();
+  if (structured.length >= 5) {
+    return structured;
+  }
+
+  // 2. Si locationName tiene >= 5 caracteres (ej: "MUNDO DULCE")
+  const locationName = (stop.locationName ?? "").trim();
+  if (locationName.length >= 5) {
+    return locationName;
+  }
+
+  // 3. Si locationName + city juntos suman >= 5 caracteres (ej: "GDL, Guadalajara")
+  const city = (stop.city ?? "").trim();
+  if (locationName && city && `${locationName}, ${city}`.length >= 5) {
+    return `${locationName}, ${city}`;
+  }
+
+  // 4. Si city tiene >= 5 caracteres
+  if (city.length >= 5) {
+    return city;
+  }
+
+  // 5. Si hay alias o ciudad corta (ej: "GDL"), prefijar con "Ubicación "
+  if (locationName) {
+    return `Ubicación ${locationName}`;
+  }
+  if (city) {
+    return `Ubicación ${city}`;
+  }
+
+  // 6. Fallback territorial con códigos SAT o estado
+  const state = (stop.satEstadoCode || stop.state || "").trim();
+  const mun = (stop.satMunicipioCode || "").trim();
+  if (state || mun) {
+    return `Ubicación ${state || "MEX"}-${mun || "000"}`;
+  }
+
+  // 7. Fallback último recurso garantizado >= 5 caracteres
+  return "Ubicación de parada";
+}
+
 export function mapStopToCreateStopInput(
   source: NonNullable<Trip["stops"]>[number],
   edited: TripStopOperationalValues | undefined,
@@ -50,7 +120,7 @@ export function mapStopToCreateStopInput(
     sequenceOrder: source.sequenceOrder,
     stopType: source.stopType,
     addressId: source.addressId ?? undefined,
-    address: source.address || "",
+    address: resolveStopAddressForApi(source),
     city: resolveStopCityForApi(source),
     state: source.state ?? undefined,
     postalCode: source.postalCode ?? undefined,

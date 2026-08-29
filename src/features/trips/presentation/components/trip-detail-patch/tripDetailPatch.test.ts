@@ -7,6 +7,7 @@ import {
   buildScheduleDestinationEtaReplaceStops,
   buildScheduleUpdateInput,
 } from "./tripSchedulePatch";
+import { resolveStopAddressForApi } from "./mapStopToCreateStopInput";
 import { mapTripToScheduleFormValues } from "./tripStopOperationalFields";
 
 const baseTrip = {
@@ -180,5 +181,56 @@ describe("tripDetailPatch", () => {
     expect(stops?.[1]).not.toHaveProperty("addressId");
     expect(stops?.[1]?.estimatedArrival).toContain("2026-05-14");
     expect(stops?.[1]?.sourceAddressId).toBeUndefined();
+  });
+});
+
+describe("resolveStopAddressForApi", () => {
+  it("keeps existing address if length >= 5", () => {
+    const result = resolveStopAddressForApi({
+      address: "Av. Central 1234",
+    } as any);
+    expect(result).toBe("Av. Central 1234");
+  });
+
+  it("uses locationName if length >= 5 when address is empty (e.g. MUNDO DULCE)", () => {
+    const result = resolveStopAddressForApi({
+      address: "",
+      locationName: "MUNDO DULCE",
+    } as any);
+    expect(result).toBe("MUNDO DULCE");
+  });
+
+  it("formats short locationName (< 5 chars) with Ubicacion prefix", () => {
+    const result = resolveStopAddressForApi({
+      address: "",
+      locationName: "GDL",
+    } as any);
+    expect(result).toBe("Ubicación GDL");
+    expect(result.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("combines structured street and number if address is empty", () => {
+    const result = resolveStopAddressForApi({
+      address: "",
+      street: "Blvd. Miguel Aleman",
+      exteriorNumber: "100",
+    } as any);
+    expect(result).toBe("Blvd. Miguel Aleman #100");
+    expect(result.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("uses SAT territorial code fallback if completely empty", () => {
+    const result = resolveStopAddressForApi({
+      address: "",
+      satEstadoCode: "MEX",
+      satMunicipioCode: "106",
+    } as any);
+    expect(result).toBe("Ubicación MEX-106");
+  });
+
+  it("returns fallback guaranteed >= 5 chars if no fields present", () => {
+    const result = resolveStopAddressForApi({} as any);
+    expect(result).toBe("Ubicación de parada");
+    expect(result.length).toBeGreaterThanOrEqual(5);
   });
 });
