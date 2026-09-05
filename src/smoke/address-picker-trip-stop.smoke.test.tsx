@@ -13,6 +13,7 @@ import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import { StopFormSheetAddressOriginSection } from "@features/trips/presentation/pages/create/components/stop-form/StopFormSheetAddressOriginSection";
 import {
   addressSearchItemToDialogSlice,
+  locationValueToDialogSlice,
   type StopDialogFormValues,
 } from "@features/trips/presentation/pages/create/components/stopDialogAddressMapper";
 
@@ -36,6 +37,7 @@ const partnerItem: AddressSearchListItem = {
   satNeighborhoodCode: "0001",
   latitude: 25.78,
   longitude: -100.18,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,
@@ -55,6 +57,9 @@ function TripStopPrefillHarness() {
         onPrefillSelect={(item) => {
           setSelectedPrefill(item);
           setDialogSlice(addressSearchItemToDialogSlice(item));
+        }}
+        onLocationDraft={(value) => {
+          setDialogSlice(locationValueToDialogSlice(value));
         }}
         onPrefillClear={() => {
           setSelectedPrefill(null);
@@ -92,6 +97,7 @@ const branchItem: AddressSearchListItem = {
   satNeighborhoodCode: null,
   latitude: 25.7,
   longitude: -100.3,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: true,
   isActive: true,
@@ -101,6 +107,8 @@ const branchItem: AddressSearchListItem = {
 describe("address-picker trip stop smoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // cmdk desplaza el item activo; jsdom no implementa scrollIntoView.
+    Element.prototype.scrollIntoView = vi.fn();
     vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
       data: [partnerItem],
       pagination: { limit: 20, nextCursor: null, hasMore: false },

@@ -18,6 +18,7 @@ export type AddressSearchListItemRaw = DeepCamelCase<{
   sat_neighborhood_code: string | null;
   latitude: number | null;
   longitude: number | null;
+  geocoding_accuracy?: string | null;
   geolocation_pending: boolean;
   is_primary: boolean;
   is_active: boolean;
@@ -27,6 +28,23 @@ export type AddressSearchListItemRaw = DeepCamelCase<{
   destinatario_rfc?: string | null;
   destinatario_name?: string | null;
 }>;
+
+const GEOCODING_ACCURACY_VALUES = new Set([
+  "exact",
+  "approximate",
+  "manual",
+  "address_only",
+  "coordinates_only",
+]);
+
+function mapGeocodingAccuracy(
+  raw: string | null | undefined,
+): AddressSearchListItem["geocodingAccuracy"] {
+  if (raw == null || raw === "") return null;
+  return GEOCODING_ACCURACY_VALUES.has(raw)
+    ? (raw as AddressSearchListItem["geocodingAccuracy"])
+    : null;
+}
 
 type SearchableOwnerTypeRaw = "client" | "branch" | "tenant";
 
@@ -49,6 +67,7 @@ export function mapAddressSearchListItem(
     satNeighborhoodCode: raw.satNeighborhoodCode ?? null,
     latitude: raw.latitude ?? null,
     longitude: raw.longitude ?? null,
+    geocodingAccuracy: mapGeocodingAccuracy(raw.geocodingAccuracy),
     geolocationPending: raw.geolocationPending ?? false,
     isPrimary: raw.isPrimary,
     isActive: raw.isActive,

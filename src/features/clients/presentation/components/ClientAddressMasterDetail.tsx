@@ -50,6 +50,7 @@ import {
 import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
 import { useMediaQuery } from "@shared/hooks";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 
 import {
   useClientAddress,
@@ -126,7 +127,12 @@ export function ClientAddressMasterDetail({
   className,
 }: ClientAddressMasterDetailProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
-  const { data: addresses, isLoading } = useClientAddresses(clientId);
+  const {
+    data: addresses,
+    isLoading,
+    isError: isAddressesError,
+    refetch: refetchAddresses,
+  } = useClientAddresses(clientId);
   const sorted = useMemo(
     () => (addresses ? sortAddresses(addresses) : []),
     [addresses],
@@ -142,9 +148,7 @@ export function ClientAddressMasterDetail({
   const [pendingDelete, setPendingDelete] =
     useState<ClientAddressListItemEntity | null>(null);
 
-  // Estado del form (cuando mode === "edit" o "create")
   const formRef = useRef<ClientAddressFormRef>(null);
-  const [formData, setFormData] = useState<ClientAddressFormData | null>(null);
   const effectiveMode: Mode = readOnly ? "view" : mode;
 
   /**
@@ -181,47 +185,53 @@ export function ClientAddressMasterDetail({
     deleteMutation.isPending;
 
   // ── Detalle full de la dirección seleccionada ────────────────────────────
-  const { data: selectedAddressFull, isLoading: isLoadingDetail } =
-    useClientAddress(clientId, detailFetchId);
+  const {
+    data: selectedAddressFull,
+    isLoading: isLoadingDetail,
+    isError: isDetailError,
+    refetch: refetchDetail,
+  } = useClientAddress(clientId, detailFetchId);
+
+  const showDetailUnavailable =
+    !isLoadingDetail &&
+    detailFetchId != null &&
+    (isDetailError || selectedAddressFull == null);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleSelect = (id: string) => {
     setSelectedId(id);
     setMode("view");
-    setFormData(null);
   };
 
   const handleStartCreate = () => {
     if (readOnly) return;
     setSelectedId(null);
     setMode("create");
-    setFormData(null);
   };
 
   const handleStartEdit = () => {
     setSelectedId((prev) => prev ?? resolvedViewId);
     setMode("edit");
-    setFormData(null);
   };
 
   const handleCancelForm = () => {
     setMode("view");
-    setFormData(null);
     // Si veníamos de "create" sin selección previa, intentar auto-seleccionar
     if (selectedId === null && sorted.length > 0) {
       setSelectedId(sorted[0].id);
     }
   };
 
-  const handleFormChange = (data: ClientAddressFormData) => {
-    setFormData(data);
-  };
-
   const handleSubmitForm = async () => {
-    const valid = await formRef.current?.triggerValidation();
-    if (!valid || !formData) return;
+    if (isPending) return;
 
-    const packageResult = await validateClientAddressFormComplete(formData, {
+    const valid = await formRef.current?.triggerValidation();
+    if (!valid) return;
+
+    const values = formRef.current?.getValues();
+    if (!values) return;
+
+    const packageResult = await validateClientAddressFormComplete(values, {
       context: "additional",
       requireCoordinates: false,
       intent: mode === "edit" ? "update" : "create",
@@ -231,23 +241,34 @@ export function ClientAddressMasterDetail({
       return;
     }
 
+    const applyApiFieldErrors = (error: Error) => {
+      if (isApiError(error) && error.hasValidationErrors()) {
+        formRef.current?.applyApiValidationErrors(
+          error.validationErrors.map((entry) => ({
+            field: entry.field,
+            message: entry.message,
+          })),
+        );
+      }
+    };
+
     if (mode === "create") {
       createMutation.mutate(
         {
           clientId,
-          data: clientAddressFormDataToCreateDto(formData, {
+          data: clientAddressFormDataToCreateDto(values, {
             context: "additional",
           }),
         },
         {
           onSuccess: (created) => {
             setMode("view");
-            setFormData(null);
             // El backend debería retornar el id; si lo hace, seleccionar la nueva
             if (created && "id" in created && typeof created.id === "string") {
               setSelectedId(created.id);
             }
           },
+          onError: applyApiFieldErrors,
         },
       );
     } else if (mode === "edit") {
@@ -257,15 +278,15 @@ export function ClientAddressMasterDetail({
         {
           clientId,
           addressId,
-          data: clientAddressFormDataToUpdateDto(formData, {
+          data: clientAddressFormDataToUpdateDto(values, {
             context: "additional",
           }),
         },
         {
           onSuccess: () => {
             setMode("view");
-            setFormData(null);
           },
+          onError: applyApiFieldErrors,
         },
       );
     }
@@ -314,8 +335,12 @@ export function ClientAddressMasterDetail({
   };
 
   // ── Empty state ──────────────────────────────────────────────────────────
+  const showListError = !isLoading && isAddressesError;
   const showEmptyState =
-    !isLoading && sorted.length === 0 && effectiveMode !== "create";
+    !isLoading &&
+    !isAddressesError &&
+    sorted.length === 0 &&
+    effectiveMode !== "create";
 
   // Form defaults para modo "edit"
   const editFormDefaults = useMemo<
@@ -406,6 +431,21 @@ export function ClientAddressMasterDetail({
         <div className="flex items-center justify-center rounded-md border py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      ) : showListError ? (
+        <div className="rounded-md border">
+          <EmptyState
+            icon={<MapPin />}
+            title={copy.listErrorTitle}
+            description={copy.listErrorDescription}
+            cta={{
+              label: copy.listErrorRetry,
+              onClick: () => {
+                void refetchAddresses();
+              },
+            }}
+            size="md"
+          />
+        </div>
       ) : showEmptyState ? (
         <div className="rounded-md border">
           <EmptyState
@@ -475,8 +515,8 @@ export function ClientAddressMasterDetail({
             )}
           </div>
 
-          {/* ─── Detail: vista o formulario ──────────────────────────────── */}
-          <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
+          {/* ─── Detail: vista o formulario (sin scroll interno; crece con la página) */}
+          <div className="flex flex-col bg-background md:rounded-r-md md:p-5">
             {!readOnly && effectiveMode === "create" && !isMobile ? (
               <FormPanel
                 title={copy.createTitle}
@@ -489,14 +529,27 @@ export function ClientAddressMasterDetail({
                 <ClientAddressForm
                   ref={formRef}
                   formContext="additional"
+                  clientId={clientId}
                   clientRfc={clientRfc}
                   clientName={clientName}
-                  onChange={handleFormChange}
                   disabled={isPending}
                 />
               </FormPanel>
             ) : !readOnly && effectiveMode === "edit" && (selectedId ?? resolvedViewId) && !isMobile ? (
-              isLoadingDetail || !editFormDefaults ? (
+              showDetailUnavailable ? (
+                <EmptyState
+                  icon={<MapPin />}
+                  title={copy.detailErrorTitle}
+                  description={copy.detailErrorDescription}
+                  cta={{
+                    label: copy.detailErrorRetry,
+                    onClick: () => {
+                      void refetchDetail();
+                    },
+                  }}
+                  size="md"
+                />
+              ) : isLoadingDetail || !editFormDefaults ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
@@ -513,16 +566,30 @@ export function ClientAddressMasterDetail({
                     key={selectedId ?? resolvedViewId ?? "edit"}
                     ref={formRef}
                     formContext="additional"
+                    clientId={clientId}
+                    excludeAddressId={selectedId ?? resolvedViewId}
                     defaultValues={editFormDefaults}
                     clientRfc={clientRfc}
                     clientName={clientName}
-                    onChange={handleFormChange}
                     disabled={isPending}
                   />
                 </FormPanel>
               )
             ) : effectiveMode === "view" && resolvedViewId ? (
-              isLoadingDetail || !selectedAddressFull ? (
+              showDetailUnavailable ? (
+                <EmptyState
+                  icon={<MapPin />}
+                  title={copy.detailErrorTitle}
+                  description={copy.detailErrorDescription}
+                  cta={{
+                    label: copy.detailErrorRetry,
+                    onClick: () => {
+                      void refetchDetail();
+                    },
+                  }}
+                  size="md"
+                />
+              ) : isLoadingDetail || !selectedAddressFull ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
@@ -582,10 +649,23 @@ export function ClientAddressMasterDetail({
               <ClientAddressForm
                 ref={formRef}
                 formContext="additional"
+                clientId={clientId}
                 clientRfc={clientRfc}
                 clientName={clientName}
-                onChange={handleFormChange}
                 disabled={isPending}
+              />
+            ) : showDetailUnavailable ? (
+              <EmptyState
+                icon={<MapPin />}
+                title={copy.detailErrorTitle}
+                description={copy.detailErrorDescription}
+                cta={{
+                  label: copy.detailErrorRetry,
+                  onClick: () => {
+                    void refetchDetail();
+                  },
+                }}
+                size="md"
               />
             ) : isLoadingDetail || !editFormDefaults ? (
               <div className="flex items-center justify-center py-12">
@@ -596,10 +676,10 @@ export function ClientAddressMasterDetail({
                 key={selectedId ?? resolvedViewId ?? "mobile-edit"}
                 ref={formRef}
                 formContext="additional"
+                clientId={clientId}
                 defaultValues={editFormDefaults}
                 clientRfc={clientRfc}
                 clientName={clientName}
-                onChange={handleFormChange}
                 disabled={isPending}
               />
             )}
@@ -633,20 +713,18 @@ export function ClientAddressMasterDetail({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar dirección?</AlertDialogTitle>
+            <AlertDialogTitle>{copy.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La dirección{" "}
-              <strong>
-                {pendingDelete?.locationName ||
+              {copy.deleteDescription(
+                pendingDelete?.locationName ||
                   pendingDelete?.addressType ||
-                  ""}
-              </strong>{" "}
-              será eliminada permanentemente.
+                  "",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Cancelar
+              {copy.cancel}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
@@ -656,10 +734,10 @@ export function ClientAddressMasterDetail({
               {deleteMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
+                  {copy.deleting}
                 </>
               ) : (
-                "Eliminar"
+                copy.deleteConfirm
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -670,7 +748,7 @@ export function ClientAddressMasterDetail({
 }
 
 // ============================================================================
-// SUB-COMPONENT: panel del formulario (header/footer fijos; scroll en el cuerpo)
+// SUB-COMPONENT: panel del formulario (header + cuerpo + footer en flujo de página)
 // ============================================================================
 
 interface FormPanelProps {
@@ -693,15 +771,15 @@ function FormPanel({
   children,
 }: FormPanelProps) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="mb-4 shrink-0 border-b pb-3">
+    <div className="flex flex-col">
+      <header className="mb-4 border-b pb-3">
         <h3 className="text-base font-semibold">{title}</h3>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto min-w-0">{children}</div>
-      <footer className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t pt-3">
+      <div className="min-w-0">{children}</div>
+      <footer className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
         <Button variant="outline" onClick={onCancel} disabled={isPending}>
           {copy.cancel}
         </Button>

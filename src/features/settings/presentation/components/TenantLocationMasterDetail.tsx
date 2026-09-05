@@ -259,6 +259,11 @@ export function TenantLocationMasterDetail() {
                 formContext="additional"
                 hidePrimarySwitch
                 infoMessage={tenantLocationsCopy.form.hint}
+                locationOwnerTypes={["tenant"]}
+                locationSearchLabel={tenantLocationsCopy.form.locationSearchLabel}
+                locationSearchPlaceholder={
+                  tenantLocationsCopy.form.locationSearchPlaceholder
+                }
                 defaultValues={{
                   ...defaultTenantLocationFormValues,
                   isPrimary: false,
@@ -294,6 +299,11 @@ export function TenantLocationMasterDetail() {
                 formContext="additional"
                 hidePrimarySwitch
                 infoMessage={tenantLocationsCopy.form.hint}
+                locationOwnerTypes={["tenant"]}
+                locationSearchLabel={tenantLocationsCopy.form.locationSearchLabel}
+                locationSearchPlaceholder={
+                  tenantLocationsCopy.form.locationSearchPlaceholder
+                }
                 defaultValues={
                   detailQuery.data
                     ? addressToFormData(detailQuery.data)

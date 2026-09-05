@@ -7,9 +7,11 @@ import {
   applyAddressPickerClearSlice,
   buildStopPrefillRefFromSearchItem,
   getEmptyStopDialogValues,
+  locationValueToDialogSlice,
   mergeDialogWithClientCatalog,
   shouldShowPrefillMissingGeolocationNotice,
 } from "./stopDialogAddressMapper";
+import type { LocationValue } from "@shared/ui/location";
 
 const partnerSearchItem: AddressSearchListItem = {
   id: "partner-addr-1",
@@ -27,6 +29,7 @@ const partnerSearchItem: AddressSearchListItem = {
   satNeighborhoodCode: "0001",
   latitude: 25.78,
   longitude: -100.18,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,
@@ -70,6 +73,33 @@ describe("addressSearchItemToDialogSlice — snapshot ADR-0053", () => {
 
     expect(slice.rfcRemitenteDestinatario).toBe("AAA010101AAA");
     expect(slice.nombreRemitenteDestinatario).toBe("Cliente Demo SA");
+  });
+});
+
+describe("locationValueToDialogSlice — snapshot ADR-0092", () => {
+  it("aplica SAT/geo y fiscal desde LocationValue sin FK", () => {
+    const value: LocationValue = {
+      locationName: "Patio mapa",
+      street: "Calle Mapa",
+      exteriorNumber: "9",
+      postalCode: "44100",
+      satStateCode: "14",
+      satMunicipalityCode: "039",
+      latitude: 20.67,
+      longitude: -103.35,
+      remitenteRfc: "XAXX010101000",
+      remitenteName: "Público en general",
+    };
+
+    const slice = locationValueToDialogSlice(value);
+
+    expect(slice.addressId).toBe("");
+    expect(slice.clientAddressId).toBe("");
+    expect(slice.clientId).toBe("");
+    expect(slice.locationName).toBe("Patio mapa");
+    expect(slice.street).toBe("Calle Mapa");
+    expect(slice.latitude).toBe(20.67);
+    expect(slice.rfcRemitenteDestinatario).toBe("XAXX010101000");
   });
 });
 

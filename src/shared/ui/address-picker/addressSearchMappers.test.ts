@@ -19,6 +19,7 @@ describe("addressSearchMappers", () => {
       satNeighborhoodCode: null,
       latitude: 25.78,
       longitude: -100.18,
+      geocodingAccuracy: "approximate",
       geolocationPending: false,
       isPrimary: false,
       isActive: true,
@@ -28,6 +29,33 @@ describe("addressSearchMappers", () => {
     expect(item.ownerLabel).toBe("Transportes Norte");
     expect(item.isCartaPorteReady).toBe(true);
     expect(item.ownerType).toBe("tenant");
+    expect(item.geocodingAccuracy).toBe("approximate");
+  });
+
+  it("maps null geocodingAccuracy when absent", () => {
+    const item = mapAddressSearchListItem({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      ownerType: "tenant",
+      ownerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerLabel: null,
+      addressType: "warehouse",
+      locationName: null,
+      street: "Calle",
+      exteriorNumber: "1",
+      postalCode: "44100",
+      satStateCode: "JAL",
+      satMunicipalityCode: null,
+      neighborhoodName: null,
+      satNeighborhoodCode: null,
+      latitude: null,
+      longitude: null,
+      geolocationPending: false,
+      isPrimary: false,
+      isActive: true,
+      isCartaPorteReady: false,
+    });
+
+    expect(item.geocodingAccuracy).toBeNull();
   });
 
   it("maps search page wrapper", () => {
@@ -59,6 +87,7 @@ describe("addressSearchMappers", () => {
     );
 
     expect(page.data).toHaveLength(1);
+    expect(page.data[0]?.geocodingAccuracy).toBeNull();
     expect(page.pagination.hasMore).toBe(true);
   });
 });

@@ -335,10 +335,12 @@ export const branchesCopy = {
         description: "Dónde opera la sucursal.",
         editDescription:
           "Dónde opera esta sucursal. Puedes marcar el punto en el mapa.",
+        locationSearchLabel: "Buscar ubicación",
+        locationSearchPlaceholder: "Mapa o crear nueva…",
       },
       geolocation: {
         description:
-          "Opcional. Usa «Ubicar en el mapa» para confirmar el punto a partir del domicilio.",
+          "Confirma el punto si la sucursal será origen de ruta. Puedes guardar sin pin.",
       },
       notes: {
         title: "Notas",

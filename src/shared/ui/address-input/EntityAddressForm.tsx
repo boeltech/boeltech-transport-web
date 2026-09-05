@@ -37,6 +37,12 @@ export interface EntityAddressFormProps {
   locationSectionTitle?: string;
   preAddressSections?: EntityAddressFormSection[];
   addressInputSection: ReactNode;
+  /**
+   * D1: Extra content rendered inside the address FormSectionCard, below AddressInput,
+   * separated by a `border-t`. Use for geocoding/map section to keep it in the same
+   * visual group.
+   */
+  addressInlineExtras?: ReactNode;
   postAddressSections?: EntityAddressFormSection[];
   children?: ReactNode;
   onSubmit?: FormEventHandler<HTMLFormElement>;
@@ -57,6 +63,7 @@ export function EntityAddressForm({
   locationSectionTitle = "Domicilio",
   preAddressSections = [],
   addressInputSection,
+  addressInlineExtras,
   postAddressSections = [],
   children,
   onSubmit,
@@ -117,7 +124,12 @@ export function EntityAddressForm({
       ) : null}
 
       {hideLocationSectionTitle ? (
-        <div className="space-y-4">{addressInputSection}</div>
+        <div className="space-y-4">
+          {addressInputSection}
+          {addressInlineExtras ? (
+            <div className="border-t pt-4">{addressInlineExtras}</div>
+          ) : null}
+        </div>
       ) : (
         <FormSectionCard
           title={locationSectionTitle}
@@ -125,6 +137,9 @@ export function EntityAddressForm({
           contentClassName="space-y-4"
         >
           {addressInputSection}
+          {addressInlineExtras ? (
+            <div className="border-t pt-4">{addressInlineExtras}</div>
+          ) : null}
         </FormSectionCard>
       )}
 

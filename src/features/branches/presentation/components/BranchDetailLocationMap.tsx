@@ -23,6 +23,12 @@ export interface BranchDetailLocationMapProps {
   readonly geolocationPending?: boolean;
   readonly editHref?: string;
   readonly canEdit?: boolean;
+  /** D5: address text shown below coordinates for cross-referencing with pin. */
+  readonly addressSummary?: {
+    readonly postalCode?: string | null;
+    readonly street?: string | null;
+    readonly neighborhood?: string | null;
+  };
 }
 
 function hasValidCoordinates(
@@ -40,12 +46,27 @@ function buildExternalMapUrl(latitude: number, longitude: number): string {
   return `https://www.google.com/maps?q=${latitude},${longitude}`;
 }
 
+function formatAddressSummaryLine(
+  addressSummary?: BranchDetailLocationMapProps["addressSummary"],
+): string | null {
+  if (!addressSummary) return null;
+  const parts: string[] = [];
+  const cp = (addressSummary.postalCode ?? "").trim();
+  if (cp) parts.push(`CP ${cp}`);
+  const street = (addressSummary.street ?? "").trim();
+  if (street) parts.push(street);
+  const neighborhood = (addressSummary.neighborhood ?? "").trim();
+  if (neighborhood) parts.push(neighborhood);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 export function BranchDetailLocationMap({
   latitude,
   longitude,
   geolocationPending = false,
   editHref,
   canEdit = false,
+  addressSummary,
 }: BranchDetailLocationMapProps) {
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const hasCoordinates = hasValidCoordinates(latitude, longitude);
@@ -93,6 +114,11 @@ export function BranchDetailLocationMap({
         </Badge>
       </div>
       <p className="font-mono text-xs text-muted-foreground">{coordsLabel}</p>
+      {formatAddressSummaryLine(addressSummary) ? (
+        <p className="text-xs text-muted-foreground">
+          {formatAddressSummaryLine(addressSummary)}
+        </p>
+      ) : null}
 
       {mapboxToken ? (
         <Suspense

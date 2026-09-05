@@ -23,6 +23,8 @@ import { useCreatePartner } from "../../application/hooks/useCreatePartner";
 export interface PartnerSnapshotPickerProps {
   disabled?: boolean;
   variant?: "remitente" | "destinatario";
+  /** CTA del botón; por defecto según `variant` (quién entrega / quién recibe). */
+  triggerLabel?: string;
   onPartnerApplied: (partner: Partner) => void;
   className?: string;
 }
@@ -30,6 +32,7 @@ export interface PartnerSnapshotPickerProps {
 export function PartnerSnapshotPicker({
   disabled,
   variant = "remitente",
+  triggerLabel,
   onPartnerApplied,
   className,
 }: PartnerSnapshotPickerProps) {
@@ -42,6 +45,10 @@ export function PartnerSnapshotPicker({
   const [draftLegalName, setDraftLegalName] = useState("");
   const [draftTaxId, setDraftTaxId] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+
+  const searchLabel =
+    variant === "remitente" ? "Buscar quien entrega" : "Buscar quien recibe";
+  const buttonLabel = triggerLabel ?? searchLabel;
 
   const handleApply = (p: Partner) => {
     onPartnerApplied(p);
@@ -71,16 +78,12 @@ export function PartnerSnapshotPicker({
           className={cn("gap-1.5", className)}
         >
           <Search className="h-3.5 w-3.5" />
-          Buscar empresa o persona
+          {buttonLabel}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[min(100vw-2rem,22rem)] space-y-3 p-3" align="start">
         <div className="space-y-1.5">
-          <Label className="text-xs">
-            {variant === "remitente"
-              ? "Buscar quien entrega"
-              : "Buscar quien recibe"}
-          </Label>
+          <Label className="text-xs">{searchLabel}</Label>
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

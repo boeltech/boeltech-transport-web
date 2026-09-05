@@ -17,6 +17,14 @@ vi.mock("@shared/ui/address-input/AddressGeolocationPanel", () => ({
   ),
 }));
 
+vi.mock("@shared/ui/location", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/ui/location")>();
+  return {
+    ...actual,
+    LocationField: () => <div data-testid="location-field-stub" />,
+  };
+});
+
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
@@ -97,6 +105,7 @@ describe("BranchForm wizard step validation", () => {
       </TooltipProvider>,
     );
 
+    expect(screen.getByTestId("location-field-stub")).toBeInTheDocument();
     expect(screen.getByTestId("address-input-stub")).toBeInTheDocument();
     expect(screen.getByTestId("address-geolocation-panel-stub")).toBeInTheDocument();
     expect(screen.getAllByText(/Ubicación en mapa/i).length).toBeGreaterThan(0);

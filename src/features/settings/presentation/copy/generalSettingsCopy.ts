@@ -74,6 +74,8 @@ export const generalSettingsCopy = {
       "Así aparece tu empresa en las facturas. El código postal para timbrar se elige en el lugar de expedición.",
     notice:
       "Domicilio de representación de tu empresa en facturas. El código postal para timbrar se define en el lugar de expedición.",
+    locationSearchLabel: "Buscar domicilio",
+    locationSearchPlaceholder: "Mapa o crear nueva…",
     emptyTitle: "Sin domicilio registrado",
     emptyDescription:
       "Captura el domicilio de tu empresa para poder facturar.",

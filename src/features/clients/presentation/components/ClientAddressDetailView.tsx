@@ -89,8 +89,8 @@ export function ClientAddressDetailView({
   const showActions = !readOnly && Boolean(onEdit && onDelete);
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
-      <header className="flex shrink-0 flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className={cn("flex flex-col", className)}>
+      <header className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <div
             className={cn(
@@ -201,8 +201,7 @@ export function ClientAddressDetailView({
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-5 pt-5 pr-1">
+      <div className="flex flex-col gap-5 pt-5">
           <section className="rounded-md border bg-card">
             <div className="px-4 py-3 border-b">
               <h4 className="text-sm font-medium">{copy.locationTitle}</h4>
@@ -319,7 +318,6 @@ export function ClientAddressDetailView({
               ) : null}
             </section>
           ) : null}
-        </div>
       </div>
     </div>
   );

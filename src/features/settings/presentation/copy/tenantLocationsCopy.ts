@@ -42,6 +42,8 @@ export const tenantLocationsCopy = {
     createTitle: "Nueva ubicación de la empresa",
     editTitle: "Editar ubicación de la empresa",
     hint: "Nombre, domicilio y datos operativos de este lugar. No es una dirección de cliente.",
+    locationSearchLabel: "Buscar ubicación",
+    locationSearchPlaceholder: "Mapa o crear nueva…",
   },
   delete: {
     title: "Eliminar ubicación",

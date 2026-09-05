@@ -51,6 +51,7 @@ import {
 } from "@shared/utils/formErrors";
 import { RegimenFiscalSelect } from "@features/catalogs";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
+import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import { FormValidationSummary } from "@shared/ui/form";
 import { Switch } from "@shared/ui/switch";
@@ -197,6 +198,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       billingSchemes.map((scheme) => ({
         value: scheme.id,
         label: scheme.name,
+        description: formatBillingSchemeCadenceSummary(scheme),
       })),
     [billingSchemes],
   );

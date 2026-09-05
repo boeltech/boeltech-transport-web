@@ -28,8 +28,11 @@ import type {
 } from "./AddressInput.types";
 import { addressInputContainerClass } from "./addressInputContainer";
 import { usePostalCodeLookup } from "./use-postal-code-lookup";
+import { filterOptionsByPostalCodePrefix, toShortSatCode } from "./satCatalogCodeUtils";
 import { useSatCatalogs } from "./use-sat-catalogs";
 import { AddressPreview } from "./AddressPreview";
+import { AddressCatalogOrManualField } from "./AddressCatalogOrManualField";
+import { satCatalogComboboxCopy } from "./satCatalogComboboxCopy";
 import {
   getCp31DomicilioUxRequirements,
   isCp31DomicilioReady,
@@ -47,12 +50,6 @@ const LAYOUT_CLASS: Record<AddressInputLayout, string> = {
 function getFieldPath(prefix: string, field: string): string {
   if (!prefix) return field;
   return `${prefix}.${field}`;
-}
-
-function toShortSatCode(value: string): string {
-  if (!value.includes("-")) return value;
-  const parts = value.split("-").filter(Boolean);
-  return parts[parts.length - 1] ?? value;
 }
 
 function resolveMunicipalityCatalogCode(
@@ -74,23 +71,15 @@ function resolveMunicipalityCatalogCode(
   return fromShort?.code ?? normalized;
 }
 
-function resolveCatalogCodeByShort(
-  rawValue: string,
-  options: Array<{ code: string }>,
-): string {
-  const normalized = rawValue.trim();
-  if (!normalized) return "";
-
-  const exact = options.find(
-    (option) => option.code.toUpperCase() === normalized.toUpperCase(),
-  );
-  if (exact) return exact.code;
-
-  const shortCode = toShortSatCode(normalized);
-  const fromShort = options.find(
-    (option) => toShortSatCode(option.code) === shortCode,
-  );
-  return fromShort?.code ?? normalized;
+/** One-shot read without subscribing (avoids re-render on free-text colonia/localidad). */
+function peekFieldValue<TFieldValues extends FieldValues>(
+  control: Control<TFieldValues>,
+  name: Path<TFieldValues>,
+): unknown {
+  const withWatch = control as Control<TFieldValues> & {
+    _getWatch: (names?: Path<TFieldValues> | Path<TFieldValues>[]) => unknown;
+  };
+  return withWatch._getWatch(name);
 }
 
 function useAddressField<TFieldValues extends FieldValues>(
@@ -132,13 +121,13 @@ function applySavedAddressWithSetValue<T extends FieldValues>(
   );
   setValue(
     p("satLocalityCode"),
-    toShortSatCode(String(sel.satLocalityCode ?? "")) as never,
+    String(sel.satLocalityCode ?? "") as never,
     APPLY_SAVED_OPTS,
   );
   setValue(p("localityName"), (sel.localityName ?? "") as never, APPLY_SAVED_OPTS);
   setValue(
     p("satNeighborhoodCode"),
-    toShortSatCode(String(sel.satNeighborhoodCode ?? "")) as never,
+    String(sel.satNeighborhoodCode ?? "") as never,
     APPLY_SAVED_OPTS,
   );
   setValue(p("neighborhoodName"), (sel.neighborhoodName ?? "") as never, APPLY_SAVED_OPTS);
@@ -478,11 +467,24 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   const countryField = useAddressField(props, "satCountryCode");
   const stateField = useAddressField(props, "satStateCode");
   const municipalityField = useAddressField(props, "satMunicipalityCode");
+  // Codes watched for readiness / cascade; free-text names live only in AddressCatalogOrManualField.
   const localityField = useAddressField(props, "satLocalityCode");
-  const localityNameField = useAddressField(props, "localityName");
   const neighborhoodField = useAddressField(props, "satNeighborhoodCode");
-  const neighborhoodNameField = useAddressField(props, "neighborhoodName");
   const isPrimaryField = useAddressField(props, "isPrimary");
+
+  const localityNamePath = getFieldPath(namePrefix, "localityName") as Path<TFieldValues>;
+  const neighborhoodNamePath = getFieldPath(
+    namePrefix,
+    "neighborhoodName",
+  ) as Path<TFieldValues>;
+
+  const writeNameField = useCallback(
+    (path: Path<TFieldValues>, value: string) => {
+      if (!setValue) return;
+      setValue(path, value as never, { shouldDirty: true });
+    },
+    [setValue],
+  );
 
   const addressTypePath = getFieldPath(namePrefix, "addressType") as Path<TFieldValues>;
   const watchedAddressType = useWatch({
@@ -538,27 +540,34 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   );
   const requireStreetFields = profileUx.requireStreetFields;
   const requiredMark = (required: boolean) => (required ? " *" : "");
-  const catalogNeighborhoodOptions = useMemo(
-    () =>
+  const catalogNeighborhoodOptions = useMemo(() => {
+    const raw =
       (postalLookup.data?.neighborhoods.length ?? 0) > 0
         ? postalLookup.data?.neighborhoods ?? []
         : neighborhoodsByPostalCode.map((item) => ({
             code: item.code,
             name: item.name,
-          })),
-    [postalLookup.data?.neighborhoods, neighborhoodsByPostalCode],
-  );
-  const lookupHasNeighborhoods = catalogNeighborhoodOptions.length > 0;
+          }));
+    const cp = String(postalCodeField.field.value ?? "").trim();
+    return filterOptionsByPostalCodePrefix(raw, cp);
+  }, [
+    neighborhoodsByPostalCode,
+    postalCodeField.field.value,
+    postalLookup.data?.neighborhoods,
+  ]);
   const hasPersistedNeighborhoodName = Boolean(
-    String(neighborhoodNameField.field.value ?? "").trim(),
+    String(peekFieldValue(control, neighborhoodNamePath) ?? "").trim(),
   );
   const hasPersistedNeighborhoodCode = Boolean(
     String(neighborhoodField.field.value ?? "").trim(),
   );
-  const lookupHasLocalities = (postalLookup.data?.localities.length ?? 0) > 0;
+  const catalogLocalityOptions = useMemo(
+    () => postalLookup.data?.localities ?? [],
+    [postalLookup.data?.localities],
+  );
   const hasMultipleNeighborhoods =
     catalogNeighborhoodOptions.length > 1;
-  const hasMultipleLocalities = (postalLookup.data?.localities.length ?? 0) > 1;
+  const hasMultipleLocalities = catalogLocalityOptions.length > 1;
 
   const addressReadyForMode = useMemo(
     () =>
@@ -587,10 +596,6 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
   const municipalityRawForDisplay = String(
     municipalityField.field.value ?? "",
   ).trim();
-  const localityRawForDisplay = String(localityField.field.value ?? "").trim();
-  const neighborhoodRawForDisplay = String(
-    neighborhoodField.field.value ?? "",
-  ).trim();
   const municipalityCatalogValue = useMemo(
     () =>
       resolveMunicipalityCatalogCode(
@@ -598,22 +603,6 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
         municipalities,
       ),
     [municipalityRawForDisplay, municipalities],
-  );
-  const localityCatalogValue = useMemo(
-    () =>
-      resolveCatalogCodeByShort(
-        localityRawForDisplay,
-        postalLookup.data?.localities ?? [],
-      ),
-    [localityRawForDisplay, postalLookup.data?.localities],
-  );
-  const neighborhoodCatalogValue = useMemo(
-    () =>
-      resolveCatalogCodeByShort(
-        neighborhoodRawForDisplay,
-        catalogNeighborhoodOptions,
-      ),
-    [catalogNeighborhoodOptions, neighborhoodRawForDisplay],
   );
 
   // Dirección ya persistida: marcar CP como aplicado para no pisar municipio/colonia al hidratar.
@@ -625,7 +614,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       Boolean(String(stateField.field.value ?? "").trim()) ||
       Boolean(String(municipalityField.field.value ?? "").trim()) ||
       Boolean(String(localityField.field.value ?? "").trim()) ||
-      Boolean(String(localityNameField.field.value ?? "").trim()) ||
+      Boolean(String(peekFieldValue(control, localityNamePath) ?? "").trim()) ||
       hasPersistedNeighborhoodCode ||
       hasPersistedNeighborhoodName;
 
@@ -633,13 +622,13 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       lastAppliedPostalCodeRef.current = cp;
     }
   }, [
+    control,
     hasPersistedNeighborhoodCode,
     hasPersistedNeighborhoodName,
     localityField.field.value,
-    localityNameField.field.value,
+    localityNamePath,
     municipalityField.field.value,
     neighborhoodField.field.value,
-    neighborhoodNameField.field.value,
     postalCodeField.field.value,
     stateField.field.value,
   ]);
@@ -653,7 +642,12 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     const municipalityEmpty = !String(municipalityField.field.value ?? "").trim();
     const localityEmpty = !String(localityField.field.value ?? "").trim();
     const neighborhoodEmpty = !String(neighborhoodField.field.value ?? "").trim();
-    const neighborhoodNameEmpty = !String(neighborhoodNameField.field.value ?? "").trim();
+    const neighborhoodNameEmpty = !String(
+      peekFieldValue(control, neighborhoodNamePath) ?? "",
+    ).trim();
+    const localityNameEmpty = !String(
+      peekFieldValue(control, localityNamePath) ?? "",
+    ).trim();
 
     if (data.stateCode && stateEmpty) {
       stateField.field.onChange(data.stateCode);
@@ -661,10 +655,9 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
     if (data.municipalityCode && municipalityEmpty) {
       municipalityField.field.onChange(toShortSatCode(data.municipalityCode));
     }
-    const localityNameEmpty = !String(localityNameField.field.value ?? "").trim();
     if (data.localities.length === 1 && localityEmpty && localityNameEmpty) {
-      localityField.field.onChange(toShortSatCode(data.localities[0]?.code ?? ""));
-      localityNameField.field.onChange(data.localities[0]?.name ?? "");
+      localityField.field.onChange(data.localities[0]?.code ?? "");
+      writeNameField(localityNamePath, data.localities[0]?.name ?? "");
     }
     if (
       data.neighborhoods.length === 1 &&
@@ -672,19 +665,21 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
       neighborhoodNameEmpty
     ) {
       neighborhoodField.field.onChange(data.neighborhoods[0]?.code ?? "");
-      neighborhoodNameField.field.onChange(data.neighborhoods[0]?.name ?? "");
+      writeNameField(neighborhoodNamePath, data.neighborhoods[0]?.name ?? "");
     }
 
     lastAppliedPostalCodeRef.current = data.postalCode;
   }, [
+    control,
     localityField.field,
-    localityNameField.field,
+    localityNamePath,
     municipalityField.field,
     neighborhoodField.field,
-    neighborhoodNameField.field,
+    neighborhoodNamePath,
     postalLookup.data,
     postalLookupFound,
     stateField.field,
+    writeNameField,
   ]);
 
   useEffect(() => {
@@ -727,8 +722,8 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               if (neighborhoodField.field.value) {
                 neighborhoodField.field.onChange("");
               }
-              if (neighborhoodNameField.field.value) {
-                neighborhoodNameField.field.onChange("");
+              if (String(peekFieldValue(control, neighborhoodNamePath) ?? "").trim()) {
+                writeNameField(neighborhoodNamePath, "");
               }
 
               const needsResetHierarchy =
@@ -740,6 +735,9 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
                 municipalityField.field.onChange("");
               }
               if (localityField.field.value) localityField.field.onChange("");
+              if (String(peekFieldValue(control, localityNamePath) ?? "").trim()) {
+                writeNameField(localityNamePath, "");
+              }
             }}
             onBlur={postalCodeField.field.onBlur}
             maxLength={5}
@@ -791,7 +789,8 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               municipalityField.field.onChange("");
               localityField.field.onChange("");
               neighborhoodField.field.onChange("");
-              neighborhoodNameField.field.onChange("");
+              writeNameField(localityNamePath, "");
+              writeNameField(neighborhoodNamePath, "");
             }}
             disabled={disabled}
           >
@@ -839,6 +838,7 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
               const shortMunicipalityCode = toShortSatCode(value);
               municipalityField.field.onChange(shortMunicipalityCode);
               localityField.field.onChange("");
+              writeNameField(localityNamePath, "");
             }}
             disabled={disabled || isLoadingMunicipalities}
           >
@@ -866,133 +866,44 @@ function AddressInputRoot<TFieldValues extends FieldValues = FieldValues>(
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-locality`}>
-            Localidad {requiredByMode.requireLocality ? "*" : ""}
-          </Label>
-          {lookupHasLocalities ? (
-            <Select
-              value={localityCatalogValue}
-              onValueChange={(value) => {
-                const selected = (postalLookup.data?.localities ?? []).find(
-                  (item) => item.code === value,
-                );
-                localityField.field.onChange(toShortSatCode(value));
-                localityNameField.field.onChange(selected?.name ?? "");
-              }}
-              disabled={disabled}
-            >
-              <SelectTrigger
-                id={`${props.namePrefix}-locality`}
-                error={Boolean(localityField.fieldState.error)}
-                {...getFieldErrorAriaProps(
-                  `${props.namePrefix}-locality`,
-                  localityField.fieldState.error?.message,
-                )}
-              >
-                <SelectValue placeholder="Selecciona localidad (catálogo SAT)" />
-              </SelectTrigger>
-              <SelectContent>
-                {(postalLookup.data?.localities ?? []).map((locality) => (
-                  <SelectItem key={locality.code} value={locality.code}>
-                    {locality.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          <Input
-            id={`${props.namePrefix}-locality-manual`}
-            value={String(localityNameField.field.value ?? "")}
-            onChange={(event) => {
-              localityNameField.field.onChange(event.target.value);
-              if (event.target.value.trim()) {
-                localityField.field.onChange("");
-              }
-            }}
-            disabled={disabled}
-            placeholder={
-              lookupHasLocalities
-                ? "O captura localidad manual"
-                : "Captura localidad manual"
-            }
-            error={Boolean(localityNameField.fieldState.error)}
-            {...getFieldErrorAriaProps(
-              `${props.namePrefix}-locality-manual`,
-              localityNameField.fieldState.error?.message,
-            )}
-          />
-          <FieldInlineError
-            fieldId={`${props.namePrefix}-locality`}
-            message={
-              localityField.fieldState.error?.message ??
-              localityNameField.fieldState.error?.message
-            }
-          />
-        </div>
+        <AddressCatalogOrManualField
+          control={control}
+          namePrefix={namePrefix}
+          codeFieldName="satLocalityCode"
+          nameFieldName="localityName"
+          options={catalogLocalityOptions}
+          label={satCatalogComboboxCopy.locality.label}
+          required={requiredByMode.requireLocality}
+          catalogPlaceholder={satCatalogComboboxCopy.locality.catalogPlaceholder}
+          catalogSearchPlaceholder={
+            satCatalogComboboxCopy.locality.catalogSearchPlaceholder
+          }
+          catalogEmptyText={satCatalogComboboxCopy.locality.catalogEmpty}
+          catalogAriaLabel={satCatalogComboboxCopy.locality.catalogAriaLabel}
+          disabled={disabled}
+        />
 
-        <div className="space-y-2">
-          <Label htmlFor={`${props.namePrefix}-neighborhood`}>
-            Colonia {requiredByMode.requireNeighborhood ? "*" : ""}
-          </Label>
-          {lookupHasNeighborhoods ? (
-            <Select
-              key={`${props.namePrefix}-neighborhood-${neighborhoodCatalogValue}-${catalogNeighborhoodOptions.length}-${isLoadingNeighborhoodsByPostalCode ? 1 : 0}`}
-              value={neighborhoodCatalogValue}
-              onValueChange={(value) => {
-                const selectedNeighborhood = catalogNeighborhoodOptions.find(
-                  (item) => item.code === value,
-                );
-                neighborhoodField.field.onChange(toShortSatCode(value));
-                neighborhoodNameField.field.onChange(selectedNeighborhood?.name ?? "");
-              }}
-              disabled={disabled || isLoadingNeighborhoodsByPostalCode}
-            >
-              <SelectTrigger
-                id={`${props.namePrefix}-neighborhood`}
-                error={Boolean(neighborhoodField.fieldState.error)}
-                {...getFieldErrorAriaProps(
-                  `${props.namePrefix}-neighborhood`,
-                  neighborhoodField.fieldState.error?.message,
-                )}
-              >
-                <SelectValue placeholder="Selecciona colonia (catálogo SAT)" />
-              </SelectTrigger>
-              <SelectContent>
-                {catalogNeighborhoodOptions.map((neighborhood) => (
-                  <SelectItem key={neighborhood.code} value={neighborhood.code}>
-                    {neighborhood.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          <Input
-            id={`${props.namePrefix}-neighborhood-manual`}
-            value={String(neighborhoodNameField.field.value ?? "")}
-            onChange={(event) => {
-              neighborhoodNameField.field.onChange(event.target.value);
-              if (event.target.value.trim()) {
-                neighborhoodField.field.onChange("");
-              }
-            }}
-            disabled={disabled}
-            placeholder={
-              lookupHasNeighborhoods
-                ? "O captura colonia manual"
-                : "Captura colonia manual"
-            }
-            error={Boolean(neighborhoodNameField.fieldState.error)}
-            {...getFieldErrorAriaProps(
-              `${props.namePrefix}-neighborhood-manual`,
-              neighborhoodNameField.fieldState.error?.message,
-            )}
-          />
-          <FieldInlineError
-            fieldId={`${props.namePrefix}-neighborhood`}
-            message={neighborhoodNameField.fieldState.error?.message}
-          />
-        </div>
+        <AddressCatalogOrManualField
+          control={control}
+          namePrefix={namePrefix}
+          codeFieldName="satNeighborhoodCode"
+          nameFieldName="neighborhoodName"
+          options={catalogNeighborhoodOptions}
+          label={satCatalogComboboxCopy.neighborhood.label}
+          required={requiredByMode.requireNeighborhood}
+          catalogPlaceholder={
+            satCatalogComboboxCopy.neighborhood.catalogPlaceholder
+          }
+          catalogSearchPlaceholder={
+            satCatalogComboboxCopy.neighborhood.catalogSearchPlaceholder
+          }
+          catalogEmptyText={satCatalogComboboxCopy.neighborhood.catalogEmpty}
+          catalogAriaLabel={satCatalogComboboxCopy.neighborhood.catalogAriaLabel}
+          disabled={disabled}
+          loading={isLoadingNeighborhoodsByPostalCode}
+          preferNameError
+          postalCode={String(postalCodeField.field.value ?? "").trim()}
+        />
         </div>
 
         <MemoAddressStreetFields

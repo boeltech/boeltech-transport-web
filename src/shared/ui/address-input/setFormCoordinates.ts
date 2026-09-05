@@ -16,7 +16,7 @@ import type {
 export function setFormCoordinates<TFieldValues extends FieldValues>(
   setValue: UseFormSetValue<TFieldValues>,
   trigger: UseFormTrigger<TFieldValues>,
-  coords: { latitude: number; longitude: number },
+  coords: { latitude: number | null; longitude: number | null },
   namePrefix?: string,
 ): Promise<boolean> {
   const latName = (namePrefix

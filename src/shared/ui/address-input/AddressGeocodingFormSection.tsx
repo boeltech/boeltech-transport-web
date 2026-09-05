@@ -9,11 +9,12 @@ import type { GeolocationDensity } from "./geolocationUxStatus";
 
 export const GEOCODING_SECTION_ID = "geographic-confirmation";
 
+/** @deprecated Preferir título «(opcional)» + tip contextual del panel (D1/D2). */
 export const GEOCODING_OPTIONAL_HINT =
   "Opcional. Usa «Ubicar en el mapa» para confirmar el punto a partir del domicilio.";
 
 export const GEOCODING_REQUIRED_HINT =
-  "Usa «Ubicar en el mapa» para confirmar el punto. Es necesario para kilómetros entre paradas y el seguimiento del viaje.";
+  "Necesario para kilómetros entre paradas y el seguimiento del viaje.";
 
 export type AddressGeocodingPanelAddress = AddressGeolocationPanelProps["address"];
 
@@ -42,11 +43,14 @@ export interface AddressGeocodingSectionContentProps {
   distanceFromPreviousKm?: number | null;
   onDistanceChange?: AddressGeolocationPanelProps["onDistanceChange"];
   onDistanceMetaChange?: AddressGeolocationPanelProps["onDistanceMetaChange"];
-  /** Override del hint; por defecto opcional u obligatorio según `required`. */
+  /** Override del hint; por defecto solo en contextos requeridos (D2). */
   required?: boolean;
-  hint?: string;
+  /** `null` oculta el hint; `undefined` usa el default según `required`. */
+  hint?: string | null;
   /** compact en sheets angostos; comfortable en páginas. */
   density?: GeolocationDensity;
+  /** Ubicación obligatoria: mapa siempre visible + chip de ubicar (D6/D7). */
+  geolocationRequired?: boolean;
 }
 
 export function AddressGeocodingSectionTitle({
@@ -81,13 +85,18 @@ export function AddressGeocodingSectionContent({
   required = false,
   hint,
   density = "comfortable",
+  geolocationRequired = false,
 }: AddressGeocodingSectionContentProps) {
   const resolvedHint =
-    hint ?? (required ? GEOCODING_REQUIRED_HINT : GEOCODING_OPTIONAL_HINT);
+    hint === null
+      ? null
+      : (hint ?? (required ? GEOCODING_REQUIRED_HINT : null));
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">{resolvedHint}</p>
+      {resolvedHint ? (
+        <p className="text-sm text-muted-foreground">{resolvedHint}</p>
+      ) : null}
       {latitudeError ? (
         <FieldInlineError fieldId="geolocation-coordinates" message={latitudeError} />
       ) : null}
@@ -108,6 +117,7 @@ export function AddressGeocodingSectionContent({
         disabled={disabled}
         coordinatesDisabled={coordinatesDisabled}
         distanceDisabled={distanceDisabled}
+        required={geolocationRequired || required}
       />
     </>
   );

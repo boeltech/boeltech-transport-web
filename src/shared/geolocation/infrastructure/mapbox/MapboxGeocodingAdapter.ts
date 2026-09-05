@@ -7,6 +7,7 @@ import type {
   GeocodingProvider,
   GeocodeOutcome,
   GeocodeQuery,
+  GeocodeQueryMeta,
   GeocodeResult,
   GeocodingCandidate,
   GeoFailure,
@@ -20,12 +21,26 @@ interface GeocodeCandidateApi {
   };
   readonly relevance?: number | null;
   readonly rawPlaceId?: string;
+  readonly featureTypes?: string[];
+  readonly region?: string | null;
+  readonly place?: string | null;
+  readonly district?: string | null;
+  readonly neighborhood?: string | null;
+  readonly postalCode?: string | null;
+}
+
+interface GeocodeQueryMetaApi {
+  readonly detectedPostalCode?: string | null;
+  readonly normalizedQuery?: string;
+  readonly biasApplied?: GeocodeQueryMeta["biasApplied"];
+  readonly searchConfidence?: GeocodeQueryMeta["searchConfidence"];
 }
 
 interface GeocodeResultApi {
   readonly provider: "mapbox";
   readonly candidates: GeocodeCandidateApi[];
   readonly requestedAt: string;
+  readonly queryMeta?: GeocodeQueryMetaApi | null;
 }
 
 function mapGeocodingCandidate(
@@ -39,6 +54,12 @@ function mapGeocodingCandidate(
     },
     relevance: candidate.relevance ?? null,
     rawPlaceId: candidate.rawPlaceId,
+    featureTypes: candidate.featureTypes,
+    region: candidate.region ?? null,
+    place: candidate.place ?? null,
+    district: candidate.district ?? null,
+    neighborhood: candidate.neighborhood ?? null,
+    postalCode: candidate.postalCode ?? null,
   };
 }
 
@@ -96,10 +117,21 @@ export class MapboxGeocodingAdapter implements GeocodingProvider {
         query,
       );
       const result = mapSingleResponse(raw);
+      const meta = result.data.queryMeta;
+      const queryMeta: GeocodeQueryMeta | undefined =
+        meta && typeof meta === "object"
+          ? {
+              detectedPostalCode: meta.detectedPostalCode ?? null,
+              normalizedQuery: meta.normalizedQuery ?? query.query,
+              biasApplied: meta.biasApplied ?? "none",
+              searchConfidence: meta.searchConfidence ?? "medium",
+            }
+          : undefined;
       const mapped: GeocodeResult = {
         provider: "mapbox",
         candidates: (result.data.candidates ?? []).map(mapGeocodingCandidate),
         requestedAt: result.data.requestedAt,
+        ...(queryMeta ? { queryMeta } : {}),
       };
       return { ok: true, data: mapped };
     } catch (error) {

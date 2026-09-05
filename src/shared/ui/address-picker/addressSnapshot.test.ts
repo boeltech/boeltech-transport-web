@@ -18,6 +18,7 @@ const baseItem: AddressSearchListItem = {
   satNeighborhoodCode: "0001",
   latitude: 25.5,
   longitude: -100.2,
+  geocodingAccuracy: "approximate",
   geolocationPending: false,
   isPrimary: false,
   isActive: true,

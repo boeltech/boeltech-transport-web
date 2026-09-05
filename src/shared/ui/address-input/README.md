@@ -21,6 +21,8 @@ SoT obligatoriedad XSD: `src/shared/validation/cp31DomicilioUx.ts` + `@boeltech/
 ## Ubicación
 
 - `AddressInput.tsx`
+- `AddressCatalogOrManualField.tsx` — colonia/localidad (Combobox unificado)
+- `SatCatalogCombobox.tsx` — Combobox sync buscable + texto libre opcional
 - `AddressInput.types.ts`
 - `AddressPreview.tsx`
 - `use-postal-code-lookup.ts`
@@ -33,10 +35,11 @@ SoT obligatoriedad XSD: `src/shared/validation/cp31DomicilioUx.ts` + `@boeltech/
    - Dispara lookup `GET /catalogs/sat/by-postal-code/:cp`.
    - Autocompleta estado y municipio cuando hay match.
    - Carga localidad/colonia candidatas.
-2. **Colonia**
-   - Prioridad 1: colonias del lookup por CP.
-   - Prioridad 2: catálogo `sat_colonia` por `parent_code=postalCode`.
-   - Prioridad 3: captura manual (`neighborhoodName`) si no hay opciones SAT.
+2. **Colonia / Localidad**
+   - Prioridad 1: opciones del lookup por CP (Combobox buscable, filtro local).
+   - Prioridad 2 (colonia): catálogo `sat_colonia` por `parent_code=postalCode`.
+   - Prioridad 3: texto libre en el **mismo** Combobox («Usar “{query}” como texto libre») → `neighborhoodName` / `localityName` con código SAT vacío.
+   - Sin Input manual hermano; sin catálogo el Combobox sigue permitiendo capturar solo texto libre.
 3. **Cambio de estado**
    - Limpia municipio, localidad y colonia para evitar inconsistencias.
 4. **Cambio de CP**

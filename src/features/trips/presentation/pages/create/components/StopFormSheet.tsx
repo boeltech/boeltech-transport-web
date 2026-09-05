@@ -41,7 +41,6 @@ import {
   AddressGeocodingSectionContent,
   AddressGeocodingSectionTitle,
   EntityAddressForm,
-  GEOCODING_SECTION_ID,
   resolveGeolocationPanelMode,
   setFormCoordinates,
   type EntityAddressFormSection,
@@ -93,6 +92,10 @@ import { useActiveClients } from "@features/clients/application/hooks/useClients
 import { useClientAddress } from "@features/clients/application/hooks/useClientAddresses";
 import { useUpdateClientAddress } from "@features/clients/application/hooks/useUpdateClientAddress";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import {
+  synthesizeSearchItemFromLocationValue,
+  type LocationValue,
+} from "@shared/ui/location";
 import { ownerTypesForRouteSlot } from "@features/trips/presentation/components/trip-route/routeAddressPickerOwnerTypes";
 
 import type { TripStopFormValues } from "./validation";
@@ -107,6 +110,7 @@ import {
   resolveRemitenteFiscalFromClientAddress,
   addressSearchItemToDialogSlice,
   applyAddressPickerClearSlice,
+  locationValueToDialogSlice,
   buildStopPrefillRefFromSearchItem,
   clientAddressCatalogHydrationSlice,
   shouldShowPrefillMissingGeolocationNotice,
@@ -530,6 +534,19 @@ export function StopFormSheet({
     [applyDialogSlice, getValues, setValue],
   );
 
+  const handleLocationDraft = useCallback(
+    (value: LocationValue) => {
+      hasInitializedFiscalModeRef.current = false;
+      lastSyncedCatalogIdRef.current = null;
+      // Keep card display via synthetic item; no catalog FK / write-back ref.
+      setSelectedPrefillItem(synthesizeSearchItemFromLocationValue(value));
+      setPrefillCatalogRef(null);
+      setUseAddressFiscalData(false);
+      applyDialogSlice(locationValueToDialogSlice(value));
+    },
+    [applyDialogSlice],
+  );
+
   const handlePrefillClear = useCallback(() => {
     setSelectedPrefillItem(null);
     setPrefillCatalogRef(null);
@@ -765,7 +782,10 @@ export function StopFormSheet({
       return missing;
     }
 
-    if (d.stopCategory === "waypoint" && (!d.stopType || d.stopType.length === 0)) {
+    if (
+      d.stopCategory === "waypoint" &&
+      !(d.stopType?.includes("pickup") || d.stopType?.includes("delivery"))
+    ) {
       missing.push(stopForm.validation.waypointOperation);
     }
 
@@ -935,6 +955,8 @@ export function StopFormSheet({
         return stopForm.section.counterparty.waypointDelivery;
       case "waypoint_pickup_and_delivery":
         return stopForm.section.counterparty.waypointBoth;
+      case "waypoint_pending_operation":
+        return stopForm.section.counterparty.waypointPending;
       default:
         return stopForm.section.counterparty.fallback;
     }
@@ -1048,36 +1070,38 @@ export function StopFormSheet({
     },
   ];
 
-  const postAddressSections: EntityAddressFormSection[] = [
-    {
-      id: GEOCODING_SECTION_ID,
-      title: <AddressGeocodingSectionTitle required />,
-      icon: <MapPin className="h-4 w-4" />,
-      contentClassName: "space-y-4",
-      content: (
-        <AddressGeocodingSectionContent
-          required
-          density="compact"
-          address={{
-            locationName: displayStop.locationName,
-            street: displayStop.street,
-            exteriorNumber: displayStop.exteriorNumber,
-            interiorNumber: displayStop.interiorNumber,
-            postalCode: displayStop.postalCode,
-            satMunicipalityCode: displayStop.satMunicipalityCode,
-            satStateCode: displayStop.satStateCode,
-            satCountryCode: displayStop.satCountryCode,
-          }}
-          latitude={displayStop.latitude}
-          longitude={displayStop.longitude}
-          onCoordinatesChange={(coords) => {
-            void setFormCoordinates(setValue, trigger, coords);
-          }}
-          panelMode={geolocationPanelMode}
-        />
-      ),
-    },
-  ];
+  const stopGeoInlineExtras = (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm font-medium">
+          <AddressGeocodingSectionTitle required />
+        </p>
+      </div>
+      <AddressGeocodingSectionContent
+        required
+        geolocationRequired
+        density="compact"
+        address={{
+          locationName: displayStop.locationName,
+          street: displayStop.street,
+          exteriorNumber: displayStop.exteriorNumber,
+          interiorNumber: displayStop.interiorNumber,
+          postalCode: displayStop.postalCode,
+          satMunicipalityCode: displayStop.satMunicipalityCode,
+          satStateCode: displayStop.satStateCode,
+          satCountryCode: displayStop.satCountryCode,
+        }}
+        latitude={displayStop.latitude}
+        longitude={displayStop.longitude}
+        onCoordinatesChange={(coords) => {
+          void setFormCoordinates(setValue, trigger, coords);
+        }}
+        panelMode={geolocationPanelMode}
+      />
+    </div>
+  );
+
+  const postAddressSections: EntityAddressFormSection[] = [];
 
   const entityAddressForm = (
     <EntityAddressForm
@@ -1104,6 +1128,7 @@ export function StopFormSheet({
           hideInformativeAlerts={hasAddressPrefill}
         />
       }
+      addressInlineExtras={stopGeoInlineExtras}
       postAddressSections={postAddressSections}
     />
   );
@@ -1123,8 +1148,14 @@ export function StopFormSheet({
           <StopFormSheetAddressOriginSection
             selectedPrefill={selectedPrefillItem}
             onPrefillSelect={handlePrefillSelect}
+            onLocationDraft={handleLocationDraft}
             onPrefillClear={handlePrefillClear}
             defaultOwnerTypes={defaultOwnerTypes}
+            clientId={
+              tripContractingClientId && tripContractingClientId !== "no-client"
+                ? tripContractingClientId
+                : clientId || null
+            }
           />
 
           {isBranchOriginPrefill ? (
@@ -1189,7 +1220,16 @@ export function StopFormSheet({
               <div className="space-y-4">
                 <PartnerSnapshotPicker
                   disabled={isFiscalDataLocked}
-                  variant="remitente"
+                  variant={
+                    displayStop.stopCategory === "destination"
+                      ? "destinatario"
+                      : "remitente"
+                  }
+                  triggerLabel={
+                    displayStop.stopCategory === "destination"
+                      ? stopForm.label.searchWhoReceives
+                      : stopForm.label.searchWhoDelivers
+                  }
                   onPartnerApplied={(p) => {
                     setValue("remitentePartnerId", p.id, {
                       shouldDirty: true,
@@ -1269,13 +1309,23 @@ export function StopFormSheet({
                   </CollapsibleContent>
                 </Collapsible>
               </div>
+            ) : !waypointHasPickup && !waypointHasDelivery ? (
+              <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                {stopForm.hint.counterpartyNeedsOperation}
+              </p>
             ) : (
               <div className="space-y-4">
                 {waypointHasPickup ? (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    {waypointHasDelivery ? (
+                      <p className="text-sm font-medium">
+                        {stopForm.label.roleDelivers}
+                      </p>
+                    ) : null}
                     <PartnerSnapshotPicker
                       disabled={isFiscalDataLocked}
                       variant="remitente"
+                      triggerLabel={stopForm.label.searchWhoDelivers}
                       onPartnerApplied={(p) => {
                         setValue("remitentePartnerId", p.id, {
                           shouldDirty: true,
@@ -1295,10 +1345,16 @@ export function StopFormSheet({
                 ) : null}
 
                 {waypointHasDelivery ? (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    {waypointHasPickup ? (
+                      <p className="text-sm font-medium">
+                        {stopForm.label.roleReceives}
+                      </p>
+                    ) : null}
                     <PartnerSnapshotPicker
                       disabled={waypointHasPickup ? false : isFiscalDataLocked}
                       variant="destinatario"
+                      triggerLabel={stopForm.label.searchWhoReceives}
                       onPartnerApplied={(p) => {
                         if (waypointHasPickup) {
                           setValue("destinatarioPartnerId", p.id, {

@@ -343,3 +343,20 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Reglas de impresión: solo aíslan el diálogo cuando la clase activadora está presente en el body,
+ * evitando que Ctrl+P en cualquier otra pantalla del ERP oculte el contenido global. */
+@media print {
+  body.print-receipt-active > *:not([data-radix-popper-content-wrapper]):not([role="dialog"]):not([data-state="open"]) {
+    display: none !important;
+  }
+  body.print-receipt-active [role="dialog"] {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

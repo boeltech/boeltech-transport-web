@@ -152,6 +152,7 @@ export const routeCopy = {
         waypointPickup: "2. Quién entrega aquí",
         waypointDelivery: "2. Quién recibe aquí",
         waypointBoth: "2. Quién entrega y quién recibe",
+        waypointPending: "2. Quién entrega o recibe",
         fallback: "2. Quién entrega o recibe",
       },
       contactPlanning: "3. Contacto y horario",
@@ -168,6 +169,10 @@ export const routeCopy = {
       estimatedArrivalDestination: "Hora estimada de llegada",
       estimatedArrivalWaypoint: "Hora estimada en esta escala",
       searchCounterparty: "Buscar empresa o persona",
+      searchWhoDelivers: "Buscar quien entrega",
+      searchWhoReceives: "Buscar quien recibe",
+      roleDelivers: "Quién entrega",
+      roleReceives: "Quién recibe",
     },
     placeholder: {
       locationName: "Ej: Bodega Central, CEDIS Norte, Planta Monterrey…",
@@ -182,6 +187,8 @@ export const routeCopy = {
         "Opcional al armar la ruta. Se pide al timbrar o iniciar.",
       billingCollapsedErrors:
         "Faltan RFC o razón social de esta parada. Ábrelos para completarlos.",
+      counterpartyNeedsOperation:
+        "Elige arriba si aquí se carga, se entrega o ambas.",
     },
     alert: {
       missingGeolocationTitle: "Falta ubicar esta dirección en el mapa",
@@ -233,7 +240,7 @@ export const routeCopy = {
       title: "Dirección guardada",
       description:
         "Se listan lugares de viaje del cliente (bodega, entrega o recolección), sucursal en origen y directorio. El domicilio fiscal de facturación no aparece aquí.",
-      pickerLabel: "Buscar dirección existente",
+      pickerLabel: "Buscar ubicación",
       pickerPlaceholder: "Nombre, calle o código postal…",
     },
   },

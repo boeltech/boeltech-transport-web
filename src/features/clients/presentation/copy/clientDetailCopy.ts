@@ -139,6 +139,14 @@ export const clientDetailCopy = {
     emptyDescription:
       "Agrega el domicilio para facturar y, si aplica, bodegas o puntos de viaje.",
     emptyCta: "Agregar primera dirección",
+    listErrorTitle: "No se pudieron cargar las direcciones",
+    listErrorDescription:
+      "Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, contacta a soporte.",
+    listErrorRetry: "Reintentar",
+    detailErrorTitle: "No se pudo cargar esta dirección",
+    detailErrorDescription:
+      "Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, contacta a soporte.",
+    detailErrorRetry: "Reintentar",
     emptyHints: {
       fiscal:
         "Registra al menos un domicilio para facturar con código postal.",
@@ -148,6 +156,8 @@ export const clientDetailCopy = {
     creatingHintTitle: "Nueva dirección",
     creatingHintBody: "Completa el formulario a la derecha para guardarla.",
     locationTitle: "Ubicación",
+    locationSearchLabel: "Buscar ubicación",
+    locationSearchPlaceholder: "Mapa o crear nueva…",
     street: "Calle",
     neighborhoodPostal: "Colonia / CP",
     state: "Estado",
@@ -172,6 +182,11 @@ export const clientDetailCopy = {
     setPrimary: "Marcar principal",
     edit: "Editar",
     delete: "Eliminar",
+    deleteTitle: "¿Eliminar dirección?",
+    deleteDescription: (name: string) =>
+      `La dirección ${name} se desactivará y dejará de aparecer en la lista.`,
+    deleteConfirm: "Eliminar",
+    deleting: "Eliminando…",
     primary: "Principal",
     inactive: "Inactiva",
     catalogLoading: "Cargando…",
@@ -182,6 +197,8 @@ export const clientDetailCopy = {
     mobileFormOpen: "Formulario abierto en panel inferior.",
     sheetDescription: "Los cambios se guardan al confirmar esta acción.",
     saving: "Guardando…",
+    contactSectionTitle: "Contacto en esta ubicación",
+    notesSectionTitle: "Notas e instrucciones",
   },
   history: {
     tab: "Viajes",

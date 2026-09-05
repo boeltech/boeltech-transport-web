@@ -3,14 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import * as addressSearchApi from "@shared/ui/address-picker/addressSearchApi";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import { LOCATION_FIELD_COPY } from "@shared/ui/location";
 
 import { StopFormSheetAddressOriginSection } from "./StopFormSheetAddressOriginSection";
-
-vi.mock("@shared/ui/address-picker/addressSearchApi", () => ({
-  searchAddresses: vi.fn(),
-}));
 
 const partnerItem: AddressSearchListItem = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -28,13 +24,54 @@ const partnerItem: AddressSearchListItem = {
   satNeighborhoodCode: "0001",
   latitude: 25.78,
   longitude: -100.18,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,
   isCartaPorteReady: true,
 };
 
-function renderSection(onPrefillSelect = vi.fn()) {
+vi.mock("@shared/ui/location/useLocationSearch", () => ({
+  useLocationSearch: () => ({
+    results: [
+      {
+        id: `internal:${partnerItem.id}`,
+        source: "internal",
+        label: "Bodega Apodaca",
+        description: "Transportes Norte",
+        internal: partnerItem,
+      },
+      {
+        id: "__location_create__",
+        source: "create",
+        label: LOCATION_FIELD_COPY.createNew,
+      },
+    ],
+    isLoading: false,
+    isFetching: false,
+    internalError: null,
+    mapboxError: null,
+  }),
+  MAPBOX_MIN_QUERY_LENGTH: 3,
+}));
+
+vi.mock("@shared/ui/location/LocationSheet", () => ({
+  LocationSheet: () => null,
+}));
+
+vi.mock("@shared/geolocation/addressResolver", () => ({
+  resolveMapboxToSat: vi.fn(async () => ({
+    resolved: {},
+    confidence: "high",
+    ambiguities: [],
+    mapboxLabel: "",
+  })),
+}));
+
+function renderSection(
+  onPrefillSelect = vi.fn(),
+  onLocationDraft = vi.fn(),
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -44,6 +81,7 @@ function renderSection(onPrefillSelect = vi.fn()) {
       <StopFormSheetAddressOriginSection
         selectedPrefill={null}
         onPrefillSelect={onPrefillSelect}
+        onLocationDraft={onLocationDraft}
         onPrefillClear={vi.fn()}
       />
     </QueryClientProvider>,
@@ -53,17 +91,18 @@ function renderSection(onPrefillSelect = vi.fn()) {
 describe("StopFormSheetAddressOriginSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(addressSearchApi.searchAddresses).mockResolvedValue({
-      data: [partnerItem],
-      pagination: { limit: 20, nextCursor: null, hasMore: false },
-    });
+    // cmdk desplaza el item activo; jsdom no implementa scrollIntoView.
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it("renderiza AddressPicker con copy de origen", () => {
+  it("renderiza LocationField con copy de origen", () => {
     renderSection();
 
     expect(screen.getByText("Dirección guardada")).toBeInTheDocument();
-    expect(screen.getByText("Buscar dirección existente")).toBeInTheDocument();
+    expect(screen.getByText("Buscar ubicación")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox"),
+    ).toHaveTextContent("Nombre, calle o código postal…");
   });
 
   it("propaga selección de partner al callback", async () => {

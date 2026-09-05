@@ -24,7 +24,18 @@ describe("resolveGeolocationUxStatus", () => {
     ).toBe("pick");
   });
 
-  it("confirms when coordinates exist and no pending pick", () => {
+  it("keeps confirmed when pin exists even if multi-candidate selection cleared", () => {
+    expect(
+      resolveGeolocationUxStatus({
+        isGeocoding: false,
+        candidateCount: 2,
+        selectedCandidateValue: "",
+        hasCoordinates: true,
+      }),
+    ).toBe("confirmed");
+  });
+
+  it("confirms when coordinates exist and no CP warning", () => {
     expect(
       resolveGeolocationUxStatus({
         isGeocoding: false,
@@ -35,13 +46,49 @@ describe("resolveGeolocationUxStatus", () => {
     ).toBe("confirmed");
   });
 
-  it("is empty without coordinates or pending search", () => {
+  it("returns pending_confirmation when coordinates exist but CP warning active", () => {
+    expect(
+      resolveGeolocationUxStatus({
+        isGeocoding: false,
+        candidateCount: 0,
+        selectedCandidateValue: "",
+        hasCoordinates: true,
+        hasCpWarning: true,
+      }),
+    ).toBe("pending_confirmation");
+  });
+
+  it("returns ready_to_locate when address has minimal data but no coords", () => {
     expect(
       resolveGeolocationUxStatus({
         isGeocoding: false,
         candidateCount: 0,
         selectedCandidateValue: "",
         hasCoordinates: false,
+        hasMinimalAddressData: true,
+      }),
+    ).toBe("ready_to_locate");
+  });
+
+  it("is empty without coordinates or minimal address data", () => {
+    expect(
+      resolveGeolocationUxStatus({
+        isGeocoding: false,
+        candidateCount: 0,
+        selectedCandidateValue: "",
+        hasCoordinates: false,
+      }),
+    ).toBe("empty");
+  });
+
+  it("is empty when hasMinimalAddressData is false", () => {
+    expect(
+      resolveGeolocationUxStatus({
+        isGeocoding: false,
+        candidateCount: 0,
+        selectedCandidateValue: "",
+        hasCoordinates: false,
+        hasMinimalAddressData: false,
       }),
     ).toBe("empty");
   });

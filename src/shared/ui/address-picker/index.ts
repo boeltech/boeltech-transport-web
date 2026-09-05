@@ -22,5 +22,6 @@ export type {
   AddressSearchPage,
   AddressSearchAddressType,
   AddressSnapshotFields,
+  GeocodingAccuracy,
   SearchableOwnerType,
 } from "./types";

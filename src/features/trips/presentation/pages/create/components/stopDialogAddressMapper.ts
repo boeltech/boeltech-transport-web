@@ -7,6 +7,7 @@
 import type { ClientAddress } from "@features/clients/domain/entities";
 import { toAddressSnapshot } from "@shared/ui/address-picker/addressSnapshot";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import type { LocationValue } from "@shared/ui/location";
 import type { TripStopFormValues } from "./validation";
 
 /** Fuente de catálogo para write-back o hidratación (ADR-0053 snapshot — sin FK en form). */
@@ -207,6 +208,56 @@ export function addressSearchItemToDialogSlice(
     nombreRemitenteDestinatario: item.remitenteName ?? "",
     destinatarioRfc: item.destinatarioRfc ?? "",
     destinatarioNombre: item.destinatarioName ?? "",
+    deliveryRfcRemitenteDestinatario: "",
+    deliveryNombreRemitenteDestinatario: "",
+    remitentePartnerId: "",
+    destinatarioPartnerId: "",
+  };
+}
+
+/** Snapshot SAT/geo desde LocationField (mapbox/create) — sin FK a la fuente. */
+export function locationValueToDialogSlice(
+  value: LocationValue,
+): Partial<StopDialogFormValues> {
+  return {
+    addressId: "",
+    clientAddressId:
+      value.sourceOwnerType === "client" && value.sourceAddressId
+        ? value.sourceAddressId
+        : "",
+    sourceAddressId: value.sourceAddressId ?? "",
+    clientId:
+      value.sourceOwnerType === "client" && value.sourceOwnerId
+        ? value.sourceOwnerId
+        : "",
+    locationName: value.locationName?.trim() || "",
+    addressType: "trip_stop",
+    isPrimary: false,
+    street: value.street ?? "",
+    exteriorNumber: value.exteriorNumber ?? "",
+    interiorNumber: value.interiorNumber ?? null,
+    reference: value.reference ?? null,
+    postalCode: value.postalCode ?? "",
+    satCountryCode: value.satCountryCode || "MEX",
+    satStateCode: value.satStateCode ?? "",
+    satMunicipalityCode: shortSatCode(value.satMunicipalityCode ?? undefined),
+    satLocalityCode: value.satLocalityCode
+      ? shortSatCode(value.satLocalityCode)
+      : null,
+    localityName: value.localityName ?? null,
+    satNeighborhoodCode: value.satNeighborhoodCode
+      ? shortSatCode(value.satNeighborhoodCode)
+      : null,
+    neighborhoodName: value.neighborhoodName ?? null,
+    latitude: value.latitude ?? null,
+    longitude: value.longitude ?? null,
+    cityName: "",
+    contactName: "",
+    contactPhone: "",
+    rfcRemitenteDestinatario: value.remitenteRfc ?? "",
+    nombreRemitenteDestinatario: value.remitenteName ?? "",
+    destinatarioRfc: value.destinatarioRfc ?? "",
+    destinatarioNombre: value.destinatarioName ?? "",
     deliveryRfcRemitenteDestinatario: "",
     deliveryNombreRemitenteDestinatario: "",
     remitentePartnerId: "",

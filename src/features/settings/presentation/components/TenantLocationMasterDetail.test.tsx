@@ -76,7 +76,16 @@ vi.mock(
 );
 
 vi.mock("@features/clients/presentation/components/ClientAddressForm", () => ({
-  ClientAddressForm: () => <div data-testid="tenant-location-form" />,
+  ClientAddressForm: ({
+    locationOwnerTypes,
+  }: {
+    locationOwnerTypes?: string[];
+  }) => (
+    <div
+      data-testid="tenant-location-form"
+      data-owner-types={(locationOwnerTypes ?? []).join(",")}
+    />
+  ),
 }));
 
 describe("TenantLocationMasterDetail", () => {
@@ -101,6 +110,10 @@ describe("TenantLocationMasterDetail", () => {
       screen.getByText(tenantLocationsCopy.form.editTitle),
     ).toBeInTheDocument();
     expect(screen.getByTestId("tenant-location-form")).toBeInTheDocument();
+    expect(screen.getByTestId("tenant-location-form")).toHaveAttribute(
+      "data-owner-types",
+      "tenant",
+    );
     expect(
       screen.queryByText(tenantLocationsCopy.list.emptyTitle),
     ).not.toBeInTheDocument();

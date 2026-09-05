@@ -87,8 +87,9 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
     city:
       stop.cityName?.trim() ||
       stop.locationName?.trim() ||
-      stop.satMunicipalityCode ||
-      "",
+      stop.satMunicipalityCode?.trim() ||
+      (stop.satStateCode?.trim() ? `Estado ${stop.satStateCode.trim()}` : "") ||
+      "Ubicación",
     state: stop.satStateCode || "",
   };
 }

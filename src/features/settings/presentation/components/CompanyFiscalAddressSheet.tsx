@@ -8,8 +8,14 @@
  * Reglas SAT: única pasada por `@boeltech/cfdi-domain` al guardar (ADR-0043).
  */
 
-import { memo, useCallback, useEffect, useState } from "react";
-import { useForm, useWatch, type Resolver } from "react-hook-form";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useForm,
+  useWatch,
+  type Resolver,
+  type UseFormSetValue,
+  type UseFormTrigger,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -25,9 +31,19 @@ import {
 import {
   AddressInput,
   EntityAddressForm,
-  buildGeocodingEntityFormSection,
+  AddressGeocodingSectionContent,
+  AddressGeocodingSectionTitle,
   setFormCoordinates,
 } from "@shared/ui/address-input";
+import {
+  LocationField,
+  LOCATION_FIELD_COPY,
+  emptySatAddressFields,
+  locationValueFromSatAddressFields,
+  locationValueToSatAddressFields,
+  type LocationValue,
+} from "@shared/ui/location";
+import type { DuplicateCandidate } from "@shared/location/detectPossibleDuplicates";
 import { FormValidationSummary } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import type { ClientAddress } from "@features/clients/domain";
@@ -84,6 +100,48 @@ const fiscalAddressSheetSchema = z
 
 type FiscalAddressFormData = z.infer<typeof fiscalAddressSheetSchema>;
 
+const FISCAL_SAT_KEYS = [
+  "locationName",
+  "street",
+  "exteriorNumber",
+  "interiorNumber",
+  "reference",
+  "postalCode",
+  "satCountryCode",
+  "satStateCode",
+  "satMunicipalityCode",
+  "satLocalityCode",
+  "localityName",
+  "satNeighborhoodCode",
+  "neighborhoodName",
+  "latitude",
+  "longitude",
+] as const satisfies readonly (keyof CompanyFiscalFormData)[];
+
+function applySatSliceToFiscalForm(
+  setValue: UseFormSetValue<FiscalAddressFormData>,
+  trigger: UseFormTrigger<FiscalAddressFormData>,
+  slice: ReturnType<typeof locationValueToSatAddressFields>,
+) {
+  for (const key of FISCAL_SAT_KEYS) {
+    if (key === "latitude" || key === "longitude") continue;
+    const value =
+      key === "locationName"
+        ? slice.locationName.trim() || DEFAULT_LOCATION_NAME
+        : slice[key];
+    setValue(`fiscal.${key}`, value, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+  void setFormCoordinates(
+    setValue,
+    trigger,
+    { latitude: slice.latitude, longitude: slice.longitude },
+    "fiscal",
+  );
+}
+
 export interface CompanyFiscalAddressSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -138,6 +196,67 @@ export const CompanyFiscalAddressSheet = memo(
         });
       }
     }, [expideDesdeOtroCp, fiscalPostalCode, setValue]);
+
+    const locationFieldValue = useMemo(() => {
+      const base = locationValueFromSatAddressFields({
+        locationName: fiscalAddress?.locationName,
+        street: fiscalAddress?.street,
+        exteriorNumber: fiscalAddress?.exteriorNumber,
+        interiorNumber: fiscalAddress?.interiorNumber,
+        reference: fiscalAddress?.reference,
+        postalCode: fiscalAddress?.postalCode,
+        satCountryCode: fiscalAddress?.satCountryCode,
+        satStateCode: fiscalAddress?.satStateCode,
+        satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
+        satLocalityCode: fiscalAddress?.satLocalityCode,
+        localityName: fiscalAddress?.localityName,
+        satNeighborhoodCode: fiscalAddress?.satNeighborhoodCode,
+        neighborhoodName: fiscalAddress?.neighborhoodName,
+        latitude: fiscalAddress?.latitude,
+        longitude: fiscalAddress?.longitude,
+      });
+      if (!base) return null;
+      return {
+        ...base,
+        sourceAddressId: settings.fiscalAddress?.id ?? null,
+      };
+    }, [fiscalAddress, settings.fiscalAddress?.id]);
+
+    const existingAddresses = useMemo(():
+      | readonly DuplicateCandidate[]
+      | undefined => {
+      const stored = settings.fiscalAddress;
+      if (!stored) return undefined;
+      return [
+        {
+          id: stored.id,
+          postalCode: stored.postalCode ?? null,
+          street: stored.street ?? null,
+          exteriorNumber: stored.exteriorNumber ?? null,
+          latitude: stored.latitude ?? null,
+          longitude: stored.longitude ?? null,
+        },
+      ];
+    }, [settings.fiscalAddress]);
+
+    const handleLocationChange = useCallback(
+      (value: LocationValue | null) => {
+        if (!value) {
+          applySatSliceToFiscalForm(
+            setValue,
+            trigger,
+            emptySatAddressFields(),
+          );
+          return;
+        }
+        applySatSliceToFiscalForm(
+          setValue,
+          trigger,
+          locationValueToSatAddressFields(value),
+        );
+      },
+      [setValue, trigger],
+    );
 
     const handleClose = useCallback(
       (next: boolean) => {
@@ -230,21 +349,77 @@ export const CompanyFiscalAddressSheet = memo(
                 showGlobalNotice
                 locationSectionTitle={copy.title}
                 addressInputSection={
-                  <AddressInput<FiscalAddressFormData>
-                    key={hydrationKey(settings)}
-                    variant="carta-porte"
-                    formContext="companyFiscal"
-                    addressType="company"
-                    control={control}
-                    setValue={setValue}
-                    namePrefix="fiscal"
-                    layout="compact"
-                    showLatLng={false}
-                    showPrimaryToggle={false}
-                    hideInformativeAlerts
-                    embedded
-                    disabled={isSaving}
-                  />
+                  <div className="space-y-4">
+                    <LocationField
+                      context="fiscal"
+                      value={locationFieldValue}
+                      onChange={handleLocationChange}
+                      label={copy.locationSearchLabel}
+                      placeholder={copy.locationSearchPlaceholder}
+                      disabled={isSaving}
+                      ownerTypes={["tenant"]}
+                      includeInternal={false}
+                      existingAddresses={existingAddresses}
+                      showCartaPorteStatus
+                    />
+                    <div className="space-y-3 border-t border-border pt-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {LOCATION_FIELD_COPY.satDetailTitle}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {LOCATION_FIELD_COPY.satDetailHint}
+                        </p>
+                      </div>
+                      <AddressInput<FiscalAddressFormData>
+                        key={hydrationKey(settings)}
+                        variant="carta-porte"
+                        formContext="companyFiscal"
+                        addressType="company"
+                        control={control}
+                        setValue={setValue}
+                        namePrefix="fiscal"
+                        layout="compact"
+                        showLatLng={false}
+                        showPrimaryToggle={false}
+                        hideInformativeAlerts
+                        embedded
+                        disabled={isSaving}
+                      />
+                    </div>
+                  </div>
+                }
+                addressInlineExtras={
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        <AddressGeocodingSectionTitle />
+                      </p>
+                    </div>
+                    <AddressGeocodingSectionContent
+                      address={{
+                        street: fiscalAddress?.street,
+                        exteriorNumber: fiscalAddress?.exteriorNumber,
+                        interiorNumber: fiscalAddress?.interiorNumber,
+                        postalCode: fiscalAddress?.postalCode,
+                        satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
+                        satStateCode: fiscalAddress?.satStateCode,
+                        satCountryCode: fiscalAddress?.satCountryCode,
+                      }}
+                      latitude={fiscalAddress?.latitude}
+                      longitude={fiscalAddress?.longitude}
+                      latitudeError={formState.errors.fiscal?.latitude?.message}
+                      onCoordinatesChange={(coords) => {
+                        void setFormCoordinates(
+                          setValue,
+                          trigger,
+                          coords,
+                          "fiscal",
+                        );
+                      }}
+                      disabled={isSaving}
+                    />
+                  </div>
                 }
                 postAddressSections={[
                   buildLugarExpedicionEntityFormSection({
@@ -269,29 +444,6 @@ export const CompanyFiscalAddressSheet = memo(
                       }
                     },
                     lugarExpedicionRegister: register("lugarExpedicion"),
-                  }),
-                  buildGeocodingEntityFormSection({
-                    address: {
-                      street: fiscalAddress?.street,
-                      exteriorNumber: fiscalAddress?.exteriorNumber,
-                      interiorNumber: fiscalAddress?.interiorNumber,
-                      postalCode: fiscalAddress?.postalCode,
-                      satMunicipalityCode: fiscalAddress?.satMunicipalityCode,
-                      satStateCode: fiscalAddress?.satStateCode,
-                      satCountryCode: fiscalAddress?.satCountryCode,
-                    },
-                    latitude: fiscalAddress?.latitude,
-                    longitude: fiscalAddress?.longitude,
-                    latitudeError: formState.errors.fiscal?.latitude?.message,
-                    onCoordinatesChange: (coords) => {
-                      void setFormCoordinates(
-                        setValue,
-                        trigger,
-                        coords,
-                        "fiscal",
-                      );
-                    },
-                    disabled: isSaving,
                   }),
                 ]}
               />

@@ -27,6 +27,7 @@ import {
   type Control,
   type Resolver,
   type UseFormSetValue,
+  type UseFormTrigger,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -44,17 +45,31 @@ import {
   EntityAddressForm,
   AddressInput,
   ADDRESS_FORM_COPY,
-  buildGeocodingEntityFormSection,
+  AddressGeocodingSectionContent,
+  AddressGeocodingSectionTitle,
   setFormCoordinates,
   type EntityAddressFormSection,
 } from "@shared/ui/address-input";
-import { FileText, MapPin } from "lucide-react";
+import {
+  LocationField,
+  LOCATION_FIELD_COPY,
+  emptySatAddressFields,
+  locationValueFromSatAddressFields,
+  locationValueToSatAddressFields,
+  type LocationValue,
+} from "@shared/ui/location";
+import type { DuplicateCandidate } from "@shared/location/detectPossibleDuplicates";
+import type { SearchableOwnerType } from "@shared/ui/address-picker/types";
+import { FileText, MapPin, StickyNote, User } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { Textarea } from "@shared/ui/text-area";
 import { cn } from "@shared/lib/utils/cn";
 import { resolveAddressFormFieldRequirements } from "@shared/validation/addressFormProfileUx";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { FormValidationSummary } from "@shared/ui/form";
 
+import { useClientAddresses } from "../../application/hooks/useClientAddresses";
+import type { ClientAddressListItem } from "../../domain";
 import {
   applyClientAddressFormContext,
   billingAddressFormSchema,
@@ -72,6 +87,9 @@ import {
 } from "../config/clientConfig";
 import { showsClientUbicacionFields } from "../config/clientAddressPurpose";
 import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
+
+const locationCopy = clientDetailCopy.address;
 
 const fiscalCopy = CLIENT_ADDRESS_FISCAL_COPY;
 
@@ -81,6 +99,8 @@ const fiscalCopy = CLIENT_ADDRESS_FISCAL_COPY;
 
 export interface ClientAddressFormRef {
   triggerValidation: () => Promise<boolean>;
+  /** Valores actuales de RHF (con contexto fiscal/adicional aplicado). */
+  getValues: () => ClientAddressFormData;
   /** Errores SAT (p. ej. estado/CP obligatorios XSD) en campos del formulario. */
   applySatFieldErrors: (fieldErrors: Record<string, string>) => void;
   /** Errores de validación API mapeados a campos del domicilio. */
@@ -101,6 +121,10 @@ export interface ClientAddressFormProps {
   clientRfc?: string;
   /** Pre-llenar nombre del cliente */
   clientName?: string;
+  /** Prioriza hits internos del cliente en LocationField (ADR-0092). */
+  clientId?: string | null;
+  /** Al editar, excluye esta id del warning anti-duplicados (D-F). */
+  excludeAddressId?: string | null;
   /** Callback cuando se envía el formulario */
   onSubmit?: (data: ClientAddressFormData) => void;
   /** Callback cuando cambian los datos */
@@ -115,6 +139,10 @@ export interface ClientAddressFormProps {
   hidePrimarySwitch?: boolean;
   /** Sustituye el aviso informativo del formulario. */
   infoMessage?: string;
+  /** Restrict LocationField internal search (ADR-0092 F5 directory). */
+  locationOwnerTypes?: SearchableOwnerType[];
+  locationSearchLabel?: string;
+  locationSearchPlaceholder?: string;
 }
 
 /**
@@ -131,12 +159,50 @@ function clientAddressOuterPropsAreEqual(
     prev.disabled === next.disabled &&
     prev.clientRfc === next.clientRfc &&
     prev.clientName === next.clientName &&
+    prev.clientId === next.clientId &&
+    prev.excludeAddressId === next.excludeAddressId &&
     prev.onSubmit === next.onSubmit &&
     prev.onChange === next.onChange &&
     prev.className === next.className &&
     prev.hidePrimarySwitch === next.hidePrimarySwitch &&
-    prev.infoMessage === next.infoMessage
+    prev.infoMessage === next.infoMessage &&
+    prev.locationSearchLabel === next.locationSearchLabel &&
+    prev.locationSearchPlaceholder === next.locationSearchPlaceholder &&
+    prev.locationOwnerTypes === next.locationOwnerTypes
   );
+}
+
+const SAT_ADDRESS_FIELD_KEYS = [
+  "locationName",
+  "street",
+  "exteriorNumber",
+  "interiorNumber",
+  "reference",
+  "postalCode",
+  "satCountryCode",
+  "satStateCode",
+  "satMunicipalityCode",
+  "satLocalityCode",
+  "localityName",
+  "satNeighborhoodCode",
+  "neighborhoodName",
+  "latitude",
+  "longitude",
+] as const satisfies readonly (keyof ClientAddressFormData)[];
+
+function applySatSliceToClientForm(
+  setValue: UseFormSetValue<ClientAddressFormData>,
+  trigger: UseFormTrigger<ClientAddressFormData>,
+  slice: ReturnType<typeof locationValueToSatAddressFields>,
+) {
+  for (const key of SAT_ADDRESS_FIELD_KEYS) {
+    if (key === "latitude" || key === "longitude") continue;
+    setValue(key, slice[key], { shouldDirty: true, shouldValidate: true });
+  }
+  void setFormCoordinates(setValue, trigger, {
+    latitude: slice.latitude,
+    longitude: slice.longitude,
+  });
 }
 
 /** Firma por campos (evita `JSON.stringify` del snapshot completo en cada tecla). */
@@ -182,37 +248,113 @@ function clientAddressValuesNotifyKey(
   return `${out}|${String(isValid)}`;
 }
 
+function mapClientAddressToDuplicateCandidate(
+  item: ClientAddressListItem,
+): DuplicateCandidate {
+  return {
+    id: item.id,
+    postalCode: item.postalCode ?? null,
+    street: item.address ?? null,
+    exteriorNumber: null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+  };
+}
+
 function LocationAddressFields({
   formContext,
   addressType,
   control,
   setValue,
   disabled,
+  clientId,
+  excludeAddressId,
+  locationValue,
+  onLocationChange,
+  locationOwnerTypes,
+  locationSearchLabel,
+  locationSearchPlaceholder,
 }: {
   formContext: ClientAddressFormContext;
   addressType?: string;
   control: Control<ClientAddressFormData>;
   setValue: UseFormSetValue<ClientAddressFormData>;
   disabled: boolean;
+  clientId?: string | null;
+  excludeAddressId?: string | null;
+  locationValue: LocationValue | null;
+  onLocationChange: (value: LocationValue | null) => void;
+  locationOwnerTypes?: SearchableOwnerType[];
+  locationSearchLabel?: string;
+  locationSearchPlaceholder?: string;
 }) {
+  const locationContext =
+    formContext === "billingOnCreate" ? "fiscal" : "operational";
+  const resolvedOwnerTypes =
+    locationOwnerTypes ??
+    (formContext === "billingOnCreate"
+      ? (["tenant"] as SearchableOwnerType[])
+      : clientId
+        ? (["client", "tenant"] as SearchableOwnerType[])
+        : (["tenant"] as SearchableOwnerType[]));
+
+  const { data: siblingAddresses } = useClientAddresses(
+    clientId ?? undefined,
+  );
+
+  const existingAddresses = useMemo(() => {
+    if (!siblingAddresses?.length) return undefined;
+    const exclude = excludeAddressId?.trim() || null;
+    return siblingAddresses
+      .filter((item) => !exclude || item.id !== exclude)
+      .map(mapClientAddressToDuplicateCandidate);
+  }, [siblingAddresses, excludeAddressId]);
+
   return (
-    <>
-      <AddressInput<ClientAddressFormData>
-        variant="carta-porte"
-        formContext={formContext}
-        addressType={addressType}
-        control={control}
-        setValue={setValue}
-        namePrefix=""
-        layout="compact"
-        showLatLng={false}
-        showPrimaryToggle={false}
-        hideInformativeAlerts
+    <div className="space-y-4">
+      <LocationField
+        context={locationContext}
+        value={locationValue}
+        onChange={onLocationChange}
+        label={locationSearchLabel ?? locationCopy.locationSearchLabel}
+        placeholder={
+          locationSearchPlaceholder ?? locationCopy.locationSearchPlaceholder
+        }
         disabled={disabled}
+        clientId={clientId}
+        ownerTypes={resolvedOwnerTypes}
+        includeInternal={false}
+        existingAddresses={existingAddresses}
+        showCartaPorteStatus={formContext === "billingOnCreate"}
       />
-    </>
+      <div className="space-y-3 border-t border-border pt-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            {LOCATION_FIELD_COPY.satDetailTitle}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {LOCATION_FIELD_COPY.satDetailHint}
+          </p>
+        </div>
+        <AddressInput<ClientAddressFormData>
+          variant="carta-porte"
+          formContext={formContext}
+          addressType={addressType}
+          control={control}
+          setValue={setValue}
+          namePrefix=""
+          layout="compact"
+          showLatLng={false}
+          showPrimaryToggle={false}
+          hideInformativeAlerts
+          disabled={disabled}
+        />
+      </div>
+    </div>
   );
 }
+
+const MemoLocationAddressFields = memo(LocationAddressFields);
 
 // ============================================================================
 // COMPONENT
@@ -228,6 +370,8 @@ const ClientAddressFormRoot = forwardRef<
     defaultValues,
     clientRfc,
     clientName,
+    clientId = null,
+    excludeAddressId = null,
     onSubmit,
     onChange,
     disabled = false,
@@ -235,6 +379,9 @@ const ClientAddressFormRoot = forwardRef<
     addressTypeOptions,
     hidePrimarySwitch = false,
     infoMessage,
+    locationOwnerTypes,
+    locationSearchLabel,
+    locationSearchPlaceholder,
   },
   ref,
 ) {
@@ -283,6 +430,7 @@ const ClientAddressFormRoot = forwardRef<
     register,
     control,
     setValue,
+    getValues,
     handleSubmit,
     trigger,
     setError,
@@ -350,13 +498,22 @@ const ClientAddressFormRoot = forwardRef<
         else setShowValidationSummary(false);
         return ok;
       },
+      getValues: () =>
+        applyClientAddressFormContext(getValues(), formContext),
       applySatFieldErrors,
       applyApiValidationErrors,
       clearApiFieldErrors: () => {
         clearErrors();
       },
     }),
-    [applyApiValidationErrors, applySatFieldErrors, clearErrors, trigger],
+    [
+      applyApiValidationErrors,
+      applySatFieldErrors,
+      clearErrors,
+      formContext,
+      getValues,
+      trigger,
+    ],
   );
 
   const onChangeRef = useRef(onChange);
@@ -576,6 +733,81 @@ const ClientAddressFormRoot = forwardRef<
     }
   }, [clientName, clientRfc, setValue]);
 
+  const locationFieldValue = useMemo(() => {
+    const localityCode = (formValues.satLocalityCode ?? "").trim();
+    const neighborhoodCode = (formValues.satNeighborhoodCode ?? "").trim();
+    // Free-text names without SAT code stay in RHF for submit; omit from LocationField
+    // so typing colonia/localidad manual does not rebuild the Location card every keystroke.
+    return locationValueFromSatAddressFields({
+      locationName: formValues.locationName,
+      street: formValues.street,
+      exteriorNumber: formValues.exteriorNumber,
+      interiorNumber: formValues.interiorNumber,
+      reference: formValues.reference,
+      postalCode: formValues.postalCode,
+      satCountryCode: formValues.satCountryCode,
+      satStateCode: formValues.satStateCode,
+      satMunicipalityCode: formValues.satMunicipalityCode,
+      satLocalityCode: formValues.satLocalityCode,
+      localityName: localityCode ? formValues.localityName : null,
+      satNeighborhoodCode: formValues.satNeighborhoodCode,
+      neighborhoodName: neighborhoodCode ? formValues.neighborhoodName : null,
+      latitude: formValues.latitude,
+      longitude: formValues.longitude,
+    });
+  }, [
+    formValues.exteriorNumber,
+    formValues.interiorNumber,
+    formValues.latitude,
+    formValues.locationName,
+    formValues.longitude,
+    formValues.postalCode,
+    formValues.reference,
+    formValues.satCountryCode,
+    formValues.satLocalityCode,
+    formValues.satMunicipalityCode,
+    formValues.satNeighborhoodCode,
+    formValues.satStateCode,
+    formValues.street,
+    // Names only invalidate LocationField when a SAT code is selected.
+    formValues.satLocalityCode?.trim()
+      ? formValues.localityName
+      : null,
+    formValues.satNeighborhoodCode?.trim()
+      ? formValues.neighborhoodName
+      : null,
+  ]);
+
+  const handleLocationChange = useCallback(
+    (value: LocationValue | null) => {
+      if (!value) {
+        applySatSliceToClientForm(setValue, trigger, emptySatAddressFields());
+        return;
+      }
+      applySatSliceToClientForm(
+        setValue,
+        trigger,
+        locationValueToSatAddressFields(value),
+      );
+      const rfc = value.remitenteRfc?.trim() || value.destinatarioRfc?.trim();
+      const partyName =
+        value.remitenteName?.trim() || value.destinatarioName?.trim();
+      if (rfc) {
+        setValue("rfcRemitenteDestinatario", rfc.toUpperCase(), {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      if (partyName) {
+        setValue("nombreRemitenteDestinatario", partyName, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    },
+    [setValue, trigger],
+  );
+
   const fiscalOperativoSection: EntityAddressFormSection = {
     id: "client-address-fiscal-operativo",
     title: fiscalCopy.sectionTitle,
@@ -643,32 +875,166 @@ const ClientAddressFormRoot = forwardRef<
     ),
   };
 
-  const geocodingSection = buildGeocodingEntityFormSection({
-    address: {
-      locationName: formValues.locationName,
-      street: formValues.street,
-      exteriorNumber: formValues.exteriorNumber,
-      interiorNumber: formValues.interiorNumber,
-      postalCode: formValues.postalCode,
-      satMunicipalityCode: formValues.satMunicipalityCode,
-      satStateCode: formValues.satStateCode,
-      satCountryCode: formValues.satCountryCode,
-    },
-    latitude: formValues.latitude,
-    longitude: formValues.longitude,
-    latitudeError: errors.latitude?.message,
-    onCoordinatesChange: (coords) => {
-      void setFormCoordinates(setValue, trigger, coords);
-    },
-    disabled,
-  });
-
   const showUbicacionFields =
     !isBillingContext && showsClientUbicacionFields(formValues.addressType);
 
-  const postAddressSections = showUbicacionFields
-    ? [geocodingSection, fiscalOperativoSection]
-    : [];
+  const contactSection: EntityAddressFormSection = {
+    id: "client-address-contact",
+    title: locationCopy.contactSectionTitle,
+    icon: <User className="h-4 w-4" />,
+    content: (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="contactName">{locationCopy.contactName}</Label>
+          <Input
+            id="contactName"
+            disabled={disabled}
+            error={Boolean(errors.contactName)}
+            {...register("contactName")}
+            {...getFieldErrorAriaProps(
+              "contactName",
+              errors.contactName?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="contactName"
+            message={errors.contactName?.message}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="contactPhone">{locationCopy.contactPhone}</Label>
+          <Input
+            id="contactPhone"
+            disabled={disabled}
+            error={Boolean(errors.contactPhone)}
+            {...register("contactPhone")}
+            {...getFieldErrorAriaProps(
+              "contactPhone",
+              errors.contactPhone?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="contactPhone"
+            message={errors.contactPhone?.message}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="contactEmail">{locationCopy.contactEmail}</Label>
+          <Input
+            id="contactEmail"
+            type="email"
+            disabled={disabled}
+            error={Boolean(errors.contactEmail)}
+            {...register("contactEmail")}
+            {...getFieldErrorAriaProps(
+              "contactEmail",
+              errors.contactEmail?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="contactEmail"
+            message={errors.contactEmail?.message}
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="businessHours">{locationCopy.businessHours}</Label>
+          <Input
+            id="businessHours"
+            disabled={disabled}
+            error={Boolean(errors.businessHours)}
+            {...register("businessHours")}
+            {...getFieldErrorAriaProps(
+              "businessHours",
+              errors.businessHours?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="businessHours"
+            message={errors.businessHours?.message}
+          />
+        </div>
+      </div>
+    ),
+  };
+
+  const notesSection: EntityAddressFormSection = {
+    id: "client-address-notes",
+    title: locationCopy.notesSectionTitle,
+    icon: <StickyNote className="h-4 w-4" />,
+    content: (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="specialInstructions">
+            {locationCopy.specialInstructions}
+          </Label>
+          <Textarea
+            id="specialInstructions"
+            rows={3}
+            disabled={disabled}
+            error={Boolean(errors.specialInstructions)}
+            {...register("specialInstructions")}
+            {...getFieldErrorAriaProps(
+              "specialInstructions",
+              errors.specialInstructions?.message,
+            )}
+          />
+          <FieldInlineError
+            fieldId="specialInstructions"
+            message={errors.specialInstructions?.message}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="notes">{locationCopy.notes}</Label>
+          <Textarea
+            id="notes"
+            rows={3}
+            disabled={disabled}
+            error={Boolean(errors.notes)}
+            {...register("notes")}
+            {...getFieldErrorAriaProps("notes", errors.notes?.message)}
+          />
+          <FieldInlineError fieldId="notes" message={errors.notes?.message} />
+        </div>
+      </div>
+    ),
+  };
+
+  const postAddressSections: EntityAddressFormSection[] = [];
+  if (showUbicacionFields) {
+    postAddressSections.push(fiscalOperativoSection);
+  }
+  if (!isBillingContext) {
+    postAddressSections.push(contactSection, notesSection);
+  }
+
+  const clientGeoInlineExtras = showUbicacionFields ? (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm font-medium">
+          <AddressGeocodingSectionTitle />
+        </p>
+      </div>
+      <AddressGeocodingSectionContent
+        address={{
+          locationName: formValues.locationName,
+          street: formValues.street,
+          exteriorNumber: formValues.exteriorNumber,
+          interiorNumber: formValues.interiorNumber,
+          postalCode: formValues.postalCode,
+          satMunicipalityCode: formValues.satMunicipalityCode,
+          satStateCode: formValues.satStateCode,
+          satCountryCode: formValues.satCountryCode,
+        }}
+        latitude={formValues.latitude}
+        longitude={formValues.longitude}
+        latitudeError={errors.latitude?.message}
+        onCoordinatesChange={(coords) => {
+          void setFormCoordinates(setValue, trigger, coords);
+        }}
+        disabled={disabled}
+      />
+    </div>
+  ) : undefined;
 
   return (
     <EntityAddressForm
@@ -685,14 +1051,22 @@ const ClientAddressFormRoot = forwardRef<
       locationSectionTitle="Domicilio"
       preAddressSections={preAddressSections}
       addressInputSection={
-        <LocationAddressFields
+        <MemoLocationAddressFields
           formContext={formContext}
           addressType={formValues.addressType}
           control={control}
           setValue={setValue}
           disabled={disabled}
+          clientId={clientId}
+          excludeAddressId={excludeAddressId}
+          locationValue={locationFieldValue}
+          onLocationChange={handleLocationChange}
+          locationOwnerTypes={locationOwnerTypes}
+          locationSearchLabel={locationSearchLabel}
+          locationSearchPlaceholder={locationSearchPlaceholder}
         />
       }
+      addressInlineExtras={clientGeoInlineExtras}
       postAddressSections={postAddressSections}
     >
       {shouldShowValidationSummary ? (

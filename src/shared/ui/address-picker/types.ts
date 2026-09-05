@@ -2,6 +2,14 @@
  * Domain types for aggregated address search (ADR-0053 / WS-ADDR-PRELOAD).
  */
 
+/** Calidad de geocodificación (ADR-0092 / WS-LOCATION). */
+export type GeocodingAccuracy =
+  | "exact"
+  | "approximate"
+  | "manual"
+  | "address_only"
+  | "coordinates_only";
+
 export const SEARCHABLE_OWNER_TYPES = ["client", "branch", "tenant"] as const;
 
 export type SearchableOwnerType = (typeof SEARCHABLE_OWNER_TYPES)[number];
@@ -36,6 +44,8 @@ export interface AddressSearchListItem {
   satNeighborhoodCode: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Calidad de geocodificación (ADR-0092). Null si el API aún no lo envía. */
+  geocodingAccuracy: GeocodingAccuracy | null;
   geolocationPending: boolean;
   isPrimary: boolean;
   isActive: boolean;

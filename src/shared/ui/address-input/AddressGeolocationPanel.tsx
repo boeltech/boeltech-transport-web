@@ -6,6 +6,7 @@ import {
   Loader2,
   MapPin,
   Navigation,
+  Crosshair,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -39,11 +40,12 @@ import {
 import { CoordinatesPostalCodeWarningAlert } from "@shared/geolocation/CoordinatesPostalCodeWarningAlert";
 import { coordinatesPostalCodeWarningCopy } from "@shared/geolocation/coordinatesPostalCodeWarningCopy";
 import { useCoordinatesPostalCodeWarningValues } from "@shared/geolocation/useCoordinatesPostalCodeWarningValues";
-import { AddressGeolocationMap } from "./AddressGeolocationMap";
+import { AddressGeolocationMap, type GeolocationCandidateMarker } from "./AddressGeolocationMap";
 import {
   GEOLOCATION_UX_STATUS_LABEL,
   resolveGeolocationUxStatus,
   type GeolocationDensity,
+  type GeolocationUxStatus,
 } from "./geolocationUxStatus";
 
 export interface AddressGeolocationPanelProps {
@@ -91,6 +93,13 @@ export interface AddressGeolocationPanelProps {
   readonly embedded?: boolean;
   /** Densidad del mapa: compacta en sheets; cómoda en páginas. */
   readonly density?: GeolocationDensity;
+/**
+ * LocationSheet confirm step: map + locate CTA only — hide lat/lng / advanced
+ * (ADR-0092 product D5). Map always visible (not on-demand).
+ */
+readonly confirmationMode?: boolean;
+  /** Ubicación requerida: mapa siempre visible + chip «Ubicar automáticamente» (D6/D7). */
+  readonly required?: boolean;
 }
 
 function buildGeocodingCandidateValue(
@@ -111,6 +120,84 @@ function geocodingCoordsMatch(
   );
 }
 
+/** Checks if address has enough data for geocoding (CP 5-digit + non-empty street). */
+function hasMinimalAddressData(address: AddressGeolocationPanelProps["address"]): boolean {
+  const cp = (address.postalCode ?? "").trim();
+  const street = (address.street ?? "").trim();
+  return /^\d{5}$/.test(cp) && street.length > 0;
+}
+
+function buildMarkerTooltip(address: AddressGeolocationPanelProps["address"]): string | null {
+  const parts: string[] = [];
+  const cp = (address.postalCode ?? "").trim();
+  if (cp) parts.push(`CP ${cp}`);
+  const streetParts = [address.street, address.exteriorNumber].filter(Boolean);
+  if (streetParts.length > 0) parts.push(streetParts.join(" "));
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function resolveStatusBadgeVariant(
+  status: GeolocationUxStatus,
+): "success" | "warning" | "info" | "neutral" {
+  switch (status) {
+    case "confirmed":
+      return "success";
+    case "ready_to_locate":
+      return "info";
+    case "pending_confirmation":
+    case "pick":
+    case "searching":
+      return "warning";
+    case "empty":
+    default:
+      return "neutral";
+  }
+}
+
+function resolveStatusIcon(status: GeolocationUxStatus) {
+  switch (status) {
+    case "confirmed":
+      return <CheckCircle2 className="h-4 w-4 text-success-soft-foreground" aria-hidden />;
+    case "pending_confirmation":
+      return <AlertTriangle className="h-4 w-4 text-warning-soft-foreground" aria-hidden />;
+    default:
+      return <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden />;
+  }
+}
+
+/** D2: una sola instrucción contextual (prerequisito o ajuste de pin). */
+function resolvePanelInstruction(input: {
+  confirmationMode: boolean;
+  addressReady: boolean;
+  hasCoordinates: boolean;
+  showMapSurface: boolean;
+  uxStatus: GeolocationUxStatus;
+}): string | null {
+  const { confirmationMode, addressReady, hasCoordinates, showMapSurface, uxStatus } =
+    input;
+
+  if (uxStatus === "searching") return null;
+  if (uxStatus === "pick") {
+    return "Elige una coincidencia en la lista o en el mapa.";
+  }
+  if (hasCoordinates) {
+    return confirmationMode
+      ? "Arrastra el pin o haz clic en el mapa para afinar el punto."
+      : "Arrastra el pin o haz clic en el mapa para afinar.";
+  }
+  if (!addressReady) {
+    return confirmationMode
+      ? "Completa al menos código postal y calle para ubicar."
+      : "Completa al menos CP y calle para ubicar con domicilio.";
+  }
+  if (showMapSurface) {
+    return confirmationMode
+      ? "Usa «Ubicar con la dirección» o haz clic en el mapa para colocar el pin."
+      : "Usa «Ubicar en el mapa» o haz clic en el mapa para colocar el pin.";
+  }
+  return null;
+}
+
 export function AddressGeolocationPanel({
   address,
   latitude,
@@ -129,6 +216,8 @@ export function AddressGeolocationPanel({
   className,
   embedded = false,
   density = "comfortable",
+  confirmationMode = false,
+  required = false,
 }: AddressGeolocationPanelProps) {
   const mapAndCoordsDisabled = coordinatesDisabled ?? disabled;
   const segmentDistanceDisabled = distanceDisabled ?? disabled;
@@ -164,27 +253,82 @@ export function AddressGeolocationPanel({
   } | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
 
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const hasCoordinates = latitude != null && longitude != null;
   const hasPreviousCoordinates =
     previousPoint?.latitude != null && previousPoint?.longitude != null;
+  const addressReady = hasMinimalAddressData(address);
+  const mapAlwaysVisible = required || confirmationMode;
+
+  const [mapRevealed, setMapRevealed] = useState(
+    () => mapAlwaysVisible || hasCoordinates,
+  );
+
+  useEffect(() => {
+    if (mapAlwaysVisible || hasCoordinates) {
+      setMapRevealed(true);
+    }
+  }, [mapAlwaysVisible, hasCoordinates]);
+
+  const showMapSurface =
+    mapAlwaysVisible ||
+    mapRevealed ||
+    isGeocoding ||
+    candidates.length > 0;
 
   const uxStatus = resolveGeolocationUxStatus({
     isGeocoding,
     candidateCount: candidates.length,
     selectedCandidateValue,
     hasCoordinates,
+    hasMinimalAddressData: addressReady,
+    hasCpWarning: coordinatesPostalCodeWarning != null,
   });
+
+  // D3: no liderar con «Sin ubicación…» en vacío opcional.
+  const showStatusBadge = mapAlwaysVisible || uxStatus !== "empty";
+
+  const panelInstruction = resolvePanelInstruction({
+    confirmationMode,
+    addressReady,
+    hasCoordinates,
+    showMapSurface,
+    uxStatus,
+  });
+
+  const candidateMarkers: GeolocationCandidateMarker[] | undefined = useMemo(() => {
+    if (candidates.length <= 1) return undefined;
+    return candidates.map((c) => ({
+      latitude: c.position.latitude,
+      longitude: c.position.longitude,
+      label: c.label,
+    }));
+  }, [candidates]);
+
+  const selectedCandidateIndex: number | null = useMemo(() => {
+    if (candidates.length <= 1 || !selectedCandidateValue) return null;
+    const idx = candidates.findIndex(
+      (c, i) => buildGeocodingCandidateValue(c, i) === selectedCandidateValue,
+    );
+    return idx >= 0 ? idx : null;
+  }, [candidates, selectedCandidateValue]);
+
+  const markerTooltip = useMemo(() => {
+    if (!hasCoordinates) return null;
+    return buildMarkerTooltip(address);
+  }, [address, hasCoordinates]);
 
   const handleSelectCandidate = (candidate: GeocodingCandidate, index: number) => {
     setSelectedCandidateValue(buildGeocodingCandidateValue(candidate, index));
+    setMapRevealed(true);
     onCoordinatesChange(candidate.position);
     setGeocodeError(null);
   };
 
   const handleSearch = async () => {
+    setMapRevealed(true);
     setIsGeocoding(true);
     setGeocodeError(null);
     setSelectedCandidateValue("");
@@ -205,7 +349,7 @@ export function AddressGeolocationPanel({
       setCandidates(nextCandidates);
       if (nextCandidates.length === 0) {
         setGeocodeError(
-          "No se encontraron coincidencias. Revisa el domicilio o usa opciones avanzadas.",
+          "No se encontraron coincidencias. Revisa el domicilio o usa más opciones.",
         );
         return;
       }
@@ -311,18 +455,20 @@ export function AddressGeolocationPanel({
     ) {
       return;
     }
+    setMapRevealed(true);
     onCoordinatesChange({
       latitude: Number(nextLatitude.toFixed(6)),
       longitude: Number(nextLongitude.toFixed(6)),
     });
   };
 
-  const statusBadgeVariant =
-    uxStatus === "confirmed"
-      ? "success"
-      : uxStatus === "pick" || uxStatus === "searching"
-        ? "warning"
-        : "neutral";
+  const locateLabel = hasCoordinates
+    ? confirmationMode
+      ? "Ajustar con la dirección"
+      : "Reubicar con domicilio"
+    : confirmationMode
+      ? "Ubicar con la dirección"
+      : "Ubicar en el mapa";
 
   return (
     <div
@@ -332,43 +478,63 @@ export function AddressGeolocationPanel({
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {uxStatus === "confirmed" ? (
-          <CheckCircle2
-            className="h-4 w-4 text-success-soft-foreground"
-            aria-hidden
-          />
-        ) : (
-          <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden />
-        )}
-        <Badge variant={statusBadgeVariant} tone="soft">
-          {GEOLOCATION_UX_STATUS_LABEL[uxStatus]}
-        </Badge>
-      </div>
+      {showStatusBadge ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {resolveStatusIcon(uxStatus)}
+          <Badge variant={resolveStatusBadgeVariant(uxStatus)} tone="soft">
+            {GEOLOCATION_UX_STATUS_LABEL[uxStatus]}
+          </Badge>
+        </div>
+      ) : null}
 
       {showSearchControls ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={hasCoordinates ? "outline" : "default"}
-            onClick={() => void handleSearch()}
-            disabled={mapAndCoordsDisabled || isGeocoding}
-          >
-            {isGeocoding ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Buscando…
-              </>
-            ) : hasCoordinates ? (
-              "Volver a ubicar"
-            ) : (
-              "Ubicar en el mapa"
-            )}
-          </Button>
-          <p className="text-muted-foreground text-xs">
-            Usa el domicilio capturado. Luego puedes ajustar el pin en el mapa.
-          </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant={hasCoordinates ? "outline" : "default"}
+              onClick={() => void handleSearch()}
+              disabled={mapAndCoordsDisabled || isGeocoding}
+            >
+              {isGeocoding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Buscando…
+                </>
+              ) : (
+                locateLabel
+              )}
+            </Button>
+            {!showMapSurface && !mapAlwaysVisible ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMapRevealed(true)}
+                disabled={mapAndCoordsDisabled}
+              >
+                Mostrar mapa
+              </Button>
+            ) : null}
+            {required && addressReady && !hasCoordinates && !isGeocoding ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-xs"
+                onClick={() => void handleSearch()}
+                disabled={mapAndCoordsDisabled}
+              >
+                <Crosshair className="mr-1 h-3.5 w-3.5" />
+                Ubicar automáticamente
+              </Button>
+            ) : null}
+          </div>
+          {panelInstruction ? (
+            <p className="text-muted-foreground text-xs">{panelInstruction}</p>
+          ) : null}
         </div>
+      ) : panelInstruction ? (
+        <p className="text-muted-foreground text-xs">{panelInstruction}</p>
       ) : null}
 
       {showSearchControls && geocodeError ? (
@@ -401,8 +567,11 @@ export function AddressGeolocationPanel({
                 const value = buildGeocodingCandidateValue(candidate, index);
                 return (
                   <SelectItem key={value} value={value} className="items-start py-2">
-                    <span className="text-left font-medium leading-snug">
-                      {candidate.label}
+                    <span className="text-left leading-snug">
+                      <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium">{candidate.label}</span>
                     </span>
                   </SelectItem>
                 );
@@ -412,52 +581,108 @@ export function AddressGeolocationPanel({
         </div>
       ) : null}
 
-      <div className="min-w-0 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          {hasCoordinates
-            ? "Puedes arrastrar el pin o hacer clic en el mapa para afinar."
-            : "Coloca el pin con «Ubicar en el mapa» o haz clic en el mapa."}
-        </p>
-        {mapboxToken ? (
-          <AddressGeolocationMap
-            token={mapboxToken}
-            latitude={latitude}
-            longitude={longitude}
-            onCoordinatesChange={onCoordinatesChange}
-            disabled={mapAndCoordsDisabled}
-            density={density}
-          />
-        ) : (
-          <Alert variant="info">
-            <AlertDescription>
-              Configura `VITE_MAPBOX_PUBLIC_TOKEN` para habilitar el mapa interactivo.
-            </AlertDescription>
-          </Alert>
-        )}
-        {coordinatesPostalCodeWarning ? (
-          <CoordinatesPostalCodeWarningAlert
-            warning={coordinatesPostalCodeWarning}
-            copy={coordinatesPostalCodeWarningCopy}
-          />
-        ) : null}
-      </div>
+      {showMapSurface ? (
+        <div className="min-w-0 space-y-2">
+          {mapboxToken ? (
+            <AddressGeolocationMap
+              token={mapboxToken}
+              latitude={latitude}
+              longitude={longitude}
+              onCoordinatesChange={(coords) => {
+                setMapRevealed(true);
+                // Ajuste manual (drag/clic): salir del modo coincidencias para no
+                // reencuadrar el mapa ni volver a «Elige una coincidencia».
+                setCandidates([]);
+                setSelectedCandidateValue("");
+                setGeocodeError(null);
+                onCoordinatesChange(coords);
+              }}
+              disabled={mapAndCoordsDisabled}
+              density={density}
+              candidates={candidateMarkers}
+              selectedCandidateIndex={selectedCandidateIndex}
+              onCandidateSelect={(index) => {
+                if (candidates[index]) {
+                  handleSelectCandidate(candidates[index], index);
+                }
+              }}
+              markerTooltip={markerTooltip}
+            />
+          ) : (
+            <Alert variant="info">
+              <AlertDescription>
+                Configura `VITE_MAPBOX_PUBLIC_TOKEN` para habilitar el mapa interactivo.
+              </AlertDescription>
+            </Alert>
+          )}
+          {coordinatesPostalCodeWarning ? (
+            <CoordinatesPostalCodeWarningAlert
+              warning={coordinatesPostalCodeWarning}
+              copy={coordinatesPostalCodeWarningCopy}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
-      {showSearchControls ? (
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+      {/* D5: escape hatch unificado — oculto en confirmationMode */}
+      {showSearchControls && !confirmationMode ? (
+        <Collapsible open={moreOptionsOpen} onOpenChange={setMoreOptionsOpen}>
           <CollapsibleTrigger
             type="button"
             className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-muted/40"
             disabled={mapAndCoordsDisabled}
           >
-            <span className="font-medium">Opciones avanzadas</span>
+            <span className="font-medium">Más opciones</span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 text-muted-foreground transition-transform",
-                advancedOpen && "rotate-180",
+                moreOptionsOpen && "rotate-180",
               )}
             />
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="geo-manual-latitude">Latitud</Label>
+                <Input
+                  id="geo-manual-latitude"
+                  type="number"
+                  step="any"
+                  min={-90}
+                  max={90}
+                  inputMode="decimal"
+                  disabled={mapAndCoordsDisabled}
+                  value={latitude ?? ""}
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") return;
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) return;
+                    applyManualCoordinate(parsed, longitude ?? null);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="geo-manual-longitude">Longitud</Label>
+                <Input
+                  id="geo-manual-longitude"
+                  type="number"
+                  step="any"
+                  min={-180}
+                  max={180}
+                  inputMode="decimal"
+                  disabled={mapAndCoordsDisabled}
+                  value={longitude ?? ""}
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") return;
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) return;
+                    applyManualCoordinate(latitude ?? null, parsed);
+                  }}
+                />
+              </div>
+            </div>
             <p className="text-muted-foreground text-xs">
               Proveedor: {providers.providerId.toUpperCase()}
             </p>
@@ -483,48 +708,6 @@ export function AddressGeolocationPanel({
                     "Buscar"
                   )}
                 </Button>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="geo-advanced-latitude">Latitud</Label>
-                <Input
-                  id="geo-advanced-latitude"
-                  type="number"
-                  step="any"
-                  min={-90}
-                  max={90}
-                  inputMode="decimal"
-                  disabled={mapAndCoordsDisabled}
-                  value={latitude ?? ""}
-                  onChange={(event) => {
-                    const raw = event.target.value.trim();
-                    if (raw === "") return;
-                    const parsed = Number(raw);
-                    if (Number.isNaN(parsed)) return;
-                    applyManualCoordinate(parsed, longitude ?? null);
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="geo-advanced-longitude">Longitud</Label>
-                <Input
-                  id="geo-advanced-longitude"
-                  type="number"
-                  step="any"
-                  min={-180}
-                  max={180}
-                  inputMode="decimal"
-                  disabled={mapAndCoordsDisabled}
-                  value={longitude ?? ""}
-                  onChange={(event) => {
-                    const raw = event.target.value.trim();
-                    if (raw === "") return;
-                    const parsed = Number(raw);
-                    if (Number.isNaN(parsed)) return;
-                    applyManualCoordinate(latitude ?? null, parsed);
-                  }}
-                />
               </div>
             </div>
           </CollapsibleContent>

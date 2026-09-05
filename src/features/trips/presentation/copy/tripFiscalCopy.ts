@@ -30,14 +30,14 @@ export const tripFiscalCopy = {
     substitutionHint:
       "La factura ya está timbrada. Usa sustitución para corregir datos fiscales.",
     address: {
-      swapLabel: "Buscar dirección existente",
+      swapLabel: "Buscar ubicación",
       swapDescription:
         "Reutiliza un domicilio operativo del cliente (bodega, entrega o recolección) o del directorio. Se copia a la parada; no modifica el catálogo ni el domicilio fiscal de facturación.",
       inlineLabel: "Capturar domicilio corregido",
       locationNameLabel: "Nombre del lugar",
       locationNamePlaceholder:
         "Ej: Bodega Central, CEDIS Norte, Planta Monterrey…",
-      pickerLabel: "Buscar dirección existente",
+      pickerLabel: "Buscar ubicación",
       pickerPlaceholder: "Nombre, calle o código postal…",
       tripClientRequired:
         "El viaje debe tener cliente asignado para reutilizar un domicilio del catálogo.",

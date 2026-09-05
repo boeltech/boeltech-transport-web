@@ -27,6 +27,7 @@ const clientItem: AddressSearchListItem = {
   satNeighborhoodCode: null,
   latitude: null,
   longitude: null,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,

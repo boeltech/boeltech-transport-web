@@ -422,6 +422,11 @@ export function BranchDetailPage() {
                             geolocationPending={branch.address.geolocationPending}
                             editHref={`/branches/${branch.id}/edit`}
                             canEdit={canUpdateBranch}
+                            addressSummary={{
+                              postalCode: branch.address.postalCode,
+                              street: branch.address.street,
+                              neighborhood: branch.address.neighborhood,
+                            }}
                           />
                         </CardContent>
                       </Card>

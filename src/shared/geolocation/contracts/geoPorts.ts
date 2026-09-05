@@ -14,12 +14,33 @@ export interface LatLng {
   readonly longitude: number;
 }
 
+export type GeocodeBiasApplied =
+  | "none"
+  | "proximity_client"
+  | "postal_code"
+  | "bbox"
+  | "postal_code_bbox";
+
+export type GeocodeSearchConfidence = "high" | "medium" | "low";
+
+/** Search-quality meta from API (ADR-0092 addendum; not AddressResolver SAT confidence). */
+export interface GeocodeQueryMeta {
+  readonly detectedPostalCode: string | null;
+  readonly normalizedQuery: string;
+  readonly biasApplied: GeocodeBiasApplied;
+  readonly searchConfidence: GeocodeSearchConfidence;
+}
+
 export interface GeocodeQuery {
   readonly query: string;
   readonly limit?: number;
   readonly countryCode?: string;
   readonly proximity?: LatLng;
   readonly types?: string[];
+  /** Default true on API when omitted — send explicitly from Location. */
+  readonly biasFromQuery?: boolean;
+  /** Optional Mapbox bbox [minLon, minLat, maxLon, maxLat]. */
+  readonly bbox?: readonly [number, number, number, number];
 }
 
 export interface GeocodingCandidate {
@@ -28,12 +49,19 @@ export interface GeocodingCandidate {
   readonly relevance?: number | null;
   readonly rawPlaceId?: string;
   readonly featureTypes?: string[];
+  /** Mapbox context hints (ADR-0092 H7). */
+  readonly region?: string | null;
+  readonly place?: string | null;
+  readonly district?: string | null;
+  readonly neighborhood?: string | null;
+  readonly postalCode?: string | null;
 }
 
 export interface GeocodeResult {
   readonly provider: GeoProviderId;
   readonly candidates: GeocodingCandidate[];
   readonly requestedAt: IsoTimestamp;
+  readonly queryMeta?: GeocodeQueryMeta;
 }
 
 export type GeoErrorCode =

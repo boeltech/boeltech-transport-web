@@ -32,6 +32,7 @@ const partnerItem: AddressSearchListItem = {
   satNeighborhoodCode: "0001",
   latitude: 25.78,
   longitude: -100.18,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,

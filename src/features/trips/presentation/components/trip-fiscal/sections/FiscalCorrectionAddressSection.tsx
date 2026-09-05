@@ -6,7 +6,6 @@ import type { TripStop } from "@features/trips/domain";
 import { TripStopAddressSingleLine } from "@features/trips/presentation/components/TripStopAddressLines";
 import { parseClientAddressFormCreate } from "@shared/cfdi/addressPayloadBridge";
 import {
-  AddressPicker,
   addressSearchItemToTripStopAddress,
   type AddressSearchListItem,
 } from "@shared/ui/address-picker";
@@ -18,6 +17,13 @@ import { FormFieldShell } from "@shared/ui/form/FormFieldShell";
 import { getFieldErrorAriaProps } from "@shared/ui/form/fieldErrorAria";
 import { FormValidationSummary } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
+import {
+  LocationField,
+  locationValueFromInternal,
+  locationValueToAddressSearchListItem,
+  synthesizeSearchItemFromLocationValue,
+  type LocationValue,
+} from "@shared/ui/location";
 import { useCoordinatesPostalCodeWarning } from "@shared/geolocation/useCoordinatesPostalCodeWarning";
 import { CoordinatesPostalCodeWarningAlert } from "@shared/geolocation/CoordinatesPostalCodeWarningAlert";
 import { tripFiscalCopy } from "../../../copy/tripFiscalCopy";
@@ -279,21 +285,33 @@ export const FiscalCorrectionAddressSection = forwardRef<
           {swapRequiresClient ? (
             <p className="text-sm text-muted-foreground">{copy.tripClientRequired}</p>
           ) : null}
-          <AddressPicker
-            value={selectedPrefill}
-            onSelect={(item) => {
+          <LocationField
+            context="tripStop"
+            showCartaPorteStatus
+            value={
+              selectedPrefill
+                ? locationValueFromInternal(selectedPrefill)
+                : null
+            }
+            onChange={(value: LocationValue | null) => {
+              if (!value) {
+                setSelectedPrefill(null);
+                setAddressError(null);
+                return;
+              }
+              const item =
+                locationValueToAddressSearchListItem(value) ??
+                synthesizeSearchItemFromLocationValue(value);
               setSelectedPrefill(item);
-              setAddressError(null);
-            }}
-            onClear={() => {
-              setSelectedPrefill(null);
               setAddressError(null);
             }}
             label={copy.pickerLabel}
             placeholder={copy.pickerPlaceholder}
             disabled={disabled || swapRequiresClient}
-            defaultOwnerTypes={[...ROUTE_STOP_OWNER_TYPES]}
+            clientId={clientId}
+            ownerTypes={[...ROUTE_STOP_OWNER_TYPES]}
             filterItem={isAllowedRoutePickerItem}
+            error={addressError ?? undefined}
           />
           {addressError ? (
             <FieldInlineError fieldId={`${idPrefix}-picker`} message={addressError} />

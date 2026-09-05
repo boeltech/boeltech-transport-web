@@ -15,6 +15,7 @@ npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
 npm run test:smoke:notifications # smoke inbox campana + /notifications
 npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
+npm run test:smoke:location-field # smoke ADR-0092 LocationField BUSCAR→USAR + helpers SAT
 npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
 npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (create/card/activate-tenant)
 npm run test:smoke:platform-catalogs-import # smoke release kit SAT (hub + plantilla + estimate; support RO)
@@ -57,6 +58,8 @@ npm run test:smoke:compensation-templates # smoke ADR-0089 plantillas, corredore
 **Alta de viaje canvas (ADR-0078, Aceptado · F0–F4 cerradas):** un CTA Reservar; `/trips/new` = canvas una pantalla (`FormPageShell`); completar Ruta/Cargas en el detalle (riel + Confirmar reserva); `/trips/:id/edit` redirige al detalle. Hold ADR-0071 intacto. Smoke: `npm run test:smoke:trip-canvas`. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · [addendum composer](D:/cowork/boeltech/erp-transport/design/adr/0078-addendum-composer-esqueleto-ruta.md) (**Aceptado** — Capa 3 E1 web; **sin API**) · SDD `design/sdd/trip-canvas-intake/`. Post-v1: D10 catálogo de rutas.
 
 **Sucursales:** detalle `/branches/:id` muestra mapa read-only Mapbox si hay `latitude`/`longitude` (`VITE_MAPBOX_PUBLIC_TOKEN`) y card **Historial de cambios** (`GET /branches/:id/activity`); captura/edición geo en alta y `/branches/:id/edit` vía `AddressInput`. **Sobrecupo de plan:** `meta.over_quota` en listado + wizard `POST /branches/reconcile-plan` + filtro de asignación en empleados. **SUC-M8a (ADR-0065):** `trips.origin_branch_id`, `vehicles.branch_id`, sucursal conductor heredada del empleado, filtro suave de flota; **cross-dock** en parada origen vía `AddressPicker` (`owner_type=branch`) + aviso en sheet de parada (sin checkbox en RouteStep). **SUC-M12 (ADR-0067):** widget `branch_kpis` en dashboard (comparar ≤3 sucursales) + `BranchOperationalKpiCard` en detalle; API `GET /dashboard/branch-kpis`; drill-down `GET /trips?origin_branch_id=`. Guía: `D:\cowork\boeltech\erp-transport\docs\sucursales\dashboard-kpis-usuario.md`. **Documentación vencida (ADR-0066):** toggle «Permitir documentación vencida» en paso 1 del wizard (seguro/SCT/licencia) + `allow_expired_docs` transitorio en create/update trip.
+
+**Patrón Location (ADR-0092, F0–F6):** familia `@shared/ui/location` (`LocationField` / Card / Sheet) sobre `addresses` — BUSCAR→ENCONTRAR→CONFIRMAR→USAR; cableado en viajes, clientes, sucursales, `/settings/locations` y domicilio fiscal empresa. Smoke `npm run test:smoke:location-field`. Guía: `D:\cowork\boeltech\erp-transport\docs\direcciones\patron-location-usuario.md` · SDD `design/sdd/location-pattern/`. Ops: migr. API **166** (`geocoding_accuracy`).
 
 Guía usuario plataforma: `D:\cowork\boeltech\erp-transport\docs\plataforma\panel-tenant0-usuario.md`  
 Guía usuario aprobaciones: `D:\cowork\boeltech\erp-transport\docs\finanzas\aprobaciones-centralizadas-usuario.md`  

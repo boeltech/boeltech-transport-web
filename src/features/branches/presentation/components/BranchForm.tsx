@@ -1,4 +1,10 @@
-import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Controller,
@@ -9,6 +15,8 @@ import {
   type Control,
   type FieldErrors,
   type Resolver,
+  type UseFormSetValue,
+  type UseFormTrigger,
 } from "react-hook-form";
 import { Building2, Loader2, MapPin, Pencil, Phone, Save } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -36,6 +44,14 @@ import {
 } from "@shared/ui/address-input/AddressGeocodingFormSection";
 import { setFormCoordinates } from "@shared/ui/address-input/setFormCoordinates";
 import { ADDRESS_FORM_COPY } from "@shared/ui/address-input/addressFormCopy";
+import {
+  LocationField,
+  LOCATION_FIELD_COPY,
+  emptySatAddressFields,
+  locationValueFromSatAddressFields,
+  locationValueToSatAddressFields,
+  type LocationValue,
+} from "@shared/ui/location";
 import type { LatLng } from "@shared/geolocation";
 import { useToast } from "@shared/hooks";
 import {
@@ -70,6 +86,43 @@ interface BranchFormProps {
 }
 
 const WIZARD_ADDRESS_STEP_INDEX = 1;
+
+const BRANCH_ADDRESS_SAT_KEYS = [
+  "street",
+  "exteriorNumber",
+  "interiorNumber",
+  "reference",
+  "postalCode",
+  "satCountryCode",
+  "satStateCode",
+  "satMunicipalityCode",
+  "satLocalityCode",
+  "localityName",
+  "satNeighborhoodCode",
+  "neighborhoodName",
+  "latitude",
+  "longitude",
+] as const satisfies readonly (keyof BranchFormData["address"])[];
+
+function applySatSliceToBranchAddress(
+  setValue: UseFormSetValue<BranchFormData>,
+  trigger: UseFormTrigger<BranchFormData>,
+  slice: ReturnType<typeof locationValueToSatAddressFields>,
+) {
+  for (const key of BRANCH_ADDRESS_SAT_KEYS) {
+    if (key === "latitude" || key === "longitude") continue;
+    setValue(`address.${key}`, slice[key], {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+  void setFormCoordinates(
+    setValue,
+    trigger,
+    { latitude: slice.latitude, longitude: slice.longitude },
+    "address",
+  );
+}
 
 const WIZARD_STEP_FIELDS: (keyof BranchFormData | `address.${string}`)[][] = [
   ["code", "name", "status", "isMain", "phone", "email", "managerName"],
@@ -256,6 +309,7 @@ function BranchAddressGeocodingSection({
       latitudeError={errors.address?.latitude?.message}
       onCoordinatesChange={onCoordinatesChange}
       disabled={disabled}
+      hint={null}
     />
   );
 
@@ -506,6 +560,47 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       [applyAddressFieldErrors, editLayout, onSubmit, toast],
     );
 
+    const addressWatch = useWatch({ control, name: "address" });
+    const locationFieldValue = useMemo(
+      () =>
+        locationValueFromSatAddressFields({
+          street: addressWatch?.street,
+          exteriorNumber: addressWatch?.exteriorNumber,
+          interiorNumber: addressWatch?.interiorNumber,
+          reference: addressWatch?.reference,
+          postalCode: addressWatch?.postalCode,
+          satCountryCode: addressWatch?.satCountryCode,
+          satStateCode: addressWatch?.satStateCode,
+          satMunicipalityCode: addressWatch?.satMunicipalityCode,
+          satLocalityCode: addressWatch?.satLocalityCode,
+          localityName: addressWatch?.localityName,
+          satNeighborhoodCode: addressWatch?.satNeighborhoodCode,
+          neighborhoodName: addressWatch?.neighborhoodName,
+          latitude: addressWatch?.latitude,
+          longitude: addressWatch?.longitude,
+        }),
+      [addressWatch],
+    );
+
+    const handleLocationChange = useCallback(
+      (value: LocationValue | null) => {
+        if (!value) {
+          applySatSliceToBranchAddress(
+            setValue,
+            trigger,
+            emptySatAddressFields(),
+          );
+          return;
+        }
+        applySatSliceToBranchAddress(
+          setValue,
+          trigger,
+          locationValueToSatAddressFields(value),
+        );
+      },
+      [setValue, trigger],
+    );
+
     useImperativeHandle(
       ref,
       () => ({
@@ -655,30 +750,50 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
             }
             contentClassName="grid gap-4 sm:grid-cols-2"
           >
-            <div className="sm:col-span-2">
-              <AddressInput<BranchFormData>
-                variant="carta-porte"
-                formContext="branchOperational"
-                addressType="branch"
-                control={control}
-                setValue={setValue}
-                namePrefix="address"
-                layout="compact"
-                showLatLng={false}
-                showPrimaryToggle={false}
-                hideInformativeAlerts={false}
-                embedded
+            <div className="sm:col-span-2 space-y-4">
+              <LocationField
+                context="operational"
+                value={locationFieldValue}
+                onChange={handleLocationChange}
+                label={branchesCopy.form.sections.address.locationSearchLabel}
+                placeholder={
+                  branchesCopy.form.sections.address.locationSearchPlaceholder
+                }
                 disabled={isSubmitting}
+                ownerTypes={["branch", "tenant"]}
+                includeInternal={false}
               />
-            </div>
-            {editLayout ? (
-              <div className="sm:col-span-2">
-                <BranchAddressGeocodingSection
-                  disabled={isSubmitting}
+              <div className="space-y-3 border-t border-border pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {LOCATION_FIELD_COPY.satDetailTitle}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {LOCATION_FIELD_COPY.satDetailHint}
+                  </p>
+                </div>
+                <AddressInput<BranchFormData>
+                  variant="carta-porte"
+                  formContext="branchOperational"
+                  addressType="branch"
+                  control={control}
+                  setValue={setValue}
+                  namePrefix="address"
+                  layout="compact"
+                  showLatLng={false}
+                  showPrimaryToggle={false}
+                  hideInformativeAlerts={false}
                   embedded
+                  disabled={isSubmitting}
                 />
               </div>
-            ) : null}
+            </div>
+            <div className="sm:col-span-2">
+              <BranchAddressGeocodingSection
+                disabled={isSubmitting}
+                embedded
+              />
+            </div>
             <div className="sm:col-span-2">
               <RHFTextareaField
                 control={control}
@@ -695,10 +810,6 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
               />
             </div>
           </FormSectionCard>
-
-          {!editLayout ? (
-            <BranchAddressGeocodingSection disabled={isSubmitting} />
-          ) : null}
         </div>
 
         <div
