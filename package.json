@@ -41,7 +41,8 @@
     "test:smoke:trip-revenue-split": "vitest run src/smoke/trip-revenue-split.smoke.test.tsx src/features/trips/infrastructure/api/mappers.test.ts src/features/invoicing/infrastructure/mappers.test.ts",
     "test:smoke:billing-dispatch": "vitest run src/smoke/billing-dispatch-workflow.smoke.test.tsx src/features/finance/presentation/utils/dispatchRunPreviewBuckets.test.ts",
     "test:smoke:invoice-auto-dispatch": "vitest run src/smoke/invoice-auto-dispatch.smoke.test.tsx src/features/clients/presentation/validation/clientSchema.test.ts src/features/invoicing/infrastructure/mappers.test.ts",
-    "test:smoke:settlements": "vitest run src/smoke/settlements-workflow.smoke.test.tsx src/features/settlements"
+    "test:smoke:settlements": "vitest run src/smoke/settlements-workflow.smoke.test.tsx src/features/settlements",
+    "test:smoke:compensation-templates": "vitest run src/smoke/compensation-templates.smoke.test.tsx src/features/compensation"
   },
   "dependencies": {
     "@boeltech/cfdi-domain": "0.23.0",

@@ -16,6 +16,7 @@
 import { ROLES } from "@shared/constants/roles";
 import { FINANCE_SUMMARY_ROUTE_ROLES } from "@shared/permissions";
 import { SETTLEMENTS_LIST_PATH } from "@features/settlements/application";
+import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
 import {
   LayoutDashboard,
   Truck,
@@ -37,6 +38,7 @@ import {
   ClipboardCheck,
   Mail,
   Banknote,
+  BadgePercent,
 } from "lucide-react";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
@@ -196,7 +198,14 @@ export const navigationConfig: NavGroup[] = [
         icon: Banknote,
         module: "settlements",
       },
-{
+      {
+        id: "finance-agreements",
+        label: copy.item.financeAgreements,
+        path: COMPENSATION_TEMPLATES_PATH,
+        icon: BadgePercent,
+        module: "settlements",
+      },
+      {
         id: "finance-analysis",
         label: copy.item.financeAnalysis,
         path: "/finance/analysis",

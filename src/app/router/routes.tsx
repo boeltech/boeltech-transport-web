@@ -318,6 +318,35 @@ const SettlementDetailPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementDetailPage })),
 );
 
+// Compensation templates hub (ADR-0089 F3)
+const CompensationHubLayout = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({ default: m.CompensationHubLayout })),
+);
+const CompensationTemplateListPage = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({
+    default: m.CompensationTemplateListPage,
+  })),
+);
+const CompensationSchemeBuilderPage = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({
+    default: m.CompensationSchemeBuilderPage,
+  })),
+);
+const CompensationTemplateDetailRedirect = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({
+    default: m.CompensationTemplateDetailRedirect,
+  })),
+);
+const CorridorTariffsListPage = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({
+    default: m.CorridorTariffsListPage,
+  })),
+);
+const AgreementsLegacyRedirect = lazyWithRetry(() =>
+  import("@features/compensation").then((m) => ({
+    default: m.AgreementsLegacyRedirect,
+  })),
+);
 const SettlementsLegacyRedirect = lazyWithRetry(() =>
   import("@features/settlements/presentation/routes/SettlementsLegacyRedirect").then(
     (m) => ({ default: m.SettlementsLegacyRedirect }),
@@ -963,7 +992,37 @@ export const router = createBrowserRouter([
                     path: "/finance/settlements/:id",
                     element: withSuspense(SettlementDetailPage),
                   },
-],
+                  {
+                    path: "/finance/compensation",
+                    element: withSuspense(CompensationHubLayout),
+                    children: [
+                      {
+                        index: true,
+                        element: <Navigate to="templates" replace />,
+                      },
+                      {
+                        path: "templates",
+                        element: withSuspense(CompensationTemplateListPage),
+                      },
+                      {
+                        path: "templates/:id",
+                        element: withSuspense(CompensationTemplateDetailRedirect),
+                      },
+                      {
+                        path: "corridors",
+                        element: withSuspense(CorridorTariffsListPage),
+                      },
+                    ],
+                  },
+                  {
+                    path: "/finance/compensation/templates/:id/build",
+                    element: withSuspense(CompensationSchemeBuilderPage),
+                  },
+                  {
+                    path: "/finance/agreements",
+                    element: withSuspense(AgreementsLegacyRedirect),
+                  },
+                ],
               },
             ],
           },
