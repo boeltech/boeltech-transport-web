@@ -2,7 +2,7 @@
  * PatternsSection (Fase 3)
  *
  * Documentación viva de los patrones de pantalla del ERP:
- *   - Page shells (List, Detail, Form, Wizard, Settings)
+ *   - Page shells (List, Detail, Form, Wizard, Settings, Hub, Builder, Workbench)
  *   - Jerarquía tipográfica por shell
  *   - Spacing scale
  *   - Patrón detail-sheet-master-detail (skill canónico)
@@ -69,6 +69,36 @@ const SHELLS: readonly ShellSpec[] = [
     example: "features/settings/presentation/pages/GeneralSettingsPage.tsx",
     import: 'import { SettingsPageShell } from "@shared/ui/page-shells";',
   },
+  {
+    name: "HubPageShell",
+    description:
+      "Header + readiness chips? + orientation? + actions? + nav tabs? + guide? + children. Oriente y lanza; no edita ni tria colas. Readiness = salud de configuración (≠ Workbench awareness).",
+    whenToUse:
+      "Landing de módulo de configuración (≥3/5 checklist Hub v2): /finance/compensation. No usar para colas ni Builder.",
+    example:
+      "features/compensation/presentation/components/CompensationHubLayout.tsx",
+    import: 'import { HubPageShell } from "@shared/ui/page-shells";',
+  },
+  {
+    name: "BuilderPageShell",
+    description:
+      "Header (back + título + description?) + banner? + section nav no lineal + canvas + inspector + footer sticky. Responsive: tabs mobile, inspector en Sheet.",
+    whenToUse:
+      "Construcción de objetos complejos (≥4/6 checklist ADR-0091): plantillas de compensación, esquemas de facturación. No es Wizard lineal ni Workbench.",
+    example:
+      "features/compensation/presentation/pages/CompensationSchemeBuilderPage.tsx",
+    import: 'import { BuilderPageShell } from "@shared/ui/page-shells";',
+  },
+  {
+    name: "WorkbenchPageShell",
+    description:
+      "Header + awareness strip (buckets clickables) + toolbar + renderContent() + pagination opcional + related config. Empty/error por bucket en la feature.",
+    whenToUse:
+      "Centros operativos (≥4/7 checklist ADR-0090): liquidaciones, aprobaciones, dispatch-runs. No ampliar ListPageShell.",
+    example:
+      "ADR-0090 · migración Settlements/Approvals (Fases 2–3)",
+    import: 'import { WorkbenchPageShell } from "@shared/ui/page-shells";',
+  },
 ] as const;
 
 export function PatternsSection() {
@@ -104,6 +134,18 @@ export function PatternsSection() {
         <ShellMockup
           title="WizardPageShell"
           render={<WizardMockup />}
+        />
+        <ShellMockup
+          title="WorkbenchPageShell"
+          render={<WorkbenchMockup />}
+        />
+        <ShellMockup
+          title="HubPageShell"
+          render={<HubMockup />}
+        />
+        <ShellMockup
+          title="BuilderPageShell"
+          render={<BuilderMockup />}
         />
       </div>
 
@@ -599,6 +641,181 @@ function WizardMockup() {
       <div className="flex justify-between pt-1">
         <div className="h-7 w-20 rounded bg-muted" />
         <div className="h-7 w-24 rounded bg-primary/40" />
+      </div>
+    </div>
+  );
+}
+
+function WorkbenchMockup() {
+  return (
+    <div className="space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <MockBar width="45%" className="h-3" />
+        <div className="h-6 w-24 rounded bg-primary/30" />
+      </div>
+      {/* Awareness strip (franja unida) */}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <div className="grid grid-cols-4 divide-x divide-border">
+          {[
+            { active: true, h: "h-4" },
+            { active: false, h: "h-3" },
+            { active: false, h: "h-3" },
+            { active: false, h: "h-2" },
+          ].map((cell, i) => (
+            <div
+              key={i}
+              className={`space-y-1.5 p-2 ${cell.active ? "bg-primary/10" : ""}`}
+            >
+              <MockBar width="70%" className="h-1.5" />
+              <MockBar width="40%" className={cell.h} />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Toolbar */}
+      <div className="flex gap-2">
+        <div className="h-7 flex-1 rounded bg-muted" />
+        <div className="h-7 w-16 rounded bg-muted" />
+        <div className="h-7 w-7 rounded bg-muted" />
+      </div>
+      {/* Work surface */}
+      <div className="space-y-1.5 rounded bg-card p-2">
+        {[75, 90, 60].map((w, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded bg-muted" />
+            <MockBar width={`${w}%`} />
+            <div className="h-5 w-14 rounded bg-primary/25" />
+          </div>
+        ))}
+      </div>
+      {/* Related config */}
+      <MockBar width="55%" className="h-1.5 bg-primary/40" />
+    </div>
+  );
+}
+
+function HubMockup() {
+  return (
+    <div className="space-y-2">
+      {/* Header */}
+      <div className="space-y-1">
+        <MockBar width="55%" className="h-3" />
+        <MockBar width="80%" className="h-1.5" />
+      </div>
+      {/* Readiness chips (configuración — no awareness de Workbench) */}
+      <div className="flex flex-wrap gap-1.5">
+        {[
+          "bg-success/25",
+          "bg-warning/25",
+          "bg-muted",
+          "bg-success/25",
+        ].map((tone, i) => (
+          <div
+            key={i}
+            className={`flex h-5 items-center gap-1 rounded border px-1.5 ${tone}`}
+          >
+            <div className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
+            <MockBar width="36px" className="h-1.5" />
+          </div>
+        ))}
+      </div>
+      {/* Orientation */}
+      <MockBar width="70%" className="h-1.5 bg-primary/30" />
+      {/* Nav tabs */}
+      <div className="flex gap-1.5">
+        <div className="h-5 w-16 rounded bg-primary/20" />
+        <div className="h-5 w-20 rounded bg-muted" />
+      </div>
+      {/* Guide */}
+      <div className="rounded border border-dashed p-1.5 space-y-1">
+        <MockBar width="40%" className="h-1.5" />
+        <div className="flex gap-2">
+          <MockBar width="28%" className="h-1.5" />
+          <MockBar width="28%" className="h-1.5" />
+          <MockBar width="28%" className="h-1.5" />
+        </div>
+      </div>
+      {/* Children */}
+      <div className="space-y-1 pt-1">
+        <MockBar width="100%" />
+        <MockBar width="90%" />
+        <MockBar width="95%" />
+      </div>
+    </div>
+  );
+}
+
+function BuilderMockup() {
+  return (
+    <div className="space-y-2">
+      {/* Header: back + title + badge + description */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded bg-muted" />
+          <MockBar width="45%" className="h-3" />
+          <div className="ml-auto h-5 w-14 rounded-full bg-success-soft" />
+        </div>
+        <MockBar width="70%" className="h-1.5" />
+      </div>
+      {/* Mobile tabs hint */}
+      <div className="flex gap-1 lg:hidden">
+        {[true, false, false].map((active, i) => (
+          <div
+            key={i}
+            className={`h-5 flex-1 rounded border ${
+              active ? "border-primary bg-primary/10" : "border-transparent bg-muted/40"
+            }`}
+          />
+        ))}
+      </div>
+      {/* 3-col: nav panel | canvas | inspector */}
+      <div className="grid grid-cols-[0.7fr_1.4fr_0.9fr] gap-2 pt-1">
+        <div className="space-y-1 rounded-md border bg-muted/30 p-1.5">
+          {[
+            { active: true, w: "90%" },
+            { active: false, w: "75%" },
+            { active: false, w: "80%" },
+            { active: false, w: "70%" },
+          ].map((it, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-1.5 rounded px-1.5 py-1 ${
+                it.active ? "bg-primary/15" : "bg-transparent"
+              }`}
+            >
+              <div
+                className={`h-1.5 w-1.5 rounded-full ${
+                  i === 0
+                    ? "bg-success"
+                    : i === 1
+                      ? "bg-warning"
+                      : "bg-muted-foreground/40"
+                }`}
+              />
+              <MockBar width={it.w} className="h-1.5" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1.5 p-1">
+          <MockBar width="40%" className="mb-1 h-2" />
+          <div className="space-y-1.5 rounded border bg-card p-2">
+            <div className="h-5 rounded bg-muted" />
+            <div className="h-5 rounded bg-muted" />
+            <div className="h-10 rounded bg-muted" />
+          </div>
+        </div>
+        <div className="space-y-1.5 rounded border bg-card p-2">
+          <MockBar width="50%" className="h-2" />
+          <MockBar width="90%" className="h-1.5" />
+          <MockBar width="70%" className="h-1.5" />
+          <MockBar width="80%" className="h-1.5" />
+        </div>
+      </div>
+      {/* Footer sticky actions */}
+      <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/80 pt-2 backdrop-blur">
+        <div className="h-6 w-16 rounded bg-muted" />
+        <div className="h-6 w-20 rounded bg-primary/40" />
       </div>
     </div>
   );

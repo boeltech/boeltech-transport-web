@@ -10,23 +10,23 @@ export const dispatchRunsCopy = {
     loadError: "Error al cargar envíos de facturas",
     filters: {
       statusPlaceholder: "Estado",
-      schemePlaceholder: "Tipo de envío",
+      schemePlaceholder: "Esquema de facturación",
       all: "Todos",
       chipStatus: (label: string) => `Estado: ${label}`,
-      chipScheme: (name: string) => `Tipo de envío: ${name}`,
+      chipScheme: (name: string) => `Esquema: ${name}`,
     },
     empty: {
       title: "No hay envíos recientes",
       description:
         "Prepara un envío para revisar las facturas del periodo y enviarlas por correo a tus clientes.",
-      settingsLink: "Configura los tipos de envío en Configuración",
+      settingsLink: "Configura los esquemas de facturación en Configuración",
       withFilters:
-        "No hay envíos con los filtros actuales. Prueba otro estado o tipo de envío.",
+        "No hay envíos con los filtros actuales. Prueba otro estado o esquema de facturación.",
       clearFilters: "Limpiar filtros",
       onboardingTitle: "Antes del primer envío",
       onboardingSteps: [
         {
-          label: "Crea un tipo de envío en esquemas de facturación",
+          label: "Crea un esquema de facturación en Configuración",
           href: "/settings/billing-schemes",
           linkLabel: "Ir a esquemas",
         },
@@ -44,7 +44,7 @@ export const dispatchRunsCopy = {
     },
     table: {
       period: "Periodo",
-      scheme: "Tipo de envío",
+      scheme: "Esquema de facturación",
       origin: "Origen",
       status: "Estado",
       createdAt: "Creada",
@@ -55,12 +55,13 @@ export const dispatchRunsCopy = {
     },
     createDialog: {
       title: "Preparar envío del periodo",
-      schemeLabel: "Tipo de envío",
+      schemeLabel: "Esquema de facturación",
       schemeHint:
-        "Define cada cuánto se agrupan las facturas (semanal, quincenal, mensual).",
+        "Define cada cuánto se agrupan las facturas (semanal, cortes del mes o mensual).",
+      schemeSummaryLabel: "Resumen del esquema",
       submit: "Preparar lista",
       cancel: "Cancelar",
-      noSchemes: "No hay tipos de envío activos.",
+      noSchemes: "No hay esquemas de facturación activos.",
       settingsLink: "Configura uno en Ajustes",
     },
   },
@@ -82,7 +83,7 @@ export const dispatchRunsCopy = {
   },
   detail: {
     title: "Envío de facturas",
-    schemeTypeLabel: (name: string) => `Tipo de envío: ${name}`,
+    schemeTypeLabel: (name: string) => `Esquema de facturación: ${name}`,
     originScheduled: "Automática",
     originManual: "Manual",
     periodClosedTrips: (start: string, end: string) =>

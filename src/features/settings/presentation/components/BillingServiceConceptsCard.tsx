@@ -8,6 +8,7 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
 
+import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
 
@@ -19,8 +20,14 @@ const copy = billingSettingsCopy.serviceConcepts;
 
 export const BillingServiceConceptsCard = memo(
   function BillingServiceConceptsCard() {
-    const { data, isLoading } = useBillingServiceConcepts();
+    const { hasPermission } = usePermissions();
+    const canRead = hasPermission("billing_service_concepts", "read");
+    const { data, isLoading } = useBillingServiceConcepts({ isActive: true });
     const total = data?.length ?? 0;
+
+    if (!canRead) {
+      return null;
+    }
 
     return (
       <SettingsCard

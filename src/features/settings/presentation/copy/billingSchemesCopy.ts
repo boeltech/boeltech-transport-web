@@ -15,7 +15,7 @@ export const billingSchemesCopy = {
     loading: "Cargando esquemas…",
     defaultBadge: "Predeterminado",
     inactiveBadge: "Inactivo",
-    selectPrompt: "Selecciona un esquema o crea uno nuevo.",
+    selectPrompt: "Selecciona un esquema de la lista para ver su detalle.",
   },
   cadence: {
     event: "Por cierre de viaje",
@@ -24,12 +24,54 @@ export const billingSchemesCopy = {
     periodic_monthly: "Mensual",
   } satisfies Record<BillingCadenceKind, string>,
   weekdays: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] as const,
+  naturalDescription: {
+    event: (hours: number) =>
+      `Cuando un viaje se cierra, sus facturas listas pueden incluirse en un envío hasta ${hours} horas después del cierre.`,
+    weekly: (weekdays: number[]) => {
+      const days = weekdays
+        .map((d) => billingSchemesCopy.weekdays[d] ?? d)
+        .join(" y ");
+      return `Cada ${days} se agrupan las facturas listas de los viajes cerrados en el periodo y se preparan para envío por correo.`;
+    },
+    decadal: (monthDays: number[]) =>
+      `Los días ${monthDays.join(", ")} de cada mes se prepara el envío con las facturas listas del periodo.`,
+    monthlyDays: (monthDays: number[]) =>
+      `Los días ${monthDays.join(", ")} de cada mes se prepara el envío con las facturas listas del periodo.`,
+    monthlyBusiness: (n: number) =>
+      `El ${n}.º día hábil de cada mes se prepara el envío con las facturas listas del periodo.`,
+    fallback:
+      "Define cuándo se prepara el envío por correo con las facturas ya listas del periodo.",
+  },
+  detail: {
+    summaryTitle: "Resumen",
+    periodRuleTitle: "Regla del periodo",
+    assignmentTitle: "Al asignar a un cliente",
+    assignmentBody:
+      "El cliente puede entrar a envíos programados de este esquema. Sin esquema asignado, solo aparece en Por facturar.",
+    clientsCta: "Ir a clientes",
+    detailsTitle: "Detalles",
+    createdAt: (label: string) => `Creado: ${label}`,
+    updatedAt: (label: string) => `Última actualización: ${label}`,
+    edit: "Editar esquema",
+    deactivate: "Desactivar",
+    periodRules: {
+      frequency: (label: string) => `Frecuencia: ${label}`,
+      windowHours: (hours: number) =>
+        `Espera tras cierre del viaje: ${hours} horas`,
+      weekdays: (days: string) => `Días de corte: ${days}`,
+      monthDays: (days: string) => `Días de corte del mes: ${days}`,
+      businessDays: (n: number) =>
+        `Día hábil del mes: ${n}.º desde inicio de mes`,
+      tripInclusion:
+        "Viajes incluidos: cerrados en el periodo (fecha de cierre operativo del viaje)",
+    },
+  },
   form: {
     createTitle: "Nuevo esquema",
     editTitle: "Editar esquema",
     name: "Nombre",
     nameHint: "Ej. Corte semanal jueves–viernes",
-    cadence: "Frecuencia de envío",
+    cadence: "¿Con qué frecuencia se prepara el envío?",
     cadenceHint: "Cuándo se agrupa el correo con las facturas listas del periodo.",
     isDefault: "Esquema predeterminado",
     isDefaultHint:
@@ -37,7 +79,7 @@ export const billingSchemesCopy = {
     params: {
       windowHours: "Horas después de cerrar el viaje",
       windowHoursHint:
-        "Ventana hacia atrás desde el cierre operativo del viaje.",
+        "Se cuentan los viajes cerrados en las últimas horas antes del envío.",
       weekdays: "Días de corte",
       monthDays: "Días de corte del mes",
       monthDaysHint: "Ej. 10, 20, 30. Números del 1 al 31, separados por coma.",
@@ -49,7 +91,6 @@ export const billingSchemesCopy = {
     },
     save: "Guardar",
     cancel: "Cancelar",
-    deactivate: "Desactivar",
     validation: {
       nameRequired: "Indica un nombre para el esquema",
       windowHoursRequired: "Indica las horas tras cerrar el viaje",

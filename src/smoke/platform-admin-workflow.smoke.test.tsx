@@ -175,8 +175,8 @@ describe("smoke platform admin workflow", () => {
     mockGetTenantEntitlements.mockResolvedValue({
       directEntitlements: [
         {
-          moduleCode: "internal_staff_compensation",
-          moduleName: "Equipo de apoyo en viajes",
+          moduleCode: "gps_tracking",
+          moduleName: "Rastreo GPS en tiempo real",
           kind: "addon",
           status: "active",
           activatedAt: "2026-07-01T12:00:00.000Z",
@@ -185,8 +185,8 @@ describe("smoke platform admin workflow", () => {
           memberCodes: [],
         },
       ],
-      effectiveModuleCodes: ["internal_staff_compensation"],
-      profitabilityLevel: "L0.5",
+      effectiveModuleCodes: ["gps_tracking"],
+      profitabilityLevel: "L1",
       catalog: [],
       commercialSummary: {
         planMonthlyPriceCents: 74900,
@@ -280,7 +280,7 @@ describe("smoke platform admin workflow", () => {
       }),
     );
     expect(
-      await screen.findByText("Equipo de apoyo en viajes"),
+      await screen.findByText("Rastreo GPS en tiempo real"),
     ).toBeInTheDocument();
 
     await user.click(

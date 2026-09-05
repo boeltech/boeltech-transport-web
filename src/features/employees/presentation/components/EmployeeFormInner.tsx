@@ -712,7 +712,10 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
       const result = await createMutation.mutateAsync(dto);
       const newId = result.data.id;
       try {
-        await createEmployeeAddress(newId, addressCreateDto);
+        // Domicilio es opcional en RRHH: no POST vacío (API exige CP/estado SAT).
+        if (shouldPersistDomicilio) {
+          await createEmployeeAddress(newId, addressCreateDto);
+        }
         await queryClient.invalidateQueries({
           queryKey: employeeQueryKeys.detail(newId),
         });

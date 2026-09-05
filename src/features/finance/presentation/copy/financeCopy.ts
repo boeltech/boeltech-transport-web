@@ -112,6 +112,25 @@ const cobrosCopy = {
       cancelling: "Cancelando comprobante",
     },
   },
+  workbench: {
+    title: "Cobros",
+    description: "Registra cobros por RFC y revisa comprobantes de pago pendientes.",
+    bucketsAriaLabel: "Estado de cobranza",
+    rfcFilterPlaceholder: "Buscar por RFC…",
+    rfcChipLabel: (rfc: string) => `RFC: ${rfc}`,
+    buckets: {
+      all: "Todas",
+      overdue: "Vencidas",
+      partial: "Pago parcial",
+      rep_exceptions: "Excepciones REP",
+    },
+    bucketDescriptions: {
+      all: "Facturas PPD abiertas con saldo pendiente",
+      overdue: "Fecha de pago vencida",
+      partial: "Con pagos registrados y saldo remanente",
+      rep_exceptions: "Comprobantes por atender",
+    },
+  },
   toastError: "No se pudo registrar el cobro",
   overlayErrorSeeInline: "Revisa el mensaje detallado en el diálogo.",
   chainRepair: {
@@ -332,6 +351,20 @@ export const financeCopy = {
       emptyDescription:
         "Crea tu primera factura seleccionando un viaje facturable.",
     },
+    workbench: {
+      bucketsAriaLabel: "Estado de facturas",
+      bucketDescriptions: {
+        draft: "Pendientes de timbrar",
+        stamping: "En proceso con el PAC",
+        stamped: "Vigentes timbradas",
+        cancellation_pending: "Esperando respuesta del SAT",
+        cancelled: "Historial canceladas",
+      },
+      relatedConfig: {
+        label: "Viajes por facturar",
+        description: "Cola de candidatos fiscales sin factura emitida.",
+      },
+    },
   },
   invoiceable: {
     title: "Viajes por facturar",
@@ -363,6 +396,44 @@ export const financeCopy = {
       clearFilters: "Limpiar búsqueda",
     },
     loadError: "Error al cargar viajes por facturar",
+    workbench: {
+      bucketsAriaLabel: "Etapas de la cola de facturación",
+      buckets: {
+        ready: "Listos para facturar",
+        proration_pending: "Prorrateo pendiente",
+        blocked: "Bloqueados",
+      },
+      bucketDescriptions: {
+        ready: "CTA Facturar disponible desde Finanzas",
+        proration_pending: "Split activo: completa porciones en el viaje",
+        blocked: "Completa ruta, cargas o datos SAT antes de facturar",
+      },
+      emptyByBucket: {
+        ready: {
+          title: "Nada listo para facturar",
+          description:
+            "No hay viajes con todos los requisitos cumplidos en la cola actual.",
+        },
+        proration_pending: {
+          title: "Sin prorrateos pendientes",
+          description:
+            "No hay viajes con flete prorrateado esperando porciones por facturar.",
+        },
+        blocked: {
+          title: "Sin bloqueados",
+          description:
+            "No hay viajes bloqueados en la cola actual.",
+        },
+      },
+      degradedMessage:
+        "No se pudo cargar la cola de facturación. Consulta el registro de facturas mientras tanto.",
+      degradedLinkLabel: "Ir a facturas",
+      relatedConfig: {
+        label: "Ver registro de facturas",
+        description:
+          "Historial completo de facturas emitidas y canceladas.",
+      },
+    },
   },
   profitability: {
     scope: {

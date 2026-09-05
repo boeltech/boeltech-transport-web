@@ -215,7 +215,6 @@ export interface UpdatePlatformTenantStatusPayload {
 
 export type PlatformProfitabilityLevel =
   | "L0"
-  | "L0.5"
   | "L1"
   | "L2"
   | "L3"

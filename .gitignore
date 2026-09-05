@@ -40,3 +40,6 @@ docs/
 
 # Local TypeScript build error dumps
 tsc-errors-frontend.txt
+
+# Cursor Canvas local analytical artifacts
+canvases/

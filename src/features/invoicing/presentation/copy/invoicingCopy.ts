@@ -210,7 +210,7 @@ export const invoicingCopy = {
   },
   hint: {
     issuer:
-      "Datos del emisor tomados de Configuración → Empresa al crear el borrador.",
+      "Datos del emisor tomados de Configuración → General al crear el borrador.",
     tripEdit: "Viajes asociados a este borrador (no editables aquí).",
     // Sheet de sustitución (detalle fiscal).
     amountsAuto:

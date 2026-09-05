@@ -30,14 +30,8 @@ export const PROFITABILITY_LEVEL_COPY: Record<
   L0: {
     label: "Margen operativo",
     includes:
-      "Al ingreso de cada viaje se le restan los gastos del viaje ya aprobados.",
-    pending: "Todavía no considera depreciación, combustible ni sueldos.",
-  },
-  "L0.5": {
-    label: "Margen operativo pleno",
-    includes:
-      "Además del gasto del viaje, se incluye lo que pagas al equipo de apoyo asignado.",
-    pending: "Todavía no considera depreciación, combustible ni sueldos.",
+      "Al ingreso de cada viaje se le restan los gastos del viaje ya aprobados y la compensación del equipo de apoyo asignado.",
+    pending: "Todavía no considera depreciación, combustible ni sueldos de plantilla.",
   },
   L1: {
     label: "Margen operativo ajustado",

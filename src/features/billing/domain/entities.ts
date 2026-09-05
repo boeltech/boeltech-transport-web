@@ -1,10 +1,4 @@
-export type ProfitabilityLevel =
-  | "L0"
-  | "L0.5"
-  | "L1"
-  | "L2"
-  | "L3"
-  | "L4";
+export type ProfitabilityLevel = "L0" | "L1" | "L2" | "L3" | "L4";
 
 export interface BillingSubscription {
   planCode: string;
@@ -130,5 +124,3 @@ export const billingQueryKeys = {
   entitlements: () => [...billingQueryKeys.all, "entitlements"] as const,
   arrears: () => [...billingQueryKeys.all, "arrears"] as const,
 };
-
-export const INTERNAL_STAFF_MODULE_CODE = "internal_staff_compensation";

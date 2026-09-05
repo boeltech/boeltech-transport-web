@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileClock } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -12,7 +12,8 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -25,11 +26,25 @@ import {
   shouldOpenInvoiceCreateFromFinanceHub,
 } from "@features/invoicing";
 import { financeCopy } from "../copy";
+import {
+  DEFAULT_INVOICEABLE_BUCKET,
+  isInvoiceableBucket,
+  type InvoiceableBucketId,
+} from "../config/invoiceableWorkbenchConfig";
+import {
+  countTripsByBucket,
+  mapInvoiceableWorkbenchBuckets,
+  partitionTripsByBucket,
+} from "../utils/mapInvoiceableWorkbenchBuckets";
 
 const copy = financeCopy.invoiceable;
+const workbenchCopy = copy.workbench;
 const PAGE_SIZE = 10;
-/** Origen para el back del formulario de factura. */
 const PAGE_PATH = "/finance/invoiceable";
+
+// ============================================================================
+// TABLE (preserved from original — no logic changes)
+// ============================================================================
 
 const TABLE_HEADERS = [
   { key: "trip", label: copy.table.trip },
@@ -100,17 +115,6 @@ function InvoiceableTripsTable({
         <TableHeaderRow />
         {isLoading ? (
           <LoadingSkeleton />
-        ) : trips.length === 0 ? (
-          <TableBody>
-            <TableRow>
-              <TableCell
-                colSpan={TABLE_HEADERS.length}
-                className="h-24 text-center"
-              >
-                {copy.table.empty}
-              </TableCell>
-            </TableRow>
-          </TableBody>
         ) : (
           <TableBody>
             {trips.map((trip) => {
@@ -124,72 +128,76 @@ function InvoiceableTripsTable({
                   : null;
 
               return (
-              <TableRow key={trip.id}>
-                <TableCell className="font-mono font-medium">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>{trip.tripCode}</span>
-                      {trip.operationalOutcome === "false_trip" ? (
-                        <Badge variant="warning" tone="soft" className="text-xs">
-                          {copy.table.falseTripChip}
-                        </Badge>
-                      ) : null}
-                      {hasActiveSplit ? (
-                        <Badge variant="default" className="text-xs">
-                          {copy.table.splitShareChip}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    {splitProgress ? (
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {splitProgress}
-                      </span>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {trip.client?.legalName ?? copy.noClient}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatRoute(trip.originCity, trip.destinationCity)}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {formatDate(
-                    trip.scheduledDeparture.toISOString().split("T")[0],
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatMxCurrency(trip.baseRate)}
-                </TableCell>
-                <TableCell>
-                  {shouldOpenInvoiceCreateFromFinanceHub(trip) ? (
-                    <Button size="sm" onClick={() => onInvoice(trip)}>
-                      {copy.invoiceAction}
-                    </Button>
-                  ) : (
-                    <div className="flex max-w-[14rem] flex-col items-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        title={
-                          !hasActiveSplit && trip.invoicing.blockReason
-                            ? trip.invoicing.blockReason
-                            : undefined
-                        }
-                        onClick={() => onOpenTripInvoicing(trip)}
-                      >
-                        {copy.goToTripInvoicing}
-                      </Button>
-                      {!hasActiveSplit && trip.invoicing.blockReason ? (
-                        <span className="text-xs font-normal text-muted-foreground text-right">
-                          {trip.invoicing.blockReason}
+                <TableRow key={trip.id}>
+                  <TableCell className="font-mono font-medium">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{trip.tripCode}</span>
+                        {trip.operationalOutcome === "false_trip" ? (
+                          <Badge
+                            variant="warning"
+                            tone="soft"
+                            className="text-xs"
+                          >
+                            {copy.table.falseTripChip}
+                          </Badge>
+                        ) : null}
+                        {hasActiveSplit ? (
+                          <Badge variant="default" className="text-xs">
+                            {copy.table.splitShareChip}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {splitProgress ? (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {splitProgress}
                         </span>
                       ) : null}
                     </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {trip.client?.legalName ?? copy.noClient}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatRoute(trip.originCity, trip.destinationCity)}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {formatDate(
+                      trip.scheduledDeparture.toISOString().split("T")[0],
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatMxCurrency(trip.baseRate)}
+                  </TableCell>
+                  <TableCell>
+                    {shouldOpenInvoiceCreateFromFinanceHub(trip) ? (
+                      <Button size="sm" onClick={() => onInvoice(trip)}>
+                        {copy.invoiceAction}
+                      </Button>
+                    ) : (
+                      <div className="flex max-w-[14rem] flex-col items-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title={
+                            !hasActiveSplit && trip.invoicing.blockReason
+                              ? trip.invoicing.blockReason
+                              : undefined
+                          }
+                          onClick={() => onOpenTripInvoicing(trip)}
+                        >
+                          {copy.goToTripInvoicing}
+                        </Button>
+                        {!hasActiveSplit && trip.invoicing.blockReason ? (
+                          <span className="text-xs font-normal text-muted-foreground text-right">
+                            {trip.invoicing.blockReason}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
             })}
           </TableBody>
         )}
@@ -198,22 +206,36 @@ function InvoiceableTripsTable({
   );
 }
 
+// ============================================================================
+// PAGE — WorkbenchPageShell (ADR-0090)
+// ============================================================================
+
 export function FinanceInvoiceablePage() {
   const navigate = useNavigate();
 
-  const filters = useFinanceListingFilters({ filters: {} });
-
-  const { data, isLoading, isError, error, refetch, isFetching } = useTrips(
-    {
-      page: filters.page,
-      limit: PAGE_SIZE,
-      filters: {
-        invoiceableOnly: true,
-        search: filters.search || undefined,
-      },
-      sort: { field: "scheduled_departure", direction: "desc" },
+  const filters = useFinanceListingFilters<"bucket">({
+    filters: { bucket: {} },
+    chipLabels: {
+      bucket: (value) =>
+        `Etapa: ${workbenchCopy.buckets[value as InvoiceableBucketId] ?? value}`,
     },
-  );
+  });
+
+  const activeBucket: InvoiceableBucketId = isInvoiceableBucket(
+    filters.filters.bucket,
+  )
+    ? filters.filters.bucket
+    : DEFAULT_INVOICEABLE_BUCKET;
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useTrips({
+    page: filters.page,
+    limit: PAGE_SIZE,
+    filters: {
+      invoiceableOnly: true,
+      search: filters.search || undefined,
+    },
+    sort: { field: "scheduled_departure", direction: "desc" },
+  });
 
   const trips = data?.data ?? [];
 
@@ -222,6 +244,28 @@ export function FinanceInvoiceablePage() {
     error,
     title: copy.loadError,
   });
+
+  // Partition current page trips by bucket (degraded: counts are page-level).
+  const partitioned = useMemo(() => partitionTripsByBucket(trips), [trips]);
+  const counts = useMemo(() => countTripsByBucket(trips), [trips]);
+  const bucketTrips = partitioned[activeBucket];
+
+  const handleBucketChange = useCallback(
+    (bucket: InvoiceableBucketId) => {
+      filters.setFilter("bucket", bucket);
+    },
+    [filters],
+  );
+
+  const buckets = useMemo(
+    () =>
+      mapInvoiceableWorkbenchBuckets({
+        counts,
+        activeBucket,
+        onBucketChange: handleBucketChange,
+      }),
+    [activeBucket, counts, handleBucketChange],
+  );
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -245,10 +289,20 @@ export function FinanceInvoiceablePage() {
     [navigate],
   );
 
+  const isDegraded = isError && !isLoading;
+  const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
+
   return (
-    <ListPageShell<TripListItem>
+    <WorkbenchPageShell
       title={copy.title}
       description={copy.description}
+      buckets={buckets}
+      bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
+      bucketsLoading={isLoading}
+      isDegraded={isDegraded}
+      degradedMessage={workbenchCopy.degradedMessage}
+      degradedHref="/finance/invoices"
+      degradedLinkLabel={workbenchCopy.degradedLinkLabel}
       toolbar={{
         search: {
           ...filters.searchProps,
@@ -256,12 +310,62 @@ export function FinanceInvoiceablePage() {
         },
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
-        activeFilterChips: filters.activeChips,
+        activeFilterChips: filters.activeChips.filter(
+          (chip) => chip.id !== "bucket",
+        ),
         onClearFilters: filters.clearAll,
         hasFilters: filters.hasFilters,
       }}
-      isLoading={isLoading}
-      items={trips}
+      renderContent={() => {
+        if (isLoading) {
+          return (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeaderRow />
+                <LoadingSkeleton />
+              </Table>
+            </div>
+          );
+        }
+
+        if (bucketTrips.length === 0) {
+          return (
+            <EmptyState
+              icon={
+                <FileClock className="h-10 w-10 text-muted-foreground" />
+              }
+              title={
+                filters.hasFilters
+                  ? copy.empty.title
+                  : emptyBucket.title
+              }
+              description={
+                filters.hasFilters
+                  ? copy.empty.withFilters
+                  : emptyBucket.description
+              }
+              secondaryCta={
+                filters.hasFilters
+                  ? {
+                      label: copy.empty.clearFilters,
+                      onClick: filters.clearAll,
+                      variant: "outline" as const,
+                    }
+                  : undefined
+              }
+            />
+          );
+        }
+
+        return (
+          <InvoiceableTripsTable
+            trips={bucketTrips}
+            isLoading={false}
+            onInvoice={handleInvoice}
+            onOpenTripInvoicing={handleOpenTripInvoicing}
+          />
+        );
+      }}
       pagination={
         data?.pagination
           ? {
@@ -273,28 +377,10 @@ export function FinanceInvoiceablePage() {
           : undefined
       }
       onPageChange={filters.setPage}
-      entityLabelPlural={copy.entityLabelPlural}
-      renderTable={() => (
-        <InvoiceableTripsTable
-          trips={trips}
-          isLoading={isLoading}
-          onInvoice={handleInvoice}
-          onOpenTripInvoicing={handleOpenTripInvoicing}
-        />
-      )}
-      emptyState={{
-        icon: <FileClock className="h-10 w-10 text-muted-foreground" />,
-        title: copy.empty.title,
-        description: filters.hasFilters
-          ? copy.empty.withFilters
-          : copy.empty.description,
-        secondaryCta: filters.hasFilters
-          ? {
-              label: copy.empty.clearFilters,
-              onClick: filters.clearAll,
-              variant: "outline",
-            }
-          : undefined,
+      relatedConfig={{
+        label: workbenchCopy.relatedConfig.label,
+        href: "/finance/invoices",
+        description: workbenchCopy.relatedConfig.description,
       }}
     />
   );

@@ -205,7 +205,7 @@ export const importsCopy = {
           persisted:
             "Los conductores quedaron ligados al empleado con licencia federal SICT y/o estatal.",
           operable: "Asignarlos a un viaje.",
-          gap: "Al timbrar Carta Porte se exige RFC del empleado y licencia federal vigente (NumLicencia).",
+          gap: "Al timbrar Carta Porte se exige RFC del empleado y al menos una licencia vigente (NumLicencia).",
           actions: [
             { label: "Ver conductores", href: "/drivers" },
             { label: "Empleados", href: "/employees" },

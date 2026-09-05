@@ -210,7 +210,18 @@ export function SettingsRoutes() {
 
         {/* Billing Settings */}
         <Route path="billing" element={<BillingSettingsPage />} />
-        <Route path="billing/service-concepts" element={<BillingServiceConceptsPage />} />
+        <Route
+          path="billing/service-concepts"
+          element={
+            <PermissionGuard
+              module="billing_service_concepts"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <BillingServiceConceptsPage />
+            </PermissionGuard>
+          }
+        />
         <Route
           path="billing-schemes"
           element={

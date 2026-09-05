@@ -16,11 +16,22 @@ export const billingServiceConceptsCopy = {
     emptyTitle: "Sin servicios configurados",
     emptyDescription:
       "Agrega conceptos que reutilizarás al armar partidas de servicio en tus CFDI.",
+    emptyReadOnlyDescription:
+      "Aún no hay servicios de cobro activos. Pide a un administrador o contador que los configure.",
     loading: "Cargando servicios…",
+    showInactive: "Mostrar inactivos",
+    inactiveBadge: "Inactivo",
+    errorTitle: "No se pudieron cargar los servicios",
+    errorDescription: "Revisa tu conexión e inténtalo de nuevo.",
+    forbiddenTitle: "Sin permiso para ver servicios de cobro",
+    forbiddenDescription:
+      "Tu rol no puede consultar este catálogo. Si necesitas acceso, contacta a un administrador.",
+    retry: "Reintentar",
   },
   form: {
     createTitle: "Nuevo servicio de cobro",
     editTitle: "Editar servicio",
+    viewTitle: "Detalle del servicio",
     name: "Nombre",
     nameHint: "Ej. Maniobra, Resguardo, Estadía",
     claveProdServ: "Clave producto/servicio",
@@ -38,6 +49,7 @@ export const billingServiceConceptsCopy = {
     save: "Guardar",
     cancel: "Cancelar",
     deactivate: "Desactivar",
+    reactivate: "Reactivar",
     validation: {
       nameRequired: "Indica un nombre para el servicio",
       claveProdServRequired: "Selecciona una clave producto/servicio",
@@ -56,6 +68,8 @@ export const billingServiceConceptsCopy = {
     created: "Servicio de cobro creado",
     updated: "Servicio de cobro actualizado",
     deleted: "Servicio de cobro desactivado",
+    reactivated: "Servicio de cobro reactivado",
+    duplicateName: "Ya existe un servicio con ese nombre",
     error: "No se pudo guardar el servicio de cobro",
   },
 } as const;

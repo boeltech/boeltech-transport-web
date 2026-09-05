@@ -1,10 +1,11 @@
 /**
  * Catálogo de esquemas de facturación (ADR-0082).
- * Master-detail Settings — peer: BillingServiceConceptMasterDetail.
+ * Master-detail Settings — consulta en panel + edición en Sheet.
  */
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Loader2, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarClock, ChevronDown, Loader2, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import {
@@ -18,6 +19,11 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { Checkbox } from "@shared/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormFieldShell } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
@@ -30,7 +36,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
 import { cn } from "@shared/lib/utils/cn";
+import { formatDateTime } from "@shared/utils/dateUtils";
 import { usePermissions } from "@shared/permissions";
 import {
   BILLING_CADENCE_KINDS,
@@ -44,7 +59,18 @@ import {
   useUpdateBillingScheme,
 } from "../../application/hooks/useBillingSchemes";
 import { billingSchemesCopy } from "../copy/billingSchemesCopy";
-import { formatBillingSchemeCadenceSummary } from "../utils/formatBillingSchemeCadence";
+import {
+  formatBillingSchemeCadenceSummary,
+  formatBillingSchemeNaturalDescription,
+  formatBillingSchemePeriodRuleBullets,
+} from "../utils/formatBillingSchemeCadence";
+import {
+  SETTINGS_SHEET_BODY_CLASS,
+  SETTINGS_SHEET_CONTENT_CLASS,
+  SETTINGS_SHEET_FOOTER_CLASS,
+  SETTINGS_SHEET_HEADER_CLASS,
+  SETTINGS_SHEET_PRIMARY_BUTTON_CLASS,
+} from "./settingsSheetLayout";
 
 const copy = billingSchemesCopy;
 
@@ -60,6 +86,8 @@ type FormState = {
 };
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
+
+type SheetMode = "create" | "edit";
 
 const emptyForm = (): FormState => ({
   name: "",
@@ -200,23 +228,104 @@ function SchemeListRow({ scheme, selected, onClick }: SchemeListRowProps) {
   );
 }
 
+interface BillingSchemeDetailViewProps {
+  scheme: BillingScheme;
+  canMutate: boolean;
+  onEdit: () => void;
+  onDeactivate: () => void;
+}
+
+function BillingSchemeDetailView({
+  scheme,
+  canMutate,
+  onEdit,
+  onDeactivate,
+}: BillingSchemeDetailViewProps) {
+  const periodBullets = formatBillingSchemePeriodRuleBullets(scheme);
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h3 className="text-lg font-semibold">{scheme.name}</h3>
+          <div className="flex flex-wrap gap-2">
+            {scheme.isDefault ? (
+              <Badge variant="secondary">{copy.list.defaultBadge}</Badge>
+            ) : null}
+            {!scheme.isActive ? (
+              <Badge variant="outline">{copy.list.inactiveBadge}</Badge>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <section className="space-y-2">
+        <h4 className="text-sm font-medium">{copy.detail.summaryTitle}</h4>
+        <p className="text-sm text-muted-foreground">
+          {formatBillingSchemeNaturalDescription(scheme)}
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h4 className="text-sm font-medium">{copy.detail.periodRuleTitle}</h4>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          {periodBullets.map((bullet) => (
+            <li key={bullet}>{bullet}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+        <h4 className="text-sm font-medium">{copy.detail.assignmentTitle}</h4>
+        <p className="text-sm text-muted-foreground">
+          {copy.detail.assignmentBody}
+        </p>
+        <Button type="button" variant="link" className="h-auto p-0" asChild>
+          <Link to="/clients">{copy.detail.clientsCta}</Link>
+        </Button>
+      </section>
+
+      <Collapsible>
+        <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50">
+          {copy.detail.detailsTitle}
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-1 px-1 pt-2 text-xs text-muted-foreground">
+          <p>{copy.detail.createdAt(formatDateTime(scheme.createdAt))}</p>
+          <p>{copy.detail.updatedAt(formatDateTime(scheme.updatedAt))}</p>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {canMutate ? (
+        <div className="flex flex-wrap gap-2 border-t pt-4">
+          <Button type="button" onClick={onEdit}>
+            {copy.detail.edit}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-destructive"
+            onClick={onDeactivate}
+          >
+            {copy.detail.deactivate}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 interface BillingSchemeFormPanelProps {
   initial: FormState;
-  isCreating: boolean;
   isPending: boolean;
   canMutate: boolean;
-  onCancel: () => void;
-  onDeactivate: () => void;
   onSave: (form: FormState) => Promise<void>;
 }
 
 function BillingSchemeFormPanel({
   initial,
-  isCreating,
   isPending,
   canMutate,
-  onCancel,
-  onDeactivate,
   onSave,
 }: BillingSchemeFormPanelProps) {
   const [form, setForm] = useState(initial);
@@ -246,10 +355,6 @@ function BillingSchemeFormPanel({
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium">
-        {isCreating ? copy.form.createTitle : copy.form.editTitle}
-      </h3>
-
       <FormFieldShell
         fieldId="billing-scheme-name"
         label={copy.form.name}
@@ -444,39 +549,77 @@ function BillingSchemeFormPanel({
       </div>
 
       {canMutate ? (
-        <div className="flex flex-wrap gap-2">
+        <SheetFooter className={SETTINGS_SHEET_FOOTER_CLASS}>
           <Button
             type="button"
             onClick={() => void handleSave()}
             disabled={isPending}
+            className={SETTINGS_SHEET_PRIMARY_BUTTON_CLASS}
           >
             {isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
             {copy.form.save}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isPending}
-            onClick={onCancel}
-          >
-            {copy.form.cancel}
-          </Button>
-          {!isCreating ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-destructive"
-              disabled={isPending}
-              onClick={onDeactivate}
-            >
-              {copy.form.deactivate}
-            </Button>
-          ) : null}
-        </div>
+        </SheetFooter>
       ) : null}
     </div>
+  );
+}
+
+interface BillingSchemeFormSheetProps {
+  open: boolean;
+  mode: SheetMode | null;
+  scheme: BillingScheme | null;
+  isPending: boolean;
+  canMutate: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (form: FormState) => Promise<void>;
+}
+
+function BillingSchemeFormSheet({
+  open,
+  mode,
+  scheme,
+  isPending,
+  canMutate,
+  onOpenChange,
+  onSave,
+}: BillingSchemeFormSheetProps) {
+  const isCreating = mode === "create";
+  const formInitial = isCreating
+    ? emptyForm()
+    : scheme
+      ? schemeToForm(scheme)
+      : emptyForm();
+  const formKey = isCreating ? "create" : (scheme?.id ?? "edit");
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        className={SETTINGS_SHEET_CONTENT_CLASS}
+        side="right"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
+        <SheetHeader className={SETTINGS_SHEET_HEADER_CLASS}>
+          <SheetTitle>
+            {isCreating ? copy.form.createTitle : copy.form.editTitle}
+          </SheetTitle>
+          <SheetDescription>{copy.page.description}</SheetDescription>
+        </SheetHeader>
+        {open ? (
+          <div className={SETTINGS_SHEET_BODY_CLASS}>
+            <BillingSchemeFormPanel
+              key={formKey}
+              initial={formInitial}
+              isPending={isPending}
+              canMutate={canMutate}
+              onSave={onSave}
+            />
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -490,11 +633,11 @@ export function BillingSchemesMasterDetail() {
 
   const sorted = useMemo(() => sortSchemes(schemes), [schemes]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BillingScheme | null>(null);
 
   const isEmpty = sorted.length === 0;
-  const showCreateForm = isCreating || (isEmpty && canMutate);
+  const sheetOpen = sheetMode != null;
 
   const preferredId = useMemo(() => {
     const preferred =
@@ -504,9 +647,8 @@ export function BillingSchemesMasterDetail() {
     return preferred?.id ?? null;
   }, [sorted]);
 
-  const displaySelectedId = showCreateForm
-    ? null
-    : selectedId && sorted.some((s) => s.id === selectedId)
+  const displaySelectedId =
+    selectedId && sorted.some((s) => s.id === selectedId)
       ? selectedId
       : preferredId;
 
@@ -520,32 +662,20 @@ export function BillingSchemesMasterDetail() {
     updateMutation.isPending ||
     deleteMutation.isPending;
 
-  const formInitial = showCreateForm
-    ? emptyForm()
-    : selected
-      ? schemeToForm(selected)
-      : emptyForm();
+  const handleOpenCreate = () => {
+    setSheetMode("create");
+  };
 
-  const formPanelKey = showCreateForm ? "create" : (displaySelectedId ?? "none");
-
-  const handleCreate = () => {
-    setSelectedId(null);
-    setIsCreating(true);
+  const handleOpenEdit = () => {
+    setSheetMode("edit");
   };
 
   const handleSelect = (scheme: BillingScheme) => {
     setSelectedId(scheme.id);
-    setIsCreating(false);
   };
 
-  const handleCancel = () => {
-    if (showCreateForm && !isEmpty) {
-      setSelectedId(preferredId);
-      setIsCreating(false);
-      return;
-    }
-    setIsCreating(isEmpty && canMutate);
-    setSelectedId(null);
+  const handleSheetOpenChange = (open: boolean) => {
+    if (!open) setSheetMode(null);
   };
 
   const handleSave = async (form: FormState) => {
@@ -556,14 +686,15 @@ export function BillingSchemesMasterDetail() {
       isDefault: form.isDefault,
     };
 
-    if (displaySelectedId && !showCreateForm) {
-      await updateMutation.mutateAsync({ id: displaySelectedId, payload });
+    if (sheetMode === "edit" && selected) {
+      await updateMutation.mutateAsync({ id: selected.id, payload });
+      setSheetMode(null);
       return;
     }
 
     const created = await createMutation.mutateAsync(payload);
     setSelectedId(created.id);
-    setIsCreating(false);
+    setSheetMode(null);
   };
 
   const confirmDeactivate = async () => {
@@ -573,7 +704,6 @@ export function BillingSchemesMasterDetail() {
     if (selectedId === deleteTarget.id) {
       setSelectedId(null);
     }
-    setIsCreating(false);
   };
 
   return (
@@ -583,7 +713,7 @@ export function BillingSchemesMasterDetail() {
           {copy.list.title} ({sorted.length})
         </h2>
         {canMutate ? (
-          <Button type="button" size="sm" onClick={handleCreate}>
+          <Button type="button" size="sm" onClick={handleOpenCreate}>
             <Plus className="mr-2 h-4 w-4" />
             {copy.list.add}
           </Button>
@@ -613,7 +743,7 @@ export function BillingSchemesMasterDetail() {
               description={copy.list.emptyDescription}
               cta={
                 canMutate
-                  ? { label: copy.list.add, onClick: handleCreate }
+                  ? { label: copy.list.add, onClick: handleOpenCreate }
                   : undefined
               }
             />
@@ -622,7 +752,7 @@ export function BillingSchemesMasterDetail() {
               <SchemeListRow
                 key={scheme.id}
                 scheme={scheme}
-                selected={scheme.id === displaySelectedId && !showCreateForm}
+                selected={scheme.id === displaySelectedId}
                 onClick={() => handleSelect(scheme)}
               />
             ))
@@ -630,16 +760,12 @@ export function BillingSchemesMasterDetail() {
         </div>
 
         <div className="rounded-lg border bg-card p-4">
-          {showCreateForm || selected ? (
-            <BillingSchemeFormPanel
-              key={formPanelKey}
-              initial={formInitial}
-              isCreating={showCreateForm}
-              isPending={isPending}
+          {selected ? (
+            <BillingSchemeDetailView
+              scheme={selected}
               canMutate={canMutate}
-              onCancel={handleCancel}
-              onDeactivate={() => selected && setDeleteTarget(selected)}
-              onSave={handleSave}
+              onEdit={handleOpenEdit}
+              onDeactivate={() => setDeleteTarget(selected)}
             />
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -648,6 +774,16 @@ export function BillingSchemesMasterDetail() {
           )}
         </div>
       </div>
+
+      <BillingSchemeFormSheet
+        open={sheetOpen}
+        mode={sheetMode}
+        scheme={selected}
+        isPending={isPending}
+        canMutate={canMutate}
+        onOpenChange={handleSheetOpenChange}
+        onSave={handleSave}
+      />
 
       <AlertDialog
         open={deleteTarget != null}

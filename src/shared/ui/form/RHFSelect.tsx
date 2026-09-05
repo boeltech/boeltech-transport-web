@@ -12,6 +12,8 @@ import { getFieldErrorAriaProps } from "./fieldErrorAria";
 export type RHFSelectOption = {
   value: string;
   label: string;
+  /** Segunda línea en el ítem del menú (p. ej. resumen de cadencia). */
+  description?: string;
 };
 
 type RHFSelectProps<TFieldValues extends FieldValues> = {
@@ -76,7 +78,16 @@ export function RHFSelect<TFieldValues extends FieldValues>({
                 {allowNone && <SelectItem value={noneValue}>{noneLabel}</SelectItem>}
                 {options.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {option.description ? (
+                      <span className="flex flex-col items-start gap-0.5 py-0.5">
+                        <span>{option.label}</span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </span>
+                    ) : (
+                      option.label
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>

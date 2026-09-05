@@ -15,8 +15,8 @@ vi.mock("@shared/permissions", () => ({
 const ENTITLEMENTS: BillingEntitlements = {
   directEntitlements: [
     {
-      moduleCode: "internal_staff_compensation",
-      moduleName: "Equipo de apoyo en viajes",
+      moduleCode: "gps_tracking",
+      moduleName: "Rastreo GPS en tiempo real",
       kind: "addon",
       status: "active",
       activatedAt: "2026-07-01T12:00:00.000Z",
@@ -25,8 +25,8 @@ const ENTITLEMENTS: BillingEntitlements = {
       memberCodes: [],
     },
   ],
-  effectiveModuleCodes: ["internal_staff_compensation"],
-  profitabilityLevel: "L0.5",
+  effectiveModuleCodes: ["gps_tracking"],
+  profitabilityLevel: "L0",
   catalog: [],
   commercialSummary: {
     planMonthlyPriceCents: 74900,
@@ -48,7 +48,7 @@ function renderCard(props: Partial<Parameters<typeof BillingModulesCard>[0]> = {
         entitlements={ENTITLEMENTS}
         isLoading={false}
         planName="Operación Esencial"
-        profitabilityLevel="L0.5"
+        profitabilityLevel="L0"
         {...props}
       />
     </MemoryRouter>,
@@ -65,16 +65,16 @@ describe("BillingModulesCard", () => {
     renderCard();
 
     expect(
-      screen.getByText(PROFITABILITY_LEVEL_COPY["L0.5"].label),
+      screen.getByText(PROFITABILITY_LEVEL_COPY.L0.label),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Nivel L0.5")).not.toBeInTheDocument();
-    expect(screen.queryByText("L0.5")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nivel L0")).not.toBeInTheDocument();
+    expect(screen.queryByText("L0")).not.toBeInTheDocument();
     expect(
-      screen.getByText(PROFITABILITY_LEVEL_COPY["L0.5"].includes),
+      screen.getByText(PROFITABILITY_LEVEL_COPY.L0.includes),
     ).toBeInTheDocument();
     // D7: sin "qué falta" en esta superficie (detalle en Finance)
     expect(
-      screen.queryByText(PROFITABILITY_LEVEL_COPY["L0.5"].pending as string),
+      screen.queryByText(PROFITABILITY_LEVEL_COPY.L0.pending as string),
     ).not.toBeInTheDocument();
   });
 

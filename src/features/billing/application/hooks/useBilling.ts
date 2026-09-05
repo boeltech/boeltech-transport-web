@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@features/auth";
 import { isSubscriptionPaywallExemptRole } from "@shared/constants/roles";
-import { billingQueryKeys, INTERNAL_STAFF_MODULE_CODE } from "../../domain/entities";
+import { billingQueryKeys } from "../../domain/entities";
 import { billingApi } from "../../infrastructure/billingApi";
 
 function useBillingQueryEnabled(): boolean {
@@ -78,6 +78,3 @@ export const useHasBillingModule = (moduleCode: string) => {
     (query.data?.effectiveModuleCodes.includes(moduleCode) ?? false);
   return { ...query, hasModule };
 };
-
-export const useInternalStaffEntitlement = () =>
-  useHasBillingModule(INTERNAL_STAFF_MODULE_CODE);

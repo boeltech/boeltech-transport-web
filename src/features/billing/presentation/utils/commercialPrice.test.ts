@@ -20,7 +20,7 @@ const catalogItem = (
 
 describe("commercialPrice utils", () => {
   it("resolves EA for beta addon", () => {
-    const item = catalogItem({ code: "internal_staff_compensation" });
+    const item = catalogItem({ code: "gps_tracking" });
     const map = new Map([[item.code, item]]);
     expect(resolveCatalogListPrice(item, map)).toEqual({
       cents: 5900,

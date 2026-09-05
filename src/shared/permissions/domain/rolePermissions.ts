@@ -152,6 +152,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "settings.read",
       "settings.update",
 
+      // Servicios de cobro — lectura para precarga en facturas (write: admin/accountant)
+      "billing_service_concepts.read",
+
       // Catalogs — consulta global + CRUD internos (import SAT solo plataforma)
       "catalogs.read",
       "catalogs.create",
@@ -230,6 +233,12 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
+
+      // Servicios de cobro (ADR-0061) — lockstep API billing_service_concepts
+      "billing_service_concepts.read",
+      "billing_service_concepts.create",
+      "billing_service_concepts.update",
+      "billing_service_concepts.delete",
 
       // SaaS billing read-only
       "billing.read",

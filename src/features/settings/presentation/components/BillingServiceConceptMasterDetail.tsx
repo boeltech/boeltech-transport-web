@@ -24,6 +24,8 @@ import { Input } from "@shared/ui/input";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { ProductoServicioSearch, UnidadMedidaSearch } from "@features/catalogs";
+import { isApiError } from "@shared/api/interceptors/error-handler";
+import { usePermissions } from "@shared/permissions";
 import {
   useBillingServiceConcepts,
   useCreateBillingServiceConcept,
@@ -118,7 +120,14 @@ function ServiceListRow({ service, selected, onClick }: ServiceListRowProps) {
           : "border-border hover:bg-muted/50",
       )}
     >
-      <div className="font-medium">{service.name}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-medium">{service.name}</div>
+        {!service.isActive ? (
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {copy.list.inactiveBadge}
+          </span>
+        ) : null}
+      </div>
       <div className="text-xs text-muted-foreground">{meta}</div>
     </button>
   );
@@ -129,8 +138,11 @@ interface BillingServiceConceptFormPanelProps {
   isCreating: boolean;
   editingId: string | null;
   isPending: boolean;
+  canWrite: boolean;
+  isInactive: boolean;
   onCancel: () => void;
   onDeactivate: () => void;
+  onReactivate: () => void;
   onSave: (form: FormState) => Promise<void>;
 }
 
@@ -139,14 +151,22 @@ function BillingServiceConceptFormPanel({
   isCreating,
   editingId,
   isPending,
+  canWrite,
+  isInactive,
   onCancel,
   onDeactivate,
+  onReactivate,
   onSave,
 }: BillingServiceConceptFormPanelProps) {
   const [form, setForm] = useState(initial);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const readOnly = !canWrite;
 
-  const formTitle = isCreating ? copy.form.createTitle : copy.form.editTitle;
+  const formTitle = isCreating
+    ? copy.form.createTitle
+    : readOnly
+      ? copy.form.viewTitle
+      : copy.form.editTitle;
 
   const handleSave = async () => {
     const errors = validateForm(form);
@@ -172,7 +192,7 @@ function BillingServiceConceptFormPanel({
         <Input
           id="billing-service-name"
           value={form.name}
-          disabled={isPending}
+          disabled={isPending || readOnly}
           aria-invalid={Boolean(fieldErrors.name)}
           onChange={(event) => {
             setForm((prev) => ({ ...prev, name: event.target.value }));
@@ -193,6 +213,7 @@ function BillingServiceConceptFormPanel({
         >
           <ProductoServicioSearch
             value={form.claveProdServ}
+            disabled={isPending || readOnly}
             onSelect={(item) => {
               setForm((prev) => ({ ...prev, claveProdServ: item.code }));
               if (fieldErrors.claveProdServ) {
@@ -212,6 +233,7 @@ function BillingServiceConceptFormPanel({
         >
           <UnidadMedidaSearch
             value={form.claveUnidad}
+            disabled={isPending || readOnly}
             onSelect={(item) => {
               setForm((prev) => ({
                 ...prev,
@@ -238,7 +260,7 @@ function BillingServiceConceptFormPanel({
           <Input
             id="billing-service-unidad"
             value={form.unidad}
-            disabled={isPending}
+            disabled={isPending || readOnly}
             aria-invalid={Boolean(fieldErrors.unidad)}
             onChange={(event) => {
               setForm((prev) => ({ ...prev, unidad: event.target.value }));
@@ -257,7 +279,7 @@ function BillingServiceConceptFormPanel({
           <MoneyInput
             id="billing-service-price"
             value={form.defaultUnitPrice}
-            disabled={isPending}
+            disabled={isPending || readOnly}
             onValueChange={(value) =>
               setForm((prev) => ({ ...prev, defaultUnitPrice: value }))
             }
@@ -274,7 +296,7 @@ function BillingServiceConceptFormPanel({
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
               checked={form.ivaAplica}
-              disabled={isPending}
+              disabled={isPending || readOnly}
               onCheckedChange={(checked) =>
                 setForm((prev) => ({ ...prev, ivaAplica: Boolean(checked) }))
               }
@@ -284,7 +306,7 @@ function BillingServiceConceptFormPanel({
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
               checked={form.retencionAplica}
-              disabled={isPending}
+              disabled={isPending || readOnly}
               onCheckedChange={(checked) =>
                 setForm((prev) => ({
                   ...prev,
@@ -297,30 +319,55 @@ function BillingServiceConceptFormPanel({
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
-          {copy.form.cancel}
-        </Button>
-        {editingId && !isCreating ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onDeactivate}
-            disabled={isPending}
-          >
-            {copy.form.deactivate}
+      {canWrite ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            {copy.form.cancel}
           </Button>
-        ) : null}
-        <Button type="button" onClick={() => void handleSave()} disabled={isPending}>
-          {copy.form.save}
-        </Button>
-      </div>
+          {editingId && !isCreating && isInactive ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onReactivate}
+              disabled={isPending}
+            >
+              {copy.form.reactivate}
+            </Button>
+          ) : null}
+          {editingId && !isCreating && !isInactive ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onDeactivate}
+              disabled={isPending}
+            >
+              {copy.form.deactivate}
+            </Button>
+          ) : null}
+          {!isInactive || isCreating ? (
+            <Button type="button" onClick={() => void handleSave()} disabled={isPending}>
+              {copy.form.save}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 export function BillingServiceConceptMasterDetail() {
-  const { data: services = [], isLoading } = useBillingServiceConcepts();
+  const { hasPermission } = usePermissions();
+  const canWrite = hasPermission("billing_service_concepts", "create");
+  const [showInactive, setShowInactive] = useState(false);
+
+  const listParams = showInactive ? undefined : { isActive: true as const };
+  const {
+    data: services = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useBillingServiceConcepts(listParams);
   const createMutation = useCreateBillingServiceConcept();
   const updateMutation = useUpdateBillingServiceConcept();
   const deleteMutation = useDeleteBillingServiceConcept();
@@ -332,8 +379,9 @@ export function BillingServiceConceptMasterDetail() {
     null,
   );
 
-  const isEmpty = sorted.length === 0;
-  const showCreateForm = isCreating || isEmpty;
+  const isForbidden = isError && isApiError(error) && error.status === 403;
+  const isEmpty = !isError && sorted.length === 0;
+  const showCreateForm = canWrite && (isCreating || isEmpty);
 
   const displaySelectedId = showCreateForm
     ? null
@@ -372,7 +420,7 @@ export function BillingServiceConceptMasterDetail() {
       setIsCreating(false);
       return;
     }
-    setIsCreating(isEmpty);
+    setIsCreating(isEmpty && canWrite);
     setSelectedId(null);
   };
 
@@ -398,13 +446,21 @@ export function BillingServiceConceptMasterDetail() {
     setIsCreating(false);
   };
 
+  const handleReactivate = async () => {
+    if (!selected) return;
+    await updateMutation.mutateAsync({
+      id: selected.id,
+      payload: { isActive: true },
+    });
+  };
+
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     await deleteMutation.mutateAsync(pendingDelete.id);
     setPendingDelete(null);
     if (selectedId === pendingDelete.id) {
       setSelectedId(null);
-      setIsCreating(sorted.length <= 1);
+      setIsCreating(sorted.length <= 1 && canWrite);
     }
   };
 
@@ -413,20 +469,60 @@ export function BillingServiceConceptMasterDetail() {
     updateMutation.isPending ||
     deleteMutation.isPending;
 
+  if (isError) {
+    return (
+      <div className="space-y-4">
+        <AlertWithIcon
+          variant="destructive"
+          title={isForbidden ? copy.list.forbiddenTitle : copy.list.errorTitle}
+        >
+          <div className="space-y-3">
+            <p>
+              {isForbidden
+                ? copy.list.forbiddenDescription
+                : copy.list.errorDescription}
+            </p>
+            {!isForbidden ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void refetch()}
+              >
+                {copy.list.retry}
+              </Button>
+            ) : null}
+          </div>
+        </AlertWithIcon>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <AlertWithIcon variant="info" title={copy.info.title}>
         {copy.info.description}
       </AlertWithIcon>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
           {copy.list.title} ({sorted.length})
         </h2>
-        <Button type="button" size="sm" onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          {copy.list.add}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={showInactive}
+              onCheckedChange={(checked) => setShowInactive(Boolean(checked))}
+            />
+            {copy.list.showInactive}
+          </label>
+          {canWrite ? (
+            <Button type="button" size="sm" onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              {copy.list.add}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid min-h-[420px] grid-cols-1 gap-4 lg:grid-cols-[minmax(240px,320px)_1fr]">
@@ -440,11 +536,19 @@ export function BillingServiceConceptMasterDetail() {
             <EmptyState
               icon={<Package className="h-10 w-10 text-muted-foreground" />}
               title={copy.list.emptyTitle}
-              description={copy.list.emptyDescription}
-              cta={{
-                label: copy.list.add,
-                onClick: handleCreate,
-              }}
+              description={
+                canWrite
+                  ? copy.list.emptyDescription
+                  : copy.list.emptyReadOnlyDescription
+              }
+              cta={
+                canWrite
+                  ? {
+                      label: copy.list.add,
+                      onClick: handleCreate,
+                    }
+                  : undefined
+              }
             />
           ) : (
             sorted.map((service) => (
@@ -459,16 +563,21 @@ export function BillingServiceConceptMasterDetail() {
         </div>
 
         <div className="rounded-lg border bg-card p-4">
-          <BillingServiceConceptFormPanel
-            key={formPanelKey}
-            initial={formInitial}
-            isCreating={showCreateForm}
-            editingId={displaySelectedId}
-            isPending={isPending}
-            onCancel={handleCancel}
-            onDeactivate={() => selected && setPendingDelete(selected)}
-            onSave={handleSave}
-          />
+          {!isLoading && (showCreateForm || selected) ? (
+            <BillingServiceConceptFormPanel
+              key={formPanelKey}
+              initial={formInitial}
+              isCreating={showCreateForm}
+              editingId={displaySelectedId}
+              isPending={isPending}
+              canWrite={canWrite}
+              isInactive={selected != null && !selected.isActive}
+              onCancel={handleCancel}
+              onDeactivate={() => selected && setPendingDelete(selected)}
+              onReactivate={() => void handleReactivate()}
+              onSave={handleSave}
+            />
+          ) : null}
         </div>
       </div>
 

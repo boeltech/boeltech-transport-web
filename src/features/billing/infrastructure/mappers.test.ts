@@ -14,7 +14,7 @@ describe("billing mappers", () => {
       is_operational: true,
       trial_ends_at: null,
       plan_name: "Operación Arranque",
-      effective_module_codes: ["internal_staff_compensation"],
+      effective_module_codes: ["gps_tracking"],
     });
 
     expect(access).toEqual({
@@ -22,7 +22,7 @@ describe("billing mappers", () => {
       isOperational: true,
       trialEndsAt: null,
       planName: "Operación Arranque",
-      effectiveModuleCodes: ["internal_staff_compensation"],
+      effectiveModuleCodes: ["gps_tracking"],
     });
   });
 
@@ -77,37 +77,37 @@ describe("billing mappers", () => {
     const entitlements = mapBillingEntitlements({
       direct_entitlements: [
         {
-          module_code: "internal_staff_compensation",
-          module_name: "Equipo de apoyo en viajes",
+          module_code: "gps_tracking",
+          module_name: "Rastreo GPS en tiempo real",
           kind: "addon",
           status: "active",
           activated_at: "2026-07-01T12:00:00.000Z",
-          price_locked_cents: 5900,
+          price_locked_cents: 14900,
           price_tier: "ea",
           member_codes: [],
         },
       ],
-      effective_module_codes: ["internal_staff_compensation"],
-      profitability_level: "L0.5",
+      effective_module_codes: ["gps_tracking"],
+      profitability_level: "L1",
       catalog: [
         {
-          code: "internal_staff_compensation",
-          name: "Equipo de apoyo en viajes",
+          code: "gps_tracking",
+          name: "Rastreo GPS en tiempo real",
           kind: "addon",
           is_active_for_tenant: true,
           member_codes: [],
-          price_ea_cents: 5900,
-          price_ga_cents: 10900,
+          price_ea_cents: 14900,
+          price_ga_cents: 27900,
           maturity: "beta",
         },
       ],
       commercial_summary: {
         plan_monthly_price_cents: 74900,
-        modules_total_cents: 5900,
+        modules_total_cents: 14900,
         overage_total_cents: 0,
-        subtotal_cents: 80800,
-        iva_cents: 12928,
-        estimated_total_cents: 93728,
+        subtotal_cents: 89800,
+        iva_cents: 14368,
+        estimated_total_cents: 104168,
         currency: "MXN",
         period_key: "2026-07",
         billing_cycle: "monthly",
@@ -115,10 +115,10 @@ describe("billing mappers", () => {
     });
 
     expect(entitlements.directEntitlements[0]?.moduleCode).toBe(
-      "internal_staff_compensation",
+      "gps_tracking",
     );
-    expect(entitlements.directEntitlements[0]?.priceLockedCents).toBe(5900);
-    expect(entitlements.commercialSummary.estimatedTotalCents).toBe(93728);
+    expect(entitlements.directEntitlements[0]?.priceLockedCents).toBe(14900);
+    expect(entitlements.commercialSummary.estimatedTotalCents).toBe(104168);
     expect(entitlements.catalog[0]?.maturity).toBe("beta");
   });
 

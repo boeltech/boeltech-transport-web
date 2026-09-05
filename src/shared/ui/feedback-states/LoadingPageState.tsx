@@ -5,10 +5,11 @@
  * Skeletons estandarizados por tipo de página.
  * Cada variante refleja la estructura del shell correspondiente.
  *
- * - "list"   → header + toolbar + tabla + paginación
- * - "detail" → header + stats + tabs + cards
- * - "form"   → header + 4 form section cards + actions
- * - "wizard" → header + steps + 1 card de paso + nav bar
+ * - "list"    → header + toolbar + tabla + paginación
+ * - "detail"  → header + stats + tabs + cards
+ * - "form"    → header + 4 form section cards + actions
+ * - "wizard"  → header + steps + 1 card de paso + nav bar
+ * - "builder" → back + título + nav | canvas | inspector + footer
  */
 
 import { Card, CardContent, CardHeader } from "@shared/ui/card";
@@ -19,7 +20,12 @@ import { cn } from "@shared/lib/utils/cn";
 // TYPES
 // ============================================================================
 
-export type LoadingPageVariant = "list" | "detail" | "form" | "wizard";
+export type LoadingPageVariant =
+  | "list"
+  | "detail"
+  | "form"
+  | "wizard"
+  | "builder";
 
 export interface LoadingPageStateProps {
   /** Tipo de página que se está cargando. */
@@ -42,6 +48,7 @@ export function LoadingPageState({
       {variant === "detail" ? <DetailSkeleton /> : null}
       {variant === "form" ? <FormSkeleton /> : null}
       {variant === "wizard" ? <WizardSkeleton /> : null}
+      {variant === "builder" ? <BuilderSkeleton /> : null}
     </div>
   );
 }
@@ -230,5 +237,48 @@ function WizardSkeleton() {
         </div>
       </div>
     </>
+  );
+}
+
+function BuilderSkeleton() {
+  return (
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-4">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-36" />
+        <Skeleton className="h-8 w-64" />
+      </div>
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[12rem_minmax(0,1fr)_18rem]">
+        <div className="hidden space-y-2 lg:block">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+        <Card className="hidden lg:block">
+          <CardHeader>
+            <Skeleton className="h-4 w-24" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </CardContent>
+        </Card>
+      </div>
+      <div className="flex justify-end gap-2 border-t pt-3">
+        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-10 w-28" />
+      </div>
+    </div>
   );
 }

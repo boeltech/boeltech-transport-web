@@ -1,37 +1,30 @@
-import { useMemo, useRef, useState } from "react";
-import { Link, useSearchParams, type SetURLSearchParams } from "react-router-dom";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
+import { Send, Wallet } from "lucide-react";
 import {
-  CircleDollarSign,
-  FileText,
-  ReceiptText,
-  Search,
-  Send,
-  Wallet,
-} from "lucide-react";
+  WorkbenchPageShell,
+  type ActiveFilterChip,
+} from "@shared/ui/page-shells";
+import { Button } from "@shared/ui/button";
+import { Card, CardContent } from "@shared/ui/card";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
+import { ListingResultsSummary } from "@shared/ui/listing";
+import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
+import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
   FINANCE_COBROS_RFC_PARAM,
   OPEN_PPD_INVOICES_PAGE_SIZE,
   useOpenPpdInvoices,
   useRegisterFinancePayment,
+  useRepExceptions,
 } from "@features/finance/application";
 import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
 import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
-import { AlertWithIcon } from "@shared/ui/alert";
-import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { StatCard } from "@shared/ui/data-display";
-import { EmptyState } from "@shared/ui/feedback-states";
-import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
-import { ListingPagination, ListingResultsSummary } from "@shared/ui/listing";
-import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
-import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { FinanceChainRepairConfirmDialog } from "../components/FinanceChainRepairConfirmDialog";
-import { FinanceSectionHeader } from "../components/FinanceSectionHeader";
 import { FinanceCobrosConfirmSheet } from "../components/FinanceCobrosConfirmSheet";
 import { FinanceCobrosFollowThroughAlert } from "../components/FinanceCobrosFollowThroughAlert";
 import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTable";
@@ -40,6 +33,10 @@ import {
   COBROS_PAYMENT_FORM,
   COBROS_PAYMENT_TIME,
 } from "../config/financeCobrosConfig";
+import {
+  DEFAULT_COBROS_BUCKET,
+  type CobrosBucketId,
+} from "../config/cobrosWorkbenchConfig";
 import { financeCopy } from "../copy";
 import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
 import {
@@ -48,8 +45,17 @@ import {
   writeCobrosFollowThrough,
   type CobrosFollowThrough,
 } from "../utils/cobrosFollowThrough";
+import {
+  countInvoicesByCobrosBucket,
+  mapCobrosWorkbenchBuckets,
+} from "../utils/mapCobrosWorkbenchBuckets";
 
 const copy = financeCopy.cobros;
+const workbenchCopy = financeCopy.cobros.workbench;
+
+// ============================================================================
+// CobrosRegisterBar (unchanged)
+// ============================================================================
 
 function CobrosRegisterBar({
   count,
@@ -71,11 +77,62 @@ function CobrosRegisterBar({
   );
 }
 
+// ============================================================================
+// RFC Toolbar Filter
+// ============================================================================
+
+function RfcToolbarFilter({
+  onSubmit,
+}: {
+  onSubmit: (rfc: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const handleSubmit = () => {
+    const trimmed = draft.trim().toUpperCase();
+    if (trimmed) onSubmit(trimmed);
+  };
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Label htmlFor="cobros-rfc-filter" className="sr-only">
+          {copy.receiverRfcLabel}
+        </Label>
+        <Input
+          id="cobros-rfc-filter"
+          className="max-w-xs font-mono"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.toUpperCase())}
+          placeholder={workbenchCopy.rfcFilterPlaceholder}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && draft.trim()) handleSubmit();
+          }}
+        />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        onClick={handleSubmit}
+        disabled={!draft.trim()}
+      >
+        {copy.search}
+      </Button>
+    </div>
+  );
+}
+
+// ============================================================================
+// PAGE
+// ============================================================================
+
 export function FinanceCobrosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rfcFromUrl = (searchParams.get(FINANCE_COBROS_RFC_PARAM) ?? "")
     .trim()
     .toUpperCase();
+
+  const [activeBucket, setActiveBucket] = useState<CobrosBucketId>(DEFAULT_COBROS_BUCKET);
   const [followThrough, setFollowThrough] = useState<CobrosFollowThrough | null>(
     () => readCobrosFollowThrough(),
   );
@@ -85,36 +142,82 @@ export function FinanceCobrosPage() {
     setFollowThrough(next);
   };
 
+  const handleRfcSearch = useCallback(
+    (rfc: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set(FINANCE_COBROS_RFC_PARAM, rfc);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handleClearRfc = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(FINANCE_COBROS_RFC_PARAM);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
+  const rfcChips: ActiveFilterChip[] = useMemo(
+    () =>
+      rfcFromUrl
+        ? [
+            {
+              id: "rfc",
+              label: workbenchCopy.rfcChipLabel(rfcFromUrl),
+              onRemove: handleClearRfc,
+            },
+          ]
+        : [],
+    [rfcFromUrl, handleClearRfc],
+  );
+
   return (
-    <div className="space-y-6">
-      <FinanceSectionHeader
-        icon={<Wallet className="h-5 w-5" />}
-        title={financeCopy.page.sections.cobros.title}
-        subtitle={financeCopy.page.sections.cobros.subtitle}
-      />
-      {followThrough ? (
-        <FinanceCobrosFollowThroughAlert followThrough={followThrough} />
-      ) : null}
-      <FinanceCobrosSession
-        key={`session-${rfcFromUrl || "empty"}`}
-        rfcFromUrl={rfcFromUrl}
-        setSearchParams={setSearchParams}
-        onPaymentRegistered={handlePaymentRegistered}
-      />
-      <FinanceRepExceptionsSection
-        key={`exceptions-${rfcFromUrl || "all"}`}
-        receiverRfc={rfcFromUrl || null}
-      />
-    </div>
+    <FinanceCobrosWorkbench
+      rfcFromUrl={rfcFromUrl}
+      activeBucket={activeBucket}
+      onBucketChange={setActiveBucket}
+      followThrough={followThrough}
+      rfcChips={rfcChips}
+      onRfcSearch={handleRfcSearch}
+      onClearRfc={handleClearRfc}
+      setSearchParams={setSearchParams}
+      onPaymentRegistered={handlePaymentRegistered}
+    />
   );
 }
 
-function FinanceCobrosSession({
+// ============================================================================
+// WORKBENCH INNER
+// ============================================================================
+
+function FinanceCobrosWorkbench({
   rfcFromUrl,
+  activeBucket,
+  onBucketChange,
+  followThrough,
+  rfcChips,
+  onRfcSearch,
+  onClearRfc,
   setSearchParams,
   onPaymentRegistered,
 }: {
   rfcFromUrl: string;
+  activeBucket: CobrosBucketId;
+  onBucketChange: (bucket: CobrosBucketId) => void;
+  followThrough: CobrosFollowThrough | null;
+  rfcChips: ActiveFilterChip[];
+  onRfcSearch: (rfc: string) => void;
+  onClearRfc: () => void;
   setSearchParams: SetURLSearchParams;
   onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
 }) {
@@ -123,8 +226,6 @@ function FinanceCobrosSession({
   const canRegisterPayment = hasPermission("finance", "create");
   const searchRfc = rfcFromUrl || null;
 
-  const [rfcDraft, setRfcDraft] = useState(rfcFromUrl);
-  const [isEditingRfc, setIsEditingRfc] = useState(!rfcFromUrl);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -143,18 +244,18 @@ function FinanceCobrosSession({
   const invoices = useMemo(() => data?.data ?? [], [data]);
   const pagination = data?.pagination;
 
-  const selectedInvoices = useMemo(
-    () => invoices.filter((invoice) => selected[invoice.id]),
-    [invoices, selected],
-  );
+  // REP exceptions count for bucket badge
+  const { data: repData } = useRepExceptions({
+    page: 1,
+    limit: 1,
+    receiverRfc: searchRfc,
+  });
+  const repExceptionsCount = repData?.pagination?.total ?? 0;
 
-  const selectedTotal = useMemo(
-    () =>
-      selectedInvoices.reduce(
-        (sum, invoice) => sum + Number(invoice.balanceDue.toFixed(2)),
-        0,
-      ),
-    [selectedInvoices],
+  // Client-side bucket counts (degraded mode)
+  const bucketCounts = useMemo(
+    () => countInvoicesByCobrosBucket(invoices, repExceptionsCount),
+    [invoices, repExceptionsCount],
   );
 
   const pageBalance = useMemo(
@@ -166,12 +267,36 @@ function FinanceCobrosSession({
     [invoices],
   );
 
+  // Filter invoices client-side by active bucket
+  const filteredInvoices = useMemo(() => {
+    if (activeBucket === "all") return invoices;
+    if (activeBucket === "partial") {
+      return invoices.filter((i) => i.totalPaid > 0 && i.balanceDue > 0);
+    }
+    // overdue: no due_date available yet — show all (TODO: backend)
+    if (activeBucket === "overdue") return [];
+    // rep_exceptions: handled separately in renderContent
+    return invoices;
+  }, [invoices, activeBucket]);
+
+  const selectedInvoices = useMemo(
+    () => filteredInvoices.filter((invoice) => selected[invoice.id]),
+    [filteredInvoices, selected],
+  );
+
+  const selectedTotal = useMemo(
+    () =>
+      selectedInvoices.reduce(
+        (sum, invoice) => sum + Number(invoice.balanceDue.toFixed(2)),
+        0,
+      ),
+    [selectedInvoices],
+  );
+
   const formattedSelectedTotal = formatMxCurrency(selectedTotal);
   const paymentDate = getTodayMexicoDateString();
-  const clientName = invoices[0]?.receiverName?.trim();
-  const showSearchForm = !searchRfc || isEditingRfc;
   const showRegisterBar =
-    canRegisterPayment && selectedInvoices.length > 0 && invoices.length > 0;
+    canRegisterPayment && selectedInvoices.length > 0 && filteredInvoices.length > 0;
 
   const { mutate, isPending } = useRegisterFinancePayment({
     onSuccess: (data: FinancePayment, variables) => {
@@ -221,7 +346,7 @@ function FinanceCobrosSession({
   const togglePage = (checked: boolean) => {
     setSelected((prev) => {
       const next = { ...prev };
-      for (const invoice of invoices) {
+      for (const invoice of filteredInvoices) {
         next[invoice.id] = checked;
       }
       return next;
@@ -268,197 +393,176 @@ function FinanceCobrosSession({
     submitPayload(payload);
   };
 
-  const handleSearch = () => {
-    const nextRfc = rfcDraft.trim().toUpperCase();
-    if (!nextRfc) return;
-    setSelected({});
-    setPage(1);
-    setIsEditingRfc(false);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set(FINANCE_COBROS_RFC_PARAM, nextRfc);
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
   const handlePageChange = (nextPage: number) => {
     setSelected({});
     setPage(nextPage);
   };
 
-  return (
-    <div className="space-y-6">
-      {showSearchForm ? (
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  // Buckets
+  const buckets = useMemo(
+    () =>
+      mapCobrosWorkbenchBuckets({
+        counts: bucketCounts,
+        activeBucket,
+        onBucketChange: (bucket) => {
+          setSelected({});
+          setPage(1);
+          onBucketChange(bucket);
+        },
+        totalBalance: pageBalance,
+      }),
+    [bucketCounts, activeBucket, onBucketChange, pageBalance],
+  );
+
+  // renderContent: bucket rep_exceptions → exceptions section; rest → invoice table
+  const renderContent = useCallback(() => {
+    if (activeBucket === "rep_exceptions") {
+      return (
+        <FinanceRepExceptionsSection
+          key={`exceptions-${rfcFromUrl || "all"}`}
+          receiverRfc={searchRfc}
+        />
+      );
+    }
+
+    const showInvoiceContent =
+      searchRfc && (isLoading || filteredInvoices.length > 0) && !isError;
+
+    if (!searchRfc) {
+      return (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Search className="h-4 w-4" aria-hidden />
-              {copy.taskTitle}
-            </CardTitle>
-            <CardDescription>{copy.taskDescription}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <Label htmlFor="receiver-rfc">{copy.receiverRfcLabel}</Label>
-                <Input
-                  id="receiver-rfc"
-                  className="font-mono"
-                  value={rfcDraft}
-                  onChange={(event) =>
-                    setRfcDraft(event.target.value.toUpperCase())
-                  }
-                  placeholder={copy.rfcPlaceholder}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && rfcDraft.trim()) {
-                      handleSearch();
-                    }
-                  }}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={handleSearch}
-                disabled={!rfcDraft.trim()}
-                className="sm:w-auto"
-              >
-                {copy.search}
-              </Button>
-            </div>
-            {!searchRfc ? (
-              <p className="text-sm text-muted-foreground">
-                {copy.summaryLink}{" "}
-                <Button variant="link" className="h-auto p-0" asChild>
-                  <Link to="/finance">{copy.summaryLinkCta}</Link>
-                </Button>
-              </p>
-            ) : null}
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            {copy.taskDescription}
           </CardContent>
         </Card>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="font-mono">
-            {copy.rfcChip(searchRfc)}
-          </Badge>
-          {clientName ? (
-            <span className="text-sm font-medium">{clientName}</span>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditingRfc(true)}
-          >
-            {copy.changeRfc}
-          </Button>
-        </div>
-      )}
+      );
+    }
 
-      {searchRfc ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <StatCard
-            icon={<FileText className="h-5 w-5" aria-hidden />}
-            title={copy.metrics.openInvoices}
-            value={String(pagination?.total ?? invoices.length)}
-            description={copy.metrics.pendingCredit}
-            isLoading={isLoading && !pagination}
-          />
-          <StatCard
-            icon={<CircleDollarSign className="h-5 w-5" aria-hidden />}
-            title={copy.metrics.openBalance}
-            value={formatMxCurrency(pageBalance)}
-            description={
-              pagination && pagination.totalPages > 1
-                ? copy.metrics.thisPage
-                : copy.metrics.pendingCredit
-            }
-            isLoading={isLoading && invoices.length === 0}
-          />
-        </div>
-      ) : null}
-
-      {isError ? (
-        <AlertWithIcon variant="destructive" title={copy.loadErrorTitle}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <span>{copy.loadError}</span>
-            <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+    if (isError) {
+      return (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-sm text-destructive">{copy.loadError}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => refetch()}
+            >
               {copy.retry}
             </Button>
-          </div>
-        </AlertWithIcon>
-      ) : null}
-
-      {searchRfc && !isLoading && !isError && invoices.length === 0 ? (
-        <EmptyState
-          icon={<ReceiptText className="h-8 w-8 text-muted-foreground" />}
-          title={copy.emptyTitle}
-          description={copy.empty}
-          size="md"
-          cta={{
-            label: copy.changeRfc,
-            onClick: () => setIsEditingRfc(true),
-            variant: "outline",
-          }}
-        />
-      ) : null}
-
-      {searchRfc && (isLoading || invoices.length > 0) && !isError ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-3">
-              <div>
-                <CardTitle className="text-base">{copy.tableTitle}</CardTitle>
-                <CardDescription>{copy.tableDescription}</CardDescription>
-              </div>
-              {showRegisterBar ? (
-                <CobrosRegisterBar
-                  count={selectedInvoices.length}
-                  total={formattedSelectedTotal}
-                  onRegister={() => setSheetOpen(true)}
-                />
-              ) : null}
-              {pagination && pagination.total > 0 ? (
-                <ListingResultsSummary
-                  entityLabelPlural={copy.entityLabelPlural}
-                  total={pagination.total}
-                  page={pagination.page}
-                  limit={pagination.limit}
-                />
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FinanceCobrosInvoiceTable
-              invoices={invoices}
-              selected={selected}
-              isLoading={isLoading && invoices.length === 0}
-              onToggle={toggleInvoice}
-              onTogglePage={togglePage}
-            />
-            {pagination ? (
-              <ListingPagination
-                page={page}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-            ) : null}
-            {showRegisterBar ? (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4">
-                  <CobrosRegisterBar
-                    count={selectedInvoices.length}
-                    total={formattedSelectedTotal}
-                    onRegister={() => setSheetOpen(true)}
-                  />
-                </CardContent>
-              </Card>
-            ) : null}
           </CardContent>
         </Card>
-      ) : null}
+      );
+    }
+
+    if (!isLoading && filteredInvoices.length === 0) {
+      return (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            {copy.emptyTitle}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (!showInvoiceContent) return null;
+
+    return (
+      <div className="space-y-4">
+        {showRegisterBar ? (
+          <CobrosRegisterBar
+            count={selectedInvoices.length}
+            total={formattedSelectedTotal}
+            onRegister={() => setSheetOpen(true)}
+          />
+        ) : null}
+        {pagination && pagination.total > 0 ? (
+          <ListingResultsSummary
+            entityLabelPlural={copy.entityLabelPlural}
+            total={pagination.total}
+            page={pagination.page}
+            limit={pagination.limit}
+          />
+        ) : null}
+        <FinanceCobrosInvoiceTable
+          invoices={filteredInvoices}
+          selected={selected}
+          isLoading={isLoading && filteredInvoices.length === 0}
+          onToggle={toggleInvoice}
+          onTogglePage={togglePage}
+        />
+        {showRegisterBar ? (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <CobrosRegisterBar
+                count={selectedInvoices.length}
+                total={formattedSelectedTotal}
+                onRegister={() => setSheetOpen(true)}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    );
+  }, [
+    activeBucket,
+    rfcFromUrl,
+    searchRfc,
+    isLoading,
+    isError,
+    filteredInvoices,
+    selected,
+    selectedInvoices,
+    formattedSelectedTotal,
+    showRegisterBar,
+    pagination,
+    refetch,
+    toggleInvoice,
+    togglePage,
+  ]);
+
+  return (
+    <>
+      <WorkbenchPageShell
+        title={workbenchCopy.title}
+        description={workbenchCopy.description}
+        beforeAwareness={
+          followThrough ? (
+            <FinanceCobrosFollowThroughAlert followThrough={followThrough} />
+          ) : undefined
+        }
+        buckets={buckets}
+        bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
+        bucketsLoading={isLoading && invoices.length === 0}
+        toolbar={{
+          filters: (
+            <RfcToolbarFilter onSubmit={onRfcSearch} />
+          ),
+          activeFilterChips: rfcChips,
+          onClearFilters: rfcFromUrl ? onClearRfc : undefined,
+          hasFilters: Boolean(rfcFromUrl),
+          onRefresh: handleRefresh,
+          isRefreshing: isLoading,
+        }}
+        renderContent={renderContent}
+        pagination={
+          activeBucket !== "rep_exceptions" && pagination
+            ? {
+                page: pagination.page,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+                limit: pagination.limit,
+              }
+            : undefined
+        }
+        onPageChange={activeBucket !== "rep_exceptions" ? handlePageChange : undefined}
+      />
 
       {canRegisterPayment ? (
         <FinanceCobrosConfirmSheet
@@ -501,6 +605,6 @@ function FinanceCobrosSession({
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }

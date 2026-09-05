@@ -39,6 +39,9 @@ function mapConcept(raw: ApiBillingServiceConceptCamel): BillingServiceConcept {
   };
 }
 
+/** @internal Exported for unit tests */
+export const mapBillingServiceConceptForTest = mapConcept;
+
 function toApiPayload(
   payload: CreateBillingServiceConceptPayload | UpdateBillingServiceConceptPayload,
 ) {

@@ -23,19 +23,8 @@ import type {
   BillingSubscription,
   BillingUsage,
 } from "@features/billing/domain/entities";
-import { INTERNAL_STAFF_MODULE_CODE } from "@features/billing/domain/entities";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
-
-const mockUseInternalStaffEntitlement = vi.fn();
-
-vi.mock("@features/billing", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@features/billing")>();
-  return {
-    ...actual,
-    useInternalStaffEntitlement: () => mockUseInternalStaffEntitlement(),
-  };
-});
 
 const mockGetAccess = vi.fn();
 const mockGetSubscription = vi.fn();
@@ -147,37 +136,37 @@ const MOCK_ENTITLEMENTS_WITHOUT: BillingEntitlements = {
 const MOCK_ENTITLEMENTS_WITH: BillingEntitlements = {
   directEntitlements: [
     {
-      moduleCode: INTERNAL_STAFF_MODULE_CODE,
-      moduleName: "Equipo de apoyo en viajes",
+      moduleCode: "gps_tracking",
+      moduleName: "Rastreo GPS en tiempo real",
       kind: "addon",
       status: "active",
       activatedAt: "2026-07-01T12:00:00.000Z",
-      priceLockedCents: 5900,
+      priceLockedCents: 14900,
       priceTier: "ea",
       memberCodes: [],
     },
   ],
-  effectiveModuleCodes: [INTERNAL_STAFF_MODULE_CODE],
-  profitabilityLevel: "L0.5",
+  effectiveModuleCodes: ["gps_tracking"],
+  profitabilityLevel: "L0",
   catalog: [
     {
-      code: INTERNAL_STAFF_MODULE_CODE,
-      name: "Equipo de apoyo en viajes",
+      code: "gps_tracking",
+      name: "Rastreo GPS en tiempo real",
       kind: "addon",
       isActiveForTenant: true,
       memberCodes: [],
-      priceEaCents: 5900,
-      priceGaCents: 10900,
+      priceEaCents: 14900,
+      priceGaCents: 27900,
       maturity: "beta",
     },
   ],
   commercialSummary: {
     planMonthlyPriceCents: 74900,
-    modulesTotalCents: 5900,
+    modulesTotalCents: 14900,
     overageTotalCents: 0,
-    subtotalCents: 80800,
-    ivaCents: 12928,
-    estimatedTotalCents: 93728,
+    subtotalCents: 89800,
+    ivaCents: 14368,
+    estimatedTotalCents: 104168,
     currency: "MXN",
     periodKey: "2026-07",
     billingCycle: "monthly",
@@ -217,6 +206,9 @@ function BasicInfoStepHarness() {
         vehicleIds: new Set(),
         driverIds: new Set(),
         employeeIds: new Set(),
+        vehicleConflicts: new Map(),
+        driverConflicts: new Map(),
+        employeeConflicts: new Map(),
       }}
       clients={[]}
       isLoadingVehicles={false}
@@ -247,19 +239,6 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       maxDaysOverdue: 0,
       invoices: [],
     });
-    mockUseInternalStaffEntitlement.mockReturnValue({
-      hasModule: false,
-      isSuccess: true,
-      isFetched: true,
-      isLoading: false,
-      data: {
-        subscriptionStatus: "active",
-        isOperational: true,
-        trialEndsAt: null,
-        planName: "Operación Esencial",
-        effectiveModuleCodes: [],
-      },
-    });
   });
 
   it("renders subscription page with plan, usage and modules", async () => {
@@ -283,9 +262,9 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     ).toBeInTheDocument();
 
     expect(screen.getAllByText(/45 de 120 timbres usados/).length).toBeGreaterThan(0);
-    expect(screen.getByText("Equipo de apoyo en viajes")).toBeInTheDocument();
+    expect(screen.getByText("Rastreo GPS en tiempo real")).toBeInTheDocument();
     expect(screen.getByText(billingCopy.costs.totalLabel)).toBeInTheDocument();
-    expect(screen.getAllByText(/\$937/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/\$1,041|\$1041/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.modules.eaBadge)).toBeInTheDocument();
     expect(
@@ -325,41 +304,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     expect(screen.getByText(billingCopy.stamps.overageTitle)).toBeInTheDocument();
   });
 
-  it("shows paywall on support staff when entitlement is missing", async () => {
-    render(
-      <TestProviders>
-        <BasicInfoStepHarness />
-      </TestProviders>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(basicInfoCopy.paywall.title)).toBeInTheDocument();
-    });
-
-    expect(screen.getByText(basicInfoCopy.paywall.description)).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: basicInfoCopy.paywall.cta }),
-    ).toHaveAttribute("href", "/settings/subscription");
-
-    const addButton = screen.getByRole("button", { name: basicInfoCopy.action.add });
-    expect(addButton.closest(".pointer-events-none")).not.toBeNull();
-  });
-
-  it("enables support staff section when entitlement is active", async () => {
-    mockUseInternalStaffEntitlement.mockReturnValue({
-      hasModule: true,
-      isSuccess: true,
-      isFetched: true,
-      isLoading: false,
-      data: {
-        subscriptionStatus: "active",
-        isOperational: true,
-        trialEndsAt: null,
-        planName: "Operación Esencial",
-        effectiveModuleCodes: [INTERNAL_STAFF_MODULE_CODE],
-      },
-    });
-
+  it("renders support staff section natively without paywall in basic info step", async () => {
     render(
       <TestProviders>
         <BasicInfoStepHarness />
@@ -371,37 +316,10 @@ describe("billing workflow smoke (Imp-v1d)", () => {
         screen.getByText(basicInfoCopy.section.supportStaff),
       ).toBeInTheDocument();
     });
-
-    expect(screen.queryByText(basicInfoCopy.paywall.title)).not.toBeInTheDocument();
 
     const addButton = screen.getByRole("button", { name: basicInfoCopy.action.add });
     expect(addButton.closest(".pointer-events-none")).toBeNull();
     await userEvent.click(addButton);
     expect(screen.getByText(basicInfoCopy.error.selectEmployee)).toBeInTheDocument();
-  });
-
-  it("does not show false paywall when entitlement query has not succeeded", async () => {
-    mockUseInternalStaffEntitlement.mockReturnValue({
-      hasModule: false,
-      isSuccess: false,
-      isFetched: true,
-      isError: true,
-      isLoading: false,
-      data: undefined,
-    });
-
-    render(
-      <TestProviders>
-        <BasicInfoStepHarness />
-      </TestProviders>,
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(basicInfoCopy.section.supportStaff),
-      ).toBeInTheDocument();
-    });
-
-    expect(screen.queryByText(basicInfoCopy.paywall.title)).not.toBeInTheDocument();
   });
 });

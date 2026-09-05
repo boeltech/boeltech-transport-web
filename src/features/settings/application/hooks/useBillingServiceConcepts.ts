@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { settingsQueryKeys } from "../../domain";
 import type {
@@ -37,9 +38,13 @@ export function useCreateBillingServiceConcept() {
       });
       toast({ title: billingServiceConceptsCopy.toast.created });
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const title =
+        isApiError(error) && error.code === "DUPLICATE_ENTRY"
+          ? billingServiceConceptsCopy.toast.duplicateName
+          : billingServiceConceptsCopy.toast.error;
       toast({
-        title: billingServiceConceptsCopy.toast.error,
+        title,
         variant: "destructive",
       });
     },
@@ -58,11 +63,15 @@ export function useUpdateBillingServiceConcept() {
       id: string;
       payload: UpdateBillingServiceConceptPayload;
     }) => updateBillingServiceConcept(id, payload),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.billingServiceConcepts(),
       });
-      toast({ title: billingServiceConceptsCopy.toast.updated });
+      const title =
+        variables.payload.isActive === true
+          ? billingServiceConceptsCopy.toast.reactivated
+          : billingServiceConceptsCopy.toast.updated;
+      toast({ title });
     },
     onError: () => {
       toast({

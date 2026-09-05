@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { BillingScheme } from "../../domain/billingScheme.types";
 import {
   formatBillingSchemeCadenceSummary,
-  formatBillingSchemeParamsSummary,
+  formatBillingSchemeNaturalDescription,
+  formatBillingSchemePeriodRuleBullets,
 } from "./formatBillingSchemeCadence";
+import { formatBillingSchemeParamsSummary } from "./formatBillingSchemeCadenceParams";
 
 function scheme(
   partial: Pick<BillingScheme, "cadenceKind" | "params">,
@@ -58,5 +60,63 @@ describe("formatBillingSchemeCadenceSummary", () => {
     expect(formatBillingSchemeCadenceSummary(s)).toBe(
       "Mensual · 3.º día hábil del mes",
     );
+  });
+});
+
+describe("formatBillingSchemeNaturalDescription", () => {
+  it("describe evento por cierre de viaje", () => {
+    const s = scheme({
+      cadenceKind: "event",
+      params: { windowHours: 48 },
+    });
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("48 horas");
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("cierra");
+  });
+
+  it("describe semanal en lenguaje natural", () => {
+    const s = scheme({
+      cadenceKind: "periodic_weekly",
+      params: { weekdays: [4, 5] },
+    });
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("Jue");
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("Vie");
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("correo");
+  });
+
+  it("describe cortes del mes", () => {
+    const s = scheme({
+      cadenceKind: "periodic_decadal",
+      params: { monthDays: [10, 20, 30] },
+    });
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("10, 20, 30");
+  });
+
+  it("describe mensual por día hábil", () => {
+    const s = scheme({
+      cadenceKind: "periodic_monthly",
+      params: { businessDaysFromMonthStart: 3 },
+    });
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("3.º día hábil");
+  });
+
+  it("describe mensual por días calendario", () => {
+    const s = scheme({
+      cadenceKind: "periodic_monthly",
+      params: { monthDays: [1, 15] },
+    });
+    expect(formatBillingSchemeNaturalDescription(s)).toContain("1, 15");
+  });
+});
+
+describe("formatBillingSchemePeriodRuleBullets", () => {
+  it("incluye frecuencia y regla de viajes para semanal", () => {
+    const s = scheme({
+      cadenceKind: "periodic_weekly",
+      params: { weekdays: [4, 5] },
+    });
+    const bullets = formatBillingSchemePeriodRuleBullets(s);
+    expect(bullets[0]).toBe("Frecuencia: Semanal");
+    expect(bullets.some((b) => b.includes("Jue"))).toBe(true);
+    expect(bullets.at(-1)).toContain("cierre operativo");
   });
 });

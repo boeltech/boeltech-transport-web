@@ -30,6 +30,7 @@ import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useQueryErrorToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
+import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import {
   useBillingDispatchRuns,
   useCreateBillingDispatchRun,
@@ -104,6 +105,15 @@ export function FinanceDispatchRunsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [schemeId, setSchemeId] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const selectedScheme = useMemo(
+    () => activeSchemes.find((scheme) => scheme.id === schemeId) ?? null,
+    [activeSchemes, schemeId],
+  );
+
+  const selectedSchemeCadenceSummary = selectedScheme
+    ? formatBillingSchemeCadenceSummary(selectedScheme)
+    : null;
 
   const createMutation = useCreateBillingDispatchRun();
 
@@ -202,6 +212,12 @@ export function FinanceDispatchRunsPage() {
       <ListPageShell<BillingDispatchRunListItem>
         title={copy.title}
         description={copy.subtitle}
+        primaryAction={{
+          label: copy.executeCta,
+          icon: <Plus className="h-4 w-4" />,
+          onClick: handleOpenCreate,
+          visible: canExecute,
+        }}
         beforeToolbar={showOnboarding ? <DispatchRunsOnboardingChecklist /> : null}
         toolbar={{
           filters: (
@@ -253,12 +269,6 @@ export function FinanceDispatchRunsPage() {
               </Select>
             </>
           ),
-          extraActions: canExecute ? (
-            <Button type="button" onClick={handleOpenCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              {copy.executeCta}
-            </Button>
-          ) : undefined,
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
           activeFilterChips: filters.activeChips,
@@ -342,6 +352,14 @@ export function FinanceDispatchRunsPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">{createCopy.schemeHint}</p>
+              {selectedSchemeCadenceSummary ? (
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {createCopy.schemeSummaryLabel}:{" "}
+                  </span>
+                  {selectedSchemeCadenceSummary}
+                </p>
+              ) : null}
             </div>
 
             {activeSchemes.length === 0 ? (

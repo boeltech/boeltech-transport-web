@@ -13,7 +13,6 @@ export { ProfitabilityScopeToolbar } from "./ProfitabilityScopeToolbar";
 export { ProfitabilityContextCards } from "./ProfitabilityContextCards";
 export { ProfitabilityBucketBar } from "./ProfitabilityBucketBar";
 export { ProfitabilityDimensionBarList } from "./ProfitabilityDimensionBarList";
-export { FinanceInvoicesSummaryCards } from "./FinanceInvoicesSummaryCards";
 export { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
 export { FinanceDispatchRunsTable } from "./FinanceDispatchRunsTable";
 export { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
