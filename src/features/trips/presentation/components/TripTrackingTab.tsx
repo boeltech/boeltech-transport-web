@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Route,
 } from "lucide-react";
-import { getOrderedStops, TripStatus, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
+import { getOrderedStops, TripStatus, type TripOperationalOutcomeType, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
 import {
   useTripTimeline,
   useUpdateCargo,
@@ -25,6 +25,8 @@ import {
   findDestinationAwaitingTripArrival,
   findNextStopForArrival,
   findOriginAwaitingDeparture,
+  isDestinationStop,
+  isOriginStop,
 } from "./trackingStopEligibility";
 import { TripTrackingMap } from "./TripTrackingMap";
 import {
@@ -32,6 +34,7 @@ import {
   getTrackingScopeAlertItems,
   RegisterStopTrackingEventSheet,
   RegisterTripArrivalSheet,
+  QuickCloseTripSheet,
   RegisterTrackingIncidentSheet,
   RegisterTrackingNoteSheet,
   StartTripSheet,
@@ -52,7 +55,6 @@ import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { tripDetailCopy } from "../copy";
 import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
-import { isOriginStop } from "./trackingStopEligibility";
 
 interface TripTrackingTabProps {
   tripId: string;
@@ -63,6 +65,8 @@ interface TripTrackingTabProps {
   status: TripStatusType;
   /** Cargas del page-level `useTripCargos` (misma query key; no duplicar observer). */
   cargos?: readonly TripCargo[];
+  /** ADR-0079 / ADR-0088: oculta atajo de cierre si el viaje es en falso. */
+  operationalOutcome?: TripOperationalOutcomeType;
   /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
   falseTripDeclaredBy?: string | null;
   onCargosChanged?: () => void;
@@ -76,6 +80,7 @@ export function TripTrackingTab({
   tripStartMileage,
   status,
   cargos: cargosProp = [],
+  operationalOutcome,
   falseTripDeclaredBy = null,
   onCargosChanged,
 }: TripTrackingTabProps) {
@@ -89,6 +94,7 @@ export function TripTrackingTab({
   const canMutateCargo = canUpdateTrip;
   const [startSheetOpen, setStartSheetOpen] = useState(false);
   const [tripArrivalSheetOpen, setTripArrivalSheetOpen] = useState(false);
+  const [quickCloseSheetOpen, setQuickCloseSheetOpen] = useState(false);
   const [arrivalSheetOpen, setArrivalSheetOpen] = useState(false);
   const [departureSheetOpen, setDepartureSheetOpen] = useState(false);
   const [departOriginSheetOpen, setDepartOriginSheetOpen] = useState(false);
@@ -231,6 +237,13 @@ export function TripTrackingTab({
     () => orderedStops.find((stop) => isOriginStop(stop)),
     [orderedStops],
   );
+  const destinationStop = useMemo(() => {
+    for (let i = orderedStops.length - 1; i >= 0; i -= 1) {
+      const stop = orderedStops[i];
+      if (stop && isDestinationStop(stop)) return stop;
+    }
+    return null;
+  }, [orderedStops]);
   const referenceStopForGps = useMemo(
     () =>
       originAwaitingDeparture ??
@@ -397,6 +410,10 @@ export function TripTrackingTab({
         onCloseTrip={
           canOperateTracking ? () => setTripArrivalSheetOpen(true) : undefined
         }
+        onQuickCloseTrip={
+          canOperateTracking ? () => setQuickCloseSheetOpen(true) : undefined
+        }
+        operationalOutcome={operationalOutcome}
         onDeclareFalseTrip={
           canOperateTracking ? () => setFalseTripSheetOpen(true) : undefined
         }
@@ -557,6 +574,17 @@ export function TripTrackingTab({
             orderedStops={orderedStops}
             open={tripArrivalSheetOpen}
             onOpenChange={setTripArrivalSheetOpen}
+          />
+          <QuickCloseTripSheet
+            tripId={tripId}
+            tripCode={tripCode}
+            vehicleId={vehicleId}
+            tripStartMileage={tripStartMileage}
+            scheduledDeparture={timeline.trip.scheduledDeparture ?? undefined}
+            actualDeparture={timeline.trip.actualDeparture ?? undefined}
+            destinationStop={destinationStop}
+            open={quickCloseSheetOpen}
+            onOpenChange={setQuickCloseSheetOpen}
           />
           <RegisterStopTrackingEventSheet
             tripId={tripId}

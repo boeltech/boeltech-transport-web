@@ -135,8 +135,9 @@ export function useAssignableVehicles(
 /**
  * Clasifica un vehículo como asignable o bloqueado.
  * Reglas en frontend (complemento al backend):
- * - Seguro / SCT sin registrar o incompleto → bloqueado
- * - Seguro / SCT vencido → bloqueado
+ * - Seguro / SCT sin registrar → bloqueado duro
+ * - Seguro / SCT vencido o sin fecha de vigencia (póliza/número presente) → bloqueado
+ *   con `expiredDocsOverridable` (filtro suave ADR-0066)
  * Si el listado no trae póliza o número SCT pero sí vigencia, no se bloquea solo por ese campo
  * (compatibilidad con APIs que omiten esos campos en GET /vehicles).
  */
@@ -183,6 +184,7 @@ export function classifyVehicleForAssignment(
       ...vehicle,
       canBeAssigned: false,
       blockReason: "Sin vigencia de seguro",
+      expiredDocsOverridable: true,
     };
   }
 
@@ -211,6 +213,7 @@ export function classifyVehicleForAssignment(
       ...vehicle,
       canBeAssigned: false,
       blockReason: "Sin vigencia de permiso SCT",
+      expiredDocsOverridable: true,
     };
   }
 

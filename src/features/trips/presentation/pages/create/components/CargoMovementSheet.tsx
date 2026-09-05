@@ -755,12 +755,8 @@ function CargoMovementSheetSession({
           </SheetDescription>
           <CargoMovementSheetPickupContext
             pickupStop={pickupStop}
-            availablePickupStops={
-              editingIndex === null ? availablePickupStops : undefined
-            }
-            onPickupStopChange={
-              editingIndex === null ? onPickupStopChange : undefined
-            }
+            availablePickupStops={availablePickupStops}
+            onPickupStopChange={onPickupStopChange}
             stopCargoCount={stopCargoCount}
             availableKg={availableKg}
           />

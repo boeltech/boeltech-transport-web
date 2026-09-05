@@ -17,8 +17,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
-import type { TripInvoiceStatus, TripStatusType } from "../../domain";
-import { TRIP_STATUS_CONFIG } from "../index";
+import type { TripInvoiceStatus } from "../../domain";
 import { tripsListCopy } from "../copy/listCopy";
 
 const copy = tripsListCopy.filter;
@@ -32,14 +31,12 @@ const TRIP_INVOICE_STATUS_FILTER_VALUES: TripInvoiceStatus[] = [
 ];
 
 export interface TripListFiltersProps {
-  status: TripStatusType | null;
   fiscalAttentionOnly: boolean;
   invoiceStatusFilter: TripInvoiceStatus | undefined;
   dateFrom: string;
   dateTo: string;
   /** Abre el panel cuando hay filtros activos en la URL. */
   hasActiveFilters: boolean;
-  onStatusChange: (value: string) => void;
   onFiscalAttentionChange: (attentionOnly: boolean) => void;
   onInvoiceStatusChange: (value: string) => void;
   onApplyDateRange: (fromDate: string, toDate: string) => void;
@@ -53,13 +50,11 @@ export interface TripListFiltersProps {
  * Cerrado por defecto; abierto si hay filtros activos (salvo que el usuario lo cierre).
  */
 export function TripListFilters({
-  status,
   fiscalAttentionOnly,
   invoiceStatusFilter,
   dateFrom,
   dateTo,
   hasActiveFilters,
-  onStatusChange,
   onFiscalAttentionChange,
   onInvoiceStatusChange,
   onApplyDateRange,
@@ -116,38 +111,9 @@ export function TripListFilters({
               <div
                 className={cn(
                   "grid gap-3 sm:grid-cols-2",
-                  hideInvoiceFilters ? "lg:grid-cols-2" : "lg:grid-cols-4",
+                  hideInvoiceFilters ? "lg:grid-cols-1" : "lg:grid-cols-3",
                 )}
               >
-                <div className="space-y-1.5">
-                  <Label htmlFor="trips-filter-status">{copy.statusLabel}</Label>
-                  <Select value={status || "all"} onValueChange={onStatusChange}>
-                    <SelectTrigger id="trips-filter-status" className="w-full">
-                      <SelectValue placeholder={copy.statusAll} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{copy.statusAll}</SelectItem>
-                      {Object.entries(TRIP_STATUS_CONFIG).map(
-                        ([value, config]) => (
-                          <SelectItem key={value} value={value}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  "h-2 w-2 rounded-full",
-                                  config.bgColor
-                                    .replace("bg-", "bg-")
-                                    .replace("100", "500"),
-                                )}
-                              />
-                              {config.label}
-                            </span>
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {!hideInvoiceFilters ? (
                   <>
                     <div className="space-y-1.5">

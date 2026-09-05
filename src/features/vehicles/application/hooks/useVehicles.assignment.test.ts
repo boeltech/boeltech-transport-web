@@ -76,6 +76,56 @@ describe("classifyVehicleForAssignment", () => {
     ).toBeUndefined();
   });
 
+  it("marks insurance without expiry as overridable", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({
+        id: "veh-3b",
+        insurancePolicy: "POL-001",
+        insuranceExpiry: null,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de seguro",
+      expiredDocsOverridable: true,
+    });
+  });
+
+  it("marks SCT permit without expiry as overridable", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({
+        id: "veh-3c",
+        sctPermitNumber: "SCT-001",
+        sctPermitExpiry: null,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de permiso SCT",
+      expiredDocsOverridable: true,
+    });
+  });
+
+  it("does not mark missing SCT permit as overridable", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({
+        id: "veh-3d",
+        sctPermitNumber: null,
+        sctPermitExpiry: null,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Permiso SCT no registrado",
+    });
+    expect(
+      "expiredDocsOverridable" in result ? result.expiredDocsOverridable : undefined,
+    ).toBeUndefined();
+  });
+
   it("does not mark unavailable status as overridable", () => {
     const result = classifyVehicleForAssignment(
       vehicle({ id: "veh-4", status: "on_trip" }),

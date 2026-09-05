@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { wizardCopy } from "../../../copy";
-import type { TripWizardFormValues } from "./validation";
+import { applySoftBusyToTrailers } from "../tripAssignmentBusyResources";
 
 const copy = wizardCopy.basicInfo;
 
@@ -35,14 +35,21 @@ const NONE = "__none__";
 
 function TrailerSelectOptions({
   available,
+  softBusy,
   blocked,
   includeEmpty,
 }: {
   available: AssignableTrailerItem[];
+  softBusy: AssignableTrailerItem[];
   blocked: AssignableTrailerItem[];
   includeEmpty?: boolean;
 }) {
-  if (available.length === 0 && blocked.length === 0 && !includeEmpty) {
+  if (
+    available.length === 0 &&
+    softBusy.length === 0 &&
+    blocked.length === 0 &&
+    !includeEmpty
+  ) {
     return (
       <SelectItem value="no-trailers" disabled>
         {copy.state.noTrailers}
@@ -67,14 +74,45 @@ function TrailerSelectOptions({
             </SelectItem>
           ))}
         </SelectGroup>
-      ) : includeEmpty ? null : (
+      ) : includeEmpty ? null : softBusy.length > 0 ? null : (
         <SelectItem value="no-trailers" disabled>
           {copy.state.noTrailers}
         </SelectItem>
       )}
-      {blocked.length > 0 ? (
+      {softBusy.length > 0 ? (
         <>
           {available.length > 0 || includeEmpty ? <SelectSeparator /> : null}
+          <SelectGroup>
+            <SelectLabel className="flex items-center gap-1.5 text-warning">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {copy.state.softBusy}
+            </SelectLabel>
+            {softBusy.map((trailer) => (
+              <SelectItem key={trailer.id} value={trailer.id}>
+                <span className="flex items-center gap-2">
+                  {copy.format.trailerOption(
+                    trailer.licensePlate,
+                    trailer.satSubTipoRemCode,
+                  )}
+                  {trailer.blockReason ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] text-warning border-warning/40"
+                    >
+                      {trailer.blockReason}
+                    </Badge>
+                  ) : null}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </>
+      ) : null}
+      {blocked.length > 0 ? (
+        <>
+          {available.length > 0 || softBusy.length > 0 || includeEmpty ? (
+            <SelectSeparator />
+          ) : null}
           <SelectGroup>
             <SelectLabel className="flex items-center gap-1.5 text-warning">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -107,26 +145,35 @@ function TrailerSelectOptions({
   );
 }
 
+export interface TripTrailerAssignmentHostFormValues {
+  vehicleId: string;
+  trailers: Array<{ trailerId: string; position: 1 | 2 }>;
+  satConfigAutotransporteCode?: string;
+}
+
 export interface TripTrailerAssignmentFieldsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<TripWizardFormValues, any, any>;
+  form: UseFormReturn<any>;
   vehicles: AssignableVehicleItem[];
   idPrefix?: string;
+  softBusySelectable?: boolean;
 }
 
 export function TripTrailerAssignmentFields({
   form,
   vehicles,
   idPrefix = "",
+  softBusySelectable = false,
 }: TripTrailerAssignmentFieldsProps) {
-  const { control, watch, setValue, getValues } = form;
+  const { control, watch, setValue, getValues } =
+    form as UseFormReturn<TripTrailerAssignmentHostFormValues>;
   const selectedVehicleId = watch("vehicleId");
   const trailers = watch("trailers") ?? [];
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTargetPosition, setSheetTargetPosition] = useState<1 | 2>(1);
   const [showSecondSelect, setShowSecondSelect] = useState(false);
 
-  const { data: assignableTrailers = [], isLoading } = useAssignableTrailers({
+  const { data: assignableTrailersRaw = [], isLoading } = useAssignableTrailers({
     refetchOnMount: "always",
   });
   const keepAssignableTrailerIds = useRef(
@@ -134,6 +181,15 @@ export function TripTrailerAssignmentFields({
       (getValues("trailers") ?? []).map((item) => item.trailerId),
     ),
   ).current;
+
+  const assignableTrailers = useMemo(
+    () =>
+      applySoftBusyToTrailers(assignableTrailersRaw, {
+        softBusySelectable,
+        keepAssignableTrailerIds,
+      }),
+    [assignableTrailersRaw, softBusySelectable, keepAssignableTrailerIds],
+  );
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId),
@@ -180,15 +236,21 @@ export function TripTrailerAssignmentFields({
         : trailers.find((t) => t.position === 1)?.trailerId;
     const inScope = assignableTrailers.filter((t) => t.id !== otherId);
     const available: AssignableTrailerItem[] = [];
+    const softBusy: AssignableTrailerItem[] = [];
     const blocked: AssignableTrailerItem[] = [];
     for (const trailer of inScope) {
-      if (trailer.canBeAssigned || keepAssignableTrailerIds.has(trailer.id)) {
+      if (trailer.softBusy) {
+        softBusy.push(trailer);
+      } else if (
+        trailer.canBeAssigned ||
+        keepAssignableTrailerIds.has(trailer.id)
+      ) {
         available.push(trailer);
       } else {
         blocked.push(trailer);
       }
     }
-    return { available, blocked };
+    return { available, softBusy, blocked };
   };
 
   const setTrailerAt = (position: 1 | 2, trailerId: string | undefined) => {

@@ -1,4 +1,3 @@
-import { Loader2, Truck, User } from "lucide-react";
 import type { AssignableDriverItem } from "@features/trips/presentation/pages/create/tripAssignmentDrivers";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import {
@@ -12,7 +11,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Badge } from "@shared/ui/badge";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2, Truck, User } from "lucide-react";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 
 interface DriverSelectProps {
@@ -27,6 +26,7 @@ interface DriverSelectProps {
   errorMessage?: string;
   emptyLabel?: string;
   availableLabel?: string;
+  softBusyLabel?: string;
   notAssignableLabel?: string;
 }
 
@@ -42,10 +42,16 @@ export function DriverSelect({
   errorMessage,
   emptyLabel = "No hay conductores disponibles",
   availableLabel = "Disponibles",
+  softBusyLabel = "En otro viaje",
   notAssignableLabel = "No asignables",
 }: DriverSelectProps) {
-  const assignableDrivers = drivers.filter((driver) => driver.canBeAssigned);
-  const blockedDrivers = drivers.filter((driver) => !driver.canBeAssigned);
+  const assignableDrivers = drivers.filter(
+    (driver) => driver.canBeAssigned && !driver.softBusy,
+  );
+  const softBusyDrivers = drivers.filter((driver) => driver.softBusy === true);
+  const blockedDrivers = drivers.filter(
+    (driver) => !driver.canBeAssigned && !driver.softBusy,
+  );
 
   return (
     <FormFieldShell
@@ -87,7 +93,34 @@ export function DriverSelect({
                   ))}
                 </SelectGroup>
               ) : null}
-              {blockedDrivers.length > 0 && assignableDrivers.length > 0 ? (
+              {softBusyDrivers.length > 0 ? (
+                <>
+                  {assignableDrivers.length > 0 ? <SelectSeparator /> : null}
+                  <SelectGroup>
+                    <SelectLabel className="flex items-center gap-1.5 text-warning">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {softBusyLabel}
+                    </SelectLabel>
+                    {softBusyDrivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        <span className="flex items-center gap-2">
+                          {driver.displayName}
+                          {driver.blockReason ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] text-warning border-warning/40"
+                            >
+                              {driver.blockReason}
+                            </Badge>
+                          ) : null}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </>
+              ) : null}
+              {blockedDrivers.length > 0 &&
+              (assignableDrivers.length > 0 || softBusyDrivers.length > 0) ? (
                 <SelectSeparator />
               ) : null}
               {blockedDrivers.length > 0 ? (
@@ -135,6 +168,7 @@ interface VehicleSelectProps {
   errorMessage?: string;
   emptyLabel?: string;
   availableLabel?: string;
+  softBusyLabel?: string;
   notAssignableLabel?: string;
   formatOption?: (vehicle: AssignableVehicleItem) => string;
 }
@@ -151,11 +185,19 @@ export function VehicleSelect({
   errorMessage,
   emptyLabel = "No hay unidades disponibles",
   availableLabel = "Disponibles",
+  softBusyLabel = "En otro viaje",
   notAssignableLabel = "No asignables",
   formatOption = (vehicle) => `${vehicle.unitNumber} — ${vehicle.licensePlate}`,
 }: VehicleSelectProps) {
-  const assignableVehicles = vehicles.filter((vehicle) => vehicle.canBeAssigned);
-  const blockedVehicles = vehicles.filter((vehicle) => !vehicle.canBeAssigned);
+  const assignableVehicles = vehicles.filter(
+    (vehicle) => vehicle.canBeAssigned && !vehicle.softBusy,
+  );
+  const softBusyVehicles = vehicles.filter(
+    (vehicle) => vehicle.softBusy === true,
+  );
+  const blockedVehicles = vehicles.filter(
+    (vehicle) => !vehicle.canBeAssigned && !vehicle.softBusy,
+  );
 
   return (
     <FormFieldShell
@@ -197,7 +239,34 @@ export function VehicleSelect({
                   ))}
                 </SelectGroup>
               ) : null}
-              {blockedVehicles.length > 0 && assignableVehicles.length > 0 ? (
+              {softBusyVehicles.length > 0 ? (
+                <>
+                  {assignableVehicles.length > 0 ? <SelectSeparator /> : null}
+                  <SelectGroup>
+                    <SelectLabel className="flex items-center gap-1.5 text-warning">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {softBusyLabel}
+                    </SelectLabel>
+                    {softBusyVehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        <span className="flex items-center gap-2">
+                          {formatOption(vehicle)}
+                          {vehicle.blockReason ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] text-warning border-warning/40"
+                            >
+                              {vehicle.blockReason}
+                            </Badge>
+                          ) : null}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </>
+              ) : null}
+              {blockedVehicles.length > 0 &&
+              (assignableVehicles.length > 0 || softBusyVehicles.length > 0) ? (
                 <SelectSeparator />
               ) : null}
               {blockedVehicles.length > 0 ? (

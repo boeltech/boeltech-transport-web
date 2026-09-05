@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import {
   Ban,
   CheckCircle2,
+  Flag,
   ListOrdered,
   MapPin,
   Navigation,
@@ -17,6 +18,7 @@ import {
   type StopStatusValue,
   type TrackingTimelineProgress,
   type TripCargo,
+  type TripOperationalOutcomeType,
   type TripStatusType,
   type TripStop,
 } from "@features/trips/domain";
@@ -78,6 +80,7 @@ import { isCargoHazmat } from "../trip-cargos/tripCargoDetailHelpers";
 import { isOriginStop } from "../trackingStopEligibility";
 import { trackingCopy } from "./trackingCopy";
 import { canDeclareFalseTrip } from "./canDeclareFalseTrip";
+import { canQuickCloseTrip } from "./canQuickCloseTrip";
 import { STOP_TRANSITION_COPY } from "./transitionCopy";
 import type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
 import {
@@ -106,6 +109,10 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   onDepart?: () => void;
   onDepartOrigin?: () => void;
   onCloseTrip?: () => void;
+  /** ADR-0088: atajo «Completar viaje» → QuickCloseTripSheet. */
+  onQuickCloseTrip?: () => void;
+  /** ADR-0079 / ADR-0088: oculta atajo si el viaje es en falso. */
+  operationalOutcome?: TripOperationalOutcomeType;
   /** PD1: CTA secundario «El cliente canceló la carga» → sheet de declaración. */
   onDeclareFalseTrip?: () => void;
   /** Evidencia contextual: el padre abre sheets con esta parada como referencia GPS. */
@@ -511,6 +518,8 @@ export function TripTrackingStopsCargosMasterDetail({
   onDepart,
   onDepartOrigin,
   onCloseTrip,
+  onQuickCloseTrip,
+  operationalOutcome,
   onDeclareFalseTrip,
   onRegisterNote,
   onRegisterIncident,
@@ -661,6 +670,11 @@ export function TripTrackingStopsCargosMasterDetail({
     primary.kind !== "dispatch";
   const showsOperableCta = showsDispatchCta || showsStopCta;
   const declareFalseTripHintId = useId();
+  const quickCloseHintId = useId();
+  const showsQuickCloseCta =
+    canOperateTracking &&
+    onQuickCloseTrip != null &&
+    canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome);
   const showsDeclareFalseTripCta =
     canOperateTracking &&
     onDeclareFalseTrip != null &&
@@ -777,6 +791,29 @@ export function TripTrackingStopsCargosMasterDetail({
                     })
                   }
                 />
+              ) : null}
+              {showsQuickCloseCta ? (
+                <div className="space-y-0.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto"
+                    onClick={() => onQuickCloseTrip?.()}
+                    aria-describedby={quickCloseHintId}
+                  >
+                    <Flag className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="font-medium">
+                      {trackingCopy.action.quickClose}
+                    </span>
+                  </Button>
+                  <p
+                    id={quickCloseHintId}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {trackingCopy.hint.quickCloseTransition}
+                  </p>
+                </div>
               ) : null}
               {showsDeclareFalseTripCta ? (
                 <div className="space-y-0.5">

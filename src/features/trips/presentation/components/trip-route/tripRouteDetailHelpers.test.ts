@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { StopStatus, StopType, TripStatus, type TripStop } from "@features/trips/domain";
+import { StopStatus, StopType, TripStatus, type TripCargo, type TripStop } from "@features/trips/domain";
 
 import { progressCopy } from "../../copy/tripDetail/progressCopy";
 
@@ -20,11 +20,13 @@ import {
   hasStopType,
   isStopDomicilioComplete,
   isStopOperativelyComplete,
+  isStopWaypointOperationComplete,
   buildRouteMasterRows,
   resolveRouteMasterRowId,
   ROUTE_SLOT_DESTINATION_ID,
   ROUTE_SLOT_ORIGIN_ID,
   shouldShowTrackingHint,
+  stopHasLinkedCargoMovements,
   stopRequiresFiscalRfc,
   stopUsesSavedAddress,
   sumRouteSegmentDistanceKm,
@@ -428,6 +430,22 @@ describe("tripRouteDetailHelpers", () => {
     ).toBe(false);
   });
 
+  it("requires pickup or delivery for waypoint operation completeness", () => {
+    expect(
+      isStopWaypointOperationComplete(stop({ stopType: [StopType.WAYPOINT] })),
+    ).toBe(false);
+    expect(
+      isStopWaypointOperationComplete(
+        stop({ stopType: [StopType.WAYPOINT, StopType.PICKUP] }),
+      ),
+    ).toBe(true);
+    expect(
+      isStopWaypointOperationComplete(
+        stop({ stopType: [StopType.ORIGIN, StopType.PICKUP] }),
+      ),
+    ).toBe(true);
+  });
+
   it("builds origin and destination master rows without trip_stop", () => {
     const rows = buildRouteMasterRows({
       waypoints: [],
@@ -457,5 +475,91 @@ describe("tripRouteDetailHelpers", () => {
     });
     const rows = buildRouteMasterRows({ origin, waypoints: [] });
     expect(resolveRouteMasterRowId(rows, ROUTE_SLOT_ORIGIN_ID)).toBe("stop-origin");
+  });
+});
+
+describe("stopHasLinkedCargoMovements", () => {
+  const origin = stop({
+    id: "stop-o",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN, StopType.PICKUP],
+  });
+  const waypoint = stop({
+    id: "stop-wp",
+    sequenceOrder: 2,
+    stopType: [StopType.WAYPOINT, StopType.DELIVERY],
+  });
+  const destination = stop({
+    id: "stop-d",
+    sequenceOrder: 3,
+    stopType: [StopType.DESTINATION, StopType.DELIVERY],
+  });
+  const ordered = [origin, waypoint, destination];
+
+  function cargoWithMovements(
+    movements: TripCargo["movements"],
+  ): TripCargo {
+    return {
+      id: "cargo-1",
+      movements,
+    } as TripCargo;
+  }
+
+  it("returns false when there are no cargos", () => {
+    expect(stopHasLinkedCargoMovements(waypoint, ordered, undefined)).toBe(false);
+    expect(stopHasLinkedCargoMovements(waypoint, ordered, [])).toBe(false);
+  });
+
+  it("matches by stopId", () => {
+    expect(
+      stopHasLinkedCargoMovements(waypoint, ordered, [
+        cargoWithMovements([
+          {
+            stopId: "stop-wp",
+            stopIndex: 99,
+            movementType: "delivery",
+            weight: null,
+            units: null,
+            completedAt: null,
+            notes: null,
+          },
+        ]),
+      ]),
+    ).toBe(true);
+  });
+
+  it("matches by stopIndex when stopId is absent", () => {
+    expect(
+      stopHasLinkedCargoMovements(waypoint, ordered, [
+        cargoWithMovements([
+          {
+            stopIndex: 1,
+            movementType: "delivery",
+            weight: null,
+            units: null,
+            completedAt: null,
+            notes: null,
+          },
+        ]),
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns false when movements point to another stop", () => {
+    expect(
+      stopHasLinkedCargoMovements(waypoint, ordered, [
+        cargoWithMovements([
+          {
+            stopId: "stop-o",
+            stopIndex: 0,
+            movementType: "pickup",
+            weight: null,
+            units: null,
+            completedAt: null,
+            notes: null,
+          },
+        ]),
+      ]),
+    ).toBe(false);
   });
 });

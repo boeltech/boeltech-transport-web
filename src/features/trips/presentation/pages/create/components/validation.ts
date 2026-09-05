@@ -732,12 +732,12 @@ function requireStartMileage(
   }
 }
 
-const tripTrailerAssignmentFormSchema = z.object({
+export const tripTrailerAssignmentFormSchema = z.object({
   trailerId: z.string().uuid("Remolque inválido"),
   position: z.union([z.literal(1), z.literal(2)]),
 });
 
-function refineTrailersForConfig(
+export function refineTrailersForConfig(
   data: {
     trailers?: Array<{ trailerId: string; position: 1 | 2 }>;
     satConfigAutotransporteCode?: string;

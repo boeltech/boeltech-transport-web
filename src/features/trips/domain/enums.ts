@@ -44,6 +44,22 @@ export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
   [TripStatus.CANCELLED]: "Cancelado",
 };
 
+/** ADR-0086: clasificación operativa de ruta del viaje para compensación y logística. */
+export const TripRouteType = {
+  LOCAL: "local",
+  LONG_HAUL: "long_haul",
+  TRANSFER: "transfer",
+} as const;
+
+export type TripRouteTypeValue =
+  (typeof TripRouteType)[keyof typeof TripRouteType];
+
+export const TRIP_ROUTE_TYPE_LABELS: Record<TripRouteTypeValue, string> = {
+  [TripRouteType.LOCAL]: "Local",
+  [TripRouteType.LONG_HAUL]: "Foráneo",
+  [TripRouteType.TRANSFER]: "Transfer / Patio",
+};
+
 /** Matriz de transiciones: fuente única en `@boeltech/cfdi-domain` (`entidades/trip`). */
 export { VALID_STATUS_TRANSITIONS };
 

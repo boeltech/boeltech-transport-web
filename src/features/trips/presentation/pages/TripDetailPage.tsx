@@ -930,6 +930,7 @@ export function TripDetailPage() {
                   tripStartMileage={trip.mileage.start}
                   status={resolvedDisplayStatus}
                   cargos={cargos}
+                  operationalOutcome={trip.operationalOutcome}
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
                 />
               </Suspense>

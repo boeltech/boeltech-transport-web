@@ -119,6 +119,26 @@ describe("TripDetailRouteStopCard", () => {
     expect(onCompleteAddress).not.toHaveBeenCalled();
   });
 
+  it("shows Sin operación and Editar when domicilio is ready but waypoint lacks pickup/delivery", async () => {
+    const onCompleteAddress = vi.fn();
+    const user = userEvent.setup();
+
+    renderCard(
+      <TripDetailRouteStopCard
+        stop={tripStop({
+          stopType: [StopType.WAYPOINT],
+          sequenceOrder: 2,
+        })}
+        onCompleteAddress={onCompleteAddress}
+        onEditStop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(copy.chip.missingOperation)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: copy.action.editStop }));
+    expect(onCompleteAddress).toHaveBeenCalledTimes(1);
+  });
+
   it("shows missing distance on destination when km is absent", () => {
     renderCard(
       <TripDetailRouteStopCard
@@ -160,6 +180,44 @@ describe("TripDetailRouteStopCard", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: copy.action.editStop }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeWaypoint }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Eliminar escala only for waypoints when onRemoveWaypoint is set", async () => {
+    const onRemoveWaypoint = vi.fn();
+    const user = userEvent.setup();
+
+    renderCard(
+      <TripDetailRouteStopCard
+        stop={tripStop({
+          stopType: [StopType.WAYPOINT, StopType.PICKUP],
+          sequenceOrder: 2,
+        })}
+        onEditStop={vi.fn()}
+        onRemoveWaypoint={onRemoveWaypoint}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.removeWaypoint }),
+    );
+    expect(onRemoveWaypoint).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show Eliminar escala on origin even if onRemoveWaypoint is passed", () => {
+    renderCard(
+      <TripDetailRouteStopCard
+        stop={tripStop()}
+        onEditStop={vi.fn()}
+        onRemoveWaypoint={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeWaypoint }),
     ).not.toBeInTheDocument();
   });
 });

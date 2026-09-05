@@ -69,6 +69,30 @@ describe("buildAssignableDriversForTripWizard", () => {
     expect(result.find((d) => d.id === "drv-free")?.canBeAssigned).toBe(true);
   });
 
+  it("marks busy drivers as softBusy when softBusySelectable", () => {
+    const conflict = {
+      tripId: "t1",
+      tripCode: "V-55",
+      status: "scheduled" as const,
+      scheduledDeparture: new Date("2026-06-03T08:00:00Z"),
+    };
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-busy" })],
+      new Set(["drv-busy"]),
+      {
+        softBusySelectable: true,
+        conflicts: new Map([["drv-busy", conflict]]),
+      },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Programado",
+      assignmentConflict: conflict,
+    });
+  });
+
   it("shows on_trip drivers in the blocked group", () => {
     const result = buildAssignableDriversForTripWizard(
       [driver({ id: "drv-trip", status: "on_trip" })],
@@ -80,6 +104,20 @@ describe("buildAssignableDriversForTripWizard", () => {
       blockReason: "En viaje",
     });
     expect(result[0]?.expiredDocsOverridable).toBeUndefined();
+  });
+
+  it("makes on_trip softBusy when softBusySelectable", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-trip", status: "on_trip" })],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "En viaje",
+    });
   });
 
   it("marks expired license as overridable", () => {

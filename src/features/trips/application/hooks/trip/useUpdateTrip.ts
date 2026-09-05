@@ -10,6 +10,22 @@ import {
 } from "@features/trips/domain";
 import { createUpdateTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
+import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
+
+/**
+ * Merge nested vehicle/driver after PUT.
+ * Keep previous only when the root id is unchanged; otherwise drop stale nested labels.
+ */
+function mergeAssignmentRelation<T extends { id: string }>(
+  previousRelation: T | undefined,
+  updatedRelation: T | undefined,
+  previousId: string | undefined,
+  updatedId: string | undefined,
+): T | undefined {
+  if (updatedRelation) return updatedRelation;
+  if (updatedId !== undefined && updatedId !== previousId) return undefined;
+  return previousRelation;
+}
 
 /**
  * Merge de detalle tras PUT.
@@ -28,11 +44,23 @@ export function mergeTripDetailAfterUpdate(
   return {
     ...previous,
     ...updated,
-    vehicle: updated.vehicle ?? previous.vehicle,
-    driver: updated.driver ?? previous.driver,
+    vehicle: mergeAssignmentRelation(
+      previous.vehicle,
+      updated.vehicle,
+      previous.vehicleId ?? previous.vehicle?.id,
+      updated.vehicleId ?? updated.vehicle?.id,
+    ),
+    driver: mergeAssignmentRelation(
+      previous.driver,
+      updated.driver,
+      previous.driverId ?? previous.driver?.id,
+      updated.driverId ?? updated.driver?.id,
+    ),
     client: updated.client ?? previous.client,
+    trailers:
+      updated.trailers !== undefined ? updated.trailers : previous.trailers,
     internalStaff:
-      updated.internalStaff && updated.internalStaff.length > 0
+      updated.internalStaff !== undefined
         ? updated.internalStaff
         : previous.internalStaff,
     stops: structuralReplace
@@ -95,6 +123,7 @@ export function useUpdateTrip(
           queryKey: tripQueryKeys.timeline(id),
         });
       }
+      await invalidateTripAssignmentResources(queryClient);
       await onSuccessExternal?.(updatedTrip, variables, onMutateResult, context);
     },
     onError: async (error, variables, onMutateResult, context) => {

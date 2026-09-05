@@ -88,7 +88,7 @@ export function mapApiCorridorStopSnapshot(
   const snapshot: CorridorStopSnapshot = {
     sequenceOrder: raw.sequence_order,
     stopType: mapStopType(raw.stop_type),
-    city: raw.city,
+    city: raw.city ?? "",
   };
 
   const sourceAddressId = optionalString(raw.source_address_id);

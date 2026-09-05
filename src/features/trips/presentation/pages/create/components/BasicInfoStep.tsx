@@ -16,7 +16,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -64,8 +63,6 @@ import {
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import type { DriverListItem } from "@features/drivers/domain";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
-import { DetailAlertCard } from "@shared/ui/data-display";
-import { useInternalStaffEntitlement } from "@features/billing";
 
 // Hook para obtener detalle del vehículo (datos de Carta Porte para indicadores)
 import { useVehicle } from "@features/vehicles/application";
@@ -133,6 +130,7 @@ interface BasicInfoStepProps {
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
   isLoadingClients: boolean;
+  softBusySelectable?: boolean;
 }
 
 // ============================================================================
@@ -149,14 +147,9 @@ export function BasicInfoStep({
   isLoadingVehicles,
   isLoadingDrivers,
   isLoadingClients,
+  softBusySelectable = false,
 }: BasicInfoStepProps) {
   const { control } = form;
-  const {
-    hasModule: hasInternalStaffModule,
-    isSuccess: isInternalStaffEntitlementSuccess,
-  } = useInternalStaffEntitlement();
-  const isInternalStaffPaywalled =
-    isInternalStaffEntitlementSuccess && !hasInternalStaffModule;
 
   const selectedVehicleId = form.watch("vehicleId");
   const selectedDriverId = form.watch("driverId");
@@ -272,6 +265,7 @@ export function BasicInfoStep({
         busyResources,
         positionFilter: supportStaffPositionFilter,
         excludeEmployeeIds: excludeEmployeeIdsForSupportDraft,
+        softBusySelectable,
       }),
     [
       activeEmployees,
@@ -279,14 +273,18 @@ export function BasicInfoStep({
       busyResources,
       supportStaffPositionFilter,
       excludeEmployeeIdsForSupportDraft,
+      softBusySelectable,
     ],
   );
 
   const assignableSupportStaff = supportStaffOptions.filter(
-    (item) => item.canBeAssigned,
+    (item) => item.canBeAssigned && !item.softBusy,
+  );
+  const softBusySupportStaff = supportStaffOptions.filter(
+    (item) => item.softBusy === true,
   );
   const blockedSupportStaff = supportStaffOptions.filter(
-    (item) => !item.canBeAssigned,
+    (item) => !item.canBeAssigned && !item.softBusy,
   );
 
   const selectedDraftSupportStaff = useMemo(
@@ -301,7 +299,7 @@ export function BasicInfoStep({
       return;
     }
     const selected = selectedDraftSupportStaff;
-    if (selected && !selected.canBeAssigned) {
+    if (selected && !selected.canBeAssigned && !selected.softBusy) {
       setAddStaffError(
         selected.blockReason
           ? shellValidation.supportStaffBlockedOnAdd(selected.blockReason)
@@ -375,6 +373,7 @@ export function BasicInfoStep({
             isLoadingVehicles={isLoadingVehicles}
             isLoadingDrivers={isLoadingDrivers}
             excludedDriverEmployeeIds={supportStaffEmployeeIds}
+            softBusySelectable={softBusySelectable}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -491,22 +490,6 @@ export function BasicInfoStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isInternalStaffPaywalled ? (
-            <DetailAlertCard severity="warning" title={copy.paywall.title}>
-              <p className="text-sm text-muted-foreground">{copy.paywall.description}</p>
-              <Button variant="link" className="mt-2 h-auto p-0" asChild>
-                <Link to="/settings/subscription">{copy.paywall.cta}</Link>
-              </Button>
-            </DetailAlertCard>
-          ) : null}
-
-          <div
-            className={
-              isInternalStaffPaywalled
-                ? "pointer-events-none space-y-4 opacity-60"
-                : "space-y-4"
-            }
-          >
           <div className="rounded-md border p-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -570,8 +553,38 @@ export function BasicInfoStep({
                             ))}
                           </SelectGroup>
                         )}
+                        {softBusySupportStaff.length > 0 && (
+                          <SelectGroup>
+                            {assignableSupportStaff.length > 0 ? (
+                              <SelectSeparator />
+                            ) : null}
+                            <SelectLabel className="flex items-center gap-1.5 text-warning">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {copy.state.softBusy}
+                            </SelectLabel>
+                            {softBusySupportStaff.map((item) => (
+                              <SelectItem
+                                key={item.employeeId}
+                                value={item.employeeId}
+                              >
+                                <span className="flex items-center gap-2">
+                                  {item.fullName}
+                                  {item.blockReason ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-warning border-warning/40"
+                                    >
+                                      {item.blockReason}
+                                    </Badge>
+                                  ) : null}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
                         {blockedSupportStaff.length > 0 &&
-                          assignableSupportStaff.length > 0 && (
+                          (assignableSupportStaff.length > 0 ||
+                            softBusySupportStaff.length > 0) && (
                             <SelectSeparator />
                           )}
                         {blockedSupportStaff.length > 0 && (
@@ -724,7 +737,6 @@ export function BasicInfoStep({
                 )}
               </TableBody>
             </Table>
-          </div>
           </div>
         </CardContent>
       </Card>

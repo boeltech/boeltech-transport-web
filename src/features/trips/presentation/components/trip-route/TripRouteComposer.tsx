@@ -2,9 +2,9 @@ import { type ReactNode, useState } from "react";
 import { Flag, MapPin, Navigation, Plus } from "lucide-react";
 
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
-import { AddressPicker } from "@shared/ui/address-picker";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { Checkbox } from "@shared/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,13 +17,24 @@ import {
   FieldInlineError,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import {
+  LocationField,
+  locationValueFromInternal,
+  locationValueToAddressSearchListItem,
+  synthesizeSearchItemFromLocationValue,
+  type LocationValue,
+} from "@shared/ui/location";
 
 import { tripDetailCopy } from "../../copy";
+import {
+  type ComposerWaypointOperations,
+} from "./buildReplaceStopsPayload";
 import { ownerTypesForRouteSlot, isAllowedRoutePickerItem } from "./routeAddressPickerOwnerTypes";
 import {
   getStopOperationalVisitLabel,
   getStopOperationalVisitState,
   isStopDomicilioComplete,
+  isStopWaypointOperationComplete,
   type RouteMasterRow,
   type RouteStopCategory,
   type TripScheduleTimes,
@@ -73,6 +84,8 @@ export function TripRouteMasterRow({
     row.draftLabel?.trim() ||
     (row.cityHint ? copy.composer.cityHint(row.cityHint) : copy.composer.emptySlot);
   const missingDomicilio = row.stop ? !isStopDomicilioComplete(row.stop) : false;
+  const missingOperation =
+    row.stop != null && !isStopWaypointOperationComplete(row.stop);
   const visitLabel =
     showVisitState && row.stop != null
       ? getStopOperationalVisitLabel(
@@ -112,6 +125,11 @@ export function TripRouteMasterRow({
                 {copy.chip.missingAddress}
               </Badge>
             ) : null}
+            {missingOperation ? (
+              <Badge variant="warning" tone="soft" className="text-xs font-normal">
+                {copy.chip.missingOperation}
+              </Badge>
+            ) : null}
           </div>
           <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
         </div>
@@ -122,15 +140,22 @@ export function TripRouteMasterRow({
 
 export interface TripRouteSlotCaptureProps {
   category: RouteStopCategory;
+  /** Pending catalog pick for this slot (parent must remount via key when slot changes). */
+  seedItem?: AddressSearchListItem | null;
   selectedLabel?: string | null;
   cityHint?: string | null;
   disabled?: boolean;
-  onPick: (category: RouteStopCategory, item: AddressSearchListItem) => void;
+  onPick: (
+    category: RouteStopCategory,
+    item: AddressSearchListItem,
+    waypointOperations?: ComposerWaypointOperations,
+  ) => void;
   onCompleteLabel: (category: RouteStopCategory, locationName: string) => void;
 }
 
 export function TripRouteSlotCapture({
   category,
+  seedItem = null,
   selectedLabel,
   cityHint,
   disabled,
@@ -140,11 +165,21 @@ export function TripRouteSlotCapture({
   const [labelDraft, setLabelDraft] = useState("");
   const [hatchOpen, setHatchOpen] = useState(false);
   const [labelError, setLabelError] = useState<string | undefined>();
+  const [locationValue, setLocationValue] = useState<LocationValue | null>(() =>
+    seedItem ? locationValueFromInternal(seedItem) : null,
+  );
+  const [pendingWaypointItem, setPendingWaypointItem] =
+    useState<AddressSearchListItem | null>(null);
+  const [pickup, setPickup] = useState(false);
+  const [delivery, setDelivery] = useState(false);
+  const [opsError, setOpsError] = useState<string | undefined>();
   const title = slotTitle(category);
   const pickerLabel = `${title}: ${copy.composer.pickerLabel}`;
   const labelId = `trip-route-composer-${category}-label`;
+  const opsGroupId = `trip-route-composer-${category}-ops`;
   const trimmed = labelDraft.trim();
   const hint = cityHint?.trim();
+  const isWaypoint = category === "waypoint";
 
   const handleCompleteLabel = () => {
     if (!trimmed) {
@@ -153,6 +188,38 @@ export function TripRouteSlotCapture({
     }
     setLabelError(undefined);
     onCompleteLabel(category, trimmed);
+  };
+
+  const handleLocationChange = (value: LocationValue | null) => {
+    setLocationValue(value);
+    if (!value) {
+      setPendingWaypointItem(null);
+      setPickup(false);
+      setDelivery(false);
+      setOpsError(undefined);
+      return;
+    }
+    const item =
+      locationValueToAddressSearchListItem(value) ??
+      synthesizeSearchItemFromLocationValue(value);
+    if (!isWaypoint) {
+      onPick(category, item);
+      return;
+    }
+    setPendingWaypointItem(item);
+    setPickup(false);
+    setDelivery(false);
+    setOpsError(undefined);
+  };
+
+  const handleConfirmWaypoint = () => {
+    if (!pendingWaypointItem) return;
+    if (!pickup && !delivery) {
+      setOpsError(copy.composer.waypointOperationRequired);
+      return;
+    }
+    setOpsError(undefined);
+    onPick(category, pendingWaypointItem, { pickup, delivery });
   };
 
   return (
@@ -173,13 +240,79 @@ export function TripRouteSlotCapture({
           {copy.composer.selectedStop}: {selectedLabel}
         </p>
       ) : null}
-      <AddressPicker
-        onSelect={(item) => onPick(category, item)}
+      <LocationField
+        context="tripStop"
+        value={locationValue}
+        onChange={handleLocationChange}
         label={pickerLabel}
         disabled={disabled}
-        defaultOwnerTypes={ownerTypesForRouteSlot(category)}
+        ownerTypes={ownerTypesForRouteSlot(category)}
         filterItem={isAllowedRoutePickerItem}
       />
+      {isWaypoint && pendingWaypointItem ? (
+        <div className="space-y-3 rounded-lg border p-3">
+          <p className="text-sm font-medium" id={opsGroupId}>
+            {copy.composer.waypointOperationQuestion}
+          </p>
+          <div
+            className="grid grid-cols-2 gap-3"
+            role="group"
+            aria-labelledby={opsGroupId}
+          >
+            <label
+              htmlFor={`${opsGroupId}-pickup`}
+              className={cn(
+                "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
+                pickup && "border-primary bg-primary/5",
+              )}
+            >
+              <Checkbox
+                id={`${opsGroupId}-pickup`}
+                checked={pickup}
+                aria-label={copy.composer.waypointOperationPickup}
+                disabled={disabled}
+                onCheckedChange={(checked) => {
+                  setPickup(checked === true);
+                  if (opsError) setOpsError(undefined);
+                }}
+              />
+              <span className="text-sm font-medium">
+                {copy.composer.waypointOperationPickup}
+              </span>
+            </label>
+            <label
+              htmlFor={`${opsGroupId}-delivery`}
+              className={cn(
+                "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
+                delivery && "border-primary bg-primary/5",
+              )}
+            >
+              <Checkbox
+                id={`${opsGroupId}-delivery`}
+                checked={delivery}
+                aria-label={copy.composer.waypointOperationDelivery}
+                disabled={disabled}
+                onCheckedChange={(checked) => {
+                  setDelivery(checked === true);
+                  if (opsError) setOpsError(undefined);
+                }}
+              />
+              <span className="text-sm font-medium">
+                {copy.composer.waypointOperationDelivery}
+              </span>
+            </label>
+          </div>
+          <FieldInlineError fieldId={opsGroupId} message={opsError} />
+          <Button
+            type="button"
+            size="sm"
+            disabled={disabled}
+            onClick={handleConfirmWaypoint}
+          >
+            {copy.composer.waypointOperationConfirm}
+          </Button>
+        </div>
+      ) : null}
       {!selectedLabel ? (
         <Collapsible open={hatchOpen} onOpenChange={setHatchOpen}>
           <CollapsibleTrigger asChild>

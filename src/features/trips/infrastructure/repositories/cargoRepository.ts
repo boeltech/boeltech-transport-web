@@ -20,6 +20,7 @@ import type {
   ICargoRepository,
   TripCargo,
   UpdateCargoInput,
+  UpdateCargoMovementStopInput,
 } from "@features/trips/domain";
 import type {
   ApiCargoMovementResponse,
@@ -155,6 +156,25 @@ export class CargoRepository implements ICargoRepository {
     >(
       `${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}/movements/${movementId}/complete`,
       apiData,
+    );
+
+    return mapCargoMovementResponse(response);
+  }
+
+  /**
+   * Reasigna la parada de un movimiento existente
+   */
+  async reassignMovementStop(
+    tripId: string,
+    cargoId: string,
+    movementId: string,
+    input: UpdateCargoMovementStopInput,
+  ): Promise<MappedSingleResult<CargoMovement>> {
+    const response = await apiClient.patch<
+      ApiSingleResponse<ApiCargoMovementResponse>
+    >(
+      `${TRIPS_ENDPOINT}/${tripId}/cargos/${cargoId}/movements/${movementId}`,
+      input,
     );
 
     return mapCargoMovementResponse(response);

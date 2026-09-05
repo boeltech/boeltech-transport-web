@@ -26,6 +26,7 @@ import {
 const VALID_CREATE_TRIP_SNAKE = {
   vehicle_id: "11111111-1111-4111-8111-111111111111",
   driver_id: "22222222-2222-4222-8222-222222222222",
+  start_mileage: 10000,
   scheduled_departure: "2026-05-10T12:00:00.000Z",
   origin_city: "Guadalajara",
   destination_city: "CDMX",

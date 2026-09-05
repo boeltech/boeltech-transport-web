@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import type { LocationValue } from "@shared/ui/location";
 
 import { tripDetailCopy } from "../../copy";
 import {
@@ -32,30 +33,43 @@ const pickerItem: AddressSearchListItem = {
   satNeighborhoodCode: null,
   latitude: 20.67,
   longitude: -103.35,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,
   isCartaPorteReady: true,
 };
 
-vi.mock("@shared/ui/address-picker", () => ({
-  AddressPicker: ({
-    onSelect,
-    label,
-    defaultOwnerTypes,
-  }: {
-    onSelect: (item: AddressSearchListItem) => void;
-    label?: string;
-    defaultOwnerTypes?: string[];
-  }) => (
-    <div>
-      <button type="button" onClick={() => onSelect(pickerItem)}>
-        {label}
-      </button>
-      <span data-testid="owner-types">{defaultOwnerTypes?.join(",")}</span>
-    </div>
-  ),
-}));
+vi.mock("@shared/ui/location", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/ui/location")>();
+  return {
+    ...actual,
+    LocationField: ({
+      onChange,
+      label,
+      ownerTypes,
+      value,
+    }: {
+      onChange: (value: LocationValue | null) => void;
+      label?: string;
+      ownerTypes?: string[];
+      value?: LocationValue | null;
+    }) => (
+      <div>
+        <button
+          type="button"
+          onClick={() => onChange(actual.locationValueFromInternal(pickerItem))}
+        >
+          {label}
+        </button>
+        <span data-testid="owner-types">{ownerTypes?.join(",")}</span>
+        <span data-testid="location-value">
+          {value?.locationName?.trim() || "empty"}
+        </span>
+      </div>
+    ),
+  };
+});
 
 describe("TripRouteComposer", () => {
   it("shows origin and destination master rows with city hints and no SAT form", () => {
@@ -118,9 +132,63 @@ describe("TripRouteSlotCapture", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
-    expect(onPick).toHaveBeenCalledWith("origin", pickerItem);
+    expect(onPick).toHaveBeenCalledWith(
+      "origin",
+      expect.objectContaining({
+        id: pickerItem.id,
+        ownerType: "client",
+        ownerId: pickerItem.ownerId,
+        locationName: "Bodega Alpha",
+        street: "Av Cliente",
+        postalCode: "44100",
+      }),
+    );
     expect(screen.getByTestId("owner-types")).toHaveTextContent(
       "client,branch,tenant",
+    );
+  });
+
+  it("does not PUT a waypoint until operation is confirmed", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(
+      <TripRouteSlotCapture
+        category="waypoint"
+        onPick={onPick}
+        onCompleteLabel={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.waypointSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+    expect(onPick).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(copy.composer.waypointOperationQuestion),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.composer.waypointOperationConfirm }),
+    );
+    expect(onPick).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(copy.composer.waypointOperationRequired),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: copy.composer.waypointOperationPickup,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: copy.composer.waypointOperationConfirm }),
+    );
+    expect(onPick).toHaveBeenCalledWith(
+      "waypoint",
+      expect.objectContaining({ id: pickerItem.id }),
+      { pickup: true, delivery: false },
     );
   });
 
@@ -165,5 +233,55 @@ describe("TripRouteSlotCapture", () => {
     );
     expect(onCompleteLabel).toHaveBeenCalledWith("origin", "Patio norte");
     expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("starts empty on destination after an origin pick when remounted with key", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    const { rerender } = render(
+      <TripRouteSlotCapture
+        key="origin"
+        category="origin"
+        onPick={onPick}
+        onCompleteLabel={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+    expect(screen.getByTestId("location-value")).toHaveTextContent("Bodega Alpha");
+
+    rerender(
+      <TripRouteSlotCapture
+        key="destination"
+        category="destination"
+        onPick={onPick}
+        onCompleteLabel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("location-value")).toHaveTextContent("empty");
+    expect(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("seeds LocationField from pending draft for the active slot", () => {
+    render(
+      <TripRouteSlotCapture
+        key="origin"
+        category="origin"
+        seedItem={pickerItem}
+        onPick={vi.fn()}
+        onCompleteLabel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("location-value")).toHaveTextContent("Bodega Alpha");
   });
 });

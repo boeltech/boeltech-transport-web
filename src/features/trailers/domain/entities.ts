@@ -49,6 +49,8 @@ export type TrailerListItem = Trailer;
 export interface AssignableTrailerItem extends TrailerListItem {
   readonly canBeAssigned: boolean;
   readonly blockReason?: string;
+  /** Draft soft-busy: reserved/on_trip seleccionable con aviso. */
+  readonly softBusy?: boolean;
 }
 
 // ============================================================================

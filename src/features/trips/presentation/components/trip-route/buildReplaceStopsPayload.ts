@@ -147,6 +147,29 @@ export function finalizeReplaceStopsPayload(
   );
 }
 
+/**
+ * Quita una escala persistida del payload de replace.
+ * Origen/destino no se eliminan; lanza si el id no es una escala.
+ */
+export function removeWaypointFromReplaceStopsPayload(
+  existingStops: readonly TripStop[],
+  waypointStopId: string,
+): CreateStopInput[] {
+  const target = existingStops.find((stop) => stop.id === waypointStopId);
+  if (!target) {
+    throw new Error("WAYPOINT_NOT_FOUND");
+  }
+  if (getRouteStopCategory(target) !== "waypoint") {
+    throw new Error("NOT_A_WAYPOINT");
+  }
+
+  const remaining = existingStops
+    .filter((stop) => stop.id !== waypointStopId)
+    .map((stop) => mapStopToReplaceStopInput(stop, undefined));
+
+  return finalizeReplaceStopsPayload(remaining);
+}
+
 export function stopFormDataToCreateInput(
   data: StopFormData,
   sequenceOrder: number,
@@ -248,18 +271,35 @@ export function buildReplaceStopsPayload(params: {
   });
 }
 
+/** Operación de escala en el umbral del composer (D1/D2 — sin solo-tránsito en v1). */
+export type ComposerWaypointOperations = {
+  pickup: boolean;
+  delivery: boolean;
+};
+
+export function hasComposerWaypointOperation(
+  ops: ComposerWaypointOperations | undefined,
+): boolean {
+  return Boolean(ops?.pickup || ops?.delivery);
+}
+
 export function composerStopTypes(
   category: RouteStopCategory,
+  waypointOps?: ComposerWaypointOperations,
 ): StopTypeValue[] {
   if (category === "origin") return [StopType.ORIGIN, StopType.PICKUP];
   if (category === "destination") return [StopType.DESTINATION, StopType.DELIVERY];
-  return [StopType.WAYPOINT];
+  const types: StopTypeValue[] = [StopType.WAYPOINT];
+  if (waypointOps?.pickup) types.push(StopType.PICKUP);
+  if (waypointOps?.delivery) types.push(StopType.DELIVERY);
+  return types;
 }
 
 export function addressSearchItemToCreateStopInput(
   item: AddressSearchListItem,
   category: RouteStopCategory,
   sequenceOrder: number,
+  waypointOps?: ComposerWaypointOperations,
 ): CreateStopInput {
   const slice = addressSearchItemToDialogSlice(item);
   return stopFormDataToCreateInput(
@@ -276,7 +316,7 @@ export function addressSearchItemToCreateStopInput(
       previousStopLatitude: slice.previousStopLatitude ?? undefined,
       previousStopLongitude: slice.previousStopLongitude ?? undefined,
       stopCategory: category,
-      stopType: composerStopTypes(category),
+      stopType: composerStopTypes(category, waypointOps),
     },
     sequenceOrder,
   );
@@ -286,8 +326,10 @@ export function upsertComposerStop(params: {
   existingStops: readonly TripStop[];
   category: RouteStopCategory;
   item: AddressSearchListItem;
+  /** Obligatorio en escala: al menos pickup o delivery (D2). */
+  waypointOperations?: ComposerWaypointOperations;
 }): CreateStopInput[] {
-  const { existingStops, category, item } = params;
+  const { existingStops, category, item, waypointOperations } = params;
   const { origin, destination, ordered } = groupStopsForRouteDetail(existingStops);
 
   const others = (excludeId?: string) =>
@@ -305,7 +347,16 @@ export function upsertComposerStop(params: {
     return finalizeReplaceStopsPayload([...others(destination?.id), next]);
   }
 
-  const next = addressSearchItemToCreateStopInput(item, "waypoint", 1);
+  if (!hasComposerWaypointOperation(waypointOperations)) {
+    throw new Error("COMPOSER_WAYPOINT_OPERATION_REQUIRED");
+  }
+
+  const next = addressSearchItemToCreateStopInput(
+    item,
+    "waypoint",
+    1,
+    waypointOperations,
+  );
   const mapped = ordered.map((stop) => mapStopToReplaceStopInput(stop, undefined));
   return finalizeReplaceStopsPayload(insertWaypointStop(mapped, next));
 }
@@ -313,7 +364,12 @@ export function upsertComposerStop(params: {
 export function replaceStopsFromCorridor(
   corridor: ClientCorridor,
 ): CreateStopInput[] {
-  return finalizeReplaceStopsPayload(mapSnapshotToCreateStops(corridor.stopsSnapshot));
+  return finalizeReplaceStopsPayload(
+    mapSnapshotToCreateStops(corridor.stopsSnapshot, {
+      originCity: corridor.originCity,
+      destinationCity: corridor.destinationCity,
+    }),
+  );
 }
 
 /** Borrador local del composer antes del primer PUT (≥2 paradas). */

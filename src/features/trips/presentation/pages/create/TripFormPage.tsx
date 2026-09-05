@@ -234,18 +234,25 @@ export function TripFormPage() {
     [activeTripsPage?.data, id, isEditMode],
   );
 
+  const softBusySelectable =
+    !isEditMode || existingTrip?.status === TripStatus.DRAFT;
+
   const vehicles = useMemo(
     () =>
       applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds, {
         keepAssignableVehicleId: isEditMode
           ? existingTrip?.vehicleId
           : undefined,
+        softBusySelectable,
+        conflicts: busyResources.vehicleConflicts,
       }),
     [
       vehiclesRaw,
       busyResources.vehicleIds,
+      busyResources.vehicleConflicts,
       isEditMode,
       existingTrip?.vehicleId,
+      softBusySelectable,
     ],
   );
 
@@ -258,13 +265,17 @@ export function TripFormPage() {
           keepAssignableDriverId: isEditMode
             ? existingTrip?.driverId
             : undefined,
+          softBusySelectable,
+          conflicts: busyResources.driverConflicts,
         },
       ),
     [
       driversPage?.data,
       busyResources.driverIds,
+      busyResources.driverConflicts,
       isEditMode,
       existingTrip?.driverId,
+      softBusySelectable,
     ],
   );
 
@@ -1033,6 +1044,7 @@ export function TripFormPage() {
               isLoadingVehicles={isLoadingVehicles}
               isLoadingDrivers={isLoadingDrivers}
               isLoadingClients={isLoadingClients}
+              softBusySelectable={softBusySelectable}
             />
           );
         case 1:

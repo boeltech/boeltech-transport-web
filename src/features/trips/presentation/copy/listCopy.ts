@@ -168,4 +168,30 @@ export const tripsListCopy = {
   entityLabelPlural: "viajes",
   entityLabelPluralClient: "envíos",
   entityLabelPluralDriver: "viajes",
+
+  // ── Workbench (ADR-0090) ─────────────────────────────────────────
+  workbench: {
+    buckets: {
+      draft: "Reservas",
+      scheduled: "Programados",
+      in_progress: "En Ruta",
+      completed: "Completados",
+      cancelled: "Cancelados",
+      fiscalAttention: "Atención fiscal",
+    },
+    bucketDescriptions: {
+      draft: "Pedidos anotados pendientes de programar",
+      scheduled: "Viajes programados listos para iniciar",
+      in_progress: "Viajes actualmente en tránsito",
+      completed: "Viajes finalizados exitosamente",
+      cancelled: "Viajes cancelados",
+      fiscalAttention: "Viajes que requieren acción fiscal o de facturación",
+    },
+    fiscalAttentionLink: (count: number) =>
+      `Ver ${count} viaje${count === 1 ? "" : "s"} facturable${count === 1 ? "" : "s"}`,
+    degradedMessage:
+      "No se pudieron cargar los conteos del centro de trabajo. Puedes seguir usando la lista con filtros.",
+    degradedLinkLabel: "Recargar",
+    scorecardAriaLabel: "Etapas de viaje",
+  },
 } as const;

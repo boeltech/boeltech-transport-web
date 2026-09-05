@@ -108,6 +108,13 @@ export const tripQueryKeys = {
   list: (params?: TripQueryParams) =>
     [...tripQueryKeys.lists(), params] as const,
 
+  /**
+   * Viajes scheduled/in_progress agregados en cliente para busy de asignación.
+   * Bajo `lists()` para invalidarse con `invalidateQueries({ queryKey: lists() })`.
+   */
+  activeAssignmentBusy: () =>
+    [...tripQueryKeys.lists(), "active-assignment-busy"] as const,
+
   // Details
   details: () => [...tripQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...tripQueryKeys.details(), id] as const,
@@ -129,6 +136,10 @@ export const tripQueryKeys = {
   /** ADR-0081 — acuerdo de prorrateo multi-RFC. */
   revenueSplit: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "revenue-split"] as const,
+
+  // Workbench summary (ADR-0090)
+  workbenchSummary: () =>
+    [...tripQueryKeys.all, "workbench-summary"] as const,
 
   // Canvas intake (ADR-0078)
   corridors: (clientId: string) =>

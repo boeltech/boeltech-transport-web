@@ -71,6 +71,14 @@ export interface CompleteCargoMovementInput {
   notes?: string;
 }
 
+/**
+ * Input para reasignar la parada de un movimiento existente
+ */
+export interface UpdateCargoMovementStopInput {
+  stopId: string;
+  stopIndex: number;
+}
+
 // ============================================================================
 // CARGO INPUTS
 // ============================================================================

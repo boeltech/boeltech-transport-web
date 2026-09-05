@@ -9,6 +9,7 @@ import {
   TripStatus,
   type ClientCorridor,
   type Trip,
+  type TripCargo,
   type TripStop,
 } from "@features/trips/domain";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
@@ -40,7 +41,8 @@ const mocks = vi.hoisted(() => ({
     satNeighborhoodCode: null,
     latitude: 20.67,
     longitude: -103.35,
-    geolocationPending: false,
+    geocodingAccuracy: null,
+  geolocationPending: false,
     isPrimary: false,
     isActive: true,
     isCartaPorteReady: true,
@@ -135,27 +137,35 @@ vi.mock("../../pages/create/components/StopFormSheet", () => ({
 
 const pickerItem = mocks.defaultPickerItem;
 
-vi.mock("@shared/ui/address-picker", () => ({
-  AddressPicker: ({
-    onSelect,
-    label,
-    disabled,
-  }: {
-    onSelect: (item: AddressSearchListItem) => void;
-    label?: string;
-    disabled?: boolean;
-  }) => (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() =>
-        onSelect(mocks.nextPickerItems.shift() ?? mocks.defaultPickerItem)
-      }
-    >
-      {label}
-    </button>
-  ),
-}));
+vi.mock("@shared/ui/location", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/ui/location")>();
+  return {
+    ...actual,
+    LocationField: ({
+      onChange,
+      label,
+      disabled,
+    }: {
+      onChange: (value: import("@shared/ui/location").LocationValue | null) => void;
+      label?: string;
+      disabled?: boolean;
+    }) => (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() =>
+          onChange(
+            actual.locationValueFromInternal(
+              mocks.nextPickerItems.shift() ?? mocks.defaultPickerItem,
+            ),
+          )
+        }
+      >
+        {label}
+      </button>
+    ),
+  };
+});
 
 const trip = {
   id: "trip-1",
@@ -988,5 +998,203 @@ describe("TripDetailRouteTab", () => {
     const sheet = await screen.findByTestId("stop-form-sheet");
     expect(sheet).toHaveAttribute("data-is-pending", "true");
     expect(screen.getByRole("button", { name: "submit-stop" })).toBeDisabled();
+  });
+
+  it("confirms and PUTs remaining stops when removing a waypoint without cargos", async () => {
+    const user = userEvent.setup();
+    const origin = tripStop();
+    const waypoint = tripStop({
+      id: "stop-wp",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT, StopType.PICKUP],
+      locationName: "Escala Norte",
+    });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+    });
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[origin, waypoint, dest]}
+        progress={0}
+        canEditStructural
+        cargos={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Escala Norte/i }));
+    await user.click(
+      screen.getByRole("button", { name: copy.action.removeWaypoint }),
+    );
+
+    expect(
+      await screen.findByText(copy.confirm.removeWaypointTitle),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirmRemoveWaypoint }),
+    );
+
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
+    const payload = mocks.mutateAsync.mock.calls[0]?.[0] as Array<{
+      locationName?: string;
+      sequenceOrder: number;
+    }>;
+    expect(payload.map((stop) => stop.locationName)).toEqual([
+      "Bodega Alpha",
+      "CEDIS Sur",
+    ]);
+    expect(payload.map((stop) => stop.sequenceOrder)).toEqual([1, 2]);
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: copy.toast.waypointRemoved }),
+    );
+  });
+
+  it("blocks remove when a cargo movement is linked to the waypoint", async () => {
+    const user = userEvent.setup();
+    const origin = tripStop();
+    const waypoint = tripStop({
+      id: "stop-wp",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT, StopType.DELIVERY],
+      locationName: "Escala Norte",
+    });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+    });
+    const cargos = [
+      {
+        id: "cargo-1",
+        movements: [
+          {
+            stopId: "stop-wp",
+            stopIndex: 1,
+            movementType: "delivery",
+            weight: null,
+            units: null,
+            completedAt: null,
+            notes: null,
+          },
+        ],
+      } as TripCargo,
+    ];
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[origin, waypoint, dest]}
+        progress={0}
+        canEditStructural
+        cargos={cargos}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Escala Norte/i }));
+    await user.click(
+      screen.getByRole("button", { name: copy.action.removeWaypoint }),
+    );
+
+    expect(
+      await screen.findByText(copy.confirm.removeWaypointBlockedTitle),
+    ).toBeInTheDocument();
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("does not show Eliminar escala when canEditStructural is false", async () => {
+    const user = userEvent.setup();
+    const waypoint = tripStop({
+      id: "stop-wp",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT, StopType.PICKUP],
+      locationName: "Escala Norte",
+    });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+    });
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.IN_PROGRESS}
+        orderedStops={[tripStop(), waypoint, dest]}
+        progress={0}
+        canEditStructural={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Escala Norte/i }));
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeWaypoint }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("removes a draft waypoint slot locally without PUT", async () => {
+    const user = userEvent.setup();
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+    });
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[tripStop(), dest]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: copy.action.addWaypoint }));
+    expect(
+      screen.getByRole("button", { name: copy.action.removeDraftWaypoint }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.removeDraftWaypoint }),
+    );
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeDraftWaypoint }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show Eliminar escala on origin", async () => {
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[
+          tripStop(),
+          tripStop({
+            id: "stop-2",
+            sequenceOrder: 2,
+            stopType: [StopType.DESTINATION, StopType.DELIVERY],
+            locationName: "CEDIS Sur",
+          }),
+        ]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeWaypoint }),
+    ).not.toBeInTheDocument();
   });
 });

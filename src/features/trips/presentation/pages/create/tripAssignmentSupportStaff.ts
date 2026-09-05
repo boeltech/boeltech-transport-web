@@ -3,6 +3,8 @@ import type { DriverListItem } from "@features/drivers/domain";
 
 import {
   BUSY_ON_ACTIVE_TRIP,
+  conflictBadgeLabel,
+  type AssignmentConflict,
   type BusyAssignmentResourceIds,
 } from "./tripAssignmentBusyResources";
 import { classifyDriverAssignability } from "./tripAssignmentDrivers";
@@ -18,6 +20,8 @@ export interface AssignableSupportStaffItem {
   internalRole: SupportStaffInternalRole;
   canBeAssigned: boolean;
   blockReason?: string;
+  softBusy?: boolean;
+  assignmentConflict?: AssignmentConflict;
 }
 
 export interface BuildAssignableSupportStaffParams {
@@ -26,6 +30,7 @@ export interface BuildAssignableSupportStaffParams {
   busyResources: BusyAssignmentResourceIds;
   positionFilter: SupportStaffPositionFilter;
   excludeEmployeeIds: ReadonlySet<string>;
+  softBusySelectable?: boolean;
 }
 
 function employeePositionMatchesFilter(
@@ -51,12 +56,32 @@ function classifySupportStaffAssignability(
   internalRole: SupportStaffInternalRole,
   driver: DriverListItem | undefined,
   busyResources: BusyAssignmentResourceIds,
-): Pick<AssignableSupportStaffItem, "canBeAssigned" | "blockReason"> {
+  softBusySelectable: boolean,
+): Pick<
+  AssignableSupportStaffItem,
+  "canBeAssigned" | "blockReason" | "softBusy" | "assignmentConflict"
+> {
   if (!isEmployeeActive(employee)) {
     return { canBeAssigned: false, blockReason: "Inactivo" };
   }
 
+  const employeeConflict = busyResources.employeeConflicts.get(employee.id);
+  const driverConflict = driver
+    ? busyResources.driverConflicts.get(driver.id)
+    : undefined;
+  const conflict = employeeConflict ?? driverConflict;
+
   if (busyResources.employeeIds.has(employee.id)) {
+    if (softBusySelectable) {
+      return {
+        canBeAssigned: true,
+        softBusy: true,
+        assignmentConflict: conflict,
+        blockReason: conflict
+          ? conflictBadgeLabel(conflict)
+          : BUSY_ON_ACTIVE_TRIP,
+      };
+    }
     return { canBeAssigned: false, blockReason: BUSY_ON_ACTIVE_TRIP };
   }
 
@@ -69,11 +94,28 @@ function classifySupportStaffAssignability(
 
   if (driver) {
     const driverAssignability = classifyDriverAssignability(driver);
-    if (!driverAssignability.canBeAssigned) {
+    const isCommit =
+      driver.status === "reserved" || driver.status === "on_trip";
+
+    if (!driverAssignability.canBeAssigned && !isCommit) {
       return driverAssignability;
     }
-    if (busyResources.driverIds.has(driver.id)) {
-      return { canBeAssigned: false, blockReason: BUSY_ON_ACTIVE_TRIP };
+
+    if (busyResources.driverIds.has(driver.id) || isCommit) {
+      if (softBusySelectable) {
+        return {
+          canBeAssigned: true,
+          softBusy: true,
+          assignmentConflict: conflict,
+          blockReason: conflict
+            ? conflictBadgeLabel(conflict)
+            : (driverAssignability.blockReason ?? BUSY_ON_ACTIVE_TRIP),
+        };
+      }
+      if (busyResources.driverIds.has(driver.id)) {
+        return { canBeAssigned: false, blockReason: BUSY_ON_ACTIVE_TRIP };
+      }
+      return driverAssignability;
     }
   }
 
@@ -89,6 +131,7 @@ export function buildAssignableSupportStaffForTripWizard(
     busyResources,
     positionFilter,
     excludeEmployeeIds,
+    softBusySelectable = false,
   } = params;
 
   const internalRole = internalRoleForPosition(positionFilter);
@@ -98,12 +141,14 @@ export function buildAssignableSupportStaffForTripWizard(
     .filter((employee) => !excludeEmployeeIds.has(employee.id))
     .map((employee) => {
       const driver = driversByEmployeeId.get(employee.id);
-      const { canBeAssigned, blockReason } = classifySupportStaffAssignability(
-        employee,
-        internalRole,
-        driver,
-        busyResources,
-      );
+      const { canBeAssigned, blockReason, softBusy, assignmentConflict } =
+        classifySupportStaffAssignability(
+          employee,
+          internalRole,
+          driver,
+          busyResources,
+          softBusySelectable,
+        );
 
       return {
         employeeId: employee.id,
@@ -112,6 +157,8 @@ export function buildAssignableSupportStaffForTripWizard(
         internalRole,
         canBeAssigned,
         blockReason,
+        softBusy,
+        assignmentConflict,
       };
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
@@ -137,6 +184,13 @@ export function findSupportStaffAssignability(
     driverIds: params.busyResources.driverIds,
     employeeIds: new Set(
       [...params.busyResources.employeeIds].filter((id) => id !== employeeId),
+    ),
+    vehicleConflicts: params.busyResources.vehicleConflicts,
+    driverConflicts: params.busyResources.driverConflicts,
+    employeeConflicts: new Map(
+      [...params.busyResources.employeeConflicts].filter(
+        ([id]) => id !== employeeId,
+      ),
     ),
   };
 

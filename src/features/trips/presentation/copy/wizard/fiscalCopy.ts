@@ -16,7 +16,8 @@ export type StopFiscalUiContext =
   | "destination"
   | "waypoint_pickup_only"
   | "waypoint_delivery_only"
-  | "waypoint_pickup_and_delivery";
+  | "waypoint_pickup_and_delivery"
+  | "waypoint_pending_operation";
 
 const fiscalStrings = {
   origin: {
@@ -76,6 +77,14 @@ const fiscalStrings = {
     rfcPlaceholder: "Ej. ABC123456789",
     nombrePlaceholder: "Nombre de quien entrega",
   },
+  waypointPending: {
+    sectionTitle: "Quién entrega o recibe",
+    sectionHint:
+      "Elige arriba si aquí se carga, se entrega o ambas para capturar la contraparte.",
+    rfcLabel: "RFC",
+    rfcPlaceholder: "Ej. ABC123456789",
+    nombrePlaceholder: "Nombre o razón social",
+  },
   default: {
     sectionTitle: "Quién entrega o recibe",
     sectionHint: "",
@@ -88,6 +97,9 @@ const fiscalStrings = {
     rfcLabel: "RFC de quien recibe",
     rfcPlaceholder: "Ej. XYZ987654321",
     nombrePlaceholder: "Nombre de quien recibe",
+  },
+  pickupBlock: {
+    blockTitle: "Quién entrega en esta escala (carga)",
   },
   publicGeneralNotice:
     "Usas el RFC genérico de público en general. Verifica con tu área contable antes de facturar.",
@@ -113,8 +125,9 @@ export function resolveStopFiscalUiContext(
     if (hasPickup && hasDelivery) return "waypoint_pickup_and_delivery";
     if (hasPickup) return "waypoint_pickup_only";
     if (hasDelivery) return "waypoint_delivery_only";
+    return "waypoint_pending_operation";
   }
-  return "waypoint_pickup_only";
+  return "waypoint_pending_operation";
 }
 
 export function getPrimaryFiscalSectionCopy(
@@ -140,6 +153,8 @@ export function getPrimaryFiscalSectionCopy(
       return fiscalStrings.waypointDelivery;
     case "waypoint_pickup_and_delivery":
       return fiscalStrings.waypointBoth;
+    case "waypoint_pending_operation":
+      return fiscalStrings.waypointPending;
     default:
       return fiscalStrings.default;
   }

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import {
   fetchEmployees,
   fetchEmployee,
@@ -51,7 +51,13 @@ export const employeeQueryKeys = {
 // LIST HOOK
 // ============================================================================
 
-export function useEmployees(params: EmployeeListParams = {}) {
+export function useEmployees(
+  params: EmployeeListParams = {},
+  options?: Omit<
+    UseQueryOptions<MappedPaginatedResult<EmployeeListItem>>,
+    "queryKey" | "queryFn"
+  >,
+) {
   return useQuery<MappedPaginatedResult<EmployeeListItem>>({
     queryKey: employeeQueryKeys.list(params),
     queryFn: async () => {
@@ -59,6 +65,7 @@ export function useEmployees(params: EmployeeListParams = {}) {
       return mapPaginatedEmployees(raw);
     },
     staleTime: 5 * 60 * 1000,
+    ...options,
   });
 }
 

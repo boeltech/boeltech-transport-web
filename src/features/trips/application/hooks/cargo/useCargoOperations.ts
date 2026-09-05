@@ -24,6 +24,7 @@ import {
   createDeleteCargoUseCase,
   createAddCargoMovementUseCase,
   createCompleteCargoMovementUseCase,
+  createReassignCargoMovementStopUseCase,
 } from "../../useCases/cargo/CargoUseCases";
 import {
   tripQueryKeys,
@@ -32,6 +33,7 @@ import {
   type CreateCargoMovementInput,
   type TripCargo,
   type UpdateCargoInput,
+  type UpdateCargoMovementStopInput,
 } from "@features/trips/domain";
 
 // ============================================================================
@@ -262,6 +264,73 @@ export function useAddCargoMovement(
     ...rest,
     mutationFn: async (input: CreateCargoMovementInput) => {
       const result = await addMovementUseCase.execute(tripId, cargoId, input);
+
+      if (!result.success) {
+        throw new CargoError(
+          result.error.code,
+          result.error.message,
+          result.error.originalMessage,
+        );
+      }
+
+      return result.data;
+    },
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.cargos(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      await userOnSuccess?.(data, variables, onMutateResult, context);
+    },
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
+  });
+}
+
+/**
+ * Hook para reasignar la parada de un movimiento de carga
+ */
+export function useReassignCargoMovementStop(
+  tripId: string,
+  options?: UseMutationOptions<
+    CargoMovement,
+    CargoError,
+    {
+      cargoId: string;
+      movementId: string;
+      data: UpdateCargoMovementStopInput;
+    }
+  >,
+) {
+  const queryClient = useQueryClient();
+  const reassignUseCase =
+    createReassignCargoMovementStopUseCase(cargoRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
+
+  return useMutation({
+    ...rest,
+    mutationFn: async ({
+      cargoId,
+      movementId,
+      data,
+    }: {
+      cargoId: string;
+      movementId: string;
+      data: UpdateCargoMovementStopInput;
+    }) => {
+      const result = await reassignUseCase.execute(
+        tripId,
+        cargoId,
+        movementId,
+        data,
+      );
 
       if (!result.success) {
         throw new CargoError(

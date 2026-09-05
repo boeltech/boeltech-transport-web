@@ -48,6 +48,10 @@ import {
   shouldClearDriverSelection,
   shouldClearVehicleSelection,
 } from "../tripAssignmentSelectability";
+import {
+  conflictBadgeLabel,
+  formatConflictDeparture,
+} from "../tripAssignmentBusyResources";
 import type { TripWizardFormValues } from "./validation";
 import { TripTrailerAssignmentFields } from "./TripTrailerAssignmentFields";
 import { getDriverLicenseAssignmentSoftSignal } from "@features/drivers";
@@ -73,6 +77,8 @@ export interface TripAssignmentResourceFieldsProps {
    * colapsado (intake ADR-0071).
    */
   density?: TripAssignmentDensity;
+  /** Draft: soft-busy seleccionable. Scheduled sheet: false. */
+  softBusySelectable?: boolean;
 }
 
 export function TripAssignmentResourceFields({
@@ -84,6 +90,7 @@ export function TripAssignmentResourceFields({
   excludedDriverEmployeeIds,
   idPrefix = "",
   density = "default",
+  softBusySelectable = false,
 }: TripAssignmentResourceFieldsProps) {
   const { control } = form;
   const selectedVehicleId = form.watch("vehicleId");
@@ -125,16 +132,21 @@ export function TripAssignmentResourceFields({
     [drivers, matchesOriginBranch],
   );
 
-  const assignableVehicles = scopedVehicles.filter((v) => v.canBeAssigned);
+  const assignableVehicles = scopedVehicles.filter(
+    (v) => v.canBeAssigned && !v.softBusy,
+  );
+  const softBusyVehicles = scopedVehicles.filter((v) => v.softBusy === true);
   const expiredDocsVehicles = scopedVehicles.filter(
     (v) =>
       !v.canBeAssigned &&
+      !v.softBusy &&
       effectiveAllowExpiredDocs &&
       v.expiredDocsOverridable === true,
   );
   const blockedVehicles = scopedVehicles.filter(
     (v) =>
       !v.canBeAssigned &&
+      !v.softBusy &&
       !(effectiveAllowExpiredDocs && v.expiredDocsOverridable === true),
   );
 
@@ -182,6 +194,37 @@ export function TripAssignmentResourceFields({
     return items;
   }, [selectedVehicleAssignment, selectedDriverAssignment]);
 
+  const softBusyAlertItems = useMemo(() => {
+    const items: string[] = [];
+    const pushSoft = (
+      resourceLabel: string,
+      item:
+        | AssignableVehicleItem
+        | AssignableDriverItem
+        | undefined,
+    ) => {
+      if (!item?.softBusy) return;
+      const conflict = item.assignmentConflict;
+      if (conflict) {
+        items.push(
+          copy.alert.softBusyBody({
+            resourceLabel,
+            tripCode: conflict.tripCode,
+            statusLabel: conflictBadgeLabel(conflict),
+            departureLabel: formatConflictDeparture(
+              conflict.scheduledDeparture,
+            ),
+          }),
+        );
+      } else {
+        items.push(copy.alert.softBusyBodyGeneric(resourceLabel));
+      }
+    };
+    pushSoft(copy.alert.softBusyVehicleLabel, selectedVehicleAssignment);
+    pushSoft(copy.alert.softBusyDriverLabel, selectedDriverAssignment);
+    return items;
+  }, [selectedVehicleAssignment, selectedDriverAssignment]);
+
   const licenseAssignmentSoftSignal = useMemo(
     () =>
       resolveSelectedAssignmentLicenseSoftSignal(
@@ -195,6 +238,7 @@ export function TripAssignmentResourceFields({
 
   const {
     assignableDriversForConductorSelect,
+    softBusyDriversForConductorSelect,
     expiredDocsDriversForConductorSelect,
     blockedDriversForConductorSelect,
   } = useMemo(() => {
@@ -206,11 +250,15 @@ export function TripAssignmentResourceFields({
       return !excludedDriverEmployeeIds.has(d.employeeId);
     };
     const assignable = scopedDrivers.filter(
-      (d) => d.canBeAssigned && keepInDriverSelect(d),
+      (d) => d.canBeAssigned && !d.softBusy && keepInDriverSelect(d),
+    );
+    const softBusy = scopedDrivers.filter(
+      (d) => d.softBusy === true && keepInDriverSelect(d),
     );
     const expiredDocsSelectable = scopedDrivers.filter(
       (d) =>
         !d.canBeAssigned &&
+        !d.softBusy &&
         d.expiredDocsOverridable === true &&
         effectiveAllowExpiredDocs &&
         keepInDriverSelect(d),
@@ -218,11 +266,13 @@ export function TripAssignmentResourceFields({
     const blocked = scopedDrivers.filter(
       (d) =>
         !d.canBeAssigned &&
+        !d.softBusy &&
         !(effectiveAllowExpiredDocs && d.expiredDocsOverridable === true) &&
         keepInDriverSelect(d),
     );
     return {
       assignableDriversForConductorSelect: assignable,
+      softBusyDriversForConductorSelect: softBusy,
       expiredDocsDriversForConductorSelect: expiredDocsSelectable,
       blockedDriversForConductorSelect: blocked,
     };
@@ -410,9 +460,39 @@ export function TripAssignmentResourceFields({
                           ))}
                         </SelectGroup>
                       )}
-                      {expiredDocsVehicles.length > 0 && (
+                      {softBusyVehicles.length > 0 && (
                         <SelectGroup>
                           {assignableVehicles.length > 0 ? (
+                            <SelectSeparator />
+                          ) : null}
+                          <SelectLabel className="flex items-center gap-1.5 text-warning">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {copy.state.softBusy}
+                          </SelectLabel>
+                          {softBusyVehicles.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              <span className="flex items-center gap-2">
+                                {copy.format.vehicleOption(
+                                  v.unitNumber,
+                                  v.licensePlate,
+                                )}
+                                {v.blockReason ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-warning border-warning/40"
+                                  >
+                                    {v.blockReason}
+                                  </Badge>
+                                ) : null}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {expiredDocsVehicles.length > 0 && (
+                        <SelectGroup>
+                          {assignableVehicles.length > 0 ||
+                          softBusyVehicles.length > 0 ? (
                             <SelectSeparator />
                           ) : null}
                           <SelectLabel className="flex items-center gap-1.5 text-warning">
@@ -439,6 +519,7 @@ export function TripAssignmentResourceFields({
                       )}
                       {blockedVehicles.length > 0 &&
                         (assignableVehicles.length > 0 ||
+                          softBusyVehicles.length > 0 ||
                           expiredDocsVehicles.length > 0) && (
                           <SelectSeparator />
                         )}
@@ -512,6 +593,7 @@ export function TripAssignmentResourceFields({
                       {copy.state.noDrivers}
                     </SelectItem>
                   ) : assignableDriversForConductorSelect.length === 0 &&
+                    softBusyDriversForConductorSelect.length === 0 &&
                     expiredDocsDriversForConductorSelect.length === 0 &&
                     blockedDriversForConductorSelect.length === 0 ? (
                     <SelectItem value="no-drivers-available" disabled>
@@ -558,9 +640,36 @@ export function TripAssignmentResourceFields({
                           })}
                         </SelectGroup>
                       )}
-                      {expiredDocsDriversForConductorSelect.length > 0 && (
+                      {softBusyDriversForConductorSelect.length > 0 && (
                         <SelectGroup>
                           {assignableDriversForConductorSelect.length > 0 ? (
+                            <SelectSeparator />
+                          ) : null}
+                          <SelectLabel className="flex items-center gap-1.5 text-warning">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {copy.state.softBusy}
+                          </SelectLabel>
+                          {softBusyDriversForConductorSelect.map((d) => (
+                            <SelectItem key={d.id} value={d.id}>
+                              <span className="flex items-center gap-2">
+                                {d.displayName}
+                                {d.blockReason ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-warning border-warning/40"
+                                  >
+                                    {d.blockReason}
+                                  </Badge>
+                                ) : null}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {expiredDocsDriversForConductorSelect.length > 0 && (
+                        <SelectGroup>
+                          {assignableDriversForConductorSelect.length > 0 ||
+                          softBusyDriversForConductorSelect.length > 0 ? (
                             <SelectSeparator />
                           ) : null}
                           <SelectLabel className="flex items-center gap-1.5 text-warning">
@@ -584,6 +693,7 @@ export function TripAssignmentResourceFields({
                       )}
                       {blockedDriversForConductorSelect.length > 0 &&
                         (assignableDriversForConductorSelect.length > 0 ||
+                          softBusyDriversForConductorSelect.length > 0 ||
                           expiredDocsDriversForConductorSelect.length > 0) && (
                           <SelectSeparator />
                         )}
@@ -632,6 +742,7 @@ export function TripAssignmentResourceFields({
             form={form}
             vehicles={vehicles}
             idPrefix={idPrefix}
+            softBusySelectable={softBusySelectable}
           />
           {fleetOptionsPanel}
         </>
@@ -643,9 +754,19 @@ export function TripAssignmentResourceFields({
             form={form}
             vehicles={vehicles}
             idPrefix={idPrefix}
+            softBusySelectable={softBusySelectable}
           />
         </>
       )}
+
+      {softBusyAlertItems.length > 0 ? (
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          title={copy.alert.softBusyTitle}
+          items={softBusyAlertItems.map((text) => ({ text }))}
+        />
+      ) : null}
 
       {expiredAssignmentAlertItems.length > 0 ? (
         <DetailAlertCard

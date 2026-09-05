@@ -17,6 +17,7 @@ interface ReserveAsignarStepProps {
   drivers: AssignableDriverItem[];
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
+  softBusySelectable?: boolean;
 }
 
 export function ReserveAsignarStep({
@@ -25,6 +26,7 @@ export function ReserveAsignarStep({
   drivers,
   isLoadingVehicles,
   isLoadingDrivers,
+  softBusySelectable = true,
 }: ReserveAsignarStepProps) {
   const { watch, setValue } = form;
   const selectedVehicleId = watch("vehicleId");
@@ -56,6 +58,7 @@ export function ReserveAsignarStep({
       isLoadingDrivers={isLoadingDrivers}
       idPrefix="reserve-"
       density="reserve"
+      softBusySelectable={softBusySelectable}
     />
   );
 }

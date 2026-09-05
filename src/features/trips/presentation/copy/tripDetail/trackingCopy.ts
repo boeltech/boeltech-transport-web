@@ -21,6 +21,8 @@ export const trackingCopy = {
     depart: "Registrar salida",
     departOrigin: "Salida de origen",
     close: "Finalizar viaje",
+    /** ADR-0088: atajo de cierre rápido post-inicio. */
+    quickClose: "Completar viaje",
     /** PD1: CTA secundario del hub tras llegada en origen. */
     clientCancelledCargo: "El cliente canceló la carga",
     declareFalseTrip: "Declarar viaje en falso",
@@ -84,6 +86,18 @@ export const trackingCopy = {
       "Confirma la hora de salida. La parada quedará completada.",
     closeDescription:
       "Confirma hora y kilometraje final. El viaje quedará completado.",
+    quickCloseDescription:
+      "Cierra el viaje sin registrar cada parada. Confirma hora y kilometraje final.",
+    quickCloseWarningTitle: "Antes de confirmar",
+    quickCloseWarningStops:
+      "Paradas no visitadas: se registrará una hora de llegada estimada.",
+    quickCloseWarningCargos:
+      "Cargas no operadas: se marcarán como entregadas.",
+    quickCloseOccurredAtLabel: "¿A qué hora terminó el viaje?",
+    quickCloseNotesLabel: "Motivo (recomendado)",
+    quickCloseNotesPlaceholder:
+      "Ej. La unidad ya regresó; no se registró escala por escala.",
+    quickCloseNotesHint: "Ayuda a auditar por qué se usó este cierre.",
     declareFalseTripTitle: "Declarar viaje en falso",
     declareFalseTripDescription:
       "El viaje queda completado y se puede facturar el desplazamiento.",
@@ -135,6 +149,7 @@ export const trackingCopy = {
     tripClosedDescription: (tripCode: string) =>
       `${tripCode} quedó completado`,
     tripCloseFailed: "No se pudo finalizar el viaje",
+    quickCloseFailed: "No se pudo completar el viaje",
     falseTripDeclared: "Viaje en falso declarado",
     falseTripDeclaredDescription: (tripCode: string) =>
       `${tripCode} quedó completado. Se puede facturar el desplazamiento.`,
@@ -150,6 +165,8 @@ export const trackingCopy = {
     departureRequired: "Indica la fecha y hora de salida.",
     occurredAtRequired: "Indica la fecha y hora.",
     arrivalAtDestinationRequired: "Indica la fecha y hora de llegada al destino.",
+    quickCloseOccurredAtRequired:
+      "Indica la fecha y hora de cierre del viaje.",
     closureBeforeDeparture: (
       floorLabel: string,
       when: string,
@@ -210,6 +227,8 @@ export const trackingCopy = {
     timelineMileage: (km: string) => `Km final: ${km}`,
     timelineActor: (actor: string) => `Registró: ${actor}`,
     updatedAgo: (ago: string) => `Actualizado ${ago}`,
+    quickCloseTransition:
+      "Cierra sin registrar cada parada. Las no visitadas se completan automáticamente.",
   },
   format: {
     cargoWeight: (kg: number) => `${kg.toLocaleString("es-MX")} kg`,

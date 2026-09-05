@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { EmployeeListItem } from "@features/employees";
 import type { DriverListItem } from "@features/drivers/domain";
 
-import { BUSY_ON_ACTIVE_TRIP } from "./tripAssignmentBusyResources";
+import { BUSY_ON_ACTIVE_TRIP, EMPTY_BUSY_ASSIGNMENT_RESOURCES } from "./tripAssignmentBusyResources";
 import {
   buildAssignableSupportStaffForTripWizard,
   findSupportStaffAssignability,
@@ -74,11 +74,7 @@ function driver(
   } as DriverListItem;
 }
 
-const emptyBusy = {
-  vehicleIds: new Set<string>(),
-  driverIds: new Set<string>(),
-  employeeIds: new Set<string>(),
-};
+const emptyBusy = EMPTY_BUSY_ASSIGNMENT_RESOURCES;
 
 describe("buildAssignableSupportStaffForTripWizard", () => {
   it("blocks employee assigned as support staff on another active trip", () => {
@@ -102,6 +98,39 @@ describe("buildAssignableSupportStaffForTripWizard", () => {
       canBeAssigned: false,
       blockReason: BUSY_ON_ACTIVE_TRIP,
       internalRole: "helper",
+    });
+  });
+
+  it("marks busy support staff as softBusy when softBusySelectable", () => {
+    const emp = employee({
+      id: "emp-1",
+      fullName: "Apoyo Ocupado",
+      position: "Ayudante general",
+    });
+    const conflict = {
+      tripId: "t1",
+      tripCode: "V-9",
+      status: "in_progress" as const,
+      scheduledDeparture: new Date("2026-06-03T08:00:00Z"),
+    };
+    const result = buildAssignableSupportStaffForTripWizard({
+      employees: [emp],
+      driversByEmployeeId: new Map(),
+      busyResources: {
+        ...emptyBusy,
+        employeeIds: new Set(["emp-1"]),
+        employeeConflicts: new Map([["emp-1", conflict]]),
+      },
+      positionFilter: "Ayudante general",
+      excludeEmployeeIds: new Set(),
+      softBusySelectable: true,
+    });
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "En Curso",
+      assignmentConflict: conflict,
     });
   });
 

@@ -68,9 +68,22 @@ export const routeCopy = {
     calculateDistances: "Calcular distancias",
     saveChanges: "Guardar cambios",
     cancel: "Cancelar",
+    removeWaypoint: "Eliminar escala",
+    removeDraftWaypoint: "Quitar escala",
+    confirmRemoveWaypoint: "Eliminar",
+    keepWaypoint: "Conservar",
+  },
+  confirm: {
+    removeWaypointTitle: "¿Eliminar esta escala?",
+    removeWaypointBody:
+      "La escala saldrá de la ruta. Origen y destino no cambian.",
+    removeWaypointBlockedTitle: "No se puede eliminar esta escala",
+    removeWaypointBlockedBody:
+      "Hay cargas ligadas a esta parada. Reasigna o elimina esas cargas en el tab Cargas y vuelve a intentar.",
   },
   chip: {
     missingAddress: "Sin domicilio",
+    missingOperation: "Sin operación",
   },
   composer: {
     title: "Elige origen y destino",
@@ -95,6 +108,11 @@ export const routeCopy = {
       "Hace falta origen y destino antes de agregar escalas o guardar.",
     duplicateEndpointAddress:
       "Origen y destino no pueden usar la misma dirección.",
+    waypointOperationQuestion: "¿Qué se hace aquí?",
+    waypointOperationPickup: "Cargar",
+    waypointOperationDelivery: "Entregar",
+    waypointOperationConfirm: "Agregar escala",
+    waypointOperationRequired: "Elige cargar, entregar o ambas.",
   },
   label: {
     notePrefix: "Nota:",
@@ -134,6 +152,7 @@ export const routeCopy = {
     stopUpdated: "Parada actualizada",
     stopsSaved: "Paradas actualizadas",
     stopSaveError: "No se pudo guardar la parada",
+    waypointRemoved: "Escala eliminada",
   },
   format: {
     stopCount: (count: number) =>

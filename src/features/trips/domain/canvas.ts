@@ -2,7 +2,7 @@
  * Tipos de dominio del canvas de alta (ADR-0078 F2).
  * Contratos GET /trips/corridors y GET /trips/route-estimate (F0).
  */
-import type { CurrencyType, StopTypeValue } from "./enums";
+import { StopType, type CurrencyType, type StopTypeValue } from "./enums";
 import type { CreateStopInput } from "./inputs";
 
 /** Parada clonable ⊆ CreateStopInput (CONTRACT-FREEZE-F0 §1.1). */
@@ -75,22 +75,45 @@ export type ClonedStopInput = CreateStopInput;
  */
 export function mapSnapshotToCreateStops(
   snapshot: CorridorStopSnapshot[],
+  fallbackContext?: { originCity?: string; destinationCity?: string },
 ): CreateStopInput[] {
   return snapshot.map((stop, index) => {
+    const rawCity = stop.city?.trim() || "";
+    let city = rawCity;
+    if (city.length < 2) {
+      const isOrigin = stop.stopType?.includes(StopType.ORIGIN) || index === 0;
+      const isDest =
+        stop.stopType?.includes(StopType.DESTINATION) ||
+        index === snapshot.length - 1;
+
+      city =
+        (isOrigin ? fallbackContext?.originCity?.trim() : undefined) ||
+        (isDest ? fallbackContext?.destinationCity?.trim() : undefined) ||
+        stop.locationName?.trim() ||
+        stop.colonia?.trim() ||
+        stop.satMunicipalityCode?.trim() ||
+        (stop.satStateCode?.trim() ? `Estado ${stop.satStateCode.trim()}` : undefined) ||
+        (isOrigin ? "Origen" : isDest ? "Destino" : "Escala");
+
+      if (city.length < 2) {
+        city = isOrigin ? "Origen" : isDest ? "Destino" : "Escala";
+      }
+    }
+
     const fromSnapshot =
       stop.address?.trim() || stop.locationName?.trim() || "";
     const address =
       fromSnapshot.length >= 5
         ? fromSnapshot
-        : stop.city.trim().length >= 5
-          ? stop.city.trim()
-          : `Ubicación ${stop.city}`.trim();
+        : city.length >= 5
+          ? city
+          : `Ubicación ${city}`.trim();
 
     const input: CreateStopInput = {
       sequenceOrder: index + 1,
       stopType: stop.stopType,
       address,
-      city: stop.city,
+      city,
     };
 
     if (stop.sourceAddressId) input.sourceAddressId = stop.sourceAddressId;

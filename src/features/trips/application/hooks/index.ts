@@ -7,6 +7,7 @@ export {
   useAddCargoMovement,
   useCompleteCargoMovement,
   useCompleteTripCargoMovement,
+  useReassignCargoMovementStop,
   useAddMultipleCargos,
 } from "./cargo/useCargoOperations";
 
@@ -37,8 +38,16 @@ export { useStartTrip } from "./trip/useStartTrip";
 export { useDepartOrigin } from "./trip/useDepartOrigin";
 export { useTrip } from "./trip/useTrip";
 export { useTrips } from "./trip/useTrips";
+export { useTripWorkbenchSummary } from "./trip/useTripWorkbenchSummary";
+export { useActiveAssignmentTripsForBusy } from "./trip/useActiveAssignmentTripsForBusy";
+export {
+  fetchAllActiveAssignmentTrips,
+  ACTIVE_ASSIGNMENT_TRIPS_PAGE_LIMIT,
+  ACTIVE_ASSIGNMENT_TRIPS_MAX_PAGES,
+} from "./trip/fetchActiveAssignmentTrips";
 export { useUpdateTrip } from "./trip/useUpdateTrip";
 export { useUpdateTripStatus } from "./trip/useUpdateTripStatus";
+export { invalidateTripAssignmentResources } from "./trip/invalidateTripAssignmentResources";
 export { usePatchStopFiscal } from "./usePatchStopFiscal";
 export { usePatchTripFiscal } from "./usePatchTripFiscal";
 export {

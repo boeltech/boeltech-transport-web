@@ -2,13 +2,19 @@ import type { DriverListItem } from "@features/drivers/domain";
 import { getDriverPrimaryLicenseExpiry } from "@features/drivers/domain";
 import { isExpiringSoon } from "@shared/utils/dateUtils";
 
-import { BUSY_ON_ACTIVE_TRIP } from "./tripAssignmentBusyResources";
+import {
+  BUSY_ON_ACTIVE_TRIP,
+  conflictBadgeLabel,
+  type AssignmentConflict,
+} from "./tripAssignmentBusyResources";
 
 export interface AssignableDriverItem extends DriverListItem {
   canBeAssigned: boolean;
   blockReason?: string;
   displayName: string;
   expiredDocsOverridable?: boolean;
+  softBusy?: boolean;
+  assignmentConflict?: AssignmentConflict;
 }
 
 function getDriverDisplayName(driver: DriverListItem): string {
@@ -26,6 +32,10 @@ function getDriverDisplayName(driver: DriverListItem): string {
   }
 
   return "Sin nombre";
+}
+
+function isFleetCommitStatus(status: string): boolean {
+  return status === "reserved" || status === "on_trip";
 }
 
 export function classifyDriverAssignability(
@@ -69,30 +79,91 @@ export function classifyDriverAssignability(
   return { canBeAssigned: true, blockReason: undefined };
 }
 
+export type BuildAssignableDriversOptions = {
+  keepAssignableDriverId?: string;
+  softBusySelectable?: boolean;
+  conflicts?: ReadonlyMap<string, AssignmentConflict>;
+};
+
 export function buildAssignableDriversForTripWizard(
   drivers: readonly DriverListItem[],
   busyDriverIds: ReadonlySet<string>,
-  options?: { keepAssignableDriverId?: string },
+  options?: BuildAssignableDriversOptions,
 ): AssignableDriverItem[] {
   const keepId = options?.keepAssignableDriverId?.trim() || undefined;
+  const soft = options?.softBusySelectable === true;
+  const conflicts = options?.conflicts;
 
   return drivers.map((driver) => {
     const { canBeAssigned, blockReason, expiredDocsOverridable } =
       classifyDriverAssignability(driver);
 
     const displayName = getDriverDisplayName(driver);
+    const conflict = conflicts?.get(driver.id);
+    const isBusy = busyDriverIds.has(driver.id);
+    const isCommitStatus = isFleetCommitStatus(driver.status);
 
-    if (canBeAssigned && busyDriverIds.has(driver.id)) {
+    if (keepId && driver.id === keepId && driver.status === "reserved") {
+      return {
+        ...driver,
+        canBeAssigned: true,
+        blockReason: undefined,
+        expiredDocsOverridable,
+        softBusy: undefined,
+        assignmentConflict: undefined,
+        displayName,
+      };
+    }
+
+    if (soft) {
+      if (!canBeAssigned && !isCommitStatus) {
+        return {
+          ...driver,
+          canBeAssigned,
+          blockReason,
+          expiredDocsOverridable,
+          softBusy: undefined,
+          assignmentConflict: undefined,
+          displayName,
+        };
+      }
+
+      if (isBusy || isCommitStatus) {
+        return {
+          ...driver,
+          canBeAssigned: true,
+          softBusy: true,
+          assignmentConflict: conflict,
+          blockReason: conflict
+            ? conflictBadgeLabel(conflict)
+            : (blockReason ?? BUSY_ON_ACTIVE_TRIP),
+          expiredDocsOverridable,
+          displayName,
+        };
+      }
+
+      return {
+        ...driver,
+        canBeAssigned,
+        blockReason,
+        expiredDocsOverridable,
+        softBusy: undefined,
+        assignmentConflict: undefined,
+        displayName,
+      };
+    }
+
+    if (canBeAssigned && isBusy) {
       return {
         ...driver,
         canBeAssigned: false,
         blockReason: BUSY_ON_ACTIVE_TRIP,
         displayName,
+        softBusy: undefined,
+        assignmentConflict: undefined,
       };
     }
 
-    // Edición de viaje scheduled: el conductor reservado de ESTE viaje debe
-    // seguir seleccionable (no limpiar el Select ni marcarlo disabled).
     if (
       !canBeAssigned &&
       keepId &&
@@ -104,6 +175,8 @@ export function buildAssignableDriversForTripWizard(
         canBeAssigned: true,
         blockReason: undefined,
         expiredDocsOverridable,
+        softBusy: undefined,
+        assignmentConflict: undefined,
         displayName,
       };
     }
@@ -113,6 +186,8 @@ export function buildAssignableDriversForTripWizard(
       canBeAssigned,
       blockReason,
       expiredDocsOverridable,
+      softBusy: undefined,
+      assignmentConflict: undefined,
       displayName,
     };
   });

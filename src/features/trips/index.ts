@@ -85,6 +85,7 @@ export {
   useTripExpenses,
   useTripExpensesSummary,
   useUpdateCargo,
+  useReassignCargoMovementStop,
   useClientCorridors,
   useRouteEstimate,
   useReplaceTripStops,

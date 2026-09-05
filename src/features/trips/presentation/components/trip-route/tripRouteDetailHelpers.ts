@@ -7,6 +7,7 @@ import {
   StopType,
   isUnifiedAddressId,
   type StopTypeValue,
+  type TripCargo,
   type TripStop,
   type TripStatusType,
 } from "@features/trips/domain";
@@ -25,6 +26,30 @@ export function getRouteStopCategory(stop: TripStop): RouteStopCategory {
   if (types.includes(StopType.ORIGIN)) return "origin";
   if (types.includes(StopType.DESTINATION)) return "destination";
   return "waypoint";
+}
+
+/**
+ * True si algún movimiento de carga apunta a esta parada (`stopId` o
+ * `stopIndex` 0-based en la ruta ordenada). Usado para bloquear borrado
+ * de escalas: el replace remapea por índice y corrompería vínculos.
+ */
+export function stopHasLinkedCargoMovements(
+  stop: TripStop,
+  orderedStops: readonly TripStop[],
+  cargos: readonly TripCargo[] | undefined,
+): boolean {
+  if (!cargos?.length) return false;
+
+  const stopIndex = orderedStops.findIndex((item) => item.id === stop.id);
+  if (stopIndex < 0) return false;
+
+  return cargos.some((cargo) =>
+    cargo.movements.some(
+      (movement) =>
+        (movement.stopId != null && movement.stopId === stop.id) ||
+        movement.stopIndex === stopIndex,
+    ),
+  );
 }
 
 export function groupStopsForRouteDetail(stops: readonly TripStop[]) {
@@ -105,6 +130,26 @@ export function countStopsMissingFiscalRfc(stops: readonly TripStop[]): number {
 
 export function countStopsMissingDomicilio(stops: readonly TripStop[]): number {
   return stops.filter((stop) => !isStopDomicilioComplete(stop)).length;
+}
+
+/** Escala sin pickup ni delivery (D1 — v1 no admite solo-tránsito). */
+export function isStopWaypointOperationComplete(stop: TripStop): boolean {
+  if (getRouteStopCategory(stop) !== "waypoint") return true;
+  return (
+    hasStopType(stop.stopType, StopType.PICKUP) ||
+    hasStopType(stop.stopType, StopType.DELIVERY)
+  );
+}
+
+export function countStopsMissingWaypointOperation(
+  stops: readonly TripStop[],
+): number {
+  return stops.filter((stop) => !isStopWaypointOperationComplete(stop)).length;
+}
+
+/** Domicilio listo y, en escalas, operación definida (RFC no entra). */
+export function isStopRouteCaptureComplete(stop: TripStop): boolean {
+  return isStopDomicilioComplete(stop) && isStopWaypointOperationComplete(stop);
 }
 
 export function formatDistanceSourceLabel(

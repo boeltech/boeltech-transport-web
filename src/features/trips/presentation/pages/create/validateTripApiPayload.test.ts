@@ -21,6 +21,7 @@ describe("validateCreateTripApiPayload", () => {
     const input: CreateTripInput = {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
+      startMileage: 10000,
       scheduledDeparture: "2026-05-10T12:00:00.000Z",
       originCity: "Guadalajara",
       destinationCity: "CDMX",
@@ -50,6 +51,7 @@ describe("validateCreateTripApiPayload", () => {
     const input: CreateTripInput = {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
+      startMileage: 10000,
       scheduledDeparture: "2026-05-10T12:00:00.000Z",
       originCity: "Guadalajara",
       destinationCity: "CDMX",

@@ -12,6 +12,7 @@ import {
   isDuplicateComposerEndpointAddress,
   mapTripStopToStopFormData,
   mergeComposerEndpointDraft,
+  removeWaypointFromReplaceStopsPayload,
   replaceStopsFromCorridor,
   upsertComposerStop,
 } from "./buildReplaceStopsPayload";
@@ -33,6 +34,7 @@ const pickerItem: AddressSearchListItem = {
   satNeighborhoodCode: null,
   latitude: 20.67,
   longitude: -103.35,
+  geocodingAccuracy: null,
   geolocationPending: false,
   isPrimary: false,
   isActive: true,
@@ -127,6 +129,40 @@ describe("addressSearchItemToCreateStopInput", () => {
     expect(input.stopType).toEqual([StopType.ORIGIN, StopType.PICKUP]);
     expect(input.rfcRemitenteDestinatario).toBeUndefined();
   });
+
+  it("requires pickup and/or delivery on waypoint catalog create", () => {
+    const blind = addressSearchItemToCreateStopInput(pickerItem, "waypoint", 1);
+    expect(blind.stopType).toEqual([StopType.WAYPOINT]);
+
+    const withOps = addressSearchItemToCreateStopInput(pickerItem, "waypoint", 1, {
+      pickup: true,
+      delivery: true,
+    });
+    expect(withOps.stopType).toEqual([
+      StopType.WAYPOINT,
+      StopType.PICKUP,
+      StopType.DELIVERY,
+    ]);
+  });
+});
+
+describe("upsertComposerStop waypoint operation gate", () => {
+  it("throws when waypoint has no pickup or delivery", () => {
+    expect(() =>
+      upsertComposerStop({
+        existingStops: [
+          tripStop(),
+          tripStop({
+            id: "stop-2",
+            sequenceOrder: 2,
+            stopType: [StopType.DESTINATION, StopType.DELIVERY],
+          }),
+        ],
+        category: "waypoint",
+        item: pickerItem,
+      }),
+    ).toThrow("COMPOSER_WAYPOINT_OPERATION_REQUIRED");
+  });
 });
 
 describe("upsertComposerStop", () => {
@@ -193,10 +229,11 @@ describe("upsertComposerStop", () => {
         locationName: "El Marques",
         ...elMarques,
       },
+      waypointOperations: { pickup: true, delivery: false },
     });
     expect(next).toHaveLength(3);
     expect(next[1]?.locationName).toBe("El Marques");
-    expect(next[1]?.stopType).toEqual([StopType.WAYPOINT]);
+    expect(next[1]?.stopType).toEqual([StopType.WAYPOINT, StopType.PICKUP]);
     expect(next[2]?.stopType).toContain(StopType.DESTINATION);
     expect(next[1]?.distanceFromPreviousKm).toBe(originToWaypointKm);
     expect(next[2]?.distanceFromPreviousKm).toBe(waypointToDestKm);
@@ -233,6 +270,7 @@ describe("upsertComposerStop", () => {
         latitude: 20.67,
         longitude: -103.35,
       },
+      waypointOperations: { pickup: false, delivery: true },
     });
     expect(next.map((stop) => stop.locationName)).toEqual([
       "Bodega Alpha",
@@ -265,6 +303,7 @@ describe("upsertComposerStop", () => {
         locationName: "El Marques",
         ...elMarques,
       },
+      waypointOperations: { pickup: true, delivery: true },
     });
     expect(next.map((stop) => stop.locationName)).toEqual([
       "Santa Fe CDMX",
@@ -347,6 +386,49 @@ describe("replaceStopsFromCorridor", () => {
     expect(stops[0]?.distanceFromPreviousKm).toBeUndefined();
     expect(stops[1]?.distanceFromPreviousKm).toBe(originToDestKm);
     expect(stops[1]?.distanceSource).toBe("haversine_fallback");
+  });
+
+  it("safely resolves city with fallback to corridor cities when stop snapshot city is empty", () => {
+    const corridor: ClientCorridor = {
+      corridorKey: "qro-gdl",
+      originCity: "Querétaro",
+      originState: "QUE",
+      destinationCity: "Guadalajara",
+      destinationState: "JAL",
+      stopCount: 3,
+      tripCount: 2,
+      lastUsedAt: "2026-08-10T18:00:00.000Z",
+      sampleTripId: "trip-sample",
+      stopsSnapshot: [
+        {
+          sequenceOrder: 1,
+          stopType: [StopType.ORIGIN],
+          city: "",
+          locationName: "Bodega QRO",
+        },
+        {
+          sequenceOrder: 2,
+          stopType: [StopType.WAYPOINT],
+          city: "",
+          locationName: "Parada Intermedia",
+        },
+        {
+          sequenceOrder: 3,
+          stopType: [StopType.DESTINATION],
+          city: "",
+          locationName: "Cedis GDL",
+        },
+      ],
+    };
+
+    const stops = replaceStopsFromCorridor(corridor);
+    expect(stops).toHaveLength(3);
+    expect(stops[0]?.city).toBe("Querétaro");
+    expect(stops[0]?.city.length).toBeGreaterThanOrEqual(2);
+    expect(stops[1]?.city).toBe("Parada Intermedia");
+    expect(stops[1]?.city.length).toBeGreaterThanOrEqual(2);
+    expect(stops[2]?.city).toBe("Guadalajara");
+    expect(stops[2]?.city.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -458,6 +540,66 @@ describe("fillMissingCreateStopDistances", () => {
     ]);
     expect(filled[1]?.distanceFromPreviousKm).toBe(waypointToDestKm);
     expect(filled[1]?.distanceFromPreviousKm).not.toBe(originToDestKm);
+  });
+});
+
+describe("removeWaypointFromReplaceStopsPayload", () => {
+  it("removes a middle waypoint and resequences origin + destination", () => {
+    const origin = tripStop({ ...santaFe, locationName: "Santa Fe CDMX" });
+    const waypoint = tripStop({
+      id: "stop-wp",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT, StopType.PICKUP],
+      locationName: "El Marques",
+      ...elMarques,
+      distanceFromPreviousKm: originToWaypointKm,
+      distanceSource: "haversine_fallback",
+    });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "Zayulita",
+      ...zayulita,
+      distanceFromPreviousKm: waypointToDestKm,
+      distanceSource: "haversine_fallback",
+    });
+
+    const next = removeWaypointFromReplaceStopsPayload(
+      [origin, waypoint, dest],
+      waypoint.id,
+    );
+
+    expect(next.map((stop) => stop.locationName)).toEqual([
+      "Santa Fe CDMX",
+      "Zayulita",
+    ]);
+    expect(next.map((stop) => stop.sequenceOrder)).toEqual([1, 2]);
+    expect(next[1]?.distanceFromPreviousKm).toBe(originToDestKm);
+  });
+
+  it("throws when the stop id is missing", () => {
+    const origin = tripStop({ ...santaFe, locationName: "Santa Fe CDMX" });
+    expect(() =>
+      removeWaypointFromReplaceStopsPayload([origin], "missing-id"),
+    ).toThrow("WAYPOINT_NOT_FOUND");
+  });
+
+  it("throws when the stop is origin or destination", () => {
+    const origin = tripStop({ ...santaFe, locationName: "Santa Fe CDMX" });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "Zayulita",
+      ...zayulita,
+    });
+    expect(() =>
+      removeWaypointFromReplaceStopsPayload([origin, dest], origin.id),
+    ).toThrow("NOT_A_WAYPOINT");
+    expect(() =>
+      removeWaypointFromReplaceStopsPayload([origin, dest], dest.id),
+    ).toThrow("NOT_A_WAYPOINT");
   });
 });
 

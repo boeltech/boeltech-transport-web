@@ -1,5 +1,8 @@
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowRight,
+  Banknote,
   Building2,
   Calendar,
   ExternalLink,
@@ -9,21 +12,47 @@ import {
 } from "lucide-react";
 
 import type { ClientRef, Trip, TripStatusHistory } from "@features/trips/domain";
+import { TripStatus } from "@features/trips/domain";
 import { formatMileage } from "@features/trips";
-import { useInternalStaffEntitlement } from "@features/billing";
+import { useDrivers } from "@features/drivers/application";
+import {
+  SETTLEMENTS_LIST_PATH,
+  settlementCreatePath,
+} from "@features/settlements/application";
+import { usePermissions } from "@shared/permissions";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { InfoRow } from "@shared/ui/data-display";
 import { Separator } from "@shared/ui/separator";
 
 import { TripScheduleInlineEditor } from "./TripScheduleInlineEditor";
 import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
+import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.operation;
+
+function SettlementLiquidateLink({ employeeId }: { employeeId: string }) {
+  return (
+    <Link
+      to={settlementCreatePath({ employeeId })}
+      className="inline-flex shrink-0"
+      title={copy.action.liquidateEmployeeHint}
+      aria-label={copy.action.liquidateEmployeeHint}
+    >
+      <Badge
+        variant="outline"
+        className="text-[10px] hover:bg-accent cursor-pointer gap-0.5"
+      >
+        {copy.action.liquidateEmployee}
+        <ArrowRight className="h-3 w-3" aria-hidden />
+      </Badge>
+    </Link>
+  );
+}
 
 export interface TripDetailOperationTabProps {
   /** Viaje completo (programación sincroniza `scheduledArrival` con parada destino). */
@@ -100,14 +129,35 @@ export function TripDetailOperationTab({
   isClientPortalView = false,
   statusHistory,
 }: TripDetailOperationTabProps) {
-  const {
-    hasModule: hasInternalStaffModule,
-    isSuccess: isInternalStaffEntitlementSuccess,
-  } = useInternalStaffEntitlement();
-  const showInternalStaffEntitlementWarning =
-    isInternalStaffEntitlementSuccess &&
-    !hasInternalStaffModule &&
-    Boolean(trip.internalStaff && trip.internalStaff.length > 0);
+  const [isFleetAssignmentSheetOpen, setIsFleetAssignmentSheetOpen] =
+    useState(false);
+  const { hasPermission } = usePermissions();
+  const canCreateSettlement = hasPermission("settlements", "create");
+  const canReadSettlements = hasPermission("settlements", "read");
+  const isCompleted = trip.status === TripStatus.COMPLETED;
+  const showSettlementActions = isCompleted && !isClientPortalView;
+
+  const resolvedDriverId = trip.driverId || trip.driver?.id;
+
+  const { data: driversPage } = useDrivers(
+    { page: 1, limit: 100 },
+    {
+      enabled:
+        showSettlementActions &&
+        canCreateSettlement &&
+        Boolean(resolvedDriverId),
+    },
+  );
+
+  const titularEmployeeId = useMemo(() => {
+    if (!resolvedDriverId || !driversPage?.data) return null;
+    return (
+      driversPage.data.find((driver) => driver.id === resolvedDriverId)?.employeeId ??
+      null
+    );
+  }, [resolvedDriverId, driversPage?.data]);
+
+  const tripSettlementsSearchHref = `${SETTLEMENTS_LIST_PATH}?search=${encodeURIComponent(trip.tripCode)}`;
 
   return (
     <div className="space-y-6">
@@ -158,14 +208,29 @@ export function TripDetailOperationTab({
 
         {!isClientPortalView ? (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="h-4 w-4 shrink-0 text-primary" />
-              {copy.section.assignment}
-            </CardTitle>
-            <CardDescription>
-              {copy.hint.assignment}
-            </CardDescription>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <div className="space-y-1">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Truck className="h-4 w-4 shrink-0 text-primary" />
+                {copy.section.assignment}
+              </CardTitle>
+              <CardDescription>
+                {copy.hint.assignment}
+              </CardDescription>
+            </div>
+            {canEditStructural ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFleetAssignmentSheetOpen(true)}
+                className="gap-1.5 shrink-0"
+              >
+                <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                {trip.vehicle || trip.driver
+                  ? copy.action.reassignFleet
+                  : copy.action.assignFleet}
+              </Button>
+            ) : null}
           </CardHeader>
           <CardContent className="pt-0">
             {trip.vehicle ? (
@@ -182,7 +247,14 @@ export function TripDetailOperationTab({
             <Separator className="my-3" />
 
             {trip.driver ? (
-              <InfoRow variant="inline" label={copy.label.driver} value={trip.driver.fullName} />
+              <div className="flex items-start justify-between gap-2">
+                <InfoRow variant="inline" label={copy.label.driver} value={trip.driver.fullName} />
+                {showSettlementActions &&
+                canCreateSettlement &&
+                titularEmployeeId ? (
+                  <SettlementLiquidateLink employeeId={titularEmployeeId} />
+                ) : null}
+              </div>
             ) : (
               <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
                 {copy.state.noDriver}
@@ -221,20 +293,6 @@ export function TripDetailOperationTab({
 
             {trip.internalStaff && trip.internalStaff.length > 0 ? (
               <>
-                {showInternalStaffEntitlementWarning ? (
-                  <DetailAlertCard
-                    severity="warning"
-                    title={copy.alert.staffModuleInactiveTitle}
-                    className="my-3"
-                  >
-                    <p className="text-sm text-muted-foreground">
-                      {copy.alert.staffModuleInactiveBody}
-                    </p>
-                    <Button variant="link" className="mt-2 h-auto p-0" asChild>
-                      <Link to="/settings/subscription">{copy.action.viewPlan}</Link>
-                    </Button>
-                  </DetailAlertCard>
-                ) : null}
                 <Separator className="my-3" />
                 <div className="space-y-2">
                   <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -247,17 +305,42 @@ export function TripDetailOperationTab({
                   {trip.internalStaff.map((member) => (
                     <div
                       key={member.id}
-                      className="rounded-lg border bg-muted/20 px-3 py-2 text-xs"
+                      className="flex items-start justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs"
                     >
-                      <p className="font-medium">{member.employeeFullName}</p>
-                      {member.isPaymentResponsible ? (
-                        <p className="text-muted-foreground">{copy.hint.paymentResponsible}</p>
-                      ) : null}
-                      {member.paymentNotes ? (
-                        <p className="mt-1 italic text-muted-foreground">{member.paymentNotes}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{member.employeeFullName}</p>
+                        {member.isPaymentResponsible ? (
+                          <p className="text-muted-foreground">{copy.hint.paymentResponsible}</p>
+                        ) : null}
+                        {member.paymentNotes ? (
+                          <p className="mt-1 italic text-muted-foreground">{member.paymentNotes}</p>
+                        ) : null}
+                      </div>
+                      {showSettlementActions && canCreateSettlement ? (
+                        <SettlementLiquidateLink employeeId={member.employeeId} />
                       ) : null}
                     </div>
                   ))}
+                </div>
+              </>
+            ) : null}
+
+            {showSettlementActions && canReadSettlements ? (
+              <>
+                <Separator className="my-3" />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                      <Banknote className="h-3.5 w-3.5 text-primary" />
+                      {copy.settlement.sectionTitle}
+                    </span>
+                    <Link to={tripSettlementsSearchHref}>
+                      <Badge variant="outline" className="text-xs hover:bg-accent cursor-pointer">
+                        {copy.action.viewTripSettlements}
+                        <ExternalLink className="ml-1.5 h-3 w-3 inline" aria-hidden />
+                      </Badge>
+                    </Link>
+                  </div>
                 </div>
               </>
             ) : null}
@@ -299,6 +382,14 @@ export function TripDetailOperationTab({
       ) : null}
 
       <TripDetailStatusHistory entries={statusHistory ?? trip.statusHistory} />
+
+      {!isClientPortalView && canEditStructural ? (
+        <TripFleetAssignmentSheet
+          trip={trip}
+          open={isFleetAssignmentSheetOpen}
+          onOpenChange={setIsFleetAssignmentSheetOpen}
+        />
+      ) : null}
     </div>
   );
 }

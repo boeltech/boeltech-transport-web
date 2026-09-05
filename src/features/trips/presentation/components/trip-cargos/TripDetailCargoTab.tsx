@@ -5,6 +5,7 @@ import { AlertCircle, Package, Plus, RefreshCw } from "lucide-react";
 import {
   useAddCargo,
   useDeleteCargo,
+  useReassignCargoMovementStop,
   useUpdateCargo,
 } from "@features/trips/application";
 import {
@@ -134,12 +135,15 @@ export function TripDetailCargoTab({
   const addCargo = useAddCargo(tripId);
   const updateCargo = useUpdateCargo(tripId);
   const deleteCargo = useDeleteCargo(tripId);
+  const reassignMovementStop = useReassignCargoMovementStop(tripId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingCargoId, setEditingCargoId] = useState<string | null>(null);
   /** Pickup elegido en alta cuando el viaje tiene varias recogidas. */
   const [createPickupStopId, setCreatePickupStopId] = useState<string | null>(
     null,
   );
+  /** Pickup elegido en edición (reasignación). */
+  const [editPickupStopId, setEditPickupStopId] = useState<string | null>(null);
 
   const editingCargo =
     editingCargoId != null
@@ -168,8 +172,14 @@ export function TripDetailCargoTab({
     pickupStops[0] ??
     null;
 
+  const editPickupStop = editPickupStopId
+    ? (pickupStops.find((stop) => stop.id === editPickupStopId) ?? null)
+    : null;
+
   const activePickupStop = editingCargo
-    ? (resolvePickupStopForCargo(editingCargo) ?? createPickupStop)
+    ? (editPickupStop ??
+      resolvePickupStopForCargo(editingCargo) ??
+      createPickupStop)
     : createPickupStop;
 
   const pickupSheetStop = activePickupStop
@@ -205,10 +215,12 @@ export function TripDetailCargoTab({
     setSheetOpen(false);
     setEditingCargoId(null);
     setCreatePickupStopId(null);
+    setEditPickupStopId(null);
   };
 
   const openAddCargo = (pickupStopId?: string) => {
     setEditingCargoId(null);
+    setEditPickupStopId(null);
     setCreatePickupStopId(
       pickupStopId ?? pickupStops[0]?.id ?? null,
     );
@@ -218,14 +230,19 @@ export function TripDetailCargoTab({
   const openEditCargo = (cargoId: string) => {
     setCreatePickupStopId(null);
     setEditingCargoId(cargoId);
+    const cargo = cargos.find((item) => item.id === cargoId) ?? null;
+    setEditPickupStopId(resolvePickupStopForCargo(cargo)?.id ?? null);
     setSheetOpen(true);
   };
 
   const handlePickupStopChange = (stop: CargoSheetPickupStop) => {
     const matched = orderedStops[stop.index];
-    if (matched?.id) {
-      setCreatePickupStopId(matched.id);
+    if (!matched?.id) return;
+    if (editingCargoId) {
+      setEditPickupStopId(matched.id);
+      return;
     }
+    setCreatePickupStopId(matched.id);
   };
 
   const handleRemoveCargo = (cargoId: string) => {
@@ -254,6 +271,37 @@ export function TripDetailCargoTab({
   ) => {
     if (editingCargoId) {
       try {
+        const originalPickup = resolvePickupStopForCargo(editingCargo);
+        const nextPickup =
+          editPickupStop ??
+          (pickupSheetStop
+            ? orderedStops[pickupSheetStop.index] ?? null
+            : null);
+        const pickupChanged =
+          nextPickup != null &&
+          originalPickup != null &&
+          nextPickup.id !== originalPickup.id;
+
+        if (pickupChanged) {
+          const pickupMovement = editingCargo?.movements?.find(
+            (movement) => movement.movementType === "pickup",
+          );
+          if (!pickupMovement?.id) {
+            throw new Error(copy.toast.cargoPickupMovementMissing);
+          }
+          const nextIndex = orderedStops.findIndex(
+            (stop) => stop.id === nextPickup.id,
+          );
+          if (nextIndex < 0) {
+            throw new Error(copy.toast.cargoStopUnresolved);
+          }
+          await reassignMovementStop.mutateAsync({
+            cargoId: editingCargoId,
+            movementId: pickupMovement.id,
+            data: { stopId: nextPickup.id, stopIndex: nextIndex },
+          });
+        }
+
         await updateCargo.mutateAsync({
           cargoId: editingCargoId,
           data: formValuesToUpdateCargoInput(values),
@@ -261,7 +309,6 @@ export function TripDetailCargoTab({
         toast({ title: copy.toast.cargoUpdated, variant: "success" });
         onCargosChanged?.();
       } catch (error) {
-        // El sheet muestra Alert + toast breve vía useOverlayMutationFeedback.
         throw error instanceof Error
           ? error
           : new Error(copy.toast.cargoUpdateError);
@@ -303,15 +350,12 @@ export function TripDetailCargoTab({
           if (!open) {
             setEditingCargoId(null);
             setCreatePickupStopId(null);
+            setEditPickupStopId(null);
           }
         }}
         pickupStop={sheetOpen ? pickupSheetStop : null}
-        availablePickupStops={
-          editingCargoId == null ? availablePickupSheetStops : undefined
-        }
-        onPickupStopChange={
-          editingCargoId == null ? handlePickupStopChange : undefined
-        }
+        availablePickupStops={availablePickupSheetStops}
+        onPickupStopChange={handlePickupStopChange}
         availableDeliveryStops={deliverySheetStops}
         initialValues={
           editingCargo ? tripCargoToFormValues(editingCargo) : null

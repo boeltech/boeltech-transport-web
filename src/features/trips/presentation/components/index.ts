@@ -35,5 +35,6 @@ export {
 } from "./trip-cargos";
 export { TripDetailRouteTab } from "./trip-route";
 export { TripDetailOperationTab } from "./trip-operation";
+export { TripFleetAssignmentSheet } from "./trip-fleet-assignment";
 export { TripRevenueSplitSheet } from "./TripRevenueSplitSheet";
 export { TripRevenueSplitSummaryLine } from "./TripRevenueSplitSummaryLine";

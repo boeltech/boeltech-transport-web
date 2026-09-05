@@ -14,6 +14,7 @@ import type {
   ICargoRepository,
   TripCargo,
   UpdateCargoInput,
+  UpdateCargoMovementStopInput,
 } from "@features/trips/domain";
 import {
   mapBackendError,
@@ -322,6 +323,55 @@ export class CompleteCargoMovementUseCase implements ICompleteCargoMovementUseCa
 }
 
 // ============================================================================
+// REASSIGN CARGO MOVEMENT STOP USE CASE
+// ============================================================================
+
+export interface IReassignCargoMovementStopUseCase {
+  execute(
+    tripId: string,
+    cargoId: string,
+    movementId: string,
+    input: UpdateCargoMovementStopInput,
+  ): Promise<UseCaseResult<CargoMovement>>;
+}
+
+export class ReassignCargoMovementStopUseCase
+  implements IReassignCargoMovementStopUseCase
+{
+  private readonly repository: ICargoRepository;
+
+  constructor(repository: ICargoRepository) {
+    this.repository = repository;
+  }
+
+  async execute(
+    tripId: string,
+    cargoId: string,
+    movementId: string,
+    input: UpdateCargoMovementStopInput,
+  ): Promise<UseCaseResult<CargoMovement>> {
+    try {
+      const result = await this.repository.reassignMovementStop(
+        tripId,
+        cargoId,
+        movementId,
+        input,
+      );
+
+      return {
+        success: true,
+        data: result.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: mapBackendError(error),
+      };
+    }
+  }
+}
+
+// ============================================================================
 // FACTORY FUNCTIONS
 // ============================================================================
 
@@ -359,4 +409,10 @@ export function createCompleteCargoMovementUseCase(
   repository: ICargoRepository,
 ): ICompleteCargoMovementUseCase {
   return new CompleteCargoMovementUseCase(repository);
+}
+
+export function createReassignCargoMovementStopUseCase(
+  repository: ICargoRepository,
+): IReassignCargoMovementStopUseCase {
+  return new ReassignCargoMovementStopUseCase(repository);
 }

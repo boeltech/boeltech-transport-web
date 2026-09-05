@@ -20,6 +20,7 @@ import type {
   CargoMovementTypeValue,
   CurrencyType,
   TripOperationalOutcomeType,
+  TripRouteTypeValue,
 } from "./enums";
 
 // ============================================================================
@@ -560,6 +561,8 @@ export interface Trip {
 
   // Estado
   readonly status: TripStatusType;
+  /** ADR-0086: Clasificador de ruta ('local' | 'long_haul' | 'transfer'). */
+  readonly routeType?: TripRouteTypeValue;
   /** ADR-0079: `standard` | `false_trip`. Default `standard`. */
   readonly operationalOutcome: TripOperationalOutcomeType;
   readonly falseTripDeclaredAt: Date | null;
@@ -624,6 +627,7 @@ export interface TripListItem {
   readonly scheduledDeparture: Date;
   readonly scheduledArrival: Date | null;
   readonly status: TripStatusType;
+  readonly routeType?: TripRouteTypeValue;
   readonly operationalOutcome: TripOperationalOutcomeType;
   readonly falseTripDeclaredAt: Date | null;
   readonly falseTripDeclaredBy: string | null;
@@ -680,4 +684,23 @@ export interface CargosSummary {
   readonly totalRevenue: number;
   readonly pendingCount: number;
   readonly deliveredCount: number;
+}
+
+// ============================================================================
+// WORKBENCH SUMMARY (ADR-0090 — centro operativo de viajes)
+// ============================================================================
+
+/**
+ * Conteos por estado para el awareness strip del workbench de viajes.
+ * Workaround v0.5: se compone con N queries `limit=1` mientras
+ * el endpoint `GET /trips/workbench-summary` no exista en el API.
+ */
+export interface TripWorkbenchSummary {
+  readonly draft: number;
+  readonly scheduled: number;
+  readonly inProgress: number;
+  readonly completed: number;
+  readonly cancelled: number;
+  readonly fiscalAttention: number;
+  readonly overdue: number;
 }

@@ -1,6 +1,7 @@
 import { Flag, MapPin, Navigation } from "lucide-react";
 
 import { StopType, type TripStop } from "@features/trips/domain";
+import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 import {
@@ -14,6 +15,7 @@ import {
   getRouteStopCategory,
   hasStopType,
   isStopDomicilioComplete,
+  isStopWaypointOperationComplete,
   routeStopCardBorderClass,
   type RouteStopCategory,
 } from "./tripRouteDetailHelpers";
@@ -24,6 +26,8 @@ export interface TripDetailRouteStopCardProps {
   stop: TripStop;
   onCompleteAddress?: () => void;
   onEditStop?: () => void;
+  /** Solo escalas: dispara el flujo de confirmación/bloqueo en el padre. */
+  onRemoveWaypoint?: () => void;
 }
 
 function StopCategoryIcon({
@@ -46,12 +50,20 @@ export function TripDetailRouteStopCard({
   stop,
   onCompleteAddress,
   onEditStop,
+  onRemoveWaypoint,
 }: TripDetailRouteStopCardProps) {
   const category = getRouteStopCategory(stop);
   const needsAddress = !isStopDomicilioComplete(stop);
+  const needsOperation = !isStopWaypointOperationComplete(stop);
   const showPickup = hasStopType(stop.stopType, StopType.PICKUP);
   const showDelivery = hasStopType(stop.stopType, StopType.DELIVERY);
   const showOperations = category === "waypoint" && (showPickup || showDelivery);
+  const openSheetForIncomplete =
+    (needsAddress || needsOperation) && onCompleteAddress;
+  const openSheetForEdit =
+    !needsAddress && !needsOperation && onEditStop;
+  const showRemove =
+    category === "waypoint" && typeof onRemoveWaypoint === "function";
 
   return (
     <div
@@ -88,6 +100,12 @@ export function TripDetailRouteStopCard({
           </div>
         ) : null}
 
+        {needsOperation ? (
+          <Badge variant="warning" tone="soft" className="text-xs font-normal">
+            {copy.chip.missingOperation}
+          </Badge>
+        ) : null}
+
         <TripDetailRouteStopAddress stop={stop} />
 
         {category !== "origin" ? (
@@ -117,15 +135,31 @@ export function TripDetailRouteStopCard({
           </p>
         ) : null}
 
-        {needsAddress && onCompleteAddress ? (
-          <Button type="button" size="sm" variant="outline" onClick={onCompleteAddress}>
-            {copy.action.completeAddress}
-          </Button>
-        ) : !needsAddress && onEditStop ? (
-          <Button type="button" size="sm" variant="outline" onClick={onEditStop}>
-            {copy.action.editStop}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {openSheetForIncomplete ? (
+            <Button type="button" size="sm" variant="outline" onClick={onCompleteAddress}>
+              {needsAddress
+                ? copy.action.completeAddress
+                : copy.action.editStop}
+            </Button>
+          ) : openSheetForEdit ? (
+            <Button type="button" size="sm" variant="outline" onClick={onEditStop}>
+              {copy.action.editStop}
+            </Button>
+          ) : null}
+
+          {showRemove ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={onRemoveWaypoint}
+            >
+              {copy.action.removeWaypoint}
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

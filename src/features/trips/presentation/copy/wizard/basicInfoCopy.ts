@@ -43,7 +43,7 @@ export const basicInfoCopy = {
     fleetBranchFilter:
       "Listado filtrado por la base operativa. Activa la opción para ver todo el catálogo.",
     allowExpiredDocs:
-      "Muestra activos con seguro, permiso SCT o licencia vencidos para asignarlos.",
+      "Muestra activos con seguro, permiso SCT o licencia vencidos, o sin fecha de vigencia, para asignarlos.",
   },
   hintLabel: {
     originBranch: "Base operativa del viaje",
@@ -68,6 +68,7 @@ export const basicInfoCopy = {
   },
   state: {
     available: "Disponibles",
+    softBusy: "En otro viaje",
     withExpiredDocs: "Con documentación vencida",
     notAssignable: "No asignables",
     noBranches: "No hay sucursales activas",
@@ -86,12 +87,30 @@ export const basicInfoCopy = {
     expiredAssignmentTitle: "Documentación vencida en la asignación",
     expiredVehicleItem: (reason: string) => reason,
     expiredDriverItem: (reason: string) => reason,
+    softBusyTitle: "Recurso comprometido en otro viaje",
+    softBusyBody: (parts: {
+      resourceLabel: string;
+      tripCode: string;
+      statusLabel: string;
+      departureLabel?: string | null;
+    }) => {
+      const when = parts.departureLabel
+        ? ` · salida ${parts.departureLabel}`
+        : "";
+      return `${parts.resourceLabel} está en el viaje ${parts.tripCode} (${parts.statusLabel}${when}). Puedes guardar esta reserva; al confirmar, el recurso debe estar libre.`;
+    },
+    softBusyBodyGeneric: (resourceLabel: string) =>
+      `${resourceLabel} está asignado a otro viaje activo. Puedes guardar esta reserva; al confirmar, el recurso debe estar libre.`,
+    softBusyVehicleLabel: "Esta unidad",
+    softBusyDriverLabel: "Este conductor",
+    softBusyTrailerLabel: "Este remolque",
+    softBusyStaffLabel: "Este colaborador",
     licenseCategorySoftTitle: "Categoría SICT y tipo de unidad",
     licenseCategorySoftHint:
       "Es una advertencia operativa: puedes continuar con la asignación.",
     licenseMissingFederalTitle: "Sin licencia federal SICT",
     licenseMissingFederalHint:
-      "El conductor solo tiene licencia estatal o no tiene federal. Puedes asignarlo; Carta Porte exigirá número federal.",
+      "El conductor solo tiene licencia estatal o no tiene federal. Puedes asignarlo; se utilizará la estatal en Carta Porte si no cuenta con federal.",
     licenseSignalsLegend:
       "Señales: licencia vencida (grupo aparte) · categoría SICT ≠ unidad · sin licencia federal. Las dos últimas no bloquean.",
     assignmentClearedTitle: "Asignación actualizada",
@@ -124,12 +143,6 @@ export const basicInfoCopy = {
     alreadyInSupportStaff: "Este empleado ya está en el equipo de apoyo.",
     driverInSupportStaff:
       "El conductor principal no puede figurar en el equipo de apoyo.",
-  },
-  paywall: {
-    title: "Módulo no contratado",
-    description:
-      "El equipo de apoyo interno requiere el add-on de compensación interna. Actívalo desde Tu plan o contacta a Boeltech.",
-    cta: "Ver Tu plan",
   },
   format: {
     vehicleOption: (unitNumber: string, licensePlate: string) =>

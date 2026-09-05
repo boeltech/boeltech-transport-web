@@ -5,7 +5,9 @@ import type { AssignableVehicleItem } from "@features/vehicles/domain";
 
 import {
   applyBusyResourcesToVehicles,
+  applySoftBusyToTrailers,
   buildBusyAssignmentResourceIds,
+  pickPreferredConflict,
 } from "./tripAssignmentBusyResources";
 
 function trip(
@@ -48,6 +50,7 @@ describe("buildBusyAssignmentResourceIds", () => {
     const trips = [
       trip({
         id: "t1",
+        tripCode: "V-IP",
         status: TripStatus.IN_PROGRESS,
         vehicle: { id: "veh-busy", unitNumber: "U-003", licensePlate: "X" },
         driver: { id: "drv-busy", fullName: "Alba Xkarajam" },
@@ -55,6 +58,7 @@ describe("buildBusyAssignmentResourceIds", () => {
       }),
       trip({
         id: "t2",
+        tripCode: "V-SCH",
         status: TripStatus.SCHEDULED,
         vehicle: { id: "veh-sched", unitNumber: "U-004", licensePlate: "Y" },
         driver: { id: "drv-sched", fullName: "Otro" },
@@ -78,6 +82,8 @@ describe("buildBusyAssignmentResourceIds", () => {
       "emp-support-2",
       "emp-support-3",
     ]);
+    expect(busy.vehicleConflicts.get("veh-busy")?.tripCode).toBe("V-IP");
+    expect(busy.driverConflicts.get("drv-sched")?.tripCode).toBe("V-SCH");
   });
 
   it("excludes the trip being edited", () => {
@@ -96,11 +102,52 @@ describe("buildBusyAssignmentResourceIds", () => {
     expect(busy.vehicleIds.size).toBe(0);
     expect(busy.driverIds.size).toBe(0);
     expect(busy.employeeIds.size).toBe(0);
+    expect(busy.vehicleConflicts.size).toBe(0);
+  });
+
+  it("prefers in_progress conflict over scheduled for the same resource", () => {
+    const trips = [
+      trip({
+        id: "t-sched",
+        tripCode: "V-SCH",
+        status: TripStatus.SCHEDULED,
+        scheduledDeparture: new Date("2026-06-01T08:00:00Z"),
+        vehicle: { id: "veh-x", unitNumber: "U", licensePlate: "X" },
+      }),
+      trip({
+        id: "t-ip",
+        tripCode: "V-IP",
+        status: TripStatus.IN_PROGRESS,
+        scheduledDeparture: new Date("2026-06-10T08:00:00Z"),
+        vehicle: { id: "veh-x", unitNumber: "U", licensePlate: "X" },
+      }),
+    ];
+
+    const busy = buildBusyAssignmentResourceIds(trips);
+    expect(busy.vehicleConflicts.get("veh-x")?.tripCode).toBe("V-IP");
+  });
+});
+
+describe("pickPreferredConflict", () => {
+  it("picks earlier scheduled when both scheduled", () => {
+    const earlier = {
+      tripId: "a",
+      tripCode: "A",
+      status: TripStatus.SCHEDULED,
+      scheduledDeparture: new Date("2026-06-01T08:00:00Z"),
+    };
+    const later = {
+      tripId: "b",
+      tripCode: "B",
+      status: TripStatus.SCHEDULED,
+      scheduledDeparture: new Date("2026-06-05T08:00:00Z"),
+    };
+    expect(pickPreferredConflict(later, earlier).tripCode).toBe("A");
   });
 });
 
 describe("applyBusyResourcesToVehicles", () => {
-  it("blocks assignable vehicles that are on an active trip", () => {
+  it("blocks assignable vehicles that are on an active trip (hard mode)", () => {
     const result = applyBusyResourcesToVehicles(
       [vehicle("veh-busy"), vehicle("veh-free")],
       new Set(["veh-busy"]),
@@ -111,6 +158,71 @@ describe("applyBusyResourcesToVehicles", () => {
       blockReason: "Asignado a un viaje activo",
     });
     expect(result.find((v) => v.id === "veh-free")?.canBeAssigned).toBe(true);
+  });
+
+  it("marks busy vehicles as softBusy when softBusySelectable", () => {
+    const conflict = {
+      tripId: "t1",
+      tripCode: "V-100",
+      status: TripStatus.SCHEDULED,
+      scheduledDeparture: new Date("2026-06-03T08:00:00Z"),
+    };
+    const result = applyBusyResourcesToVehicles(
+      [vehicle("veh-busy"), vehicle("veh-free")],
+      new Set(["veh-busy"]),
+      {
+        softBusySelectable: true,
+        conflicts: new Map([["veh-busy", conflict]]),
+      },
+    );
+
+    expect(result.find((v) => v.id === "veh-busy")).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Programado",
+      assignmentConflict: conflict,
+    });
+    expect(result.find((v) => v.id === "veh-free")?.softBusy).toBeUndefined();
+  });
+
+  it("keeps reserved vehicle softBusy when softBusySelectable", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-reserved", {
+          status: "reserved",
+          canBeAssigned: false,
+          blockReason: "Reservado",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Reservado",
+    });
+  });
+
+  it("does not soft-busy hard-blocked docs vehicles", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-docs", {
+          status: "available",
+          canBeAssigned: false,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(["veh-docs"]),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Seguro vencido",
+      softBusy: undefined,
+    });
   });
 
   it("keeps reserved vehicle assignable when it is the trip current assignment", () => {
@@ -149,5 +261,44 @@ describe("applyBusyResourcesToVehicles", () => {
       canBeAssigned: false,
       blockReason: "Reservado",
     });
+  });
+});
+
+describe("applySoftBusyToTrailers", () => {
+  it("makes reserved trailers softBusy when enabled", () => {
+    const result = applySoftBusyToTrailers(
+      [
+        {
+          id: "trl-1",
+          status: "reserved",
+          canBeAssigned: false,
+          blockReason: "Reservado",
+        },
+      ],
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Reservado",
+    });
+  });
+
+  it("leaves reserved trailers hard-blocked when softBusySelectable is false", () => {
+    const result = applySoftBusyToTrailers(
+      [
+        {
+          id: "trl-1",
+          status: "reserved",
+          canBeAssigned: false,
+          blockReason: "Reservado",
+        },
+      ],
+      { softBusySelectable: false },
+    );
+
+    expect(result[0]?.softBusy).toBeUndefined();
+    expect(result[0]?.canBeAssigned).toBe(false);
   });
 });

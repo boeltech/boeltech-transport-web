@@ -28,6 +28,7 @@ import type {
   UpdateCargoInput,
   CreateCargoMovementInput,
   CompleteCargoMovementInput,
+  UpdateCargoMovementStopInput,
   CreateExpenseInput,
   UpdateExpenseInput,
   PaginatedResult,
@@ -160,6 +161,16 @@ export interface ICargoRepository {
     cargoId: string,
     movementId: string,
     input?: CompleteCargoMovementInput,
+  ): Promise<MappedSingleResult<CargoMovement>>;
+
+  /**
+   * Reasigna la parada de un movimiento existente
+   */
+  reassignMovementStop(
+    tripId: string,
+    cargoId: string,
+    movementId: string,
+    input: UpdateCargoMovementStopInput,
   ): Promise<MappedSingleResult<CargoMovement>>;
 }
 

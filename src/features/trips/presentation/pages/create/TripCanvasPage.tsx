@@ -102,16 +102,24 @@ export function TripCanvasPage() {
     [activeTripsPage?.data],
   );
   const vehicles = useMemo(
-    () => applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds),
-    [vehiclesRaw, busyResources.vehicleIds],
+    () =>
+      applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds, {
+        softBusySelectable: true,
+        conflicts: busyResources.vehicleConflicts,
+      }),
+    [vehiclesRaw, busyResources.vehicleIds, busyResources.vehicleConflicts],
   );
   const assignableDrivers = useMemo(
     () =>
       buildAssignableDriversForTripWizard(
         driversPage?.data ?? [],
         busyResources.driverIds,
+        {
+          softBusySelectable: true,
+          conflicts: busyResources.driverConflicts,
+        },
       ),
-    [driversPage?.data, busyResources.driverIds],
+    [driversPage?.data, busyResources.driverIds, busyResources.driverConflicts],
   );
 
   const form = useForm<TripWizardFormValues>({

@@ -78,4 +78,19 @@ describe("tripAssignmentSelectability", () => {
       ),
     ).toBe(false);
   });
+
+  it("does not clear softBusy driver", () => {
+    expect(
+      shouldClearDriverSelection(
+        { canBeAssigned: true, softBusy: true },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(false);
+    expect(
+      isDriverSelectableWithFilters(
+        { canBeAssigned: true, softBusy: true },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(true);
+  });
 });

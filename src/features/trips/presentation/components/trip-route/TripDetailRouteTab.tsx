@@ -11,6 +11,16 @@ import {
 } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
@@ -32,6 +42,7 @@ import {
   isStopDomicilioComplete,
   resolveRouteMasterRowId,
   ROUTE_SLOT_WAYPOINT_PREFIX,
+  stopHasLinkedCargoMovements,
   type RouteStopCategory,
 } from "./tripRouteDetailHelpers";
 import {
@@ -39,17 +50,23 @@ import {
   canPersistComposerStops,
   composerStopTypes,
   type ComposerEndpointDraft,
+  type ComposerWaypointOperations,
   finalizeReplaceStopsPayload,
   isDuplicateComposerEndpointAddress,
   mapTripStopToStopFormData,
   mergeComposerEndpointDraft,
   pickerItemLabel,
+  removeWaypointFromReplaceStopsPayload,
   replaceStopsFromCorridor,
   upsertComposerStop,
 } from "./buildReplaceStopsPayload";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.route;
+
+type RemoveWaypointDialog =
+  | { kind: "confirm"; stopId: string }
+  | { kind: "blocked"; stopId: string };
 
 export interface TripDetailRouteTabProps {
   trip: Trip;
@@ -89,6 +106,7 @@ export function TripDetailRouteTab({
   tripStatus,
   orderedStops,
   canEditStructural,
+  cargos,
   legacyRoute,
 }: TripDetailRouteTabProps) {
   const { toast } = useToast();
@@ -103,6 +121,9 @@ export function TripDetailRouteTab({
   const [waypointDraftIds, setWaypointDraftIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [removeDialog, setRemoveDialog] = useState<RemoveWaypointDialog | null>(
+    null,
+  );
 
   const stopsSyncKey = useMemo(
     () => orderedStops.map((stop) => stop.id).join("|"),
@@ -194,7 +215,11 @@ export function TripDetailRouteTab({
     setCaptureError(null);
   };
 
-  const handlePick = (category: RouteStopCategory, item: AddressSearchListItem) => {
+  const handlePick = (
+    category: RouteStopCategory,
+    item: AddressSearchListItem,
+    waypointOperations?: ComposerWaypointOperations,
+  ) => {
     if (category === "origin" || category === "destination") {
       if (
         isDuplicateComposerEndpointAddress({
@@ -218,12 +243,17 @@ export function TripDetailRouteTab({
         setCaptureError(copy.composer.needBothEnds);
         return;
       }
+      if (!waypointOperations?.pickup && !waypointOperations?.delivery) {
+        setCaptureError(copy.composer.waypointOperationRequired);
+        return;
+      }
       const draftId = selectedRow?.id;
       void persistStops(
         upsertComposerStop({
           existingStops: orderedStops,
           category,
           item,
+          waypointOperations,
         }),
       ).then((ok) => {
         if (ok && draftId && isDraftWaypointSlotId(draftId)) {
@@ -273,6 +303,41 @@ export function TripDetailRouteTab({
     setSelectedId(id);
     setCompleteTarget(null);
     setCaptureError(null);
+  };
+
+  const handleRemoveDraftWaypoint = (draftId: string) => {
+    setWaypointDraftIds((ids) => ids.filter((id) => id !== draftId));
+    setSelectedId((prev) => (prev === draftId ? null : prev));
+    setCaptureError(null);
+  };
+
+  const handleRequestRemoveWaypoint = (stop: TripStop) => {
+    if (stopHasLinkedCargoMovements(stop, ordered, cargos)) {
+      setRemoveDialog({ kind: "blocked", stopId: stop.id });
+      return;
+    }
+    setRemoveDialog({ kind: "confirm", stopId: stop.id });
+  };
+
+  const handleConfirmRemoveWaypoint = async () => {
+    if (!removeDialog || removeDialog.kind !== "confirm") return;
+    if (replaceStops.isPending) return;
+    const stopId = removeDialog.stopId;
+    setRemoveDialog(null);
+    try {
+      const stops = removeWaypointFromReplaceStopsPayload(orderedStops, stopId);
+      await replaceStops.mutateAsync(stops);
+      toast({ title: copy.toast.waypointRemoved, variant: "success" });
+      setSelectedId((prev) => (prev === stopId ? null : prev));
+      setCompleteTarget(null);
+      setCaptureError(null);
+    } catch (error) {
+      toast({
+        title: copy.toast.stopSaveError,
+        description: error instanceof Error ? error.message : undefined,
+        variant: "error",
+      });
+    }
   };
 
   const openStopForm = (stop: TripStop) => {
@@ -455,15 +520,40 @@ export function TripDetailRouteTab({
           </p>
         );
       }
+      const isDraftWaypoint =
+        selectedRow.category === "waypoint" &&
+        isDraftWaypointSlotId(selectedRow.id);
       return (
-        <TripRouteSlotCapture
-          category={selectedRow.category}
-          selectedLabel={captureLabel}
-          cityHint={captureHint || null}
-          disabled={replaceStops.isPending}
-          onPick={handlePick}
-          onCompleteLabel={openCompleteLabel}
-        />
+        <div className="space-y-3">
+          <TripRouteSlotCapture
+            key={selectedRow.id}
+            category={selectedRow.category}
+            seedItem={
+              selectedRow.category === "origin"
+                ? endpointDraft.origin
+                : selectedRow.category === "destination"
+                  ? endpointDraft.destination
+                  : null
+            }
+            selectedLabel={captureLabel}
+            cityHint={captureHint || null}
+            disabled={replaceStops.isPending}
+            onPick={handlePick}
+            onCompleteLabel={openCompleteLabel}
+          />
+          {isDraftWaypoint ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              disabled={replaceStops.isPending}
+              onClick={() => handleRemoveDraftWaypoint(selectedRow.id)}
+            >
+              {copy.action.removeDraftWaypoint}
+            </Button>
+          ) : null}
+        </div>
       );
     }
 
@@ -475,6 +565,11 @@ export function TripDetailRouteTab({
         }
         onEditStop={
           canEditStructural ? () => openStopForm(selectedRow.stop!) : undefined
+        }
+        onRemoveWaypoint={
+          canEditStructural
+            ? () => handleRequestRemoveWaypoint(selectedRow.stop!)
+            : undefined
         }
       />
     );
@@ -561,6 +656,62 @@ export function TripDetailRouteTab({
       </div>
 
       {stopForm}
+
+      <AlertDialog
+        open={removeDialog?.kind === "confirm"}
+        onOpenChange={(open) => {
+          if (!open) setRemoveDialog(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {copy.confirm.removeWaypointTitle}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {copy.confirm.removeWaypointBody}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={replaceStops.isPending}>
+              {copy.action.keepWaypoint}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={replaceStops.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmRemoveWaypoint();
+              }}
+            >
+              {copy.action.confirmRemoveWaypoint}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={removeDialog?.kind === "blocked"}
+        onOpenChange={(open) => {
+          if (!open) setRemoveDialog(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {copy.confirm.removeWaypointBlockedTitle}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {copy.confirm.removeWaypointBlockedBody}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setRemoveDialog(null)}>
+              {copy.action.cancel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

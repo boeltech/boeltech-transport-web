@@ -641,8 +641,15 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
           legalName: api.client.legal_name,
         }
       : undefined,
-    trailers: (api.trailers ?? []).map(mapApiTripTrailer),
-    internalStaff: api.internal_staff?.map(mapApiTripInternalStaff) ?? [],
+    // Omit → undefined (no `[]`) so merge post-PUT can keep previous when API omits relations.
+    trailers:
+      api.trailers !== undefined
+        ? api.trailers.map(mapApiTripTrailer)
+        : undefined,
+    internalStaff:
+      api.internal_staff !== undefined
+        ? api.internal_staff.map(mapApiTripInternalStaff)
+        : undefined,
     stops: api.stops?.map(mapApiStop),
     cargos: api.cargos?.map(mapApiCargo),
     expenses: api.expenses?.map(mapApiExpense),

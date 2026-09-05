@@ -204,6 +204,14 @@ export interface AssignableVehicleItem extends VehicleListItem {
   readonly canBeAssigned: boolean;
   readonly blockReason?: string;
   readonly expiredDocsOverridable?: boolean;
+  /** Draft soft-busy: comprometido en otro viaje pero seleccionable. */
+  readonly softBusy?: boolean;
+  readonly assignmentConflict?: {
+    readonly tripId: string;
+    readonly tripCode: string;
+    readonly status: string;
+    readonly scheduledDeparture: Date | null;
+  };
 }
 
 // ============================================================================

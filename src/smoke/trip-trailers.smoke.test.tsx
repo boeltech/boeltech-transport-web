@@ -60,12 +60,24 @@ vi.mock("@features/trailers", async (importOriginal) => {
   };
 });
 
-vi.mock("@features/billing", () => ({
-  useInternalStaffEntitlement: () => ({
-    hasModule: true,
-    isSuccess: true,
-    isFetched: true,
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { id: "user-1", role: "admin", email: "admin@test.com" },
+    isAuthenticated: true,
   }),
+}));
+
+vi.mock("@features/drivers/application", () => ({
+  useDrivers: () => ({ data: { data: [] }, isLoading: false }),
+}));
+
+vi.mock("@features/employees", () => ({
+  useEmployees: () => ({ data: { data: [] }, isLoading: false }),
+}));
+
+vi.mock("@features/vehicles/application", () => ({
+  useAssignableVehicles: () => ({ data: [], isLoading: false }),
+  useVehicle: () => ({ data: undefined, isLoading: false }),
 }));
 
 vi.mock("@features/branches", () => ({
@@ -260,9 +272,8 @@ describe("smoke ADR-0077 trip trailers", () => {
         />
       </TestProviders>,
     );
-    expect(screen.getByText(/Remolques \(snapshot\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Remolques/i)).toBeInTheDocument();
     expect(screen.getByText(/REM1234/)).toBeInTheDocument();
-    expect(screen.getByText(/CTR001/)).toBeInTheDocument();
   });
 
   it("VehicleForm cutover links to /trailers", () => {

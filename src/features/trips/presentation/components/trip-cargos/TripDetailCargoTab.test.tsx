@@ -15,6 +15,7 @@ import { TripDetailCargoTab } from "./TripDetailCargoTab";
 const mutateAddAsync = vi.fn();
 const mutateUpdateAsync = vi.fn();
 const mutateDelete = vi.fn();
+const mutateReassignAsync = vi.fn();
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
@@ -33,6 +34,11 @@ vi.mock("@features/trips/application", () => ({
     isPending: false,
   }),
   useDeleteCargo: () => ({ mutate: mutateDelete, isPending: false }),
+  useReassignCargoMovementStop: () => ({
+    mutate: vi.fn(),
+    mutateAsync: mutateReassignAsync,
+    isPending: false,
+  }),
 }));
 
 vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
@@ -41,12 +47,20 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
     initialValues,
     editingIndex,
     deliveriesReadOnly,
+    availablePickupStops,
+    onPickupStopChange,
     onSubmit,
   }: {
     open: boolean;
     initialValues: { description?: string; satProductCode?: string } | null;
     editingIndex: number | null;
     deliveriesReadOnly?: boolean;
+    availablePickupStops?: Array<{ index: number; locationName?: string }>;
+    onPickupStopChange?: (stop: {
+      index: number;
+      address: string;
+      city: string;
+    }) => void;
     onSubmit: (
       values: TripCargoFormValues,
       editingIndex: number | null,
@@ -61,6 +75,24 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
         <span data-testid="sheet-deliveries-readonly">
           {deliveriesReadOnly ? "readonly" : "editable"}
         </span>
+        <span data-testid="sheet-pickup-options">
+          {availablePickupStops?.length ?? 0}
+        </span>
+        {onPickupStopChange && (availablePickupStops?.length ?? 0) > 1 ? (
+          <button
+            type="button"
+            data-testid="sheet-change-pickup"
+            onClick={() =>
+              onPickupStopChange({
+                index: 1,
+                address: "Escala",
+                city: "Querétaro",
+              })
+            }
+          >
+            change-pickup
+          </button>
+        ) : null}
         <span data-testid="sheet-description">
           {initialValues?.description ?? ""}
         </span>
@@ -93,6 +125,32 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
           }
         >
           Submit create
+        </button>
+        <button
+          type="button"
+          data-testid="sheet-submit-edit"
+          onClick={() =>
+            void onSubmit(
+              {
+                description: "Tarimas de acero",
+                satProductCode: "50192100",
+                satUnitCode: "H87",
+                satUnitName: "Pieza",
+                currency: "MXN",
+                weight: 200,
+                units: 4,
+                weightInKg: 200,
+                hazardousMaterial: false,
+                requiresHazmat: false,
+                isInsured: false,
+                sectorRequirements: {},
+                movements: [{ stopIndex: 0, movementType: "pickup" }],
+              } as TripCargoFormValues,
+              0,
+            )
+          }
+        >
+          Submit edit
         </button>
       </div>
     ) : null,
@@ -127,6 +185,8 @@ const sampleCargo = {
   requiresHazmat: false,
   movements: [
     {
+      id: "mov-pickup-1",
+      stopId: "st-1",
       stopIndex: 0,
       movementType: "pickup",
       weight: 200,
@@ -146,9 +206,11 @@ describe("TripDetailCargoTab", () => {
   beforeEach(() => {
     mutateAddAsync.mockReset();
     mutateUpdateAsync.mockReset();
+    mutateReassignAsync.mockReset();
     mutateDelete.mockClear();
     mutateAddAsync.mockResolvedValue({});
     mutateUpdateAsync.mockResolvedValue({});
+    mutateReassignAsync.mockResolvedValue({});
   });
 
   it("shows empty without pickup and no add-cargo CTA", () => {
@@ -294,5 +356,61 @@ describe("TripDetailCargoTab", () => {
         ],
       }),
     );
+  });
+
+  it("passes pickup options in edit and PATCHes reassign before PUT update", async () => {
+    const user = userEvent.setup();
+    const waypointPickup = {
+      id: "st-wp",
+      stopType: ["waypoint", "pickup"],
+      address: "Escala 1",
+      city: "Querétaro",
+      state: "QUE",
+      locationName: "Escala Norte",
+      sequenceOrder: 1,
+    } as TripStop;
+    const destination = {
+      id: "st-dest",
+      stopType: ["destination", "delivery"],
+      address: "CEDIS",
+      city: "Monterrey",
+      state: "NL",
+      locationName: "Destino",
+      sequenceOrder: 2,
+    } as TripStop;
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[sampleCargo]}
+          orderedStops={[pickupStop, waypointPickup, destination]}
+          pickupStops={[pickupStop, waypointPickup]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+
+    expect(screen.getByTestId("sheet-pickup-options")).toHaveTextContent("2");
+    await user.click(screen.getByTestId("sheet-change-pickup"));
+    await user.click(screen.getByTestId("sheet-submit-edit"));
+
+    await waitFor(() => {
+      expect(mutateReassignAsync).toHaveBeenCalledTimes(1);
+    });
+    expect(mutateReassignAsync).toHaveBeenCalledWith({
+      cargoId: "cargo-1",
+      movementId: "mov-pickup-1",
+      data: { stopId: "st-wp", stopIndex: 1 },
+    });
+    expect(mutateUpdateAsync).toHaveBeenCalledTimes(1);
   });
 });

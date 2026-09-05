@@ -121,6 +121,9 @@ export const cargoCopy = {
       "No se pudo asociar la carga a una parada del viaje. Revisa la ruta e intenta de nuevo.",
     cargoUpdated: "Carga actualizada",
     cargoUpdateError: "No se pudo actualizar la carga",
+    cargoPickupReassignError: "No se pudo cambiar la parada de carga",
+    cargoPickupMovementMissing:
+      "No se encontró el movimiento de carga para reasignar la parada.",
     cargoRemoved: "Carga eliminada",
     cargoRemoveError: "No se pudo eliminar la carga",
     saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",

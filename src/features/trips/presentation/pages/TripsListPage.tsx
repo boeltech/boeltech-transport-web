@@ -1,18 +1,29 @@
 /**
- * TripsListPage
- * Clean Architecture - Presentation Layer (Pages)
+ * TripsListPage — ADR-0090 WorkbenchPageShell migration.
  *
- * Listado de viajes: operación primero, factura secundaria.
+ * Centro operativo de viajes: awareness strip con buckets por estado,
+ * toolbar con filtros ortogonales, tabla/cards como work surface.
+ *
+ * Decisiones de producto (Capa 1):
+ *   D1 — overdue = toggle en toolbar, no bucket.
+ *   D2 — Select de status eliminado de TripListFilters (el strip lo reemplaza).
+ *   D3 — Workaround v0.5: N queries limit=1 para obtener counts.
+ *   D4 — Buckets condicionados por rol.
+ *   D5 — Bucket activo sincroniza con ?status= en query params.
+ *   D6 — Default sin bucket activo = todos los viajes.
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import {
+  WorkbenchPageShell,
+  type WorkbenchBucket,
+} from "@shared/ui/page-shells";
 import { useListingFilters, useToast } from "@shared/hooks";
 import type { ActiveFilterChip } from "@shared/ui/listing";
-import { formatListingDateRangeLabel } from "@shared/ui/listing";
+import { formatListingDateRangeLabel, ViewModeToggle } from "@shared/ui/listing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,11 +49,13 @@ import {
 } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 
 import {
   useTrips,
   useDeleteTrip,
   useCancelTrip,
+  useTripWorkbenchSummary,
 } from "../../application";
 import { type TripStatusType, TripStatus } from "../../domain";
 import {
@@ -53,11 +66,17 @@ import {
   parseTripInvoiceStatusFilter,
   getTripInvoiceStatusLabel,
 } from "../components";
-import { TRIP_STATUS_CONFIG } from "../index";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { tripsListCopy } from "../copy/listCopy";
+import {
+  type TripWorkbenchBucket,
+  BUCKET_TO_STATUS,
+  getTripWorkbenchBucketsForRole,
+  isTripWorkbenchBucket,
+} from "../config/tripWorkbenchConfig";
+import { mapTripWorkbenchBuckets } from "../utils/mapTripWorkbenchBuckets";
 
 const copy = tripsListCopy;
+const workbenchCopy = tripsListCopy.workbench;
 
 export function TripsListPage() {
   const navigate = useNavigate();
@@ -70,14 +89,70 @@ export function TripsListPage() {
   const [cancelReason, setCancelReason] = useState("");
   const cancelReasonRef = useRef<HTMLTextAreaElement>(null);
 
+  const role = useRole();
+  const isClientPortal = isClientPortalRole(role);
+  const isDriverPortal = isDriverPortalRole(role);
+  const isLeanTripPortal = isClientPortal || isDriverPortal;
+
+  // ── Workbench summary (D3 workaround v0.5) ──────────────────────
+  const {
+    summary: workbenchSummary,
+    isLoading: summaryLoading,
+    isFetching: summaryFetching,
+    hasError: summaryHasError,
+    refetch: refetchSummary,
+  } = useTripWorkbenchSummary();
+
+  // ── Bucket state (D5/D6) ────────────────────────────────────────
+  const statusParam = searchParams.get("status") || "";
+  const activeBucket: TripWorkbenchBucket | null = isTripWorkbenchBucket(statusParam)
+    ? statusParam
+    : null;
+
+  const visibleBuckets = useMemo(
+    () => getTripWorkbenchBucketsForRole(isClientPortal, isDriverPortal),
+    [isClientPortal, isDriverPortal],
+  );
+
+  const handleBucketChange = useCallback(
+    (bucket: TripWorkbenchBucket) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        // Toggle: clicking active bucket clears it (back to "all")
+        if (activeBucket === bucket) {
+          params.delete("status");
+        } else {
+          params.set("status", bucket);
+        }
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [activeBucket, setSearchParams],
+  );
+
+  const buckets: WorkbenchBucket[] = useMemo(
+    () =>
+      mapTripWorkbenchBuckets({
+        summary: workbenchSummary,
+        visibleBuckets,
+        activeBucket,
+        onBucketChange: handleBucketChange,
+      }),
+    [activeBucket, handleBucketChange, visibleBuckets, workbenchSummary],
+  );
+
+  // ── Filters (shared with toolbar) ──────────────────────────────
   const filters = useListingFilters<"status">({
     filters: { status: {} },
     chipLabels: {
-      status: (value) =>
-        `Estado: ${TRIP_STATUS_CONFIG[value as TripStatusType]?.label || value}`,
+      status: (value) => {
+        const label =
+          workbenchCopy.buckets[value as TripWorkbenchBucket] ?? value;
+        return `Estado: ${label}`;
+      },
     },
   });
-  const status = (filters.filters.status || null) as TripStatusType | null;
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -92,11 +167,16 @@ export function TripsListPage() {
       ? ("unassigned" as const)
       : originBranchIdParam || undefined;
 
+  // Derive the status filter from the active bucket
+  const statusFilter: TripStatusType | undefined = activeBucket
+    ? BUCKET_TO_STATUS[activeBucket]
+    : undefined;
+
   const { data, isLoading, isFetching, refetch } = useTrips({
     page: filters.page,
     limit: 10,
     filters: {
-      status: status || undefined,
+      status: statusFilter || undefined,
       search: filters.search || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
@@ -122,10 +202,12 @@ export function TripsListPage() {
 
   const overdueTripCount = overdueCountData?.pagination.total ?? 0;
 
+  // ── Mutations ──────────────────────────────────────────────────
   const deleteMutation = useDeleteTrip({
     onSuccess: () => {
       toast({ title: copy.toast.deleted, variant: "success" });
       refetch();
+      refetchSummary();
     },
     onError: (error) => {
       toast({
@@ -140,6 +222,7 @@ export function TripsListPage() {
     onSuccess: () => {
       toast({ title: copy.toast.cancelled, variant: "success" });
       refetch();
+      refetchSummary();
     },
     onError: (error) =>
       toast({
@@ -149,6 +232,7 @@ export function TripsListPage() {
       }),
   });
 
+  // ── Derived state ──────────────────────────────────────────────
   const trips = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
@@ -162,29 +246,17 @@ export function TripsListPage() {
     hasOverdueFilter ||
     hasOriginBranchFilter;
 
-  /** Filtros del panel (sin búsqueda ni overdue toggle de toolbar). */
-  const hasPanelFilters =
-    Boolean(status) ||
-    hasDateFilter ||
-    hasFiscalFilter ||
-    hasOriginBranchFilter;
+  const hasPanelFilters = hasDateFilter || hasFiscalFilter || hasOriginBranchFilter;
 
   const canCreate = hasPermission("trips", "create");
   const canEdit = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
-  const role = useRole();
-  const isClientPortal = isClientPortalRole(role);
-  const isDriverPortal = isDriverPortalRole(role);
-  const isLeanTripPortal = isClientPortal || isDriverPortal;
 
   const dateFilterChipLabel = copy.chip.date(
-    formatListingDateRangeLabel(
-      dateFrom,
-      dateTo,
-      copy.filter.datePlaceholder,
-    ),
+    formatListingDateRangeLabel(dateFrom, dateTo, copy.filter.datePlaceholder),
   );
 
+  // ── Callbacks ──────────────────────────────────────────────────
   const handleView = useCallback(
     (id: string) => navigate(`/trips/${id}`),
     [navigate],
@@ -219,13 +291,6 @@ export function TripsListPage() {
     setCancelDialogId(null);
     setCancelReason("");
   }, [cancelDialogId, cancelReason, cancelMutation]);
-
-  const handleStatusChange = useCallback(
-    (value: string) => {
-      filters.setFilter("status", value);
-    },
-    [filters],
-  );
 
   const handleApplyDateRange = useCallback(
     (from: string, to: string) => {
@@ -278,11 +343,6 @@ export function TripsListPage() {
     [setSearchParams],
   );
 
-  const clearAllTripsFilters = useCallback(() => {
-    filters.setSearchInput("");
-    setSearchParams(new URLSearchParams());
-  }, [filters, setSearchParams]);
-
   const handleOverdueToggle = useCallback(() => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
@@ -293,12 +353,23 @@ export function TripsListPage() {
     });
   }, [overdueOnly, setSearchParams]);
 
+  const clearAllTripsFilters = useCallback(() => {
+    filters.setSearchInput("");
+    setSearchParams(new URLSearchParams());
+  }, [filters, setSearchParams]);
+
   const goCreateReserve = useCallback(() => {
     navigate("/trips/new");
   }, [navigate]);
 
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+    refetchSummary();
+    toast({ title: copy.refreshSuccess, variant: "success" });
+  }, [refetch, refetchSummary, toast]);
+
+  // ── Active filter chips ────────────────────────────────────────
   const activeFilterChips: ActiveFilterChip[] = [
-    ...filters.activeChips,
     ...(fiscalAttentionOnly
       ? [
           {
@@ -365,9 +436,30 @@ export function TripsListPage() {
       : []),
   ];
 
+  // ── Empty state per bucket ─────────────────────────────────────
+  const emptyTitle = hasOverdueFilter
+    ? copy.empty.overdueTitle
+    : isClientPortal
+      ? copy.empty.titleClient
+      : isDriverPortal
+        ? copy.empty.titleDriver
+        : activeBucket
+          ? `No hay viajes ${workbenchCopy.buckets[activeBucket].toLowerCase()}`
+          : copy.empty.title;
+
+  const emptyDescription = hasOverdueFilter
+    ? copy.empty.overdueDescription
+    : hasFilters
+      ? copy.empty.filteredDescription
+      : isClientPortal
+        ? copy.empty.noDataDescriptionClient
+        : isDriverPortal
+          ? copy.empty.noDataDescriptionDriver
+          : copy.empty.noDataDescription;
+
   return (
     <>
-      <ListPageShell
+      <WorkbenchPageShell
         title={
           isClientPortal
             ? copy.page.titleClient
@@ -382,7 +474,7 @@ export function TripsListPage() {
               ? copy.page.descriptionDriver
               : copy.page.description
         }
-        beforeToolbar={
+        beforeAwareness={
           !isLeanTripPortal && !overdueOnly && overdueTripCount > 0 ? (
             <Alert variant="warning">
               <AlertTriangle className="h-4 w-4" />
@@ -408,6 +500,11 @@ export function TripsListPage() {
           onClick: goCreateReserve,
           visible: canCreate,
         }}
+        buckets={buckets}
+        bucketsAriaLabel={workbenchCopy.scorecardAriaLabel}
+        bucketsLoading={summaryLoading}
+        isDegraded={summaryHasError}
+        degradedMessage={workbenchCopy.degradedMessage}
         toolbar={{
           search: {
             ...filters.searchProps,
@@ -420,13 +517,11 @@ export function TripsListPage() {
           filters: (
             <TripListFilters
               key={hasPanelFilters ? "filters-active" : "filters-idle"}
-              status={status}
               fiscalAttentionOnly={fiscalAttentionOnly}
               invoiceStatusFilter={invoiceStatusFilter}
               dateFrom={dateFrom}
               dateTo={dateTo}
               hasActiveFilters={hasPanelFilters}
-              onStatusChange={handleStatusChange}
               onFiscalAttentionChange={handleFiscalAttentionChange}
               onInvoiceStatusChange={handleInvoiceStatusChange}
               onApplyDateRange={handleApplyDateRange}
@@ -442,9 +537,7 @@ export function TripsListPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      filters.setFilter("status", TripStatus.DRAFT)
-                    }
+                    onClick={() => handleBucketChange("draft")}
                   >
                     {copy.actions.viewDrafts}
                   </Button>
@@ -463,20 +556,83 @@ export function TripsListPage() {
                   </Button>
                 </>
               ) : null}
+              <ViewModeToggle {...filters.viewModeProps} />
             </>
           ),
-          onRefresh: async () => {
-            await refetch();
-            toast({ title: copy.refreshSuccess, variant: "success" });
-          },
-          isRefreshing: isFetching,
+          onRefresh: handleRefresh,
+          isRefreshing: isFetching || summaryFetching,
           activeFilterChips,
           onClearFilters: clearAllTripsFilters,
           hasFilters,
-          viewMode: filters.viewModeProps,
         }}
-        isLoading={isLoading}
-        items={trips}
+        renderContent={() => {
+          if (isLoading) {
+            return (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TripCardSkeleton key={i} />
+                ))}
+              </div>
+            );
+          }
+
+          if (trips.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                <Search className="h-10 w-10 text-muted-foreground" />
+                <div className="space-y-1.5">
+                  <p className="text-lg font-semibold">{emptyTitle}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {emptyDescription}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {canCreate ? (
+                    <Button onClick={goCreateReserve} leftIcon={<CalendarPlus className="h-4 w-4" />}>
+                      {copy.actions.create}
+                    </Button>
+                  ) : null}
+                  {hasFilters ? (
+                    <Button variant="outline" onClick={clearAllTripsFilters}>
+                      {copy.actions.clearFilters}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          }
+
+          if (filters.viewMode === "cards") {
+            return (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {trips.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    onView={handleView}
+                    onEdit={canEdit ? handleEdit : undefined}
+                    onDelete={canDelete ? handleDelete : undefined}
+                    onCancel={canEdit ? handleCancel : undefined}
+                    hideClient={isLeanTripPortal}
+                  />
+                ))}
+              </div>
+            );
+          }
+
+          return (
+            <TripTable
+              trips={trips}
+              isLoading={isLoading}
+              onView={handleView}
+              onEdit={canEdit ? handleEdit : undefined}
+              onDelete={canDelete ? handleDelete : undefined}
+              onCancel={canEdit ? handleCancel : undefined}
+              hideClientColumn={isLeanTripPortal}
+              hideFiscalAttentionBadge={isLeanTripPortal}
+            />
+          );
+        }}
         pagination={
           pagination
             ? {
@@ -488,74 +644,9 @@ export function TripsListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
-        entityLabelPlural={
-          isClientPortal
-            ? copy.entityLabelPluralClient
-            : isDriverPortal
-              ? copy.entityLabelPluralDriver
-              : copy.entityLabelPlural
-        }
-        renderTable={() => (
-          <TripTable
-            trips={trips}
-            isLoading={isLoading}
-            onView={handleView}
-            onEdit={canEdit ? handleEdit : undefined}
-            onDelete={canDelete ? handleDelete : undefined}
-            onCancel={canEdit ? handleCancel : undefined}
-            hideClientColumn={isLeanTripPortal}
-            hideFiscalAttentionBadge={isLeanTripPortal}
-          />
-        )}
-        renderCards={() =>
-          trips.map((trip) => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              onView={handleView}
-              onEdit={canEdit ? handleEdit : undefined}
-              onDelete={canDelete ? handleDelete : undefined}
-              onCancel={canEdit ? handleCancel : undefined}
-              hideClient={isLeanTripPortal}
-            />
-          ))
-        }
-        renderCardSkeleton={() => <TripCardSkeleton />}
-        emptyState={{
-          icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title: hasOverdueFilter
-            ? copy.empty.overdueTitle
-            : isClientPortal
-              ? copy.empty.titleClient
-              : isDriverPortal
-                ? copy.empty.titleDriver
-                : copy.empty.title,
-          description: hasOverdueFilter
-            ? copy.empty.overdueDescription
-            : hasFilters
-              ? copy.empty.filteredDescription
-              : isClientPortal
-                ? copy.empty.noDataDescriptionClient
-                : isDriverPortal
-                  ? copy.empty.noDataDescriptionDriver
-                  : copy.empty.noDataDescription,
-          cta: canCreate
-            ? {
-                label: copy.actions.create,
-                icon: <CalendarPlus className="h-4 w-4" />,
-                onClick: goCreateReserve,
-              }
-            : undefined,
-          secondaryCta: hasFilters
-            ? {
-                label: copy.actions.clearFilters,
-                onClick: clearAllTripsFilters,
-                variant: "outline",
-              }
-            : undefined,
-        }}
       />
 
+      {/* Delete confirmation */}
       <AlertDialog
         open={!!pendingDeleteId}
         onOpenChange={(open) => !open && setPendingDeleteId(null)}
@@ -579,6 +670,7 @@ export function TripsListPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Cancel confirmation */}
       <Dialog
         open={!!cancelDialogId}
         onOpenChange={(open) => !open && setCancelDialogId(null)}

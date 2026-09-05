@@ -143,6 +143,9 @@ export type {
   // Summary Types
   ExpensesSummary,
   CargosSummary,
+
+  // Workbench (ADR-0090)
+  TripWorkbenchSummary,
 } from "./entities";
 
 export type {
@@ -174,10 +177,9 @@ export type {
   // Cargo Movement Inputs
   CreateCargoMovementInput,
   CompleteCargoMovementInput,
-
-  // Cargo Inputs
   CreateCargoInput,
   UpdateCargoInput,
+  UpdateCargoMovementStopInput,
 
   // Expense Inputs
   CreateExpenseInput,
