@@ -2,6 +2,10 @@
  * Namespace: drivers.copy.detail.*
  * Copy del detalle de conductor (header, capacidades, tabs, alertas).
  */
+
+/** Puesto requerido en BD para alta de conductor — lockstep API `DRIVER_ELIGIBLE_POSITION`. */
+export const DRIVER_ELIGIBLE_POSITION = "Conductor" as const;
+
 export const driversCopy = {
   detail: {
     title: {

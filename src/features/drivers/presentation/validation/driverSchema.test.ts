@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getTodayString } from "@shared/utils/dateUtils";
 import {
   defaultDriverFormValues,
   driverFormDataToCreateDriverDTO,
@@ -77,6 +78,36 @@ describe("driverSchema", () => {
           i.message.includes("licencia federal"),
         ),
       ).toBe(true);
+      expect(
+        result.error.issues.some((i) =>
+          i.message.includes("al menos una licencia"),
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("al teclear solo el número federal no marca «sin licencia»", () => {
+    const result = driverSchema.safeParse(
+      baseValid({
+        federalLicenseNumber: "LIC",
+        federalLicenseCategory: undefined,
+        federalLicenseExpiry: "",
+        stateLicenseNumber: "",
+        stateLicenseExpiry: "",
+        stateIssuingState: "",
+      }),
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const numberIssues = result.error.issues.filter((i) =>
+        i.path.includes("federalLicenseNumber"),
+      );
+      expect(numberIssues).toHaveLength(0);
+      expect(
+        result.error.issues.some((i) =>
+          i.message.includes("Completa número, categoría SICT"),
+        ),
+      ).toBe(true);
     }
   });
 
@@ -125,6 +156,57 @@ describe("driverSchema", () => {
     ).toBe(true);
     expect(
       driverSchema.safeParse(baseValid({ psychometricTestResult: "" })).success,
+    ).toBe(true);
+  });
+
+  it("rechaza vencimiento federal en el pasado", () => {
+    const result = driverSchema.safeParse(
+      baseValid({ federalLicenseExpiry: "2020-01-15" }),
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (i) =>
+            i.path.includes("federalLicenseExpiry") &&
+            i.message.includes("vencimiento federal"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rechaza vencimiento estatal en el pasado", () => {
+    const result = driverSchema.safeParse(
+      baseValid({
+        federalLicenseNumber: "",
+        federalLicenseCategory: undefined,
+        federalLicenseExpiry: "",
+        stateLicenseNumber: "EST-9",
+        stateLicenseExpiry: "2019-06-01",
+        stateIssuingState: "Jalisco",
+      }),
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (i) =>
+            i.path.includes("stateLicenseExpiry") &&
+            i.message.includes("vencimiento estatal"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("acepta vencimiento federal hoy o en el futuro", () => {
+    const today = getTodayString();
+    expect(
+      driverSchema.safeParse(baseValid({ federalLicenseExpiry: today })).success,
+    ).toBe(true);
+    expect(
+      driverSchema.safeParse(
+        baseValid({ federalLicenseExpiry: "2099-12-31" }),
+      ).success,
     ).toBe(true);
   });
 });

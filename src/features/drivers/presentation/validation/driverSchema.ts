@@ -14,6 +14,7 @@
  */
 
 import { z } from "zod";
+import { isExpired } from "@shared/utils/dateUtils";
 import {
   LicenseType,
   LICENSE_TYPE_LABELS,
@@ -252,11 +253,30 @@ export const driverSchema = z.object({
     }
   }
 
-  if (!federalComplete && !stateComplete) {
+  // Solo si ambos grupos están vacíos. Si el usuario ya empezó a llenar uno,
+  // las reglas de "grupo completo" arriba bastan (evita el falso "sin licencia"
+  // en mode onChange al teclear el primer carácter).
+  if (!federalAny && !stateAny) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Registra al menos una licencia: federal SICT o estatal",
       path: ["federalLicenseNumber"],
+    });
+  }
+
+  if (federalExpiry && isExpired(federalExpiry)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La fecha de vencimiento federal no puede ser en el pasado",
+      path: ["federalLicenseExpiry"],
+    });
+  }
+
+  if (stateExpiry && isExpired(stateExpiry)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La fecha de vencimiento estatal no puede ser en el pasado",
+      path: ["stateLicenseExpiry"],
     });
   }
 });

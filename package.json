@@ -43,7 +43,8 @@
     "test:smoke:invoice-auto-dispatch": "vitest run src/smoke/invoice-auto-dispatch.smoke.test.tsx src/features/clients/presentation/validation/clientSchema.test.ts src/features/invoicing/infrastructure/mappers.test.ts",
     "test:smoke:settlements": "vitest run src/smoke/settlements-workflow.smoke.test.tsx src/features/settlements",
     "test:smoke:compensation-templates": "vitest run src/smoke/compensation-templates.smoke.test.tsx src/features/compensation",
-    "test:smoke:location-field": "vitest run src/smoke/location-field.smoke.test.tsx src/shared/ui/location/locationValueToSatAddressFields.test.ts src/shared/ui/location/locationSearchCompositor.test.ts"
+    "test:smoke:location-field": "vitest run src/smoke/location-field.smoke.test.tsx src/shared/ui/location/locationValueToSatAddressFields.test.ts src/shared/ui/location/locationSearchCompositor.test.ts",
+    "test:smoke:drivers": "vitest run src/smoke/drivers-workflow.smoke.test.tsx src/features/drivers/presentation/validation/driverSchema.test.ts src/features/drivers/application/hooks/useCreateDriver.test.ts"
   },
   "dependencies": {
     "@boeltech/cfdi-domain": "0.23.0",

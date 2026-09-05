@@ -63,7 +63,7 @@ import { useEmployeeBasic } from "@features/employees";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
 import { DriverEditEmployeeBanner } from "./DriverEditEmployeeBanner";
-import { driversCopy } from "../copy";
+import { driversCopy, DRIVER_ELIGIBLE_POSITION } from "../copy";
 import { resolveDriverFormField } from "../helpers/applyDriverApiFieldErrors";
 import {
   driverSchema,
@@ -485,7 +485,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
               setValue("employeeId", value, { shouldValidate: true })
             }
             error={errors.employeeId?.message}
-            positionEquals={mode === "create" ? "Conductor" : undefined}
+            positionEquals={mode === "create" ? DRIVER_ELIGIBLE_POSITION : undefined}
           />
       </FormSectionCard>
       </div>

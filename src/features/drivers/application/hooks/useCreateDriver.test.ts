@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { employeeQueryKeys } from "@features/employees";
 import { driverQueryKeys, type Driver } from "../../domain";
 
 const invalidateQueries = vi.fn();
@@ -53,6 +54,9 @@ describe("useCreateDriver", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: driverQueryKeys.available(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: employeeQueryKeys.availableForDriver(),
     });
     expect(onSuccess).toHaveBeenCalledWith(
       driverStub,

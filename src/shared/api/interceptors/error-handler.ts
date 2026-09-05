@@ -190,6 +190,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   DRIVER_NOT_ASSIGNABLE: "El conductor no puede ser asignado",
   DRIVER_ALREADY_ASSIGNED: "El conductor ya está asignado en esas fechas",
   LICENSE_NUMBER_EXISTS: "El número de licencia ya está registrado",
+  LICENSE_EXPIRED:
+    "La fecha de vencimiento de la licencia no puede ser en el pasado",
   CURP_EXISTS: "El CURP ya está registrado",
   RFC_EMPLOYEE_EXISTS: "El RFC ya está registrado",
   EMPLOYEE_DRIVER_ON_TRIP:
@@ -201,11 +203,15 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
 
   // ── Empleados ──────────────────────────────────────────────────────────────
   EMPLOYEE_NOT_FOUND: "Empleado no encontrado",
+  EMPLOYEE_ALREADY_DRIVER:
+    "El empleado ya está registrado como conductor activo",
+  EMPLOYEE_INVALID_DRIVER_POSITION:
+    "Solo empleados con puesto «Conductor» pueden registrarse como conductores",
   EMPLOYEE_ALREADY_TERMINATED: "El empleado ya está dado de baja",
 
   // ── Facturación ────────────────────────────────────────────────────────────
   TRIP_ALREADY_INVOICED: "El viaje ya está vinculado a una factura activa",
-  COMPANY_SETTINGS_INCOMPLETE: "Configura los datos del emisor en Configuración → Empresa antes de facturar",
+  COMPANY_SETTINGS_INCOMPLETE: "Configura los datos del emisor en Configuración → General antes de facturar",
   PAC_NOT_IMPLEMENTED: "El PAC configurado no está disponible. Ve a Configuración → Datos para facturar.",
   PAC_CONFIG_ERROR:
     "El servicio de timbrado no está configurado correctamente en el servidor. Contacta a soporte.",

@@ -10,6 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { employeeQueryKeys } from "@features/employees";
 import {
   type Driver,
   type CreateDriverDTO,
@@ -67,6 +68,9 @@ export function useCreateDriver(
     onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
+      queryClient.invalidateQueries({
+        queryKey: employeeQueryKeys.availableForDriver(),
+      });
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     onError: options?.onError,

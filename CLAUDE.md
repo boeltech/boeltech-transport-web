@@ -35,6 +35,7 @@ npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cut
 npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
 npm run test:smoke:settlements # smoke ADR-0085 liquidaciones y compensación a operadores
 npm run test:smoke:compensation-templates # smoke ADR-0089 plantillas, corredores y preview liquidación
+npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 ```
 
 **Liquidaciones y compensación a operadores (ADR-0085 / ADR-0086 / ADR-0087, F0–F7):** liquidaciones de viaje (`/finance/settlements`), pre-autorización de anticipos, cálculo reactivo en vivo (`/finance/settlements/new`), detalle inmutable con balance strip, auditoría maker-checker, vista previa imprimible y recibo de firma. Smoke `npm run test:smoke:settlements`. Guía: `D:\cowork\boeltech\erp-transport\docs\finanzas\liquidaciones-operadores-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0086-esquemas-compuestos-compensacion-operadores.md` · gobernanza: `D:\cowork\boeltech\erp-transport\design\adr\0087-gobernanza-tarifas-compensacion-operadores.md`.
