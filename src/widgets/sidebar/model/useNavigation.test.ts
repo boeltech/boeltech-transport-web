@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Circle } from "lucide-react";
+import { ROLES } from "@shared/constants/roles";
+import { ROLE_DEFINITIONS } from "@shared/permissions/domain/rolePermissions";
+import type { Module, Action } from "@shared/permissions/domain/entities";
 import type { NavItem } from "./types";
-import { findActiveNavItem } from "./useNavigation";
+import { navigationConfig } from "./navigation";
+import { filterNavigation, findActiveNavItem } from "./useNavigation";
 
 const hub: NavItem = {
   id: "finance-hub",
-  label: "Resumen",
+  label: "Panorama",
   path: "/finance",
   icon: Circle,
   exactPath: true,
@@ -60,7 +64,7 @@ describe("findActiveNavItem", () => {
     ).toBe("finance-approvals");
   });
 
-  it("does not mark Resumen active on nested finance routes", () => {
+  it("does not mark Panorama active on nested finance routes", () => {
     expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
       "finance-cobros",
     );
@@ -75,5 +79,61 @@ describe("findActiveNavItem", () => {
     );
 
     expect(active?.id).toBe("users-activity");
+  });
+});
+
+describe("filterNavigation", () => {
+  const createPermissionChecker = (role: keyof typeof ROLE_DEFINITIONS) => {
+    const permissions = new Set(ROLE_DEFINITIONS[role].permissions);
+    return (module: Module, action: Action) => {
+      if (role === "admin") return true;
+      return permissions.has(`${module}.${action}` as const);
+    };
+  };
+
+  it("allows dispatcher to see reports group and read-only invoices without finance group", () => {
+    const hasPermission = createPermissionChecker("dispatcher");
+    const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.DISPATCHER);
+    const groupIds = filtered.map((g) => g.id);
+
+    expect(groupIds).toContain("reports");
+    expect(groupIds).toContain("billing");
+    expect(groupIds).not.toContain("finance");
+
+    const reportsGroup = filtered.find((g) => g.id === "reports");
+    expect(reportsGroup?.items.map((i) => i.id)).toEqual(["reports-list"]);
+
+    const billingGroup = filtered.find((g) => g.id === "billing");
+    expect(billingGroup?.items.map((i) => i.id)).toEqual([
+      "finance-invoices",
+      "finance-dispatch-runs",
+    ]);
+  });
+
+  it("allows accountant to see billing, finance and reports groups", () => {
+    const hasPermission = createPermissionChecker("accountant");
+    const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.ACCOUNTANT);
+    const groupIds = filtered.map((g) => g.id);
+
+    expect(groupIds).toContain("billing");
+    expect(groupIds).toContain("finance");
+    expect(groupIds).toContain("reports");
+
+    const billingGroup = filtered.find((g) => g.id === "billing");
+    expect(billingGroup?.items.map((i) => i.id)).toEqual([
+      "finance-invoiceable",
+      "finance-invoices",
+      "finance-cobros",
+      "finance-dispatch-runs",
+    ]);
+
+    const financeGroup = filtered.find((g) => g.id === "finance");
+    expect(financeGroup?.items.map((i) => i.id)).toEqual([
+      "finance-hub",
+      "finance-approvals",
+      "finance-settlements",
+      "finance-agreements",
+      "finance-analysis",
+    ]);
   });
 });

@@ -12,10 +12,97 @@ Copia extendida (design system): `D:\cowork\boeltech\erp-transport\docs\design-s
 |-------|-----|----------|
 | `WizardPageShell` | Alta por pasos (create) con navegación Siguiente/Anterior y revisión final | `DriverCreatePage`, `CreateVehiclePage`, `BranchCreatePage`, `ClientCreatePage`, `EmployeeFormPage`, `TripFormPage` (create/edit) |
 | `FormPageShell` | Edición en una sola vista (sin pasos) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
+| `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards, paginación | Vehículos, clientes, registry de liquidaciones |
+| `HubPageShell` | Landing de módulo de config: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
+| `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector + footer (ADR-0091) | `CompensationSchemeBuilderPage` |
+| `WorkbenchPageShell` | Centro operativo: estado → triage por buckets → actuar (ADR-0090) | `SettlementsListPage`, `ApprovalInboxPage` |
 | Wizard en diálogo | Flujos acotados dentro de un modal, sin ruta propia | `CatalogImportWizard` |
 | Onboarding | Pasos siempre válidos; sin RHF por paso | `OnboardingPage` (excepción documentada) |
 
+**Taxonomía:** CRUD · Hub · Builder · Workbench — checklist y anatomía en
+`docs/design-system/patterns.md` (ADR-0090 / ADR-0091).
+
 **Regla:** las `*Page` de features importan el shell desde `@shared/ui/page-shells/...`, no primitivas de `@shared/ui/wizard` (ESLint `no-restricted-imports` en `presentation/pages`).
+
+---
+
+## HubPageShell (resumen)
+
+Anatomía fija: Header → **Readiness?** → Orientation? → Guide? → Nav? → Children → Related config?  
+(Actions viven en el header, a la derecha.)
+
+```tsx
+import { HubPageShell } from "@shared/ui/page-shells";
+
+<HubPageShell
+  title="…"
+  description="…"
+  readiness={[
+    { id: "a", label: "esquemas activos", value: 3, status: "ok", href: "/…" },
+  ]}
+  readinessAriaLabel="Estado de configuración del módulo"
+  orientation={{ text: "…", link: { label: "…", href: "/…" } }}
+  nav={[{ id: "a", label: "A", href: "/…" }]}
+  activeNavId="a"
+  guide={{ title: "…", steps: ["…"], storageKey: "hub-guide" }}
+>
+  <Outlet />
+</HubPageShell>
+```
+
+Slots opcionales (compat v1 sin ellos). `readiness` = chips de salud de **configuración** (no confundir con awareness de Workbench).  
+Tests: `HubPageShell.test.tsx`.  
+ADR-0091 D3/F5 + D3.2 · SDD: `design/sdd/hub-page-shell/`.
+
+---
+
+## BuilderPageShell (resumen)
+
+Anatomía fija: Header (back + título) → banner? → Section nav + Canvas + Inspector → Footer sticky.
+
+```tsx
+import { BuilderPageShell } from "@shared/ui/page-shells";
+
+<BuilderPageShell
+  title="…"
+  description="…"
+  backHref="/…"
+  sections={sections} // BuilderSection[] con status complete|partial|empty
+  activeSectionId={activeId}
+  onSectionChange={setActiveId}
+  banner={apiError ? <Alert>…</Alert> : null}
+  renderCanvas={(id) => /* … */}
+  renderInspector={() => /* resumen */}
+  footerActions={[{ id: "save", label: "Guardar", onClick }]}
+/>
+```
+
+Desktop: 3 columnas (nav en panel muted, canvas plano, inspector card). Mobile: tabs + inspector en Sheet.  
+Canvas sin card chrome (la feature aporta `FormSectionCard`); el shell muestra el `h2` de la sección activa.  
+Tabs: `tablist`/`tab`/`tabpanel` + flechas / Home / End.  
+Tests: `BuilderPageShell.test.tsx`. Showcase: `/design-system` → Patrones.  
+ADR: `design/adr/0091-…` · SDD: `design/sdd/builder-page-shell/`.
+
+---
+
+## WorkbenchPageShell (resumen)
+
+Anatomía fija: Header → Awareness strip (buckets) → Toolbar → `renderContent()` → Pagination? → Related config?
+
+```tsx
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
+
+<WorkbenchPageShell
+  title="…"
+  buckets={buckets} // WorkbenchBucket[]
+  showHeader={!embedded}
+  toolbar={{ search, filters, onRefresh }}
+  renderContent={() => /* tabla / cola / empty por bucket */}
+  relatedConfig={{ label: "…", href: "/…" }}
+/>
+```
+
+Tests: `WorkbenchPageShell.test.tsx`. Showcase: `/design-system` → Patrones.
 
 ---
 
@@ -170,6 +257,6 @@ Direcciones SAT: no duplicar reglas del paquete; ADR-0043 y `src/shared/cfdi/add
 |--------|---------|
 | `WizardPageShell`, `WizardFormRef` | `WizardPageShell.tsx` |
 | `useWizardFormRef` | `useWizardFormRef.ts` |
-| Otros shells | `ListPageShell`, `DetailPageShell`, `FormPageShell`, `SettingsPageShell` |
+| Otros shells | `ListPageShell`, `DetailPageShell`, `FormPageShell`, `SettingsPageShell`, `HubPageShell`, `BuilderPageShell`, `WorkbenchPageShell` |
 
 Barrel: `index.ts` (pages pueden importar paths directos al archivo del shell; ambos son válidos en el repo actual).

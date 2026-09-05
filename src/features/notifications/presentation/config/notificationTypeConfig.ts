@@ -1,7 +1,9 @@
 import {
   AlertTriangle,
+  Banknote,
   Bell,
   ClipboardCheck,
+  FileCheck,
   Info,
   MailWarning,
   Mail,
@@ -25,6 +27,14 @@ export const NOTIFICATION_TYPE_CONFIG: Record<
   trip_expense_pending: {
     icon: ClipboardCheck,
     badgeVariant: "warning",
+  },
+  driver_advance_pending: {
+    icon: Banknote,
+    badgeVariant: "warning",
+  },
+  settlement_pending: {
+    icon: FileCheck,
+    badgeVariant: "info",
   },
   overdue_trip: {
     icon: Truck,

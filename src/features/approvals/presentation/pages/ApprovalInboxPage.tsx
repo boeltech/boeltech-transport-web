@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ClipboardCheck, Info } from "lucide-react";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { useAuth } from "@features/auth";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import {
@@ -22,6 +24,7 @@ import {
 } from "@features/trips/domain";
 import {
   useApprovals,
+  useApprovalsPendingCountsByType,
   useApproveApprovable,
   useBulkApprovals,
   useRejectApprovable,
@@ -31,6 +34,7 @@ import {
   DEFAULT_APPROVAL_TYPE,
   isApprovableActionable,
   type ApprovableItem,
+  type ApprovableType,
   type ApprovalStatus,
   type BulkOperation,
 } from "../../domain";
@@ -49,7 +53,14 @@ import {
   resolveTripFilterLabel,
   type ApprovalContextFilterParams,
 } from "../utils/approvalInboxFilters";
-import { formatApprovableApproveConfirmDescription } from "../utils/approvalConfirmHelpers";
+import {
+  formatApprovableApproveConfirmDescription,
+  isSelfSubmittedApproval,
+} from "../utils/approvalConfirmHelpers";
+import {
+  mapApprovalWorkbenchBuckets,
+  type ApprovalWorkbenchType,
+} from "../utils/mapApprovalWorkbenchBuckets";
 import { formatListingDateRangeLabel } from "@shared/ui/listing";
 
 const copy = approvalsCopy.inbox;
@@ -64,15 +75,19 @@ function resolveListStatus(status: string): ApprovalStatus | undefined {
 export interface ApprovalInboxPageProps {
   /**
    * Renderizada como tab del hub de Finanzas: el encabezado lo pone el shell
-   * del hub y la descripción baja al bloque previo al toolbar.
+   * del hub y la descripción baja al bloque previo al awareness strip.
    */
   embedded?: boolean;
 }
 
-export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps = {}) {
+export function ApprovalInboxPage({
+  embedded = false,
+}: ApprovalInboxPageProps = {}) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("finance_approvals", "update");
+  const currentUserId = user?.id;
   const [searchParams, setSearchParams] = useSearchParams();
   const defaultsAppliedRef = useRef(false);
 
@@ -80,19 +95,22 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
     if (defaultsAppliedRef.current) return;
     defaultsAppliedRef.current = true;
 
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      let changed = false;
-      if (!params.get("type")) {
-        params.set("type", DEFAULT_APPROVAL_TYPE);
-        changed = true;
-      }
-      if (!params.get("status")) {
-        params.set("status", "pending");
-        changed = true;
-      }
-      return changed ? params : prev;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        let changed = false;
+        if (!params.get("type")) {
+          params.set("type", DEFAULT_APPROVAL_TYPE);
+          changed = true;
+        }
+        if (!params.get("status")) {
+          params.set("status", "pending");
+          changed = true;
+        }
+        return changed ? params : prev;
+      },
+      { replace: true },
+    );
   }, [setSearchParams]);
 
   const filters = useListingFilters<
@@ -121,8 +139,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
   const hasDateFilter = !!fromDate || !!toDate;
 
   const approvalType =
-    (searchParams.get("type") as typeof DEFAULT_APPROVAL_TYPE) ||
-    DEFAULT_APPROVAL_TYPE;
+    (searchParams.get("type") as ApprovableType) || DEFAULT_APPROVAL_TYPE;
 
   const contextFilters = useMemo<ApprovalContextFilterParams>(
     () => ({
@@ -159,6 +176,9 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
 
   const { data, isLoading, isFetching, isError, error, refetch } =
     useApprovals(listFilters);
+
+  const { data: pendingCounts, isLoading: pendingCountsLoading } =
+    useApprovalsPendingCountsByType();
 
   const showLoadError = isError && !isLoading;
   const items: ApprovableItem[] = showLoadError ? [] : (data?.data ?? []);
@@ -210,7 +230,8 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
   const activeFilterChips = useMemo(() => {
     const baseChips = filters.activeChips.filter(
       (chip) =>
-        (chip.id !== "status" || filters.filters.status !== APPROVAL_STATUS_ALL) &&
+        (chip.id !== "status" ||
+          filters.filters.status !== APPROVAL_STATUS_ALL) &&
         chip.id !== "fromDate" &&
         chip.id !== "toDate",
     );
@@ -287,7 +308,9 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
   }, [filters, setSearchParams]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [approveTarget, setApproveTarget] = useState<ApprovableItem | null>(null);
+  const [approveTarget, setApproveTarget] = useState<ApprovableItem | null>(
+    null,
+  );
   const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
   const [rejectSheetOpen, setRejectSheetOpen] = useState(false);
   const [rejectTargets, setRejectTargets] = useState<ApprovableItem[]>([]);
@@ -301,45 +324,56 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
     [approveTarget],
   );
 
-  const beforeToolbar = useMemo(() => {
-    const readOnlyNotice = canUpdate ? null : (
-      <DetailAlertCard
-        severity="info"
-        icon={<Info className="h-4 w-4" />}
-        title={copy.readOnly.title}
-        items={[{ text: copy.readOnly.description }]}
-      />
-    );
+  const handleTypeChange = useCallback(
+    (newType: ApprovalWorkbenchType | string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("type", newType);
+        next.delete("category");
+        next.set("page", "1");
+        return next;
+      });
+      setSelectedIds(new Set());
+    },
+    [setSearchParams],
+  );
 
-    if (!embedded) return readOnlyNotice ?? undefined;
+  const buckets = useMemo(
+    () =>
+      mapApprovalWorkbenchBuckets({
+        activeType: approvalType,
+        counts: pendingCounts,
+        onTypeChange: handleTypeChange,
+      }),
+    [approvalType, handleTypeChange, pendingCounts],
+  );
 
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">{copy.description}</p>
-        {readOnlyNotice}
-      </div>
-    );
-  }, [canUpdate, embedded]);
+  const beforeAwareness = useMemo(() => {
+    const parts: ReactNode[] = [];
 
-  const listEmptyState = useMemo(() => {
-    if (showLoadError) {
-      return {
-        icon: <ClipboardCheck className="h-10 w-10 text-muted-foreground" />,
-        title: copy.errors.loadTitle,
-        description: getErrorMessage(error),
-        cta: {
-          label: copy.errors.retry,
-          onClick: handleRetryLoad,
-        },
-      };
+    if (embedded) {
+      parts.push(
+        <p key="desc" className="text-sm text-muted-foreground">
+          {copy.description}
+        </p>,
+      );
     }
 
-    return {
-      icon: <ClipboardCheck className="h-10 w-10 text-muted-foreground" />,
-      title: emptyStateCopy.title,
-      description: emptyStateCopy.description,
-    };
-  }, [emptyStateCopy, error, handleRetryLoad, showLoadError]);
+    if (!canUpdate) {
+      parts.push(
+        <DetailAlertCard
+          key="readonly"
+          severity="info"
+          icon={<Info className="h-4 w-4" />}
+          title={copy.readOnly.title}
+          items={[{ text: copy.readOnly.description }]}
+        />,
+      );
+    }
+
+    if (parts.length === 0) return null;
+    return <div className="space-y-4">{parts}</div>;
+  }, [canUpdate, embedded]);
 
   const selectedItems = useMemo(
     () => items.filter((item) => selectedIds.has(item.id)),
@@ -349,7 +383,9 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
   const approveMutation = useApproveApprovable({
     onSuccess: (result) => {
       toast({
-        title: result.message ?? copy.toasts.approveSuccess,
+        title:
+          result.message ??
+          copy.toasts.approveSuccess(approveTarget?.approvableType),
         variant: "success",
       });
       setApproveTarget(null);
@@ -357,7 +393,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
     },
     onError: (err) => {
       toast({
-        title: copy.toasts.approveError,
+        title: copy.toasts.approveError(approveTarget?.approvableType),
         description: getErrorMessage(err),
         variant: "destructive",
       });
@@ -367,7 +403,9 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
   const rejectMutation = useRejectApprovable({
     onSuccess: (result) => {
       toast({
-        title: result.message ?? copy.toasts.rejectSuccess,
+        title:
+          result.message ??
+          copy.toasts.rejectSuccess(rejectTargets[0]?.approvableType),
         variant: "success",
       });
       setRejectSheetOpen(false);
@@ -376,7 +414,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
     },
     onError: (err) => {
       toast({
-        title: copy.toasts.rejectError,
+        title: copy.toasts.rejectError(rejectTargets[0]?.approvableType),
         description: getErrorMessage(err),
         variant: "destructive",
       });
@@ -400,7 +438,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
     },
     onError: (err) => {
       toast({
-        title: copy.toasts.approveError,
+        title: copy.toasts.approveError(approvalType),
         description: getErrorMessage(err),
         variant: "destructive",
       });
@@ -409,6 +447,13 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
 
   const handleToggleItem = useCallback(
     (item: ApprovableItem, checked: boolean) => {
+      if (checked && isSelfSubmittedApproval(item, currentUserId)) {
+        toast({
+          title: copy.actions.selfApprovalNotAllowed,
+          variant: "destructive",
+        });
+        return;
+      }
       setSelectedIds((prev) => {
         const next = new Set(prev);
         if (checked) {
@@ -423,7 +468,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
         return next;
       });
     },
-    [toast],
+    [toast, currentUserId],
   );
 
   const handleToggleAll = useCallback(
@@ -432,10 +477,16 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
         setSelectedIds(new Set());
         return;
       }
-      const actionable = items.filter(isApprovableActionable).slice(0, BULK_MAX);
+      const actionable = items
+        .filter(
+          (item) =>
+            isApprovableActionable(item) &&
+            !isSelfSubmittedApproval(item, currentUserId),
+        )
+        .slice(0, BULK_MAX);
       setSelectedIds(new Set(actionable.map((item) => item.id)));
     },
-    [items],
+    [items, currentUserId],
   );
 
   const handleApproveConfirm = useCallback(() => {
@@ -501,11 +552,14 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
 
   return (
     <>
-      <ListPageShell
+      <WorkbenchPageShell
         title={copy.title}
         description={copy.description}
         showHeader={!embedded}
-        beforeToolbar={beforeToolbar}
+        beforeAwareness={beforeAwareness}
+        buckets={buckets}
+        bucketsAriaLabel="Tipos de aprobación"
+        bucketsLoading={pendingCountsLoading}
         toolbar={{
           search: {
             ...filters.searchProps,
@@ -513,10 +567,17 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
           },
           filters: (
             <ApprovalFilters
-              status={filters.filters.status as ApprovalStatus | "" | typeof APPROVAL_STATUS_ALL}
+              type={approvalType}
+              status={
+                filters.filters.status as
+                  | ApprovalStatus
+                  | ""
+                  | typeof APPROVAL_STATUS_ALL
+              }
               category={filters.filters.category}
               fromDate={filters.filters.fromDate}
               toDate={filters.filters.toDate}
+              onTypeChange={handleTypeChange}
               onStatusChange={handleStatusFilterChange}
               onCategoryChange={(value) =>
                 filters.setFilter("category", value === "all" ? "" : value)
@@ -531,9 +592,82 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
           onClearFilters: handleClearFilters,
           hasFilters: hasUserFilters,
         }}
-        items={items}
-        isLoading={isLoading}
-        entityLabelPlural="aprobaciones"
+        renderContent={() => {
+          if (showLoadError) {
+            return (
+              <EmptyState
+                icon={
+                  <ClipboardCheck className="h-10 w-10 text-muted-foreground" />
+                }
+                title={copy.errors.loadTitle}
+                description={getErrorMessage(error)}
+                cta={{
+                  label: copy.errors.retry,
+                  onClick: handleRetryLoad,
+                }}
+              />
+            );
+          }
+
+          if (!isLoading && items.length === 0) {
+            return (
+              <EmptyState
+                icon={
+                  <ClipboardCheck className="h-10 w-10 text-muted-foreground" />
+                }
+                title={emptyStateCopy.title}
+                description={emptyStateCopy.description}
+              />
+            );
+          }
+
+          return (
+            <div className="space-y-4">
+              <BulkActionsBar
+                selectedCount={selectedIds.size}
+                maxSelection={BULK_MAX}
+                canUpdate={canUpdate}
+                onApproveSelected={() => setBulkApproveOpen(true)}
+                onRejectSelected={() => {
+                  setRejectTargets(selectedItems);
+                  setRejectSheetOpen(true);
+                }}
+                onClearSelection={() => setSelectedIds(new Set())}
+              />
+              <ApprovalInbox
+                items={items}
+                isLoading={isLoading}
+                selectedIds={selectedIds}
+                canUpdate={canUpdate}
+                currentUserId={currentUserId}
+                onToggleItem={handleToggleItem}
+                onToggleAll={handleToggleAll}
+                onApprove={(item) => {
+                  if (isSelfSubmittedApproval(item, currentUserId)) {
+                    toast({
+                      title: copy.actions.selfApprovalNotAllowed,
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setApproveTarget(item);
+                }}
+                onReject={(item) => {
+                  if (isSelfSubmittedApproval(item, currentUserId)) {
+                    toast({
+                      title: copy.actions.selfApprovalNotAllowed,
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setRejectTargets([item]);
+                  setRejectSheetOpen(true);
+                }}
+                maxSelection={BULK_MAX}
+              />
+            </div>
+          );
+        }}
         pagination={
           pagination
             ? {
@@ -545,38 +679,6 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
             : undefined
         }
         onPageChange={filters.setPage}
-        emptyState={listEmptyState}
-        renderTable={() => (
-          showLoadError ? null : (
-          <div className="space-y-4">
-            <BulkActionsBar
-              selectedCount={selectedIds.size}
-              maxSelection={BULK_MAX}
-              canUpdate={canUpdate}
-              onApproveSelected={() => setBulkApproveOpen(true)}
-              onRejectSelected={() => {
-                setRejectTargets(selectedItems);
-                setRejectSheetOpen(true);
-              }}
-              onClearSelection={() => setSelectedIds(new Set())}
-            />
-            <ApprovalInbox
-              items={items}
-              isLoading={isLoading}
-              selectedIds={selectedIds}
-              canUpdate={canUpdate}
-              onToggleItem={handleToggleItem}
-              onToggleAll={handleToggleAll}
-              onApprove={(item) => setApproveTarget(item)}
-              onReject={(item) => {
-                setRejectTargets([item]);
-                setRejectSheetOpen(true);
-              }}
-              maxSelection={BULK_MAX}
-            />
-          </div>
-          )
-        )}
       />
 
       <AlertDialog
@@ -587,7 +689,9 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{copy.actions.approveConfirmTitle}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {copy.actions.approveConfirmTitle(approveTarget?.approvableType)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {approveConfirmDescription}
             </AlertDialogDescription>
@@ -598,7 +702,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
               onClick={handleApproveConfirm}
               disabled={approveMutation.isPending}
             >
-              {copy.actions.approveConfirmAction}
+              {copy.actions.approveConfirmAction(approveTarget?.approvableType)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -607,9 +711,14 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
       <AlertDialog open={bulkApproveOpen} onOpenChange={setBulkApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{copy.bulk.approveConfirmTitle}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {copy.bulk.approveConfirmTitle(approvalType)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {copy.bulk.approveConfirmDescription(selectedItems.length)}
+              {copy.bulk.approveConfirmDescription(
+                selectedItems.length,
+                approvalType,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -631,6 +740,7 @@ export function ApprovalInboxPage({ embedded = false }: ApprovalInboxPageProps =
         bulkItems={rejectTargets.length > 1 ? rejectTargets : undefined}
         isSubmitting={rejectMutation.isPending || bulkMutation.isPending}
         onSubmit={handleRejectSubmit}
+        type={approvalType}
       />
     </>
   );

@@ -15,6 +15,7 @@
 
 import { ROLES } from "@shared/constants/roles";
 import { FINANCE_SUMMARY_ROUTE_ROLES } from "@shared/permissions";
+import { SETTLEMENTS_LIST_PATH } from "@features/settlements/application";
 import {
   LayoutDashboard,
   Truck,
@@ -35,6 +36,7 @@ import {
   UsersRound,
   ClipboardCheck,
   Mail,
+  Banknote,
 } from "lucide-react";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
@@ -47,7 +49,7 @@ const copy = navigationCopy;
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * Cinco grupos + Inicio suelto. Solo se listan pantallas montadas:
+ * Siete grupos + Inicio suelto. Solo se listan pantallas montadas:
  * un ítem del menú nunca anuncia funcionalidad inexistente.
  */
 export const navigationConfig: NavGroup[] = [
@@ -132,6 +134,43 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "billing",
+    title: copy.group.billing,
+    items: [
+      {
+        id: "finance-invoiceable",
+        label: copy.item.financeInvoiceable,
+        path: "/finance/invoiceable",
+        icon: FileClock,
+        module: "invoices",
+        action: "create",
+      },
+      {
+        id: "finance-invoices",
+        label: copy.item.financeInvoices,
+        path: "/finance/invoices",
+        icon: FileText,
+        module: "invoices",
+      },
+      {
+        id: "finance-dispatch-runs",
+        label: copy.item.financeDispatchRuns,
+        path: "/finance/dispatch-runs",
+        icon: Mail,
+        module: "invoices",
+        action: "read",
+      },
+      {
+        id: "finance-cobros",
+        label: copy.item.financeCobros,
+        path: "/finance/cobros",
+        icon: Wallet,
+        module: "finance",
+        action: "create",
+      },
+    ],
+  },
+  {
     id: "finance",
     title: copy.group.finance,
     items: [
@@ -144,22 +183,6 @@ export const navigationConfig: NavGroup[] = [
         exactPath: true,
       },
       {
-        id: "finance-invoiceable",
-        label: copy.item.financeInvoiceable,
-        path: "/finance/invoiceable",
-        icon: FileClock,
-        module: "invoices",
-        action: "create",
-      },
-      {
-        id: "finance-cobros",
-        label: copy.item.financeCobros,
-        path: "/finance/cobros",
-        icon: Wallet,
-        module: "finance",
-        action: "create",
-      },
-      {
         id: "finance-approvals",
         label: copy.item.financeApprovals,
         path: "/finance/approvals",
@@ -167,27 +190,25 @@ export const navigationConfig: NavGroup[] = [
         module: "finance_approvals",
       },
       {
-        id: "finance-dispatch-runs",
-        label: copy.item.financeDispatchRuns,
-        path: "/finance/dispatch-runs",
-        icon: Mail,
-        module: "invoices",
-        action: "read",
+        id: "finance-settlements",
+        label: copy.item.financeSettlements,
+        path: SETTLEMENTS_LIST_PATH,
+        icon: Banknote,
+        module: "settlements",
       },
-      {
-        id: "finance-invoices",
-        label: copy.item.financeInvoices,
-        path: "/finance/invoices",
-        icon: FileText,
-        module: "invoices",
-      },
-      {
+{
         id: "finance-analysis",
         label: copy.item.financeAnalysis,
         path: "/finance/analysis",
         icon: BarChart3,
         module: "finance",
       },
+    ],
+  },
+  {
+    id: "reports",
+    title: copy.group.reports,
+    items: [
       {
         id: "reports-list",
         label: copy.item.reportsList,

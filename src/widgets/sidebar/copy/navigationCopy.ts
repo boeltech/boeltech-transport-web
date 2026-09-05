@@ -7,7 +7,9 @@ export const navigationCopy = {
     operations: "Operación",
     fleet: "Flota y personal",
     commercial: "Comercial",
+    billing: "Facturación",
     finance: "Finanzas",
+    reports: "Reportes",
     admin: "Administración",
   },
   item: {
@@ -19,19 +21,21 @@ export const navigationCopy = {
     drivers: "Conductores",
     employees: "Empleados",
     clientsList: "Clientes",
-    /** Entrada al hub Finanzas (landing Resumen). Grupo = Finanzas; ítem ≠ mismo label. */
-    financeHub: "Resumen",
+    /** Entrada al hub Finanzas (landing Panorama). Grupo = Finanzas; ítem ≠ mismo label. */
+    financeHub: "Panorama",
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
     /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */
     financeCobros: "Cobros",
     financeApprovals: "Aprobaciones",
-    financeDispatchRuns: "Envío de facturas",
-    financeAnalysis: "Análisis",
+    financeSettlements: "Liquidaciones",
+    financeAgreements: "Esquemas de compensación",
+    financeDispatchRuns: "Envío",
+    financeAnalysis: "Rentabilidad",
     /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",
-    /** Hub de inteligencia de negocio (/reports). Distinto de Finanzas → Análisis. */
-    reportsList: "Inteligencia",
+    /** Hub de reportes de negocio (/reports). Promovido como grupo independiente. */
+    reportsList: "Reportes",
     users: "Usuarios",
     /** Movimientos de las cuentas del equipo, no auditoría de todo el sistema. */
     usersActivity: "Historial de usuarios",

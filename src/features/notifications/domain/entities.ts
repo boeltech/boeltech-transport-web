@@ -7,6 +7,8 @@ export type NotificationSource = (typeof NOTIFICATION_SOURCES)[number];
 
 export const NOTIFICATION_TYPES = [
   "trip_expense_pending",
+  "driver_advance_pending",
+  "settlement_pending",
   "overdue_trip",
   "license_expiring",
   "medical_certificate_expiring",

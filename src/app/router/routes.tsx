@@ -297,6 +297,33 @@ const DispatchRunDetailPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.DispatchRunDetailPage })),
 );
 
+// Settlements (Liquidaciones y operadores — ADR-0085)
+const SettlementsListPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({ default: m.SettlementsListPage })),
+);
+const SettlementsRegistryPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.SettlementsRegistryPage,
+  })),
+);
+const SettlementsAdvancesPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.SettlementsAdvancesPage,
+  })),
+);
+const SettlementCreatePage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({ default: m.SettlementCreatePage })),
+);
+const SettlementDetailPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({ default: m.SettlementDetailPage })),
+);
+
+const SettlementsLegacyRedirect = lazyWithRetry(() =>
+  import("@features/settlements/presentation/routes/SettlementsLegacyRedirect").then(
+    (m) => ({ default: m.SettlementsLegacyRedirect }),
+  ),
+);
+
 // Reports
 const ReportsPage = lazyWithRetry(() =>
   import("@features/reports").then((m) => ({ default: m.ReportsPage })),
@@ -908,6 +935,36 @@ export const router = createBrowserRouter([
                   },
                 ],
               },
+              {
+                element: <PermissionRoute module="settlements" action="create" />,
+                children: [
+                  {
+                    path: "/finance/settlements/new",
+                    element: withSuspense(SettlementCreatePage),
+                  },
+                ],
+              },
+              {
+                element: <ModuleRoute module="settlements" />,
+                children: [
+                  {
+                    path: "/finance/settlements/registry",
+                    element: withSuspense(SettlementsRegistryPage),
+                  },
+                  {
+                    path: "/finance/settlements/advances",
+                    element: withSuspense(SettlementsAdvancesPage),
+                  },
+                  {
+                    path: "/finance/settlements",
+                    element: withSuspense(SettlementsListPage),
+                  },
+                  {
+                    path: "/finance/settlements/:id",
+                    element: withSuspense(SettlementDetailPage),
+                  },
+],
+              },
             ],
           },
           {
@@ -925,6 +982,33 @@ export const router = createBrowserRouter([
               {
                 path: "/invoices/:id/edit",
                 element: withSuspense(CreateInvoicePage),
+              },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Settlements (Liquidaciones — ADR-0085)
+          // Legacy /settlements/* → redirect; canónicas bajo StaffFinanceRoute
+          // ========================================
+          {
+            element: <PermissionRoute module="settlements" action="create" />,
+            children: [
+              {
+                path: "/settlements/new",
+                element: withSuspense(SettlementsLegacyRedirect),
+              },
+            ],
+          },
+          {
+            element: <ModuleRoute module="settlements" />,
+            children: [
+              {
+                path: "/settlements",
+                element: withSuspense(SettlementsLegacyRedirect),
+              },
+              {
+                path: "/settlements/:id",
+                element: withSuspense(SettlementsLegacyRedirect),
               },
             ],
           },

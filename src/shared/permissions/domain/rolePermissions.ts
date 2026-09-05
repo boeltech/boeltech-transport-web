@@ -161,6 +161,12 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Import CSV maestros tenant (ADR-0074)
       "imports.read",
       "imports.execute",
+
+      // Liquidaciones y compensación a operadores (ADR-0085)
+      "settlements.read",
+      "settlements.create",
+      "settlements.update",
+      "settlements.delete",
     ],
   },
 
@@ -243,6 +249,12 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "payments.update",
       "payments.delete",
       "payments.export",
+
+      // Liquidaciones y compensación a operadores (ADR-0085)
+      "settlements.read",
+      "settlements.create",
+      "settlements.update",
+      "settlements.execute",
 
       // Reportes - Financieros
       "reports.read",

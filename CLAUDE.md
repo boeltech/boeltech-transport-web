@@ -32,8 +32,10 @@ npm run test:smoke:trip-false-trip # smoke ADR-0079 viaje en falso (CTA/scope/ba
 npm run test:smoke:trip-revenue-split # smoke ADR-0081 prorrateo multi-RFC (CTA/scope/badge, sin PAC)
 npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cutover /trailers
 npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
-npm run test:smoke:imports   # smoke ADR-0074 import CSV maestros (hub → validate → commit)
+npm run test:smoke:settlements # smoke ADR-0085 liquidaciones y compensación a operadores
 ```
+
+**Liquidaciones y compensación a operadores (ADR-0085 / ADR-0086 / ADR-0087, F0–F7):** liquidaciones de viaje (`/finance/settlements`), pre-autorización de anticipos, cálculo reactivo en vivo (`/finance/settlements/new`), detalle inmutable con balance strip, auditoría maker-checker, vista previa imprimible y recibo de firma. Smoke `npm run test:smoke:settlements`. Guía: `D:\cowork\boeltech\erp-transport\docs\finanzas\liquidaciones-operadores-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0086-esquemas-compuestos-compensacion-operadores.md` · gobernanza: `D:\cowork\boeltech\erp-transport\design\adr\0087-gobernanza-tarifas-compensacion-operadores.md`.
 
 **Crédito L0 (ADR-0049):** semáforo en detalle cliente + wizard Costos (`GET /clients/:id/credit-summary`) · sin bloqueo. Guía usuario: `D:\cowork\boeltech\erp-transport\docs\finanzas\credito-disponible-semaforo-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\credit-exposure\sdd.md`.
 

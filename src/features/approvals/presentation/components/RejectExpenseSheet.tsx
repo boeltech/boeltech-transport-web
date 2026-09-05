@@ -11,7 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
-import type { ApprovableItem } from "../../domain";
+import type { ApprovableItem, ApprovableType } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
 
 const copy = approvalsCopy.rejectSheet;
@@ -25,6 +25,7 @@ export interface RejectExpenseSheetProps {
   bulkItems?: ApprovableItem[];
   isSubmitting?: boolean;
   onSubmit: (reason: string, items: ApprovableItem[]) => void;
+  type?: ApprovableType;
 }
 
 export function RejectExpenseSheet({
@@ -34,8 +35,10 @@ export function RejectExpenseSheet({
   bulkItems,
   isSubmitting = false,
   onSubmit,
+  type,
 }: RejectExpenseSheetProps) {
   const targets = bulkItems?.length ? bulkItems : item ? [item] : [];
+  const targetType = type || targets[0]?.approvableType || "trip_expense";
   const [reason, setReason] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const isBulk = (bulkItems?.length ?? 0) > 1;
@@ -57,11 +60,11 @@ export function RejectExpenseSheet({
   }, [fieldError]);
 
   const sheetTitle = isBulk
-    ? copy.titleBulk(bulkItems!.length)
-    : copy.title;
+    ? copy.titleBulk(bulkItems!.length, targetType)
+    : copy.title(targetType);
   const sheetDescription = isBulk
-    ? copy.descriptionBulk(bulkItems!.length)
-    : copy.description;
+    ? copy.descriptionBulk(bulkItems!.length, targetType)
+    : copy.description(targetType);
 
   const handleSubmit = () => {
     if (trimmedLength < MIN_REASON_LENGTH) {

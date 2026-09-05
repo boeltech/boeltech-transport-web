@@ -5,6 +5,7 @@ export const DEFAULT_APPROVAL_TYPE: ApprovableType = "trip_expense";
 export const APPROVABLE_TYPE_LABELS: Record<ApprovableType, string> = {
   trip_expense: "Gasto de viaje",
   internal_staff_compensation: "Compensación interna",
+  driver_advance_request: "Anticipo a operador",
   fuel_transaction: "Combustible",
   maintenance_order: "Orden de mantenimiento",
   vehicle_doc_renewal: "Renovación documental",

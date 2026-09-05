@@ -168,7 +168,7 @@ function filterNavItems(
 /**
  * Filtra los grupos de navegación según permisos
  */
-function filterNavigation(
+export function filterNavigation(
   config: NavGroup[],
   hasPermission: (module: Module, action: Action) => boolean,
   userRole: UserRole | null,

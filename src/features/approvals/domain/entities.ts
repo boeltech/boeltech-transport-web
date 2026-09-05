@@ -3,6 +3,7 @@ import type { Pagination } from "@shared/api";
 export type ApprovableType =
   | "trip_expense"
   | "internal_staff_compensation"
+  | "driver_advance_request"
   | "fuel_transaction"
   | "maintenance_order"
   | "vehicle_doc_renewal"
@@ -25,10 +26,38 @@ export interface TripExpenseContext {
   expenseCategory: string;
   description: string | null;
   occurredAt: string;
+  hasInvoice?: boolean;
+  receiptNumber?: string | null;
+  receiptType?: "cfdi" | "ticket" | "none" | string | null;
 }
 
 export interface InternalStaffCompensationContext {
   approvableType: "internal_staff_compensation";
+  settlementId?: string;
+  settlementNumber?: string;
+  employeeId?: string;
+  employeeFullName?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  tripsCount?: number;
+  grossAmount?: number;
+  totalDeductions?: number;
+  netAmount?: number;
+}
+
+export interface DriverAdvanceRequestContext {
+  approvableType: "driver_advance_request";
+  advanceId?: string;
+  folio?: string;
+  employeeId?: string;
+  employeeFullName?: string;
+  category?: string;
+  tripId?: string | null;
+  tripCode?: string | null;
+  paymentMethod?: string;
+  notes?: string | null;
+  openAdvancesBalance?: number;
+  openAdvancesCount?: number;
 }
 
 export interface FuelTransactionContext {
@@ -50,6 +79,7 @@ export interface OverheadExpenseContext {
 export type ApprovableContext =
   | TripExpenseContext
   | InternalStaffCompensationContext
+  | DriverAdvanceRequestContext
   | FuelTransactionContext
   | MaintenanceOrderContext
   | VehicleDocRenewalContext

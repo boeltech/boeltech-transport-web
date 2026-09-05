@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Check, X } from "lucide-react";
+import { Check, X, FileCheck, Receipt as ReceiptIcon, FileText } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
@@ -56,6 +56,11 @@ export function ApprovalRowTripExpense({
     EXPENSE_STATUS_LABELS[item.status as ExpenseStatusType] ?? item.status;
   const actionable = canUpdate && isApprovableActionable(item);
 
+  // Micro-señal de soporte documental (D3)
+  const isCfdi = ctx.hasInvoice || ctx.receiptType === "cfdi";
+  const isTicket = ctx.receiptType === "ticket" || Boolean(ctx.receiptNumber);
+  const isDocumented = item.status === "documented";
+
   return (
     <TableRow>
       <TableCell className="w-10">
@@ -80,7 +85,7 @@ export function ApprovalRowTripExpense({
         <Link
           to={`/trips/${ctx.tripId}?tab=costs`}
           state={{ from: inboxHref }}
-          className="font-medium text-primary hover:underline"
+          className="font-medium text-primary hover:underline font-mono"
         >
           {ctx.tripCode}
         </Link>
@@ -89,11 +94,36 @@ export function ApprovalRowTripExpense({
           {ctx.vehicleUnitNumber ? ` · ${ctx.vehicleUnitNumber}` : ""}
         </p>
       </TableCell>
-      <TableCell>{categoryLabel}</TableCell>
-      <TableCell className="max-w-[220px] truncate">
+      <TableCell>
+        <span className="block font-medium">{categoryLabel}</span>
+        {/* Badge soporte documental (D3) */}
+        <div className="mt-1">
+          {isCfdi ? (
+            <Badge variant="info" tone="soft" className="text-[11px] h-5 px-1.5 gap-1">
+              <FileCheck className="h-3 w-3 text-primary" />
+              {copy.table.receiptCfdi}
+            </Badge>
+          ) : isTicket ? (
+            <Badge variant="warning" tone="soft" className="text-[11px] h-5 px-1.5 gap-1">
+              <ReceiptIcon className="h-3 w-3 text-warning-foreground" />
+              {copy.table.receiptTicket}
+            </Badge>
+          ) : isDocumented ? (
+            <Badge variant="neutral" tone="soft" className="text-[11px] h-5 px-1.5 gap-1">
+              <FileText className="h-3 w-3 text-muted-foreground" />
+              Comprobado
+            </Badge>
+          ) : (
+            <Badge variant="neutral" tone="soft" className="text-[11px] h-5 px-1.5 text-muted-foreground/80 opacity-80">
+              {copy.table.receiptNone}
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
         {ctx.description ?? copy.table.noDescription}
       </TableCell>
-      <TableCell className="text-right tabular-nums">
+      <TableCell className="text-right tabular-nums font-medium">
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(ctx.occurredAt)}</TableCell>

@@ -11,6 +11,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import type { ApprovableItem } from "../../domain";
 import { isApprovableActionable } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
+import { isSelfSubmittedApproval } from "../utils/approvalConfirmHelpers";
 import { ApprovalRow } from "./ApprovalRow";
 
 const copy = approvalsCopy.inbox.table;
@@ -32,6 +33,8 @@ export interface ApprovalInboxProps {
   isLoading: boolean;
   selectedIds: Set<string>;
   canUpdate: boolean;
+  /** Usuario actual — excluye self-approval del checkbox y acciones. */
+  currentUserId?: string | null;
   onToggleItem: (item: ApprovableItem, checked: boolean) => void;
   onToggleAll: (checked: boolean) => void;
   onApprove: (item: ApprovableItem) => void;
@@ -39,19 +42,32 @@ export interface ApprovalInboxProps {
   maxSelection?: number;
 }
 
+function canActOnItem(
+  item: ApprovableItem,
+  canUpdate: boolean,
+  currentUserId?: string | null,
+): boolean {
+  return (
+    canUpdate &&
+    isApprovableActionable(item) &&
+    !isSelfSubmittedApproval(item, currentUserId)
+  );
+}
+
 export function ApprovalInbox({
   items,
   isLoading,
   selectedIds,
   canUpdate,
+  currentUserId,
   onToggleItem,
   onToggleAll,
   onApprove,
   onReject,
   maxSelection = 50,
 }: ApprovalInboxProps) {
-  const selectableItems = items.filter(
-    (item) => canUpdate && isApprovableActionable(item),
+  const selectableItems = items.filter((item) =>
+    canActOnItem(item, canUpdate, currentUserId),
   );
   const allSelected =
     selectableItems.length > 0 &&
@@ -109,9 +125,9 @@ export function ApprovalInbox({
         </TableHeader>
         <TableBody>
           {items.map((item) => {
+            const actionable = canActOnItem(item, canUpdate, currentUserId);
             const selectable =
-              canUpdate &&
-              isApprovableActionable(item) &&
+              actionable &&
               (selectedIds.has(item.id) || selectedIds.size < maxSelection);
 
             return (
@@ -120,7 +136,7 @@ export function ApprovalInbox({
                 item={item}
                 selected={selectedIds.has(item.id)}
                 selectable={selectable}
-                canUpdate={canUpdate}
+                canUpdate={actionable}
                 onSelectChange={(checked) => onToggleItem(item, checked)}
                 onApprove={() => onApprove(item)}
                 onReject={() => onReject(item)}

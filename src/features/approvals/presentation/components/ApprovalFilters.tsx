@@ -17,10 +17,12 @@ import { approvalsCopy } from "../copy/approvalsCopy";
 const copy = approvalsCopy.inbox.filters;
 
 interface ApprovalFiltersProps {
+  type?: string;
   status: ApprovalStatus | typeof APPROVAL_STATUS_ALL | "";
   category: string;
   fromDate: string;
   toDate: string;
+  onTypeChange?: (value: string) => void;
   onStatusChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onApplyDateRange: (fromDate: string, toDate: string) => void;
@@ -28,22 +30,26 @@ interface ApprovalFiltersProps {
 }
 
 export function ApprovalFilters({
+  type,
   status,
   category,
   fromDate,
   toDate,
+  onTypeChange: _onTypeChange,
   onStatusChange,
   onCategoryChange,
   onApplyDateRange,
   onClearDateRange,
 }: ApprovalFiltersProps) {
+  const showCategoryFilter = type !== "internal_staff_compensation";
+
   return (
     <>
       <Select
         value={status === "" || status === APPROVAL_STATUS_ALL ? "all" : status}
         onValueChange={onStatusChange}
       >
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-44" aria-label={copy.status}>
           <SelectValue placeholder={copy.status} />
         </SelectTrigger>
         <SelectContent>
@@ -56,21 +62,23 @@ export function ApprovalFilters({
         </SelectContent>
       </Select>
 
-      <Select value={category || "all"} onValueChange={onCategoryChange}>
-        <SelectTrigger className="w-48">
-          <SelectValue placeholder={copy.category} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{copy.categoryAll}</SelectItem>
-          {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategoryType[]).map(
-            (key) => (
-              <SelectItem key={key} value={key}>
-                {EXPENSE_CATEGORY_LABELS[key]}
-              </SelectItem>
-            ),
-          )}
-        </SelectContent>
-      </Select>
+      {showCategoryFilter ? (
+        <Select value={category || "all"} onValueChange={onCategoryChange}>
+          <SelectTrigger className="w-48" aria-label={copy.category}>
+            <SelectValue placeholder={copy.category} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{copy.categoryAll}</SelectItem>
+            {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategoryType[]).map(
+              (key) => (
+                <SelectItem key={key} value={key}>
+                  {EXPENSE_CATEGORY_LABELS[key]}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
+      ) : null}
 
       <ListingDateRangeFilter
         fromDate={fromDate}

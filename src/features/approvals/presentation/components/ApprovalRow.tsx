@@ -2,6 +2,8 @@ import { TableCell, TableRow } from "@shared/ui/table";
 import type { ApprovableItem } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
 import { ApprovalRowTripExpense } from "./ApprovalRowTripExpense";
+import { ApprovalRowCompensation } from "./ApprovalRowCompensation";
+import { ApprovalRowAdvance } from "./ApprovalRowAdvance";
 
 export interface ApprovalRowProps {
   item: ApprovableItem;
@@ -17,6 +19,10 @@ export function ApprovalRow(props: ApprovalRowProps) {
   switch (props.item.context.approvableType) {
     case "trip_expense":
       return <ApprovalRowTripExpense {...props} />;
+    case "internal_staff_compensation":
+      return <ApprovalRowCompensation {...props} />;
+    case "driver_advance_request":
+      return <ApprovalRowAdvance {...props} />;
     default:
       return (
         <TableRow>

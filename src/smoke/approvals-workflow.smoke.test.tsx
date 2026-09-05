@@ -20,6 +20,12 @@ vi.mock("@features/approvals/infrastructure/approvalsApi", () => ({
     reject: vi.fn(),
     bulk: vi.fn(),
     getPendingCount: vi.fn().mockResolvedValue(1),
+    getAllPendingCounts: vi.fn().mockResolvedValue({
+      trip_expense: 1,
+      driver_advance_request: 0,
+      internal_staff_compensation: 0,
+      total: 1,
+    }),
   },
 }));
 

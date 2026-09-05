@@ -1,4 +1,4 @@
-import { Receipt } from "lucide-react";
+import { Banknote, Receipt } from "lucide-react";
 import type { BadgeProps } from "@shared/ui/badge";
 import type { ApprovableType } from "../../domain";
 
@@ -23,9 +23,14 @@ export const approvalTypeConfig: Record<ApprovableType, ApprovalTypeConfigEntry>
     badge: { variant: "info", tone: "soft" },
   },
   internal_staff_compensation: {
-    label: "Compensación interna",
+    label: "Liquidación",
     icon: Receipt,
     badge: { variant: "neutral", tone: "soft" },
+  },
+  driver_advance_request: {
+    label: "Anticipo a operador",
+    icon: Banknote,
+    badge: { variant: "info", tone: "soft" },
   },
   fuel_transaction: {
     label: "Combustible",

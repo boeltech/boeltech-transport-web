@@ -29,3 +29,6 @@ export * from "./useOverlayMutationFeedback";
 export { useQueryErrorToast } from "./useQueryErrorToast";
 export type { UseQueryErrorToastOptions } from "./useQueryErrorToast";
 export { useBodyScrollLock } from "./useBodyScrollLock";
+export { usePrintIframe } from "./usePrintIframe";
+export type { UsePrintIframeResult } from "./usePrintIframe";
+

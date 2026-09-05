@@ -83,14 +83,39 @@ export const approvalsApi = {
     };
   },
 
-  getPendingCount: async (): Promise<number> => {
+  getPendingCount: async (type?: ApprovableType): Promise<number> => {
+    if (!type) {
+      const allCounts = await approvalsApi.getAllPendingCounts();
+      return allCounts.total;
+    }
+
     const result = await approvalsApi.list({
-      type: "trip_expense",
+      type,
       status: "pending",
       page: 1,
       pageSize: 1,
     });
     return result.pagination.total;
+  },
+
+  getAllPendingCounts: async (): Promise<{
+    trip_expense: number;
+    driver_advance_request: number;
+    internal_staff_compensation: number;
+    total: number;
+  }> => {
+    const [expenses, advances, settlements] = await Promise.all([
+      approvalsApi.getPendingCount("trip_expense").catch(() => 0),
+      approvalsApi.getPendingCount("driver_advance_request").catch(() => 0),
+      approvalsApi.getPendingCount("internal_staff_compensation").catch(() => 0),
+    ]);
+
+    return {
+      trip_expense: expenses,
+      driver_advance_request: advances,
+      internal_staff_compensation: settlements,
+      total: expenses + advances + settlements,
+    };
   },
 };
 

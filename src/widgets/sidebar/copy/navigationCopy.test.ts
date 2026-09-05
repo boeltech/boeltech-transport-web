@@ -42,7 +42,7 @@ describe("navigationCopy", () => {
 });
 
 describe("navigationConfig", () => {
-  it("shows at most five group headers", () => {
+  it("shows the seven group headers in semantic order", () => {
     const groupTitles = navigationConfig
       .map((group) => group.title)
       .filter((title) => title !== "");
@@ -51,7 +51,9 @@ describe("navigationConfig", () => {
       "Operación",
       "Flota y personal",
       "Comercial",
+      "Facturación",
       "Finanzas",
+      "Reportes",
       "Administración",
     ]);
   });
@@ -74,33 +76,52 @@ describe("navigationConfig", () => {
     ]);
   });
 
-  it("exposes daily finance queues in sidebar without period ritual or consult tabs", () => {
+  it("exposes billing, finance and reports groups with the agreed order and labels", () => {
+    const billing = navigationConfig.find((group) => group.id === "billing");
     const finance = navigationConfig.find((group) => group.id === "finance");
-    const ids = finance?.items.map((item) => item.id) ?? [];
-    const labels = finance?.items.map((item) => item.label) ?? [];
+    const reports = navigationConfig.find((group) => group.id === "reports");
+
+    expect(billing?.title).toBe("Facturación");
+    expect(billing?.items.map((item) => item.id)).toEqual([
+      "finance-invoiceable",
+      "finance-invoices",
+      "finance-cobros",
+      "finance-dispatch-runs",
+    ]);
+    expect(billing?.items.map((item) => item.label)).toEqual([
+      "Por facturar",
+      "Facturas",
+      "Cobros",
+      "Envío",
+    ]);
 
     expect(finance?.title).toBe("Finanzas");
-    expect(labels).toContain("Resumen");
-    expect(labels).toContain("Por facturar");
-    expect(labels).toContain("Cobros");
-    expect(labels).toContain("Aprobaciones");
-    expect(labels).toContain("Envío de facturas");
-    expect(labels).toContain("Análisis");
-    expect(ids).toContain("finance-dispatch-runs");
-    expect(ids).toContain("finance-analysis");
+    expect(finance?.items.map((item) => item.id)).toEqual([
+      "finance-hub",
+      "finance-approvals",
+      "finance-settlements",
+      "finance-agreements",
+      "finance-analysis",
+    ]);
+    expect(finance?.items.map((item) => item.label)).toEqual([
+      "Panorama",
+      "Aprobaciones",
+      "Liquidaciones",
+      "Esquemas de compensación",
+      "Rentabilidad",
+    ]);
+
+    expect(reports?.title).toBe("Reportes");
+    expect(reports?.items.map((item) => item.id)).toEqual(["reports-list"]);
+    expect(reports?.items.map((item) => item.label)).toEqual(["Reportes"]);
   });
 
-  it("uses distinct Lucide icons within the finance group", () => {
-    const finance = navigationConfig.find((group) => group.id === "finance");
-    const items = finance?.items ?? [];
-    const iconById = Object.fromEntries(
-      items.map((item) => [item.id, item.icon.displayName ?? item.icon.name]),
-    );
+  it("uses distinct Lucide icons across billing, finance and reports", () => {
+    const relevantItems = navigationConfig
+      .filter((group) => ["billing", "finance", "reports"].includes(group.id))
+      .flatMap((group) => group.items);
 
-    expect(iconById["finance-hub"]).not.toBe(iconById["finance-invoices"]);
-    expect(iconById["finance-analysis"]).not.toBe(iconById["reports-list"]);
-
-    const icons = items.map((item) => item.icon);
+    const icons = relevantItems.map((item) => item.icon);
     expect(new Set(icons).size).toBe(icons.length);
   });
 });
