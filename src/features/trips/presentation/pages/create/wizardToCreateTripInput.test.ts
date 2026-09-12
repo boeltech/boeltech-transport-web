@@ -30,7 +30,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
     });
 
@@ -78,7 +78,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
     });
 
@@ -96,7 +96,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
     expect(apiCheck.ok).toBe(true);
   });
 
-  it("emits allowExpiredDocs when reserved assignment has expired docs", () => {
+  it("emits allowExpiredDocs when checkbox intention is true", () => {
     const values = {
       vehicleId: "11111111-1111-4111-8111-111111111111",
       driverId: "22222222-2222-4222-8222-222222222222",
@@ -116,17 +116,10 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(
-      values,
-      {
-        vehicle: {
-          insuranceExpiry: "2020-01-01",
-          sctPermitExpiry: "2030-01-01",
-        },
-        driver: { isLicenseExpired: false },
-      },
-      { createIntent: "reserve" },
-    );
+    const payload = buildCreateTripInputFromWizardValues(values, {
+      createIntent: "reserve",
+      allowExpiredDocs: true,
+    });
 
     expect(payload.allowExpiredDocs).toBe(true);
 
@@ -139,6 +132,35 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
 
     const apiCheck = validateCreateTripApiPayload(payload);
     expect(apiCheck.ok).toBe(true);
+  });
+
+  it("emits allowExpiredDocs false when checkbox intention is false", () => {
+    const values = {
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      scheduledArrival: "",
+      startMileage: 12000,
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      notes: "",
+      cfdiDocumentIntent: "ingreso",
+      originBranchId: "",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    } as unknown as TripWizardFormValues;
+
+    const payload = buildCreateTripInputFromWizardValues(values, {
+      createIntent: "reserve",
+      allowExpiredDocs: false,
+    });
+
+    expect(payload.allowExpiredDocs).toBe(false);
+    const snake = deepToSnake(payload) as { allow_expired_docs?: boolean };
+    expect(snake.allow_expired_docs).toBe(false);
   });
 
   it("includes cloned stops when provided for canvas corridor clone", () => {
@@ -182,7 +204,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       },
     ];
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
       clonedStops,
     });
@@ -266,7 +288,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       ],
     };
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
       clonedStops: replaceStopsFromCorridor(corridor),
     });
@@ -299,7 +321,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
     });
 
@@ -326,7 +348,7 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
     });
 

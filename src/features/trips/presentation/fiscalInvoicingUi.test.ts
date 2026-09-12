@@ -40,6 +40,66 @@ describe("getTripInvoicingBadgeConfig", () => {
     });
     expect(cfg.label).toBe("Disponible");
   });
+
+  it("con split activo y porciones pendientes CTA-ready muestra Disponible", () => {
+    const cfg = getTripInvoicingBadgeConfig({
+      status: TripStatus.COMPLETED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        splitLegsInvoiced: 0,
+        splitLegsTotal: 2,
+        canGenerateSplitShareInvoice: true,
+      }),
+    });
+    expect(cfg.label).toBe("Disponible");
+    expect(cfg.variant).toBe("outline");
+  });
+
+  it("con split activo y algunas porciones facturadas muestra Parcial", () => {
+    const cfg = getTripInvoicingBadgeConfig({
+      status: TripStatus.COMPLETED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        splitLegsInvoiced: 1,
+        splitLegsTotal: 2,
+        canGenerateSplitShareInvoice: true,
+      }),
+    });
+    expect(cfg.label).toBe("Parcial");
+    expect(cfg.variant).toBe("secondary");
+  });
+
+  it("con split activo y todas las porciones facturadas muestra Facturado", () => {
+    const cfg = getTripInvoicingBadgeConfig({
+      status: TripStatus.COMPLETED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        splitLegsInvoiced: 2,
+        splitLegsTotal: 2,
+        canGenerateSplitShareInvoice: false,
+      }),
+    });
+    expect(cfg.label).toBe("Facturado");
+    expect(cfg.variant).toBe("default");
+  });
+
+  it("con split activo sin CTA y 0 porciones facturadas muestra No disponible", () => {
+    const cfg = getTripInvoicingBadgeConfig({
+      status: TripStatus.COMPLETED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        splitLegsInvoiced: 0,
+        splitLegsTotal: 2,
+        canGenerateSplitShareInvoice: false,
+        blockReason: "Falta domicilio fiscal en la ruta.",
+      }),
+    });
+    expect(cfg.label).toBe("No disponible");
+  });
 });
 
 describe("toDetailInvoicingBadge", () => {
@@ -54,6 +114,12 @@ describe("toDetailInvoicingBadge", () => {
     expect(
       toDetailInvoicingBadge({ label: "Facturado", variant: "default" }).label,
     ).toBe("Facturado");
+  });
+
+  it("remapea Parcial a Facturación en curso en el detalle", () => {
+    expect(
+      toDetailInvoicingBadge({ label: "Parcial", variant: "secondary" }).label,
+    ).toBe("Facturación en curso");
   });
 });
 
@@ -81,5 +147,35 @@ describe("getTripInvoicingBlockReason", () => {
         }),
       ),
     ).toBe("Falta domicilio fiscal del cliente.");
+  });
+
+  it("no bloquea cuando el CTA de porción split está habilitado", () => {
+    expect(
+      getTripInvoicingBlockReason(
+        tripInvoicingFixture({
+          canGenerateInvoice: false,
+          hasActiveSplit: true,
+          splitLegsInvoiced: 0,
+          splitLegsTotal: 2,
+          canGenerateSplitShareInvoice: true,
+          blockReason: "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.",
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("no bloquea cuando el prorrateo ya está completo", () => {
+    expect(
+      getTripInvoicingBlockReason(
+        tripInvoicingFixture({
+          canGenerateInvoice: false,
+          hasActiveSplit: true,
+          splitLegsInvoiced: 2,
+          splitLegsTotal: 2,
+          canGenerateSplitShareInvoice: false,
+          blockReason: "Todas las porciones ya tienen factura.",
+        }),
+      ),
+    ).toBeNull();
   });
 });

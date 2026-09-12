@@ -28,6 +28,10 @@ export interface TripDetailRouteStopCardProps {
   onEditStop?: () => void;
   /** Solo escalas: dispara el flujo de confirmación/bloqueo en el padre. */
   onRemoveWaypoint?: () => void;
+  onReorderUp?: () => void;
+  onReorderDown?: () => void;
+  reorderUpDisabled?: boolean;
+  reorderDownDisabled?: boolean;
 }
 
 function StopCategoryIcon({
@@ -51,6 +55,10 @@ export function TripDetailRouteStopCard({
   onCompleteAddress,
   onEditStop,
   onRemoveWaypoint,
+  onReorderUp,
+  onReorderDown,
+  reorderUpDisabled,
+  reorderDownDisabled,
 }: TripDetailRouteStopCardProps) {
   const category = getRouteStopCategory(stop);
   const needsAddress = !isStopDomicilioComplete(stop);
@@ -64,6 +72,9 @@ export function TripDetailRouteStopCard({
     !needsAddress && !needsOperation && onEditStop;
   const showRemove =
     category === "waypoint" && typeof onRemoveWaypoint === "function";
+  const showReorder =
+    category === "waypoint" &&
+    (typeof onReorderUp === "function" || typeof onReorderDown === "function");
 
   return (
     <div
@@ -146,6 +157,31 @@ export function TripDetailRouteStopCard({
             <Button type="button" size="sm" variant="outline" onClick={onEditStop}>
               {copy.action.editStop}
             </Button>
+          ) : null}
+
+          {showReorder ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={reorderUpDisabled || !onReorderUp}
+                onClick={onReorderUp}
+                aria-label={copy.action.reorderUp}
+              >
+                ↑
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={reorderDownDisabled || !onReorderDown}
+                onClick={onReorderDown}
+                aria-label={copy.action.reorderDown}
+              >
+                ↓
+              </Button>
+            </>
           ) : null}
 
           {showRemove ? (

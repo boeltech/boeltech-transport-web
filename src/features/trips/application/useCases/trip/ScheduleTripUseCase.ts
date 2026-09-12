@@ -1,5 +1,6 @@
 import {
   TripStatus,
+  type CreateTripWarning,
   type Trip,
   type ITripRepository,
   validateStatusTransition,
@@ -12,8 +13,14 @@ import { assertCommercialScheduleReadiness } from "@boeltech/cfdi-domain";
 // SCHEDULE TRIP USE CASE
 // ============================================================================
 
+/** Confirm draft→scheduled; may include soft-overlap warnings (0071 E2). */
+export type ScheduleTripResult = {
+  trip: Trip;
+  warnings?: CreateTripWarning[];
+};
+
 export interface IScheduleTripUseCase {
-  execute(id: string): Promise<UseCaseResult<Trip>>;
+  execute(id: string): Promise<UseCaseResult<ScheduleTripResult>>;
 }
 
 export class ScheduleTripUseCase implements IScheduleTripUseCase {
@@ -23,7 +30,7 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
     this.repository = repository;
   }
 
-  async execute(id: string): Promise<UseCaseResult<Trip>> {
+  async execute(id: string): Promise<UseCaseResult<ScheduleTripResult>> {
     try {
       const currentTrip = await this.repository.findById(id);
 
@@ -58,7 +65,15 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         status: TripStatus.SCHEDULED,
       });
 
-      return { success: true, data: updatedTrip.data };
+      return {
+        success: true,
+        data: {
+          trip: updatedTrip.data,
+          ...(updatedTrip.warnings && updatedTrip.warnings.length > 0
+            ? { warnings: updatedTrip.warnings }
+            : {}),
+        },
+      };
     } catch (error) {
       return {
         success: false,

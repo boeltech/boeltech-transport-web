@@ -93,13 +93,22 @@ export function TripConfirmReserveButton({
   const updateTrip = useUpdateTrip();
 
   const scheduleMutation = useScheduleTrip({
-    onSuccess: (trip) => {
+    onSuccess: (result) => {
       toast({
         title: copy.toast.scheduledTitle,
         description: copy.toast.scheduledBody(tripCode),
         variant: "success",
       });
-      onActionComplete?.(trip);
+      if (result.warnings?.length) {
+        for (const warning of result.warnings) {
+          toast({
+            title: copy.toast.overlapWarningTitle,
+            description: warning.message,
+            variant: "warning",
+          });
+        }
+      }
+      onActionComplete?.(result.trip);
       setOpen(false);
       setScheduleError(null);
     },

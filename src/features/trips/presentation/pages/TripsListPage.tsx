@@ -114,21 +114,42 @@ export function TripsListPage() {
     [isClientPortal, isDriverPortal],
   );
 
+  const fiscalAttentionOnly = searchParams.get("fiscalAttention") === "1";
+
   const handleBucketChange = useCallback(
     (bucket: TripWorkbenchBucket) => {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
         // Toggle: clicking active bucket clears it (back to "all")
-        if (activeBucket === bucket) {
+        if (activeBucket === bucket && !fiscalAttentionOnly) {
           params.delete("status");
         } else {
           params.set("status", bucket);
+          // Mutuamente excluyente con cola de atención fiscal (count global)
+          params.delete("fiscalAttention");
         }
         params.set("page", "1");
         return params;
       });
     },
-    [activeBucket, setSearchParams],
+    [activeBucket, fiscalAttentionOnly, setSearchParams],
+  );
+
+  const handleFiscalAttentionBucketChange = useCallback(
+    (attentionOnly: boolean) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (attentionOnly) {
+          params.set("fiscalAttention", "1");
+          params.delete("status");
+        } else {
+          params.delete("fiscalAttention");
+        }
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
   );
 
   const buckets: WorkbenchBucket[] = useMemo(
@@ -138,8 +159,17 @@ export function TripsListPage() {
         visibleBuckets,
         activeBucket,
         onBucketChange: handleBucketChange,
+        fiscalAttentionOnly,
+        onFiscalAttentionChange: handleFiscalAttentionBucketChange,
       }),
-    [activeBucket, handleBucketChange, visibleBuckets, workbenchSummary],
+    [
+      activeBucket,
+      fiscalAttentionOnly,
+      handleBucketChange,
+      handleFiscalAttentionBucketChange,
+      visibleBuckets,
+      workbenchSummary,
+    ],
   );
 
   // ── Filters (shared with toolbar) ──────────────────────────────
@@ -156,7 +186,6 @@ export function TripsListPage() {
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
-  const fiscalAttentionOnly = searchParams.get("fiscalAttention") === "1";
   const overdueOnly = searchParams.get("overdue") === "1";
   const invoiceStatusFilter = parseTripInvoiceStatusFilter(
     searchParams.get("invoiceStatus"),
@@ -319,15 +348,9 @@ export function TripsListPage() {
 
   const handleFiscalAttentionChange = useCallback(
     (attentionOnly: boolean) => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (attentionOnly) params.set("fiscalAttention", "1");
-        else params.delete("fiscalAttention");
-        params.set("page", "1");
-        return params;
-      });
+      handleFiscalAttentionBucketChange(attentionOnly);
     },
-    [setSearchParams],
+    [handleFiscalAttentionBucketChange],
   );
 
   const handleInvoiceStatusChange = useCallback(

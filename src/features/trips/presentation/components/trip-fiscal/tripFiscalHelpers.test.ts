@@ -14,6 +14,7 @@ import {
   shouldShowFiscalCorrectionChip,
   shouldShowFiscalWarningChip,
   toFiscalStopDisplayOrder,
+  formatFiscalStopPlaceLine,
 } from "./tripFiscalHelpers";
 
 function makeStop(overrides: Partial<TripStop> = {}): TripStop {
@@ -169,9 +170,25 @@ describe("tripFiscalHelpers", () => {
     expect(shouldShowFiscalCorrectionChip(trip, validStop)).toBe(false);
   });
 
-  it("toFiscalStopDisplayOrder maps 0-based sequence to Parada 1..N", () => {
+  it("toFiscalStopDisplayOrder uses 1-based sequence_order as Parada N", () => {
+    expect(toFiscalStopDisplayOrder(1)).toBe(1);
+    expect(toFiscalStopDisplayOrder(2)).toBe(2);
     expect(toFiscalStopDisplayOrder(0)).toBe(1);
-    expect(toFiscalStopDisplayOrder(2)).toBe(3);
+  });
+
+  it("formatFiscalStopPlaceLine includes locationName before street", () => {
+    const stop = makeStop({
+      sequenceOrder: 1,
+      locationName: "Amazon México",
+      street: "Boulevard Manuel Ávila Camacho",
+      exteriorNumber: "261",
+      city: "México",
+      state: "CMX",
+      colonia: "Polanco I Sección",
+    });
+    const line = formatFiscalStopPlaceLine(stop);
+    expect(line).toContain("Amazon México");
+    expect(line).toContain("Boulevard Manuel Ávila Camacho");
   });
 
   it("finalizeTripsForStampLoad aborts when expected trips are missing (F1)", () => {

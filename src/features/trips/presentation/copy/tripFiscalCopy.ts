@@ -3,7 +3,7 @@ export const tripFiscalCopy = {
   correctionSheet: {
     title: "Corregir datos fiscales",
     subtitle: (stopOrder: number, stopTypeLabel: string, location: string) =>
-      `Parada ${stopOrder + 1} · ${stopTypeLabel} · ${location}`,
+      `Parada ${stopOrder} · ${stopTypeLabel} · ${location}`,
     description:
       "Actualiza RFC o domicilio de esta parada para Carta Porte. Los cambios aplican al viaje.",
     tabRfc: "RFC",
@@ -14,7 +14,7 @@ export const tripFiscalCopy = {
       "Reemplaza el domicilio SAT de la parada desde catálogo o captura manual.",
     contextTitle: "Valores actuales en la parada",
     contextStopLine: (stopOrder: number, stopTypeLabel: string, location: string) =>
-      `Parada ${stopOrder + 1} · ${stopTypeLabel} · ${location}`,
+      `Parada ${stopOrder} · ${stopTypeLabel} · ${location}`,
     contextRfc: "RFC en parada",
     contextAddress: "Domicilio registrado",
     contextEmpty: "Sin registrar",
@@ -268,5 +268,7 @@ export const tripFiscalCopy = {
   detailBadge: {
     readyToBill: "Listo para facturar",
     pending: "Pendiente",
+    /** ADR-0081: remap de listado «Parcial». */
+    splitPartial: "Facturación en curso",
   },
 } as const;

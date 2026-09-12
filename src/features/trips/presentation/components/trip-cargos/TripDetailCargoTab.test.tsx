@@ -17,9 +17,27 @@ const mutateUpdateAsync = vi.fn();
 const mutateDelete = vi.fn();
 const mutateReassignAsync = vi.fn();
 
+const { mockUseVehicle } = vi.hoisted(() => ({
+  mockUseVehicle: vi.fn(() => ({
+    data: undefined as
+      | {
+          unitNumber: string;
+          brand: string;
+          model: string;
+          capacities: { loadCapacity: number | null };
+        }
+      | undefined,
+    isLoading: false,
+  })),
+}));
+
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
   useMediaQuery: () => false,
+}));
+
+vi.mock("@features/vehicles", () => ({
+  useVehicle: (...args: unknown[]) => mockUseVehicle(...args),
 }));
 
 vi.mock("@features/trips/application", () => ({
@@ -49,6 +67,7 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
     deliveriesReadOnly,
     availablePickupStops,
     onPickupStopChange,
+    vehicleCapacityKg,
     onSubmit,
   }: {
     open: boolean;
@@ -61,6 +80,7 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
       address: string;
       city: string;
     }) => void;
+    vehicleCapacityKg?: number | null;
     onSubmit: (
       values: TripCargoFormValues,
       editingIndex: number | null,
@@ -77,6 +97,9 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
         </span>
         <span data-testid="sheet-pickup-options">
           {availablePickupStops?.length ?? 0}
+        </span>
+        <span data-testid="sheet-vehicle-capacity">
+          {vehicleCapacityKg == null ? "null" : String(vehicleCapacityKg)}
         </span>
         {onPickupStopChange && (availablePickupStops?.length ?? 0) > 1 ? (
           <button
@@ -211,6 +234,8 @@ describe("TripDetailCargoTab", () => {
     mutateAddAsync.mockResolvedValue({});
     mutateUpdateAsync.mockResolvedValue({});
     mutateReassignAsync.mockResolvedValue({});
+    mockUseVehicle.mockReset();
+    mockUseVehicle.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it("shows empty without pickup and no add-cargo CTA", () => {
@@ -412,5 +437,127 @@ describe("TripDetailCargoTab", () => {
       data: { stopId: "st-wp", stopIndex: 1 },
     });
     expect(mutateUpdateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows meta without captured weight when cargos have zero kg", () => {
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[
+            {
+              ...sampleCargo,
+              weight: 0,
+              weightInKg: 0,
+            },
+          ]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(copy.format.metaLine(1, 0)),
+    ).toBeInTheDocument();
+    expect(copy.format.metaLine(1, 0)).toContain("sin peso capturado");
+  });
+
+  it("shows capacity strip and wires vehicleCapacityKg to the sheet", async () => {
+    const user = userEvent.setup();
+    mockUseVehicle.mockReturnValue({
+      data: {
+        unitNumber: "ECO-1",
+        brand: "Kenworth",
+        model: "T680",
+        capacities: { loadCapacity: 20 },
+      },
+      isLoading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.IN_PROGRESS}
+          cargos={[sampleCargo]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural={false}
+          canAppendCargo
+          vehicleId="veh-1"
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(copy.capacity.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.capacity.vehicleSubtitle("ECO-1", "Kenworth", "T680")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        copy.capacity.loadedOfCapacity(
+          copy.capacity.formatWeight(200),
+          copy.capacity.formatWeight(20_000),
+        ),
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.addCargo }),
+    );
+    expect(screen.getByTestId("sheet-vehicle-capacity")).toHaveTextContent(
+      "20000",
+    );
+  });
+
+  it("uses readonly over-capacity hint when the trip is completed", () => {
+    mockUseVehicle.mockReturnValue({
+      data: {
+        unitNumber: "ECO-1",
+        brand: "Kenworth",
+        model: "T680",
+        capacities: { loadCapacity: 20 },
+      },
+      isLoading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.COMPLETED}
+          cargos={[
+            {
+              ...sampleCargo,
+              weight: 25_000,
+              weightInKg: 25_000,
+            },
+          ]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural={false}
+          vehicleId="veh-1"
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(copy.capacity.overCapacityHintReadonly),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.capacity.overCapacityHint),
+    ).not.toBeInTheDocument();
   });
 });

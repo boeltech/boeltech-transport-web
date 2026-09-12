@@ -100,4 +100,65 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it("headerMenu: stamped false_trip shows Facturación + ver factura without create", async () => {
+    const user = userEvent.setup();
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <TripInvoiceActions
+            trip={makeTrip({
+              invoicing: tripInvoicingFixture({
+                canGenerateInvoice: false,
+                canGenerateAccessoryInvoice: false,
+                canGenerateFalseTripInvoice: false,
+                hasActiveInvoice: false,
+                hasActivePrimaryInvoice: false,
+                hasActivePrincipalInvoice: true,
+                invoiceId: "inv-falso-1",
+                invoiceFolio: "B8S-99",
+                invoiceStatus: "stamped",
+                blockReason:
+                  "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.",
+              }),
+            })}
+            presentation="headerMenu"
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const menuTrigger = screen.getByRole("button", {
+      name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+    });
+    expect(menuTrigger).toBeInTheDocument();
+
+    await user.click(menuTrigger);
+
+    expect(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewPrimary,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewPrimary,
+      }),
+    );
+    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1");
+  });
 });

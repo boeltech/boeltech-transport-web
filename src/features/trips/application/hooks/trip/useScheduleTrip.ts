@@ -4,7 +4,10 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { tripRepository } from "@features/trips/infrastructure";
-import { createScheduleTripUseCase } from "../../useCases";
+import {
+  createScheduleTripUseCase,
+  type ScheduleTripResult,
+} from "../../useCases";
 import { tripQueryKeys, TripStatus, type Trip } from "@features/trips/domain";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
@@ -34,9 +37,11 @@ export class TripActionError extends Error {
  *
  * Importante: no poner `...options` después de `onSuccess` — el caller
  * (p. ej. TripActions toast) sobrescribiría la sincronización de cache.
+ * Soft-overlap warnings (0071 E2) se propagan en el resultado para que el CTA
+ * muestre toasts; el hook no toastea.
  */
 export function useScheduleTrip(
-  options?: UseMutationOptions<Trip, TripActionError, string>,
+  options?: UseMutationOptions<ScheduleTripResult, TripActionError, string>,
 ) {
   const queryClient = useQueryClient();
   const scheduleTripUseCase = createScheduleTripUseCase(tripRepository);
@@ -63,7 +68,8 @@ export function useScheduleTrip(
 
       return result.data;
     },
-    onSuccess: async (trip, tripId, onMutateResult, context) => {
+    onSuccess: async (result, tripId, onMutateResult, context) => {
+      const trip = result.trip;
       // Actualizar detalle de inmediato (evita servir draft precargado con staleTime).
       queryClient.setQueryData<Trip>(tripQueryKeys.detail(tripId), (previous) => {
         if (!previous) return trip;
@@ -88,7 +94,7 @@ export function useScheduleTrip(
         status: TripStatus.SCHEDULED,
       });
       await invalidateTripAssignmentResources(queryClient);
-      await userOnSuccess?.(trip, tripId, onMutateResult, context);
+      await userOnSuccess?.(result, tripId, onMutateResult, context);
     },
     onError: (error, tripId, onMutateResult, context) => {
       userOnError?.(error, tripId, onMutateResult, context);

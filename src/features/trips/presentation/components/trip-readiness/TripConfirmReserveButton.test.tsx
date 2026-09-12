@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
-import { TripStatus } from "@features/trips/domain";
+import { TripStatus, type Trip } from "@features/trips/domain";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { tripDetailCopy } from "../../copy";
 import {
@@ -14,6 +14,17 @@ import {
 const mutate = vi.fn();
 const mutateAsyncUpdate = vi.fn();
 const mockHasPermission = vi.fn();
+const mockToast = vi.hoisted(() => vi.fn());
+const scheduleOptions = vi.hoisted(() => ({
+  current: undefined as
+    | {
+        onSuccess?: (result: {
+          trip: Trip;
+          warnings?: Array<{ code: string; message: string }>;
+        }) => void;
+      }
+    | undefined,
+}));
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
@@ -23,14 +34,22 @@ vi.mock("@shared/permissions", () => ({
 }));
 
 vi.mock("@shared/hooks", () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: mockToast }),
 }));
 
 vi.mock("@features/trips/application", () => ({
-  useScheduleTrip: () => ({
-    mutate,
-    isPending: false,
-  }),
+  useScheduleTrip: (options?: {
+    onSuccess?: (result: {
+      trip: Trip;
+      warnings?: Array<{ code: string; message: string }>;
+    }) => void;
+  }) => {
+    scheduleOptions.current = options;
+    return {
+      mutate,
+      isPending: false,
+    };
+  },
   useUpdateTrip: () => ({
     mutateAsync: mutateAsyncUpdate,
     isPending: false,
@@ -183,5 +202,42 @@ describe("TripConfirmReserveButton", () => {
     expect(
       screen.getByRole("spinbutton", { name: /kilometraje inicial/i }),
     ).toBeInTheDocument();
+  });
+
+  it("toasts soft overlap warnings after successful confirm (0071 E2)", async () => {
+    const user = userEvent.setup();
+    renderButton();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirmReserve }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirm }),
+    );
+
+    expect(mutate).toHaveBeenCalledWith("trip-1");
+    scheduleOptions.current?.onSuccess?.({
+      trip: { id: "trip-1", tripCode: "TR-001" } as Trip,
+      warnings: [
+        {
+          code: "VEHICLE_OVERLAP_SOFT",
+          message: "El vehículo ya está asignado al viaje RSV-001",
+        },
+      ],
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toast.scheduledTitle,
+        variant: "success",
+      }),
+    );
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toast.overlapWarningTitle,
+        description: "El vehículo ya está asignado al viaje RSV-001",
+        variant: "warning",
+      }),
+    );
   });
 });

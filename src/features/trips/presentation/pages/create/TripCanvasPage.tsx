@@ -51,7 +51,6 @@ import {
   buildBusyAssignmentResourceIds,
 } from "./tripAssignmentBusyResources";
 import { buildAssignableDriversForTripWizard } from "./tripAssignmentDrivers";
-import { buildTripAssignmentContext } from "./tripAssignmentExpiredDocs";
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import {
   summarizeTripApiPayloadErrors,
@@ -77,6 +76,7 @@ export function TripCanvasPage() {
   const [confirmLaterOpen, setConfirmLaterOpen] = useState(false);
   const [selectedCorridor, setSelectedCorridor] =
     useState<ClientCorridor | null>(null);
+  const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
 
   const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } =
     useAssignableVehicles({ refetchOnMount: "always" });
@@ -180,20 +180,15 @@ export function TripCanvasPage() {
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setShowValidationSummary(false);
-    const assignmentContext = buildTripAssignmentContext(
-      data,
-      vehicles,
-      assignableDrivers,
-    );
     const clonedStops =
       selectedCorridor && selectedCorridor.stopsSnapshot.length > 0
         ? replaceStopsFromCorridor(selectedCorridor)
         : undefined;
-    const payload = buildCreateTripInputFromWizardValues(
-      data,
-      assignmentContext,
-      { createIntent: "reserve", clonedStops },
-    );
+    const payload = buildCreateTripInputFromWizardValues(data, {
+      createIntent: "reserve",
+      clonedStops,
+      allowExpiredDocs,
+    });
 
     const createApiCheck = validateCreateTripApiPayload(payload);
     if (!createApiCheck.ok) {
@@ -288,6 +283,8 @@ export function TripCanvasPage() {
               drivers={assignableDrivers}
               isLoadingVehicles={isLoadingVehicles}
               isLoadingDrivers={isLoadingDrivers}
+              allowExpiredDocs={allowExpiredDocs}
+              onAllowExpiredDocsChange={setAllowExpiredDocs}
             />
           </FormSectionCard>
         </div>

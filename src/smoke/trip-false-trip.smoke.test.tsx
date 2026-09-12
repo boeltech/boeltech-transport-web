@@ -161,6 +161,49 @@ describe("smoke ADR-0079 trip false-trip", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("post-timbrado: menú Facturación residual abre factura existente sin create", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestProviders>
+        <TripInvoiceActions
+          trip={makeFalseTrip({
+            invoicing: tripInvoicingFixture({
+              canGenerateInvoice: false,
+              canGenerateAccessoryInvoice: false,
+              canGenerateFalseTripInvoice: false,
+              hasActiveInvoice: false,
+              hasActivePrimaryInvoice: false,
+              hasActivePrincipalInvoice: true,
+              invoiceId: "inv-falso-1",
+              invoiceFolio: "B8S-99",
+              invoiceStatus: "stamped",
+            }),
+          })}
+          presentation="headerMenu"
+        />
+      </TestProviders>,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewPrimary,
+      }),
+    );
+    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1");
+  });
+
   it("editor false_trip vacío: sin flete y CTA agregar concepto", () => {
     render(
       <TestProviders>

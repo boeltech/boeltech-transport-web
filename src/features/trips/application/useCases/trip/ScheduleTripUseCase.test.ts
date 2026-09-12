@@ -121,9 +121,62 @@ describe("ScheduleTripUseCase route validation", () => {
     const result = await useCase.execute("trip-1");
 
     expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.trip).toEqual(scheduled);
+    expect(result.data.warnings).toBeUndefined();
     expect(repository.updateStatus).toHaveBeenCalledWith("trip-1", {
       status: TripStatus.SCHEDULED,
     });
+  });
+
+  it("propaga warnings soft de updateStatus (0071 E2)", async () => {
+    const scheduled = draftTrip({
+      status: TripStatus.SCHEDULED,
+      mileage: { start: 12_000, end: null },
+      costs: {
+        baseRate: 35_000,
+        fuelCost: 0,
+        tollCost: 0,
+        otherCosts: 0,
+        totalCost: 35_000,
+      },
+    });
+    const repository = {
+      findById: vi.fn().mockResolvedValue({
+        data: draftTrip({
+          mileage: { start: 12_000, end: null },
+          costs: {
+            baseRate: 35_000,
+            fuelCost: 0,
+            tollCost: 0,
+            otherCosts: 0,
+            totalCost: 35_000,
+          },
+        }),
+      }),
+      updateStatus: vi.fn().mockResolvedValue({
+        data: scheduled,
+        warnings: [
+          {
+            code: "VEHICLE_OVERLAP_SOFT",
+            message: "El vehículo ya está asignado al viaje TRP-DRAFT",
+          },
+        ],
+      }),
+    } as unknown as ITripRepository;
+    const useCase = new ScheduleTripUseCase(repository);
+
+    const result = await useCase.execute("trip-1");
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.trip.status).toBe(TripStatus.SCHEDULED);
+    expect(result.data.warnings).toEqual([
+      expect.objectContaining({
+        code: "VEHICLE_OVERLAP_SOFT",
+        message: "El vehículo ya está asignado al viaje TRP-DRAFT",
+      }),
+    ]);
   });
 
   it("rechaza programar sin kilometraje inicial", async () => {

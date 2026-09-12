@@ -63,6 +63,45 @@ describe("TripFiscalSection — block_reason operación/SAT", () => {
       "/trips/trip-1?tab=cargo",
     );
   });
+
+  it("false_trip stamped: badge Facturado + Abrir, sin mutex Pendiente", () => {
+    render(
+      <MemoryRouter>
+        <TripFiscalSection
+          trip={{
+            ...makeTrip(
+              {
+                canGenerateInvoice: false,
+                canGenerateAccessoryInvoice: false,
+                canGenerateFalseTripInvoice: false,
+                hasActiveInvoice: false,
+                hasActivePrimaryInvoice: false,
+                hasActivePrincipalInvoice: true,
+                invoiceId: "inv-falso-1",
+                invoiceFolio: "B8S-99",
+                invoiceStatus: "stamped",
+                blockReason:
+                  "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.",
+              },
+              TripStatus.COMPLETED,
+            ),
+            operationalOutcome: "false_trip",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Facturado")).toBeInTheDocument();
+    expect(screen.queryByText("Pendiente")).not.toBeInTheDocument();
+    expect(screen.getByText(/Folio B8S-99/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir/i })).toHaveAttribute(
+      "href",
+      "/invoices/inv-falso-1",
+    );
+    expect(
+      screen.queryByText(/ya tiene una factura activa/i),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("shouldShowTripInvoicingConsole (PD2)", () => {

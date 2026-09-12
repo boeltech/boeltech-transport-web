@@ -82,4 +82,59 @@ describe("useRegisterTrackingEvent cache callbacks", () => {
       queryKey: tripQueryKeys.lists(),
     });
   });
+
+  it("propaga warnings FISCAL_ATTENTION_PENDING al onSuccess (ADR-0093 H3)", async () => {
+    createEvent.mockResolvedValue({
+      data: {
+        id: "evt-2",
+        tripId: "trip-1",
+        eventType: "trip_arrived",
+      },
+      warnings: [
+        {
+          code: "FISCAL_ATTENTION_PENDING",
+          message: "El viaje tiene atención fiscal pendiente",
+        },
+      ],
+    });
+
+    const userOnSuccess = vi.fn();
+
+    function wrapper({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+    }
+
+    const { result } = renderHook(
+      () => useRegisterTrackingEvent({ onSuccess: userOnSuccess }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        tripId: "trip-1",
+        event: {
+          eventType: "trip_arrived",
+          occurredAt: "2026-05-17T18:00:00.000Z",
+          mileage: 100,
+        } as never,
+      });
+    });
+
+    await waitFor(() => {
+      expect(userOnSuccess).toHaveBeenCalled();
+    });
+
+    expect(userOnSuccess.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        event: expect.objectContaining({ id: "evt-2" }),
+        warnings: [
+          expect.objectContaining({ code: "FISCAL_ATTENTION_PENDING" }),
+        ],
+      }),
+    );
+  });
 });

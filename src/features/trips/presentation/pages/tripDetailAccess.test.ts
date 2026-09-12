@@ -25,11 +25,47 @@ describe("getTripDetailAccess", () => {
     expect(access.canCreateExpenses).toBe(true);
   });
 
-  it("allows expenses but not structural edit for in_progress", () => {
+  it("allows mid-trip gates but not structural edit for in_progress (ADR-0093)", () => {
     const access = getTripDetailAccess("in_progress", openPerms);
     expect(access.canEditStructural).toBe(false);
-    expect(access.canEditBaseRate).toBe(false);
+    expect(access.canEditBaseRate).toBe(true);
+    expect(access.canAppendCargo).toBe(true);
+    expect(access.canReplanPendingStops).toBe(true);
+    expect(access.canAppendStops).toBe(true);
+    expect(access.canReassignFleet).toBe(true);
     expect(access.canManageExpenses).toBe(true);
+  });
+
+  it("keeps draft structural + mid-trip replan/append/fleet/base rate", () => {
+    const access = getTripDetailAccess("draft", openPerms);
+    expect(access.canEditStructural).toBe(true);
+    expect(access.canAppendCargo).toBe(true);
+    expect(access.canReplanPendingStops).toBe(true);
+    expect(access.canAppendStops).toBe(true);
+    expect(access.canReassignFleet).toBe(true);
+    expect(access.canEditBaseRate).toBe(true);
+  });
+
+  it("blocks canReplanPendingStops without trips.update", () => {
+    const access = getTripDetailAccess("in_progress", {
+      canUpdateTrip: false,
+      canCreateExpense: true,
+      canUpdateExpense: true,
+      canDeleteExpense: true,
+    });
+    expect(access.canReplanPendingStops).toBe(false);
+    expect(access.canAppendStops).toBe(false);
+  });
+
+  it("blocks canReplanPendingStops on completed", () => {
+    const access = getTripDetailAccess("completed", {
+      ...openPerms,
+      closedAt: "2026-05-01T12:00:00.000Z",
+      now: "2026-05-15T12:00:00.000Z",
+      role: "admin",
+    });
+    expect(access.canReplanPendingStops).toBe(false);
+    expect(access.canEditStructural).toBe(false);
   });
 
   it("keeps pre-close expenses gated by trips.update even with expenses.create", () => {

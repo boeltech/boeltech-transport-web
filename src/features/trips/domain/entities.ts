@@ -704,3 +704,11 @@ export interface TripWorkbenchSummary {
   readonly fiscalAttention: number;
   readonly overdue: number;
 }
+
+/** Totales del workbench Por facturar (`GET /trips/invoiceable-summary`). */
+export interface TripInvoiceableSummary {
+  readonly ready: number;
+  readonly prorationPending: number;
+  readonly blocked: number;
+  readonly total: number;
+}

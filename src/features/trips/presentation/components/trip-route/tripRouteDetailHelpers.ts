@@ -409,6 +409,8 @@ export type RouteMasterRow = {
   draftLabel?: string | null;
   cityHint?: string | null;
   displayOrder: number;
+  /** ADR-0093 E1 — fila locked en composer pending-only. */
+  locked?: boolean;
 };
 
 export function buildRouteMasterRows(params: {

@@ -310,7 +310,7 @@ describe("smoke ADR-0077 trip trailers", () => {
       internalStaff: [],
     } as unknown as TripWizardFormValues;
 
-    const payload = buildCreateTripInputFromWizardValues(values, undefined, {
+    const payload = buildCreateTripInputFromWizardValues(values, {
       createIntent: "reserve",
     });
     expect(payload.trailers).toEqual([

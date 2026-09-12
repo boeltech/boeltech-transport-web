@@ -41,7 +41,11 @@ export const shellCopy = {
       "Hay un incidente sin cerrar. Revise el tab Seguimiento.",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:
-      "Este viaje tiene un pendiente de facturación. Use el menú Facturación para continuar.",
+      "Hubo cambios operativos después de facturar. Sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    fiscalAttentionCta: "Sustituir factura",
+    fiscalAttentionChip: "Atención fiscal",
+    fiscalAttentionNoInvoiceBody:
+      "Hay un pendiente de facturación en este viaje. Revísalo en Facturación cuando corresponda.",
     falseTripChip: "Viaje en falso",
     falseTripCancelCfdiTitle: "Cancela la factura de flete",
     falseTripCancelCfdiBody:
@@ -114,6 +118,7 @@ export const shellCopy = {
     scheduledTitle: "Viaje programado",
     scheduledBody: (code: string) => `${code} está listo para iniciar`,
     scheduleError: "No se pudo programar",
+    overlapWarningTitle: "Posible traslape con una reserva",
   },
   readiness: {
     title: "Reserva guardada",

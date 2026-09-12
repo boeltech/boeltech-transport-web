@@ -6,9 +6,11 @@ import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 
 import {
   addressSearchItemToCreateStopInput,
+  areComposerEndpointDraftsPutReady,
   buildReplaceStopsPayload,
   canPersistComposerStops,
   fillMissingCreateStopDistances,
+  isComposerPickPutReady,
   isDuplicateComposerEndpointAddress,
   mapTripStopToStopFormData,
   mergeComposerEndpointDraft,
@@ -458,6 +460,89 @@ describe("mergeComposerEndpointDraft", () => {
   });
 });
 
+describe("isComposerPickPutReady", () => {
+  it("accepts a typical geolocated catalog pick", () => {
+    expect(isComposerPickPutReady(pickerItem)).toBe(true);
+  });
+
+  it("rejects name + postal code without coordinates (create-new incomplete)", () => {
+    expect(
+      isComposerPickPutReady({
+        ...pickerItem,
+        street: "",
+        exteriorNumber: "",
+        latitude: null,
+        longitude: null,
+        geolocationPending: true,
+        satStateCode: "",
+        locationName: "Altea",
+        postalCode: "76127",
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects when SAT ambiguities remain", () => {
+    expect(
+      isComposerPickPutReady({
+        ...pickerItem,
+        satAmbiguities: ["neighborhood"],
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects missing satStateCode even with coords", () => {
+    expect(
+      isComposerPickPutReady({
+        ...pickerItem,
+        satStateCode: "",
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts locationName >= 5 without street when coords and SAT present", () => {
+    expect(
+      isComposerPickPutReady({
+        ...pickerItem,
+        street: "",
+        exteriorNumber: "",
+        locationName: "Altea",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("areComposerEndpointDraftsPutReady", () => {
+  it("requires both draft picks to be put-ready when neither is persisted", () => {
+    const incomplete = {
+      ...pickerItem,
+      latitude: null,
+      longitude: null,
+      street: "",
+      satStateCode: "",
+      locationName: "Altea",
+      postalCode: "76127",
+    };
+    expect(
+      areComposerEndpointDraftsPutReady(
+        { origin: incomplete, destination: pickerItem },
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      areComposerEndpointDraftsPutReady(
+        {
+          origin: pickerItem,
+          destination: {
+            ...pickerItem,
+            id: "22222222-2222-4222-8222-222222222222",
+          },
+        },
+        [],
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("mergeSubmittedStopWithEndpointDraft", () => {
   it("PUTs origin from the form together with destination still in the picker draft", () => {
     const destItem: AddressSearchListItem = {
@@ -639,6 +724,45 @@ describe("buildReplaceStopsPayload", () => {
     ]);
     expect(next[1]?.distanceFromPreviousKm).toBe(originToWaypointKm);
     expect(next[2]?.distanceFromPreviousKm).toBe(waypointToDestKm);
+  });
+
+  it("preserveEditedSnapshotAddressId keeps snapshot addressId on edited stop (replan)", () => {
+    const snapshotId = "8e100ce1-718f-4012-8135-5ac616ad4980";
+    const origin = tripStop({ ...santaFe, locationName: "Santa Fe CDMX" });
+    const dest = tripStop({
+      id: "stop-2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "Zayulita",
+      addressId: snapshotId,
+      ...zayulita,
+    });
+    const withoutFlag = buildReplaceStopsPayload({
+      existingStops: [origin, dest],
+      submitted: {
+        ...mapTripStopToStopFormData(dest),
+        street: "Calle Nueva",
+        cityName: "Puerto Vallarta",
+        stopCategory: "destination",
+      },
+      editingStopId: dest.id,
+    });
+    expect(withoutFlag.find((s) => s.locationName === "Zayulita")?.addressId).toBeUndefined();
+
+    const withFlag = buildReplaceStopsPayload({
+      existingStops: [origin, dest],
+      submitted: {
+        ...mapTripStopToStopFormData(dest),
+        street: "Calle Nueva",
+        cityName: "Puerto Vallarta",
+        stopCategory: "destination",
+      },
+      editingStopId: dest.id,
+      preserveEditedSnapshotAddressId: true,
+    });
+    expect(withFlag.find((s) => s.locationName === "Zayulita")?.addressId).toBe(
+      snapshotId,
+    );
   });
 
   it("creates a waypoint before destination instead of appending", () => {

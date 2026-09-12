@@ -308,6 +308,17 @@ export function CargoStep({
               : null
           }
           isCapacityUnknown={isCapacityUnknown}
+          messages={{
+            title: copy.capacity.title,
+            unknownTitle: copy.capacity.unknownTitle,
+            unknownBody: copy.capacity.unknownBody,
+            overCapacityHint: copy.capacity.overCapacityHint,
+            usage: copy.capacity.usage,
+            loadedOfCapacity: copy.capacity.loadedOfCapacity,
+            available: copy.capacity.available,
+            excess: copy.capacity.excess,
+            formatWeight: copy.format.weight,
+          }}
         />
       )}
 

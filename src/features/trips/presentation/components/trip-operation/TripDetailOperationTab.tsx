@@ -58,6 +58,8 @@ export interface TripDetailOperationTabProps {
   /** Viaje completo (programación sincroniza `scheduledArrival` con parada destino). */
   trip: Trip;
   canEditStructural: boolean;
+  /** ADR-0093 — reasignar flota mid-trip (independiente de structural). */
+  canReassignFleet?: boolean;
   /** Portal cliente: sin enlace al módulo Clientes. */
   showClientLink?: boolean;
   /** Portal cliente: sin kilometraje inicial/final. */
@@ -124,6 +126,7 @@ function ClientContractCard({
 export function TripDetailOperationTab({
   trip,
   canEditStructural,
+  canReassignFleet = false,
   showClientLink = true,
   showMileage = true,
   isClientPortalView = false,
@@ -218,7 +221,7 @@ export function TripDetailOperationTab({
                 {copy.hint.assignment}
               </CardDescription>
             </div>
-            {canEditStructural ? (
+            {canReassignFleet ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -291,39 +294,47 @@ export function TripDetailOperationTab({
               )}
             </div>
 
-            {trip.internalStaff && trip.internalStaff.length > 0 ? (
-              <>
-                <Separator className="my-3" />
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                    {copy.hint.staffSection}
-                    <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
-                      {trip.internalStaff.length}
-                    </Badge>
-                  </div>
-                  {trip.internalStaff.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-start justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium">{member.employeeFullName}</p>
-                        {member.isPaymentResponsible ? (
-                          <p className="text-muted-foreground">{copy.hint.paymentResponsible}</p>
-                        ) : null}
-                        {member.paymentNotes ? (
-                          <p className="mt-1 italic text-muted-foreground">{member.paymentNotes}</p>
-                        ) : null}
-                      </div>
-                      {showSettlementActions && canCreateSettlement ? (
-                        <SettlementLiquidateLink employeeId={member.employeeId} />
+            <Separator className="my-3" />
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <Users className="h-3.5 w-3.5" />
+                {copy.hint.staffSection}
+                {trip.internalStaff && trip.internalStaff.length > 0 ? (
+                  <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
+                    {trip.internalStaff.length}
+                  </Badge>
+                ) : null}
+              </div>
+              {trip.internalStaff && trip.internalStaff.length > 0 ? (
+                trip.internalStaff.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-start justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{member.employeeFullName}</p>
+                      <p className="text-muted-foreground">
+                        {copy.format.staffRole(member.internalRole)}
+                      </p>
+                      {member.isPaymentResponsible ? (
+                        <p className="text-muted-foreground">{copy.hint.paymentResponsible}</p>
+                      ) : null}
+                      {member.paymentNotes ? (
+                        <p className="mt-1 italic text-muted-foreground">{member.paymentNotes}</p>
                       ) : null}
                     </div>
-                  ))}
+                    {showSettlementActions && canCreateSettlement ? (
+                      <SettlementLiquidateLink employeeId={member.employeeId} />
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                  {copy.state.noSupportStaff}
                 </div>
-              </>
-            ) : null}
+              )}
+            </div>
 
             {showSettlementActions && canReadSettlements ? (
               <>
@@ -383,7 +394,7 @@ export function TripDetailOperationTab({
 
       <TripDetailStatusHistory entries={statusHistory ?? trip.statusHistory} />
 
-      {!isClientPortalView && canEditStructural ? (
+      {!isClientPortalView && canReassignFleet ? (
         <TripFleetAssignmentSheet
           trip={trip}
           open={isFleetAssignmentSheetOpen}

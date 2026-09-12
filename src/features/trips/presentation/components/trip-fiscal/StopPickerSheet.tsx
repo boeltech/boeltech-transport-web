@@ -9,7 +9,7 @@ import {
 } from "@shared/ui/sheet";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
-  formatStopLocation,
+  formatFiscalStopPlaceLine,
   getEffectiveStopRfc,
   toFiscalStopDisplayOrder,
 } from "./tripFiscalHelpers";
@@ -59,7 +59,7 @@ export function StopPickerSheet({
                     Parada #{toFiscalStopDisplayOrder(stop.sequenceOrder)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatStopLocation(stop)}
+                    {formatFiscalStopPlaceLine(stop)}
                   </p>
                   <p className="font-mono text-xs text-muted-foreground">
                     {getEffectiveStopRfc(stop) ?? "—"}

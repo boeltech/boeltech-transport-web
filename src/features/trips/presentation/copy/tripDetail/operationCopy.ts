@@ -1,21 +1,21 @@
-import type { Trip } from "@features/trips/domain";
+import type { Trip, TripInternalStaff } from "@features/trips/domain";
 
 /**
  * Namespace: trips.copy.tripDetail.operation.*
- * Superficie operativa (Capa 1 D8 / D11): ficha quién / cuándo / quién maneja / km.
+ * Superficie operativa (Capa 1 D8 / D11 + handoff flota/tripulación): ficha quién / cuándo / flota / km.
  */
 export const operationCopy = {
   section: {
     client: "Cliente",
     schedule: "Programación",
-    assignment: "Unidad y conductor",
+    assignment: "Flota y tripulación",
     mileage: "Kilometraje",
     notes: "Notas",
   },
   hint: {
     client: "Quién contrata el viaje.",
     schedule: "Salida y llegada programadas. Los tiempos reales se registran al operar.",
-    assignment: "Quién maneja y con qué unidad.",
+    assignment: "Unidad, remolques, operador principal y equipo de apoyo.",
     mileage: "Kilometraje al salir y al cerrar.",
     notes: "Observaciones del canal (teléfono, mensaje, etc.).",
     staffSection: "Equipo de apoyo",
@@ -60,6 +60,7 @@ export const operationCopy = {
       supportStaffNotes: "Notas de pago / viáticos",
       availableGroup: "Disponibles",
       softBusyGroup: "En otro viaje",
+      softHoldGroup: "En reserva",
       unavailableGroup: "No disponibles",
       blockedBadgeDefault: "Bloqueado",
       roleSecondaryDriver: "Segundo conductor",
@@ -88,7 +89,7 @@ export const operationCopy = {
       vehicleSelect: "Selecciona una unidad disponible para el viaje.",
       driverSelect: "Selecciona un operador disponible.",
       supportStaff:
-        "Agrega operadores secundarios o personal de apoyo asignados al viaje.",
+        "Selecciona puesto y empleado; el integrante queda en la lista al agregar o al guardar con la selección pendiente.",
       fleetBranchFilter:
         "Listado filtrado por la base operativa del viaje. Activa la opción para ver todo el catálogo.",
     },
@@ -121,10 +122,10 @@ export const operationCopy = {
       licenseSoftMatchTitle: "Aviso de compatibilidad de licencia",
       fiscalImpactTitle: "CFDI / Carta Porte timbrada",
       fiscalImpactBody:
-        "Este viaje ya cuenta con datos fiscales timbrados. Cualquier cambio de operador o placas requerirá la sustitución del CFDI.",
+        "Este viaje ya cuenta con CFDI y Carta Porte timbrados. Cambiar unidad, conductor (operador principal) o remolques impacta el complemento y requerirá sustitución del CFDI. El equipo de apoyo no forma parte de Carta Porte y no dispara esa revisión.",
       fiscalConfirmDialogTitle: "¿Confirmar reasignación con Carta Porte timbrada?",
       fiscalConfirmDialogBody: (tripCode: string) =>
-        `El viaje ${tripCode} tiene un CFDI timbrado asociado. Al cambiar de unidad o conductor, la información física en ruta no coincidirá con el documento fiscal vigente hasta que se genere la sustitución correspondiente.`,
+        `El viaje ${tripCode} tiene un CFDI timbrado asociado. Al cambiar unidad, conductor (operador principal) o remolques, la información física en ruta no coincidirá con el documento fiscal vigente hasta que se genere la sustitución correspondiente. El equipo de apoyo no forma parte del complemento.`,
       fiscalConfirmDialogConfirm: "Sí, reasignar flota",
       fiscalConfirmDialogCancel: "Regresar al formulario",
       expiredAssignmentTitle: "Asignación con documentación vencida",
@@ -145,6 +146,19 @@ export const operationCopy = {
       softBusyVehicleLabel: "Esta unidad",
       softBusyDriverLabel: "Este conductor",
       softBusyStaffLabel: "Este colaborador",
+      softHoldTitle: "Recurso en una reserva",
+      softHoldBody: (parts: {
+        resourceLabel: string;
+        tripCode: string;
+        departureLabel?: string | null;
+      }) => {
+        const when = parts.departureLabel
+          ? ` · salida ${parts.departureLabel}`
+          : "";
+        return `${parts.resourceLabel} figura en la reserva ${parts.tripCode}${when}. Puedes reasignar; la reserva no bloquea este viaje.`;
+      },
+      softHoldBodyGeneric: (resourceLabel: string) =>
+        `${resourceLabel} figura en una reserva solapada. Puedes reasignar; la reserva no bloquea este viaje.`,
       assignmentClearedTitle: "Asignación desmarcada",
       assignmentClearedBody:
         "El recurso seleccionado ya no es válido con los filtros actuales.",
@@ -152,6 +166,7 @@ export const operationCopy = {
     toasts: {
       success: "Flota y tripulación actualizadas correctamente",
       error: "No fue posible actualizar la asignación de flota",
+      overlapWarningTitle: "Posible traslape con una reserva",
     },
   },
   toast: {
@@ -175,7 +190,7 @@ export const operationCopy = {
     actualArrival: "Llegada real",
     unit: "Unidad",
     plate: "Placa",
-    driver: "Conductor",
+    driver: "Operador principal",
     mileageStart: "Inicial",
     mileageEnd: "Final",
   },
@@ -184,6 +199,7 @@ export const operationCopy = {
     noVehicle: "Sin vehículo asignado",
     noDriver: "Sin conductor asignado",
     noTrailers: "Sin remolques asignados",
+    noSupportStaff: "Sin equipo de apoyo",
   },
   format: {
     tripType(intent: Trip["cfdiDocumentIntent"]): string {
@@ -194,6 +210,16 @@ export const operationCopy = {
     },
     trailerLine(position: 1 | 2, licensePlate: string): string {
       return `${licensePlate} · ${position}`;
+    },
+    /** Rol en ruta del card (mismas etiquetas que fleetAssignment.labels). */
+    staffRole(role: TripInternalStaff["internalRole"]): string {
+      if (role === "secondary_driver") {
+        return "Segundo conductor";
+      }
+      if (role === "helper") {
+        return "Ayudante general";
+      }
+      return "Sin rol";
     },
   },
 } as const;

@@ -17,9 +17,11 @@ import type {
   TripExpense,
   CargoMovement,
   ExpensesSummary,
+  TripInvoiceableSummary,
 } from "./entities";
 import type {
   CreateTripInput,
+  CreateTripWarning,
   UpdateTripInput,
   UpdateTripStatusInput,
   // CreateStopInput,
@@ -83,12 +85,13 @@ export interface ITripRepository {
   update(id: string, input: UpdateTripInput): Promise<MappedSingleResult<Trip>>;
 
   /**
-   * Actualiza el estado de un viaje
+   * Actualiza el estado de un viaje.
+   * Confirm draft→scheduled (0071 E2) puede incluir warnings soft vs otros draft.
    */
   updateStatus(
     id: string,
     input: UpdateTripStatusInput,
-  ): Promise<MappedSingleResult<Trip>>;
+  ): Promise<MappedSingleResult<Trip> & { warnings?: CreateTripWarning[] }>;
 
   /**
    * Elimina un viaje (solo drafts)
@@ -99,6 +102,11 @@ export interface ITripRepository {
    * Verifica si existe un viaje con el código dado
    */
   existsByCode(code: string): Promise<boolean>;
+
+  /**
+   * Totales del workbench Por facturar (ADR-0090).
+   */
+  getInvoiceableSummary(search?: string): Promise<TripInvoiceableSummary>;
 }
 
 // ============================================================================

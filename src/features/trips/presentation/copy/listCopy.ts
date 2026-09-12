@@ -82,6 +82,8 @@ export const tripsListCopy = {
     cancellationPending: "Cancelación en proceso",
     cancelled: "Cancelado",
     available: "Disponible",
+    /** ADR-0081: prorrateo con algunas porciones ya facturadas. */
+    partial: "Parcial",
     unavailable: "No disponible",
   },
 
@@ -185,10 +187,9 @@ export const tripsListCopy = {
       in_progress: "Viajes actualmente en tránsito",
       completed: "Viajes finalizados exitosamente",
       cancelled: "Viajes cancelados",
-      fiscalAttention: "Viajes que requieren acción fiscal o de facturación",
+      fiscalAttention:
+        "Revisión o sustitución de factura pendiente (también si ya están facturados)",
     },
-    fiscalAttentionLink: (count: number) =>
-      `Ver ${count} viaje${count === 1 ? "" : "s"} facturable${count === 1 ? "" : "s"}`,
     degradedMessage:
       "No se pudieron cargar los conteos del centro de trabajo. Puedes seguir usando la lista con filtros.",
     degradedLinkLabel: "Recargar",

@@ -3,7 +3,7 @@ import type { TripStop } from "@features/trips/domain";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { tripFiscalCopy } from "../../../copy/tripFiscalCopy";
 import {
-  formatStopLocation,
+  formatFiscalStopPlaceLine,
   getEffectiveStopRfc,
 } from "../tripFiscalHelpers";
 
@@ -15,7 +15,7 @@ interface Props {
 
 export function FiscalCorrectionStopContext({ stop }: Props) {
   const effectiveRfc = getEffectiveStopRfc(stop)?.trim();
-  const addressLine = formatStopLocation(stop);
+  const addressLine = formatFiscalStopPlaceLine(stop);
   const hasAddress =
     addressLine.trim() !== "" && addressLine !== "Sin dirección";
 

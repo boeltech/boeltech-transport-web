@@ -71,6 +71,16 @@ export const trackingCopy = {
     loadingVehicleMileage: "Cargando kilometraje…",
     /** Un solo hint operativo cuando hay sugerencia. */
     suggestedMileageHint: (km: string) => `Sugerido: ${km} km`,
+    /**
+     * Cierre de viaje: desglose km inicial + distancia planificada = final.
+     * `fmt` ya viene con locale (p. ej. "3,200").
+     */
+    suggestedEndMileageHint: (args: {
+      startKm: string;
+      distanceKm: string;
+      endKm: string;
+    }) =>
+      `Sugerido: ${args.startKm} km (inicial) + ${args.distanceKm} km (distancia planificada) = ${args.endKm} km (final)`,
     vehicleLabel: "Unidad",
     driverLabel: "Conductor",
     loadingResource: "Cargando…",
@@ -93,6 +103,8 @@ export const trackingCopy = {
       "Paradas no visitadas: se registrará una hora de llegada estimada.",
     quickCloseWarningCargos:
       "Cargas no operadas: se marcarán como entregadas.",
+    quickCloseFiscalAttention:
+      "Hay atención fiscal pendiente. Puedes cerrar el viaje; sustituye la factura al cobrar el ajuste.",
     quickCloseOccurredAtLabel: "¿A qué hora terminó el viaje?",
     quickCloseNotesLabel: "Motivo (recomendado)",
     quickCloseNotesPlaceholder:

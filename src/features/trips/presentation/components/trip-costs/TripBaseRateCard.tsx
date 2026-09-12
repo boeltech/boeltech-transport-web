@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DollarSign } from "lucide-react";
 
-import { useUpdateTrip } from "@features/trips/application";
+import { usePatchTripBaseRate } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -42,7 +42,7 @@ function TripBaseRateCardEditor({
   );
   const [fieldError, setFieldError] = useState<string | null>(null);
 
-  const updateTrip = useUpdateTrip({
+  const patchBaseRate = usePatchTripBaseRate(tripId, {
     onSuccess: () => {
       toast({ title: copy.toast.baseRateUpdated, variant: "success" });
     },
@@ -87,10 +87,7 @@ function TripBaseRateCardEditor({
     }
 
     try {
-      await updateTrip.mutateAsync({
-        id: tripId,
-        data: { baseRate: draft ?? 0 },
-      });
+      await patchBaseRate.mutateAsync(draft ?? 0);
     } catch {
       // Toast en onError del mutation
     }
@@ -121,7 +118,7 @@ function TripBaseRateCardEditor({
           id="trip-detail-base-rate"
           value={draft}
           onValueChange={setDraft}
-          disabled={updateTrip.isPending}
+          disabled={patchBaseRate.isPending}
           error={Boolean(fieldError)}
           {...getFieldErrorAriaProps(
             "trip-detail-base-rate",
@@ -135,16 +132,16 @@ function TripBaseRateCardEditor({
             type="button"
             size="sm"
             onClick={() => void handleSave()}
-            disabled={updateTrip.isPending}
+            disabled={patchBaseRate.isPending}
           >
-            {updateTrip.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
+            {patchBaseRate.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
           </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={handleCancel}
-            disabled={updateTrip.isPending}
+            disabled={patchBaseRate.isPending}
           >
             {copy.action.cancel}
           </Button>

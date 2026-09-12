@@ -21,17 +21,20 @@ import type {
   CreateTripInput,
   ITripRepository,
   PaginatedResult,
+  CreateTripWarning,
   UpdateTripInput,
   UpdateTripStatusInput,
 } from "@features/trips/domain";
 import type {
   Trip,
   TripListItem,
+  TripInvoiceableSummary,
   TripQueryParams,
 } from "@features/trips/domain";
 import type { CreateTripResult } from "@features/trips/application/useCases/trip/CreateTripUseCase";
 import type {
   ApiCreateTripResponse,
+  ApiCreateTripWarning,
   ApiTripListItemResponse,
   ApiTripResponse,
 } from "../api/api-types";
@@ -51,6 +54,15 @@ import {
 // ============================================================================
 
 const TRIPS_ENDPOINT = "/trips";
+
+interface ApiInvoiceableSummaryResponse {
+  data: {
+    ready: number;
+    proration_pending: number;
+    blocked: number;
+    total: number;
+  };
+}
 
 // ============================================================================
 // REPOSITORY IMPLEMENTATION
@@ -134,12 +146,13 @@ export class TripRepository implements ITripRepository {
   }
 
   /**
-   * Actualiza el estado de un viaje
+   * Actualiza el estado de un viaje.
+   * Confirm draft→scheduled (0071 E2) puede devolver warnings soft vs draft holds.
    */
   async updateStatus(
     id: string,
     input: UpdateTripStatusInput,
-  ): Promise<MappedSingleResult<Trip>> {
+  ): Promise<MappedSingleResult<Trip> & { warnings?: CreateTripWarning[] }> {
     const statusValidation = validateUpdateTripStatusApiPayload(input);
     if (!statusValidation.ok) {
       throw new Error(
@@ -147,12 +160,27 @@ export class TripRepository implements ITripRepository {
       );
     }
 
-    const response = await apiClient.patch<{ data: ApiTripResponse }>(
-      `${TRIPS_ENDPOINT}/${id}/status`,
-      input,
-    );
+    const response = await apiClient.patch<{
+      data: ApiTripResponse;
+      message?: string;
+      warnings?: ApiCreateTripWarning[];
+    }>(`${TRIPS_ENDPOINT}/${id}/status`, input);
 
-    return mapTripResponse(response);
+    const mapped = mapTripResponse(response);
+    const warnings = response.warnings?.map((warning) => ({
+      code: warning.code,
+      message: warning.message,
+      vehicleId: warning.vehicle_id,
+      driverId: warning.driver_id,
+      trailerId: warning.trailer_id,
+      conflictingTripId: warning.conflicting_trip_id,
+      conflictingTripCode: warning.conflicting_trip_code,
+    }));
+
+    return {
+      ...mapped,
+      ...(warnings && warnings.length > 0 ? { warnings } : {}),
+    };
   }
 
   /**
@@ -174,6 +202,27 @@ export class TripRepository implements ITripRepository {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Totales del workbench Por facturar (`GET /trips/invoiceable-summary`).
+   */
+  async getInvoiceableSummary(
+    search?: string,
+  ): Promise<TripInvoiceableSummary> {
+    const response = await apiClient.get<ApiInvoiceableSummaryResponse>(
+      `${TRIPS_ENDPOINT}/invoiceable-summary`,
+      {
+        params: search ? { search } : undefined,
+      },
+    );
+    const data = response.data;
+    return {
+      ready: data.ready,
+      prorationPending: data.proration_pending,
+      blocked: data.blocked,
+      total: data.total,
+    };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -222,6 +271,9 @@ export class TripRepository implements ITripRepository {
       }
       if (params.filters.invoiceableOnly === true) {
         query.invoiceable = true;
+      }
+      if (params.filters.invoiceableBucket) {
+        query.invoiceable_bucket = params.filters.invoiceableBucket;
       }
       if (params.filters.originBranchId) {
         query.origin_branch_id = params.filters.originBranchId;

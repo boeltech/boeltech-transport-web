@@ -21,13 +21,24 @@ interface RegisterTrackingEventVariables {
   event: CreateTrackingEventInput;
 }
 
+export type TrackingApiWarning = {
+  code: string;
+  message: string;
+};
+
+/** Resultado de registrar un evento (incluye soft-warns ADR-0093). */
+export type RegisterTrackingEventResult = {
+  event: TrackingEvent;
+  warnings?: TrackingApiWarning[];
+};
+
 /**
  * Importante: no poner `...options` después de `onSuccess` — el caller
  * (toast) sobrescribiría la invalidación de cache.
  */
 export function useRegisterTrackingEvent(
   options?: UseMutationOptions<
-    TrackingEvent,
+    RegisterTrackingEventResult,
     Error,
     RegisterTrackingEventVariables
   >,
@@ -44,7 +55,12 @@ export function useRegisterTrackingEvent(
     ...rest,
     mutationFn: async ({ tripId, event }) => {
       const result = await trackingRepository.createEvent(tripId, event);
-      return result.data;
+      return {
+        event: result.data,
+        ...(result.warnings && result.warnings.length > 0
+          ? { warnings: result.warnings }
+          : {}),
+      };
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       const patch = buildTripDetailPatchFromTrackingEvent(variables.event);

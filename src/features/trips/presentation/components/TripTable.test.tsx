@@ -115,4 +115,23 @@ describe("TripTable", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Fiscal")).not.toBeInTheDocument();
   });
+
+  it("muestra día civil México en Salida para salida vespertina (no día UTC)", () => {
+    // 09/09/2026 20:00 America/Mexico_City = 2026-09-10T02:00:00.000Z
+    renderWithProviders(
+      <TripTable
+        trips={[
+          listTrip({
+            scheduledDeparture: new Date("2026-09-10T02:00:00.000Z"),
+          }),
+        ]}
+        isLoading={false}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/09 sep 2026/i)).toBeInTheDocument();
+    expect(screen.getByText(/0?8:00\s*p\.?\s*m\.?/i)).toBeInTheDocument();
+    expect(screen.queryByText(/10 sep 2026/i)).not.toBeInTheDocument();
+  });
 });

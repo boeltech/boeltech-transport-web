@@ -36,6 +36,11 @@ export interface TripFilters {
   readonly overdueOnly?: boolean;
   /** Solo viajes elegibles para facturar (pre-emisión v2, sin factura activa). */
   readonly invoiceableOnly?: boolean;
+  /**
+   * Bucket del workbench Por facturar (`invoiceable_bucket` API).
+   * Solo con `invoiceableOnly`.
+   */
+  readonly invoiceableBucket?: "ready" | "proration_pending" | "blocked";
   /** Filtro por sucursal de origen (`origin_branch_id`); `unassigned` = NULL. */
   readonly originBranchId?: string | "unassigned";
 }
@@ -114,6 +119,9 @@ export const tripQueryKeys = {
    */
   activeAssignmentBusy: () =>
     [...tripQueryKeys.lists(), "active-assignment-busy"] as const,
+  /** Soft-hold drafts for reassign surfacing (PD5 — not hard busy). */
+  draftHoldAssignmentSoft: () =>
+    [...tripQueryKeys.lists(), "draft-hold-assignment-soft"] as const,
 
   // Details
   details: () => [...tripQueryKeys.all, "detail"] as const,
@@ -140,6 +148,10 @@ export const tripQueryKeys = {
   // Workbench summary (ADR-0090)
   workbenchSummary: () =>
     [...tripQueryKeys.all, "workbench-summary"] as const,
+
+  /** Cola Por facturar — totales por bucket (ADR-0090 + ADR-0081). */
+  invoiceableSummary: (search?: string) =>
+    [...tripQueryKeys.all, "invoiceable-summary", search ?? ""] as const,
 
   // Canvas intake (ADR-0078)
   corridors: (clientId: string) =>

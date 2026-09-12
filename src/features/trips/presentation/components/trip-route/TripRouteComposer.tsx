@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { Flag, MapPin, Navigation, Plus } from "lucide-react";
+import { Flag, Lock, MapPin, Navigation, Plus } from "lucide-react";
 
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import { Badge } from "@shared/ui/badge";
@@ -24,6 +24,7 @@ import {
   synthesizeSearchItemFromLocationValue,
   type LocationValue,
 } from "@shared/ui/location";
+import { STOP_STATUS_LABELS, type StopStatusValue } from "@features/trips/domain";
 
 import { tripDetailCopy } from "../../copy";
 import {
@@ -93,39 +94,63 @@ export function TripRouteMasterRow({
           row.category,
         )
       : null;
+  const locked = Boolean(row.locked);
+  const statusLabel =
+    locked && row.stop?.status
+      ? (STOP_STATUS_LABELS[row.stop.status as StopStatusValue] ??
+        row.stop.status)
+      : null;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(row.id)}
       aria-pressed={selected}
-      aria-label={`${title}. ${subtitle}`}
+      aria-label={`${title}. ${subtitle}${locked ? `. ${copy.composer.lockedStop}` : ""}`}
       className={cn(
         "group w-full rounded-md border p-3 text-left transition-colors",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        locked && "bg-muted/60",
         selected
           ? "border-primary bg-background shadow-sm"
-          : "border-transparent bg-card hover:border-border",
+          : locked
+            ? "border-transparent hover:border-border"
+            : "border-transparent bg-card hover:border-border",
+        selected && locked && "bg-muted",
       )}
     >
       <div className="flex items-start gap-2.5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-          <SlotIcon category={row.category} />
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted",
+            locked && "text-muted-foreground",
+          )}
+        >
+          {locked ? (
+            <Lock className="h-4 w-4" aria-hidden />
+          ) : (
+            <SlotIcon category={row.category} />
+          )}
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium">{title}</span>
-            {visitLabel ? (
+            {statusLabel ? (
+              <Badge variant="secondary" className="font-normal">
+                {statusLabel}
+              </Badge>
+            ) : null}
+            {visitLabel && !locked ? (
               <Badge variant="secondary" className="font-normal">
                 {visitLabel}
               </Badge>
             ) : null}
-            {missingDomicilio ? (
+            {!locked && missingDomicilio ? (
               <Badge variant="warning" tone="soft" className="text-xs font-normal">
                 {copy.chip.missingAddress}
               </Badge>
             ) : null}
-            {missingOperation ? (
+            {!locked && missingOperation ? (
               <Badge variant="warning" tone="soft" className="text-xs font-normal">
                 {copy.chip.missingOperation}
               </Badge>
@@ -362,6 +387,11 @@ export interface TripRouteComposerProps {
   tripTimes?: TripScheduleTimes;
   disabled?: boolean;
   readOnly?: boolean;
+  /**
+   * ADR-0093 E1 — `pending-only`: filas locked vía `row.locked`; «Agregar escala» activo.
+   * `full`: composer structural (draft/scheduled).
+   */
+  mode?: "full" | "pending-only";
   showVisitState?: boolean;
   corridor?: ReactNode;
 }
@@ -374,11 +404,16 @@ export function TripRouteComposer({
   tripTimes,
   disabled = false,
   readOnly = false,
+  mode = "full",
   showVisitState = false,
   corridor,
 }: TripRouteComposerProps) {
+  const showAddWaypoint = !readOnly;
   return (
-    <div className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2">
+    <div
+      className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2"
+      data-route-composer-mode={mode}
+    >
       {corridor ? <div className="mb-1 px-0.5 pb-2">{corridor}</div> : null}
       {rows.map((row) => (
         <TripRouteMasterRow
@@ -390,7 +425,7 @@ export function TripRouteComposer({
           onSelect={onSelect}
         />
       ))}
-      {readOnly ? null : (
+      {showAddWaypoint ? (
         <Button
           type="button"
           size="sm"
@@ -402,7 +437,7 @@ export function TripRouteComposer({
           <Plus className="mr-2 h-4 w-4" />
           {copy.action.addWaypoint}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

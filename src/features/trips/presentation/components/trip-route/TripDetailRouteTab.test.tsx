@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 
 import {
   StopType,
@@ -21,10 +22,13 @@ const copy = tripDetailCopy.route;
 
 const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
+  replaceMutateAsync: vi.fn(),
+  replanMutateAsync: vi.fn(),
   toast: vi.fn(),
   isPending: false,
   corridors: [] as ClientCorridor[],
   nextPickerItems: [] as AddressSearchListItem[],
+  nextLocationValues: [] as import("@shared/ui/location").LocationValue[],
   defaultPickerItem: {
     id: "11111111-1111-4111-8111-111111111111",
     ownerType: "client" as const,
@@ -42,7 +46,7 @@ const mocks = vi.hoisted(() => ({
     latitude: 20.67,
     longitude: -103.35,
     geocodingAccuracy: null,
-  geolocationPending: false,
+    geolocationPending: false,
     isPrimary: false,
     isActive: true,
     isCartaPorteReady: true,
@@ -55,7 +59,17 @@ vi.mock("@shared/hooks", () => ({
 
 vi.mock("@features/trips/application", () => ({
   useReplaceTripStops: () => ({
-    mutateAsync: mocks.mutateAsync,
+    mutateAsync: (...args: unknown[]) => {
+      mocks.replaceMutateAsync(...args);
+      return mocks.mutateAsync(...args);
+    },
+    isPending: mocks.isPending,
+  }),
+  useReplanTripStops: () => ({
+    mutateAsync: (...args: unknown[]) => {
+      mocks.replanMutateAsync(...args);
+      return mocks.mutateAsync(...args);
+    },
     isPending: mocks.isPending,
   }),
   useClientCorridors: () => ({
@@ -153,13 +167,18 @@ vi.mock("@shared/ui/location", async (importOriginal) => {
       <button
         type="button"
         disabled={disabled}
-        onClick={() =>
+        onClick={() => {
+          const queued = mocks.nextLocationValues.shift();
+          if (queued) {
+            onChange(queued);
+            return;
+          }
           onChange(
             actual.locationValueFromInternal(
               mocks.nextPickerItems.shift() ?? mocks.defaultPickerItem,
             ),
-          )
-        }
+          );
+        }}
       >
         {label}
       </button>
@@ -241,7 +260,9 @@ function renderTab(ui: ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -249,9 +270,12 @@ describe("TripDetailRouteTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mutateAsync.mockResolvedValue({});
+    mocks.replaceMutateAsync.mockResolvedValue({});
+    mocks.replanMutateAsync.mockResolvedValue({});
     mocks.isPending = false;
     mocks.corridors = [];
     mocks.nextPickerItems = [];
+    mocks.nextLocationValues = [];
   });
 
   it("shows the composer on empty route instead of Agregar parada opening a create sheet", () => {
@@ -334,19 +358,21 @@ describe("TripDetailRouteTab", () => {
     ).toBeInTheDocument();
 
     rerender(
-      <QueryClientProvider
-        client={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
-      >
-        <TripDetailRouteTab
-          trip={trip}
-          tripStatus={TripStatus.DRAFT}
-          orderedStops={[originStop]}
-          progress={0}
-          canEditStructural
-        />
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
+          <TripDetailRouteTab
+            trip={trip}
+            tripStatus={TripStatus.DRAFT}
+            orderedStops={[originStop]}
+            progress={0}
+            canEditStructural
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
 
     expect(
@@ -555,6 +581,174 @@ describe("TripDetailRouteTab", () => {
     expect(sheet).toHaveAttribute("data-variant", "sheet");
     expect(
       screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not PUT create-new name+CP without coords; opens Completar domicilio", async () => {
+    const user = userEvent.setup();
+    mocks.nextLocationValues = [
+      {
+        locationName: "Altea",
+        postalCode: "76127",
+        street: null,
+        latitude: null,
+        longitude: null,
+        satStateCode: null,
+        geolocationPending: true,
+        satAmbiguities: ["neighborhood"],
+      },
+    ];
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.composer.pendingOriginIncomplete,
+      }),
+    );
+    expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
+    expect(
+      screen.getByText(`${copy.composer.selectedStop}: Altea`),
+    ).toBeInTheDocument();
+  });
+
+  it("does not PUT when both create-new ends lack coords", async () => {
+    const user = userEvent.setup();
+    mocks.nextLocationValues = [
+      {
+        locationName: "Altea",
+        postalCode: "76127",
+        street: null,
+        latitude: null,
+        longitude: null,
+        satStateCode: null,
+        geolocationPending: true,
+      },
+      {
+        locationName: "Estadio BBVA",
+        postalCode: "67140",
+        street: null,
+        latitude: null,
+        longitude: null,
+        satStateCode: null,
+        geolocationPending: true,
+      },
+    ];
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.composer.needCompleteAddressToSave,
+      }),
+    );
+    expect(mocks.toast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: copy.toast.stopSaveError }),
+    );
+  });
+
+  it("keeps destination draft after failed PUT when switching slots", async () => {
+    const user = userEvent.setup();
+    const destItem: AddressSearchListItem = {
+      ...pickerItem,
+      id: "22222222-2222-4222-8222-222222222222",
+      locationName: "CEDIS Sur",
+      postalCode: "64000",
+      satStateCode: "NLE",
+      latitude: 25.67,
+      longitude: -100.31,
+    };
+    mocks.nextPickerItems = [pickerItem, destItem];
+    mocks.mutateAsync.mockRejectedValueOnce(
+      new Error("Datos de ubicación de parada inválidos"),
+    );
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={trip}
+        tripStatus={TripStatus.DRAFT}
+        orderedStops={[]}
+        progress={0}
+        canEditStructural
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
+      }),
+    );
+
+    expect(mocks.mutateAsync).toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: copy.toast.stopSaveError }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.originSlot}. Bodega Alpha`,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: `${copy.composer.destinationSlot}. CEDIS Sur`,
+      }),
+    );
+
+    expect(
+      screen.getByText(`${copy.composer.selectedStop}: CEDIS Sur`),
     ).toBeInTheDocument();
   });
 
@@ -1106,6 +1300,9 @@ describe("TripDetailRouteTab", () => {
     expect(
       await screen.findByText(copy.confirm.removeWaypointBlockedTitle),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: copy.action.goToCargoTab }),
+    ).toHaveAttribute("href", "/?tab=cargo");
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
@@ -1196,5 +1393,262 @@ describe("TripDetailRouteTab", () => {
     expect(
       screen.queryByRole("button", { name: copy.action.removeWaypoint }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens fiscal confirm dialog on replan when trip has stamped invoice, and executes on confirm", async () => {
+    const user = userEvent.setup();
+    const stampedTrip = {
+      ...trip,
+      status: TripStatus.IN_PROGRESS,
+      invoicing: {
+        invoiceId: "inv-1",
+        invoiceStatus: "stamped",
+        cartaPorteAttached: true,
+      },
+    } as Trip;
+    const origin = tripStop({
+      id: "stop-origin",
+      status: "completed",
+      actualDeparture: new Date("2026-05-01T10:00:00.000Z"),
+    });
+    const waypoint = tripStop({
+      id: "stop-wp",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT, StopType.PICKUP],
+      locationName: "Escala Norte",
+    });
+    const dest = tripStop({
+      id: "stop-dest",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+    });
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={stampedTrip}
+        tripStatus={TripStatus.IN_PROGRESS}
+        orderedStops={[origin, waypoint, dest]}
+        progress={0}
+        canEditStructural={false}
+        canReplanPendingStops
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Escala Norte/i }));
+    await user.click(screen.getByRole("button", { name: copy.action.editStop }));
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+    expect(
+      await screen.findByText(copy.confirm.replanFiscalTitle),
+    ).toBeInTheDocument();
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirmFiscalReplan }),
+    );
+
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Calcular distancias in mid-trip replan when fillable distances are missing", async () => {
+    const user = userEvent.setup();
+    const origin = tripStop({
+      id: "stop-origin",
+      status: "completed",
+      actualDeparture: new Date("2026-05-01T10:00:00.000Z"),
+    });
+    const dest = tripStop({
+      id: "stop-dest",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Sur",
+      latitude: 25.67,
+      longitude: -100.31,
+      distanceFromPreviousKm: null,
+    });
+
+    renderTab(
+      <TripDetailRouteTab
+        trip={{ ...trip, status: TripStatus.IN_PROGRESS }}
+        tripStatus={TripStatus.IN_PROGRESS}
+        orderedStops={[origin, dest]}
+        progress={0}
+        canEditStructural={false}
+        canReplanPendingStops
+      />,
+    );
+
+    expect(screen.getByText(copy.alert.missingDistanceTitle)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: copy.action.calculateDistances }),
+    );
+
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
+    const payload = mocks.mutateAsync.mock.calls[0]?.[0] as Array<{
+      id?: string;
+      distanceFromPreviousKm?: number;
+      distanceSource?: string;
+    }>;
+    expect(payload.some((stop) => stop.id === "stop-origin")).toBe(false);
+    const destPayload = payload.find((stop) => stop.id === "stop-dest");
+    expect(destPayload?.distanceFromPreviousKm).toBeGreaterThan(0);
+    expect(destPayload?.distanceSource).toBe("haversine_fallback");
+  });
+
+  describe("waypoint reorder arrows", () => {
+    const origin = () =>
+      tripStop({
+        id: "stop-origin",
+        sequenceOrder: 1,
+        locationName: "Origen GDL",
+      });
+    const waypointA = () =>
+      tripStop({
+        id: "stop-wp-1",
+        sequenceOrder: 2,
+        stopType: [StopType.WAYPOINT, StopType.PICKUP],
+        locationName: "Escala A",
+        latitude: 21.0,
+        longitude: -102.0,
+      });
+    const waypointB = () =>
+      tripStop({
+        id: "stop-wp-2",
+        sequenceOrder: 3,
+        stopType: [StopType.WAYPOINT, StopType.PICKUP],
+        locationName: "Escala B",
+        latitude: 22.0,
+        longitude: -101.0,
+      });
+    const dest = () =>
+      tripStop({
+        id: "stop-dest",
+        sequenceOrder: 4,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "Destino MTY",
+        latitude: 25.67,
+        longitude: -100.31,
+      });
+
+    it("shows ↑↓ on draft with canEditStructural + canReplanPendingStops and ≥2 waypoints", async () => {
+      const user = userEvent.setup();
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[origin(), waypointA(), waypointB(), dest()]}
+          progress={0}
+          canEditStructural
+          canReplanPendingStops
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Escala A/i }));
+
+      expect(
+        screen.getByRole("button", { name: copy.action.reorderUp }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: copy.action.reorderDown }),
+      ).toBeInTheDocument();
+    });
+
+    it("persists reorder via stops:replan (not replace) on draft", async () => {
+      const user = userEvent.setup();
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[origin(), waypointA(), waypointB(), dest()]}
+          progress={0}
+          canEditStructural
+          canReplanPendingStops
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Escala A/i }));
+      await user.click(
+        screen.getByRole("button", { name: copy.action.reorderDown }),
+      );
+
+      expect(mocks.replanMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.replaceMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("shows ↑↓ on in_progress mid-trip replan", async () => {
+      const user = userEvent.setup();
+      const midOrigin = tripStop({
+        id: "stop-origin",
+        status: "completed",
+        actualDeparture: new Date("2026-05-01T10:00:00.000Z"),
+        locationName: "Origen GDL",
+      });
+      renderTab(
+        <TripDetailRouteTab
+          trip={{ ...trip, status: TripStatus.IN_PROGRESS }}
+          tripStatus={TripStatus.IN_PROGRESS}
+          orderedStops={[midOrigin, waypointA(), waypointB(), dest()]}
+          progress={0}
+          canEditStructural={false}
+          canReplanPendingStops
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Escala A/i }));
+
+      expect(
+        screen.getByRole("button", { name: copy.action.reorderUp }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: copy.action.reorderDown }),
+      ).toBeInTheDocument();
+    });
+
+    it("does not show ↑↓ when canReplanPendingStops is false", async () => {
+      const user = userEvent.setup();
+      renderTab(
+        <TripDetailRouteTab
+          trip={{ ...trip, status: TripStatus.COMPLETED }}
+          tripStatus={TripStatus.COMPLETED}
+          orderedStops={[origin(), waypointA(), waypointB(), dest()]}
+          progress={100}
+          canEditStructural={false}
+          canReplanPendingStops={false}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Escala A/i }));
+
+      expect(
+        screen.queryByRole("button", { name: copy.action.reorderUp }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: copy.action.reorderDown }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not show ↑↓ with only one mutable waypoint", async () => {
+      const user = userEvent.setup();
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[origin(), waypointA(), dest()]}
+          progress={0}
+          canEditStructural
+          canReplanPendingStops
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Escala A/i }));
+
+      expect(
+        screen.queryByRole("button", { name: copy.action.reorderUp }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: copy.action.reorderDown }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

@@ -22,7 +22,8 @@ import {
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import {
   buildFixSheetInitialValues,
-  formatStopLocation,
+  formatFiscalStopPlaceLine,
+  toFiscalStopDisplayOrder,
 } from "./tripFiscalHelpers";
 import {
   FiscalCorrectionRfcFields,
@@ -175,7 +176,11 @@ function FiscalCorrectionSheetContent({
       <SheetHeader className={FISCAL_CORRECTION_SHEET_HEADER_CLASS}>
         <SheetTitle className="pr-8">{sheetCopy.title}</SheetTitle>
         <SheetDescription className="text-muted-foreground">
-          {sheetCopy.subtitle(stop.sequenceOrder, stopTypeLabel, formatStopLocation(stop))}
+          {sheetCopy.subtitle(
+            toFiscalStopDisplayOrder(stop.sequenceOrder),
+            stopTypeLabel,
+            formatFiscalStopPlaceLine(stop),
+          )}
         </SheetDescription>
       </SheetHeader>
 

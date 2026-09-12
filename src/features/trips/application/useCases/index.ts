@@ -73,6 +73,7 @@ export {
 } from "./trip/GetTripsUseCase";
 export {
   type IScheduleTripUseCase,
+  type ScheduleTripResult,
   ScheduleTripUseCase,
   createScheduleTripUseCase,
 } from "./trip/ScheduleTripUseCase";

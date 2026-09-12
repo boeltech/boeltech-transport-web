@@ -59,6 +59,33 @@ describe("canQuickCloseTrip", () => {
     ).toBe(true);
   });
 
+  it("is true when origin is done and in_transit cargo awaits destination without visit", () => {
+    const inTransit = cargo({
+      id: "c-in-transit",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          movementType: "pickup",
+          stopId: "o1",
+          stopIndex: 0,
+        },
+        {
+          movementType: "delivery",
+          stopId: "d1",
+          stopIndex: 2,
+        },
+      ],
+    });
+
+    expect(
+      canQuickCloseTrip(
+        TripStatus.IN_PROGRESS,
+        [origin, waypoint, destination],
+        [inTransit],
+      ),
+    ).toBe(true);
+  });
+
   it("is false outside in_progress or for false_trip outcome", () => {
     expect(
       canQuickCloseTrip(TripStatus.SCHEDULED, [origin, destination]),

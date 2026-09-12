@@ -1,17 +1,25 @@
 /**
- * Franja compacta de capacidad para el paso Cargas del wizard.
+ * Franja compacta de capacidad (wizard Cargas y tab Cargas del detalle).
  *
- * Sustituye a la tarjeta de capacidad + desglose: mantiene visible el peso
- * cargado sin empujar las paradas fuera de pantalla. El tono (normal, atención,
- * excedido) es la única señal de alarma; no hay alerta separada de sobrepeso.
+ * Mantiene visible el peso cargado vs capacidad de la unidad. El tono
+ * (normal, atención, excedido) es la única señal de alarma; no bloquea.
  */
 
 import { Truck } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
-import { wizardCopy } from "../../../copy";
 
-const copy = wizardCopy.cargo;
+export type CargoCapacityStripMessages = {
+  title: string;
+  unknownTitle: string;
+  unknownBody: string;
+  overCapacityHint: string;
+  usage: (percentage: number) => string;
+  loadedOfCapacity: (loaded: string, capacity: string) => string;
+  available: (formatted: string) => string;
+  excess: (formatted: string) => string;
+  formatWeight: (weightKg: number) => string;
+};
 
 export interface CargoCapacityStripProps {
   /** Capacidad de la unidad en kg; `null` cuando no está registrada. */
@@ -22,6 +30,13 @@ export interface CargoCapacityStripProps {
   vehicleLabel?: string | null;
   /** Hay unidad seleccionada pero sin capacidad registrada. */
   isCapacityUnknown: boolean;
+  messages: CargoCapacityStripMessages;
+  /**
+   * Sticky bajo el header del wizard (`top-16`). En tabs del detalle usar `false`.
+   * @default true
+   */
+  sticky?: boolean;
+  className?: string;
 }
 
 export function CargoCapacityStrip({
@@ -29,21 +44,25 @@ export function CargoCapacityStrip({
   loadedKg,
   vehicleLabel,
   isCapacityUnknown,
+  messages,
+  sticky = true,
+  className,
 }: CargoCapacityStripProps) {
   const hasCapacity = capacityKg != null && capacityKg > 0;
   const percentage = hasCapacity ? (loadedKg / capacityKg) * 100 : 0;
   const isOver = hasCapacity && loadedKg > capacityKg;
   const isNear = hasCapacity && !isOver && percentage >= 90;
 
-  const formatWeight = copy.format.weight;
+  const formatWeight = messages.formatWeight;
 
   return (
     <div
       className={cn(
-        // `top-16` = alto del header fijo del shell: la franja queda justo debajo.
-        "sticky top-16 z-20 space-y-2 rounded-lg border bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        "space-y-2 rounded-lg border bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        sticky && "sticky top-16 z-20",
         isOver && "border-destructive/40",
         isNear && "border-warning/40",
+        className,
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -58,12 +77,12 @@ export function CargoCapacityStrip({
                   : "text-muted-foreground",
             )}
           />
-          <span className="text-sm font-medium">{copy.capacity.title}</span>
-          {vehicleLabel && (
+          <span className="text-sm font-medium">{messages.title}</span>
+          {vehicleLabel ? (
             <span className="truncate text-xs text-muted-foreground">
               {vehicleLabel}
             </span>
-          )}
+          ) : null}
         </div>
 
         <div className="flex items-baseline gap-2 text-sm">
@@ -75,34 +94,32 @@ export function CargoCapacityStrip({
             )}
           >
             {hasCapacity
-              ? copy.capacity.loadedOfCapacity(
+              ? messages.loadedOfCapacity(
                   formatWeight(loadedKg),
                   formatWeight(capacityKg),
                 )
               : formatWeight(loadedKg)}
           </span>
-          {hasCapacity && (
+          {hasCapacity ? (
             <span className="text-xs text-muted-foreground tabular-nums">
               {isOver
-                ? copy.capacity.excess(formatWeight(loadedKg - capacityKg))
-                : copy.capacity.available(
-                    formatWeight(capacityKg - loadedKg),
-                  )}
+                ? messages.excess(formatWeight(loadedKg - capacityKg))
+                : messages.available(formatWeight(capacityKg - loadedKg))}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {hasCapacity && (
+      {hasCapacity ? (
         <>
           <div
             className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
             role="progressbar"
-            aria-label={copy.capacity.title}
+            aria-label={messages.title}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(Math.min(percentage, 100))}
-            aria-valuetext={copy.capacity.usage(percentage)}
+            aria-valuetext={messages.usage(percentage)}
           >
             <div
               className={cn(
@@ -116,19 +133,19 @@ export function CargoCapacityStrip({
               style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>
-          {isOver && (
+          {isOver ? (
             <p className="text-xs text-destructive">
-              {copy.capacity.overCapacityHint}
+              {messages.overCapacityHint}
             </p>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
 
-      {isCapacityUnknown && (
+      {isCapacityUnknown ? (
         <p className="text-xs text-muted-foreground">
-          {copy.capacity.unknownTitle}. {copy.capacity.unknownBody}
+          {messages.unknownTitle}. {messages.unknownBody}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

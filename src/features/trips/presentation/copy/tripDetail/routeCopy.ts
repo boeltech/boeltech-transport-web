@@ -11,6 +11,10 @@ export const routeCopy = {
   },
   hint: {
     stops: "Origen, escalas y destino. El avance en ruta se opera en Seguimiento.",
+    stopsMidTrip:
+      "Ruta en curso. Puedes modificar, agregar o quitar paradas pendientes. Para ampliar al final, cambia el destino. Origen y paradas ya operadas no se modifican.",
+    midTripComposer:
+      "Paradas pendientes editables. Origen y paradas ya operadas quedan bloqueadas.",
     origin: "Punto de salida del viaje.",
     waypoints: "Paradas intermedias con carga o descarga.",
     destination: "Punto final del recorrido.",
@@ -25,6 +29,9 @@ export const routeCopy = {
       "Domicilio, mapa y contacto. La secuencia de la ruta no cambia.",
     sheetDescriptionEdit:
       "Cambia domicilio, contacto u operación. La secuencia de la ruta no cambia.",
+    /** @deprecated E1 — path mid-trip = composer pending-only, no append sheet. */
+    sheetDescriptionAppend:
+      "La nueva parada queda al final del recorrido. No se reordenan ni eliminan paradas existentes.",
     sheetDescriptionOrigin:
       "Datos del origen. La salida programada del viaje se edita en el tab Operación.",
     sheetDescriptionDestination:
@@ -57,11 +64,19 @@ export const routeCopy = {
     stopSaveFailedTitle: "No se pudo guardar",
     stopValidationSummary: "Revisa los datos de la parada.",
     stopDepartureTitle: "Salida del viaje",
+    noDestinationTitle: "Falta el destino",
+    noDestinationBody:
+      "Agrega un destino pendiente para completar la ruta en curso.",
+    routeChangedExternally:
+      "La ruta cambió mientras confirmabas. Intenta de nuevo.",
   },
   action: {
     openFullEdit: "Abrir edición completa",
-    replanRoute: "Replanificar ruta en edición completa",
     addStop: "Agregar parada",
+    /** @deprecated E1 — no es path de producto mid-trip. */
+    appendStopAtEnd: "Agregar parada al final",
+    expandRoute: "Ampliar ruta",
+    replanRoute: "Replanificar ruta en edición completa",
     addWaypoint: "Agregar escala",
     editStop: "Editar parada",
     completeAddress: "Completar domicilio",
@@ -72,6 +87,10 @@ export const routeCopy = {
     removeDraftWaypoint: "Quitar escala",
     confirmRemoveWaypoint: "Eliminar",
     keepWaypoint: "Conservar",
+    reorderUp: "Subir escala",
+    reorderDown: "Bajar escala",
+    goToCargoTab: "Ir a Cargas",
+    confirmFiscalReplan: "Confirmar",
   },
   confirm: {
     removeWaypointTitle: "¿Eliminar esta escala?",
@@ -80,6 +99,9 @@ export const routeCopy = {
     removeWaypointBlockedTitle: "No se puede eliminar esta escala",
     removeWaypointBlockedBody:
       "Hay cargas ligadas a esta parada. Reasigna o elimina esas cargas en el tab Cargas y vuelve a intentar.",
+    replanFiscalTitle: "¿Confirmar cambio de ruta?",
+    replanFiscalBody:
+      "Se marcará Atención fiscal. La operación puede continuar; sustituye la factura después.",
   },
   chip: {
     missingAddress: "Sin domicilio",
@@ -96,6 +118,7 @@ export const routeCopy = {
     selectedStop: "En la ruta",
     cityHint: (city: string) => `Sugerencia: ${city}`,
     emptySlot: "Sin domicilio",
+    lockedStop: "Bloqueada",
     labelHatchToggle: "No está en el catálogo",
     labelPlaceholder: "Nombre del lugar (opcional)",
     labelHint: "Escribe un nombre y usa Completar domicilio.",
@@ -104,6 +127,12 @@ export const routeCopy = {
       "Origen listo. Elige el destino para guardar la ruta.",
     pendingDestinationSaved:
       "Destino listo. Elige el origen para guardar la ruta.",
+    pendingOriginIncomplete:
+      "Origen capturado. Completa el domicilio para poder guardar la ruta.",
+    pendingDestinationIncomplete:
+      "Destino capturado. Completa el domicilio para poder guardar la ruta.",
+    needCompleteAddressToSave:
+      "Completa el domicilio de origen y destino para guardar la ruta.",
     needBothEnds:
       "Hace falta origen y destino antes de agregar escalas o guardar.",
     duplicateEndpointAddress:
@@ -143,6 +172,9 @@ export const routeCopy = {
     emptyTitle: "Sin paradas en la ruta",
     emptyDescription:
       "Arma origen y destino en esta pantalla. El domicilio puede ir después.",
+    emptyMidTripTitle: "Sin paradas en la ruta",
+    emptyMidTripDescription:
+      "Arma origen y destino pendientes en esta pantalla. No hay corredor frecuente mid-trip.",
     noOrigin: "Sin parada de origen definida.",
     noDestination: "Sin parada de destino definida.",
     readOnlyEmpty: "Este viaje aún no tiene paradas en la ruta.",
@@ -150,7 +182,9 @@ export const routeCopy = {
   },
   toast: {
     stopUpdated: "Parada actualizada",
-    stopsSaved: "Paradas actualizadas",
+    stopsSaved: "Ruta actualizada",
+    /** @deprecated E1 */
+    stopAppended: "Parada agregada al final",
     stopSaveError: "No se pudo guardar la parada",
     waypointRemoved: "Escala eliminada",
   },

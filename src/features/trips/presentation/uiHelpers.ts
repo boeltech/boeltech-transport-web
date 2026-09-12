@@ -422,6 +422,21 @@ export function getTripInvoicingBadgeConfig(
     }
   }
 
+  // ADR-0081: con split activo la primaria queda bloqueada; el badge usa porciones.
+  if (invoicing.hasActiveSplit) {
+    const { splitLegsInvoiced, splitLegsTotal } = invoicing;
+    if (splitLegsTotal > 0 && splitLegsInvoiced >= splitLegsTotal) {
+      return { label: labels.stamped, variant: "default" };
+    }
+    if (splitLegsInvoiced > 0 && splitLegsInvoiced < splitLegsTotal) {
+      return { label: labels.partial, variant: "secondary" };
+    }
+    if (invoicing.canGenerateSplitShareInvoice) {
+      return { label: labels.available, variant: "outline" };
+    }
+    return { label: labels.unavailable, variant: "outline" };
+  }
+
   if (invoicing.canGenerateInvoice) {
     return { label: labels.available, variant: "outline" };
   }
@@ -438,6 +453,9 @@ export function toDetailInvoicingBadge(
   if (config.label === list.available) {
     return { ...config, label: detail.readyToBill };
   }
+  if (config.label === list.partial) {
+    return { ...config, label: detail.splitPartial };
+  }
   if (config.label === list.unavailable) {
     return { ...config, label: detail.pending };
   }
@@ -446,6 +464,14 @@ export function toDetailInvoicingBadge(
 
 export function getTripInvoicingBlockReason(invoicing: TripInvoicing): string | null {
   if (invoicing.canGenerateInvoice) return null;
+  if (invoicing.canGenerateSplitShareInvoice) return null;
+  if (
+    invoicing.hasActiveSplit &&
+    invoicing.splitLegsTotal > 0 &&
+    invoicing.splitLegsInvoiced >= invoicing.splitLegsTotal
+  ) {
+    return null;
+  }
   const suppressBecauseInvoiceLinked =
     invoicing.hasActiveInvoice ||
     !!invoicing.invoiceId ||

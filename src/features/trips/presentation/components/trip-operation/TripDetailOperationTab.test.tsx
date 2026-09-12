@@ -49,6 +49,10 @@ vi.mock("@features/trips/application", async (importOriginal) => {
       data: { items: [], truncated: false },
       isLoading: false,
     }),
+    useDraftHoldAssignmentTripsForSoft: () => ({
+      data: { items: [], truncated: false },
+      isLoading: false,
+    }),
     useUpdateTrip: () => ({
       mutate: vi.fn(),
       isPending: false,
@@ -116,7 +120,10 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 
 function renderTab(
   trip: Trip = makeTrip(),
-  { canEditStructural = false }: { canEditStructural?: boolean } = {},
+  {
+    canEditStructural = false,
+    canReassignFleet = false,
+  }: { canEditStructural?: boolean; canReassignFleet?: boolean } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -128,6 +135,7 @@ function renderTab(
         <TripDetailOperationTab
           trip={trip}
           canEditStructural={canEditStructural}
+          canReassignFleet={canReassignFleet}
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -146,10 +154,70 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     renderTab();
 
     expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
+    expect(screen.getByText(copy.section.assignment)).toBeInTheDocument();
     expect(screen.getByText("U-12")).toBeInTheDocument();
     expect(screen.getByText("Ana Lopez")).toBeInTheDocument();
     expect(screen.getByText("ABC-12-34 · 1")).toBeInTheDocument();
     expect(screen.getByText(copy.format.tripType("ingreso"))).toBeInTheDocument();
+    expect(screen.getByText(copy.state.noSupportStaff)).toBeInTheDocument();
+  });
+
+  it("muestra equipo de apoyo con rol y vacío explícito cuando no hay integrantes", () => {
+    renderTab(
+      makeTrip({
+        internalStaff: [
+          {
+            id: "staff-1",
+            tripId: "trip-1",
+            employeeId: "emp-helper-1",
+            employeeFullName: "Pedro Ayudante",
+            internalRole: "helper",
+            isPaymentResponsible: false,
+            paymentNotes: null,
+            employeeNumber: null,
+            employeeStatus: null,
+            createdAt: new Date("2026-05-28T07:00:00.000Z"),
+            updatedAt: new Date("2026-05-28T07:00:00.000Z"),
+          },
+          {
+            id: "staff-2",
+            tripId: "trip-1",
+            employeeId: "emp-sec-1",
+            employeeFullName: "Luis Segundo",
+            internalRole: "secondary_driver",
+            isPaymentResponsible: true,
+            paymentNotes: null,
+            employeeNumber: null,
+            employeeStatus: null,
+            createdAt: new Date("2026-05-28T07:00:00.000Z"),
+            updatedAt: new Date("2026-05-28T07:00:00.000Z"),
+          },
+          {
+            id: "staff-3",
+            tripId: "trip-1",
+            employeeId: "emp-null-1",
+            employeeFullName: "Sin Rol Nombrado",
+            internalRole: null,
+            isPaymentResponsible: false,
+            paymentNotes: null,
+            employeeNumber: null,
+            employeeStatus: null,
+            createdAt: new Date("2026-05-28T07:00:00.000Z"),
+            updatedAt: new Date("2026-05-28T07:00:00.000Z"),
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText("Pedro Ayudante")).toBeInTheDocument();
+    expect(screen.getByText(copy.format.staffRole("helper"))).toBeInTheDocument();
+    expect(screen.getByText("Luis Segundo")).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.format.staffRole("secondary_driver")),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Sin Rol Nombrado")).toBeInTheDocument();
+    expect(screen.getByText(copy.format.staffRole(null))).toBeInTheDocument();
+    expect(screen.queryByText(copy.state.noSupportStaff)).not.toBeInTheDocument();
   });
 
   it("no muestra snapshot CP, SubTipoRem ni ID de cliente", () => {
@@ -213,13 +281,13 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(screen.getByText("Nota operativa del GET trip")).toBeInTheDocument();
   });
 
-  it("muestra botón 'Reasignar flota' cuando canEditStructural es true y abre el Sheet", async () => {
+  it("muestra botón 'Reasignar flota' cuando canReassignFleet es true y abre el Sheet", async () => {
     const user = userEvent.setup();
     renderTab(
       makeTrip({
         status: TripStatus.SCHEDULED,
       }),
-      { canEditStructural: true },
+      { canEditStructural: true, canReassignFleet: true },
     );
 
     const reassignButton = screen.getByRole("button", {
@@ -229,16 +297,39 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
 
     await user.click(reassignButton);
     expect(
-      screen.getByText(copy.fleetAssignment.sheetTitle),
+      screen.getByText(copy.fleetAssignment.sheetDescription),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.fleetAssignment.saveButton }),
     ).toBeInTheDocument();
   });
 
-  it("oculta botón 'Reasignar flota' cuando canEditStructural es false", () => {
+  it("muestra reasignar flota mid-trip con canReassignFleet aunque canEditStructural sea false (ADR-0093)", async () => {
+    const user = userEvent.setup();
     renderTab(
       makeTrip({
         status: TripStatus.IN_PROGRESS,
       }),
-      { canEditStructural: false },
+      { canEditStructural: false, canReassignFleet: true },
+    );
+
+    const reassignButton = screen.getByRole("button", {
+      name: copy.action.reassignFleet,
+    });
+    expect(reassignButton).toBeInTheDocument();
+
+    await user.click(reassignButton);
+    expect(
+      screen.getByText(copy.fleetAssignment.sheetDescription),
+    ).toBeInTheDocument();
+  });
+
+  it("oculta botón 'Reasignar flota' cuando canReassignFleet es false", () => {
+    renderTab(
+      makeTrip({
+        status: TripStatus.IN_PROGRESS,
+      }),
+      { canEditStructural: false, canReassignFleet: false },
     );
 
     expect(
@@ -249,14 +340,18 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("no monta el sheet Flota y tripulación cuando canEditStructural es false", () => {
+  it("no monta el sheet Flota y tripulación cuando canReassignFleet es false", () => {
     renderTab(
       makeTrip({ status: TripStatus.SCHEDULED }),
-      { canEditStructural: false },
+      { canEditStructural: true, canReassignFleet: false },
     );
 
+    expect(screen.getByText(copy.section.assignment)).toBeInTheDocument();
     expect(
-      screen.queryByText(copy.fleetAssignment.sheetTitle),
+      screen.queryByText(copy.fleetAssignment.sheetDescription),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.fleetAssignment.saveButton }),
     ).not.toBeInTheDocument();
   });
 

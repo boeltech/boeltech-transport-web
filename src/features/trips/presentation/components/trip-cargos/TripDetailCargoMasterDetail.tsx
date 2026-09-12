@@ -54,6 +54,8 @@ export type TripDetailCargoMasterDetailProps = {
   cargos: readonly TripCargo[];
   orderedStops: readonly TripStop[];
   canEditStructural: boolean;
+  /** ADR-0093 — CTA agregar carga mid-trip. */
+  canAppendCargo?: boolean;
   onAddCargo: () => void;
   onEditCargo: (cargoId: string) => void;
   onRemoveCargo: (cargoId: string) => void;
@@ -339,6 +341,7 @@ export function TripDetailCargoMasterDetail({
   cargos,
   orderedStops,
   canEditStructural,
+  canAppendCargo = false,
   onAddCargo,
   onEditCargo,
   onRemoveCargo,
@@ -425,7 +428,7 @@ export function TripDetailCargoMasterDetail({
             {copy.format.metaLine(cargos.length, totalWeightKg)}
           </p>
         </div>
-        {canEditStructural ? (
+        {canAppendCargo ? (
           <Button type="button" size="sm" variant="outline" onClick={onAddCargo}>
             <Plus className="mr-2 h-4 w-4" />
             {copy.action.addCargo}

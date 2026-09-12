@@ -75,6 +75,18 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.toast.endMileageRequired).not.toMatch(/od[oó]metro/i);
     expect(trackingCopy.action.close).toBe("Finalizar viaje");
   });
+
+  it("desglosa km inicial + distancia planificada en el sugerido de cierre", () => {
+    expect(
+      trackingCopy.sheet.suggestedEndMileageHint({
+        startKm: "3,200",
+        distanceKm: "1,200",
+        endKm: "4,400",
+      }),
+    ).toBe(
+      "Sugerido: 3,200 km (inicial) + 1,200 km (distancia planificada) = 4,400 km (final)",
+    );
+  });
 });
 
 describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {

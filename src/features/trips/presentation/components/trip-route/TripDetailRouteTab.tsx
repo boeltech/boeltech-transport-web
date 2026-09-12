@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, Navigation } from "lucide-react";
 
-import { useClientCorridors, useReplaceTripStops } from "@features/trips/application";
 import {
+  useClientCorridors,
+  useReplaceTripStops,
+  useReplanTripStops,
+} from "@features/trips/application";
+import {
+  shouldFlagFiscalAttentionAfterTripMutation,
   type ClientCorridor,
+  type CreateStopInput,
   type Trip,
   type TripCargo,
   type TripStatusType,
@@ -27,16 +34,29 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { FormValidationSummary } from "@shared/ui/form";
 
 import { StopFormSheet } from "../../pages/create/components/StopFormSheet";
-import type { StopFormData } from "../../pages/create/components/stopDialogAddressMapper";
+import {
+  addressSearchItemToDialogSlice,
+  dialogToStopFormData,
+  getEmptyStopDialogValues,
+  type StopFormData,
+} from "../../pages/create/components/stopDialogAddressMapper";
 import { mapStopToReplaceStopInput } from "../trip-detail-patch/mapStopToCreateStopInput";
 import { CorridorPicker } from "../corridor/CorridorPicker";
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
 import { TripRouteComposer, TripRouteSlotCapture } from "./TripRouteComposer";
 import {
+  buildReplanAfterRemoveWaypoint,
+  buildReplanAfterReorderWaypoint,
+  toReplanPendingStops,
+  type ReplanPendingStopInput,
+} from "./buildReplanStopsPayload";
+import { isTripStopImmutableMidTrip } from "./isStopImmutableMidTrip";
+import {
   buildRouteMasterRows,
   countFillableMissingSegmentDistances,
   countStopsMissingDomicilio,
   countStopsMissingSegmentDistance,
+  getRouteStopCategory,
   groupStopsForRouteDetail,
   isDraftWaypointSlotId,
   isStopDomicilioComplete,
@@ -46,12 +66,15 @@ import {
   type RouteStopCategory,
 } from "./tripRouteDetailHelpers";
 import {
+  areComposerEndpointDraftsPutReady,
   buildReplaceStopsPayload,
   canPersistComposerStops,
   composerStopTypes,
   type ComposerEndpointDraft,
+  type ComposerEndpointPick,
   type ComposerWaypointOperations,
   finalizeReplaceStopsPayload,
+  isComposerPickPutReady,
   isDuplicateComposerEndpointAddress,
   mapTripStopToStopFormData,
   mergeComposerEndpointDraft,
@@ -68,12 +91,50 @@ type RemoveWaypointDialog =
   | { kind: "confirm"; stopId: string }
   | { kind: "blocked"; stopId: string };
 
+type CompleteTarget =
+  | { kind: "edit"; stopId: string }
+  | {
+      kind: "create";
+      category: RouteStopCategory;
+      locationName?: string;
+      cityName?: string;
+      /** Prefill desde Location create-new / pick incompleto. */
+      prefill?: StopFormData;
+    };
+
+function composerPickToStopFormData(
+  category: RouteStopCategory,
+  pick: ComposerEndpointPick,
+  cityHint?: string,
+): StopFormData {
+  const slice = addressSearchItemToDialogSlice(pick);
+  return {
+    ...dialogToStopFormData({
+      ...getEmptyStopDialogValues(),
+      ...slice,
+      stopCategory: category,
+      stopType: composerStopTypes(category),
+      cityName: cityHint?.trim() || slice.cityName || "",
+      locationName:
+        pick.locationName?.trim() || slice.locationName || "",
+    }),
+    stopCategory: category,
+    stopType: composerStopTypes(category),
+  };
+}
+
 export interface TripDetailRouteTabProps {
   trip: Trip;
   tripStatus: TripStatusType;
   orderedStops: TripStop[];
   progress: number;
   canEditStructural: boolean;
+  /** ADR-0093 E1 — replan pending mid-trip (`PUT …/stops:replan`). */
+  canReplanPendingStops?: boolean;
+  /**
+   * @deprecated E1 — no usar como gate de Tab Ruta mid-trip.
+   */
+  canAppendStops?: boolean;
   cargos?: TripCargo[];
   legacyRoute?: {
     originCity?: string | null;
@@ -82,15 +143,6 @@ export interface TripDetailRouteTabProps {
     destinationState?: string | null;
   };
 }
-
-type CompleteTarget =
-  | { kind: "edit"; stopId: string }
-  | {
-      kind: "create";
-      category: RouteStopCategory;
-      locationName?: string;
-      cityName?: string;
-    };
 
 function getDisplayOrder(stop: TripStop, ordered: readonly TripStop[]): number {
   const index = ordered.findIndex((item) => item.id === stop.id);
@@ -106,11 +158,15 @@ export function TripDetailRouteTab({
   tripStatus,
   orderedStops,
   canEditStructural,
+  canReplanPendingStops = false,
   cargos,
   legacyRoute,
 }: TripDetailRouteTabProps) {
   const { toast } = useToast();
   const replaceStops = useReplaceTripStops(trip.id);
+  const replanStops = useReplanTripStops(trip.id);
+  const showMidTripReplan = canReplanPendingStops && !canEditStructural;
+  const canMutateRoute = canEditStructural || showMidTripReplan;
   const corridorsQuery = useClientCorridors(
     canEditStructural && orderedStops.length === 0
       ? (trip.clientId ?? undefined)
@@ -124,6 +180,19 @@ export function TripDetailRouteTab({
   const [removeDialog, setRemoveDialog] = useState<RemoveWaypointDialog | null>(
     null,
   );
+  const [fiscalConfirmOpen, setFiscalConfirmOpen] = useState(false);
+  const pendingPersistRef = useRef<{
+    execute: () => Promise<boolean>;
+    syncKey: string;
+  } | null>(null);
+
+  const isRouteMutationPending =
+    replaceStops.isPending || replanStops.isPending;
+
+  const needsFiscalConfirm = shouldFlagFiscalAttentionAfterTripMutation({
+    invoiceStatus: trip.invoicing?.invoiceStatus ?? null,
+    mutationKind: "stop_replan",
+  });
 
   const stopsSyncKey = useMemo(
     () => orderedStops.map((stop) => stop.id).join("|"),
@@ -165,7 +234,13 @@ export function TripDetailRouteTab({
     originCityHint: originCityHint || null,
     destinationCityHint: destinationCityHint || null,
     waypointDraftIds,
-  });
+  }).map((row) => ({
+    ...row,
+    locked:
+      showMidTripReplan &&
+      row.stop != null &&
+      isTripStopImmutableMidTrip(row.stop),
+  }));
   const masterRowIds = masterRows.map((row) => row.id).join("|");
   const resolvedViewId = useMemo(
     () => resolveRouteMasterRowId(masterRows, selectedId),
@@ -174,6 +249,7 @@ export function TripDetailRouteTab({
   );
   const selectedRow =
     masterRows.find((row) => row.id === resolvedViewId) ?? null;
+  const selectedLocked = Boolean(selectedRow?.locked);
 
   const editingStop =
     completeTarget?.kind === "edit"
@@ -183,7 +259,13 @@ export function TripDetailRouteTab({
     ? orderedStops[orderedStops.findIndex((stop) => stop.id === editingStop.id) - 1]
     : orderedStops[orderedStops.length - 1];
 
-  const persistStops = async (stops: ReturnType<typeof upsertComposerStop>) => {
+  const mutableWaypoints = orderedStops.filter(
+    (stop) =>
+      getRouteStopCategory(stop) === "waypoint" &&
+      !isTripStopImmutableMidTrip(stop),
+  );
+
+  const runReplace = async (stops: CreateStopInput[]) => {
     if (replaceStops.isPending) return false;
     try {
       await replaceStops.mutateAsync(stops);
@@ -199,6 +281,53 @@ export function TripDetailRouteTab({
       });
       return false;
     }
+  };
+
+  const runReplan = async (
+    pendingStops: ReplanPendingStopInput[],
+    toastTitle: string = copy.toast.stopsSaved,
+  ) => {
+    if (replanStops.isPending) return false;
+    try {
+      await replanStops.mutateAsync(pendingStops);
+      toast({ title: toastTitle, variant: "success" });
+      setEndpointDraft({});
+      setCaptureError(null);
+      return true;
+    } catch (error) {
+      toast({
+        title: copy.toast.stopSaveError,
+        description: error instanceof Error ? error.message : undefined,
+        variant: "error",
+      });
+      return false;
+    }
+  };
+
+  const persistRouteChange = async (
+    execute: () => Promise<boolean>,
+  ): Promise<boolean> => {
+    if (showMidTripReplan && needsFiscalConfirm) {
+      pendingPersistRef.current = { execute, syncKey: stopsSyncKey };
+      setFiscalConfirmOpen(true);
+      return false;
+    }
+    return execute();
+  };
+
+  const persistStops = async (
+    stops: CreateStopInput[],
+    options?: { editingStopId?: string | null },
+  ) => {
+    if (showMidTripReplan) {
+      const pending = toReplanPendingStops({
+        next: stops,
+        existing: orderedStops,
+        editingStopId: options?.editingStopId,
+      });
+      return persistRouteChange(() => runReplan(pending));
+    }
+    return runReplace(stops);
   };
 
   const handleCalculateDistances = () => {
@@ -263,29 +392,72 @@ export function TripDetailRouteTab({
       return;
     }
 
+    const pick = item as ComposerEndpointPick;
     const nextDraft: ComposerEndpointDraft = {
       ...endpointDraft,
-      [category]: item,
+      [category]: pick,
     };
+    // H1: always keep draft before any PUT attempt (survives remount / failed mutate).
+    setEndpointDraft(nextDraft);
+    setCaptureError(null);
+
+    const openCompleteFromPick = (targetCategory: "origin" | "destination") => {
+      const targetPick =
+        targetCategory === "origin" ? nextDraft.origin : nextDraft.destination;
+      if (!targetPick) return;
+      const cityHint =
+        targetCategory === "origin" ? originCityHint : destinationCityHint;
+      setCompleteTarget({
+        kind: "create",
+        category: targetCategory,
+        locationName: targetPick.locationName?.trim() || undefined,
+        cityName: cityHint || undefined,
+        prefill: composerPickToStopFormData(
+          targetCategory,
+          targetPick,
+          cityHint || undefined,
+        ),
+      });
+    };
+
+    const pickReady = isComposerPickPutReady(pick);
     const stops = mergeComposerEndpointDraft({
       existingStops: orderedStops,
       draft: nextDraft,
     });
 
-    if (canPersistComposerStops(stops)) {
-      void persistStops(stops);
+    if (!canPersistComposerStops(stops)) {
+      toast({
+        title: pickReady
+          ? category === "origin"
+            ? copy.composer.pendingOriginSaved
+            : copy.composer.pendingDestinationSaved
+          : category === "origin"
+            ? copy.composer.pendingOriginIncomplete
+            : copy.composer.pendingDestinationIncomplete,
+        variant: "default",
+      });
+      if (!pickReady) {
+        openCompleteFromPick(category);
+      }
       return;
     }
 
-    setEndpointDraft(nextDraft);
-    setCaptureError(null);
-    toast({
-      title:
-        category === "origin"
-          ? copy.composer.pendingOriginSaved
-          : copy.composer.pendingDestinationSaved,
-      variant: "default",
-    });
+    if (!areComposerEndpointDraftsPutReady(nextDraft, orderedStops)) {
+      toast({
+        title: copy.composer.needCompleteAddressToSave,
+        variant: "default",
+      });
+      const incompleteCategory: "origin" | "destination" = !pickReady
+        ? category
+        : nextDraft.origin && !isComposerPickPutReady(nextDraft.origin)
+          ? "origin"
+          : "destination";
+      openCompleteFromPick(incompleteCategory);
+      return;
+    }
+
+    void persistStops(stops);
   };
 
   const handleCorridorSelect = (corridor: ClientCorridor) => {
@@ -299,7 +471,9 @@ export function TripDetailRouteTab({
       return;
     }
     const id = `${ROUTE_SLOT_WAYPOINT_PREFIX}${crypto.randomUUID()}`;
-    setWaypointDraftIds((ids) => [...ids, id]);
+    // Un solo draft de escala a la vez: evita apilar filas «Sin domicilio»
+    // si el usuario reintenta sin confirmar operación/domicilio.
+    setWaypointDraftIds([id]);
     setSelectedId(id);
     setCompleteTarget(null);
     setCaptureError(null);
@@ -321,26 +495,58 @@ export function TripDetailRouteTab({
 
   const handleConfirmRemoveWaypoint = async () => {
     if (!removeDialog || removeDialog.kind !== "confirm") return;
-    if (replaceStops.isPending) return;
+    if (isRouteMutationPending) return;
     const stopId = removeDialog.stopId;
     setRemoveDialog(null);
-    try {
-      const stops = removeWaypointFromReplaceStopsPayload(orderedStops, stopId);
-      await replaceStops.mutateAsync(stops);
-      toast({ title: copy.toast.waypointRemoved, variant: "success" });
-      setSelectedId((prev) => (prev === stopId ? null : prev));
-      setCompleteTarget(null);
-      setCaptureError(null);
-    } catch (error) {
-      toast({
-        title: copy.toast.stopSaveError,
-        description: error instanceof Error ? error.message : undefined,
-        variant: "error",
-      });
-    }
+
+    const execute = async () => {
+      if (showMidTripReplan) {
+        const pending = buildReplanAfterRemoveWaypoint(orderedStops, stopId);
+        const ok = await runReplan(pending, copy.toast.waypointRemoved);
+        if (ok) {
+          setSelectedId((prev) => (prev === stopId ? null : prev));
+          setCompleteTarget(null);
+          setCaptureError(null);
+        }
+        return ok;
+      }
+      try {
+        const stops = removeWaypointFromReplaceStopsPayload(orderedStops, stopId);
+        await replaceStops.mutateAsync(stops);
+        toast({ title: copy.toast.waypointRemoved, variant: "success" });
+        setSelectedId((prev) => (prev === stopId ? null : prev));
+        setCompleteTarget(null);
+        setCaptureError(null);
+        return true;
+      } catch (error) {
+        toast({
+          title: copy.toast.stopSaveError,
+          description: error instanceof Error ? error.message : undefined,
+          variant: "error",
+        });
+        return false;
+      }
+    };
+
+    await persistRouteChange(execute);
+  };
+
+  const handleReorderWaypoint = (
+    stop: TripStop,
+    direction: "up" | "down",
+  ) => {
+    if (!canReplanPendingStops || isRouteMutationPending) return;
+    const pending = buildReplanAfterReorderWaypoint(
+      orderedStops,
+      stop.id,
+      direction,
+    );
+    if (!pending) return;
+    void persistRouteChange(() => runReplan(pending));
   };
 
   const openStopForm = (stop: TripStop) => {
+    if (showMidTripReplan && isTripStopImmutableMidTrip(stop)) return;
     setSelectedId((prev) => prev ?? stop.id);
     setCompleteTarget({ kind: "edit", stopId: stop.id });
   };
@@ -361,28 +567,65 @@ export function TripDetailRouteTab({
   };
 
   const handleSheetSubmit = async (data: StopFormData) => {
-    if (replaceStops.isPending) return;
-    try {
-      const stops = buildReplaceStopsPayload({
-        existingStops: orderedStops,
-        submitted: data,
-        editingStopId: completeTarget?.kind === "edit" ? completeTarget.stopId : null,
-        endpointDraft:
-          completeTarget?.kind === "create" ? endpointDraft : undefined,
-      });
-      await replaceStops.mutateAsync(stops);
-      toast({ title: copy.toast.stopsSaved, variant: "success" });
+    if (isRouteMutationPending) return;
+    const editingStopId =
+      completeTarget?.kind === "edit" ? completeTarget.stopId : null;
+    const createTarget = completeTarget;
+    const draftRowId =
+      selectedRow && isDraftWaypointSlotId(selectedRow.id)
+        ? selectedRow.id
+        : null;
+    const stops = buildReplaceStopsPayload({
+      existingStops: orderedStops,
+      submitted: data,
+      editingStopId,
+      endpointDraft:
+        createTarget?.kind === "create" ? endpointDraft : undefined,
+      preserveEditedSnapshotAddressId:
+        showMidTripReplan && Boolean(editingStopId),
+    });
+
+    const finishOk = () => {
       setCompleteTarget(null);
-      if (completeTarget?.kind === "create") {
+      if (createTarget?.kind === "create") {
         setEndpointDraft({});
       }
-      if (completeTarget?.kind === "create" && selectedRow && isDraftWaypointSlotId(selectedRow.id)) {
-        setWaypointDraftIds((ids) => ids.filter((id) => id !== selectedRow.id));
+      if (createTarget?.kind === "create" && draftRowId) {
+        setWaypointDraftIds((ids) => ids.filter((id) => id !== draftRowId));
       }
-    } catch (error) {
-      // Errores API: Alert inline + toast breve los muestra StopFormSheet.
-      throw error;
+    };
+
+    if (showMidTripReplan) {
+      const pending = toReplanPendingStops({
+        next: stops,
+        existing: orderedStops,
+        editingStopId,
+      });
+      if (needsFiscalConfirm) {
+        pendingPersistRef.current = {
+          execute: async () => {
+            const ok = await runReplan(pending);
+            if (ok) finishOk();
+            return ok;
+          },
+          syncKey: stopsSyncKey,
+        };
+        setFiscalConfirmOpen(true);
+        return;
+      }
+      const ok = await runReplan(pending);
+      if (!ok) {
+        throw new Error(copy.toast.stopSaveError);
+      }
+      finishOk();
+      return;
     }
+
+    const ok = await runReplace(stops);
+    if (!ok) {
+      throw new Error(copy.toast.stopSaveError);
+    }
+    finishOk();
   };
 
   const sheetInitialData: StopFormData | undefined = editingStop
@@ -395,10 +638,12 @@ export function TripDetailRouteTab({
       }
     : completeTarget?.kind === "create"
       ? {
-          stopCategory: completeTarget.category,
-          stopType: composerStopTypes(completeTarget.category),
-          locationName: completeTarget.locationName,
-          cityName: completeTarget.cityName,
+          ...(completeTarget.prefill ?? {
+            stopCategory: completeTarget.category,
+            stopType: composerStopTypes(completeTarget.category),
+            locationName: completeTarget.locationName,
+            cityName: completeTarget.cityName,
+          }),
           previousStopLatitude: previousStop?.latitude ?? undefined,
           previousStopLongitude: previousStop?.longitude ?? undefined,
           previousStopLabel:
@@ -449,7 +694,7 @@ export function TripDetailRouteTab({
         originBranchId={trip.originBranchId ?? undefined}
         keepBillingCollapsed
         variant="sheet"
-        isPending={replaceStops.isPending}
+        isPending={isRouteMutationPending}
       />
     ) : null;
 
@@ -460,15 +705,17 @@ export function TripDetailRouteTab({
     Boolean(trip.clientId) &&
     (corridorsQuery.isLoading || corridors.length > 0);
 
-  if (orderedStops.length === 0 && !canEditStructural) {
+  if (orderedStops.length === 0 && !canMutateRoute) {
     return (
-      <div className="rounded-xl border border-dashed bg-card">
-        <EmptyState
-          icon={<Navigation />}
-          title={copy.state.emptyTitle}
-          description={copy.state.readOnlyEmpty}
-          size="md"
-        />
+      <div className="space-y-4">
+        <div className="rounded-xl border border-dashed bg-card">
+          <EmptyState
+            icon={<Navigation />}
+            title={copy.state.emptyTitle}
+            description={copy.state.readOnlyEmpty}
+            size="md"
+          />
+        </div>
       </div>
     );
   }
@@ -482,6 +729,8 @@ export function TripDetailRouteTab({
   const missingDistanceCount = countStopsMissingSegmentDistance(ordered);
   const fillableDistanceCount = countFillableMissingSegmentDistances(ordered);
   const hasPersistedStops = orderedStops.length > 0;
+  const missingDestinationMidTrip =
+    showMidTripReplan && hasPersistedStops && !destination;
 
   const captureLabel =
     selectedRow?.category === "origin"
@@ -513,7 +762,7 @@ export function TripDetailRouteTab({
     }
 
     if (!selectedRow.stop) {
-      if (!canEditStructural) {
+      if (!canMutateRoute) {
         return (
           <p className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
             {emptySlotMessage}
@@ -537,7 +786,7 @@ export function TripDetailRouteTab({
             }
             selectedLabel={captureLabel}
             cityHint={captureHint || null}
-            disabled={replaceStops.isPending}
+            disabled={isRouteMutationPending}
             onPick={handlePick}
             onCompleteLabel={openCompleteLabel}
           />
@@ -547,7 +796,7 @@ export function TripDetailRouteTab({
               size="sm"
               variant="outline"
               className="text-destructive hover:text-destructive"
-              disabled={replaceStops.isPending}
+              disabled={isRouteMutationPending}
               onClick={() => handleRemoveDraftWaypoint(selectedRow.id)}
             >
               {copy.action.removeDraftWaypoint}
@@ -557,19 +806,50 @@ export function TripDetailRouteTab({
       );
     }
 
+    if (selectedLocked) {
+      return (
+        <TripDetailRouteStopCard stop={selectedRow.stop} />
+      );
+    }
+
+    const canEditSelected = canMutateRoute;
+    const wpIndex = mutableWaypoints.findIndex(
+      (stop) => stop.id === selectedRow.stop!.id,
+    );
+    const canReorder =
+      canReplanPendingStops &&
+      getRouteStopCategory(selectedRow.stop) === "waypoint" &&
+      wpIndex >= 0 &&
+      mutableWaypoints.length >= 2;
+
     return (
       <TripDetailRouteStopCard
         stop={selectedRow.stop}
         onCompleteAddress={
-          canEditStructural ? () => openStopForm(selectedRow.stop!) : undefined
+          canEditSelected ? () => openStopForm(selectedRow.stop!) : undefined
         }
         onEditStop={
-          canEditStructural ? () => openStopForm(selectedRow.stop!) : undefined
+          canEditSelected ? () => openStopForm(selectedRow.stop!) : undefined
         }
         onRemoveWaypoint={
-          canEditStructural
+          canEditSelected && getRouteStopCategory(selectedRow.stop) === "waypoint"
             ? () => handleRequestRemoveWaypoint(selectedRow.stop!)
             : undefined
+        }
+        onReorderUp={
+          canReorder ? () => handleReorderWaypoint(selectedRow.stop!, "up") : undefined
+        }
+        onReorderDown={
+          canReorder
+            ? () => handleReorderWaypoint(selectedRow.stop!, "down")
+            : undefined
+        }
+        reorderUpDisabled={!canReorder || wpIndex <= 0 || isRouteMutationPending}
+        reorderDownDisabled={
+          !canReorder ||
+          wpIndex < 0 ||
+          wpIndex >= mutableWaypoints.length - 1 ||
+          isRouteMutationPending
         }
       />
     );
@@ -577,6 +857,14 @@ export function TripDetailRouteTab({
 
   return (
     <div className="space-y-6">
+      {missingDestinationMidTrip ? (
+        <Alert variant="warning">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{copy.alert.noDestinationTitle}</AlertTitle>
+          <AlertDescription>{copy.alert.noDestinationBody}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {hasPersistedStops && missingDomicilioCount > 0 ? (
         <Alert variant="warning">
           <AlertCircle className="h-4 w-4" />
@@ -597,13 +885,13 @@ export function TripDetailRouteTab({
                 ? copy.alert.missingDistanceBody(missingDistanceCount)
                 : copy.alert.missingDistanceNeedsCoordsBody}
             </span>
-            {fillableDistanceCount > 0 && canEditStructural ? (
+            {fillableDistanceCount > 0 && canMutateRoute ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="shrink-0 border-warning/40 bg-background"
-                disabled={replaceStops.isPending}
+                disabled={isRouteMutationPending}
                 onClick={handleCalculateDistances}
               >
                 {copy.action.calculateDistances}
@@ -614,13 +902,23 @@ export function TripDetailRouteTab({
       ) : null}
 
       <div className="space-y-3">
-        <div>
-          <h3 className="text-base font-semibold">
-            {hasPersistedStops ? copy.section.stops : copy.composer.title}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {hasPersistedStops ? copy.hint.stops : copy.composer.description}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-base font-semibold">
+              {hasPersistedStops
+                ? copy.section.stops
+                : showMidTripReplan
+                  ? copy.state.emptyMidTripTitle
+                  : copy.composer.title}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {showMidTripReplan
+                ? copy.hint.stopsMidTrip
+                : hasPersistedStops
+                  ? copy.hint.stops
+                  : copy.composer.description}
+            </p>
+          </div>
         </div>
         {captureError ? (
           <FormValidationSummary
@@ -635,8 +933,9 @@ export function TripDetailRouteTab({
             onSelect={handleSelectRow}
             onAddWaypoint={handleAddWaypoint}
             tripTimes={tripTimes}
-            disabled={replaceStops.isPending}
-            readOnly={!canEditStructural}
+            disabled={isRouteMutationPending}
+            readOnly={!canMutateRoute}
+            mode={showMidTripReplan ? "pending-only" : "full"}
             showVisitState={showVisitState}
             corridor={
               showCorridorPicker ? (
@@ -673,11 +972,11 @@ export function TripDetailRouteTab({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={replaceStops.isPending}>
+            <AlertDialogCancel disabled={isRouteMutationPending}>
               {copy.action.keepWaypoint}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={replaceStops.isPending}
+              disabled={isRouteMutationPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(event) => {
                 event.preventDefault();
@@ -705,9 +1004,68 @@ export function TripDetailRouteTab({
               {copy.confirm.removeWaypointBlockedBody}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button type="button" variant="outline" asChild>
+              <Link
+                to={`?tab=cargo`}
+                onClick={() => setRemoveDialog(null)}
+              >
+                {copy.action.goToCargoTab}
+              </Link>
+            </Button>
             <AlertDialogAction onClick={() => setRemoveDialog(null)}>
               {copy.action.cancel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={fiscalConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFiscalConfirmOpen(false);
+            pendingPersistRef.current = null;
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{copy.confirm.replanFiscalTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {copy.confirm.replanFiscalBody}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isRouteMutationPending}
+              onClick={() => {
+                pendingPersistRef.current = null;
+              }}
+            >
+              {copy.action.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isRouteMutationPending}
+              onClick={(event) => {
+                event.preventDefault();
+                const entry = pendingPersistRef.current;
+                pendingPersistRef.current = null;
+                setFiscalConfirmOpen(false);
+                if (!entry) return;
+                if (entry.syncKey !== stopsSyncKey) {
+                  toast({
+                    title: copy.alert.routeChangedExternally,
+                    variant: "warning",
+                  });
+                  return;
+                }
+                void entry.execute().then((ok) => {
+                  if (ok) setCompleteTarget(null);
+                });
+              }}
+            >
+              {copy.action.confirmFiscalReplan}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

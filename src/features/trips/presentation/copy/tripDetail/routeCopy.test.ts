@@ -39,4 +39,14 @@ describe("routeCopy — léxico operativo (Capa 1 D3)", () => {
     expect(routeCopy.action.editStop).toBe("Editar parada");
     expect(routeCopy.chip.missingAddress).toBe("Sin domicilio");
   });
+
+  it("distingue toast listo vs borrador incompleto en el composer", () => {
+    expect(routeCopy.composer.pendingOriginSaved).toMatch(/Origen listo/);
+    expect(routeCopy.composer.pendingOriginIncomplete).toMatch(
+      /Completa el domicilio/,
+    );
+    expect(routeCopy.composer.needCompleteAddressToSave).toMatch(
+      /Completa el domicilio/,
+    );
+  });
 });

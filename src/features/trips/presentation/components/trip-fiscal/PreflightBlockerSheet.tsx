@@ -9,7 +9,10 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
-import { toFiscalStopDisplayOrder } from "./tripFiscalHelpers";
+import {
+  formatFiscalStopPlaceLine,
+  toFiscalStopDisplayOrder,
+} from "./tripFiscalHelpers";
 
 const copy = tripFiscalCopy.preflightSheet;
 
@@ -61,8 +64,7 @@ export function PreflightBlockerSheet({
                   ) : null}
                   {stop ? (
                     <p className="text-xs text-muted-foreground">
-                      {stop.city}
-                      {stop.state ? `, ${stop.state}` : ""}
+                      {formatFiscalStopPlaceLine(stop)}
                     </p>
                   ) : null}
                 </div>

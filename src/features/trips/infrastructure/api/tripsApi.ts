@@ -11,7 +11,7 @@ import type {
   RouteEstimateParams,
   Trip,
 } from "@features/trips/domain";
-import type { ApiTripResponse } from "./api-types";
+import type { ApiCreateTripWarning, ApiTripResponse } from "./api-types";
 import {
   mapApiCorridor,
   mapApiRouteEstimate,
@@ -77,6 +77,90 @@ export const tripsApi = {
       data: { trip: ApiTripResponse };
       message?: string;
     }>(`/trips/${tripId}/stops`, { stops });
+    return mapApiTrip(raw.data.trip);
+  },
+
+  /** ADR-0093 — append-only mid-trip.
+   * @deprecated E1 — path de producto = {@link replanStops}.
+   */
+  async appendStops(
+    tripId: string,
+    stops: CreateStopInput[],
+  ): Promise<Trip> {
+    const raw = await apiClient.post<{
+      data: { trip: ApiTripResponse };
+      message?: string;
+    }>(`/trips/${tripId}/stops:append`, { stops });
+    return mapApiTrip(raw.data.trip);
+  },
+
+  /** ADR-0093 E1 — replan de paradas pending (insert/modify/delete/reorder). */
+  async replanStops(
+    tripId: string,
+    pendingStops: Array<CreateStopInput & { id?: string }>,
+  ): Promise<Trip> {
+    const raw = await apiClient.put<{
+      data: { trip: ApiTripResponse };
+      message?: string;
+    }>(`/trips/${tripId}/stops:replan`, { pendingStops });
+    return mapApiTrip(raw.data.trip);
+  },
+
+  /** ADR-0093 — reasignación de flota (warnings soft vs draft: OC-D1 / F2). */
+  async patchFleet(
+    tripId: string,
+    data: {
+      vehicleId?: string;
+      driverId?: string;
+      trailers?: Array<{ trailerId: string; position: 1 | 2 }>;
+      internalStaff?: Array<{
+        employeeId: string;
+        internalRole: "secondary_driver" | "helper";
+        isPaymentResponsible?: boolean;
+        paymentNotes?: string | null;
+      }>;
+      allowExpiredDocs?: boolean;
+    },
+  ): Promise<{
+    trip: Trip;
+    warnings?: Array<{
+      code: string;
+      message: string;
+      vehicleId?: string;
+      driverId?: string;
+      trailerId?: string;
+      conflictingTripId?: string;
+      conflictingTripCode?: string;
+    }>;
+  }> {
+    const raw = await apiClient.patch<{
+      data: { trip: ApiTripResponse };
+      message?: string;
+      warnings?: ApiCreateTripWarning[];
+    }>(`/trips/${tripId}/fleet`, data);
+
+    const warnings = raw.warnings?.map((warning) => ({
+      code: warning.code,
+      message: warning.message,
+      vehicleId: warning.vehicle_id,
+      driverId: warning.driver_id,
+      trailerId: warning.trailer_id,
+      conflictingTripId: warning.conflicting_trip_id,
+      conflictingTripCode: warning.conflicting_trip_code,
+    }));
+
+    return {
+      trip: mapApiTrip(raw.data.trip),
+      ...(warnings && warnings.length > 0 ? { warnings } : {}),
+    };
+  },
+
+  /** ADR-0093 — mutar tarifa base. */
+  async patchBaseRate(tripId: string, baseRate: number): Promise<Trip> {
+    const raw = await apiClient.patch<{
+      data: { trip: ApiTripResponse };
+      message?: string;
+    }>(`/trips/${tripId}/base-rate`, { baseRate });
     return mapApiTrip(raw.data.trip);
   },
 };

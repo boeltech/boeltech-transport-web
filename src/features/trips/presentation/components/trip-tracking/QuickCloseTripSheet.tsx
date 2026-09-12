@@ -3,7 +3,6 @@ import { Flag, Loader2 } from "lucide-react";
 
 import type { TripStop } from "@features/trips/domain";
 import { useRegisterTrackingEvent } from "@features/trips/application";
-import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
@@ -26,9 +25,10 @@ import {
 } from "@shared/utils/dateUtils";
 
 import {
-  resolveSuggestedStartMileage,
+  resolveSuggestedEndMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
+import { sumRouteSegmentDistanceKm } from "../trip-route/tripRouteDetailHelpers";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
@@ -50,11 +50,16 @@ const copy = trackingCopy;
 export type QuickCloseTripSheetProps = {
   tripId: string;
   tripCode: string;
-  vehicleId?: string;
   tripStartMileage?: number | null;
+  /** Distancia planificada del viaje (progress del timeline). */
+  plannedDistanceKm?: number | null;
+  /** Paradas — fallback si no hay distancia planificada agregada. */
+  stops?: readonly TripStop[];
   scheduledDeparture?: Date | string | null;
   actualDeparture?: Date | string | null;
   destinationStop?: TripStop | null;
+  /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
+  requiresFiscalAttention?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -78,11 +83,13 @@ type QuickCloseTripSheetBodyProps = Omit<QuickCloseTripSheetProps, "open">;
 function QuickCloseTripSheetBody({
   tripId,
   tripCode,
-  vehicleId,
   tripStartMileage,
+  plannedDistanceKm,
+  stops = [],
   scheduledDeparture,
   actualDeparture,
   destinationStop,
+  requiresFiscalAttention = false,
   onOpenChange,
   onSuccess,
 }: QuickCloseTripSheetBodyProps) {
@@ -94,23 +101,56 @@ function QuickCloseTripSheetBody({
   const [closureNotes, setClosureNotes] = useState("");
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
-  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
-    vehicleId ?? "",
-    { enabled: !!vehicleId },
-  );
-
-  const suggestedMileage = resolveSuggestedStartMileage(
-    vehicle?.currentMileage,
+  const totalDistanceKm = useMemo(() => {
+    if (
+      typeof plannedDistanceKm === "number" &&
+      Number.isFinite(plannedDistanceKm) &&
+      plannedDistanceKm > 0
+    ) {
+      return plannedDistanceKm;
+    }
+    return sumRouteSegmentDistanceKm(stops);
+  }, [plannedDistanceKm, stops]);
+  const suggestedMileage = resolveSuggestedEndMileage(
     tripStartMileage,
+    totalDistanceKm,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+  const suggestedMileageHint = useMemo(() => {
+    if (suggestedMileage == null) return null;
+    const fmt = (n: number) => n.toLocaleString("es-MX");
+    if (
+      tripStartMileage != null &&
+      Number.isFinite(tripStartMileage) &&
+      totalDistanceKm != null &&
+      totalDistanceKm > 0
+    ) {
+      return copy.sheet.suggestedEndMileageHint({
+        startKm: fmt(tripStartMileage),
+        distanceKm: fmt(Math.round(totalDistanceKm)),
+        endKm: fmt(suggestedMileage),
+      });
+    }
+    return copy.sheet.suggestedMileageHint(fmt(suggestedMileage));
+  }, [suggestedMileage, totalDistanceKm, tripStartMileage]);
   const earliestClosure = resolveEarliestClosureInstant(
     scheduledDeparture,
     actualDeparture,
   );
 
   const registerMutation = useRegisterTrackingEvent({
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const fiscalWarn = result.warnings?.find(
+        (w) => w.code === "FISCAL_ATTENTION_PENDING",
+      );
+      if (fiscalWarn) {
+        toast({
+          title: copy.sheet.quickCloseWarningTitle,
+          description:
+            fiscalWarn.message || copy.sheet.quickCloseFiscalAttention,
+          variant: "warning",
+        });
+      }
       toast({
         title: copy.toast.tripClosed,
         description: copy.toast.tripClosedDescription(tripCode),
@@ -200,6 +240,9 @@ function QuickCloseTripSheetBody({
           items={[
             { text: copy.sheet.quickCloseWarningStops },
             { text: copy.sheet.quickCloseWarningCargos },
+            ...(requiresFiscalAttention
+              ? [{ text: copy.sheet.quickCloseFiscalAttention }]
+              : []),
           ]}
         />
 
@@ -240,16 +283,8 @@ function QuickCloseTripSheetBody({
             fieldId="quick-close-mileage"
             message={mileageError ?? undefined}
           />
-          {isLoadingVehicle ? (
-            <p className="text-xs text-muted-foreground">
-              {copy.sheet.loadingVehicle}
-            </p>
-          ) : suggestedMileage != null ? (
-            <p className="text-xs text-muted-foreground">
-              {copy.sheet.suggestedMileageHint(
-                suggestedMileage.toLocaleString("es-MX"),
-              )}
-            </p>
+          {suggestedMileageHint ? (
+            <p className="text-xs text-muted-foreground">{suggestedMileageHint}</p>
           ) : null}
         </div>
 
@@ -307,11 +342,13 @@ function QuickCloseTripSheetBody({
 export function QuickCloseTripSheet({
   tripId,
   tripCode,
-  vehicleId,
   tripStartMileage,
+  plannedDistanceKm,
+  stops,
   scheduledDeparture,
   actualDeparture,
   destinationStop,
+  requiresFiscalAttention = false,
   open,
   onOpenChange,
   onSuccess,
@@ -332,11 +369,13 @@ export function QuickCloseTripSheet({
             key={tripId}
             tripId={tripId}
             tripCode={tripCode}
-            vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            plannedDistanceKm={plannedDistanceKm}
+            stops={stops}
             scheduledDeparture={scheduledDeparture}
             actualDeparture={actualDeparture}
             destinationStop={destinationStop}
+            requiresFiscalAttention={requiresFiscalAttention}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

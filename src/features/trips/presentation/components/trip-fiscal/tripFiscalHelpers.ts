@@ -116,9 +116,12 @@ export function buildFixSheetInitialValues(stop: TripStop): {
   };
 }
 
-/** `sequence_order` API es 0-based; UI operativa muestra Parada 1, 2, … */
+/**
+ * Product persists `sequence_order` 1-based (Origen = 1, Destino = 2, …).
+ * Legacy rows with 0 still display as Parada 1.
+ */
 export function toFiscalStopDisplayOrder(sequenceOrder: number): number {
-  return sequenceOrder + 1;
+  return sequenceOrder < 1 ? sequenceOrder + 1 : sequenceOrder;
 }
 
 /** Sustituye la parada en el viaje en memoria (cache / loadedTrips) tras PATCH fiscal. */
@@ -257,6 +260,34 @@ export function formatStopLocation(stop: TripStop): string {
   const parts = [streetPart, colonia, locality].filter(
     (part) => part != null && String(part).trim() !== "",
   );
+  const line = parts.join(", ");
+  return line || "Sin dirección";
+}
+
+/**
+ * Línea fiscal con nombre de lugar visible (alineada a Tab Ruta).
+ * Primary = locationName o calle; luego calle (si hubo nombre) y localidad.
+ */
+export function formatFiscalStopPlaceLine(stop: TripStop): string {
+  const primary = formatStopDisplayPrimaryLine(stop);
+  const street = formatStopDisplayStreetLine(stop)?.trim() || null;
+  const colonia = stop.colonia?.trim() || null;
+  const locality = composeStopLocalityLine(stop).trim();
+
+  const parts: string[] = [];
+  if (primary && primary !== "Sin dirección") {
+    parts.push(primary);
+  }
+  if (street && street !== primary) {
+    parts.push(street);
+  }
+  if (colonia) {
+    parts.push(colonia);
+  }
+  if (locality) {
+    parts.push(locality);
+  }
+
   const line = parts.join(", ");
   return line || "Sin dirección";
 }

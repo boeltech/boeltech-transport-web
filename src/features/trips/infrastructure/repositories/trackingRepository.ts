@@ -59,14 +59,20 @@ export class TrackingRepository {
   async createEvent(
     tripId: string,
     input: CreateTrackingEventInput,
-  ): Promise<{ data: TrackingEvent; message?: string }> {
-    const response = await apiClient.post<ApiSingleResponse<ApiTrackingEventResponse>>(
-      `${TRIPS_ENDPOINT}/${tripId}/tracking/events`,
-      toApiCreatePayload(input),
-    );
+  ): Promise<{
+    data: TrackingEvent;
+    message?: string;
+    warnings?: Array<{ code: string; message: string }>;
+  }> {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiTrackingEventResponse>
+    >(`${TRIPS_ENDPOINT}/${tripId}/tracking/events`, toApiCreatePayload(input));
     return {
       data: mapApiTrackingEvent(response.data),
       message: response.message,
+      ...(response.warnings && response.warnings.length > 0
+        ? { warnings: response.warnings }
+        : {}),
     };
   }
 

@@ -33,6 +33,7 @@ npm run test:smoke:trip-false-trip # smoke ADR-0079 viaje en falso (CTA/scope/ba
 npm run test:smoke:trip-revenue-split # smoke ADR-0081 prorrateo multi-RFC (CTA/scope/badge, sin PAC)
 npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cutover /trailers
 npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
+npm run test:smoke:trip-mid-trip # smoke ADR-0093 E1 mid-trip (composer pending-only / replan / fiscal)
 npm run test:smoke:settlements # smoke ADR-0085 liquidaciones y compensación a operadores
 npm run test:smoke:compensation-templates # smoke ADR-0089 plantillas, corredores y preview liquidación
 npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
@@ -55,6 +56,8 @@ npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 **Envío automático de facturas (ADR-0083, F0–F3):** opt-in `invoice_auto_dispatch_enabled` + corrida `origin=scheduled` tras corte CDMX · badge Automática · alerta failed en factura · inbox `billing_dispatch` · smoke `npm run test:smoke:invoice-auto-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\envio-automatico-facturas-usuario.md` · SDD `design/sdd/invoice-auto-dispatch/`. Local: worker (`npm run dev:worker`) + migr. **155**.
 
 **Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. Capa 1 job UX en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
+
+**Flexibilidad mid-trip (ADR-0093, Aceptado · F0–F4 · Enmienda E1):** en `in_progress` replan de paradas `pending` (composer pending-only + `PUT …/stops:replan`), append carga, reasignar flota y mutar `base_rate` sin relajar `canEditTrip`; bandera `requires_fiscal_attention` + sustitución 04. Smoke `npm run test:smoke:trip-mid-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\viajes\flexibilidad-mid-trip-usuario.md`. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0093-flexibilidad-operativa-mid-trip.md` · SDD `design/sdd/trip-mid-trip-flexibility/`.
 
 **Alta de viaje canvas (ADR-0078, Aceptado · F0–F4 cerradas):** un CTA Reservar; `/trips/new` = canvas una pantalla (`FormPageShell`); completar Ruta/Cargas en el detalle (riel + Confirmar reserva); `/trips/:id/edit` redirige al detalle. Hold ADR-0071 intacto. Smoke: `npm run test:smoke:trip-canvas`. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · [addendum composer](D:/cowork/boeltech/erp-transport/design/adr/0078-addendum-composer-esqueleto-ruta.md) (**Aceptado** — Capa 3 E1 web; **sin API**) · SDD `design/sdd/trip-canvas-intake/`. Post-v1: D10 catálogo de rutas.
 
@@ -141,6 +144,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | Viajes — canvas de alta (ADR-0078, Aceptado · F0–F4) | `...\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · addendum composer **Aceptado** (E1 web, sin API) · SDD `...\design\sdd\trip-canvas-intake\` |
+| Viajes — mid-trip (ADR-0093, Aceptado · F0–F4 · E1) | `...\design\adr\0093-flexibilidad-operativa-mid-trip.md` · SDD `...\design\sdd\trip-mid-trip-flexibility\` · guía `...\docs\viajes\flexibilidad-mid-trip-usuario.md` · smoke `test:smoke:trip-mid-trip` |
 | Viajes — prorrateo multi-RFC (ADR-0081) | `...\design\adr\0081-split-multi-rfc-mismo-viaje.md` · SDD `...\design\sdd\trip-revenue-split\` · guía `...\docs\facturacion\prorrateo-multi-rfc-viaje-usuario.md` |
 | Viajes — falso ingreso sin CP (ADR-0079, Aceptado · F0–F3 código) | `...\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · addendum 0068 · SDD `...\design\sdd\trip-false-trip\` · guía `...\docs\facturacion\viaje-en-falso-usuario.md` |
 | ProFact / timbrado | `...\docs\facturacion\profact-flujo-web-api.md` |

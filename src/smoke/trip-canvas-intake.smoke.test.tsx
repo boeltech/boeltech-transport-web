@@ -33,13 +33,22 @@ const mocks = vi.hoisted(() => ({
   mutateSchedule: vi.fn(),
   mutateAsyncUpdateTrip: vi.fn(),
   lastKeepBillingCollapsed: undefined as boolean | undefined,
+  toast: vi.fn(),
+  scheduleOptions: undefined as
+    | {
+        onSuccess?: (result: {
+          trip: Trip;
+          warnings?: Array<{ code: string; message: string }>;
+        }) => void;
+      }
+    | undefined,
 }));
 
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
   return {
     ...actual,
-    useToast: () => ({ toast: vi.fn() }),
+    useToast: () => ({ toast: mocks.toast }),
   };
 });
 
@@ -79,10 +88,37 @@ vi.mock("@features/trips/application", () => ({
     mutateAsync: mocks.mutateAsyncReplace,
     isPending: false,
   }),
-  useScheduleTrip: () => ({ mutate: mocks.mutateSchedule, isPending: false }),
+  useScheduleTrip: (options?: {
+    onSuccess?: (result: {
+      trip: Trip;
+      warnings?: Array<{ code: string; message: string }>;
+    }) => void;
+  }) => {
+    mocks.scheduleOptions = options;
+    return { mutate: mocks.mutateSchedule, isPending: false };
+  },
   useUpdateTrip: () => ({
     mutateAsync: mocks.mutateAsyncUpdateTrip,
     isPending: false,
+  }),
+  useReplanTripStops: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useTripWorkbenchSummary: () => ({
+    summary: {
+      draft: 0,
+      scheduled: 0,
+      inProgress: 0,
+      completed: 0,
+      cancelled: 0,
+      fiscalAttention: 0,
+      overdue: 0,
+    },
+    isLoading: false,
+    isFetching: false,
+    hasError: false,
+    refetch: vi.fn(),
   }),
   TripCreationError: class TripCreationError extends Error {},
 }));
@@ -290,7 +326,6 @@ describe("ADR-0078 trip canvas intake smoke", () => {
         expenses: [],
         internalStaff: [],
       } as unknown as TripWizardFormValues,
-      undefined,
       { createIntent: "reserve" },
     );
 
@@ -358,6 +393,56 @@ describe("ADR-0078 trip canvas intake smoke", () => {
       screen.getByRole("button", { name: shell.action.confirm }),
     );
     expect(mocks.mutateSchedule).toHaveBeenCalledWith("trip-smoke-1");
+  });
+
+  it("detalle: Confirmar reserva soft-warn VEHICLE_OVERLAP_SOFT (0071 E2)", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TestProviders>
+        <TripConfirmReserveButton
+          tripId="trip-smoke-1"
+          tripCode="TR-SMOKE"
+          status={TripStatus.DRAFT}
+          clientId="cli-1"
+          prospectiveAmount={1500}
+          scheduledArrival={draftTrip.scheduledArrival}
+          startMileage={1500}
+        />
+      </TestProviders>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: shell.action.confirmReserve }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: shell.action.confirm }),
+    );
+
+    expect(mocks.mutateSchedule).toHaveBeenCalledWith("trip-smoke-1");
+    mocks.scheduleOptions?.onSuccess?.({
+      trip: { id: "trip-smoke-1", tripCode: "TR-SMOKE" } as Trip,
+      warnings: [
+        {
+          code: "VEHICLE_OVERLAP_SOFT",
+          message: "El vehículo ya está asignado al viaje RSV-001",
+        },
+      ],
+    });
+
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: shell.toast.scheduledTitle,
+        variant: "success",
+      }),
+    );
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: shell.toast.overlapWarningTitle,
+        description: "El vehículo ya está asignado al viaje RSV-001",
+        variant: "warning",
+      }),
+    );
   });
 
   it("parada sin CP31: Completar domicilio dispara PUT stops[] sequence 1 sin RFC", async () => {

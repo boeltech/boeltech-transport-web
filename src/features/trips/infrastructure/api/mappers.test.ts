@@ -95,6 +95,38 @@ describe("mapApiTripListItem invoicing (ADR-0068)", () => {
     expect(item.falseTripDeclaredBy).toBe("Ana Dispatcher");
   });
 
+  it("maps false_trip principal invoice summary without primary (ADR-0079)", () => {
+    const item = mapApiTripListItem({
+      ...baseListItem({
+        has_active_invoice: false,
+        has_active_primary_invoice: false,
+        has_active_principal_invoice: true,
+        can_generate_invoice: false,
+        can_generate_accessory_invoice: false,
+        can_generate_false_trip_invoice: false,
+        invoice_id: "inv-falso-1",
+        invoice_folio: "B8S-99",
+        invoice_status: "stamped",
+        invoice_cfdi_uuid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        block_reason:
+          "Este viaje ya tiene una factura activa y no se puede facturar nuevamente.",
+      }),
+      operational_outcome: "false_trip",
+    });
+
+    expect(item.invoicing).toMatchObject({
+      hasActiveInvoice: false,
+      hasActivePrimaryInvoice: false,
+      hasActivePrincipalInvoice: true,
+      canGenerateFalseTripInvoice: false,
+      canGenerateInvoice: false,
+      invoiceId: "inv-falso-1",
+      invoiceFolio: "B8S-99",
+      invoiceStatus: "stamped",
+      invoiceCfdiUuid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    });
+  });
+
   it("defaults operational_outcome to standard and false-trip flag to false", () => {
     const item = mapApiTripListItem(
       baseListItem({

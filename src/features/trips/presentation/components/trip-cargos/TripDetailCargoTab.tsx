@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Package, Plus, RefreshCw } from "lucide-react";
 
@@ -10,10 +10,12 @@ import {
 } from "@features/trips/application";
 import {
   StopType,
+  TripStatus,
   type TripCargo,
   type TripStatusType,
   type TripStop,
 } from "@features/trips/domain";
+import { useVehicle } from "@features/vehicles";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
@@ -21,13 +23,17 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { Skeleton } from "@shared/ui/skeleton";
 
 import { tripDetailCopy } from "../../copy";
-import { attachStopIdsToCreateCargoMovements } from "./tripCargoDetailHelpers";
+import {
+  attachStopIdsToCreateCargoMovements,
+  getCargoWeightKg,
+} from "./tripCargoDetailHelpers";
 import {
   formValuesToUpdateCargoInput,
   tripCargoToFormValues,
 } from "./tripCargoFormBridge";
 import { TripDetailCargoMasterDetail } from "./TripDetailCargoMasterDetail";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
+import { CargoCapacityStrip } from "../../pages/create/components/CargoCapacityStrip";
 import {
   CargoMovementSheet,
   type CargoSheetDeliveryStop,
@@ -78,6 +84,10 @@ export interface TripDetailCargoTabProps {
   isLoading: boolean;
   isError: boolean;
   canEditStructural: boolean;
+  /** ADR-0093 — append carga mid-trip. */
+  canAppendCargo?: boolean;
+  /** Unidad asignada — capacidad advisory (loadCapacity t→kg). */
+  vehicleId?: string | null;
   onRetry: () => void;
   onCargosChanged?: () => void;
 }
@@ -121,12 +131,15 @@ function toDeliverySheetStops(
 
 export function TripDetailCargoTab({
   tripId,
+  tripStatus,
   cargos,
   orderedStops,
   pickupStops,
   isLoading,
   isError,
   canEditStructural,
+  canAppendCargo = false,
+  vehicleId = null,
   onRetry,
   onCargosChanged,
 }: TripDetailCargoTabProps) {
@@ -136,6 +149,10 @@ export function TripDetailCargoTab({
   const updateCargo = useUpdateCargo(tripId);
   const deleteCargo = useDeleteCargo(tripId);
   const reassignMovementStop = useReassignCargoMovementStop(tripId);
+  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
+    vehicleId ?? "",
+    { enabled: Boolean(vehicleId) },
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingCargoId, setEditingCargoId] = useState<string | null>(null);
   /** Pickup elegido en alta cuando el viaje tiene varias recogidas. */
@@ -192,14 +209,61 @@ export function TripDetailCargoTab({
     ? toDeliverySheetStops(orderedStops, pickupSheetStop.index)
     : [];
 
-  const editingWeightKg = editingCargo
-    ? (editingCargo.weightInKg ?? editingCargo.weight ?? 0)
-    : 0;
+  const editingWeightKg = editingCargo ? getCargoWeightKg(editingCargo) : 0;
   const totalWeightKg = cargos.reduce(
-    (sum, cargo) => sum + (cargo.weightInKg ?? cargo.weight ?? 0),
+    (sum, cargo) => sum + getCargoWeightKg(cargo),
     0,
   );
   const baselineWeightKg = totalWeightKg - editingWeightKg;
+
+  const vehicleCapacityKg = useMemo(() => {
+    const tons = vehicle?.capacities?.loadCapacity;
+    if (tons == null) return null;
+    return tons * 1000;
+  }, [vehicle]);
+
+  const isCapacityUnknown =
+    Boolean(vehicleId) &&
+    !isLoadingVehicle &&
+    (vehicleCapacityKg == null || vehicleCapacityKg === 0);
+
+  const showCapacityStrip = Boolean(vehicleId) || cargos.length > 0;
+
+  const capacityMutable =
+    tripStatus === TripStatus.DRAFT ||
+    tripStatus === TripStatus.SCHEDULED ||
+    tripStatus === TripStatus.IN_PROGRESS;
+
+  const capacityStrip = showCapacityStrip ? (
+    <CargoCapacityStrip
+      capacityKg={vehicleCapacityKg}
+      loadedKg={totalWeightKg}
+      vehicleLabel={
+        vehicle
+          ? copy.capacity.vehicleSubtitle(
+              vehicle.unitNumber,
+              vehicle.brand,
+              vehicle.model,
+            )
+          : null
+      }
+      isCapacityUnknown={isCapacityUnknown}
+      sticky={false}
+      messages={{
+        title: copy.capacity.title,
+        unknownTitle: copy.capacity.unknownTitle,
+        unknownBody: copy.capacity.unknownBody,
+        overCapacityHint: capacityMutable
+          ? copy.capacity.overCapacityHint
+          : copy.capacity.overCapacityHintReadonly,
+        usage: copy.capacity.usage,
+        loadedOfCapacity: copy.capacity.loadedOfCapacity,
+        available: copy.capacity.available,
+        excess: copy.capacity.excess,
+        formatWeight: copy.capacity.formatWeight,
+      }}
+    />
+  ) : null;
 
   const cargosAtActivePickup = activePickupStop
     ? cargos.filter((cargo) =>
@@ -342,7 +406,7 @@ export function TripDetailCargoTab({
   };
 
   const cargoSheet =
-    pickupSheetStop && canEditStructural ? (
+    pickupSheetStop && (canAppendCargo || canEditStructural) ? (
       <CargoMovementSheet
         open={sheetOpen}
         onOpenChange={(open) => {
@@ -362,7 +426,7 @@ export function TripDetailCargoTab({
         }
         editingIndex={editingCargoId ? 0 : null}
         deliveriesReadOnly={editingCargoId != null}
-        vehicleCapacityKg={null}
+        vehicleCapacityKg={vehicleCapacityKg}
         baselineWeightKg={baselineWeightKg}
         stopCargoCount={cargosAtActivePickup.length}
         submitErrorTitle={
@@ -384,35 +448,39 @@ export function TripDetailCargoTab({
 
   if (cargos.length === 0) {
     const hasPickup = pickupStops.length > 0;
+    const canMutateCargo = canEditStructural || canAppendCargo;
     return (
       <>
-        <div className="rounded-xl border border-dashed bg-card">
-          <EmptyState
-            icon={<Package />}
-            title={
-              hasPickup ? copy.state.emptyTitle : copy.state.emptyNoPickupTitle
-            }
-            description={
-              hasPickup
-                ? copy.state.emptyDescription
-                : copy.state.emptyNoPickupDescription
-            }
-            size="md"
-            cta={
-              canEditStructural && hasPickup
-                ? {
-                    label: copy.action.addCargo,
-                    icon: <Plus />,
-                    onClick: () => openAddCargo(),
-                  }
-                : canEditStructural && !hasPickup
+        <div className="space-y-4">
+          {capacityStrip}
+          <div className="rounded-xl border border-dashed bg-card">
+            <EmptyState
+              icon={<Package />}
+              title={
+                hasPickup ? copy.state.emptyTitle : copy.state.emptyNoPickupTitle
+              }
+              description={
+                hasPickup
+                  ? copy.state.emptyDescription
+                  : copy.state.emptyNoPickupDescription
+              }
+              size="md"
+              cta={
+                canMutateCargo && hasPickup
                   ? {
-                      label: copy.action.goToRoute,
-                      onClick: () => navigate(`/trips/${tripId}?tab=route`),
+                      label: copy.action.addCargo,
+                      icon: <Plus />,
+                      onClick: () => openAddCargo(),
                     }
-                  : undefined
-            }
-          />
+                  : canMutateCargo && !hasPickup
+                    ? {
+                        label: copy.action.goToRoute,
+                        onClick: () => navigate(`/trips/${tripId}?tab=route`),
+                      }
+                    : undefined
+              }
+            />
+          </div>
         </div>
         {cargoSheet}
       </>
@@ -421,15 +489,19 @@ export function TripDetailCargoTab({
 
   return (
     <>
-      <TripDetailCargoMasterDetail
-        cargos={cargos}
-        orderedStops={orderedStops}
-        canEditStructural={canEditStructural}
-        onAddCargo={() => openAddCargo()}
-        onEditCargo={openEditCargo}
-        onRemoveCargo={handleRemoveCargo}
-        isRemoving={deleteCargo.isPending}
-      />
+      <div className="space-y-4">
+        {capacityStrip}
+        <TripDetailCargoMasterDetail
+          cargos={cargos}
+          orderedStops={orderedStops}
+          canEditStructural={canEditStructural}
+          canAppendCargo={canEditStructural || canAppendCargo}
+          onAddCargo={() => openAddCargo()}
+          onEditCargo={openEditCargo}
+          onRemoveCargo={handleRemoveCargo}
+          isRemoving={deleteCargo.isPending}
+        />
+      </div>
       {cargoSheet}
     </>
   );

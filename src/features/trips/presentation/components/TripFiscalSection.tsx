@@ -52,23 +52,34 @@ export function TripFiscalSection({
   );
 
   const accessoryInvoices = invoicing.accessoryInvoices ?? [];
-  const hasPrimaryInvoice = !!invoicing.invoiceId;
+  const hasLinkedInvoice = !!invoicing.invoiceId;
   const invoiceCount =
-    (hasPrimaryInvoice ? 1 : 0) + accessoryInvoices.length;
+    (hasLinkedInvoice ? 1 : 0) + accessoryInvoices.length;
 
-  const suppressPrimaryBlockReason =
+  const hasLinkedPrincipalEvidence =
     invoicing.hasActiveInvoice ||
+    invoicing.hasActivePrincipalInvoice ||
     !!invoicing.invoiceId ||
     !!invoicing.invoiceFolio ||
     invoicing.invoiceStatus === "draft" ||
     invoicing.invoiceStatus === "stamped" ||
     invoicing.invoiceStatus === "cancellation_pending";
 
-  /** D6: mostrar bloqueo de operación/SAT; también si accesoria está bloqueada por ruta. */
+  const isOperationalBlockReason =
+    invoicing.blockReason != null &&
+    (blockReasonNeedsRouteLink(invoicing.blockReason) ||
+      blockReasonNeedsCargoLink(invoicing.blockReason));
+
+  /**
+   * Mostrar bloqueo operativo/SAT; con principal ligada solo D6 (ruta/carga para
+   * accesoria). No pintar mutex «ya tiene factura activa» cuando hay evidencia.
+   */
   const showInvoicingBlockReason =
     !!invoicing.blockReason &&
     !invoicing.canGenerateInvoice &&
-    (!suppressPrimaryBlockReason || !invoicing.canGenerateAccessoryInvoice);
+    !invoicing.canGenerateFalseTripInvoice &&
+    (!hasLinkedPrincipalEvidence ||
+      (!invoicing.canGenerateAccessoryInvoice && isOperationalBlockReason));
 
   if (!hasTripFiscalSectionContent(invoicing) && !postCancelFiscal) {
     return null;
@@ -158,7 +169,7 @@ export function TripFiscalSection({
           <p className="text-xs text-muted-foreground">{sectionCopy.openMenuHint}</p>
         ) : null}
       </div>
-      {hasPrimaryInvoice ? (
+      {hasLinkedInvoice ? (
         <Button variant="outline" size="sm" className="shrink-0" asChild>
           <Link
             to={`/invoices/${invoicing.invoiceId}`}

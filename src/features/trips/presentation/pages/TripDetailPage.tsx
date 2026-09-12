@@ -79,6 +79,7 @@ import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
 import { TripReadinessRail } from "../components/trip-readiness/TripReadinessRail";
+import { getCargoWeightKg } from "../components/trip-cargos/tripCargoDetailHelpers";
 import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
@@ -398,18 +399,28 @@ export function TripDetailPage() {
         );
       }
     } else if (!isLeanTripPortal && trip.requiresFiscalAttention) {
+      const invoiceId = trip.invoicing.invoiceId;
       cards.push(
         <DetailAlertCard
           key="fiscal-attention"
-          severity="critical"
+          severity="warning"
           icon={<Receipt className="h-5 w-5" />}
           title={shell.alert.fiscalAttentionTitle}
-          items={[
-            {
-              text: shell.alert.fiscalAttentionBody,
-            },
-          ]}
-        />,
+        >
+          <p>
+            {invoiceId
+              ? shell.alert.fiscalAttentionBody
+              : shell.alert.fiscalAttentionNoInvoiceBody}{" "}
+            {invoiceId ? (
+              <Link
+                to={`/invoices/${invoiceId}`}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {shell.alert.fiscalAttentionCta}
+              </Link>
+            ) : null}
+          </p>
+        </DetailAlertCard>,
       );
     }
 
@@ -660,14 +671,17 @@ export function TripDetailPage() {
     ? cargos.length
     : (trip.cargos?.length ?? 0);
   const totalCargoWeight = usesLiveCargos
-    ? cargos.reduce((sum, c) => sum + (c.weight || 0), 0)
-    : (trip.cargos?.reduce((sum, c) => sum + (c.weight || 0), 0) ?? 0);
+    ? cargos.reduce((sum, c) => sum + getCargoWeightKg(c), 0)
+    : (trip.cargos?.reduce((sum, c) => sum + getCargoWeightKg(c), 0) ?? 0);
   const pickupStops = orderedStops.filter((stop) => hasStopType(stop.stopType, "pickup"));
 
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
   const {
     canEditStructural,
     canEditBaseRate,
+    canAppendCargo,
+    canReplanPendingStops,
+    canReassignFleet,
     canCreateExpenses,
     canUpdatePendingExpenses,
     canDeletePendingExpenses,
@@ -693,30 +707,40 @@ export function TripDetailPage() {
         icon: <Truck className="h-6 w-6" />,
         iconVariant:
           resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
-        title: trip.tripCode,
-        subtitle: formatTripRouteSubtitle(orderedStops, {
-          originCity: trip.originCity,
-          originState: trip.originState,
-          destinationCity: trip.destinationCity,
-          destinationState: trip.destinationState,
-        }),
-        statusBadge: (
-          <div className="flex flex-wrap items-center gap-2">
-            <TripStatusBadge status={resolvedDisplayStatus} size="sm" showIcon={true} />
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{trip.tripCode}</span>
+            <TripStatusBadge
+              status={resolvedDisplayStatus}
+              size="sm"
+              showIcon
+            />
             {trip.operationalOutcome === "false_trip" ? (
               <Badge variant="warning" tone="soft" className="text-xs">
                 {shell.alert.falseTripChip}
               </Badge>
             ) : null}
-            {hasOpenTrackingIncident ? (
-              <Badge variant="destructive" className="text-xs">
-                {shell.tab.openIncident}
-              </Badge>
+          </span>
+        ),
+        subtitle: (
+          <div className="space-y-0.5">
+            <p className="truncate text-sm text-muted-foreground">
+              {formatTripRouteSubtitle(orderedStops, {
+                originCity: trip.originCity,
+                originState: trip.originState,
+                destinationCity: trip.destinationCity,
+                destinationState: trip.destinationState,
+              })}
+            </p>
+            {!isLeanTripPortal && trip.client?.legalName ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {trip.client.legalName}
+              </p>
             ) : null}
           </div>
         ),
         actions: (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
             {isClientPortal ? (
               canReadInvoices ? (
                 <Button type="button" variant="outline" size="sm" asChild>
@@ -875,6 +899,7 @@ export function TripDetailPage() {
               <TripDetailOperationTab
                 trip={trip}
                 canEditStructural={canEditStructural}
+                canReassignFleet={canReassignFleet}
                 showClientLink={!isLeanTripPortal}
                 showMileage={!isClientPortal}
                 isClientPortalView={isClientPortal}
@@ -893,6 +918,7 @@ export function TripDetailPage() {
                 orderedStops={routeDetail?.orderedStops ?? orderedStops}
                 progress={routeDetail?.progress ?? 0}
                 canEditStructural={canEditStructural}
+                canReplanPendingStops={canReplanPendingStops}
                 cargos={cargos}
                 legacyRoute={{
                   originCity: trip.originCity,
@@ -932,6 +958,7 @@ export function TripDetailPage() {
                   cargos={cargos}
                   operationalOutcome={trip.operationalOutcome}
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
+                  requiresFiscalAttention={trip.requiresFiscalAttention}
                 />
               </Suspense>
             ),
@@ -962,6 +989,8 @@ export function TripDetailPage() {
                   isLoading={isLoadingCargos}
                   isError={isErrorCargos}
                   canEditStructural={canEditStructural}
+                  canAppendCargo={canAppendCargo}
+                  vehicleId={trip.vehicleId}
                   onRetry={() => refetchCargos()}
                 />
               </Suspense>

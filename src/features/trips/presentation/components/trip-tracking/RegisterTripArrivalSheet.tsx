@@ -4,8 +4,8 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import type { TripCargo, TripStop } from "@features/trips/domain";
 import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
-import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
@@ -27,9 +27,10 @@ import {
 
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import {
-  resolveSuggestedStartMileage,
+  resolveSuggestedEndMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
+import { sumRouteSegmentDistanceKm } from "../trip-route/tripRouteDetailHelpers";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
@@ -51,14 +52,17 @@ const copy = trackingCopy;
 export type RegisterTripArrivalSheetProps = {
   tripId: string;
   tripCode: string;
-  vehicleId?: string;
   tripStartMileage?: number | null;
+  /** Distancia planificada del viaje (progress del timeline). */
+  plannedDistanceKm?: number | null;
   scheduledDeparture?: Date | string | null;
   actualDeparture?: Date | string | null;
   destinationStop?: TripStop | null;
   displayOrder?: number;
   cargos?: readonly TripCargo[];
   orderedStops?: readonly TripStop[];
+  /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
+  requiresFiscalAttention?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -102,14 +106,15 @@ type RegisterTripArrivalSheetBodyProps = Omit<
 function RegisterTripArrivalSheetBody({
   tripId,
   tripCode,
-  vehicleId,
   tripStartMileage,
+  plannedDistanceKm,
   scheduledDeparture,
   actualDeparture,
   destinationStop,
   displayOrder,
   cargos = [],
   orderedStops = [],
+  requiresFiscalAttention = false,
   onOpenChange,
   onSuccess,
 }: RegisterTripArrivalSheetBodyProps) {
@@ -122,23 +127,56 @@ function RegisterTripArrivalSheetBody({
   const [closureNotes, setClosureNotes] = useState("");
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
-  const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
-    vehicleId ?? "",
-    { enabled: !!vehicleId },
-  );
-
-  const suggestedMileage = resolveSuggestedStartMileage(
-    vehicle?.currentMileage,
+  const totalDistanceKm = useMemo(() => {
+    if (
+      typeof plannedDistanceKm === "number" &&
+      Number.isFinite(plannedDistanceKm) &&
+      plannedDistanceKm > 0
+    ) {
+      return plannedDistanceKm;
+    }
+    return sumRouteSegmentDistanceKm(orderedStops);
+  }, [plannedDistanceKm, orderedStops]);
+  const suggestedMileage = resolveSuggestedEndMileage(
     tripStartMileage,
+    totalDistanceKm,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+  const suggestedMileageHint = useMemo(() => {
+    if (suggestedMileage == null) return null;
+    const fmt = (n: number) => n.toLocaleString("es-MX");
+    if (
+      tripStartMileage != null &&
+      Number.isFinite(tripStartMileage) &&
+      totalDistanceKm != null &&
+      totalDistanceKm > 0
+    ) {
+      return copy.sheet.suggestedEndMileageHint({
+        startKm: fmt(tripStartMileage),
+        distanceKm: fmt(Math.round(totalDistanceKm)),
+        endKm: fmt(suggestedMileage),
+      });
+    }
+    return copy.sheet.suggestedMileageHint(fmt(suggestedMileage));
+  }, [suggestedMileage, totalDistanceKm, tripStartMileage]);
   const earliestClosure = resolveEarliestClosureInstant(
     scheduledDeparture,
     actualDeparture,
   );
 
   const registerMutation = useRegisterTrackingEvent({
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const fiscalWarn = result.warnings?.find(
+        (w) => w.code === "FISCAL_ATTENTION_PENDING",
+      );
+      if (fiscalWarn) {
+        toast({
+          title: copy.sheet.quickCloseWarningTitle,
+          description:
+            fiscalWarn.message || copy.sheet.quickCloseFiscalAttention,
+          variant: "warning",
+        });
+      }
       toast({
         title: copy.toast.tripClosed,
         description: copy.toast.tripClosedDescription(tripCode),
@@ -241,6 +279,14 @@ function RegisterTripArrivalSheetBody({
           </p>
         ) : null}
 
+        {requiresFiscalAttention ? (
+          <DetailAlertCard
+            severity="warning"
+            title={copy.sheet.quickCloseWarningTitle}
+            items={[{ text: copy.sheet.quickCloseFiscalAttention }]}
+          />
+        ) : null}
+
         {formError ? (
           <p role="alert" className="text-xs text-destructive">
             {formError}
@@ -284,16 +330,8 @@ function RegisterTripArrivalSheetBody({
             fieldId="trip-arrival-mileage"
             message={mileageError ?? undefined}
           />
-          {isLoadingVehicle ? (
-            <p className="text-xs text-muted-foreground">
-              {copy.sheet.loadingVehicle}
-            </p>
-          ) : suggestedMileage != null ? (
-            <p className="text-xs text-muted-foreground">
-              {copy.sheet.suggestedMileageHint(
-                suggestedMileage.toLocaleString("es-MX"),
-              )}
-            </p>
+          {suggestedMileageHint ? (
+            <p className="text-xs text-muted-foreground">{suggestedMileageHint}</p>
           ) : null}
         </div>
 
@@ -353,14 +391,15 @@ function RegisterTripArrivalSheetBody({
 export function RegisterTripArrivalSheet({
   tripId,
   tripCode,
-  vehicleId,
   tripStartMileage,
+  plannedDistanceKm,
   scheduledDeparture,
   actualDeparture,
   destinationStop,
   displayOrder,
   cargos,
   orderedStops,
+  requiresFiscalAttention = false,
   open,
   onOpenChange,
   onSuccess,
@@ -381,14 +420,15 @@ export function RegisterTripArrivalSheet({
             key={`${tripId}-${destinationStop?.id ?? "trip"}`}
             tripId={tripId}
             tripCode={tripCode}
-            vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            plannedDistanceKm={plannedDistanceKm}
             scheduledDeparture={scheduledDeparture}
             actualDeparture={actualDeparture}
             destinationStop={destinationStop}
             displayOrder={displayOrder}
             cargos={cargos}
             orderedStops={orderedStops}
+            requiresFiscalAttention={requiresFiscalAttention}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

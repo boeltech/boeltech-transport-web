@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseStartMileageInput,
+  resolveSuggestedEndMileage,
   resolveSuggestedStartMileage,
 } from "./startTripMileage";
 
@@ -15,6 +16,22 @@ describe("resolveSuggestedStartMileage", () => {
 
   it("acepta 0 km del vehículo como sugerencia", () => {
     expect(resolveSuggestedStartMileage(0, null)).toBe(0);
+  });
+});
+
+describe("resolveSuggestedEndMileage", () => {
+  it("suma km inicial + distancia total del viaje", () => {
+    expect(resolveSuggestedEndMileage(3200, 450.4)).toBe(3650);
+  });
+
+  it("sin distancia cae al km inicial", () => {
+    expect(resolveSuggestedEndMileage(3200, null)).toBe(3200);
+    expect(resolveSuggestedEndMileage(3200, 0)).toBe(3200);
+  });
+
+  it("sin km inicial no sugiere", () => {
+    expect(resolveSuggestedEndMileage(undefined, 100)).toBeUndefined();
+    expect(resolveSuggestedEndMileage(null, 100)).toBeUndefined();
   });
 });
 

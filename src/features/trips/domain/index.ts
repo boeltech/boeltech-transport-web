@@ -146,6 +146,7 @@ export type {
 
   // Workbench (ADR-0090)
   TripWorkbenchSummary,
+  TripInvoiceableSummary,
 } from "./entities";
 
 export type {
@@ -189,6 +190,7 @@ export type {
 
   // Stop Inputs
   CreateStopInput,
+  ReplanPendingStopInput,
   UpdateStopInput,
 
   // Trip Inputs
@@ -292,6 +294,12 @@ export {
   canCancelTrip,
   canDeleteTrip,
   canEditTrip,
+  canAppendTripCargo,
+  canAppendTripStops,
+  canReplanPendingTripStops,
+  canReassignTripFleet,
+  canMutateTripBaseRate,
+  shouldFlagFiscalAttentionAfterTripMutation,
   canManageTripExpenses,
   canCreateTripExpense,
   canMutatePendingTripExpense,

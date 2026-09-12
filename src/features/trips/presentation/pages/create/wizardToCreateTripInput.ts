@@ -11,7 +11,6 @@ import {
   mapWizardCargosToCreateInput,
 } from "./wizardCargoPayload";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
-import { deriveAllowExpiredDocs } from "./tripAssignmentExpiredDocs";
 
 function mapWizardTrailers(
   data: TripWizardFormValues,
@@ -31,20 +30,19 @@ export type BuildCreateTripInputOptions = {
   createIntent?: "reserve" | "full";
   /** ADR-0078: paradas clonadas del corredor en reserve. */
   clonedStops?: CreateStopInput[];
+  /**
+   * ADR-0066: intención explícita del operador (checkbox).
+   * Fuente de verdad del payload — no auto-derivar desde docs.
+   */
+  allowExpiredDocs?: boolean;
 };
 
 export function buildCreateTripInputFromWizardValues(
   data: TripWizardFormValues,
-  assignmentContext?: {
-    vehicle?: { insuranceExpiry: string | null; sctPermitExpiry: string | null };
-    driver?: { isLicenseExpired: boolean };
-  },
   buildOptions?: BuildCreateTripInputOptions,
 ): CreateTripInput {
   const createIntent = buildOptions?.createIntent ?? "full";
-  const allowExpiredDocs = assignmentContext
-    ? deriveAllowExpiredDocs(assignmentContext.vehicle, assignmentContext.driver)
-    : undefined;
+  const allowExpiredDocs = buildOptions?.allowExpiredDocs;
   const trailers = mapWizardTrailers(data);
   const satConfigAutotransporteCode =
     data.satConfigAutotransporteCode?.trim() || undefined;

@@ -411,6 +411,9 @@ export interface CreateStopInput {
   clientAddressId?: string;
 }
 
+/** ADR-0093 E1 — item de `pending_stops` (modify con `id`; insert sin `id`). */
+export type ReplanPendingStopInput = CreateStopInput & { id?: string };
+
 /**
  * Input para actualizar una parada
  */

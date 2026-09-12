@@ -201,9 +201,7 @@ export function TripTable({
                 <TableCell>
                   <div className="space-y-0.5">
                     <p>
-                      {formatDate(
-                        trip.scheduledDeparture.toISOString().split("T")[0],
-                      )}
+                      {formatDate(trip.scheduledDeparture.toISOString())}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {formatTime(trip.scheduledDeparture.toISOString())}

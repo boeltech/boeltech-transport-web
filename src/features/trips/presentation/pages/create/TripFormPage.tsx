@@ -100,7 +100,6 @@ const cargo = wizardCopy.cargo;
 
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import { buildUpdateTripInputFromWizardValues } from "./wizardToUpdateTripInput";
-import { buildTripAssignmentContext } from "./tripAssignmentExpiredDocs";
 import { mapTripToWizardFormValues } from "./tripFormMappers";
 import { shouldHydrateTripWizard } from "./tripWizardHydration";
 import { parseTripWizardStepParam } from "./wizardStepFromSearchParams";
@@ -193,6 +192,7 @@ export function TripFormPage() {
   const formRef = useRef<WizardFormRef | null>(null);
 
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
   const [extraValidationMessages, setExtraValidationMessages] = useState<string[]>(
     [],
   );
@@ -850,15 +850,9 @@ export function TripFormPage() {
     // MODO EDICIÓN: Usar updateMutation
     // ════════════════════════════════════════════════════════════════════════
     if (isEditMode && id) {
-      const assignmentContext = buildTripAssignmentContext(
-        data,
-        vehicles,
-        assignableDrivers,
-      );
-      const preparedData = buildUpdateTripInputFromWizardValues(
-        data,
-        assignmentContext,
-      );
+      const preparedData = buildUpdateTripInputFromWizardValues(data, {
+        allowExpiredDocs,
+      });
 
       const updateApiCheck = validateUpdateTripApiPayload(preparedData);
       if (!updateApiCheck.ok) {
@@ -878,15 +872,11 @@ export function TripFormPage() {
     // MODO CREACIÓN: Endpoint transaccional
     // ════════════════════════════════════════════════════════════════════════
 
-    const assignmentContext = buildTripAssignmentContext(
-      data,
-      vehicles,
-      assignableDrivers,
-    );
     const wizardPayload = buildCreateTripInputFromWizardValues(
       data,
-      assignmentContext,
-      isReserveIntent ? { createIntent: "reserve" } : undefined,
+      isReserveIntent
+        ? { createIntent: "reserve", allowExpiredDocs }
+        : { allowExpiredDocs },
     );
 
     const createApiCheck = validateCreateTripApiPayload(wizardPayload);
@@ -944,8 +934,7 @@ export function TripFormPage() {
     id,
     toast,
     navigate,
-    vehicles,
-    assignableDrivers,
+    allowExpiredDocs,
   ]);
 
   const handleSubmit = useCallback(async () => {
@@ -1024,6 +1013,8 @@ export function TripFormPage() {
                 drivers={assignableDrivers}
                 isLoadingVehicles={isLoadingVehicles}
                 isLoadingDrivers={isLoadingDrivers}
+                allowExpiredDocs={allowExpiredDocs}
+                onAllowExpiredDocsChange={setAllowExpiredDocs}
               />
             );
           default:
@@ -1045,6 +1036,8 @@ export function TripFormPage() {
               isLoadingDrivers={isLoadingDrivers}
               isLoadingClients={isLoadingClients}
               softBusySelectable={softBusySelectable}
+              allowExpiredDocs={allowExpiredDocs}
+              onAllowExpiredDocsChange={setAllowExpiredDocs}
             />
           );
         case 1:
@@ -1098,6 +1091,8 @@ export function TripFormPage() {
       fleetDrivers,
       busyResources,
       vehicles,
+      allowExpiredDocs,
+      softBusySelectable,
     ],
   );
 

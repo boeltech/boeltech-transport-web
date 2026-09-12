@@ -13,6 +13,11 @@ import type { DomainResult, ValidationResult } from "@shared/utils/errorMapper";
 import {
   canTransitionTo as canTransitionToShared,
   canEditTrip as canEditTripShared,
+  canAppendTripCargo as canAppendTripCargoShared,
+  canAppendTripStops as canAppendTripStopsShared,
+  canReplanPendingTripStops as canReplanPendingTripStopsShared,
+  canReassignTripFleet as canReassignTripFleetShared,
+  canMutateTripBaseRate as canMutateTripBaseRateShared,
   canManageTripExpenses as canManageTripExpensesShared,
   canCreateTripExpense as canCreateTripExpenseShared,
   canMutatePendingTripExpense as canMutatePendingTripExpenseShared,
@@ -23,8 +28,11 @@ import {
   getAvailableTransitions as getAvailableTransitionsShared,
   isTerminalStatus as isTerminalStatusShared,
   calculateTotalCost as calculateTotalCostShared,
+  shouldFlagFiscalAttentionAfterTripMutation as shouldFlagFiscalAttentionAfterTripMutationShared,
   type TripExpenseAccessInput,
   type TripExpenseMutateAccessInput,
+  type ShouldFlagFiscalAttentionInput,
+  type TripFiscalAttentionMutationKind,
 } from "@boeltech/cfdi-domain";
 import {
   StopStatus,
@@ -86,6 +94,42 @@ export function canTransitionTo(
  */
 export function canEditTrip(status: TripStatusType): boolean {
   return canEditTripShared(status);
+}
+
+/** ADR-0093 — append carga (incluye in_progress). */
+export function canAppendTripCargo(status: TripStatusType): boolean {
+  return canAppendTripCargoShared(status);
+}
+
+/** ADR-0093 — append paradas (incluye in_progress).
+ * @deprecated E1 — path de producto mid-trip = {@link canReplanPendingTripStops}.
+ */
+export function canAppendTripStops(status: TripStatusType): boolean {
+  return canAppendTripStopsShared(status);
+}
+
+/** ADR-0093 E1 — replan de paradas pending (incluye in_progress). */
+export function canReplanPendingTripStops(status: TripStatusType): boolean {
+  return canReplanPendingTripStopsShared(status);
+}
+
+/** ADR-0093 — reasignar flota mid-trip / scheduled. */
+export function canReassignTripFleet(status: TripStatusType): boolean {
+  return canReassignTripFleetShared(status);
+}
+
+/** ADR-0093 — mutar base_rate mid-trip. */
+export function canMutateTripBaseRate(status: TripStatusType): boolean {
+  return canMutateTripBaseRateShared(status);
+}
+
+export type { ShouldFlagFiscalAttentionInput, TripFiscalAttentionMutationKind };
+
+/** ADR-0093 — bandera fiscal tras mutación operativa. */
+export function shouldFlagFiscalAttentionAfterTripMutation(
+  input: ShouldFlagFiscalAttentionInput,
+): boolean {
+  return shouldFlagFiscalAttentionAfterTripMutationShared(input);
 }
 
 /**

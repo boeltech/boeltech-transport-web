@@ -15,4 +15,5 @@ export {
   shouldShowFiscalCorrectionChip,
   shouldShowFiscalWarningChip,
   toFiscalStopDisplayOrder,
+  formatFiscalStopPlaceLine,
 } from "./tripFiscalHelpers";

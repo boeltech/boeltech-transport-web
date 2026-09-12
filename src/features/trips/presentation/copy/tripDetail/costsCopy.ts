@@ -11,7 +11,7 @@ export const costsCopy = {
   },
   hint: {
     inProgress:
-      "Registre costos y gastos reales en curso. Replanifique ruta, cargas o tarifa en edición completa.",
+      "Registre costos y gastos reales en curso. Puede ajustar la tarifa base aquí; los gastos no sustituyen la tarifa ni el ingreso facturado.",
     postCloseWindow:
       "Puede registrar gastos tardíos hasta el {deadline}. Solo los registros en revisión se pueden editar o eliminar; los aprobados son de solo lectura.",
     postCloseWindowClosed:

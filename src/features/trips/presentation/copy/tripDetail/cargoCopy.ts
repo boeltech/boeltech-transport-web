@@ -130,11 +130,41 @@ export const cargoCopy = {
     movementCompleted: "Operación registrada en parada",
     movementError: "No se pudo completar la operación",
   },
+  /** Franja capacidad vs cargado (advisory; sin gate duro). */
+  capacity: {
+    title: "Peso cargado",
+    unknownTitle: "Sin capacidad registrada para esta unidad",
+    unknownBody:
+      "No podremos avisarle si el peso de las mercancías supera lo que admite la unidad.",
+    /** Viaje aún mutable (draft / scheduled / in_progress). */
+    overCapacityHint:
+      "Reduzca el peso de las mercancías o reasigne la unidad en Operación.",
+    /** Viaje cerrado (completed / cancelled): solo lectura histórica. */
+    overCapacityHintReadonly:
+      "El peso cargado superó la capacidad registrada de la unidad.",
+    usage: (percentage: number) => `${percentage.toFixed(0)} % ocupado`,
+    loadedOfCapacity: (loaded: string, capacity: string) =>
+      `${loaded} de ${capacity}`,
+    available: (formatted: string) => `Quedan ${formatted}`,
+    excess: (formatted: string) => `Se pasa por ${formatted}`,
+    vehicleSubtitle: (unitNumber: string, brand: string, model: string) =>
+      `${unitNumber} · ${brand} ${model}`,
+    /** Capacidad en toneladas → kg para comparar con mercancías. */
+    formatWeight: (weightKg: number) => {
+      if (weightKg >= 1000) {
+        return `${(weightKg / 1000).toLocaleString("es-MX", { maximumFractionDigits: 2 })} t`;
+      }
+      return `${weightKg.toLocaleString("es-MX")} kg`;
+    },
+  },
   format: {
     cargoCount: (count: number) =>
       `${count} ${count === 1 ? "carga" : "cargas"}`,
     metaLine: (count: number, weightKg: number) => {
       const countPart = `${count} ${count === 1 ? "carga" : "cargas"}`;
+      if (count > 0 && weightKg <= 0) {
+        return `${countPart} · sin peso capturado`;
+      }
       if (weightKg <= 0) return countPart;
       return `${countPart} · ${weightKg.toLocaleString("es-MX")} kg`;
     },

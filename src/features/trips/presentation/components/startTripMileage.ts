@@ -28,6 +28,34 @@ export function resolveSuggestedStartMileage(
   return undefined;
 }
 
+/**
+ * Sugerencia al cerrar viaje (llegada / completar):
+ * km inicial + distancia total de tramos entre paradas.
+ * Sin distancia planificada, cae al km inicial (el operador ajusta).
+ */
+export function resolveSuggestedEndMileage(
+  tripStartMileage: number | null | undefined,
+  totalDistanceKm: number | null | undefined,
+): number | undefined {
+  if (
+    typeof tripStartMileage !== "number" ||
+    !Number.isFinite(tripStartMileage) ||
+    tripStartMileage < 0
+  ) {
+    return undefined;
+  }
+
+  if (
+    typeof totalDistanceKm === "number" &&
+    Number.isFinite(totalDistanceKm) &&
+    totalDistanceKm > 0
+  ) {
+    return Math.round(tripStartMileage + totalDistanceKm);
+  }
+
+  return tripStartMileage;
+}
+
 export function parseStartMileageInput(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === "") return null;

@@ -53,6 +53,7 @@ describe("tripsListCopy", () => {
       badge: tripsListCopy.badge,
       invoicingBadge: tripsListCopy.invoicingBadge,
       banner: tripsListCopy.banner,
+      workbench: tripsListCopy.workbench,
     });
     expect(visible).not.toMatch(/Sin finalizar/);
     expect(visible).not.toMatch(/Situación fiscal/);
@@ -61,6 +62,23 @@ describe("tripsListCopy", () => {
     expect(visible).not.toMatch(/"Fiscal"/);
     expect(visible).not.toMatch(/Alta con cotización/);
     expect(visible).not.toMatch(/Alta completa/);
+    expect(visible).not.toMatch(/facturable/i);
+  });
+
+  it("incluye Parcial para badge de prorrateo multi-RFC (ADR-0081)", () => {
+    expect(tripsListCopy.invoicingBadge.partial).toBe("Parcial");
+  });
+
+  it("describe Atención fiscal como cola de revisión/sustitución en la misma lista", () => {
+    expect(tripsListCopy.workbench.buckets.fiscalAttention).toBe(
+      "Atención fiscal",
+    );
+    expect(tripsListCopy.workbench.bucketDescriptions.fiscalAttention).toMatch(
+      /sustitución/i,
+    );
+    expect(tripsListCopy.workbench.bucketDescriptions.fiscalAttention).not.toMatch(
+      /facturable/i,
+    );
   });
 
   it("incluye cliente en el placeholder porque el API search lo cubre", () => {

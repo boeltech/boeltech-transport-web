@@ -190,6 +190,21 @@ export function stopFormDataToCreateInput(
   return nextStop;
 }
 
+/**
+ * ADR-0093 E1 — edit mid-trip via replan: conserva `addressId` del snapshot
+ * `trip_stop` para que el API parchee domicilio (street/city/CP/geo) in-place.
+ */
+export function stopFormDataToReplanEditInput(
+  data: StopFormData,
+  sequenceOrder: number,
+  snapshotAddressId?: string | null,
+): CreateStopInput {
+  const base = stopFormDataToCreateInput(data, sequenceOrder);
+  const snapshotId = snapshotAddressId?.trim() || data.addressId?.trim() || "";
+  if (!snapshotId) return base;
+  return { ...base, addressId: snapshotId };
+}
+
 export function mapTripStopToStopFormData(stop: TripStop): StopFormData {
   return {
     id: stop.id,
@@ -244,15 +259,34 @@ export function buildReplaceStopsPayload(params: {
   submitted: StopFormData;
   editingStopId?: string | null;
   endpointDraft?: ComposerEndpointDraft;
+  /**
+   * Mid-trip replan edit: keep snapshot `addressId` on the edited stop so the
+   * API can patch domicilio in-place (replace must keep omitting it).
+   */
+  preserveEditedSnapshotAddressId?: boolean;
 }): CreateStopInput[] {
-  const { existingStops, submitted, editingStopId, endpointDraft } = params;
+  const {
+    existingStops,
+    submitted,
+    editingStopId,
+    endpointDraft,
+    preserveEditedSnapshotAddressId = false,
+  } = params;
 
   if (editingStopId) {
-    const next = existingStops.map((stop) =>
-      stop.id === editingStopId
-        ? stopFormDataToCreateInput(submitted, stop.sequenceOrder)
-        : mapStopToReplaceStopInput(stop, undefined),
-    );
+    const next = existingStops.map((stop) => {
+      if (stop.id !== editingStopId) {
+        return mapStopToReplaceStopInput(stop, undefined);
+      }
+      if (preserveEditedSnapshotAddressId) {
+        return stopFormDataToReplanEditInput(
+          submitted,
+          stop.sequenceOrder,
+          stop.addressId,
+        );
+      }
+      return stopFormDataToCreateInput(submitted, stop.sequenceOrder);
+    });
     return finalizeReplaceStopsPayload(next);
   }
 
@@ -372,10 +406,18 @@ export function replaceStopsFromCorridor(
   );
 }
 
+/**
+ * Pick de origen/destino en el composer. `satAmbiguities` viene de Location
+ * create-new (ADR-0092); no forma parte del contrato API de búsqueda.
+ */
+export type ComposerEndpointPick = AddressSearchListItem & {
+  satAmbiguities?: readonly string[] | null;
+};
+
 /** Borrador local del composer antes del primer PUT (≥2 paradas). */
 export type ComposerEndpointDraft = {
-  origin?: AddressSearchListItem;
-  destination?: AddressSearchListItem;
+  origin?: ComposerEndpointPick;
+  destination?: ComposerEndpointPick;
 };
 
 export function pickerItemLabel(item: AddressSearchListItem): string {
@@ -385,6 +427,55 @@ export function pickerItemLabel(item: AddressSearchListItem): string {
     item.postalCode ||
     item.id
   );
+}
+
+/**
+ * Mínimo para PUT de esqueleto desde el composer (ADR-0078 / ADR-0092 tripStop).
+ * Create-new Nombre+CP sin pin/SAT no pasa; catálogo geolocalizado típico sí.
+ */
+export function isComposerPickPutReady(item: ComposerEndpointPick): boolean {
+  const lat = item.latitude;
+  const lng = item.longitude;
+  if (
+    lat == null ||
+    lng == null ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return false;
+  }
+  if (!/^\d{5}$/.test(item.postalCode?.trim() ?? "")) {
+    return false;
+  }
+  if (!item.satStateCode?.trim()) {
+    return false;
+  }
+  const street = item.street?.trim() ?? "";
+  const label = item.locationName?.trim() ?? "";
+  if (street.length < 1 && label.length < 5) {
+    return false;
+  }
+  if ((item.satAmbiguities?.length ?? 0) > 0) {
+    return false;
+  }
+  return true;
+}
+
+/** Ambos extremos presentes y listos para PUT (catálogo completo o create-new put-ready). */
+export function areComposerEndpointDraftsPutReady(
+  draft: ComposerEndpointDraft,
+  existingStops: readonly TripStop[],
+): boolean {
+  const { origin, destination } = groupStopsForRouteDetail(existingStops);
+  const originPick = draft.origin;
+  const destinationPick = draft.destination;
+  const originReady = originPick
+    ? isComposerPickPutReady(originPick)
+    : origin != null;
+  const destinationReady = destinationPick
+    ? isComposerPickPutReady(destinationPick)
+    : destination != null;
+  return originReady && destinationReady;
 }
 
 /**

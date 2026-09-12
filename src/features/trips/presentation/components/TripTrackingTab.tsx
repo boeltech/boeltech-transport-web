@@ -69,6 +69,8 @@ interface TripTrackingTabProps {
   operationalOutcome?: TripOperationalOutcomeType;
   /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
   falseTripDeclaredBy?: string | null;
+  /** ADR-0093 — soft-warn al finalizar. */
+  requiresFiscalAttention?: boolean;
   onCargosChanged?: () => void;
 }
 
@@ -82,6 +84,7 @@ export function TripTrackingTab({
   cargos: cargosProp = [],
   operationalOutcome,
   falseTripDeclaredBy = null,
+  requiresFiscalAttention = false,
   onCargosChanged,
 }: TripTrackingTabProps) {
   const { hasPermission } = usePermissions();
@@ -564,25 +567,28 @@ export function TripTrackingTab({
           <RegisterTripArrivalSheet
             tripId={tripId}
             tripCode={tripCode}
-            vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            plannedDistanceKm={timeline.progress.distancePlannedKm}
             scheduledDeparture={timeline.trip.scheduledDeparture ?? undefined}
             actualDeparture={timeline.trip.actualDeparture ?? undefined}
             destinationStop={destinationAwaitingClosure ?? null}
             displayOrder={destinationClosureOrder}
             cargos={cargos}
             orderedStops={orderedStops}
+            requiresFiscalAttention={requiresFiscalAttention}
             open={tripArrivalSheetOpen}
             onOpenChange={setTripArrivalSheetOpen}
           />
           <QuickCloseTripSheet
             tripId={tripId}
             tripCode={tripCode}
-            vehicleId={vehicleId}
             tripStartMileage={tripStartMileage}
+            plannedDistanceKm={timeline.progress.distancePlannedKm}
+            stops={orderedStops}
             scheduledDeparture={timeline.trip.scheduledDeparture ?? undefined}
             actualDeparture={timeline.trip.actualDeparture ?? undefined}
             destinationStop={destinationStop}
+            requiresFiscalAttention={requiresFiscalAttention}
             open={quickCloseSheetOpen}
             onOpenChange={setQuickCloseSheetOpen}
           />

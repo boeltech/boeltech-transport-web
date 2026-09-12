@@ -131,6 +131,8 @@ interface BasicInfoStepProps {
   isLoadingDrivers: boolean;
   isLoadingClients: boolean;
   softBusySelectable?: boolean;
+  allowExpiredDocs: boolean;
+  onAllowExpiredDocsChange: (value: boolean) => void;
 }
 
 // ============================================================================
@@ -148,6 +150,8 @@ export function BasicInfoStep({
   isLoadingDrivers,
   isLoadingClients,
   softBusySelectable = false,
+  allowExpiredDocs,
+  onAllowExpiredDocsChange,
 }: BasicInfoStepProps) {
   const { control } = form;
 
@@ -374,6 +378,8 @@ export function BasicInfoStep({
             isLoadingDrivers={isLoadingDrivers}
             excludedDriverEmployeeIds={supportStaffEmployeeIds}
             softBusySelectable={softBusySelectable}
+            allowExpiredDocs={allowExpiredDocs}
+            onAllowExpiredDocsChange={onAllowExpiredDocsChange}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">

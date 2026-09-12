@@ -4,16 +4,16 @@
  */
 import type { UpdateTripInput } from "@features/trips/domain";
 import type { TripWizardFormValues } from "./components/validation";
-import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
+import {
+  buildCreateTripInputFromWizardValues,
+  type BuildCreateTripInputOptions,
+} from "./wizardToCreateTripInput";
 import { buildUpdateTripInputFromCreateInput } from "./updateTripPayloadShared";
 
 export function buildUpdateTripInputFromWizardValues(
   data: TripWizardFormValues,
-  assignmentContext?: {
-    vehicle?: { insuranceExpiry: string | null; sctPermitExpiry: string | null };
-    driver?: { isLicenseExpired: boolean };
-  },
+  buildOptions?: Pick<BuildCreateTripInputOptions, "allowExpiredDocs">,
 ): UpdateTripInput {
-  const base = buildCreateTripInputFromWizardValues(data, assignmentContext);
+  const base = buildCreateTripInputFromWizardValues(data, buildOptions);
   return buildUpdateTripInputFromCreateInput(base);
 }

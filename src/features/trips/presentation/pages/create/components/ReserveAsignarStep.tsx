@@ -18,6 +18,8 @@ interface ReserveAsignarStepProps {
   isLoadingVehicles: boolean;
   isLoadingDrivers: boolean;
   softBusySelectable?: boolean;
+  allowExpiredDocs: boolean;
+  onAllowExpiredDocsChange: (value: boolean) => void;
 }
 
 export function ReserveAsignarStep({
@@ -27,6 +29,8 @@ export function ReserveAsignarStep({
   isLoadingVehicles,
   isLoadingDrivers,
   softBusySelectable = true,
+  allowExpiredDocs,
+  onAllowExpiredDocsChange,
 }: ReserveAsignarStepProps) {
   const { watch, setValue } = form;
   const selectedVehicleId = watch("vehicleId");
@@ -59,6 +63,8 @@ export function ReserveAsignarStep({
       idPrefix="reserve-"
       density="reserve"
       softBusySelectable={softBusySelectable}
+      allowExpiredDocs={allowExpiredDocs}
+      onAllowExpiredDocsChange={onAllowExpiredDocsChange}
     />
   );
 }

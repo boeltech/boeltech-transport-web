@@ -2,6 +2,10 @@ import {
 
   TRIP_EXPENSE_POST_CLOSE_WINDOW_DAYS,
 
+  canAppendTripCargo,
+
+  canAppendTripStops,
+
   canCreateTripExpense,
 
   canEditTrip,
@@ -9,6 +13,12 @@ import {
   canManageTripExpenses,
 
   canMutatePendingTripExpense,
+
+  canMutateTripBaseRate,
+
+  canReassignTripFleet,
+
+  canReplanPendingTripStops,
 
   isTripExpensePostCloseWindowOpen,
 
@@ -68,7 +78,31 @@ export interface TripDetailAccess {
 
   canEditStructural: boolean;
 
+  /** ADR-0093 PD1 — independiente de structural. */
+
   canEditBaseRate: boolean;
+
+  canAppendCargo: boolean;
+
+  /**
+
+   * ADR-0093 E1 — gate principal mid-trip de ruta (replan pending).
+
+   */
+
+  canReplanPendingStops: boolean;
+
+  /**
+
+   * @deprecated E1 — path de producto mid-trip = {@link canReplanPendingStops}.
+
+   * Se mantiene por compat; no usar como gate de Tab Ruta.
+
+   */
+
+  canAppendStops: boolean;
+
+  canReassignFleet: boolean;
 
   /** Alta de gastos (pre-cierre vía trips.update; post-cierre vía expenses.create + ventana). */
 
@@ -168,6 +202,14 @@ export function getTripDetailAccess(
 
     canEditBaseRate: false,
 
+    canAppendCargo: false,
+
+    canReplanPendingStops: false,
+
+    canAppendStops: false,
+
+    canReassignFleet: false,
+
     canCreateExpenses: false,
 
     canUpdatePendingExpenses: false,
@@ -229,6 +271,20 @@ export function getTripDetailAccess(
 
 
   const canEditStructural = perms.canUpdateTrip && canEditTrip(status);
+
+  const canEditBaseRate = perms.canUpdateTrip && canMutateTripBaseRate(status);
+
+  const canAppendCargo = perms.canUpdateTrip && canAppendTripCargo(status);
+
+  const canReplanPendingStops =
+
+    perms.canUpdateTrip && canReplanPendingTripStops(status);
+
+  /** @deprecated Compat — no gate de Tab Ruta mid-trip. */
+
+  const canAppendStops = perms.canUpdateTrip && canAppendTripStops(status);
+
+  const canReassignFleet = perms.canUpdateTrip && canReassignTripFleet(status);
 
 
 
@@ -302,7 +358,15 @@ export function getTripDetailAccess(
 
     canEditStructural,
 
-    canEditBaseRate: canEditStructural,
+    canEditBaseRate,
+
+    canAppendCargo,
+
+    canReplanPendingStops,
+
+    canAppendStops,
+
+    canReassignFleet,
 
     canCreateExpenses,
 
@@ -321,4 +385,5 @@ export function getTripDetailAccess(
   };
 
 }
+
 
