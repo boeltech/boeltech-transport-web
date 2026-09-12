@@ -47,6 +47,9 @@ export type {
   UpdateCompanySettingsDTO,
   UpdateBillingSettingsDTO,
   UpdateNotificationSettingsDTO,
+  BillingServiceConcept,
+  CreateBillingServiceConceptPayload,
+  UpdateBillingServiceConceptPayload,
 } from "./domain";
 
 // ============================================================================
@@ -65,6 +68,11 @@ export {
   useUpdateBillingSettings,
   useUploadCertificate,
   useTestPacConnection,
+  // Billing service concepts
+  useBillingServiceConcepts,
+  useCreateBillingServiceConcept,
+  useUpdateBillingServiceConcept,
+  useDeleteBillingServiceConcept,
   // Notifications
   useNotificationSettings,
   useUpdateNotificationSettings,

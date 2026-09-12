@@ -296,7 +296,145 @@ describe("InvoiceActions RBAC execute/delete", () => {
     ).toBeInTheDocument();
   });
 
-  it("accountant with execute does not see Cancelar or Sustituir", () => {
+  it("elevates Sustituir as primary button when linked trip requires fiscal attention", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        paymentMethod: "PPD",
+        balanceDue: 660,
+        totalPaid: 500,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    const primarySubstitute = screen.getByRole("button", {
+      name: actionsCopy.substitute,
+    });
+    expect(primarySubstitute).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+
+    const registerPayment = screen.getByRole("button", {
+      name: actionsCopy.registerPayment,
+    });
+    // H1: única primaria sólida = Sustituir; pago pasa a outline.
+    expect(registerPayment.className).toMatch(/border/);
+    expect(primarySubstitute.className).not.toMatch(/border-input|border-border/);
+
+    await user.click(primarySubstitute);
+    expect(
+      await screen.findByRole("dialog", { name: "Sustituir factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens substitute sheet when openSubstituteRequestKey increments", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+      },
+    });
+
+    const invoice = buildInvoice({
+      status: "stamped",
+      canSubstituteInvoice: true,
+      trips: [
+        {
+          tripId: "trip-1",
+          tripCode: "TRP-1",
+          clientName: "Cliente",
+          scheduledDeparture: "2026-06-01T12:00:00.000Z",
+          baseRate: 1000,
+          billingScope: "primary_transport",
+          originCity: "Mty",
+          originState: "NL",
+          destinationCity: "Gdl",
+          destinationState: "JAL",
+        },
+      ],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openSubstituteRequestKey={0}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Sustituir factura" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openSubstituteRequestKey={1}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Sustituir factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("accountant with execute does not see Cancelar or Sustituir", async () => {
     mockUseRole.mockReturnValue("accountant");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
@@ -310,10 +448,15 @@ describe("InvoiceActions RBAC execute/delete", () => {
       }),
     );
 
+    const user = userEvent.setup();
+    // «Más» puede existir por Enviar/Descargar (overflow responsive), sin Cancelar/Sustituir.
+    await openMoreMenu(user);
+
     expect(
-      screen.queryByRole("button", {
-        name: new RegExp(actionsCopy.moreActions, "i"),
-      }),
+      screen.queryByRole("menuitem", { name: actionsCopy.cancel }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
     ).not.toBeInTheDocument();
   });
 

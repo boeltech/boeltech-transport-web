@@ -49,7 +49,7 @@ function TripPickerRow({
         </p>
         <p className="text-xs text-muted-foreground">
           {trip.client?.legalName ?? "Sin cliente"} ·{" "}
-          {formatDate(trip.scheduledDeparture.toISOString().split("T")[0])}{" "}
+          {formatDate(trip.scheduledDeparture.toISOString())}{" "}
           {formatTime(trip.scheduledDeparture.toISOString())}
         </p>
         <p className="text-xs font-medium">

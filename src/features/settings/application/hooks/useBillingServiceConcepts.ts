@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isApiError } from "@shared/api/interceptors/error-handler";
-import { useToast } from "@shared/hooks";
 import { settingsQueryKeys } from "../../domain";
 import type {
+  BillingServiceConcept,
   CreateBillingServiceConceptPayload,
   UpdateBillingServiceConceptPayload,
 } from "../../domain/billingServiceConcept.types";
@@ -12,7 +11,24 @@ import {
   fetchBillingServiceConcepts,
   updateBillingServiceConcept,
 } from "../../infrastructure/billingServiceConceptsApi";
-import { billingServiceConceptsCopy } from "../../presentation/copy/billingServiceConceptsCopy";
+
+interface MutationCallbacks<TData = unknown> {
+  onSuccess?: (data: TData) => void;
+  onError?: (error: unknown) => void;
+}
+
+type UpdateBillingServiceConceptVariables = {
+  id: string;
+  payload: UpdateBillingServiceConceptPayload;
+};
+
+interface UpdateMutationCallbacks {
+  onSuccess?: (
+    data: BillingServiceConcept,
+    variables: UpdateBillingServiceConceptVariables,
+  ) => void;
+  onError?: (error: unknown) => void;
+}
 
 export function useBillingServiceConcepts(params?: {
   search?: string;
@@ -25,66 +41,50 @@ export function useBillingServiceConcepts(params?: {
   });
 }
 
-export function useCreateBillingServiceConcept() {
+export function useCreateBillingServiceConcept(
+  callbacks?: MutationCallbacks<BillingServiceConcept>,
+) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: (payload: CreateBillingServiceConceptPayload) =>
       createBillingServiceConcept(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.billingServiceConcepts(),
       });
-      toast({ title: billingServiceConceptsCopy.toast.created });
+      callbacks?.onSuccess?.(data);
     },
     onError: (error: unknown) => {
-      const title =
-        isApiError(error) && error.code === "DUPLICATE_ENTRY"
-          ? billingServiceConceptsCopy.toast.duplicateName
-          : billingServiceConceptsCopy.toast.error;
-      toast({
-        title,
-        variant: "destructive",
-      });
+      callbacks?.onError?.(error);
     },
   });
 }
 
-export function useUpdateBillingServiceConcept() {
+export function useUpdateBillingServiceConcept(
+  callbacks?: UpdateMutationCallbacks,
+) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload: UpdateBillingServiceConceptPayload;
-    }) => updateBillingServiceConcept(id, payload),
-    onSuccess: (_data, variables) => {
+    mutationFn: ({ id, payload }: UpdateBillingServiceConceptVariables) =>
+      updateBillingServiceConcept(id, payload),
+    onSuccess: (data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.billingServiceConcepts(),
       });
-      const title =
-        variables.payload.isActive === true
-          ? billingServiceConceptsCopy.toast.reactivated
-          : billingServiceConceptsCopy.toast.updated;
-      toast({ title });
+      callbacks?.onSuccess?.(data, variables);
     },
-    onError: () => {
-      toast({
-        title: billingServiceConceptsCopy.toast.error,
-        variant: "destructive",
-      });
+    onError: (error: unknown) => {
+      callbacks?.onError?.(error);
     },
   });
 }
 
-export function useDeleteBillingServiceConcept() {
+export function useDeleteBillingServiceConcept(
+  callbacks?: MutationCallbacks<void>,
+) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: (id: string) => deleteBillingServiceConcept(id),
@@ -92,13 +92,10 @@ export function useDeleteBillingServiceConcept() {
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.billingServiceConcepts(),
       });
-      toast({ title: billingServiceConceptsCopy.toast.deleted });
+      callbacks?.onSuccess?.(undefined);
     },
-    onError: () => {
-      toast({
-        title: billingServiceConceptsCopy.toast.error,
-        variant: "destructive",
-      });
+    onError: (error: unknown) => {
+      callbacks?.onError?.(error);
     },
   });
 }

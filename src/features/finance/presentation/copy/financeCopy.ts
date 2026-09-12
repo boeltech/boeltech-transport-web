@@ -405,8 +405,10 @@ export const financeCopy = {
       },
       bucketDescriptions: {
         ready: "CTA Facturar disponible desde Finanzas",
-        proration_pending: "Split activo: completa porciones en el viaje",
-        blocked: "Completa ruta, cargas o datos SAT antes de facturar",
+        proration_pending:
+          "Porciones de prorrateo listas para facturar en el viaje",
+        blocked:
+          "Completa ruta, cargas o datos SAT (incluye prorrateo aún no listo)",
       },
       emptyByBucket: {
         ready: {

@@ -4,6 +4,7 @@ import { Receipt, AlertCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { AlertWithIcon } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
@@ -15,8 +16,10 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
+  parseInvoiceBillingScope,
   type Invoice,
 } from "@features/invoicing/domain";
+import { useTrip } from "@features/trips/application";
 import {
   InvoiceStatusBadge,
   InvoiceActions,
@@ -40,7 +43,8 @@ import {
 } from "../helpers/repFiscalDeadlineUx";
 
 const copy = invoicingCopy.detail;
-const DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl p-4 sm:p-6";
+/** Sin max-w propio: mismo techo que el listado (`LayoutShell` max-w-7xl). */
+const DETAIL_SHELL_CLASS = "w-full p-4 sm:p-6";
 
 function resolveInvoiceBackHref(
   from: string | undefined,
@@ -67,6 +71,7 @@ export function InvoiceDetailPage() {
     null,
   );
   const [interactionBusy, setInteractionBusy] = useState(false);
+  const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
 
   const {
     data: invoice,
@@ -75,6 +80,32 @@ export function InvoiceDetailPage() {
     error,
     refetch,
   } = useInvoice(id ?? "", { pausePolling: interactionBusy });
+
+  const linkedPrimaryTrip = invoice?.trips.find(
+    (trip) => parseInvoiceBillingScope(trip.billingScope) === "primary_transport",
+  );
+  const linkedTripIdForFiscal = linkedPrimaryTrip?.tripId ?? invoice?.trips[0]?.tripId;
+  const { data: linkedTripForFiscal } = useTrip(linkedTripIdForFiscal ?? "", {
+    enabled: Boolean(
+      !isClientPortal &&
+        invoice &&
+        invoice.status === "stamped" &&
+        linkedTripIdForFiscal,
+    ),
+  });
+
+  const showTripFiscalAttention =
+    !isClientPortal &&
+    invoice?.status === "stamped" &&
+    Boolean(linkedTripForFiscal?.requiresFiscalAttention) &&
+    linkedTripForFiscal?.operationalOutcome !== "false_trip";
+
+  const fiscalAttentionTripIds = useMemo(() => {
+    if (!showTripFiscalAttention || !linkedTripIdForFiscal) {
+      return undefined;
+    }
+    return new Set([linkedTripIdForFiscal]);
+  }, [showTripFiscalAttention, linkedTripIdForFiscal]);
 
   const { mutate: retryRep } = useRetryRepStamp(invoice?.id ?? "", {
     onMutate: (paymentId) => setRetryingPaymentId(paymentId),
@@ -219,9 +250,28 @@ export function InvoiceDetailPage() {
     (isActiveSubstitute ||
       isStampedLike ||
       showRepFiscalAlert ||
-      autoDispatchFailed);
+      autoDispatchFailed ||
+      showTripFiscalAttention);
   const alerts = hasAlerts ? (
     <div className="space-y-3">
+      {showTripFiscalAttention ? (
+        <DetailAlertCard
+          severity="warning"
+          icon={<Receipt className="h-5 w-5" />}
+          title={copy.hint.fiscalAttentionTitle}
+        >
+          <p>
+            {copy.hint.fiscalAttentionBody}{" "}
+            <button
+              type="button"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+              onClick={() => setOpenSubstituteRequestKey((key) => key + 1)}
+            >
+              {copy.hint.fiscalAttentionLink}
+            </button>
+          </p>
+        </DetailAlertCard>
+      ) : null}
       {autoDispatchFailed ? (
         <AlertWithIcon
           variant="destructive"
@@ -286,8 +336,8 @@ export function InvoiceDetailPage() {
         backLabel: copy.header.backLabel,
         icon: <Receipt className="h-6 w-6" />,
         title: (
-          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>{`${invoice.serie}-${invoice.folio}`}</span>
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{`${invoice.serie}-${invoice.folio}`}</span>
             <InvoiceStatusBadge status={invoice.status} showIcon size="sm" />
             <InvoiceBillingScopeBadge
               scope={resolveInvoiceBillingScope(invoice.trips)}
@@ -300,7 +350,7 @@ export function InvoiceDetailPage() {
               >
                 {invoice.dispatchSentAt
                   ? invoicingCopy.send.badgeSentOn(
-                      formatDate(invoice.dispatchSentAt.split("T")[0]),
+                      formatDate(invoice.dispatchSentAt),
                     )
                   : invoicingCopy.send.badgeNotSent}
               </Badge>
@@ -324,6 +374,7 @@ export function InvoiceDetailPage() {
             invoiceStatus={invoice.status}
             fullInvoice={invoice}
             onBusyChange={setInteractionBusy}
+            openSubstituteRequestKey={openSubstituteRequestKey}
           />
         ),
       }}
@@ -345,6 +396,7 @@ export function InvoiceDetailPage() {
           invoice={invoice}
           fromPath={location.pathname}
           isClientPortal={isClientPortal}
+          fiscalAttentionTripIds={fiscalAttentionTripIds}
         />
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">

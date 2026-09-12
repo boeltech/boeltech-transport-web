@@ -102,6 +102,11 @@ interface InvoiceActionsProps {
    * Notifica cuando hay overlay o flujo de timbrado activo (pausar poll del detalle).
    */
   onBusyChange?: (busy: boolean) => void;
+  /**
+   * Incrementar desde el banner de atención fiscal (ADR-0093) para abrir
+   * SubstituteInvoiceSheet cuando la acción está permitida.
+   */
+  openSubstituteRequestKey?: number;
 }
 
 export function InvoiceActions({
@@ -115,6 +120,7 @@ export function InvoiceActions({
   onDelete,
   onActionComplete,
   onBusyChange,
+  openSubstituteRequestKey = 0,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -132,6 +138,7 @@ export function InvoiceActions({
   /** Snapshot frozen while payment/cancel/substitute overlays are open. */
   const [overlayInvoice, setOverlayInvoice] = useState<Invoice | null>(null);
   const lastBusyRef = useRef(false);
+  const lastOpenSubstituteKeyRef = useRef(0);
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -198,6 +205,9 @@ export function InvoiceActions({
   const hideSubstituteForFalseTrip =
     linkedTrip?.operationalOutcome === "false_trip";
 
+  const tripNeedsFiscalAttention =
+    Boolean(linkedTrip?.requiresFiscalAttention) && !hideSubstituteForFalseTrip;
+
   const canShowSubstitute =
     isStamped &&
     Boolean(fullInvoice?.canSubstituteInvoice) &&
@@ -217,6 +227,12 @@ export function InvoiceActions({
     Boolean(fullInvoice) &&
     !fullInvoice!.canSubstituteInvoice &&
     hasRegisteredCobros;
+
+  /** Eleva Sustituir fuera de «Más» cuando el viaje pide continuidad fiscal. */
+  const elevateSubstitutePrimary =
+    variant === "buttons" &&
+    tripNeedsFiscalAttention &&
+    (canShowSubstitute || showBlockedSubstitute);
 
   const canShowCancel =
     isStamped && canExecute && canAdminManagerFiscal;
@@ -292,6 +308,32 @@ export function InvoiceActions({
     substituteSheetOpen,
     sendDialogOpen,
     fiscal.isStampBusy,
+  ]);
+
+  useEffect(() => {
+    if (variant !== "buttons") return;
+    if (!openSubstituteRequestKey || openSubstituteRequestKey === lastOpenSubstituteKeyRef.current) {
+      return;
+    }
+    lastOpenSubstituteKeyRef.current = openSubstituteRequestKey;
+    if (canShowSubstitute && fullInvoice) {
+      openOverlayWithSnapshot(fullInvoice, "substitute");
+      return;
+    }
+    if (showBlockedSubstitute) {
+      toast({
+        variant: "destructive",
+        title: actionsCopy.substituteBlockedTitle,
+        description: actionsCopy.substituteBlocked,
+      });
+    }
+  }, [
+    variant,
+    openSubstituteRequestKey,
+    canShowSubstitute,
+    showBlockedSubstitute,
+    fullInvoice,
+    toast,
   ]);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
@@ -380,30 +422,50 @@ export function InvoiceActions({
 
   const primaryIsStamp = isDraft && canCreate && canExecute;
   const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
+  /** Con atención fiscal, Sustituir es la única primaria; pago pasa a secundaria. */
+  const paymentIsSecondary = primaryIsPayment && elevateSubstitutePrimary;
+  const paymentIsPrimary = primaryIsPayment && !elevateSubstitutePrimary;
   const hasDownloadMenu = canShowExport && Boolean(fullInvoice);
   const hasStampedXml =
     Boolean(fullInvoice) &&
     (fullInvoice!.hasStampedXml ?? Boolean(fullInvoice!.xmlContent));
-  const hasMoreMenu =
+  const hasTertiaryInMore =
     (isDraft && (canUpdate || canDelete)) ||
-    showBlockedSubstitute ||
-    (canShowSubstitute && Boolean(fullInvoice)) ||
+    (showBlockedSubstitute && !elevateSubstitutePrimary) ||
+    (canShowSubstitute && Boolean(fullInvoice) && !elevateSubstitutePrimary) ||
     canShowCancel;
+  /** Enviar / Descargar / pago secundario viven en «Más» bajo lg. */
+  const hasResponsiveOverflow =
+    canShowSendByEmail || hasDownloadMenu || paymentIsSecondary;
+  const hasMoreMenu = hasTertiaryInMore || hasResponsiveOverflow;
 
   const hasToolbar =
     primaryIsStamp ||
-    primaryIsPayment ||
-    canShowSendByEmail ||
-    hasDownloadMenu ||
+    paymentIsPrimary ||
+    elevateSubstitutePrimary ||
     hasMoreMenu;
 
   if (!hasToolbar) return null;
 
   const serieFolio = folioCombined;
+  const moreHasMobileOverflow =
+    paymentIsSecondary || canShowSendByEmail || hasDownloadMenu;
+  const moreHasSubstituteItem =
+    (showBlockedSubstitute ||
+      (canShowSubstitute && Boolean(fullInvoice))) &&
+    !elevateSubstitutePrimary;
+  const moreHasEditDraft = isDraft && canUpdate;
+  const moreHasItemsBeforeCancel =
+    moreHasMobileOverflow || moreHasEditDraft || moreHasSubstituteItem;
+  /** Separador solo visible bajo 2xl si lo único arriba es overflow compacto. */
+  const cancelSeparatorClassName =
+    moreHasMobileOverflow && !moreHasEditDraft && !moreHasSubstituteItem
+      ? "2xl:hidden"
+      : undefined;
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
         {primaryIsStamp ? (
           <Button
             variant="default"
@@ -420,10 +482,56 @@ export function InvoiceActions({
           </Button>
         ) : null}
 
-        {primaryIsPayment && fullInvoice ? (
+        {elevateSubstitutePrimary && showBlockedSubstitute ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled
+                  aria-label={actionsCopy.substituteBlockedTitle}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {actionsCopy.substitute}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-left">
+              {actionsCopy.substituteBlocked}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+
+        {elevateSubstitutePrimary && canShowSubstitute && fullInvoice ? (
           <Button
             variant="default"
             size="sm"
+            onClick={() => openOverlayWithSnapshot(fullInvoice, "substitute")}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {actionsCopy.substitute}
+          </Button>
+        ) : null}
+
+        {paymentIsPrimary && fullInvoice ? (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
+            disabled={isLoading}
+          >
+            <DollarSign className="mr-2 h-4 w-4" />
+            {actionsCopy.registerPayment}
+          </Button>
+        ) : null}
+
+        {paymentIsSecondary && fullInvoice ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden 2xl:inline-flex"
             onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
             disabled={isLoading}
           >
@@ -436,6 +544,7 @@ export function InvoiceActions({
           <Button
             variant="outline"
             size="sm"
+            className="hidden 2xl:inline-flex"
             onClick={() => setSendDialogOpen(true)}
             disabled={isLoading}
           >
@@ -450,7 +559,7 @@ export function InvoiceActions({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1"
+                className="hidden gap-1 2xl:inline-flex"
                 disabled={isLoading}
               >
                 {openingPdf || downloadingXml ? (
@@ -509,7 +618,11 @@ export function InvoiceActions({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1"
+                className={
+                  hasTertiaryInMore
+                    ? "gap-1"
+                    : "gap-1 2xl:hidden"
+                }
                 disabled={isLoading}
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -519,17 +632,87 @@ export function InvoiceActions({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              {isDraft && canUpdate ? (
+              {paymentIsSecondary && fullInvoice ? (
                 <DropdownMenuItem
-                  onSelect={() => navigate(`/invoices/${invoiceId}/edit`)}
+                  className="2xl:hidden"
                   disabled={isLoading}
+                  onSelect={() =>
+                    openOverlayWithSnapshot(fullInvoice, "payment")
+                  }
                 >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {actionsCopy.editDraft}
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  {actionsCopy.registerPayment}
                 </DropdownMenuItem>
               ) : null}
 
-              {showBlockedSubstitute ? (
+              {canShowSendByEmail ? (
+                <DropdownMenuItem
+                  className="2xl:hidden"
+                  disabled={isLoading}
+                  onSelect={() => setSendDialogOpen(true)}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  {actionsCopy.sendByEmail}
+                </DropdownMenuItem>
+              ) : null}
+
+              {hasDownloadMenu && fullInvoice ? (
+                <>
+                  <DropdownMenuItem
+                    className="2xl:hidden"
+                    disabled={isLoading || openingPdf}
+                    onSelect={() =>
+                      openPdf({
+                        id: fullInvoice.id,
+                        serieFolio,
+                      })
+                    }
+                  >
+                    {openingPdf ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    {invoicingCopy.detail.header.pdf}
+                  </DropdownMenuItem>
+                  {hasStampedXml ? (
+                    <DropdownMenuItem
+                      className="2xl:hidden"
+                      disabled={isLoading || downloadingXml}
+                      onSelect={() =>
+                        downloadXml({
+                          id: fullInvoice.id,
+                          serieFolio,
+                        })
+                      }
+                    >
+                      {downloadingXml ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileCode className="mr-2 h-4 w-4" />
+                      )}
+                      {invoicingCopy.detail.header.xml}
+                    </DropdownMenuItem>
+                  ) : null}
+                </>
+              ) : null}
+
+              {moreHasEditDraft ? (
+                <>
+                  {moreHasMobileOverflow ? (
+                    <DropdownMenuSeparator className="2xl:hidden" />
+                  ) : null}
+                  <DropdownMenuItem
+                    onSelect={() => navigate(`/invoices/${invoiceId}/edit`)}
+                    disabled={isLoading}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    {actionsCopy.editDraft}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+
+              {showBlockedSubstitute && !elevateSubstitutePrimary ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="block w-full">
@@ -549,7 +732,7 @@ export function InvoiceActions({
                 </Tooltip>
               ) : null}
 
-              {canShowSubstitute && fullInvoice ? (
+              {canShowSubstitute && fullInvoice && !elevateSubstitutePrimary ? (
                 <DropdownMenuItem
                   disabled={isLoading}
                   onSelect={() => {
@@ -567,10 +750,10 @@ export function InvoiceActions({
 
               {canShowCancel ? (
                 <>
-                  {(isDraft && canUpdate) ||
-                  showBlockedSubstitute ||
-                  (canShowSubstitute && fullInvoice) ? (
-                    <DropdownMenuSeparator />
+                  {moreHasItemsBeforeCancel ? (
+                    <DropdownMenuSeparator
+                      className={cancelSeparatorClassName}
+                    />
                   ) : null}
                   <DropdownMenuItem
                     disabled={isLoading}
@@ -589,9 +772,8 @@ export function InvoiceActions({
 
               {isDraft && canDelete ? (
                 <>
-                  {(isDraft && canUpdate) ||
-                  showBlockedSubstitute ||
-                  (canShowSubstitute && fullInvoice) ||
+                  {moreHasEditDraft ||
+                  moreHasSubstituteItem ||
                   canShowCancel ? (
                     <DropdownMenuSeparator />
                   ) : null}

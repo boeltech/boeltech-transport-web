@@ -25,6 +25,8 @@ export interface InvoiceDetailContextStripProps {
   fromPath: string;
   /** Portal client: copy operativo (envíos) y sin hint de borrador staff. */
   isClientPortal?: boolean;
+  /** Trip IDs con `requiresFiscalAttention` (ADR-0093 continuidad fiscal). */
+  fiscalAttentionTripIds?: ReadonlySet<string>;
 }
 
 /**
@@ -35,6 +37,7 @@ export function InvoiceDetailContextStrip({
   invoice,
   fromPath,
   isClientPortal = false,
+  fiscalAttentionTripIds,
 }: InvoiceDetailContextStripProps) {
   const linkedTitle = isClientPortal
     ? detailCopy.section.linkedTripsClient(invoice.trips.length)
@@ -70,6 +73,16 @@ export function InvoiceDetailContextStrip({
                         {trip.tripCode}
                       </Badge>
                       <InvoiceBillingScopeBadge scope={trip.billingScope} />
+                      {!isClientPortal &&
+                      fiscalAttentionTripIds?.has(trip.tripId) ? (
+                        <Badge
+                          variant="warning"
+                          tone="soft"
+                          className="shrink-0 text-xs font-medium"
+                        >
+                          {detailCopy.hint.fiscalAttentionChip}
+                        </Badge>
+                      ) : null}
                       <span className="truncate font-medium">{trip.clientName}</span>
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     </Link>

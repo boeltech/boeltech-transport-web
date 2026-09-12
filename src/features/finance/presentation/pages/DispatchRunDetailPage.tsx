@@ -651,7 +651,7 @@ export function DispatchRunDetailPage() {
         header={{
           backHref: "/finance/dispatch-runs",
           backLabel: copy.backToList,
-          icon: <Mail className="h-5 w-5" />,
+          icon: <Mail className="h-6 w-6" />,
           title: copy.title,
         }}
       />
@@ -665,7 +665,7 @@ export function DispatchRunDetailPage() {
         header={{
           backHref: "/finance/dispatch-runs",
           backLabel: copy.backToList,
-          icon: <Mail className="h-5 w-5" />,
+          icon: <Mail className="h-6 w-6" />,
           title: copy.title,
         }}
         alerts={
@@ -690,15 +690,28 @@ export function DispatchRunDetailPage() {
       header={{
         backHref: "/finance/dispatch-runs",
         backLabel: copy.backToList,
-        icon: <Mail className="h-5 w-5" />,
+        icon: <Mail className="h-6 w-6" />,
         iconVariant: "primary",
-        title: copy.title,
-        subtitle: periodSubtitle,
-        statusBadge: (
-          <div className="flex flex-wrap items-center gap-2">
-            <DispatchRunStatusBadge status={run.status} />
-            <DispatchRunOriginBadge origin={run.origin} />
-            <Badge variant="outline">{copy.schemeTypeLabel(schemeName)}</Badge>
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{copy.title}</span>
+            <DispatchRunStatusBadge status={run.status} showIcon size="sm" />
+            <DispatchRunOriginBadge
+              origin={run.origin}
+              className="text-xs font-medium"
+            />
+          </span>
+        ),
+        subtitle: (
+          <div className="space-y-0.5">
+            {periodSubtitle ? (
+              <p className="truncate text-sm text-muted-foreground">
+                {periodSubtitle}
+              </p>
+            ) : null}
+            <p className="truncate text-xs text-muted-foreground">
+              {copy.schemeTypeLabel(schemeName)}
+            </p>
           </div>
         ),
       }}

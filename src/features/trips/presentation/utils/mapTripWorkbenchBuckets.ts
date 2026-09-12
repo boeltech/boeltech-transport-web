@@ -3,6 +3,9 @@
  *
  * Convierte TripWorkbenchSummary + estado activo → WorkbenchBucket[]
  * consumibles por WorkbenchPageShell.
+ *
+ * «Atención fiscal» (ADR-0093) filtra la misma lista (`fiscalAttention=1`);
+ * no deep-link a /finance/invoiceable (cola de primer CFDI).
  */
 
 import type { WorkbenchBucket } from "@shared/ui/page-shells";
@@ -54,6 +57,9 @@ export interface MapTripWorkbenchBucketsParams {
   visibleBuckets: TripWorkbenchBucket[];
   activeBucket: TripWorkbenchBucket | null;
   onBucketChange: (bucket: TripWorkbenchBucket) => void;
+  /** Filtro `?fiscalAttention=1` activo en la misma lista. */
+  fiscalAttentionOnly: boolean;
+  onFiscalAttentionChange: (attentionOnly: boolean) => void;
 }
 
 export function mapTripWorkbenchBuckets({
@@ -61,6 +67,8 @@ export function mapTripWorkbenchBuckets({
   visibleBuckets,
   activeBucket,
   onBucketChange,
+  fiscalAttentionOnly,
+  onFiscalAttentionChange,
 }: MapTripWorkbenchBucketsParams): WorkbenchBucket[] {
   const buckets: WorkbenchBucket[] = visibleBuckets.map((bucket) => {
     const count = countForBucket(bucket, summary);
@@ -69,26 +77,22 @@ export function mapTripWorkbenchBuckets({
       label: copy.buckets[bucket],
       description: copy.bucketDescriptions[bucket],
       count,
-      isActive: activeBucket === bucket,
+      isActive: !fiscalAttentionOnly && activeBucket === bucket,
       onClick: () => onBucketChange(bucket),
       tone: toneForBucket(bucket, count),
     };
   });
 
-  // Cross-link de atención fiscal (solo si hay viajes con atención)
-  if (summary.fiscalAttention > 0) {
+  // Cola ops ADR-0093: misma lista filtrada (no escape a «Viajes por facturar»)
+  if (summary.fiscalAttention > 0 || fiscalAttentionOnly) {
     buckets.push({
       id: "fiscal_attention",
       label: copy.buckets.fiscalAttention,
       description: copy.bucketDescriptions.fiscalAttention,
       count: summary.fiscalAttention,
-      isActive: false,
-      onClick: () => undefined,
+      isActive: fiscalAttentionOnly,
+      onClick: () => onFiscalAttentionChange(!fiscalAttentionOnly),
       tone: "destructive",
-      crossLink: {
-        href: "/finance/invoiceable",
-        label: copy.fiscalAttentionLink(summary.fiscalAttention),
-      },
     });
   }
 

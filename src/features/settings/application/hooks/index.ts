@@ -23,7 +23,12 @@ export {
 } from "./useBillingSettings";
 
 // Billing Service Concepts
-export { useBillingServiceConcepts } from "./useBillingServiceConcepts";
+export {
+  useBillingServiceConcepts,
+  useCreateBillingServiceConcept,
+  useUpdateBillingServiceConcept,
+  useDeleteBillingServiceConcept,
+} from "./useBillingServiceConcepts";
 
 // Billing Schemes (ADR-0082)
 export {

@@ -8,7 +8,7 @@ import {
   type UseFormSetValue,
 } from "react-hook-form";
 import { recomputeInvoiceAmountsFromConcepts } from "@boeltech/cfdi-domain";
-import { useBillingServiceConcepts } from "@features/settings/application/hooks/useBillingServiceConcepts";
+import { useBillingServiceConcepts } from "@features/settings";
 import {
   isServiceOnlyBillingScope,
   type InvoiceBillingScope,

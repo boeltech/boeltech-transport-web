@@ -463,6 +463,13 @@ export const invoicingCopy = {
         "Si no indicas hora, se usa mediodía (12:00).",
       paymentLateRegistrationHint:
         "La fecha del cobro ya superó el 5.º día del mes siguiente. Puedes registrar el pago; sella el comprobante de pago cuanto antes.",
+      /** Continuidad fiscal mid-trip (ADR-0093) — alinear con tripDetail shellCopy. */
+      fiscalAttentionTitle: "Revisión de facturación pendiente",
+      fiscalAttentionBody:
+        "Hubo cambios operativos en el viaje después de facturar. Sustituye esta factura al cerrar el viaje o antes de cobrar el ajuste.",
+      /** Link textual en el banner (CTA elevado vive en el header). */
+      fiscalAttentionLink: "Sustituir",
+      fiscalAttentionChip: "Atención fiscal",
     },
     substitute: {
       title: "Sustituir factura",

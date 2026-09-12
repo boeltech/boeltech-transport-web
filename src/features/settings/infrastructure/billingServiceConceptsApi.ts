@@ -7,6 +7,23 @@ import type {
 
 const BASE = "/settings/billing/service-concepts";
 
+const OBJECT_IMP_VALUES = new Set<BillingServiceConcept["objectImp"]>([
+  "01",
+  "02",
+  "03",
+  "04",
+]);
+
+/** @internal Exported for unit tests */
+export function parseObjectImp(
+  raw: string | undefined,
+): BillingServiceConcept["objectImp"] {
+  if (raw != null && OBJECT_IMP_VALUES.has(raw as BillingServiceConcept["objectImp"])) {
+    return raw as BillingServiceConcept["objectImp"];
+  }
+  return "02";
+}
+
 interface ApiBillingServiceConceptCamel {
   id: string;
   name: string;
@@ -31,7 +48,7 @@ function mapConcept(raw: ApiBillingServiceConceptCamel): BillingServiceConcept {
     claveUnidad: raw.claveUnidad,
     unidad: raw.unidad,
     defaultUnitPrice: raw.defaultUnitPrice,
-    objectImp: (raw.objectImp ?? "02") as BillingServiceConcept["objectImp"],
+    objectImp: parseObjectImp(raw.objectImp),
     ivaAplica: raw.ivaAplica,
     retencionAplica: raw.retencionAplica,
     isActive: raw.isActive,
@@ -95,6 +112,10 @@ export async function updateBillingServiceConcept(
   return mapConcept(mapSingleResponse(response).data);
 }
 
+/**
+ * Soft-delete en API: `DELETE` marca `is_active = false` (no borra la fila).
+ * Reactivar con `updateBillingServiceConcept(id, { isActive: true })`.
+ */
 export async function deleteBillingServiceConcept(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
 }

@@ -4,7 +4,7 @@ import {
   type TripStopRfcPreflightInput,
 } from "@boeltech/cfdi-domain";
 import type { TripStop } from "@features/trips/domain";
-import { mapTripStopToPreflightInput } from "@features/trips/presentation/components/trip-fiscal/tripFiscalHelpers";
+import { mapTripStopToPreflightInput, toFiscalStopDisplayOrder } from "@features/trips/presentation/components/trip-fiscal/tripFiscalHelpers";
 import type { TripCorrectionFormEntry } from "../validation/substitutionCorrectionsSchema";
 
 function correctionByStopId(
@@ -93,6 +93,6 @@ export function formatSubstitutionPreflightMessage(
   return preflight.invalidStops.map((item) => {
     const reason =
       item.reason === "RFC_MISSING" ? labels.missing : labels.invalid;
-    return `Parada #${item.stopOrder + 1}: ${reason}`;
+    return `Parada #${toFiscalStopDisplayOrder(item.stopOrder)}: ${reason}`;
   });
 }

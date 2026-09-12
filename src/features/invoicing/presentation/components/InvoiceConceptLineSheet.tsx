@@ -12,7 +12,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ProductoServicioSearch, UnidadMedidaSearch } from "@features/catalogs";
-import type { BillingServiceConcept } from "@features/settings/domain/billingServiceConcept.types";
+import type { BillingServiceConcept } from "@features/settings";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Checkbox } from "@shared/ui/checkbox";

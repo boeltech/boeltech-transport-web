@@ -191,7 +191,7 @@ export function InvoiceTable({
 
               {/* Fecha */}
               <TableCell className="text-sm">
-                {formatDate(inv.issuedAt.split("T")[0])}
+                {formatDate(inv.issuedAt)}
               </TableCell>
 
               {/* Método de pago */}

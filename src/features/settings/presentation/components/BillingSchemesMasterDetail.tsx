@@ -4,7 +4,6 @@
  */
 
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { CalendarClock, ChevronDown, Loader2, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -60,8 +59,10 @@ import {
 } from "../../application/hooks/useBillingSchemes";
 import { billingSchemesCopy } from "../copy/billingSchemesCopy";
 import {
+  buildBillingSchemePreviewParams,
   formatBillingSchemeCadenceSummary,
   formatBillingSchemeNaturalDescription,
+  formatBillingSchemePeriodExample,
   formatBillingSchemePeriodRuleBullets,
 } from "../utils/formatBillingSchemeCadence";
 import {
@@ -242,6 +243,7 @@ function BillingSchemeDetailView({
   onDeactivate,
 }: BillingSchemeDetailViewProps) {
   const periodBullets = formatBillingSchemePeriodRuleBullets(scheme);
+  const periodExample = formatBillingSchemePeriodExample(scheme);
 
   return (
     <div className="space-y-6">
@@ -266,6 +268,21 @@ function BillingSchemeDetailView({
         </p>
       </section>
 
+      <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+        <div className="flex items-start gap-2">
+          <CalendarClock
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <div className="space-y-1">
+            <h4 className="text-sm font-medium">
+              {copy.detail.periodExampleTitle}
+            </h4>
+            <p className="text-sm text-muted-foreground">{periodExample}</p>
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-2">
         <h4 className="text-sm font-medium">{copy.detail.periodRuleTitle}</h4>
         <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -273,16 +290,6 @@ function BillingSchemeDetailView({
             <li key={bullet}>{bullet}</li>
           ))}
         </ul>
-      </section>
-
-      <section className="space-y-2 rounded-md border bg-muted/20 p-3">
-        <h4 className="text-sm font-medium">{copy.detail.assignmentTitle}</h4>
-        <p className="text-sm text-muted-foreground">
-          {copy.detail.assignmentBody}
-        </p>
-        <Button type="button" variant="link" className="h-auto p-0" asChild>
-          <Link to="/clients">{copy.detail.clientsCta}</Link>
-        </Button>
       </section>
 
       <Collapsible>
@@ -330,6 +337,23 @@ function BillingSchemeFormPanel({
 }: BillingSchemeFormPanelProps) {
   const [form, setForm] = useState(initial);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const monthDays = parseMonthDays(form.monthDays);
+  const windowHours = Number(form.windowHours);
+  const businessDays = Number(form.businessDays);
+  const previewText = formatBillingSchemeNaturalDescription({
+    cadenceKind: form.cadenceKind,
+    params: buildBillingSchemePreviewParams({
+      cadenceKind: form.cadenceKind,
+      windowHours:
+        Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 48,
+      weekdays: form.weekdays,
+      monthDays,
+      monthlyMode: form.monthlyMode,
+      businessDays:
+        Number.isInteger(businessDays) && businessDays >= 1 ? businessDays : 3,
+    }),
+  });
 
   const handleSave = async () => {
     const errors = validateForm(form);
@@ -531,6 +555,19 @@ function BillingSchemeFormPanel({
         </div>
       ) : null}
 
+      <div className="flex items-start gap-2 rounded-md border bg-muted/20 px-3 py-2">
+        <CalendarClock
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-foreground">
+            {copy.form.previewLabel}
+          </p>
+          <p className="text-xs text-muted-foreground">{previewText}</p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between rounded-md border p-3">
         <div className="space-y-0.5">
           <Label htmlFor="billing-scheme-default">{copy.form.isDefault}</Label>
@@ -605,7 +642,11 @@ function BillingSchemeFormSheet({
           <SheetTitle>
             {isCreating ? copy.form.createTitle : copy.form.editTitle}
           </SheetTitle>
-          <SheetDescription>{copy.page.description}</SheetDescription>
+          <SheetDescription>
+            {isCreating
+              ? copy.form.createDescription
+              : copy.form.editDescription}
+          </SheetDescription>
         </SheetHeader>
         {open ? (
           <div className={SETTINGS_SHEET_BODY_CLASS}>

@@ -1,10 +1,10 @@
 /**
  * Configuración del workbench "Por facturar" (ADR-0090 — handoff Capa 1).
  *
- * Buckets derivados de la lógica existente en `shouldOpenInvoiceCreateFromFinanceHub`:
- *   ready            → CTA Facturar directo
- *   proration_pending → split activo (ir al hub del viaje)
- *   blocked          → el resto (blockReason, datos incompletos)
+ * Buckets (lockstep API classifyInvoiceableBucket):
+ *   ready             → CTA Facturar (primaria / false_trip)
+ *   proration_pending → split activo + canGenerateSplitShareInvoice
+ *   blocked           → resto (blockReason, datos incompletos, split sin CTA)
  */
 
 export type InvoiceableBucketId =

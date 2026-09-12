@@ -3,7 +3,9 @@ import type { BillingScheme } from "../../domain/billingScheme.types";
 import {
   formatBillingSchemeCadenceSummary,
   formatBillingSchemeNaturalDescription,
+  formatBillingSchemePeriodExample,
   formatBillingSchemePeriodRuleBullets,
+  formatDecadalPeriodParts,
 } from "./formatBillingSchemeCadence";
 import { formatBillingSchemeParamsSummary } from "./formatBillingSchemeCadenceParams";
 
@@ -118,5 +120,64 @@ describe("formatBillingSchemePeriodRuleBullets", () => {
     expect(bullets[0]).toBe("Frecuencia: Semanal");
     expect(bullets.some((b) => b.includes("Jue"))).toBe(true);
     expect(bullets.at(-1)).toContain("cierre operativo");
+  });
+});
+
+describe("formatBillingSchemePeriodExample", () => {
+  it("explica evento sin periodo fijo", () => {
+    const s = scheme({
+      cadenceKind: "event",
+      params: { windowHours: 48 },
+    });
+    const text = formatBillingSchemePeriodExample(s);
+    expect(text).toContain("48 horas");
+    expect(text).toContain("No hay periodo fijo");
+  });
+
+  it("explica semanal con días largos y último corte", () => {
+    const s = scheme({
+      cadenceKind: "periodic_weekly",
+      params: { weekdays: [4, 5] },
+    });
+    const text = formatBillingSchemePeriodExample(s);
+    expect(text).toContain("jueves");
+    expect(text).toContain("viernes");
+    expect(text).toContain("último corte");
+  });
+
+  it("explica cortes del mes con rangos didácticos", () => {
+    expect(formatDecadalPeriodParts([10, 20, 30])).toContain(
+      "del 1 al 10",
+    );
+    expect(formatDecadalPeriodParts([10, 20, 30])).toContain(
+      "del 11 al 20",
+    );
+    expect(formatDecadalPeriodParts([10, 20, 30])).toContain(
+      "a fin de mes",
+    );
+
+    const s = scheme({
+      cadenceKind: "periodic_decadal",
+      params: { monthDays: [10, 20, 30] },
+    });
+    expect(formatBillingSchemePeriodExample(s)).toContain("día 10");
+  });
+
+  it("explica mensual de un solo día calendario", () => {
+    const s = scheme({
+      cadenceKind: "periodic_monthly",
+      params: { monthDays: [15] },
+    });
+    const text = formatBillingSchemePeriodExample(s);
+    expect(text).toContain("día 15");
+    expect(text).toContain("del 1 al 15");
+  });
+
+  it("explica mensual por día hábil", () => {
+    const s = scheme({
+      cadenceKind: "periodic_monthly",
+      params: { businessDaysFromMonthStart: 3 },
+    });
+    expect(formatBillingSchemePeriodExample(s)).toContain("3.º día hábil");
   });
 });

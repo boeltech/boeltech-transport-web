@@ -15,9 +15,13 @@ import {
   defaultInvoiceFormValues,
 } from "../validation/invoiceFormSchema";
 
-vi.mock("@features/settings/application/hooks/useBillingServiceConcepts", () => ({
-  useBillingServiceConcepts: () => ({ data: [], isLoading: false }),
-}));
+vi.mock("@features/settings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/settings")>();
+  return {
+    ...actual,
+    useBillingServiceConcepts: () => ({ data: [], isLoading: false }),
+  };
+});
 
 function AccessoryEditorHarness() {
   const form = useForm<InvoiceFormValues>({

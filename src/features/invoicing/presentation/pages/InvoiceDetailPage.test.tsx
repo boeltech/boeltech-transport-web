@@ -64,6 +64,11 @@ vi.mock("@features/trips", () => ({
   TripListRouteLabel: () => <span data-testid="trip-route-label" />,
 }));
 
+const useTripMock = vi.fn();
+vi.mock("@features/trips/application", () => ({
+  useTrip: (...args: unknown[]) => useTripMock(...args),
+}));
+
 function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
   return {
     id: "inv-1",
@@ -155,6 +160,7 @@ describe("InvoiceDetailPage", () => {
     mockHasPermission.mockReturnValue(false);
     mockUseRole.mockReturnValue("accountant");
     refetchMock.mockResolvedValue(undefined);
+    useTripMock.mockReturnValue({ data: undefined });
     useInvoiceMock.mockReturnValue({
       data: buildInvoice(),
       isLoading: false,
@@ -291,6 +297,88 @@ describe("InvoiceDetailPage", () => {
     renderPage();
 
     expect(screen.getByText("Factura no encontrada")).toBeInTheDocument();
+  });
+
+  it("shows fiscal attention banner with textual Sustituir link (no duplicate button CTA)", () => {
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        canSubstituteInvoice: true,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-260904-0004",
+            clientName: "XENON",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText("Revisión de facturación pendiente"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Sustituir$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir factura$/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
+  });
+
+  it("hides fiscal attention banner for false_trip operational outcome", () => {
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "false_trip",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.queryByText("Revisión de facturación pendiente"),
+    ).not.toBeInTheDocument();
   });
 
   it("retries load on server error", async () => {

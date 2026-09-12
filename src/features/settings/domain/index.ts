@@ -40,3 +40,10 @@ export type {
   SettingsResult,
   UploadLogoResult,
 } from "./repository";
+
+// Billing service concepts (ADR-0061)
+export type {
+  BillingServiceConcept,
+  CreateBillingServiceConceptPayload,
+  UpdateBillingServiceConceptPayload,
+} from "./billingServiceConcept.types";

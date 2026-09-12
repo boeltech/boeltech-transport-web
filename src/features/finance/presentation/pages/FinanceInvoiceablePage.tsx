@@ -18,7 +18,11 @@ import { useQueryErrorToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { useFinanceListingFilters } from "@features/finance/application";
-import { useTrips, formatRoute } from "@features/trips";
+import {
+  useTrips,
+  useInvoiceableWorkbenchSummary,
+  formatRoute,
+} from "@features/trips";
 import type { TripListItem } from "@features/trips/domain";
 import {
   buildInvoiceCreatePathFromTrip,
@@ -32,9 +36,9 @@ import {
   type InvoiceableBucketId,
 } from "../config/invoiceableWorkbenchConfig";
 import {
-  countTripsByBucket,
+  classifyInvoiceableBucket,
+  countsFromInvoiceableSummary,
   mapInvoiceableWorkbenchBuckets,
-  partitionTripsByBucket,
 } from "../utils/mapInvoiceableWorkbenchBuckets";
 
 const copy = financeCopy.invoiceable;
@@ -43,7 +47,7 @@ const PAGE_SIZE = 10;
 const PAGE_PATH = "/finance/invoiceable";
 
 // ============================================================================
-// TABLE (preserved from original — no logic changes)
+// TABLE
 // ============================================================================
 
 const TABLE_HEADERS = [
@@ -119,6 +123,11 @@ function InvoiceableTripsTable({
           <TableBody>
             {trips.map((trip) => {
               const hasActiveSplit = trip.invoicing.hasActiveSplit;
+              const isBlocked = classifyInvoiceableBucket(trip) === "blocked";
+              const blockReason =
+                isBlocked && trip.invoicing.blockReason
+                  ? trip.invoicing.blockReason
+                  : null;
               const splitProgress =
                 hasActiveSplit && trip.invoicing.splitLegsTotal > 0
                   ? copy.table.splitLegsProgress(
@@ -162,9 +171,7 @@ function InvoiceableTripsTable({
                     {formatRoute(trip.originCity, trip.destinationCity)}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {formatDate(
-                      trip.scheduledDeparture.toISOString().split("T")[0],
-                    )}
+                    {formatDate(trip.scheduledDeparture.toISOString())}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatMxCurrency(trip.baseRate)}
@@ -179,18 +186,14 @@ function InvoiceableTripsTable({
                         <Button
                           size="sm"
                           variant="outline"
-                          title={
-                            !hasActiveSplit && trip.invoicing.blockReason
-                              ? trip.invoicing.blockReason
-                              : undefined
-                          }
+                          title={blockReason ?? undefined}
                           onClick={() => onOpenTripInvoicing(trip)}
                         >
                           {copy.goToTripInvoicing}
                         </Button>
-                        {!hasActiveSplit && trip.invoicing.blockReason ? (
+                        {blockReason ? (
                           <span className="text-xs font-normal text-muted-foreground text-right">
-                            {trip.invoicing.blockReason}
+                            {blockReason}
                           </span>
                         ) : null}
                       </div>
@@ -232,10 +235,17 @@ export function FinanceInvoiceablePage() {
     limit: PAGE_SIZE,
     filters: {
       invoiceableOnly: true,
+      invoiceableBucket: activeBucket,
       search: filters.search || undefined,
     },
     sort: { field: "scheduled_departure", direction: "desc" },
   });
+
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    refetch: refetchSummary,
+  } = useInvoiceableWorkbenchSummary(filters.search || undefined);
 
   const trips = data?.data ?? [];
 
@@ -245,10 +255,13 @@ export function FinanceInvoiceablePage() {
     title: copy.loadError,
   });
 
-  // Partition current page trips by bucket (degraded: counts are page-level).
-  const partitioned = useMemo(() => partitionTripsByBucket(trips), [trips]);
-  const counts = useMemo(() => countTripsByBucket(trips), [trips]);
-  const bucketTrips = partitioned[activeBucket];
+  const counts = useMemo(
+    () =>
+      summary
+        ? countsFromInvoiceableSummary(summary)
+        : { ready: 0, proration_pending: 0, blocked: 0 },
+    [summary],
+  );
 
   const handleBucketChange = useCallback(
     (bucket: InvoiceableBucketId) => {
@@ -268,8 +281,8 @@ export function FinanceInvoiceablePage() {
   );
 
   const handleRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
+    await Promise.all([refetch(), refetchSummary()]);
+  }, [refetch, refetchSummary]);
 
   const handleInvoice = useCallback(
     (trip: TripListItem) => {
@@ -291,6 +304,7 @@ export function FinanceInvoiceablePage() {
 
   const isDegraded = isError && !isLoading;
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
+  const listLoading = isLoading || summaryLoading;
 
   return (
     <WorkbenchPageShell
@@ -298,7 +312,7 @@ export function FinanceInvoiceablePage() {
       description={copy.description}
       buckets={buckets}
       bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
-      bucketsLoading={isLoading}
+      bucketsLoading={summaryLoading}
       isDegraded={isDegraded}
       degradedMessage={workbenchCopy.degradedMessage}
       degradedHref="/finance/invoices"
@@ -317,7 +331,7 @@ export function FinanceInvoiceablePage() {
         hasFilters: filters.hasFilters,
       }}
       renderContent={() => {
-        if (isLoading) {
+        if (listLoading) {
           return (
             <div className="rounded-md border">
               <Table>
@@ -328,16 +342,14 @@ export function FinanceInvoiceablePage() {
           );
         }
 
-        if (bucketTrips.length === 0) {
+        if (trips.length === 0) {
           return (
             <EmptyState
               icon={
                 <FileClock className="h-10 w-10 text-muted-foreground" />
               }
               title={
-                filters.hasFilters
-                  ? copy.empty.title
-                  : emptyBucket.title
+                filters.hasFilters ? copy.empty.title : emptyBucket.title
               }
               description={
                 filters.hasFilters
@@ -359,7 +371,7 @@ export function FinanceInvoiceablePage() {
 
         return (
           <InvoiceableTripsTable
-            trips={bucketTrips}
+            trips={trips}
             isLoading={false}
             onInvoice={handleInvoice}
             onOpenTripInvoicing={handleOpenTripInvoicing}

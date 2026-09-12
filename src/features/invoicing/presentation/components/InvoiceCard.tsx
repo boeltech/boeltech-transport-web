@@ -63,7 +63,7 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
                 {folioCombined}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {formatDate(invoice.issuedAt.split("T")[0])}
+                {formatDate(invoice.issuedAt)}
               </p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="text-xs">
-              {formatDate(invoice.issuedAt.split("T")[0])}
+              {formatDate(invoice.issuedAt)}
             </span>
           </div>
 

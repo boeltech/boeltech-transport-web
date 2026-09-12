@@ -25,6 +25,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { ProductoServicioSearch, UnidadMedidaSearch } from "@features/catalogs";
 import { isApiError } from "@shared/api/interceptors/error-handler";
+import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import {
   useBillingServiceConcepts,
@@ -43,6 +44,7 @@ type FormState = {
   claveUnidad: string;
   unidad: string;
   defaultUnitPrice?: number;
+  objectImp: BillingServiceConcept["objectImp"];
   ivaAplica: boolean;
   retencionAplica: boolean;
 };
@@ -55,6 +57,7 @@ const emptyForm = (): FormState => ({
   claveUnidad: "E48",
   unidad: "Servicio",
   defaultUnitPrice: undefined,
+  objectImp: "02",
   ivaAplica: true,
   retencionAplica: false,
 });
@@ -70,6 +73,7 @@ function serviceToForm(service: BillingServiceConcept): FormState {
     claveUnidad: service.claveUnidad,
     unidad: service.unidad,
     defaultUnitPrice: service.defaultUnitPrice ?? undefined,
+    objectImp: service.objectImp,
     ivaAplica: service.ivaAplica,
     retencionAplica: service.retencionAplica,
   };
@@ -138,7 +142,9 @@ interface BillingServiceConceptFormPanelProps {
   isCreating: boolean;
   editingId: string | null;
   isPending: boolean;
-  canWrite: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
   isInactive: boolean;
   onCancel: () => void;
   onDeactivate: () => void;
@@ -151,7 +157,9 @@ function BillingServiceConceptFormPanel({
   isCreating,
   editingId,
   isPending,
-  canWrite,
+  canCreate,
+  canUpdate,
+  canDelete,
   isInactive,
   onCancel,
   onDeactivate,
@@ -160,7 +168,11 @@ function BillingServiceConceptFormPanel({
 }: BillingServiceConceptFormPanelProps) {
   const [form, setForm] = useState(initial);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const readOnly = !canWrite;
+  const canMutateFields = isCreating ? canCreate : canUpdate;
+  const readOnly = !canMutateFields;
+  const showFooter =
+    (isCreating && canCreate) ||
+    (!isCreating && (canUpdate || canDelete));
 
   const formTitle = isCreating
     ? copy.form.createTitle
@@ -319,12 +331,12 @@ function BillingServiceConceptFormPanel({
         </div>
       </div>
 
-      {canWrite ? (
+      {showFooter ? (
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
             {copy.form.cancel}
           </Button>
-          {editingId && !isCreating && isInactive ? (
+          {editingId && !isCreating && isInactive && canUpdate ? (
             <Button
               type="button"
               variant="outline"
@@ -334,7 +346,7 @@ function BillingServiceConceptFormPanel({
               {copy.form.reactivate}
             </Button>
           ) : null}
-          {editingId && !isCreating && !isInactive ? (
+          {editingId && !isCreating && !isInactive && canDelete ? (
             <Button
               type="button"
               variant="outline"
@@ -344,7 +356,7 @@ function BillingServiceConceptFormPanel({
               {copy.form.deactivate}
             </Button>
           ) : null}
-          {!isInactive || isCreating ? (
+          {(!isInactive || isCreating) && canMutateFields ? (
             <Button type="button" onClick={() => void handleSave()} disabled={isPending}>
               {copy.form.save}
             </Button>
@@ -357,7 +369,10 @@ function BillingServiceConceptFormPanel({
 
 export function BillingServiceConceptMasterDetail() {
   const { hasPermission } = usePermissions();
-  const canWrite = hasPermission("billing_service_concepts", "create");
+  const { toast } = useToast();
+  const canCreate = hasPermission("billing_service_concepts", "create");
+  const canUpdate = hasPermission("billing_service_concepts", "update");
+  const canDelete = hasPermission("billing_service_concepts", "delete");
   const [showInactive, setShowInactive] = useState(false);
 
   const listParams = showInactive ? undefined : { isActive: true as const };
@@ -368,9 +383,38 @@ export function BillingServiceConceptMasterDetail() {
     error,
     refetch,
   } = useBillingServiceConcepts(listParams);
-  const createMutation = useCreateBillingServiceConcept();
-  const updateMutation = useUpdateBillingServiceConcept();
-  const deleteMutation = useDeleteBillingServiceConcept();
+
+  const toastMutationError = (error: unknown) => {
+    const title =
+      isApiError(error) && error.code === "DUPLICATE_ENTRY"
+        ? copy.toast.duplicateName
+        : copy.toast.error;
+    toast({ title, variant: "destructive" });
+  };
+
+  const createMutation = useCreateBillingServiceConcept({
+    onSuccess: () => {
+      toast({ title: copy.toast.created });
+    },
+    onError: toastMutationError,
+  });
+  const updateMutation = useUpdateBillingServiceConcept({
+    onSuccess: (_data, variables) => {
+      toast({
+        title:
+          variables.payload.isActive === true
+            ? copy.toast.reactivated
+            : copy.toast.updated,
+      });
+    },
+    onError: toastMutationError,
+  });
+  const deleteMutation = useDeleteBillingServiceConcept({
+    onSuccess: () => {
+      toast({ title: copy.toast.deleted });
+    },
+    onError: toastMutationError,
+  });
 
   const sorted = useMemo(() => sortServices(services), [services]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -381,7 +425,7 @@ export function BillingServiceConceptMasterDetail() {
 
   const isForbidden = isError && isApiError(error) && error.status === 403;
   const isEmpty = !isError && sorted.length === 0;
-  const showCreateForm = canWrite && (isCreating || isEmpty);
+  const showCreateForm = canCreate && (isCreating || isEmpty);
 
   const displaySelectedId = showCreateForm
     ? null
@@ -420,7 +464,7 @@ export function BillingServiceConceptMasterDetail() {
       setIsCreating(false);
       return;
     }
-    setIsCreating(isEmpty && canWrite);
+    setIsCreating(isEmpty && canCreate);
     setSelectedId(null);
   };
 
@@ -431,36 +475,48 @@ export function BillingServiceConceptMasterDetail() {
       claveUnidad: form.claveUnidad,
       unidad: form.unidad.trim(),
       defaultUnitPrice: form.defaultUnitPrice,
-      objectImp: "02" as const,
+      objectImp: form.objectImp,
       ivaAplica: form.ivaAplica,
       retencionAplica: form.retencionAplica,
     };
 
-    if (displaySelectedId && !showCreateForm) {
-      await updateMutation.mutateAsync({ id: displaySelectedId, payload });
-      return;
-    }
+    try {
+      if (displaySelectedId && !showCreateForm) {
+        await updateMutation.mutateAsync({ id: displaySelectedId, payload });
+        return;
+      }
 
-    const created = await createMutation.mutateAsync(payload);
-    setSelectedId(created.id);
-    setIsCreating(false);
+      const created = await createMutation.mutateAsync(payload);
+      setSelectedId(created.id);
+      setIsCreating(false);
+    } catch {
+      // Toast ya en onError del hook; evitar unhandled rejection.
+    }
   };
 
   const handleReactivate = async () => {
     if (!selected) return;
-    await updateMutation.mutateAsync({
-      id: selected.id,
-      payload: { isActive: true },
-    });
+    try {
+      await updateMutation.mutateAsync({
+        id: selected.id,
+        payload: { isActive: true },
+      });
+    } catch {
+      // Toast ya en onError del hook; evitar unhandled rejection.
+    }
   };
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
-    await deleteMutation.mutateAsync(pendingDelete.id);
-    setPendingDelete(null);
-    if (selectedId === pendingDelete.id) {
-      setSelectedId(null);
-      setIsCreating(sorted.length <= 1 && canWrite);
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id);
+      setPendingDelete(null);
+      if (selectedId === pendingDelete.id) {
+        setSelectedId(null);
+        setIsCreating(sorted.length <= 1 && canCreate);
+      }
+    } catch {
+      // Toast ya en onError del hook; evitar unhandled rejection.
     }
   };
 
@@ -516,7 +572,7 @@ export function BillingServiceConceptMasterDetail() {
             />
             {copy.list.showInactive}
           </label>
-          {canWrite ? (
+          {canCreate ? (
             <Button type="button" size="sm" onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
               {copy.list.add}
@@ -537,12 +593,12 @@ export function BillingServiceConceptMasterDetail() {
               icon={<Package className="h-10 w-10 text-muted-foreground" />}
               title={copy.list.emptyTitle}
               description={
-                canWrite
+                canCreate
                   ? copy.list.emptyDescription
                   : copy.list.emptyReadOnlyDescription
               }
               cta={
-                canWrite
+                canCreate
                   ? {
                       label: copy.list.add,
                       onClick: handleCreate,
@@ -570,7 +626,9 @@ export function BillingServiceConceptMasterDetail() {
               isCreating={showCreateForm}
               editingId={displaySelectedId}
               isPending={isPending}
-              canWrite={canWrite}
+              canCreate={canCreate}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
               isInactive={selected != null && !selected.isActive}
               onCancel={handleCancel}
               onDeactivate={() => selected && setPendingDelete(selected)}

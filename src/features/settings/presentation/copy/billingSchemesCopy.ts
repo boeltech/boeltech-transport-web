@@ -4,14 +4,15 @@ export const billingSchemesCopy = {
   page: {
     title: "Esquemas de facturación",
     description:
-      "Define cuándo agrupar el envío por correo de facturas ya listas. No genera facturas. Sin esquema, el cliente sigue en Por facturar.",
+      "Configura con qué frecuencia se prepara el envío de facturas por correo a cada cliente.",
+    assignmentTip: "Para activarlo, asígnalo a tus clientes.",
+    clientsCta: "Ir a clientes",
   },
   list: {
     title: "Esquemas",
     add: "Nuevo esquema",
     emptyTitle: "Sin esquemas configurados",
-    emptyDescription:
-      "Crea un esquema para definir cuándo agrupar el envío por cliente.",
+    emptyDescription: "Crea el primer esquema para definir la cadencia de envío.",
     loading: "Cargando esquemas…",
     defaultBadge: "Predeterminado",
     inactiveBadge: "Inactivo",
@@ -24,6 +25,15 @@ export const billingSchemesCopy = {
     periodic_monthly: "Mensual",
   } satisfies Record<BillingCadenceKind, string>,
   weekdays: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] as const,
+  weekdaysLong: [
+    "domingo",
+    "lunes",
+    "martes",
+    "miércoles",
+    "jueves",
+    "viernes",
+    "sábado",
+  ] as const,
   naturalDescription: {
     event: (hours: number) =>
       `Cuando un viaje se cierra, sus facturas listas pueden incluirse en un envío hasta ${hours} horas después del cierre.`,
@@ -45,10 +55,7 @@ export const billingSchemesCopy = {
   detail: {
     summaryTitle: "Resumen",
     periodRuleTitle: "Regla del periodo",
-    assignmentTitle: "Al asignar a un cliente",
-    assignmentBody:
-      "El cliente puede entrar a envíos programados de este esquema. Sin esquema asignado, solo aparece en Por facturar.",
-    clientsCta: "Ir a clientes",
+    periodExampleTitle: "¿Qué facturas entran?",
     detailsTitle: "Detalles",
     createdAt: (label: string) => `Creado: ${label}`,
     updatedAt: (label: string) => `Última actualización: ${label}`,
@@ -65,17 +72,36 @@ export const billingSchemesCopy = {
       tripInclusion:
         "Viajes incluidos: cerrados en el periodo (fecha de cierre operativo del viaje)",
     },
+    periodExample: {
+      event: (hours: number) =>
+        `Cada vez que se cierra un viaje, las facturas listas de ese viaje pueden incluirse en un envío hasta ${hours} horas después del cierre. No hay periodo fijo: el envío se activa por el cierre de cada viaje.`,
+      weekly: (daysLong: string) =>
+        `Ejemplo: cada ${daysLong} se prepara un envío con las facturas de viajes cerrados desde el último corte hasta ese día.`,
+      decadal: (parts: string) => `Ejemplo: ${parts}`,
+      monthlyDays: (days: string) =>
+        `Ejemplo: el envío del día ${days} incluye facturas de viajes cerrados del 1 al ${days} del mes.`,
+      monthlyDaysMulti: (days: string) =>
+        `Ejemplo: los días ${days} de cada mes se prepara un envío con las facturas de viajes cerrados desde el último corte hasta ese día.`,
+      monthlyBusiness: (n: number) =>
+        `Ejemplo: el envío se prepara el ${n}.º día hábil del mes e incluye facturas de viajes cerrados desde el último corte hasta ese día.`,
+      fallback:
+        "Las facturas de viajes cerrados en el periodo de corte pueden incluirse en el siguiente envío.",
+    },
   },
   form: {
     createTitle: "Nuevo esquema",
     editTitle: "Editar esquema",
+    createDescription: "Nombra el esquema y configura la frecuencia de corte.",
+    editDescription: "Ajusta la configuración del esquema.",
     name: "Nombre",
     nameHint: "Ej. Corte semanal jueves–viernes",
     cadence: "¿Con qué frecuencia se prepara el envío?",
-    cadenceHint: "Cuándo se agrupa el correo con las facturas listas del periodo.",
+    cadenceHint:
+      "Cada opción define un ciclo de corte distinto. Las facturas de viajes cerrados entre un corte y el siguiente se incluyen en el envío.",
     isDefault: "Esquema predeterminado",
     isDefaultHint:
       "Se ofrece por defecto al asignar clientes (o si el cliente no tiene esquema). Solo uno activo puede serlo.",
+    previewLabel: "Así se vería el envío",
     params: {
       windowHours: "Horas después de cerrar el viaje",
       windowHoursHint:
